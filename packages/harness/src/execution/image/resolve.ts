@@ -5,7 +5,7 @@ import { DEFAULT_SANDBOX_IMAGE } from '../docker/sandbox'
 import { EBuildContext } from './build'
 import { type Mount } from './mounts'
 import { parseContainerJson, parseDevcontainerJson } from './parse'
-import { EConfigRefusal, type ConfigRefusal } from './refusals'
+import { type ConfigRefusal } from './refusals'
 
 export enum EConfigSource {
   ContainerJson = 'container.json',
@@ -40,12 +40,7 @@ export const readTextFile: TextFileReader = async (path) => {
   try {
     return await readFile(path, 'utf8')
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    ) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
       return undefined
     }
     throw error

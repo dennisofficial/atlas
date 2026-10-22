@@ -103,7 +103,10 @@ describe('createOrResume', () => {
     const events: string[] = []
     trackSwap({ sandbox: stale, events, serveRetired: true })
 
-    const placement = await swapDriver({ sandbox: stale, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
+    const placement = await swapDriver({
+      sandbox: stale,
+      runtimeHealth: IDLE_HEALTH,
+    }).createOrResume(request)
 
     expect(events).toEqual(['download'])
     expect(stale.deleted).toBe(false)
@@ -137,7 +140,12 @@ describe('createOrResume', () => {
   })
 
   it('preserves a busy sandbox and its drive when its serve cannot confirm preparation', async () => {
-    const stale = fakeSandbox({ installedVersion: '1.80.0', installedProtocol: '', drainStatus: '404', alive: true })
+    const stale = fakeSandbox({
+      installedVersion: '1.80.0',
+      installedProtocol: '',
+      drainStatus: '404',
+      alive: true,
+    })
     const fresh = fakeSandbox()
     const driver = new VercelDriver({
       credentials: CREDENTIALS,
@@ -186,7 +194,10 @@ describe('createOrResume', () => {
     const events: string[] = []
     trackSwap({ sandbox: stale, events, serveRetired: true })
 
-    const placement = await swapDriver({ sandbox: stale, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
+    const placement = await swapDriver({
+      sandbox: stale,
+      runtimeHealth: IDLE_HEALTH,
+    }).createOrResume(request)
 
     expect(events).toEqual(['download'])
     expect(stale.deleted).toBe(false)
@@ -198,7 +209,10 @@ describe('createOrResume', () => {
     const events: string[] = []
     trackSwap({ sandbox: ancient, events, serveRetired: true })
 
-    const placement = await swapDriver({ sandbox: ancient, runtimeHealth: IDLE_HEALTH }).createOrResume(request)
+    const placement = await swapDriver({
+      sandbox: ancient,
+      runtimeHealth: IDLE_HEALTH,
+    }).createOrResume(request)
 
     expect(events).toEqual(['download'])
     expect(ancient.deleted).toBe(false)

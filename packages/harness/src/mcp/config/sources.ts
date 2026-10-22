@@ -2,11 +2,7 @@ import { readFile } from 'node:fs/promises'
 
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 
-import {
-  compatMcpFile,
-  projectMcpFile,
-  userMcpFile,
-} from '../../settings/paths'
+import { compatMcpFile, projectMcpFile, userMcpFile } from '../../settings/paths'
 import {
   compatMcpEntryToNative,
   mcpConfigFileSchema,
@@ -82,8 +78,7 @@ const formatIssues = (
     })
     .join('; ')
 
-const nameIsValid = (name: string): boolean =>
-  mcpSpecSchema.shape.name.safeParse(name).success
+const nameIsValid = (name: string): boolean => mcpSpecSchema.shape.name.safeParse(name).success
 
 function readMcpJson(args: {
   text: string
@@ -137,7 +132,11 @@ function readMcpJson(args: {
 
 abstract class FileBackedMcpSource extends McpSource {
   protected constructor(
-    private readonly args: { file: string; read: McpTextReader; toNative?: (entry: unknown) => unknown },
+    private readonly args: {
+      file: string
+      read: McpTextReader
+      toNative?: (entry: unknown) => unknown
+    },
   ) {
     super()
   }

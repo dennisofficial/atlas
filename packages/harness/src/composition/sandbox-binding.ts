@@ -118,14 +118,13 @@ export async function bindSandbox(args: {
         status.mark(sandboxStatus)
         if (sandboxStatus.state !== ESandboxState.Running) return
 
-        built.warnings.forEach((warning, at) =>
+        for (const [at, warning] of built.warnings.entries())
           notice.notify({
             key: `sandbox-warning-${at}`,
             tone: ENoticeTone.Warn,
             ttlMs: NOTICE_WARN_MS,
             text: warning,
-          }),
-        )
+          })
       },
     })
     boundSession = session

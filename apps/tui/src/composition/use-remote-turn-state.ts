@@ -148,11 +148,13 @@ export function useRemoteTurnState(args: {
       }),
     )
     if (remote !== null) {
-      unsubscribed.push(remote.onServerError((error) => {
-        if (runningRef.current || !awaitingLifecycle.current) return
-        failure.current(error.message)
-        handleSettled()
-      }))
+      unsubscribed.push(
+        remote.onServerError((error) => {
+          if (runningRef.current || !awaitingLifecycle.current) return
+          failure.current(error.message)
+          handleSettled()
+        }),
+      )
     }
     return () => {
       for (const unsubscribe of unsubscribed) unsubscribe()
@@ -173,9 +175,18 @@ export function useRemoteTurnState(args: {
   }, [remote])
 
   const whenSettled = useCallback((): Promise<void> => {
-    if (!runningRef.current && !awaitingLifecycle.current && settling.current === 0) return Promise.resolve()
+    if (!runningRef.current && !awaitingLifecycle.current && settling.current === 0)
+      return Promise.resolve()
     return new Promise((resolve) => settleListeners.current.add(resolve))
   }, [])
 
-  return { running, runningRef, settling: settlingNow, interruptRequested, interrupt, pause, whenSettled }
+  return {
+    running,
+    runningRef,
+    settling: settlingNow,
+    interruptRequested,
+    interrupt,
+    pause,
+    whenSettled,
+  }
 }

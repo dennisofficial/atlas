@@ -18,11 +18,7 @@ const DEV_PINNED = 'dev-bbbbbbbbbbbb'
 
 const BUSY: ServeRuntimeHealth = { ...FULL_IDLE, busy: true, clients: 1 }
 
-const devProbe = (args: {
-  installed: string
-  health: ServeRuntimeHealth
-  events: string[]
-}) =>
+const devProbe = (args: { installed: string; health: ServeRuntimeHealth; events: string[] }) =>
   probeSandboxForResume({
     name: 'atlas-thread-x',
     pinned: DEV_PINNED,

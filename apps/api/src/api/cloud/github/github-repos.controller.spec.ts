@@ -14,7 +14,12 @@ const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': '
 const GITHUB_TOKENS: Record<string, string> = { 'user-a': 'gho_user-a' }
 
 const REPOS = [
-  { fullName: 'octocat/Hello-World', isPrivate: false, defaultBranch: 'main', pushedAt: '2026-10-20T10:00:00Z' },
+  {
+    fullName: 'octocat/Hello-World',
+    isPrivate: false,
+    defaultBranch: 'main',
+    pushedAt: '2026-10-20T10:00:00Z',
+  },
   { fullName: 'acme/secret', isPrivate: true, defaultBranch: 'trunk', pushedAt: null },
 ]
 
@@ -54,7 +59,9 @@ describe('github repos HTTP surface', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 

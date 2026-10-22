@@ -16,14 +16,20 @@ export type PngCodec = {
 const SIGNATURE_LENGTH = 8
 
 const readUint32BE = (bytes: Uint8Array, offset: number): number =>
-  (((bytes[offset] ?? 0) << 24) | ((bytes[offset + 1] ?? 0) << 16) | ((bytes[offset + 2] ?? 0) << 8) | (bytes[offset + 3] ?? 0)) >>> 0
+  (((bytes[offset] ?? 0) << 24) |
+    ((bytes[offset + 1] ?? 0) << 16) |
+    ((bytes[offset + 2] ?? 0) << 8) |
+    (bytes[offset + 3] ?? 0)) >>>
+  0
 
 type PngHeader = { size: ImageSize; bitDepth: number; colourType: number }
 
 /** Samples per pixel by colour type (PNG spec section 6.1): grey 1, rgb 3, indexed 1, grey+alpha 2, rgba 4. */
 const CHANNELS: Readonly<Record<number, number>> = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }
 
-function parseChunks(bytes: Uint8Array): { header: PngHeader; palette: Uint8Array | null; idat: Uint8Array[] } | null {
+function parseChunks(
+  bytes: Uint8Array,
+): { header: PngHeader; palette: Uint8Array | null; idat: Uint8Array[] } | null {
   const size = pngSize(bytes)
   if (size === null) return null
 
@@ -34,7 +40,12 @@ function parseChunks(bytes: Uint8Array): { header: PngHeader; palette: Uint8Arra
   let offset = SIGNATURE_LENGTH
   while (offset + 12 <= bytes.byteLength) {
     const length = readUint32BE(bytes, offset)
-    const type = String.fromCharCode(bytes[offset + 4] ?? 0, bytes[offset + 5] ?? 0, bytes[offset + 6] ?? 0, bytes[offset + 7] ?? 0)
+    const type = String.fromCharCode(
+      bytes[offset + 4] ?? 0,
+      bytes[offset + 5] ?? 0,
+      bytes[offset + 6] ?? 0,
+      bytes[offset + 7] ?? 0,
+    )
     const data = bytes.subarray(offset + 8, offset + 8 + length)
     if (data.byteLength < length) return null
 
@@ -42,7 +53,11 @@ function parseChunks(bytes: Uint8Array): { header: PngHeader; palette: Uint8Arra
       if (length !== 13) return null
       const interlace = bytes[offset + 8 + 12] ?? 0
       if (interlace !== 0) return null
-      header = { size, bitDepth: bytes[offset + 8 + 8] ?? 0, colourType: bytes[offset + 8 + 9] ?? 0 }
+      header = {
+        size,
+        bitDepth: bytes[offset + 8 + 8] ?? 0,
+        colourType: bytes[offset + 8 + 9] ?? 0,
+      }
     } else if (type === 'PLTE') {
       palette = new Uint8Array(data)
     } else if (type === 'IDAT') {
@@ -110,7 +125,9 @@ function unfilter(args: {
         const toLeft = Math.abs(p - left)
         const toUp = Math.abs(p - up)
         const toUpLeft = Math.abs(p - upLeft)
-        row[x] = (value + (toLeft <= toUp && toLeft <= toUpLeft ? left : toUp <= toUpLeft ? up : upLeft)) & 0xff
+        row[x] =
+          (value + (toLeft <= toUp && toLeft <= toUpLeft ? left : toUp <= toUpLeft ? up : upLeft)) &
+          0xff
       }
     }
 
@@ -134,7 +151,13 @@ export function decodePng(bytes: Uint8Array, codec: PngCodec): RgbaImage | null 
 
   const channels = CHANNELS[header.colourType]
   if (channels === undefined) return null
-  if (header.bitDepth !== 8 && header.bitDepth !== 4 && header.bitDepth !== 2 && header.bitDepth !== 1) return null
+  if (
+    header.bitDepth !== 8 &&
+    header.bitDepth !== 4 &&
+    header.bitDepth !== 2 &&
+    header.bitDepth !== 1
+  )
+    return null
   if (header.bitDepth !== 8 && header.colourType !== 0 && header.colourType !== 3) return null
   if (header.colourType === 3 && palette === null) return null
 
@@ -158,7 +181,8 @@ export function decodePng(bytes: Uint8Array, codec: PngCodec): RgbaImage | null 
 
   for (let y = 0; y < height; y += 1) {
     const row = rows.subarray(y * scanlineBytes, (y + 1) * scanlineBytes)
-    const packed = header.bitDepth === 8 ? null : unpackRowBits(row, width * channels, header.bitDepth)
+    const packed =
+      header.bitDepth === 8 ? null : unpackRowBits(row, width * channels, header.bitDepth)
 
     for (let x = 0; x < width; x += 1) {
       const at = (y * width + x) * 4
@@ -257,7 +281,11 @@ const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 
  * larger than the original the clipboard handed us. Bytes above 127 score as negative, so a
  * residual of 255 (one off, the wrong way) costs 1, not 255.
  */
-function filterRow(args: { row: Uint8Array; prior: Uint8Array | null; pixelBytes: number }): Uint8Array {
+function filterRow(args: {
+  row: Uint8Array
+  prior: Uint8Array | null
+  pixelBytes: number
+}): Uint8Array {
   const { row, prior, pixelBytes } = args
   const stride = row.byteLength
 
@@ -318,7 +346,11 @@ export function encodePng(image: RgbaImage, codec: PngCodec): Uint8Array {
     prior = new Uint8Array(row)
   }
 
-  const header = joinBytes([uint32BEBytes(width), uint32BEBytes(height), new Uint8Array([8, 6, 0, 0, 0])])
+  const header = joinBytes([
+    uint32BEBytes(width),
+    uint32BEBytes(height),
+    new Uint8Array([8, 6, 0, 0, 0]),
+  ])
 
   return joinBytes([
     PNG_SIGNATURE,
@@ -337,7 +369,8 @@ export function downscaleRgba(image: RgbaImage, target: ImageSize): RgbaImage {
   const { width, height } = image.size
   const { width: outWidth, height: outHeight } = target
 
-  if (outWidth >= width && outHeight >= height) return { size: image.size, rgba: new Uint8Array(image.rgba) }
+  if (outWidth >= width && outHeight >= height)
+    return { size: image.size, rgba: new Uint8Array(image.rgba) }
 
   const horizontal = new Uint8Array(outWidth * height * 4)
   const xRatio = width / outWidth
@@ -411,10 +444,15 @@ export function downscaleRgba(image: RgbaImage, target: ImageSize): RgbaImage {
  * stream, an upscale, or a re-encode that comes out LARGER than the original all refuse, and the
  * caller keeps the original bytes.
  */
-export function downscalePng(args: { bytes: Uint8Array; target: ImageSize; codec: PngCodec }): Uint8Array | null {
+export function downscalePng(args: {
+  bytes: Uint8Array
+  target: ImageSize
+  codec: PngCodec
+}): Uint8Array | null {
   const decoded = decodePng(args.bytes, args.codec)
   if (decoded === null) return null
-  if (args.target.width >= decoded.size.width && args.target.height >= decoded.size.height) return null
+  if (args.target.width >= decoded.size.width && args.target.height >= decoded.size.height)
+    return null
 
   const encoded = encodePng(downscaleRgba(decoded, args.target), args.codec)
   return encoded.byteLength < args.bytes.byteLength ? encoded : null

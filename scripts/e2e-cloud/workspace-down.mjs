@@ -152,7 +152,8 @@ writeFileSync(join(serveCwd, 'cloud-only.txt'), 'made in the sandbox\n')
 const second = await publish()
 if (second === null) fail('the second publish should carry the cloud work')
 const secondMerge = await mergeHome(second)
-if (secondMerge.conflicts.length !== 0) fail(`clean work reported conflicts: ${secondMerge.conflicts}`)
+if (secondMerge.conflicts.length !== 0)
+  fail(`clean work reported conflicts: ${secondMerge.conflicts}`)
 if (readFileSync(join(local, 'cloud-only.txt'), 'utf8') !== 'made in the sandbox\n') {
   fail('the cloud-made file never came home')
 }
@@ -166,7 +167,10 @@ if (refsIn(remote).includes(second.ref)) fail('the scratch ref survived the merg
 log('leg 2: cloud-only work lands locally as uncommitted changes, even appended after lifted lines')
 
 writeFileSync(join(local, 'app.txt'), 'alpha local\ngamma\nlifted local edit\ncloud line\n')
-writeFileSync(join(serveCwd, 'app.txt'), 'alpha cloud\nbeta\ngamma\nlifted local edit\ncloud line\n')
+writeFileSync(
+  join(serveCwd, 'app.txt'),
+  'alpha cloud\nbeta\ngamma\nlifted local edit\ncloud line\n',
+)
 const third = await publish()
 if (third === null) fail('the third publish should carry the overlapping edit')
 const thirdMerge = await mergeHome(third)
@@ -174,7 +178,11 @@ if (thirdMerge.conflicts.length !== 1 || thirdMerge.conflicts[0] !== 'app.txt') 
   fail(`the overlap should conflict on app.txt, got: ${thirdMerge.conflicts}`)
 }
 const conflicted = readFileSync(join(local, 'app.txt'), 'utf8')
-if (!conflicted.includes('<<<<<<<') || !conflicted.includes('alpha local') || !conflicted.includes('alpha cloud')) {
+if (
+  !conflicted.includes('<<<<<<<') ||
+  !conflicted.includes('alpha local') ||
+  !conflicted.includes('alpha cloud')
+) {
   fail(`the conflicted file holds no markers: ${conflicted}`)
 }
 if (headOf(local) !== lifted) fail('the conflicting merge moved HEAD')

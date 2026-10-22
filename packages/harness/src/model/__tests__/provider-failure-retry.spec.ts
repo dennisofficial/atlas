@@ -25,7 +25,12 @@ const providerError = (args: {
     ...(args.responseHeaders === undefined ? {} : { responseHeaders: args.responseHeaders }),
   })
 
-const streamError = (args: { statusCode?: number; message?: string; isRetryable?: boolean; data?: unknown }): StreamProviderError =>
+const streamError = (args: {
+  statusCode?: number
+  message?: string
+  isRetryable?: boolean
+  data?: unknown
+}): StreamProviderError =>
   new StreamProviderError({
     message: args.message ?? 'upstream said no',
     ...(args.statusCode === undefined ? {} : { statusCode: args.statusCode }),
@@ -33,9 +38,12 @@ const streamError = (args: { statusCode?: number; message?: string; isRetryable?
     ...(args.data === undefined ? {} : { data: args.data }),
   })
 
-const wrapped = (cause: unknown): ModelStreamError => new ModelStreamError({ message: 'wrapped', cause })
+const wrapped = (cause: unknown): ModelStreamError =>
+  new ModelStreamError({ message: 'wrapped', cause })
 
-const kinds: ReadonlyArray<readonly [string, (args: Parameters<typeof providerError>[0]) => unknown]> = [
+const kinds: ReadonlyArray<
+  readonly [string, (args: Parameters<typeof providerError>[0]) => unknown]
+> = [
   ['an api error', providerError],
   ['a mid-stream provider error', streamError],
   ['a wrapped api error', (args) => wrapped(providerError(args))],
@@ -44,7 +52,9 @@ const kinds: ReadonlyArray<readonly [string, (args: Parameters<typeof providerEr
 
 describe.each(kinds)('reading the upstream provider failure off %s', (_name, build) => {
   it('retries a 400 that carries the upstream provider message, whatever the SDK flag says', () => {
-    const failure = modelFailureOf(build({ statusCode: 400, message: UPSTREAM_TEXT, isRetryable: false }))
+    const failure = modelFailureOf(
+      build({ statusCode: 400, message: UPSTREAM_TEXT, isRetryable: false }),
+    )
 
     expect(failure).toEqual({ status: 400, retryable: true })
   })
@@ -61,7 +71,9 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
   })
 
   it('does not retry an arbitrary 400', () => {
-    expect(modelFailureOf(build({ statusCode: 400, message: 'bad tool schema' }))).toEqual({ status: 400 })
+    expect(modelFailureOf(build({ statusCode: 400, message: 'bad tool schema' }))).toEqual({
+      status: 400,
+    })
   })
 
   it('does not match the message as a substring', () => {
@@ -73,7 +85,10 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
   })
 
   it('honors a custom retryable flag on a 400', () => {
-    expect(modelFailureOf(build({ statusCode: 400, isRetryable: true }))).toEqual({ status: 400, retryable: true })
+    expect(modelFailureOf(build({ statusCode: 400, isRetryable: true }))).toEqual({
+      status: 400,
+      retryable: true,
+    })
   })
 
   it.each([408, 409])('honors the retryable flag on a %i', (statusCode) => {
@@ -83,11 +98,16 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
     })
   })
 
-  it.each([401, 402, 403, 404, 413, 422])('keeps %i non-retryable despite the upstream text and a flag', (statusCode) => {
-    const failure = modelFailureOf(build({ statusCode, message: UPSTREAM_TEXT, isRetryable: true }))
+  it.each([401, 402, 403, 404, 413, 422])(
+    'keeps %i non-retryable despite the upstream text and a flag',
+    (statusCode) => {
+      const failure = modelFailureOf(
+        build({ statusCode, message: UPSTREAM_TEXT, isRetryable: true }),
+      )
 
-    expect(failure).toEqual({ status: statusCode })
-  })
+      expect(failure).toEqual({ status: statusCode })
+    },
+  )
 
   it.each(['upstream_error', 'server_error', 'internal_server_error', 'service_unavailable'])(
     'retries a 400 whose provider code is %s',
@@ -99,7 +119,9 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
   )
 
   it('retries a 400 whose provider type is a server fault', () => {
-    const failure = modelFailureOf(build({ statusCode: 400, data: { error: { type: 'server_error' } } }))
+    const failure = modelFailureOf(
+      build({ statusCode: 400, data: { error: { type: 'server_error' } } }),
+    )
 
     expect(failure).toEqual({ status: 400, retryable: true })
   })
@@ -124,14 +146,17 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
     expect(failure).toEqual({ status: 400 })
   })
 
-  it.each(['invalid_request_error', 'invalid_request'])('lets the upstream message win over the generic %s label', (label) => {
-    const data = { error: { type: label, code: label } }
+  it.each(['invalid_request_error', 'invalid_request'])(
+    'lets the upstream message win over the generic %s label',
+    (label) => {
+      const data = { error: { type: label, code: label } }
 
-    expect(modelFailureOf(build({ statusCode: 400, message: UPSTREAM_TEXT, data }))).toEqual({
-      status: 400,
-      retryable: true,
-    })
-  })
+      expect(modelFailureOf(build({ statusCode: 400, message: UPSTREAM_TEXT, data }))).toEqual({
+        status: 400,
+        retryable: true,
+      })
+    },
+  )
 
   it('lets an upstream code win over the generic invalid_request_error type', () => {
     const data = {
@@ -144,25 +169,28 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
     })
   })
 
-  it.each(['invalid_api_key', 'insufficient_quota', 'context_length_exceeded', 'billing_hard_limit_reached', 'payment_required'])(
-    'keeps a 400 fail-fast when a permanent code %s rides with the upstream message',
-    (code) => {
-      const data = { error: { type: 'invalid_request_error', code } }
+  it.each([
+    'invalid_api_key',
+    'insufficient_quota',
+    'context_length_exceeded',
+    'billing_hard_limit_reached',
+    'payment_required',
+  ])('keeps a 400 fail-fast when a permanent code %s rides with the upstream message', (code) => {
+    const data = { error: { type: 'invalid_request_error', code } }
 
-      expect(
-        modelFailureOf(
-          build({
-            statusCode: 400,
-            message: UPSTREAM_TEXT,
-            isRetryable: true,
-            data,
-          }),
-        ),
-      ).toEqual({
-        status: 400,
-      })
-    },
-  )
+    expect(
+      modelFailureOf(
+        build({
+          statusCode: 400,
+          message: UPSTREAM_TEXT,
+          isRetryable: true,
+          data,
+        }),
+      ),
+    ).toEqual({
+      status: 400,
+    })
+  })
 
   it('does not block existing 429 and 5xx behavior with an invalid-request identifier', () => {
     const data = { error: { code: 'invalid_request_error' } }
@@ -176,7 +204,9 @@ describe.each(kinds)('reading the upstream provider failure off %s', (_name, bui
   })
 
   it('does not add a retryable override to statuses core already retries', () => {
-    expect(modelFailureOf(build({ statusCode: 502, message: UPSTREAM_TEXT }))).toEqual({ status: 502 })
+    expect(modelFailureOf(build({ statusCode: 502, message: UPSTREAM_TEXT }))).toEqual({
+      status: 502,
+    })
   })
 })
 
@@ -208,7 +238,9 @@ describe('refusing to trust the upstream text without a provider error', () => {
   })
 
   it('refuses an api error with the upstream text and no status', () => {
-    expect(modelFailureOf(providerError({ message: UPSTREAM_TEXT, isRetryable: false }))).toEqual({})
+    expect(modelFailureOf(providerError({ message: UPSTREAM_TEXT, isRetryable: false }))).toEqual(
+      {},
+    )
   })
 })
 
@@ -234,7 +266,9 @@ describe('reading a mid-stream provider error that carries no status', () => {
   it.each(['upstream_error', 'server_error', 'internal_server_error', 'service_unavailable'])(
     'retries one whose provider code is %s',
     (code) => {
-      expect(modelFailureOf(streamError({ isRetryable: false, data: { error: { code } } }))).toEqual({})
+      expect(
+        modelFailureOf(streamError({ isRetryable: false, data: { error: { code } } })),
+      ).toEqual({})
     },
   )
 
@@ -252,14 +286,18 @@ describe('reading a mid-stream provider error that carries no status', () => {
   it('lets the upstream message win over the generic invalid_request_error label', () => {
     const data = { error: { type: 'invalid_request_error' } }
 
-    expect(modelFailureOf(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data }))).toEqual({})
+    expect(
+      modelFailureOf(streamError({ message: UPSTREAM_TEXT, isRetryable: false, data })),
+    ).toEqual({})
     const invalid = streamError({ message: 'bad tool schema', isRetryable: true, data })
     expect(modelFailureOf(invalid)).toBeNull()
     expect(modelFailureOf(wrapped(invalid))).toBeNull()
   })
 
   it('refuses an unrecognised message with no status', () => {
-    expect(modelFailureOf(streamError({ message: 'bad tool schema', isRetryable: false }))).toBeNull()
+    expect(
+      modelFailureOf(streamError({ message: 'bad tool schema', isRetryable: false })),
+    ).toBeNull()
   })
 
   it('refuses a message that merely contains the upstream text', () => {
@@ -273,7 +311,13 @@ describe('reading a mid-stream provider error that carries no status', () => {
     ).toBeNull()
   })
 
-  it.each(['invalid_api_key', 'insufficient_quota', 'context_length_exceeded', 'billing_hard_limit_reached', 'payment_required'])(
+  it.each([
+    'invalid_api_key',
+    'insufficient_quota',
+    'context_length_exceeded',
+    'billing_hard_limit_reached',
+    'payment_required',
+  ])(
     'refuses a no-status billing or limit error coded %s even with the upstream message',
     (code) => {
       const data = { error: { code } }

@@ -12,7 +12,6 @@ import {
   type ActiveWorktree,
 } from '@dltech/atlas-core'
 
-
 import { ownIdentity } from '../../../workspace/process-identity'
 import { listWorktrees, lockWorktree } from '../../../workspace/worktrees'
 import { EnterWorktreeTool } from '../enter-worktree'
@@ -84,7 +83,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const outcome = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const outcome = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
 
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
@@ -111,7 +112,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const both = await enter.invoke(invocation({ input: { name: 'a', path: '/tmp/b' }, projectDirectory: root }))
+    const both = await enter.invoke(
+      invocation({ input: { name: 'a', path: '/tmp/b' }, projectDirectory: root }),
+    )
     const neither = await enter.invoke(invocation({ input: {}, projectDirectory: root }))
 
     expect(both.ok).toBe(false)
@@ -122,7 +125,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const outcome = await enter.invoke(invocation({ input: { name: '../escape' }, projectDirectory: root }))
+    const outcome = await enter.invoke(
+      invocation({ input: { name: '../escape' }, projectDirectory: root }),
+    )
 
     expect(outcome.ok).toBe(false)
     if (outcome.ok) return
@@ -133,7 +138,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const first = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const first = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
     expect(first.ok).toBe(true)
     if (!first.ok) return
 
@@ -155,7 +162,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const first = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const first = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
     expect(first.ok).toBe(true)
     if (!first.ok) return
     const inside = enteredWorktreeOf(first.output)?.path ?? root
@@ -175,7 +184,9 @@ describe('entering a worktree', () => {
     const root = await repoWithCommit()
     const { enter } = toolsFor(root)
 
-    const first = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const first = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
     expect(first.ok).toBe(true)
     if (!first.ok) return
     const inside = enteredWorktreeOf(first.output)?.path ?? root
@@ -196,7 +207,9 @@ describe('entering a worktree', () => {
     const stranger = await scratch()
     const { enter } = toolsFor(root)
 
-    const outcome = await enter.invoke(invocation({ input: { path: stranger }, projectDirectory: root }))
+    const outcome = await enter.invoke(
+      invocation({ input: { path: stranger }, projectDirectory: root }),
+    )
 
     expect(outcome.ok).toBe(false)
     if (outcome.ok) return
@@ -207,7 +220,9 @@ describe('entering a worktree', () => {
 describe('leaving a worktree', () => {
   const entered = async (root: string): Promise<ActiveWorktree> => {
     const { enter } = toolsFor(root)
-    const outcome = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const outcome = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
     if (!outcome.ok) throw new Error('could not enter')
     const entry = enteredWorktreeOf(outcome.output)
     if (entry === undefined) throw new Error('enter reported no worktree')
@@ -396,7 +411,9 @@ describe('leaving a worktree the session was launched inside', () => {
     expect(outcome.ok).toBe(true)
 
     const listing = await listWorktrees({ cwd: root })
-    const found = listing.ok ? listing.worktrees.find((worktree) => worktree.path === tree) : undefined
+    const found = listing.ok
+      ? listing.worktrees.find((worktree) => worktree.path === tree)
+      : undefined
     expect(found?.isLocked).toBe(false)
   })
 
@@ -462,7 +479,9 @@ describe('listing worktrees', () => {
     const root = await repoWithCommit()
     const { enter, list } = toolsFor(root)
 
-    const created = await enter.invoke(invocation({ input: { name: 'eng-327' }, projectDirectory: root }))
+    const created = await enter.invoke(
+      invocation({ input: { name: 'eng-327' }, projectDirectory: root }),
+    )
     expect(created.ok).toBe(true)
     if (!created.ok) return
     const inside = enteredWorktreeOf(created.output)?.path ?? root

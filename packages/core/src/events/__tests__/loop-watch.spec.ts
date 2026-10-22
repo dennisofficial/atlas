@@ -135,7 +135,9 @@ describe('loopWatchState', () => {
 
     expect(state).toContain('<system-untrusted source="agent-steps">')
     expect(state).toContain('- [2] agent: Deployed. Verifying what shipped (1)')
-    expect(state).toContain('- [3] tool bash: {"command":"curl -s https://factory.example.com/health"}')
+    expect(state).toContain(
+      '- [3] tool bash: {"command":"curl -s https://factory.example.com/health"}',
+    )
     expect(state).toContain('- [4] result: 200 OK')
   })
 
@@ -152,7 +154,13 @@ describe('loopWatchState', () => {
   })
 
   it('restarts the window at the latest nudge, grading what followed the warning', () => {
-    const events = eventsFrom([heard('ship it'), ...round(1), ...round(2), loopWatchNudgeDraft(), ...round(3)])
+    const events = eventsFrom([
+      heard('ship it'),
+      ...round(1),
+      ...round(2),
+      loopWatchNudgeDraft(),
+      ...round(3),
+    ])
     expect(loopWatchState({ events })).toBeUndefined()
 
     const later = eventsFrom([...events, ...round(4), ...round(5)])
@@ -178,7 +186,9 @@ describe('loopWatchState', () => {
 
     const state = loopWatchState({ events }) ?? ''
 
-    expect(state).toContain('- [5] sub-agent "deploy the thing" (builder) finished: Done. Draft PR #598 opened.')
+    expect(state).toContain(
+      '- [5] sub-agent "deploy the thing" (builder) finished: Done. Draft PR #598 opened.',
+    )
     expect(state).toContain('- [6] shell "Watch CI run" ended (exited, exit 0)')
     expect(state).toContain('- [7] shell "ssh prod" is waiting for input')
     expect(state).toContain('- [8] shell "Watch CI run" matched its watch (1 lines)')
@@ -248,7 +258,11 @@ describe('loopWatchState', () => {
       const drafts: EventDraft[] = []
       for (let ordinal = start; ordinal < start + calls; ordinal += 1) {
         drafts.push(
-          called({ callId: `call-${ordinal}`, name: 'read', input: { path: 'compose-serve.ts', offset: ordinal } }),
+          called({
+            callId: `call-${ordinal}`,
+            name: 'read',
+            input: { path: 'compose-serve.ts', offset: ordinal },
+          }),
           resulted({ callId: `call-${ordinal}`, modelText: `line ${ordinal}` }),
         )
       }
@@ -256,12 +270,18 @@ describe('loopWatchState', () => {
     }
 
     it('stays silent below the cadence — a tool-only stretch can be an agent working through', () => {
-      const events = eventsFrom([heard('check the compose-serve wiring'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1)])
+      const events = eventsFrom([
+        heard('check the compose-serve wiring'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE - 1),
+      ])
       expect(loopWatchState({ events })).toBeUndefined()
     })
 
     it('opens the window on the step that crosses the cadence', () => {
-      const events = eventsFrom([heard('check the compose-serve wiring'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE)])
+      const events = eventsFrom([
+        heard('check the compose-serve wiring'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+      ])
 
       const state = loopWatchState({ events }) ?? ''
 
@@ -329,7 +349,11 @@ describe('loopWatchState', () => {
     })
 
     it('restarts the count at the operator’s latest word', () => {
-      const events = eventsFrom([heard('go'), ...muteStretch(LOOP_WATCH_MUTE_CADENCE), heard('stop that')])
+      const events = eventsFrom([
+        heard('go'),
+        ...muteStretch(LOOP_WATCH_MUTE_CADENCE),
+        heard('stop that'),
+      ])
 
       expect(loopWatchState({ events })).toBeUndefined()
     })
@@ -380,7 +404,7 @@ describe('loopWatchNudgeDraft', () => {
 })
 
 describe('loopCutTarget', () => {
-  it('cuts from the speech at or before the judge\'s pick, so the cut never lands mid-call', () => {
+  it("cuts from the speech at or before the judge's pick, so the cut never lands mid-call", () => {
     const events = eventsFrom([heard('ship it'), ...round(1), ...round(2), ...round(3)])
 
     expect(loopCutTarget({ events, seq: 8 })).toBe(7)
@@ -398,7 +422,12 @@ describe('loopWatchCutAllowed', () => {
   it('gives a neighbourhood its cuts, then escalates', () => {
     const previous = [100, 104]
     expect(loopWatchCutAllowed({ previous, anchor: 102 })).toBe(false)
-    expect(loopWatchCutAllowed({ previous: previous.slice(0, LOOP_WATCH_CUT_SAME_ANCHOR_MAX - 1), anchor: 102 })).toBe(true)
+    expect(
+      loopWatchCutAllowed({
+        previous: previous.slice(0, LOOP_WATCH_CUT_SAME_ANCHOR_MAX - 1),
+        anchor: 102,
+      }),
+    ).toBe(true)
     expect(loopWatchCutAllowed({ previous, anchor: 120 })).toBe(true)
   })
 })
@@ -415,7 +444,9 @@ describe('loopWatchCutNoticeDraft', () => {
 
 describe('speechRepeatStart', () => {
   const echoRound = (ordinal: number, path: string): EventDraft[] => [
-    said(`I'm in the right worktree. Now let me check how composeHarness exposes plugin ports so I can reach the github bridge`),
+    said(
+      `I'm in the right worktree. Now let me check how composeHarness exposes plugin ports so I can reach the github bridge`,
+    ),
     called({ callId: `call-${ordinal}`, name: 'read', input: { path, offset: ordinal * 60 } }),
     resulted({ callId: `call-${ordinal}`, modelText: `line ${ordinal}` }),
   ]

@@ -15,7 +15,12 @@ import { ProjectSettingsService } from './project-settings.service'
 import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
 
-const BODY = { name: 'atlas', repo: 'dennisofficial/atlas', baseBranch: 'main', additionalRepos: [] }
+const BODY = {
+  name: 'atlas',
+  repo: 'dennisofficial/atlas',
+  baseBranch: 'main',
+  additionalRepos: [],
+}
 
 describe('project settings and workspace link HTTP surface', () => {
   let app: INestApplication
@@ -23,7 +28,12 @@ describe('project settings and workspace link HTTP surface', () => {
 
   beforeEach(async () => {
     fake.reset()
-    fake.tables.member.rows.push({ id: 'm1', organizationId: 'org-1', userId: 'user-a', role: 'member' })
+    fake.tables.member.rows.push({
+      id: 'm1',
+      organizationId: 'org-1',
+      userId: 'user-a',
+      role: 'member',
+    })
     app = await buildSessionApp({
       controllers: [ProjectsController, ProjectResourcesController],
       providers: [
@@ -39,7 +49,11 @@ describe('project settings and workspace link HTTP surface', () => {
   afterEach(() => app.close())
 
   it('links a project to a workspace the caller belongs to, and keeps it when PUT omits it', async () => {
-    await http().post('/v1/projects').set(as('session-a')).send({ ...BODY, organizationId: 'org-2' }).expect(404)
+    await http()
+      .post('/v1/projects')
+      .set(as('session-a'))
+      .send({ ...BODY, organizationId: 'org-2' })
+      .expect(404)
     const created = await http()
       .post('/v1/projects')
       .set(as('session-a'))
@@ -74,10 +88,23 @@ describe('project settings and workspace link HTTP surface', () => {
     await http()
       .patch(base)
       .set(as('session-a'))
-      .send({ values: { 'sandbox.vercelProjectId': encodeSettingValue('prj_1'), 'model.effort': encodeSettingValue('high') } })
+      .send({
+        values: {
+          'sandbox.vercelProjectId': encodeSettingValue('prj_1'),
+          'model.effort': encodeSettingValue('high'),
+        },
+      })
       .expect(204)
-    await http().patch(base).set(as('session-a')).send({ values: { 'sandbox.vercelTeamId': encodeSettingValue('t') } }).expect(400)
-    await http().patch(base).set(as('session-a')).send({ values: { 'model.effort': encodeSettingValue('ultra') } }).expect(400)
+    await http()
+      .patch(base)
+      .set(as('session-a'))
+      .send({ values: { 'sandbox.vercelTeamId': encodeSettingValue('t') } })
+      .expect(400)
+    await http()
+      .patch(base)
+      .set(as('session-a'))
+      .send({ values: { 'model.effort': encodeSettingValue('ultra') } })
+      .expect(400)
     await http().patch(base).set(as('session-a')).send({ values: {} }).expect(400)
 
     const read = await http().get(base).set(as('session-a')).expect(200)
@@ -86,7 +113,11 @@ describe('project settings and workspace link HTTP surface', () => {
       'sandbox.vercelProjectId',
     ])
 
-    await http().patch(base).set(as('session-a')).send({ values: { 'model.effort': null } }).expect(204)
+    await http()
+      .patch(base)
+      .set(as('session-a'))
+      .send({ values: { 'model.effort': null } })
+      .expect(204)
     expect(fake.tables.projectSetting.rows).toHaveLength(1)
   })
 

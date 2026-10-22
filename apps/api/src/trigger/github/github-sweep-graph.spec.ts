@@ -33,9 +33,9 @@ describe('buildGithubSweepGraph', () => {
   })
 
   it('refuses a secrets key that does not decode to 32 bytes', () => {
-    expect(() => buildGithubSweepGraph({ env: envWith({ SECRETS_ENCRYPTION_KEY: 'short' }) })).toThrow(
-      /32 bytes/,
-    )
+    expect(() =>
+      buildGithubSweepGraph({ env: envWith({ SECRETS_ENCRYPTION_KEY: 'short' }) }),
+    ).toThrow(/32 bytes/)
   })
 
   it('settles pending wake boots before it tears the fan-out down', async () => {

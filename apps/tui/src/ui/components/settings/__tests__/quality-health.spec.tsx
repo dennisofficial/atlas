@@ -230,7 +230,10 @@ describe('the code-quality recorded-status block', () => {
       cells: 40,
     })
 
-    const unwrapped = frame.split('\n').map((line) => line.trim()).join(' ')
+    const unwrapped = frame
+      .split('\n')
+      .map((line) => line.trim())
+      .join(' ')
     expect(unwrapped).toContain('TypeScript and JavaScript files only')
     expect(unwrapped).toContain('shell commands and outside tools are not reviewed')
     for (const line of frame.split('\n')) {

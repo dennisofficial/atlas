@@ -19,9 +19,7 @@ describe('foreignCheckoutDenial', () => {
   it('denies a write from one worktree into another', () => {
     const target = `${MAIN}/.atlas/worktrees/cheap-shimmer/src/index.ts`
 
-    expect(
-      foreignCheckoutDenial({ path: target, projectDirectory: WORKTREE }),
-    ).toBeDefined()
+    expect(foreignCheckoutDenial({ path: target, projectDirectory: WORKTREE })).toBeDefined()
   })
 
   it('denies a relative path that escapes into a worktree through ..', () => {
@@ -64,9 +62,7 @@ describe('foreignCheckoutDenial', () => {
   })
 
   it('allows writes to the project directory itself', () => {
-    expect(
-      foreignCheckoutDenial({ path: WORKTREE, projectDirectory: WORKTREE }),
-    ).toBeUndefined()
+    expect(foreignCheckoutDenial({ path: WORKTREE, projectDirectory: WORKTREE })).toBeUndefined()
   })
 
   it('allows outside-project writes with no checkout segment, leaving them to the notice', () => {

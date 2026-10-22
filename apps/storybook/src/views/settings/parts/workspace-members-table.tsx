@@ -1,10 +1,10 @@
-import { SearchIcon } from "lucide-react";
+import { SearchIcon } from 'lucide-react'
 
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@dltech/atlas-ui/components/input-group";
+} from '@dltech/atlas-ui/components/input-group'
 import {
   Table,
   TableBody,
@@ -12,23 +12,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@dltech/atlas-ui/components/table";
+} from '@dltech/atlas-ui/components/table'
 
 import {
   EWorkspaceRole,
   ROLE_LABELS,
   type SelectOption,
   type WorkspaceMember,
-} from "../../../fixtures/settings-workspace";
-import { WorkspaceMemberRow } from "./workspace-member-row";
-import { WorkspaceSelect } from "./workspace-select";
+} from '../../../fixtures/settings-workspace'
+import { WorkspaceMemberRow } from './workspace-member-row'
+import { WorkspaceSelect } from './workspace-select'
 
-export const ALL_ROLES = "all";
+export const ALL_ROLES = 'all'
 
 export const ROLE_FILTER_OPTIONS: SelectOption[] = [
-  { value: ALL_ROLES, label: "All roles" },
+  { value: ALL_ROLES, label: 'All roles' },
   ...Object.values(EWorkspaceRole).map((role) => ({ value: role, label: ROLE_LABELS[role] })),
-];
+]
 
 export function WorkspaceMembersToolbar({
   query,
@@ -36,10 +36,10 @@ export function WorkspaceMembersToolbar({
   onQueryChange,
   onRoleFilterChange,
 }: {
-  query: string;
-  roleFilter: string;
-  onQueryChange: (query: string) => void;
-  onRoleFilterChange: (role: string) => void;
+  query: string
+  roleFilter: string
+  onQueryChange: (query: string) => void
+  onRoleFilterChange: (role: string) => void
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function WorkspaceMembersToolbar({
         onChange={onRoleFilterChange}
       />
     </div>
-  );
+  )
 }
 
 export function WorkspaceMembersTable({
@@ -70,9 +70,9 @@ export function WorkspaceMembersTable({
   onRoleChange,
   onRemove,
 }: {
-  members: WorkspaceMember[];
-  onRoleChange: (params: { id: string; role: EWorkspaceRole }) => void;
-  onRemove: (id: string) => void;
+  members: WorkspaceMember[]
+  onRoleChange: (params: { id: string; role: EWorkspaceRole }) => void
+  onRemove: (id: string) => void
 }) {
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
@@ -105,5 +105,5 @@ export function WorkspaceMembersTable({
         </TableBody>
       </Table>
     </div>
-  );
+  )
 }

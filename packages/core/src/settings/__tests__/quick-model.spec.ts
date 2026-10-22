@@ -6,7 +6,8 @@ import { ATLAS_SETTINGS, ESettingId } from '../registry'
 import { resolveSettings } from '../resolve'
 import { ESettingKind } from '../value'
 
-const quickModel = () => ATLAS_SETTINGS.find((definition) => definition.id === ESettingId.QuickModel)
+const quickModel = () =>
+  ATLAS_SETTINGS.find((definition) => definition.id === ESettingId.QuickModel)
 
 describe('QuickModel setting', () => {
   it('is a model-kind row beside the default model, unset by default', () => {

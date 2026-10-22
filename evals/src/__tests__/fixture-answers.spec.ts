@@ -26,7 +26,11 @@ describe('loadFixtureAnswers', () => {
     const answers = {
       'case-1::trial-1::variant-a': {
         'single-responsibility:currentConcern': { noul: 0.25, confidence: 0.9 },
-        'single-responsibility:verdict': { choice: 'violates', probabilities: { violates: 0.8, clean: 0.2 }, score: 3 },
+        'single-responsibility:verdict': {
+          choice: 'violates',
+          probabilities: { violates: 0.8, clean: 0.2 },
+          score: 3,
+        },
       },
     }
     const path = await writeFixture({ name: 'valid.json', text: JSON.stringify(answers) })
@@ -47,7 +51,10 @@ describe('loadFixtureAnswers', () => {
   })
 
   it('throws FixtureAnswersError naming the file on a wrong shape', async () => {
-    const path = await writeFixture({ name: 'wrong.json', text: JSON.stringify({ row: { q: { noul: 'high' } } }) })
+    const path = await writeFixture({
+      name: 'wrong.json',
+      text: JSON.stringify({ row: { q: { noul: 'high' } } }),
+    })
     const failure = await loadFixtureAnswers({ path }).catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(FixtureAnswersError)
     expect((failure as FixtureAnswersError).message).toContain(path)

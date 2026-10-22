@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EBeforeToolDecision } from '../../before-tool'
-import { EConsultation } from '../adjudicate'
 import { ERiskDimension, ESeverity } from '../dimension'
 import type { RiskSignal } from '../signals'
 import { EClassifierMode, ETriage } from '../triage'

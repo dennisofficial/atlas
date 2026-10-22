@@ -88,7 +88,8 @@ export function openThreadChips(args: {
       const chip = checkoutChip(checkout)
       if (chip !== null) {
         const reading = args.pullRequests.peekBadge({ kind: 'checkout', checkout })
-        const number = reading?.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
+        const number =
+          reading?.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
         if (number === null || !identities.has(identityOf(checkout, number))) drawn.push(chip)
       }
     }

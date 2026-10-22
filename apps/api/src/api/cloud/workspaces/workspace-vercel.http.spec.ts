@@ -42,7 +42,11 @@ describe('workspace vercel credential HTTP surface', () => {
     const empty = await http().get(vercel).set(as('session-b')).expect(200)
     expect(empty.body).toEqual({ configured: false, teamId: null, updatedAt: null })
 
-    await http().put(vercel).set(as('session-a')).send({ token: 'vtok_secret', teamId: 'team_1' }).expect(204)
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ token: 'vtok_secret', teamId: 'team_1' })
+      .expect(204)
     expect(fake.tables.workspaceVercelCredential.rows[0]?.sealedToken).not.toContain('vtok_secret')
 
     const read = await http().get(vercel).set(as('session-b')).expect(200)
@@ -52,10 +56,17 @@ describe('workspace vercel credential HTTP surface', () => {
 
   it('keeps the token when a later PUT omits it, and needs one the first time', async () => {
     await http().put(vercel).set(as('session-a')).send({ teamId: 'team_1' }).expect(400)
-    await http().put(vercel).set(as('session-a')).send({ token: 'vtok_1', teamId: 'team_1' }).expect(204)
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ token: 'vtok_1', teamId: 'team_1' })
+      .expect(204)
     const sealed = fake.tables.workspaceVercelCredential.rows[0]?.sealedToken
     await http().put(vercel).set(as('session-a')).send({ teamId: 'team_2' }).expect(204)
-    expect(fake.tables.workspaceVercelCredential.rows[0]).toMatchObject({ teamId: 'team_2', sealedToken: sealed })
+    expect(fake.tables.workspaceVercelCredential.rows[0]).toMatchObject({
+      teamId: 'team_2',
+      sealedToken: sealed,
+    })
   })
 
   it('limits writes to owners and admins, and 404s outsiders', async () => {

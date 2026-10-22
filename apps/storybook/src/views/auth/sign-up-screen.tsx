@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent } from 'react'
 
-import { FieldGroup } from "@dltech/atlas-ui/components/field";
+import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
-import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USER } from "../../fixtures/auth";
-import { AuthField } from "./auth-field";
+import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USER } from '../../fixtures/auth'
+import { AuthField } from './auth-field'
 import {
   AuthFooterText,
   AuthLink,
@@ -11,43 +11,48 @@ import {
   GoogleButton,
   OrDivider,
   SubmitButton,
-} from "./auth-controls";
-import { AuthHeading } from "./auth-heading";
-import { EAuthScreen, ESetupState, ESignInState, ESignUpState, type ScreenProps } from "./auth-route";
-import { useDelayed } from "./use-demo";
+} from './auth-controls'
+import { AuthHeading } from './auth-heading'
+import {
+  EAuthScreen,
+  ESetupState,
+  ESignInState,
+  ESignUpState,
+  type ScreenProps,
+} from './auth-route'
+import { useDelayed } from './use-demo'
 
 export function SignUpScreen({ route, onNavigate }: ScreenProps<EAuthScreen.SignUp>) {
-  const [state, setState] = useState(route.state ?? ESignUpState.Idle);
-  const [googleBusy, setGoogleBusy] = useState(false);
-  const later = useDelayed();
-  const busy = state === ESignUpState.Busy;
+  const [state, setState] = useState(route.state ?? ESignUpState.Idle)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const later = useDelayed()
+  const busy = state === ESignUpState.Busy
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "");
-    const name = String(form.get("name") ?? "");
-    setState(ESignUpState.Busy);
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const email = String(form.get('email') ?? '')
+    const name = String(form.get('name') ?? '')
+    setState(ESignUpState.Busy)
     later(() => {
       if (email.toLowerCase() === AUTH_USER.email) {
-        setState(ESignUpState.Error);
-        return;
+        setState(ESignUpState.Error)
+        return
       }
-      setState(ESignUpState.Idle);
-      onNavigate?.({ screen: EAuthScreen.Setup, state: ESetupState.Workspace, name });
-    });
-  };
+      setState(ESignUpState.Idle)
+      onNavigate?.({ screen: EAuthScreen.Setup, state: ESetupState.Workspace, name })
+    })
+  }
 
   const handleGoogle = () => {
-    setGoogleBusy(true);
+    setGoogleBusy(true)
     later(() => {
-      setGoogleBusy(false);
-      onNavigate?.({ screen: EAuthScreen.Setup, state: ESetupState.Workspace });
-    });
-  };
+      setGoogleBusy(false)
+      onNavigate?.({ screen: EAuthScreen.Setup, state: ESetupState.Workspace })
+    })
+  }
 
-  const handleSignIn = () =>
-    onNavigate?.({ screen: EAuthScreen.SignIn, state: ESignInState.Idle });
+  const handleSignIn = () => onNavigate?.({ screen: EAuthScreen.SignIn, state: ESignInState.Idle })
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,7 +95,7 @@ export function SignUpScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Sign
             />
             {state === ESignUpState.Error && (
               <FormError>
-                An account with this email already exists.{" "}
+                An account with this email already exists.{' '}
                 <AuthLink onPress={handleSignIn}>Sign in instead</AuthLink>
               </FormError>
             )}
@@ -102,5 +107,5 @@ export function SignUpScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Sign
         Already have an account? <AuthLink onPress={handleSignIn}>Sign in</AuthLink>
       </AuthFooterText>
     </div>
-  );
+  )
 }

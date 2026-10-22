@@ -176,7 +176,10 @@ describe('settings client frame', () => {
     const { socket, sent } = attachedSocket()
 
     expect(() =>
-      handlers.message({ socket, message: encodeFrame({ kind: EClientFrame.Settings, content: '{}' }) }),
+      handlers.message({
+        socket,
+        message: encodeFrame({ kind: EClientFrame.Settings, content: '{}' }),
+      }),
     ).not.toThrow()
     expect(sent).toEqual([])
   })
@@ -208,7 +211,10 @@ describe('settings client frame', () => {
 
     handlers.message({
       socket,
-      message: encodeFrame({ kind: EClientFrame.Settings, content: JSON.stringify({ [ESettingId.Accent]: 'pine' }) }),
+      message: encodeFrame({
+        kind: EClientFrame.Settings,
+        content: JSON.stringify({ [ESettingId.Accent]: 'pine' }),
+      }),
     })
 
     expect(service.snapshot().document.values).toEqual({})

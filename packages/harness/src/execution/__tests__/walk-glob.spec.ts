@@ -22,16 +22,28 @@ describe('walkGlob', () => {
   })
 
   it('finds every matching file when the signal never aborts', async () => {
-    const found = await walkGlob({ pattern: '**/*.txt', cwd: root, dot: false, signal: new AbortController().signal })
+    const found = await walkGlob({
+      pattern: '**/*.txt',
+      cwd: root,
+      dot: false,
+      signal: new AbortController().signal,
+    })
 
-    expect([...found].sort()).toEqual([join(root, 'one', 'a.txt'), join(root, 'two', 'b.txt')].sort())
+    expect([...found].sort()).toEqual(
+      [join(root, 'one', 'a.txt'), join(root, 'two', 'b.txt')].sort(),
+    )
   })
 
   it('stops the walk on an aborted signal instead of visiting the tree', async () => {
     const controller = new AbortController()
     controller.abort()
 
-    const found = await walkGlob({ pattern: '**/*.txt', cwd: root, dot: false, signal: controller.signal })
+    const found = await walkGlob({
+      pattern: '**/*.txt',
+      cwd: root,
+      dot: false,
+      signal: controller.signal,
+    })
 
     expect(found).toEqual([])
   })

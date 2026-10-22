@@ -32,22 +32,40 @@ export type AnalyzeSrpEfficacyArgs = {
 const PILOT_STATEMENT =
   'Nonpromotional pilot diagnostic. Not a statistically calibrated result and no production enablement claim; master switch stays off.'
 
-function unavailableSummary({ rows, rowClass }: { rows: readonly ClassifiedRow[]; rowClass: ERowClass }) {
+function unavailableSummary({
+  rows,
+  rowClass,
+}: {
+  rows: readonly ClassifiedRow[]
+  rowClass: ERowClass
+}) {
   const matching = rows.filter((row): row is UnavailableRow => row.rowClass === rowClass)
   const byReason: Record<string, number> = {}
   for (const row of matching) byReason[row.reason] = (byReason[row.reason] ?? 0) + 1
   return { total: matching.length, byReason }
 }
 
-export function analyzeSrpEfficacy({ cases, rows, judgments, plan, requestedModel }: AnalyzeSrpEfficacyArgs) {
+export function analyzeSrpEfficacy({
+  cases,
+  rows,
+  judgments,
+  plan,
+  requestedModel,
+}: AnalyzeSrpEfficacyArgs) {
   const prepared = prepareCases({ cases, judgments })
   const classified = classifyRows({ cases: prepared, rows, plan, requestedModel })
   const live = classified.filter(isInterpretable)
   const plannedTrials = new Map<string, number>()
-  for (const row of classified) plannedTrials.set(row.identity.caseId, (plannedTrials.get(row.identity.caseId) ?? 0) + 1)
+  for (const row of classified)
+    plannedTrials.set(row.identity.caseId, (plannedTrials.get(row.identity.caseId) ?? 0) + 1)
   const trialCounts = [...plannedTrials.values()]
-  const uniformTrials = trialCounts.length > 0 && trialCounts.every((count) => count === trialCounts[0]) ? (trialCounts[0] ?? 1) : 1
-  const timings = new Map(rows.map((row) => [identityKey(row), { endToEndMs: row.timing.endToEndMs }]))
+  const uniformTrials =
+    trialCounts.length > 0 && trialCounts.every((count) => count === trialCounts[0])
+      ? (trialCounts[0] ?? 1)
+      : 1
+  const timings = new Map(
+    rows.map((row) => [identityKey(row), { endToEndMs: row.timing.endToEndMs }]),
+  )
 
   const impact = summarizeImpact({ rows: live })
   const concern = summarizeConcern({ rows: live })
@@ -62,7 +80,11 @@ export function analyzeSrpEfficacy({ cases, rows, judgments, plan, requestedMode
   const checks = evaluateChecks({
     inputs: {
       operationalAndStructural: operational.total + structural.total,
-      zeroR: { impactAccuracy: zeroR.impactAccuracy, concernAccuracy: zeroR.concernAccuracy, insufficientClasses: zeroR.insufficientClasses },
+      zeroR: {
+        impactAccuracy: zeroR.impactAccuracy,
+        concernAccuracy: zeroR.concernAccuracy,
+        insufficientClasses: zeroR.insufficientClasses,
+      },
       impactAllEligible: impact.allEligible,
       concernAllEligible: concern.allEligibleAccuracy,
       decisionCoverage: abstention.decisionCoverage,
@@ -90,7 +112,8 @@ export function analyzeSrpEfficacy({ cases, rows, judgments, plan, requestedMode
       structural,
     },
     zeroR: {
-      statement: 'Weka 0-R yardstick: predict the most common frozen judgment on this evaluated dataset, independent of row results. Ties are null; no separate training split exists.',
+      statement:
+        'Weka 0-R yardstick: predict the most common frozen judgment on this evaluated dataset, independent of row results. Ties are null; no separate training split exists.',
       ...zeroR,
     },
     independent: {

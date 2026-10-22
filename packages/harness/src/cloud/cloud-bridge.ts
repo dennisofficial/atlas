@@ -1,11 +1,6 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 
-
-import type {
-  ChannelConnection,
-  ChannelReload,
-  RemoteDeltaChannel,
-} from './remote-delta-channel'
+import type { ChannelConnection, ChannelReload, RemoteDeltaChannel } from './remote-delta-channel'
 import { ECloudSandboxState, type WorkspaceSpec } from './sandbox-client'
 import type { SettleWaitNotice, RuntimeCheckpoint } from '@dltech/atlas-wire'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
@@ -65,8 +60,14 @@ export type CloudSandboxes = {
   /** The live allocation as the provider reports it; fields absent when the provider doesn't say. */
   readResources(args: { threadId: ThreadId }): Promise<{ vcpus?: number; memoryMb?: number }>
   /** Resizes the live sandbox. Touches the running sandbox only — never the stored default. */
-  updateResources(args: { threadId: ThreadId; vcpus: number }): Promise<{ appliesAt: EResizeApplies }>
-  destroy(args: { threadId: ThreadId; expectedSandboxSessionId?: string | undefined }): Promise<void>
+  updateResources(args: {
+    threadId: ThreadId
+    vcpus: number
+  }): Promise<{ appliesAt: EResizeApplies }>
+  destroy(args: {
+    threadId: ThreadId
+    expectedSandboxSessionId?: string | undefined
+  }): Promise<void>
 }
 
 export type CloudStores = {

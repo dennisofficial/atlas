@@ -42,7 +42,10 @@ export const finishingLogin = (): SettingsLoginState => ({
   notice: null,
 })
 
-export const failedLogin = (reason: string): SettingsLoginState => ({ ...idleLogin(), failure: reason })
+export const failedLogin = (reason: string): SettingsLoginState => ({
+  ...idleLogin(),
+  failure: reason,
+})
 
 export const signedInLogin = (notice: string): SettingsLoginState => ({ ...idleLogin(), notice })
 

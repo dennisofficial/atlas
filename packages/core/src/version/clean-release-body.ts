@@ -33,5 +33,8 @@ export function cleanReleaseBody(body: string): string {
     kept.push(stripAttribution(line))
   }
 
-  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  return kept
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }

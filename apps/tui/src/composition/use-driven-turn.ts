@@ -1,5 +1,10 @@
 import type { EventDraft, ThreadId } from '@dltech/atlas-core'
-import { PauseSignal, RemoteTurnDetached, RemoteTurnRunner, type TurnOutcome } from '@dltech/atlas-harness'
+import {
+  PauseSignal,
+  RemoteTurnDetached,
+  RemoteTurnRunner,
+  type TurnOutcome,
+} from '@dltech/atlas-harness'
 import { useCallback, useRef, useState, type RefObject } from 'react'
 
 import type { PendingSaid } from '../store'

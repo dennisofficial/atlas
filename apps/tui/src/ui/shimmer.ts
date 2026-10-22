@@ -14,11 +14,7 @@ export function shimmerCycleMs(args: { cells: number; spec: ShimmerSpec }): numb
   return args.cells * args.spec.speedMs + args.spec.quietMs
 }
 
-export function shimmerCrest(args: {
-  nowMs: number
-  cells: number
-  spec: ShimmerSpec
-}): number {
+export function shimmerCrest(args: { nowMs: number; cells: number; spec: ShimmerSpec }): number {
   const cycle = shimmerCycleMs({ cells: args.cells, spec: args.spec })
   const phase = ((args.nowMs % cycle) + cycle) % cycle
   return phase / args.spec.speedMs

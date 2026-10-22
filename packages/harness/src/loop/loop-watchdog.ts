@@ -64,10 +64,7 @@ const loopStartOf = ({
  * malformed answer) fails open as Clear, while a window too small to judge is NoVerdict so the
  * caller leaves any escalation from an earlier warning untouched.
  */
-export function jevLoopWatch(args: {
-  decisions: DecisionPort
-  enabled: () => boolean
-}): LoopWatch {
+export function jevLoopWatch(args: { decisions: DecisionPort; enabled: () => boolean }): LoopWatch {
   return async ({ events, signal }) => {
     if (!args.enabled()) return { verdict: ELoopWatch.Clear }
 
@@ -98,7 +95,10 @@ export function jevLoopWatch(args: {
           fault: 'the decision model gave no loop probability',
         }
       }
-      return { verdict: ELoopWatch.Unreachable, fault: 'the decision model gave no loop probability' }
+      return {
+        verdict: ELoopWatch.Unreachable,
+        fault: 'the decision model gave no loop probability',
+      }
     }
 
     if (noul < JEV_LOOP_THRESHOLD) {
@@ -119,10 +119,7 @@ export type WatchState = {
   cutAnchors: number[]
 }
 
-export type WatchOutcome =
-  | { kind: 'step' }
-  | { kind: 'rewind' }
-  | { kind: 'stop' }
+export type WatchOutcome = { kind: 'step' } | { kind: 'rewind' } | { kind: 'stop' }
 
 /**
  * One watchdog consultation of the owned log: record the verdict, cut the loop the verdict
@@ -159,7 +156,8 @@ export async function watchStepLoop({
 
   const watch = await watchLoop({ events, signal })
   const judged: EventDraft | undefined =
-    watch.verdict !== ELoopWatch.NoVerdict && (watch.noul !== undefined || watch.fault !== undefined)
+    watch.verdict !== ELoopWatch.NoVerdict &&
+    (watch.noul !== undefined || watch.fault !== undefined)
       ? {
           type: 'loop-watch-verdict',
           consulted: true,

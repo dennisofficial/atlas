@@ -1,35 +1,30 @@
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from 'react'
 
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
+import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
 
-import { CONTROL_CLASS } from "./auth-controls";
+import { CONTROL_CLASS } from './auth-controls'
 
 export interface AuthFieldProps {
-  id: string;
-  label: string;
-  type?: "text" | "email" | "password";
-  autoComplete?: string;
-  placeholder?: string;
-  value?: string;
-  defaultValue?: string;
-  onChange?: (value: string) => void;
-  action?: ReactNode;
-  description?: ReactNode;
-  error?: ReactNode;
-  disabled?: boolean;
-  autoFocus?: boolean;
+  id: string
+  label: string
+  type?: 'text' | 'email' | 'password'
+  autoComplete?: string
+  placeholder?: string
+  value?: string
+  defaultValue?: string
+  onChange?: (value: string) => void
+  action?: ReactNode
+  description?: ReactNode
+  error?: ReactNode
+  disabled?: boolean
+  autoFocus?: boolean
 }
 
 export function AuthField({
   id,
   label,
-  type = "text",
+  type = 'text',
   autoComplete,
   placeholder,
   value,
@@ -41,9 +36,8 @@ export function AuthField({
   disabled,
   autoFocus,
 }: AuthFieldProps) {
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
-    onChange?.(event.target.value);
-  const describedBy = error ? `${id}-error` : description ? `${id}-hint` : undefined;
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value)
+  const describedBy = error ? `${id}-error` : description ? `${id}-hint` : undefined
 
   return (
     <Field data-invalid={error ? true : undefined}>
@@ -73,5 +67,5 @@ export function AuthField({
         description && <FieldDescription id={`${id}-hint`}>{description}</FieldDescription>
       )}
     </Field>
-  );
+  )
 }

@@ -21,7 +21,12 @@ export const keyA = generateKey({ type: 'ed25519' })
 export const keyB = generateKey({ type: 'ed25519' })
 
 export const connect = (scopes: string) =>
-  fake.connections.push({ userId: USER, login: 'octocat', scopes, sealedToken: cipher.encrypt('gho_token') })
+  fake.connections.push({
+    userId: USER,
+    login: 'octocat',
+    scopes,
+    sealedToken: cipher.encrypt('gho_token'),
+  })
 
 export function resetWorld(): SshSigningKeyService {
   fake.reset()
@@ -35,4 +40,6 @@ export function resetWorld(): SshSigningKeyService {
 }
 
 export const deletedIds = (): string[] =>
-  github.calls.filter((call) => call.method === 'DELETE').map((call) => call.url.split('/').pop() ?? '')
+  github.calls
+    .filter((call) => call.method === 'DELETE')
+    .map((call) => call.url.split('/').pop() ?? '')

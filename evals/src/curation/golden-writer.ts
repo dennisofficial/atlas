@@ -3,7 +3,11 @@ import { join } from 'node:path'
 
 import { evalCaseSchema, type EvalCase } from '../case'
 import { sha256Hex } from '../hash'
-import { DATASET_MANIFEST_SCHEMA_VERSION, type DatasetManifest, type EDatasetSplit } from '../manifest'
+import {
+  DATASET_MANIFEST_SCHEMA_VERSION,
+  type DatasetManifest,
+  type EDatasetSplit,
+} from '../manifest'
 
 export const GOLDEN_CASES_FILE = 'cases.jsonl'
 export const GOLDEN_MANIFEST_FILE = 'manifest.json'
@@ -32,7 +36,9 @@ export function assertCaseEnvelopes({ cases }: { cases: readonly EvalCase[] }): 
   for (const evalCase of cases) {
     const parsed = evalCaseSchema.safeParse(evalCase)
     if (!parsed.success) {
-      throw new GoldenDatasetError(`case ${evalCase.id} fails the case envelope: ${parsed.error.issues[0]?.message ?? 'invalid'}`)
+      throw new GoldenDatasetError(
+        `case ${evalCase.id} fails the case envelope: ${parsed.error.issues[0]?.message ?? 'invalid'}`,
+      )
     }
   }
 }

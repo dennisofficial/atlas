@@ -1,12 +1,12 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from 'react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Suggestions } from "@dltech/atlas-ui/ai/suggestion";
+import { Suggestions } from '@dltech/atlas-ui/ai/suggestion'
 
-import { SUGGESTIONS } from "../fixtures/agent";
+import { SUGGESTIONS } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Suggestion",
+  title: 'AI/Suggestion',
   component: Suggestions,
   args: { suggestions: SUGGESTIONS },
   decorators: [
@@ -16,24 +16,26 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Suggestions>;
+} satisfies Meta<typeof Suggestions>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Scrolling: Story = {};
+export const Scrolling: Story = {}
 
-export const Few: Story = { args: { suggestions: SUGGESTIONS.slice(0, 2) } };
+export const Few: Story = { args: { suggestions: SUGGESTIONS.slice(0, 2) } }
 
 function SendDemo() {
-  const [sent, setSent] = useState("");
+  const [sent, setSent] = useState('')
   return (
     <div className="flex flex-col gap-3">
       <Suggestions suggestions={SUGGESTIONS} onSelect={setSent} />
-      <p className="text-sm text-muted-foreground">{sent ? "Sent: " + sent : "Click a suggestion."}</p>
+      <p className="text-sm text-muted-foreground">
+        {sent ? 'Sent: ' + sent : 'Click a suggestion.'}
+      </p>
     </div>
-  );
+  )
 }
 
-export const Interactive: Story = { render: () => <SendDemo /> };
+export const Interactive: Story = { render: () => <SendDemo /> }

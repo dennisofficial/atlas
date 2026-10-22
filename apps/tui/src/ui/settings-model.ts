@@ -134,7 +134,11 @@ const resolvedOf = (args: {
     const held = args.resolution.settings.get(definition.id)
     if (held === undefined) continue
     if (!isSettingVisible({ definition, resolution: args.resolution })) continue
-    rows.push(args.writeOriginOf === undefined ? held : { ...held, writeOrigin: args.writeOriginOf(definition.id) })
+    rows.push(
+      args.writeOriginOf === undefined
+        ? held
+        : { ...held, writeOrigin: args.writeOriginOf(definition.id) },
+    )
   }
   return rows
 }

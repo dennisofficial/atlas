@@ -27,10 +27,7 @@ export enum EPendingKind {
   Service = 'service',
 }
 
-type NoticePendingKind =
-  | EPendingKind.BackgroundShell
-  | EPendingKind.Agent
-  | EPendingKind.Service
+type NoticePendingKind = EPendingKind.BackgroundShell | EPendingKind.Agent | EPendingKind.Service
 
 export type PendingRow =
   | { kind: EPendingKind.Operator; id: string; text: string; editable?: boolean | undefined }
@@ -111,8 +108,12 @@ const operatorRows = (entries: readonly PendingEntry<unknown>[]): readonly Pendi
     }
 
     return {
-      kind: EPendingKind.Operator, id: entry.id, text: entry.text,
-      ...(entry.via !== undefined && entry.via !== EMessageOrigin.Operator ? { editable: false } : {}),
+      kind: EPendingKind.Operator,
+      id: entry.id,
+      text: entry.text,
+      ...(entry.via !== undefined && entry.via !== EMessageOrigin.Operator
+        ? { editable: false }
+        : {}),
     }
   })
 
@@ -174,7 +175,12 @@ export function pendingRows(args: {
 
   return [
     ...sending.map(
-      (one): PendingRow => ({ kind: EPendingKind.Sending, id: one.id, text: one.text, failed: one.failed }),
+      (one): PendingRow => ({
+        kind: EPendingKind.Sending,
+        id: one.id,
+        text: one.text,
+        failed: one.failed,
+      }),
     ),
     ...operator,
     ...args.notices.map((notice): PendingRow => pendingShellRow(notice)),

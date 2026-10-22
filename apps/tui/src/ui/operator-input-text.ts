@@ -11,7 +11,12 @@ function sourceOffset(args: { text: string; offset: number }): number {
   return source
 }
 
-export function operatorTextWithPaste(args: { source: string; start: number; end: number; pasted: string }): string {
+export function operatorTextWithPaste(args: {
+  source: string
+  start: number
+  end: number
+  pasted: string
+}): string {
   const sourceStart = sourceOffset({ text: args.source, offset: args.start })
   const sourceEnd = sourceOffset({ text: args.source, offset: args.end })
   return args.source.slice(0, sourceStart) + args.pasted + args.source.slice(sourceEnd)
@@ -33,5 +38,7 @@ export function operatorTextAfterEdit(args: { source: string; edited: string }):
   }
   const sourceStart = sourceOffset({ text: args.source, offset: start })
   const sourceEnd = sourceOffset({ text: args.source, offset: beforeEnd })
-  return args.source.slice(0, sourceStart) + after.slice(start, afterEnd) + args.source.slice(sourceEnd)
+  return (
+    args.source.slice(0, sourceStart) + after.slice(start, afterEnd) + args.source.slice(sourceEnd)
+  )
 }

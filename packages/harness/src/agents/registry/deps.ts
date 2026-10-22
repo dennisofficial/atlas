@@ -37,7 +37,9 @@ export type SupervisorDeps = {
   clock: ClockPort
   agentTypes: readonly AgentType[]
   runners: ChildRunnerSource
-  modelAtSpawn?: ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel | undefined>) | undefined
+  modelAtSpawn?:
+    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel | undefined>)
+    | undefined
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined
   telemetry?: TelemetryPort | undefined

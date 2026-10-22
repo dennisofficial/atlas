@@ -58,6 +58,8 @@ describe('fences in one answer', () => {
     const alone = await slabEdges(SHORT)
     const levelled = await slabEdges([SHORT, LONG].join('\n\n'))
     expect(alone[0]).toBeLessThan(levelled[0] ?? 0)
-    expect(levelled[0]).toBe(fenceWidth({ language: 'ts', source: `const wide = ${"'x'".repeat(12)};`, width: WIDTH }) - 1)
+    expect(levelled[0]).toBe(
+      fenceWidth({ language: 'ts', source: `const wide = ${"'x'".repeat(12)};`, width: WIDTH }) - 1,
+    )
   }, 60_000)
 })

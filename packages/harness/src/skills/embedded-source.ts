@@ -24,7 +24,8 @@ const warnOnConsole = (failure: EmbeddedSkillFailure): void => {
   console.warn(`built-in skill ${failure.name} is unavailable: ${failure.message}`)
 }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export class EmbeddedSkillSource extends SkillSource {
   readonly origin = ESkillOrigin.BuiltIn

@@ -15,7 +15,13 @@ import {
   type WorkspaceReadiness,
 } from '../index'
 
-import { fakeRoster, fakeServeApp, type FakeServeApp, type fakeWakeNotices, type RunTurn } from './fakes'
+import {
+  fakeRoster,
+  fakeServeApp,
+  type FakeServeApp,
+  type fakeWakeNotices,
+  type RunTurn,
+} from './fakes'
 
 export const TOKEN = 'session-token'
 
@@ -46,7 +52,9 @@ export const startWithDriveSpec = async (args: {
   spec?: Record<string, unknown> | undefined
   fetchFn?: typeof fetch | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
-  compose: (composeArgs: { model?: { ref: string; effort?: string | undefined } | undefined }) => Promise<FakeServeApp>
+  compose: (composeArgs: {
+    model?: { ref: string; effort?: string | undefined } | undefined
+  }) => Promise<FakeServeApp>
 }): Promise<ServeHandle> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
   driveHomes.push(home)
@@ -60,7 +68,9 @@ export const startWithDriveSpec = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     env: {},
     cwd: '/workspace',
-    fetchFn: args.fetchFn ?? ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
+    fetchFn:
+      args.fetchFn ??
+      ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
     compose: args.compose,
     ensureWorkspace: args.ensureWorkspace ?? (async () => ({ state: EWorkspaceState.Skipped })),
     contextFiles: inMemoryContextFiles(),
@@ -155,8 +165,11 @@ export const start = async (args: {
   return { handle, app, lines }
 }
 
-export const hello = (args: { channelCursor: number | null; lastEventSeq: number; protocol?: number }) =>
-  ({ kind: EClientFrame.Hello, threadId, ...args }) as const
+export const hello = (args: {
+  channelCursor: number | null
+  lastEventSeq: number
+  protocol?: number
+}) => ({ kind: EClientFrame.Hello, threadId, ...args }) as const
 
 export const seqsOf = (frames: readonly ServeFrame[]): number[] =>
   frames.flatMap((frame) => (frame.kind === EServeFrame.Signal ? [frame.seq] : []))

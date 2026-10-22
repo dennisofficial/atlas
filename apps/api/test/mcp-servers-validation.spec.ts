@@ -35,7 +35,12 @@ describe('McpServersController validation (in-process)', () => {
       .useValue({
         canActivate: (context: { switchToHttp: () => { getRequest: () => unknown } }) => {
           const request = context.switchToHttp().getRequest() as AuthenticatedRequest
-          request.auth = { userId: 'test-user', sessionId: 's', email: 't@example.com', activeOrganizationId: null }
+          request.auth = {
+            userId: 'test-user',
+            sessionId: 's',
+            email: 't@example.com',
+            activeOrganizationId: null,
+          }
           return true
         },
       })

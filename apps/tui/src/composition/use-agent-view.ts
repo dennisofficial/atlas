@@ -93,9 +93,7 @@ export function useAgentView(args: {
 
   const scopedTo = useMemo(
     () =>
-      state.scope === null
-        ? null
-        : (everywhere.find((one) => one.agentId === state.scope) ?? null),
+      state.scope === null ? null : (everywhere.find((one) => one.agentId === state.scope) ?? null),
     [everywhere, state.scope],
   )
   const selected = useMemo(
@@ -199,20 +197,18 @@ export function useAgentView(args: {
   const handleStop = useCallback((): void => {
     if (state.viewing === null) return
 
-    void agents.stop({ agentId: state.viewing, threadId: scopeId, by: EKilledBy.User }).then((outcome) => {
-      if (!outcome.ok) onProblem(outcome.reason)
-    })
+    void agents
+      .stop({ agentId: state.viewing, threadId: scopeId, by: EKilledBy.User })
+      .then((outcome) => {
+        if (!outcome.ok) onProblem(outcome.reason)
+      })
     armStop(false)
   }, [agents, armStop, onProblem, scopeId, state.viewing])
 
   const stoppable = selected !== null && isSubagentAlive(selected)
 
   const name =
-    selected !== null
-      ? subagentLabel(selected)
-      : scopedTo !== null
-        ? subagentLabel(scopedTo)
-        : null
+    selected !== null ? subagentLabel(selected) : scopedTo !== null ? subagentLabel(scopedTo) : null
 
   /**
    * The child's working line already promises "esc to interrupt", and the first escape arms that

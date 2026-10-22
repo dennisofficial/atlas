@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { defaultPipeline, EMPTY_PROMPT, EShellStatus, type EventDraft, type ModelPort } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  EShellStatus,
+  type EventDraft,
+  type ModelPort,
+} from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, LoopTurnRunner, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
@@ -77,7 +83,9 @@ describe('input already written into the durable log', () => {
     })
 
     const interrupted = await runner.say({
-      threadId: thread.id, text: 'run the build', signal: controller.signal,
+      threadId: thread.id,
+      text: 'run the build',
+      signal: controller.signal,
     })
     expect(interrupted.status).toBe(ETurnStatus.Interrupted)
 
@@ -176,7 +184,9 @@ describe('input already written into the durable log', () => {
         return {
           drafts: [],
           wakesTurn: true,
-          acknowledge: () => { acknowledgements += 1 },
+          acknowledge: () => {
+            acknowledgements += 1
+          },
         }
       },
     })

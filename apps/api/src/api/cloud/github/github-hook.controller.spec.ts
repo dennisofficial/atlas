@@ -102,7 +102,13 @@ describe('GithubHookController', () => {
     const { controller } = controllerWith()
 
     await expect(
-      controller.handleDelivery(requestWith({ body: {} }), 'justrepo', 'sha256=ab', 'ping', 'application/json'),
+      controller.handleDelivery(
+        requestWith({ body: {} }),
+        'justrepo',
+        'sha256=ab',
+        'ping',
+        'application/json',
+      ),
     ).rejects.toThrow(/owner\/name/)
   })
 

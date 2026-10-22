@@ -13,7 +13,13 @@ export function blocksFor({ limitBytes }: { limitBytes: number }): number {
   return Math.ceil(limitBytes / 1024)
 }
 
-export function scriptFor({ command, limitBytes }: { command: string; limitBytes: number }): string {
+export function scriptFor({
+  command,
+  limitBytes,
+}: {
+  command: string
+  limitBytes: number
+}): string {
   const prelude = `set +o posix 2>/dev/null; ulimit -f ${blocksFor({ limitBytes })} || exit ${ULIMIT_FAILED_EXIT}`
   return `${prelude}\n${command}`
 }
@@ -49,7 +55,9 @@ export function spawnShellChild({
       detached: true,
       stdio: ['pipe', spoolFd, spoolFd],
     })
-    const ended = new Promise<ChildEnd>((done) => child.once('exit', (code, signal) => done({ code, signal })))
+    const ended = new Promise<ChildEnd>((done) =>
+      child.once('exit', (code, signal) => done({ code, signal })),
+    )
     child.stdin?.on('error', () => undefined)
     child.once('error', (error) => resolve({ ok: false, reason: error.message }))
     child.once('spawn', () => {
@@ -59,7 +67,13 @@ export function spawnShellChild({
   })
 }
 
-export function signalGroup({ pgid, signal }: { pgid: number; signal: NodeJS.Signals | 0 }): boolean {
+export function signalGroup({
+  pgid,
+  signal,
+}: {
+  pgid: number
+  signal: NodeJS.Signals | 0
+}): boolean {
   if (pgid <= 1 || pgid === process.pid) return false
   try {
     process.kill(-pgid, signal)

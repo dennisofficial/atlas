@@ -96,7 +96,9 @@ describe('the commit signing row', () => {
   })
 
   it('sits below the GitHub row', async () => {
-    const rows = (await frameOf(cloud({ view: { state: ESigningKeyView.Absent } }), WIDTH)).split('\n')
+    const rows = (await frameOf(cloud({ view: { state: ESigningKeyView.Absent } }), WIDTH)).split(
+      '\n',
+    )
     const github = rows.findIndex((row) => row.includes('GitHub'))
     const signing = rows.findIndex((row) => row.includes('Commit signing'))
 
@@ -107,8 +109,8 @@ describe('the commit signing row', () => {
 
 describe('fingerprintTailOf', () => {
   it('takes the last eight characters of the key blob', () => {
-    expect(fingerprintTailOf({ publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIABCDEFGHIJ atlas@x' })).toBe(
-      'CDEFGHIJ',
-    )
+    expect(
+      fingerprintTailOf({ publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIABCDEFGHIJ atlas@x' }),
+    ).toBe('CDEFGHIJ')
   })
 })

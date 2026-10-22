@@ -41,7 +41,7 @@ const source = [
   '    Product = multiply(5, 3),',
   '    Numeric = is_integer(Sum) or is_float(Sum),',
   '    Positive = Numeric and (Sum > 0),',
-  '    Label = \'the answer\',',
+  "    Label = 'the answer',",
   '    Initial = $c,',
   '    case Positive andalso not (Sum =:= Product) of',
   '        true -> io:format("~c ~s ~p~n", [Initial, Label, Sum]);',
@@ -133,9 +133,7 @@ describe('erlang lexical highlighting', () => {
 
   it('closes a triple-quoted doc string instead of letting the one-quote form run away', () => {
     const doc = '-doc """\nAdds two numbers.\n""".\nadd(X, Y) -> X + Y.'
-    expect(textFor({ spec, source: doc, group: 'string' })).toEqual([
-      '"""\nAdds two numbers.\n"""',
-    ])
+    expect(textFor({ spec, source: doc, group: 'string' })).toEqual(['"""\nAdds two numbers.\n"""'])
     expect(textFor({ spec, source: doc, group: 'variable' })).toEqual(['X', 'Y', 'X', 'Y'])
   })
 

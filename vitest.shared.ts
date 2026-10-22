@@ -3,7 +3,12 @@ import { fileURLToPath } from 'node:url'
 import type { PluginOption } from 'vite'
 import { defineProject } from 'vitest/config'
 
-import { bunBuiltins, bunConditionPackages, bunFileImports, tempDirExternals } from './vitest-setup/bun-loader'
+import {
+  bunBuiltins,
+  bunConditionPackages,
+  bunFileImports,
+  tempDirExternals,
+} from './vitest-setup/bun-loader'
 import { absoluteMockPaths } from './vitest-setup/mock-paths'
 
 const REPO_ROOT = fileURLToPath(new URL('.', import.meta.url))

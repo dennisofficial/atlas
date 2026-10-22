@@ -35,7 +35,10 @@ const appWith = (): FakeApp =>
 
 async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     WIDE,
   )
   await frameShowing({ setup, text: WELCOME })
@@ -153,7 +156,10 @@ describe('the rewind command', () => {
       ],
     })
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }}
+      />,
       WIDE,
     )
 
@@ -229,7 +235,10 @@ describe('a rewind that cuts a background shell', () => {
       THREAD,
     )
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }}
+      />,
       WIDE,
     )
     await frameShowing({ setup, text: 'now the parser' })
@@ -349,7 +358,10 @@ describe('a fork the guard refuses', () => {
       ],
     })
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }}
+      />,
       WIDE,
     )
     await frameShowing({ setup, text: 'now the parser' })
@@ -517,4 +529,3 @@ describe('the compaction clock', () => {
     }
   }, 60_000)
 })
-

@@ -38,7 +38,9 @@ const gate = () => {
 const eventsAppended = (frame: ServeFrame): boolean =>
   frame.kind === EServeFrame.Signal && frame.signal.type === 'events-appended'
 
-const start = async (args: { holdStep?: (step: number) => Promise<void> | undefined } = {}): Promise<{ app: FakeServeApp; client: TestClient }> => {
+const start = async (
+  args: { holdStep?: (step: number) => Promise<void> | undefined } = {},
+): Promise<{ app: FakeServeApp; client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-send-commit-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME

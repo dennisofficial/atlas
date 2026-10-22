@@ -17,7 +17,9 @@ const idsOf = (events: readonly Event[]): string[] => events.map((event) => even
 
 describe('currentContextEvents', () => {
   it('keeps a lone entry', () => {
-    const events = log([loaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'a' })])
+    const events = log([
+      loaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'a' }),
+    ])
 
     expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1'])
   })
@@ -46,9 +48,17 @@ describe('currentContextEvents', () => {
 
   it('treats the same file reloaded at a moved path as one entry, the relocation case', () => {
     const events = log([
-      loaded({ slot: EContextSlot.ProjectInstructions, key: '/Users/d/Developer/comp-v2/CLAUDE.md', content: 'same bytes' }),
+      loaded({
+        slot: EContextSlot.ProjectInstructions,
+        key: '/Users/d/Developer/comp-v2/CLAUDE.md',
+        content: 'same bytes',
+      }),
       { type: 'user-said', text: 'hi' },
-      loaded({ slot: EContextSlot.ProjectInstructions, key: '/atlas/workspaces/comp-v2/CLAUDE.md', content: 'same bytes' }),
+      loaded({
+        slot: EContextSlot.ProjectInstructions,
+        key: '/atlas/workspaces/comp-v2/CLAUDE.md',
+        content: 'same bytes',
+      }),
     ])
 
     const current = [...currentContextEvents(events)]
@@ -59,8 +69,16 @@ describe('currentContextEvents', () => {
 
   it('supersedes the moved-path original even when the reload is byte-identical', () => {
     const events = log([
-      loaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'same bytes' }),
-      loaded({ slot: EContextSlot.ProjectInstructions, key: '/moved/CLAUDE.md', content: 'same bytes' }),
+      loaded({
+        slot: EContextSlot.ProjectInstructions,
+        key: '/repo/CLAUDE.md',
+        content: 'same bytes',
+      }),
+      loaded({
+        slot: EContextSlot.ProjectInstructions,
+        key: '/moved/CLAUDE.md',
+        content: 'same bytes',
+      }),
     ])
 
     expect([...supersededContextIds(events)]).toEqual(['event-1'])
@@ -68,8 +86,16 @@ describe('currentContextEvents', () => {
 
   it('keeps two same-named files with different content both current, the monorepo case', () => {
     const events = log([
-      loaded({ slot: EContextSlot.NestedInstructions, key: '/repo/apps/api/AGENTS.md', content: 'api rules' }),
-      loaded({ slot: EContextSlot.NestedInstructions, key: '/repo/apps/app/AGENTS.md', content: 'app rules' }),
+      loaded({
+        slot: EContextSlot.NestedInstructions,
+        key: '/repo/apps/api/AGENTS.md',
+        content: 'api rules',
+      }),
+      loaded({
+        slot: EContextSlot.NestedInstructions,
+        key: '/repo/apps/app/AGENTS.md',
+        content: 'app rules',
+      }),
     ])
 
     expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1', 'event-2'])

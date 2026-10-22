@@ -190,7 +190,8 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
+        if (!killed.ok || killed.settled === undefined)
+          throw new Error('a model kill hands back the settled continuation')
         const ending = await killed.settled
 
         expect(ending.died).toBe(true)
@@ -240,9 +241,7 @@ for (const adapter of shellAdapters) {
         await recorded({ log })
 
         expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
-        expect(log?.appended.some((draft) => draft.type === 'background-shell-matched')).toBe(
-          false,
-        )
+        expect(log?.appended.some((draft) => draft.type === 'background-shell-matched')).toBe(false)
       })
     })
 
@@ -262,6 +261,5 @@ for (const adapter of shellAdapters) {
         expect(registry.list({ threadId: THREAD })).toEqual([])
       })
     })
-
   })
 }

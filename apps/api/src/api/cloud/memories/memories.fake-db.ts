@@ -54,7 +54,9 @@ export function createFakeMemoryDb() {
       create: UniqueKey & Fields
       update: Fields & { revision: { increment: number } }
     }) => {
-      const existing = rows.find((row) => sameKey({ row, key: args.where.userId_scope_project_name }))
+      const existing = rows.find((row) =>
+        sameKey({ row, key: args.where.userId_scope_project_name }),
+      )
       if (existing) {
         existing.description = args.update.description
         existing.type = args.update.type
@@ -63,7 +65,13 @@ export function createFakeMemoryDb() {
         existing.updatedAt = tick()
         return existing
       }
-      const created = { ...args.create, id: `mem_${++sequence}`, revision: 1, createdAt: tick(), updatedAt: tick() }
+      const created = {
+        ...args.create,
+        id: `mem_${++sequence}`,
+        revision: 1,
+        createdAt: tick(),
+        updatedAt: tick(),
+      }
       rows.push(created)
       return created
     },
@@ -73,7 +81,12 @@ export function createFakeMemoryDb() {
     }) => {
       beforeUpdateMany?.()
       beforeUpdateMany = null
-      const row = rows.find((r) => r.id === args.where.id && r.userId === args.where.userId && r.revision === args.where.revision)
+      const row = rows.find(
+        (r) =>
+          r.id === args.where.id &&
+          r.userId === args.where.userId &&
+          r.revision === args.where.revision,
+      )
       if (!row) return { count: 0 }
       row.body = args.data.body
       row.revision += args.data.revision.increment

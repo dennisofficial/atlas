@@ -30,8 +30,10 @@ const guidanceFor = (agents: readonly RunningAgent[]): string =>
 const lineFor = (agent: RunningAgent): string => `${agent.agentId}  ${agentLabel(agent)}`
 
 export function runningAgentsReminder(agents: readonly RunningAgent[]): string {
-  return systemContext({ slot: 'running-agents', key: 'roster', content: 
-    [
+  return systemContext({
+    slot: 'running-agents',
+    key: 'roster',
+    content: [
       'These sub-agents you spawned are still running:',
       agents.map(lineFor).join('\n'),
       guidanceFor(agents),

@@ -195,7 +195,12 @@ describe('SkillSuggestionHook', () => {
 
   it('suggests again once a new message lands', async () => {
     const log = new MemoryLog()
-    const decisions = new ScriptedDecisions([wideOutcome, rerankOutcome, wideOutcome, rerankOutcome])
+    const decisions = new ScriptedDecisions([
+      wideOutcome,
+      rerankOutcome,
+      wideOutcome,
+      rerankOutcome,
+    ])
     const hook = hookWith({ log, skills: [skill('alpha')], decisions })
 
     await say(log, 'build me a pitch deck')

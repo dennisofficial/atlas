@@ -9,9 +9,7 @@ export const envDrift = (args: {
   declared: Record<string, string>
   actual: readonly string[]
 }): boolean =>
-  Object.entries(args.declared).some(
-    ([key, value]) => !args.actual.includes(`${key}=${value}`),
-  )
+  Object.entries(args.declared).some(([key, value]) => !args.actual.includes(`${key}=${value}`))
 
 export const launchConfigLabel = (prefix: string): string => `${prefix}.launch-config`
 

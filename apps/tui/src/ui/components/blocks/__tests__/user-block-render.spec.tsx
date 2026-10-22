@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import type { SaidImage } from '@dltech/atlas-core'
-import React from 'react'
 
 import { frameOf } from '../../../__tests__/transcript-fixture'
 import { grammarsReady } from '../../../markdown/__tests__/harness'

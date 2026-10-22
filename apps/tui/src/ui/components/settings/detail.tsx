@@ -129,11 +129,13 @@ export function SettingsDetail(props: {
           {destination === undefined ? null : (
             <box flexDirection="column" flexShrink={0}>
               <Heading label={SAVES_TO} />
-              {destination.flatMap((line) => wrapWords({ text: line, width: cells })).map((line, index) => (
-                <text key={`${index}:${line}`} fg={theme.hint}>
-                  {line}
-                </text>
-              ))}
+              {destination
+                .flatMap((line) => wrapWords({ text: line, width: cells }))
+                .map((line, index) => (
+                  <text key={`${index}:${line}`} fg={theme.hint}>
+                    {line}
+                  </text>
+                ))}
             </box>
           )}
           {overridden ? null : (

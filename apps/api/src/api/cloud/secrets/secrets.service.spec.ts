@@ -6,8 +6,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
 import { SecretsService } from './secrets.service'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 interface SecretEntryRow {
   id: string
@@ -135,9 +134,9 @@ describe('SecretsService', () => {
     await expect(
       service.set({ userId: USER_A, name: 'n'.repeat(201), value: 'x' }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(
-      service.remove({ userId: USER_A, name: 'n'.repeat(201) }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.remove({ userId: USER_A, name: 'n'.repeat(201) })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
     expect(fake.secrets).toHaveLength(0)
   })
 })

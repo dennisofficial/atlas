@@ -1,9 +1,4 @@
-import {
-  EKilledBy,
-  EShellStatus,
-  type PortExposure,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, type PortExposure, type ThreadId } from '@dltech/atlas-core'
 
 import type { ShellAttachment } from './port'
 import type { ShellId } from './shell-id'

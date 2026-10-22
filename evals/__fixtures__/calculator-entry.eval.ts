@@ -5,11 +5,22 @@ import { evalite } from 'evalite'
 import type { EvalCase } from '../src/case'
 import type { PlannedRow } from '../src/run-plan'
 import { EScoreErrorKind, ScoringError } from '../src/grading'
-import { calculate, createCalculatorFeature, type CalculatorExpected, type CalculatorInput, type CalculatorOutput } from './calculator'
+import {
+  calculate,
+  createCalculatorFeature,
+  type CalculatorExpected,
+  type CalculatorInput,
+  type CalculatorOutput,
+} from './calculator'
 
 export type CalculatorEntryRow = PlannedRow & { evalCase: EvalCase }
 
-export type EnvelopedCalculatorInput = { caseId: string; trialId: string; variantId: string; input: CalculatorInput }
+export type EnvelopedCalculatorInput = {
+  caseId: string
+  trialId: string
+  variantId: string
+  input: CalculatorInput
+}
 
 export function registerCalculatorEval({ rows }: { rows: readonly CalculatorEntryRow[] }): void {
   const feature = createCalculatorFeature({ evaluate: calculate })
@@ -48,7 +59,11 @@ export function registerCalculatorEval({ rows }: { rows: readonly CalculatorEntr
         if (!evaluator.applies({ input: envelope.input, expected: typedExpected })) {
           return { score: 0, metadata: { notApplicable: true } }
         }
-        const grade = evaluator.grade({ input: envelope.input, expected: typedExpected, actual: output })
+        const grade = evaluator.grade({
+          input: envelope.input,
+          expected: typedExpected,
+          actual: output,
+        })
         if (!Number.isFinite(grade.score) || grade.score < 0 || grade.score > 1) {
           throw new ScoringError({
             kind: EScoreErrorKind.OutOfRange,

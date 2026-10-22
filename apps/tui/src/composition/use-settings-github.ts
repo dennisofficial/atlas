@@ -46,9 +46,11 @@ export function useSettingsGithub(args: {
   const [flow, setFlow] = useState<SettingsLoginState>(idleLogin)
   const held = useRef(flow)
   held.current = flow
-  const connect = useRef<{ ticket: GithubConnectTicket; deadline: number; intervalMs: number } | null>(
-    null,
-  )
+  const connect = useRef<{
+    ticket: GithubConnectTicket
+    deadline: number
+    intervalMs: number
+  } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const put = useCallback((next: SettingsLoginState) => {
@@ -58,7 +60,8 @@ export function useSettingsGithub(args: {
 
   const putStatus = useCallback((next: GithubStatus) => {
     setStatus((current) =>
-      current.unreachable === next.unreachable && current.connection?.login === next.connection?.login
+      current.unreachable === next.unreachable &&
+      current.connection?.login === next.connection?.login
         ? current
         : next,
     )

@@ -6,12 +6,7 @@ import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { FileMcpSource } from '../config/sources'
-import {
-  EMcpEditAction,
-  EMcpEditLayer,
-  run,
-  type McpEditInput,
-} from '../config/writer'
+import { EMcpEditAction, EMcpEditLayer, run, type McpEditInput } from '../config/writer'
 import { compatMcpFile, projectMcpFile, userMcpFile } from '../../settings/paths'
 
 let root = ''
@@ -83,7 +78,9 @@ describe('mcp writer', () => {
     mkdirSync(join(root, '.atlas'))
     writeFileSync(
       join(root, '.atlas', 'mcp.json'),
-      JSON.stringify({ mcpServers: { docs: { transport: { kind: 'http', url: 'https://example.test/mcp' } } } }),
+      JSON.stringify({
+        mcpServers: { docs: { transport: { kind: 'http', url: 'https://example.test/mcp' } } },
+      }),
     )
 
     await edit({
@@ -176,7 +173,9 @@ describe('mcp writer', () => {
     })
 
     expect(outcome).toMatchObject({ ok: true })
-    expect(await Bun.file(path).text()).toBe(`${JSON.stringify({ kept: { transport: { kind: 'stdio', command: 'hold' } } }, null, 2)}\n`)
+    expect(await Bun.file(path).text()).toBe(
+      `${JSON.stringify({ kept: { transport: { kind: 'stdio', command: 'hold' } } }, null, 2)}\n`,
+    )
   })
 
   it('removes only the entry it names', async () => {

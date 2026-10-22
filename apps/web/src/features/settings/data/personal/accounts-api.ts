@@ -26,10 +26,17 @@ const accountSchema = z.object({
 export type Account = z.infer<typeof accountSchema>
 
 export function fetchAccounts(): Promise<Account[]> {
-  return cloudJson({ method: EHttpMethod.Get, path: '/v1/accounts', schema: z.array(accountSchema) })
+  return cloudJson({
+    method: EHttpMethod.Get,
+    path: '/v1/accounts',
+    schema: z.array(accountSchema),
+  })
 }
 
-export function subscriptionFor(args: { accounts: Account[]; provider: EProviderId }): Account | null {
+export function subscriptionFor(args: {
+  accounts: Account[]
+  provider: EProviderId
+}): Account | null {
   return (
     args.accounts.find(
       (account) => account.provider === args.provider && account.kind === EAccountKind.Oauth,
@@ -37,7 +44,10 @@ export function subscriptionFor(args: { accounts: Account[]; provider: EProvider
   )
 }
 
-export function apiKeyFor(args: { accounts: Account[]; provider: EProviderId }): ApiKeyEntry | null {
+export function apiKeyFor(args: {
+  accounts: Account[]
+  provider: EProviderId
+}): ApiKeyEntry | null {
   const account = args.accounts.find(
     (candidate) => candidate.provider === args.provider && candidate.kind === EAccountKind.ApiKey,
   )
@@ -73,5 +83,8 @@ export function replaceApiKey(args: { accountId: string; apiKey: string }): Prom
 }
 
 export function removeAccount(accountId: string): Promise<void> {
-  return cloudSend({ method: EHttpMethod.Delete, path: `/v1/accounts/${encodeURIComponent(accountId)}` })
+  return cloudSend({
+    method: EHttpMethod.Delete,
+    path: `/v1/accounts/${encodeURIComponent(accountId)}`,
+  })
 }

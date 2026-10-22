@@ -89,7 +89,10 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
     if (input.workdir !== undefined) {
       const directory = await stat(input.workdir).catch(() => undefined)
       if (directory === undefined) {
-        return { ok: false, reason: `workdir ${input.workdir} does not exist, so there is nowhere to run the service` }
+        return {
+          ok: false,
+          reason: `workdir ${input.workdir} does not exist, so there is nowhere to run the service`,
+        }
       }
       if (!directory.isDirectory()) {
         return { ok: false, reason: `workdir ${input.workdir} is a file, not a directory` }

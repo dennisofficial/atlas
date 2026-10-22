@@ -62,8 +62,8 @@ export function ForgotPasswordForm() {
           description={
             <>
               We sent a password reset link to{' '}
-              <span className="font-medium text-foreground [overflow-wrap:anywhere]">{email}</span>. It expires in
-              one hour.
+              <span className="font-medium text-foreground [overflow-wrap:anywhere]">{email}</span>.
+              It expires in one hour.
             </>
           }
         />

@@ -51,13 +51,15 @@ export function qualityNoticeOf(reviews: readonly CodeQualityReviewedBody[] | un
 
   return {
     findings,
-    policyIds: [...new Set(
-      reviews.flatMap((review) =>
-        review.findings
-          .filter((finding) => finding.state === EQualityFindingState.Active && finding.notified)
-          .map((finding) => finding.policyId),
+    policyIds: [
+      ...new Set(
+        reviews.flatMap((review) =>
+          review.findings
+            .filter((finding) => finding.state === EQualityFindingState.Active && finding.notified)
+            .map((finding) => finding.policyId),
+        ),
       ),
-    )],
+    ],
     failure: failed === undefined ? undefined : operationalFailure(failed),
   }
 }

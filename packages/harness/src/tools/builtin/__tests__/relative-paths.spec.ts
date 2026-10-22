@@ -186,9 +186,7 @@ describe('file tools resolve relative paths against the project directory withou
     expect(outcome.ok).toBe(false)
     const reason = outcome.ok ? '' : outcome.reason
     expect(reason).toContain(`File does not exist: ${join(root, 'composition', 'gone.ts')}`)
-    expect(reason).toContain(
-      `composition/gone.ts resolved against the project directory ${root}`,
-    )
+    expect(reason).toContain(`composition/gone.ts resolved against the project directory ${root}`)
   })
 })
 
@@ -219,11 +217,15 @@ describe('file tools expand environment references in paths', () => {
     expect(reason).toContain('$ATLAS_SPEC_DEFINITELY_UNSET')
     expect(reason).toContain('not set')
     expect(reason).not.toContain('resolved against the project directory')
-    expect(await Bun.file(join(root, '$ATLAS_SPEC_DEFINITELY_UNSET', 'handoff.md')).exists()).toBe(false)
+    expect(await Bun.file(join(root, '$ATLAS_SPEC_DEFINITELY_UNSET', 'handoff.md')).exists()).toBe(
+      false,
+    )
   })
 
   it('reports the unset variable for a read, the tool the screenshot hit', async () => {
-    const outcome = await invoke(new ReadTool(), { path: '$ATLAS_SPEC_DEFINITELY_UNSET/handoff.md' })
+    const outcome = await invoke(new ReadTool(), {
+      path: '$ATLAS_SPEC_DEFINITELY_UNSET/handoff.md',
+    })
 
     expect(outcome.ok).toBe(false)
     const reason = outcome.ok ? '' : outcome.reason

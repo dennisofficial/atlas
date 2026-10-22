@@ -154,8 +154,7 @@ describe('CloudClient', () => {
     const down = new CloudClient({
       url: 'http://cloud.test',
       token: TOKEN,
-      fetchFn: (() =>
-        Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
+      fetchFn: (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
     })
     expect(await down.health()).toBe(false)
   })
@@ -264,7 +263,10 @@ describe('CloudClient', () => {
   it('sets the active account for a provider', async () => {
     const { client, calls } = clientWith(() => ({ status: 204 }))
 
-    await client.setActiveAccount({ provider: EAuthProvider.Anthropic, accountId: toAccountId('acc_1') })
+    await client.setActiveAccount({
+      provider: EAuthProvider.Anthropic,
+      accountId: toAccountId('acc_1'),
+    })
 
     expect(calls[0]).toMatchObject({
       method: 'PUT',
@@ -302,8 +304,7 @@ describe('CloudClient', () => {
     const client = new CloudClient({
       url: 'http://cloud.test',
       token: TOKEN,
-      fetchFn: (() =>
-        Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
+      fetchFn: (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
     })
 
     const failure = await client.listAccounts().catch((error: unknown) => error)
@@ -317,7 +318,9 @@ describe('CloudClient', () => {
     const { client, calls } = clientWith(() => ({
       status: 200,
       body: {
-        secrets: [{ name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' }],
+        secrets: [
+          { name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' },
+        ],
       },
     }))
 
@@ -481,7 +484,10 @@ describe('CloudClient projects', () => {
   })
 
   it('lists projects from a bare array', async () => {
-    const { client, calls } = clientWith(() => ({ status: 200, body: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })] }))
+    const { client, calls } = clientWith(() => ({
+      status: 200,
+      body: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })],
+    }))
 
     const projects = await client.listProjects()
 

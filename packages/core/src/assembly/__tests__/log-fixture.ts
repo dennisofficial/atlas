@@ -46,6 +46,9 @@ export function contextFor({
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export const envelopedAs = ({ tag, body }: { tag: string; body: string }): string =>
-  expect.stringMatching(new RegExp(`^<${tag}( [a-z-]+="[^"]*")*>\\n${escapeRegExp(body)}\\n</${tag}>$`))
+  expect.stringMatching(
+    new RegExp(`^<${tag}( [a-z-]+="[^"]*")*>\\n${escapeRegExp(body)}\\n</${tag}>$`),
+  )
 
-export const operatorSaidAs = (text: string): string => envelopedAs({ tag: 'operator-said', body: text })
+export const operatorSaidAs = (text: string): string =>
+  envelopedAs({ tag: 'operator-said', body: text })

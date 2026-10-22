@@ -46,7 +46,8 @@ export function WorkspacePendingInvites({
             </EmptyMedia>
             <EmptyTitle>No pending invites</EmptyTitle>
             <EmptyDescription>
-              Invitations you send show up here until they are accepted or expire. Invitations are recorded but no email is sent yet.
+              Invitations you send show up here until they are accepted or expire. Invitations are
+              recorded but no email is sent yet.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -73,7 +74,9 @@ export function WorkspacePendingInvites({
                     {invite.invitedBy}
                   </TableCell>
                   <TableCell>
-                    <Mono className="text-muted-foreground">{invite.expiresInDays === 0 ? 'today' : `in ${invite.expiresInDays}d`}</Mono>
+                    <Mono className="text-muted-foreground">
+                      {invite.expiresInDays === 0 ? 'today' : `in ${invite.expiresInDays}d`}
+                    </Mono>
                   </TableCell>
                   <TableCell className="pr-3">
                     <div className="flex justify-end gap-1">

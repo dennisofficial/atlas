@@ -41,7 +41,8 @@ const toCanonicalReasoningPart = (args: {
 const metadataOf = (args: {
   namespace: string
   part: HistoricalReasoningPart
-}): ReasoningMetadata => args.part.providerOptions?.[args.namespace] ?? args.part.providerMetadata?.[args.namespace] ?? {}
+}): ReasoningMetadata =>
+  args.part.providerOptions?.[args.namespace] ?? args.part.providerMetadata?.[args.namespace] ?? {}
 
 const isReplayable = (args: {
   namespace: string
@@ -77,7 +78,8 @@ const warnOmitted = (dropped: Readonly<Record<DroppedReason, number>>): void => 
 
   const reasons: string[] = []
   if (foreign > 0) reasons.push(`${foreign} from another provider's reasoning format`)
-  if (unencrypted > 0) reasons.push(`${unencrypted} without encrypted content, which store:false requires`)
+  if (unencrypted > 0)
+    reasons.push(`${unencrypted} without encrypted content, which store:false requires`)
   console.warn(
     `atlas: omitted ${foreign + unencrypted} historical reasoning part(s) from the OpenAI request: ${reasons.join('; ')}. Text and tool calls are unaffected.`,
   )
@@ -90,7 +92,7 @@ const warnOmitted = (dropped: Readonly<Record<DroppedReason, number>>): void => 
 // "azure"), which covers the real subscription/api-key paths and their stamps.
 const effectiveNamespace = (providerName: string): string =>
   providerName === 'openai' || providerName.includes('azure')
-    ? providerName.split('.')[0]?.trim() ?? providerName
+    ? (providerName.split('.')[0]?.trim() ?? providerName)
     : 'openai'
 
 export function withOpenAiCompatibleReasoning(args: {

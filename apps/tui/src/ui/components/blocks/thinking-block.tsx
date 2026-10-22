@@ -63,12 +63,7 @@ function OpenedDocument(props: { text: string; inner: number }): React.ReactNode
     <>
       <HeaderRow inner={props.inner} />
       <text> </text>
-      <box
-        flexDirection="column"
-        width={props.inner}
-        flexShrink={0}
-        paddingLeft={BODY_INDENT}
-      >
+      <box flexDirection="column" width={props.inner} flexShrink={0} paddingLeft={BODY_INDENT}>
         <MarkdownView source={props.text} width={band} fg={theme.hint} />
       </box>
     </>

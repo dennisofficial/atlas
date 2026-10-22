@@ -66,7 +66,8 @@ const post = async (args: {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
-  if (!response.ok) throw new OAuthRefreshError({ provider: args.provider, status: response.status })
+  if (!response.ok)
+    throw new OAuthRefreshError({ provider: args.provider, status: response.status })
 
   const body: unknown = await response.json().catch(() => undefined)
   return (body ?? {}) as Record<string, unknown>

@@ -71,7 +71,10 @@ export function installLinkClickOpen(args: {
   let pointerOnLink = false
 
   const scopeUnder = (point: { x: number; y: number }): LinkScope | null =>
-    linkScopeAt({ ...point, target: Renderable.renderablesByNumber.get(renderer.hitTest(point.x, point.y)) ?? null })
+    linkScopeAt({
+      ...point,
+      target: Renderable.renderablesByNumber.get(renderer.hitTest(point.x, point.y)) ?? null,
+    })
 
   renderer.root.onMouseMove = (event) => {
     const url = renderer.getLinkAt(event.x, event.y)

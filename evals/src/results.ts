@@ -68,9 +68,20 @@ export type RunSummary = {
   operationalFailures: number
   repeatFlips: number
   metrics: readonly MetricValue[]
-  datasetAggregates: readonly { id: string; counts: Readonly<Record<string, number>>; ratios: Readonly<Record<string, number | null>> }[]
+  datasetAggregates: readonly {
+    id: string
+    counts: Readonly<Record<string, number>>
+    ratios: Readonly<Record<string, number | null>>
+  }[]
   failures: readonly { caseId: string; expected: string; actual: string }[]
-  timing: { preparationMs: TimingStats; inferenceMs: TimingStats; interpretationMs: TimingStats; gradingMs: TimingStats; endToEndMs: TimingStats; childOverheadMs: number }
+  timing: {
+    preparationMs: TimingStats
+    inferenceMs: TimingStats
+    interpretationMs: TimingStats
+    gradingMs: TimingStats
+    endToEndMs: TimingStats
+    childOverheadMs: number
+  }
   baselineComparison: BaselineComparison | null
   promotable: boolean
   failureNotes: readonly string[]
@@ -82,7 +93,12 @@ export type BaselineComparison = {
   baselineInvocationId: string
   comparable: boolean
   mismatchReason?: string | undefined
-  deltas: readonly { metricId: string; baseline: number | null; candidate: number | null; delta: number | null }[]
+  deltas: readonly {
+    metricId: string
+    baseline: number | null
+    candidate: number | null
+    delta: number | null
+  }[]
 }
 
 export type ComparisonVerdict = {

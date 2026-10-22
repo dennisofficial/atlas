@@ -51,7 +51,11 @@ describe('scanPublishables', () => {
     const mcp = items.find((item) => item.kind === EPublishKind.Mcp)
     expect(mcp?.id).toBe('mcp')
     expect(mcp?.files[0]?.archiveKey).toBe('.atlas/mcp.json')
-    expect(items.flatMap((item) => item.files.map((file) => file.archiveKey)).some((key) => key.includes('memory'))).toBe(false)
+    expect(
+      items
+        .flatMap((item) => item.files.map((file) => file.archiveKey))
+        .some((key) => key.includes('memory')),
+    ).toBe(false)
   })
 
   it('omits instructions and mcp when the files are absent', async () => {

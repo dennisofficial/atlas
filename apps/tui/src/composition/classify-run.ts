@@ -106,7 +106,6 @@ async function openBench({
       ) ?? EWebSearchBackend.DuckDuckGo,
   })
 
-
   const workspace = await probeWorkspace({ cwd })
 
   return {

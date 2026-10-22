@@ -3,7 +3,10 @@ import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { currentNotices, ENoticeTone } from '../../src/ui/notice-store'
 
-export type WatchableChannel = Pick<CloudChannel, 'connection' | 'onConnection' | 'checkpoint' | 'onCheckpoint'>
+export type WatchableChannel = Pick<
+  CloudChannel,
+  'connection' | 'onConnection' | 'checkpoint' | 'onCheckpoint'
+>
 
 export type ChannelWatch = {
   views: () => string[]
@@ -18,7 +21,10 @@ const BANNER_PATTERN = /parking|accepts no new work|disconnected|✗/i
 
 const DEFAULT_POLL_MS = 1_000
 
-export function watchChannel(args: { channel: WatchableChannel; log: (line: string) => void }): ChannelWatch {
+export function watchChannel(args: {
+  channel: WatchableChannel
+  log: (line: string) => void
+}): ChannelWatch {
   const views: string[] = [args.channel.connection().state]
   const checkpoints: RuntimeCheckpoint[] = []
   args.log(`view ${views[0]}`)

@@ -1,8 +1,8 @@
-import { INTEGRATIONS } from "../../../fixtures/settings-account";
-import { PERSONAL_MCP_SERVERS } from "../../../fixtures/settings-mcp";
-import { AccountIntegrationRow } from "../parts/account-integration-row";
-import { McpServersSection } from "../parts/mcp-servers-section";
-import { SettingsCard, SettingsPage, SettingsSection } from "../settings-layout";
+import { INTEGRATIONS } from '../../../fixtures/settings-account'
+import { PERSONAL_MCP_SERVERS } from '../../../fixtures/settings-mcp'
+import { AccountIntegrationRow } from '../parts/account-integration-row'
+import { McpServersSection } from '../parts/mcp-servers-section'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 export function IntegrationsPage() {
   return (
@@ -23,5 +23,5 @@ export function IntegrationsPage() {
         initialServers={PERSONAL_MCP_SERVERS}
       />
     </SettingsPage>
-  );
+  )
 }

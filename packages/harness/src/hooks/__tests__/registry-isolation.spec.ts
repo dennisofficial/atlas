@@ -80,9 +80,9 @@ describe('a collect phase survives a hook that misbehaves', () => {
       onMishap,
     )
 
-    expect(contextOf(await chain.beforeTurn({ threadId: THREAD, projectDirectory: '/repo' }))).toEqual([
-      'after',
-    ])
+    expect(
+      contextOf(await chain.beforeTurn({ threadId: THREAD, projectDirectory: '/repo' })),
+    ).toEqual(['after'])
     expect(seen.map((mishap) => mishap.kind)).toEqual([EHookMishapKind.Overran])
   })
 
@@ -103,10 +103,9 @@ describe('a collect phase survives a hook that misbehaves', () => {
       onMishap,
     )
 
-    expect(contextOf(await chain.beforeTurn({ threadId: THREAD, projectDirectory: '/repo' }))).toEqual([
-      'b',
-      'c',
-    ])
+    expect(
+      contextOf(await chain.beforeTurn({ threadId: THREAD, projectDirectory: '/repo' })),
+    ).toEqual(['b', 'c'])
   })
 })
 
@@ -176,7 +175,9 @@ describe('onChunk', () => {
   it('does not mute the stream when a hook forgets to return', async () => {
     const { seen, onMishap } = collect()
     const chain = new HookChain({
-      onChunk: [{ name: 'forgetful', order: order(1), run: async () => undefined as unknown as Chunk }],
+      onChunk: [
+        { name: 'forgetful', order: order(1), run: async () => undefined as unknown as Chunk },
+      ],
       onMishap,
       budgetMs: BUDGET_MS,
     })

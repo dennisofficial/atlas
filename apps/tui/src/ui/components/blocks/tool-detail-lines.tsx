@@ -15,7 +15,10 @@ export type LineGroup = { fg: string; lines: readonly string[] }
  * loop used to spend a renderable each on. Every renderable still mounted is repainted every
  * frame, so a twelve-row detail is one repaint here, not twelve.
  */
-export function JoinedLines(props: { inner: number; groups: readonly LineGroup[] }): React.ReactNode {
+export function JoinedLines(props: {
+  inner: number
+  groups: readonly LineGroup[]
+}): React.ReactNode {
   const groups = props.groups.filter((group) => group.lines.length > 0)
   if (groups.length === 0) return null
 
@@ -32,4 +35,3 @@ export function JoinedLines(props: { inner: number; groups: readonly LineGroup[]
     </text>
   )
 }
-

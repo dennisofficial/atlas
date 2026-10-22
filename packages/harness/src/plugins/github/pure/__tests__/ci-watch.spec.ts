@@ -2,8 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { ciWatchIntent, ECiWatch } from '../ci-watch'
 
-const watching = (command: string): boolean =>
-  ciWatchIntent({ command }) === ECiWatch.Watching
+const watching = (command: string): boolean => ciWatchIntent({ command }) === ECiWatch.Watching
 
 describe('commands that wait on CI', () => {
   it('reads gh run watch in its spellings', () => {

@@ -77,7 +77,10 @@ describe('sass lexical highlighting', () => {
 
   it('covers the block the user reported as unhighlighted', () => {
     expect(source).toContain(reported)
-    expect(textFor({ spec, source: reported, group: 'variable' })).toEqual(['$greeting', '$greeting'])
+    expect(textFor({ spec, source: reported, group: 'variable' })).toEqual([
+      '$greeting',
+      '$greeting',
+    ])
     expect(textFor({ spec, source: reported, group: 'tag' })).toEqual(['body'])
     expect(textFor({ spec, source: reported, group: 'attribute' })).toEqual(['::before'])
     expect(textFor({ spec, source: reported, group: 'property' })).toEqual(['content'])
@@ -126,7 +129,9 @@ describe('sass lexical highlighting', () => {
   })
 
   it('falls through to an id selector when the hash is not a colour', () => {
-    expect(textFor({ spec, source: '#deadbeef1\n    top: 0', group: 'type' })).toEqual(['#deadbeef1'])
+    expect(textFor({ spec, source: '#deadbeef1\n    top: 0', group: 'type' })).toEqual([
+      '#deadbeef1',
+    ])
     expect(textFor({ spec, source: '#deadbeef1\n    top: 0', group: 'constant' })).toEqual([])
   })
 
@@ -175,7 +180,13 @@ describe('sass lexical highlighting', () => {
   })
 
   it('knows the css at-rules alongside the sass ones', () => {
-    const atRules = ['@font-face', '    font-family: Foo', '@keyframes spin', '    from', '        opacity: 0'].join('\n')
+    const atRules = [
+      '@font-face',
+      '    font-family: Foo',
+      '@keyframes spin',
+      '    from',
+      '        opacity: 0',
+    ].join('\n')
     expect(textFor({ spec, source: atRules, group: 'keyword.directive' })).toEqual([
       '@font-face',
       '@keyframes',

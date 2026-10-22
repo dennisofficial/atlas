@@ -28,7 +28,9 @@ export function useLocalMcpStore(initial: McpServer[]): McpStore {
         },
       ]),
     toggle: async ({ id, enabled }) =>
-      setServers((current) => current.map((server) => (server.id === id ? { ...server, enabled } : server))),
+      setServers((current) =>
+        current.map((server) => (server.id === id ? { ...server, enabled } : server)),
+      ),
     remove: async (id) => setServers((current) => current.filter((server) => server.id !== id)),
   }
 }

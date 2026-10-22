@@ -17,9 +17,7 @@ export const MAX_WAKE_ATTEMPTS = 3
 export class MainWake {
   private attempts: { witness: string | null; count: number } = { witness: null, count: 0 }
 
-  constructor(
-    private readonly args: { blocked: () => boolean; onWake: () => void },
-  ) {}
+  constructor(private readonly args: { blocked: () => boolean; onWake: () => void }) {}
 
   onNotice({ witness }: { witness: string | null }): void {
     if (witness === null) {

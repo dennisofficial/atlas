@@ -80,8 +80,7 @@ export function hostSandboxEnvironment(args?: {
     uid,
     gid,
     home,
-    sshAuthSock:
-      sshAuthSock !== undefined && existsSync(sshAuthSock) ? sshAuthSock : undefined,
+    sshAuthSock: sshAuthSock !== undefined && existsSync(sshAuthSock) ? sshAuthSock : undefined,
     sshKnownHostsPath: existingFilePath(sshKnownHostsPath),
     gpgAgentExtraSocket: gpgAgentSocket,
     gpgPubringPath: gpgAgentSocket !== undefined ? existingFilePath(gpgPubringPath) : undefined,
@@ -172,7 +171,10 @@ export function sandboxConfigFromHost(args: {
     setup: args.resolution?.setup,
     start: args.resolution?.start,
     env: args.resolution?.env,
-    mounts: mountsWithGitMetadata({ worktree: args.worktree, declared: args.resolution?.mounts ?? [] }),
+    mounts: mountsWithGitMetadata({
+      worktree: args.worktree,
+      declared: args.resolution?.mounts ?? [],
+    }),
     atlasHomeSubtrees:
       args.atlasHomeSubtrees ??
       mountedAtlasHomeSubtrees({ worktree: args.worktree, declared: args.resolution?.mounts }),

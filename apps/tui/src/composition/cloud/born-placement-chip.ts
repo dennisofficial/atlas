@@ -11,7 +11,8 @@ const FIRST_SEND_SIGNALS: ReadonlySet<ChannelSignal['type']> = new Set([
   'turn-working',
 ])
 
-export const startsTheThread = (signal: ChannelSignal): boolean => FIRST_SEND_SIGNALS.has(signal.type)
+export const startsTheThread = (signal: ChannelSignal): boolean =>
+  FIRST_SEND_SIGNALS.has(signal.type)
 
 export type BornPlacementState = {
   threadId: ThreadId

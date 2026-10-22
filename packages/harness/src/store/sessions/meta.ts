@@ -52,7 +52,10 @@ export type MainThreadFence =
 export abstract class SessionAuthorityPort {
   abstract activeMainOf(args: { sessionId: string }): Promise<ThreadId | undefined>
   abstract mainGenerationOf(args: { threadId: ThreadId }): Promise<number | undefined>
-  abstract fenceMainThread(args: { threadId: ThreadId; generation?: number | undefined }): Promise<MainThreadFence>
+  abstract fenceMainThread(args: {
+    threadId: ThreadId
+    generation?: number | undefined
+  }): Promise<MainThreadFence>
 }
 
 export const THREAD_META_VERSION = 1

@@ -52,7 +52,11 @@ describe('workspaces HTTP surface', () => {
   })
 
   it('lets a member read but forbids a plain member from writing', async () => {
-    await http().put(`${base}/secrets/API_KEY`).set(as('session-a')).send({ value: 's' }).expect(204)
+    await http()
+      .put(`${base}/secrets/API_KEY`)
+      .set(as('session-a'))
+      .send({ value: 's' })
+      .expect(204)
     const read = await http().get(`${base}/secrets`).set(as('session-b')).expect(200)
     expect(read.body.secrets).toHaveLength(1)
 
@@ -91,7 +95,11 @@ describe('workspaces HTTP surface', () => {
       updatedBy: { userId: 'user-a', name: 'Ada' },
     })
 
-    await http().put(`${base}/secrets/bad-name`).set(as('session-a')).send({ value: 'v' }).expect(400)
+    await http()
+      .put(`${base}/secrets/bad-name`)
+      .set(as('session-a'))
+      .send({ value: 'v' })
+      .expect(400)
     await http().delete(`${base}/secrets/API_KEY`).set(as('session-a')).expect(204)
     expect(fake.tables.workspaceSecret.rows).toHaveLength(0)
   })

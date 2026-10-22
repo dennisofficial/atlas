@@ -26,9 +26,21 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EOpenMode } from '../config'
-import { closeConversation, openConversation, type OpenOutcome, type OpenedConversation } from '../open-conversation'
+import {
+  closeConversation,
+  openConversation,
+  type OpenOutcome,
+  type OpenedConversation,
+} from '../open-conversation'
 import { fakeAgentRegistry } from './fake-agents'
-import { fakeThreadStore, fakeEventLog, fakeIds, fakeLedger, FAKE_WORKSPACE, SPEC_SHARD } from './fake-backend'
+import {
+  fakeThreadStore,
+  fakeEventLog,
+  fakeIds,
+  fakeLedger,
+  FAKE_WORKSPACE,
+  SPEC_SHARD,
+} from './fake-backend'
 
 const YESTERDAY = toThreadId(`yesterday-${SPEC_SHARD}`)
 
@@ -89,7 +101,9 @@ const said = (text: string): Event => ({
 
 const opened = (outcome: OpenOutcome): OpenedConversation => {
   if ('cloud' in outcome || !outcome.ok) {
-    throw new Error(`expected an opened conversation, got: ${'cloud' in outcome ? 'cloud' : outcome.reason}`)
+    throw new Error(
+      `expected an opened conversation, got: ${'cloud' in outcome ? 'cloud' : outcome.reason}`,
+    )
   }
   return outcome.conversation
 }

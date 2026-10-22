@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   ContextMenu,
@@ -15,16 +15,16 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "@dltech/atlas-ui/components/context-menu";
+} from '@dltech/atlas-ui/components/context-menu'
 
 const meta = {
-  title: "Components/Context Menu",
+  title: 'Components/Context Menu',
   component: ContextMenu,
-} satisfies Meta<typeof ContextMenu>;
+} satisfies Meta<typeof ContextMenu>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -65,4 +65,4 @@ export const Default: Story = {
       </ContextMenuContent>
     </ContextMenu>
   ),
-};
+}

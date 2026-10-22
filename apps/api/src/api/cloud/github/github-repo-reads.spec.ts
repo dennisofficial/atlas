@@ -3,7 +3,8 @@ import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { GithubRepoReads } from './github-repo-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 
-const json = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status })
+const json = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), { status })
 
 describe('GithubRepoReads', () => {
   let reads: GithubRepoReads

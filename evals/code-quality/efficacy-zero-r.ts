@@ -31,9 +31,19 @@ function mode<T>({ values }: { values: readonly T[] }): T | null {
   return tied ? null : first[0]
 }
 
-const countMatches = <T>({ modeValue, values }: { modeValue: T | null; values: readonly T[] }): Ratio => {
-  if (modeValue === null || values.length === 0) return ratioOf({ numerator: 0, denominator: values.length })
-  return ratioOf({ numerator: values.filter((value) => value === modeValue).length, denominator: values.length })
+const countMatches = <T>({
+  modeValue,
+  values,
+}: {
+  modeValue: T | null
+  values: readonly T[]
+}): Ratio => {
+  if (modeValue === null || values.length === 0)
+    return ratioOf({ numerator: 0, denominator: values.length })
+  return ratioOf({
+    numerator: values.filter((value) => value === modeValue).length,
+    denominator: values.length,
+  })
 }
 
 export function zeroRBaselineOf({
@@ -46,13 +56,18 @@ export function zeroRBaselineOf({
   const fields: SrpExpectedFields[] = []
   for (const evalCase of cases) {
     const decoded = srpExpectedSchema.safeParse(evalCase.expected)
-    if (decoded.success && decoded.data.kind === ESrpExpectationKind.Decided) fields.push(decoded.data.fields)
+    if (decoded.success && decoded.data.kind === ESrpExpectationKind.Decided)
+      fields.push(decoded.data.fields)
   }
   return {
     impact: mode({ values: fields.map((field) => field.impact) }),
     currentConcern: mode({ values: fields.map((field) => field.currentConcern) }),
     evidenceIds: [],
-    notificationWarranted: mode({ values: judgments.filter((judgment) => judgment.notificationWarranted !== null).map((judgment) => judgment.notificationWarranted) }),
+    notificationWarranted: mode({
+      values: judgments
+        .filter((judgment) => judgment.notificationWarranted !== null)
+        .map((judgment) => judgment.notificationWarranted),
+    }),
   }
 }
 
@@ -68,15 +83,20 @@ export function zeroRReportOf({
   const fields: SrpExpectedFields[] = []
   for (const evalCase of cases) {
     const decoded = srpExpectedSchema.safeParse(evalCase.expected)
-    if (decoded.success && decoded.data.kind === ESrpExpectationKind.Decided) fields.push(decoded.data.fields)
+    if (decoded.success && decoded.data.kind === ESrpExpectationKind.Decided)
+      fields.push(decoded.data.fields)
   }
   const prediction = zeroRBaselineOf({ cases, judgments })
   const impactValues = fields.map((field) => field.impact)
   const concernValues = fields.map((field) => field.currentConcern)
-  const warranted = judgments.filter((judgment) => judgment.notificationWarranted !== null).map((judgment) => judgment.notificationWarranted)
+  const warranted = judgments
+    .filter((judgment) => judgment.notificationWarranted !== null)
+    .map((judgment) => judgment.notificationWarranted)
   const expectedWarranted = warranted.filter((value) => value).length
-  const actualNotifications = prediction.notificationWarranted === true ? warranted.length * trialsPerCase : 0
-  const truePositives = prediction.notificationWarranted === true ? expectedWarranted * trialsPerCase : 0
+  const actualNotifications =
+    prediction.notificationWarranted === true ? warranted.length * trialsPerCase : 0
+  const truePositives =
+    prediction.notificationWarranted === true ? expectedWarranted * trialsPerCase : 0
   const uniqueImpacts = new Set(impactValues).size
   const uniqueConcerns = new Set(concernValues).size
   const uniqueNotifications = new Set(warranted).size
@@ -84,8 +104,14 @@ export function zeroRReportOf({
     prediction,
     impactAccuracy: countMatches({ modeValue: prediction.impact, values: impactValues }),
     concernAccuracy: countMatches({ modeValue: prediction.currentConcern, values: concernValues }),
-    notificationRecall: prediction.notificationWarranted === null || expectedWarranted === 0 ? ratioOf({ numerator: 0, denominator: 0 }) : ratioOf({ numerator: truePositives, denominator: expectedWarranted * trialsPerCase }),
-    notificationPrecision: prediction.notificationWarranted === null || actualNotifications === 0 ? ratioOf({ numerator: 0, denominator: 0 }) : ratioOf({ numerator: truePositives, denominator: actualNotifications }),
+    notificationRecall:
+      prediction.notificationWarranted === null || expectedWarranted === 0
+        ? ratioOf({ numerator: 0, denominator: 0 })
+        : ratioOf({ numerator: truePositives, denominator: expectedWarranted * trialsPerCase }),
+    notificationPrecision:
+      prediction.notificationWarranted === null || actualNotifications === 0
+        ? ratioOf({ numerator: 0, denominator: 0 })
+        : ratioOf({ numerator: truePositives, denominator: actualNotifications }),
     insufficientClasses: uniqueImpacts < 2 && uniqueConcerns < 2 && uniqueNotifications < 2,
   }
 }

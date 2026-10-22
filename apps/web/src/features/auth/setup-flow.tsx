@@ -73,7 +73,9 @@ export function SetupFlow() {
       await setActiveOrganization({ organizationId })
       setStep(ESetupStep.Done)
     } catch (cause) {
-      setError(cause instanceof OrganizationApiError ? cause.message : 'Could not create the workspace')
+      setError(
+        cause instanceof OrganizationApiError ? cause.message : 'Could not create the workspace',
+      )
       setBusy(false)
     }
   }

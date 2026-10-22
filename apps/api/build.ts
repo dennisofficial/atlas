@@ -82,12 +82,24 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     lockPath: join(import.meta.dirname, '..', '..', 'bun.lock'),
     roots: RUNTIME_PACKAGES,
   })
-  await writeJson({ path: join(functionDir, 'package.json'), value: { type: 'module', dependencies: runtime.dependencies } })
+  await writeJson({
+    path: join(functionDir, 'package.json'),
+    value: { type: 'module', dependencies: runtime.dependencies },
+  })
   await writeFile(join(functionDir, 'bun.lock'), `${JSON.stringify(runtime.lock, null, 2)}\n`)
 
   // --os=* --cpu=* keeps every platform's optional binaries: the build host differs from Vercel's linux x64.
   const install = Bun.spawnSync(
-    ['bun', 'install', '--production', '--linker', 'hoisted', '--frozen-lockfile', '--os=*', '--cpu=*'],
+    [
+      'bun',
+      'install',
+      '--production',
+      '--linker',
+      'hoisted',
+      '--frozen-lockfile',
+      '--os=*',
+      '--cpu=*',
+    ],
     { cwd: functionDir, stdout: 'inherit', stderr: 'inherit' },
   )
   if (install.exitCode !== 0) {
@@ -96,7 +108,9 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
 
   const tierSource = join(import.meta.dirname, 'envs', TIER_FILE)
   if (!existsSync(tierSource)) {
-    throw new Error(`${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`)
+    throw new Error(
+      `${TIER_FILE} not found at ${tierSource}; the committed tier must exist to ship in the bundle.`,
+    )
   }
   await cp(tierSource, join(functionDir, TIER_FILE))
 

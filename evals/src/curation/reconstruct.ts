@@ -39,9 +39,14 @@ type TextModel = { lines: readonly string[]; trailingNewline: boolean }
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/
 const NO_NEWLINE_MARKER = '\\ No newline at end of file'
-const FILE_HEADER = /^(?:diff |index |--- |\+\+\+ |new file mode|deleted file mode|similarity index|rename (?:from|to))/
+const FILE_HEADER =
+  /^(?:diff |index |--- |\+\+\+ |new file mode|deleted file mode|similarity index|rename (?:from|to))/
 
-const failed = (detail: string): Reconstruction => ({ kind: EReconstructionKind.Failed, after: null, detail })
+const failed = (detail: string): Reconstruction => ({
+  kind: EReconstructionKind.Failed,
+  after: null,
+  detail,
+})
 
 const parseCount = (raw: string | undefined): number => (raw === undefined ? 1 : Number(raw))
 
@@ -65,7 +70,15 @@ function opOf({ line }: { line: string }): EHunkOp | null {
   return null
 }
 
-function parseHunkBody({ header, rows, index }: { header: RegExpMatchArray; rows: readonly string[]; index: number }): Hunk | string {
+function parseHunkBody({
+  header,
+  rows,
+  index,
+}: {
+  header: RegExpMatchArray
+  rows: readonly string[]
+  index: number
+}): Hunk | string {
   const lines: HunkLine[] = []
   let oldNoNewline = false
   let newNoNewline = false
@@ -145,14 +158,22 @@ function reverseHunk({ hunk }: { hunk: Hunk }): Hunk {
   }
 }
 
-function applyHunks({ source, hunks }: { source: TextModel; hunks: readonly Hunk[] }): Reconstruction {
+function applyHunks({
+  source,
+  hunks,
+}: {
+  source: TextModel
+  hunks: readonly Hunk[]
+}): Reconstruction {
   const output: string[] = []
   let position = 0
   let trailingNewline = source.trailingNewline
   for (const hunk of hunks) {
     const start = hunk.oldCount === 0 ? hunk.oldStart : hunk.oldStart - 1
-    if (start < position) return failed(`hunk ${hunk.index}: overlaps or precedes the previous hunk`)
-    if (start > source.lines.length) return failed(`hunk ${hunk.index}: starts beyond the end of the file`)
+    if (start < position)
+      return failed(`hunk ${hunk.index}: overlaps or precedes the previous hunk`)
+    if (start > source.lines.length)
+      return failed(`hunk ${hunk.index}: starts beyond the end of the file`)
     output.push(...source.lines.slice(position, start))
     position = start
     for (const line of hunk.lines) {
@@ -161,7 +182,9 @@ function applyHunks({ source, hunks }: { source: TextModel; hunks: readonly Hunk
         continue
       }
       if (source.lines[position] !== line.text) {
-        return failed(`hunk ${hunk.index}: expected "${line.text}" at line ${position + 1}, found ${JSON.stringify(source.lines[position] ?? null)}`)
+        return failed(
+          `hunk ${hunk.index}: expected "${line.text}" at line ${position + 1}, found ${JSON.stringify(source.lines[position] ?? null)}`,
+        )
       }
       if (line.op === EHunkOp.Context) output.push(line.text)
       position += 1
@@ -176,10 +199,19 @@ function applyHunks({ source, hunks }: { source: TextModel; hunks: readonly Hunk
     }
   }
   output.push(...source.lines.slice(position))
-  return { kind: EReconstructionKind.Applied, after: fromModel({ model: { lines: output, trailingNewline } }) }
+  return {
+    kind: EReconstructionKind.Applied,
+    after: fromModel({ model: { lines: output, trailingNewline } }),
+  }
 }
 
-export function applyUnifiedDiff({ before, diff }: { before: string; diff: string }): Reconstruction {
+export function applyUnifiedDiff({
+  before,
+  diff,
+}: {
+  before: string
+  diff: string
+}): Reconstruction {
   const parsed = parseDiff({ diff })
   if ('error' in parsed) return failed(parsed.error)
   const source = toModel({ text: before })
@@ -187,7 +219,11 @@ export function applyUnifiedDiff({ before, diff }: { before: string; diff: strin
   if (forward.kind === EReconstructionKind.Applied) return forward
   const reversed = applyHunks({ source, hunks: parsed.hunks.map((hunk) => reverseHunk({ hunk })) })
   if (reversed.kind === EReconstructionKind.Applied) {
-    return { kind: EReconstructionKind.AlreadyApplied, after: before, detail: 'diff is already applied to the baseline' }
+    return {
+      kind: EReconstructionKind.AlreadyApplied,
+      after: before,
+      detail: 'diff is already applied to the baseline',
+    }
   }
   return forward
 }
@@ -218,17 +254,42 @@ export function reconstructChange({
   expectedAfterSha256: string
   path?: string
 }): ReconstructedChange {
-  const refuse = ({ kind, detail }: { kind: EReconstructionKind; detail: string }): ReconstructedChange => ({ ok: false, kind, change: null, detail })
-  if (before === null) return refuse({ kind: EReconstructionKind.Failed, detail: 'baseline is missing; refusing to substitute current disk content' })
+  const refuse = ({
+    kind,
+    detail,
+  }: {
+    kind: EReconstructionKind
+    detail: string
+  }): ReconstructedChange => ({ ok: false, kind, change: null, detail })
+  if (before === null)
+    return refuse({
+      kind: EReconstructionKind.Failed,
+      detail: 'baseline is missing; refusing to substitute current disk content',
+    })
   const targetPath = path ?? pathFromDiff({ diff })
-  if (targetPath === null) return refuse({ kind: EReconstructionKind.Failed, detail: 'diff names no target path and none was supplied' })
+  if (targetPath === null)
+    return refuse({
+      kind: EReconstructionKind.Failed,
+      detail: 'diff names no target path and none was supplied',
+    })
   const applied = applyUnifiedDiff({ before, diff })
-  if (applied.kind === EReconstructionKind.Failed) return refuse({ kind: applied.kind, detail: applied.detail ?? 'diff does not apply' })
+  if (applied.kind === EReconstructionKind.Failed)
+    return refuse({ kind: applied.kind, detail: applied.detail ?? 'diff does not apply' })
   if (applied.kind === EReconstructionKind.AlreadyApplied || applied.after === null) {
-    return refuse({ kind: EReconstructionKind.AlreadyApplied, detail: 'diff is already applied to the baseline; no change to reconstruct' })
+    return refuse({
+      kind: EReconstructionKind.AlreadyApplied,
+      detail: 'diff is already applied to the baseline; no change to reconstruct',
+    })
   }
   if (sha256Hex({ text: applied.after }) !== expectedAfterSha256) {
-    return refuse({ kind: EReconstructionKind.Failed, detail: 'reconstructed text does not match the expected after digest' })
+    return refuse({
+      kind: EReconstructionKind.Failed,
+      detail: 'reconstructed text does not match the expected after digest',
+    })
   }
-  return { ok: true, kind: EReconstructionKind.Applied, change: { path: targetPath, before, after: applied.after } }
+  return {
+    ok: true,
+    kind: EReconstructionKind.Applied,
+    change: { path: targetPath, before, after: applied.after },
+  }
 }

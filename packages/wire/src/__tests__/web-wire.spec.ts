@@ -23,7 +23,9 @@ describe('web wire schemas', () => {
     expect(projectSandboxSchema.safeParse({ vcpus: 6, setupScript: 'bun i' }).success).toBe(true)
     expect(projectSandboxSchema.safeParse({ vcpus: 5, setupScript: '' }).success).toBe(false)
     expect(projectSandboxSchema.safeParse({ vcpus: 10, setupScript: '' }).success).toBe(false)
-    expect(projectSandboxSchema.safeParse({ vcpus: 2, setupScript: 'x'.repeat(20001) }).success).toBe(false)
+    expect(
+      projectSandboxSchema.safeParse({ vcpus: 2, setupScript: 'x'.repeat(20001) }).success,
+    ).toBe(false)
   })
 
   it('project defaults description and shipBehavior so an old payload still parses', () => {
@@ -41,8 +43,12 @@ describe('web wire schemas', () => {
   })
 
   it('mcp upsert validates the transport union', () => {
-    expect(mcpUpsertSchema.safeParse({ transport: { kind: 'stdio', command: 'npx' } }).success).toBe(true)
-    expect(mcpUpsertSchema.safeParse({ transport: { kind: 'http', url: 'https://x.dev' } }).success).toBe(true)
+    expect(
+      mcpUpsertSchema.safeParse({ transport: { kind: 'stdio', command: 'npx' } }).success,
+    ).toBe(true)
+    expect(
+      mcpUpsertSchema.safeParse({ transport: { kind: 'http', url: 'https://x.dev' } }).success,
+    ).toBe(true)
     expect(mcpUpsertSchema.safeParse({ transport: { kind: 'stdio' } }).success).toBe(false)
     expect(mcpUpsertSchema.safeParse({ disabled: true }).success).toBe(true)
   })
@@ -50,7 +56,9 @@ describe('web wire schemas', () => {
   it('workspace secret carries the updater or null', () => {
     const base = { name: 'A', kind: 'env', value: 'v', createdAt: 'a', updatedAt: 'b' }
     expect(workspaceSecretSchema.safeParse({ ...base, updatedBy: null }).success).toBe(true)
-    expect(workspaceSecretSchema.safeParse({ ...base, updatedBy: { userId: 'u', name: 'N' } }).success).toBe(true)
+    expect(
+      workspaceSecretSchema.safeParse({ ...base, updatedBy: { userId: 'u', name: 'N' } }).success,
+    ).toBe(true)
     expect(workspaceSecretSchema.safeParse(base).success).toBe(false)
   })
 })

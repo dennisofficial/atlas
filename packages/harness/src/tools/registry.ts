@@ -5,8 +5,6 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../container/injection'
-
 export abstract class ToolRegistry {
   abstract declarations(): readonly ToolDeclaration[]
   abstract find(name: string): ToolDefinition | undefined
@@ -16,7 +14,7 @@ export class InMemoryToolRegistry extends ToolRegistry {
   private readonly definitions: readonly ToolDefinition[]
   private readonly byName: Map<string, ToolDefinition>
 
-  constructor( definitions: readonly ToolDefinition[]) {
+  constructor(definitions: readonly ToolDefinition[]) {
     super()
     this.byName = new Map()
     for (const definition of definitions) {

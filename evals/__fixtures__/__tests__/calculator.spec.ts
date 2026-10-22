@@ -4,7 +4,14 @@ import { EvalRegistryError, createFeatureRegistry } from '../../src/feature-regi
 import type { AnyEvalFeature } from '../../src/feature-registry'
 import { gradeRow } from '../../src/grading'
 import { meanScore } from '../../src/metrics'
-import { type CalculatorInput, calculate, createCalculatorFeature, expectedSchema, inputSchema, outputSchema } from '../calculator'
+import {
+  type CalculatorInput,
+  calculate,
+  createCalculatorFeature,
+  expectedSchema,
+  inputSchema,
+  outputSchema,
+} from '../calculator'
 
 const feature = createCalculatorFeature({ evaluate: calculate })
 const evaluator = feature.evaluators[0]
@@ -24,18 +31,33 @@ const dummyFeature = (): AnyEvalFeature => ({
 describe('calculator fixture', () => {
   it('declares id, versions and a single exact-match evaluator', () => {
     expect(feature.id).toBe('calculator')
-    expect([feature.inputSchemaVersion, feature.expectedSchemaVersion, feature.rubricVersion]).toEqual(['1', '1', '1'])
+    expect([
+      feature.inputSchemaVersion,
+      feature.expectedSchemaVersion,
+      feature.rubricVersion,
+    ]).toEqual(['1', '1', '1'])
     expect(feature.evaluators.map((entry) => entry.id)).toEqual(['exact-match'])
   })
 
   it('runs the injected evaluate function', async () => {
-    const context = { invocationId: 'i', caseId: 'c', trialId: 't', variantId: 'v', model: 'm', deadlineMs: 1000 }
-    expect(await feature.run({ input: { a: 6, b: 3, op: 'divide' }, context })).toEqual({ result: 2 })
+    const context = {
+      invocationId: 'i',
+      caseId: 'c',
+      trialId: 't',
+      variantId: 'v',
+      model: 'm',
+      deadlineMs: 1000,
+    }
+    expect(await feature.run({ input: { a: 6, b: 3, op: 'divide' }, context })).toEqual({
+      result: 2,
+    })
   })
 
   it('scores strict equality as 1 and anything else as 0 with a difference', () => {
     const input: CalculatorInput = { a: 2, b: 3, op: 'add' }
-    expect(evaluator?.grade({ input, expected: { result: 5 }, actual: { result: 5 } })).toEqual({ score: 1 })
+    expect(evaluator?.grade({ input, expected: { result: 5 }, actual: { result: 5 } })).toEqual({
+      score: 1,
+    })
     expect(evaluator?.grade({ input, expected: { result: 5 }, actual: { result: 6 } })).toEqual({
       score: 0,
       difference: 'expected 5, got 6',
@@ -50,7 +72,9 @@ describe('calculator fixture', () => {
   })
 
   it('always applies', () => {
-    expect(evaluator?.applies({ input: { a: 0, b: 1, op: 'divide' }, expected: { result: 0 } })).toBe(true)
+    expect(
+      evaluator?.applies({ input: { a: 0, b: 1, op: 'divide' }, expected: { result: 0 } }),
+    ).toBe(true)
   })
 
   it('validates input, expected and output shapes', () => {
@@ -64,11 +88,17 @@ describe('calculator fixture', () => {
     const registry = createFeatureRegistry({ features: [feature, dummyFeature()] })
     expect(registry.ids()).toEqual(['calculator', 'dummy'])
     expect(registry.get({ id: 'dummy' }).id).toBe('dummy')
-    expect(() => createFeatureRegistry({ features: [dummyFeature(), dummyFeature()] })).toThrow(EvalRegistryError)
+    expect(() => createFeatureRegistry({ features: [dummyFeature(), dummyFeature()] })).toThrow(
+      EvalRegistryError,
+    )
   })
 
   it('yields a mean exact-match score of 0.8 for 8 of 10 correct', () => {
-    const inputs: CalculatorInput[] = Array.from({ length: 10 }, (_, index) => ({ a: index, b: 2, op: 'add' }))
+    const inputs: CalculatorInput[] = Array.from({ length: 10 }, (_, index) => ({
+      a: index,
+      b: 2,
+      op: 'add',
+    }))
     const values = inputs.map((input, index) => {
       const expected = { result: input.a + input.b }
       const actual = { result: index < 8 ? expected.result : expected.result + 1 }

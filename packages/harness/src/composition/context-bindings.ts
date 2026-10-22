@@ -10,12 +10,13 @@ import { CloudMemoryPort } from '../memory/cloud-memory-port'
 import { newMemoryIndexState } from '../memory/memory-index-state'
 import { MemoryPort } from '../memory/memory-port'
 import { readOriginIdentity } from '../memory/origin-identity'
-import { instanceCachingFactory, portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
-  ClientVersionToken,
-  CloudSessionStoreToken,
-  ServeSessionToken,
-} from '../container/tokens'
+  instanceCachingFactory,
+  portToken,
+  registeredPortToken,
+  type DependencyContainer,
+} from '../container/injection'
+import { ClientVersionToken, CloudSessionStoreToken, ServeSessionToken } from '../container/tokens'
 import { FileReadStatePort } from '../files/read-state'
 import { LoadInstructionsHook } from '../hooks/load-instructions'
 import { LoadMemoryIndexHook } from '../hooks/load-memory'
@@ -86,12 +87,14 @@ export async function bindInstructionsAndMemory(args: {
     useFactory: (resolver) => new ReadMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new WriteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+    useFactory: (resolver) =>
+      new WriteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new EditMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new DeleteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+    useFactory: (resolver) =>
+      new DeleteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
   })
 }

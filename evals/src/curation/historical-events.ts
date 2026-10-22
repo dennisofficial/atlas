@@ -21,16 +21,29 @@ export enum EToolClass {
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const nonEmptyString = (value: unknown): value is string => typeof value === 'string' && value !== ''
+const nonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value !== ''
 
-function bodyOf({ raw, type }: { raw: Record<string, unknown>; type: string }): Record<string, unknown> | null {
+function bodyOf({
+  raw,
+  type,
+}: {
+  raw: Record<string, unknown>
+  type: string
+}): Record<string, unknown> | null {
   if (!('body' in raw)) return raw
   const inner = raw['body']
   if (!isRecord(inner) || inner['type'] !== type) return null
   return inner
 }
 
-export function parseEnvelope({ raw, index }: { raw: unknown; index: number }): HistoricalEnvelope | null {
+export function parseEnvelope({
+  raw,
+  index,
+}: {
+  raw: unknown
+  index: number
+}): HistoricalEnvelope | null {
   if (!isRecord(raw)) return null
   const { id, seq, threadId, runId, at, type } = raw
   if (!nonEmptyString(id) || !nonEmptyString(threadId) || !nonEmptyString(runId)) return null
@@ -117,7 +130,8 @@ export const isBenignEvent = ({ type }: { type: string }): boolean => BENIGN_EVE
 
 const LABEL = /^[a-z0-9_-]{1,64}$/
 
-export const labelOf = ({ value }: { value: string }): string => (LABEL.test(value) ? value : 'unrecognised')
+export const labelOf = ({ value }: { value: string }): string =>
+  LABEL.test(value) ? value : 'unrecognised'
 
 export type ResolvedInput =
   | { ok: true; path: string; content: string | null }
@@ -129,13 +143,21 @@ function resolvedPath({ raw }: { raw: unknown }): string | null {
   return posix.resolve(raw)
 }
 
-export function resolveFileInput({ tool, input }: { tool: EHistoricalTool; input: unknown }): ResolvedInput {
+export function resolveFileInput({
+  tool,
+  input,
+}: {
+  tool: EHistoricalTool
+  input: unknown
+}): ResolvedInput {
   if (!isRecord(input)) return { ok: false, unresolvedPath: false }
   const path = resolvedPath({ raw: input['path'] })
   if (path === null) return { ok: false, unresolvedPath: true }
   if (tool === EHistoricalTool.Write) {
     const content = input['content']
-    return typeof content === 'string' ? { ok: true, path, content } : { ok: false, unresolvedPath: false }
+    return typeof content === 'string'
+      ? { ok: true, path, content }
+      : { ok: false, unresolvedPath: false }
   }
   if (tool === EHistoricalTool.Edit) {
     const valid = typeof input['oldString'] === 'string' && typeof input['newString'] === 'string'

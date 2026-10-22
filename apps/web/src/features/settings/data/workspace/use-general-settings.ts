@@ -50,7 +50,9 @@ export function useGeneralSettings(organizationId: string): GeneralSettings {
             name: details.name,
             slug: details.slug,
             region: settings.read({ key: 'workspace.defaultRegion', schema: regionSchema }),
-            model: modelOfSetting(settings.read({ key: 'workspace.defaultModel', schema: modelSchema })),
+            model: modelOfSetting(
+              settings.read({ key: 'workspace.defaultModel', schema: modelSchema }),
+            ),
           },
         }),
       }),

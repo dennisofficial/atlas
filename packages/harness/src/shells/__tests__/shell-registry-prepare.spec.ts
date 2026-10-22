@@ -46,7 +46,11 @@ describe('the shell notice queue as a wake-up bell', async () => {
 
     registry.prepareNotifications({ threadId: THREAD }).acknowledge()
     expect(
-      await registry.peek({ shellId: started.snapshot.shellId, characters: 1000, threadId: THREAD }),
+      await registry.peek({
+        shellId: started.snapshot.shellId,
+        characters: 1000,
+        threadId: THREAD,
+      }),
     ).toBe('first\nsecond\n')
     const read = await registry.read({ shellId: started.snapshot.shellId, threadId: THREAD })
     expect(read.ok && read.delta.text).toContain('first')

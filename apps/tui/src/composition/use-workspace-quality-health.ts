@@ -20,7 +20,9 @@ export function useWorkspaceQualityHealth(args: {
   settings: Pick<SettingsControl, 'state' | 'view'>
 }): QualityHealthStatusProps {
   const threadId =
-    args.agentView.selected?.agentId ?? args.agentView.scopedTo?.agentId ?? args.conversationThreadId
+    args.agentView.selected?.agentId ??
+    args.agentView.scopedTo?.agentId ??
+    args.conversationThreadId
   const read = useQualityHealth({
     app: args.app,
     state: args.settings.state,

@@ -49,9 +49,7 @@ describe('openrouter app attribution', () => {
     globalThis.fetch = capturingFetch as typeof fetch
 
     const adapter = new OpenRouterAdapter({ credentials, cards: [card] })
-    await adapter
-      .model({ card, effort })
-      .doGenerate({ prompt: [] } as never)
+    await adapter.model({ card, effort }).doGenerate({ prompt: [] } as never)
 
     expect(sent?.get('x-title')).toBe('Atlas')
     expect(sent?.get('http-referer')).toBe('https://github.com/dennisofficial/atlas')

@@ -3,12 +3,7 @@ import { z, ZodError } from 'zod'
 
 import { cloudClientFor, type CloudClient } from '../../cloud/cloud-client'
 import type { CloudSession } from '../../cloud/cloud-session'
-import {
-  EMcpRejection,
-  McpSource,
-  type LoadedMcpSpec,
-  type McpSourceRead,
-} from './sources'
+import { EMcpRejection, McpSource, type LoadedMcpSpec, type McpSourceRead } from './sources'
 
 const detailOf = (error: unknown): string => {
   if (error instanceof ZodError) return z.prettifyError(error)

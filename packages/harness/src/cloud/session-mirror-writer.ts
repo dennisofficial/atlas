@@ -6,7 +6,11 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { safeRelativeSegment } from '../files/safe-relative-path'
 import { registryFor } from '../store/sessions/registry'
-import { SESSION_LOCK_NAME, EVENTS_FILE_SUFFIX, THREADS_DIRECTORY_NAME } from '../store/sessions/paths'
+import {
+  SESSION_LOCK_NAME,
+  EVENTS_FILE_SUFFIX,
+  THREADS_DIRECTORY_NAME,
+} from '../store/sessions/paths'
 import { isPortableSessionFile } from './portable-session-file'
 import { writeMirrorStamp, type MirrorStamp } from './session-mirror-stamp'
 
@@ -31,7 +35,8 @@ export type SessionMirrorWriter = {
 const mirrorWriteAllowed = (path: string): boolean => {
   if (safeRelativeSegment(path) === null) return false
   if (path === SESSION_LOCK_NAME) return false
-  if (path.startsWith(`${THREADS_DIRECTORY_NAME}/`) && path.endsWith(EVENTS_FILE_SUFFIX)) return false
+  if (path.startsWith(`${THREADS_DIRECTORY_NAME}/`) && path.endsWith(EVENTS_FILE_SUFFIX))
+    return false
   return isPortableSessionFile({ key: path })
 }
 
@@ -67,7 +72,10 @@ export function sessionMirrorWriter(args: { home: () => string }): SessionMirror
         run: async () => {
           for (const written of given.writes) {
             if (!mirrorWriteAllowed(written.path)) continue
-            await stage({ target: join(sessionDir, safeRelativeSegment(written.path) ?? written.path), content: written.content })
+            await stage({
+              target: join(sessionDir, safeRelativeSegment(written.path) ?? written.path),
+              content: written.content,
+            })
           }
           for (const deleted of given.deletions) {
             if (!mirrorWriteAllowed(deleted)) continue

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EServiceStatus,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { EServiceStatus, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { bootId } from '../boot'
 import { ServiceRecovery } from '../recovery'

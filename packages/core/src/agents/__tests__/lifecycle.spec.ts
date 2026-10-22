@@ -65,7 +65,7 @@ describe('the agent lifecycle pairing over the generic module', () => {
     expect(lifecycles[0]?.ending).toBeUndefined()
   })
 
-  it('never lets one child\'s ending settle another child\'s spawn', () => {
+  it("never lets one child's ending settle another child's spawn", () => {
     const other = toThreadId('thread_other')
     const lifecycles = lifecycleOf([rowOf(spawned()), rowOf(ended(other))], agentLifecycleKind)
 

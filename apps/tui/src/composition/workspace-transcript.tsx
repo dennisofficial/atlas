@@ -57,7 +57,8 @@ export function WorkspaceTranscript(props: {
   opened: ReadonlySet<string>
   onToggle: (key: string) => void
 }): React.ReactNode {
-  const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } = props
+  const { app, welcome, width, thinking, agentView, conversation, cloudHealth, cloudSession } =
+    props
   const { location, threadId } = useSessionOwner({ app })
   const attachFailed = useAttachFailure()
   const chip = bornPlacementChip(app)
@@ -132,7 +133,10 @@ export function WorkspaceTranscript(props: {
           stale={cloudHealth?.stale === true}
           reconnectingSince={props.reconnectingSince}
           {...(connection === EConnectionView.Disconnected
-            ? { onReconnect: () => (cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect()) }
+            ? {
+                onReconnect: () =>
+                  cloudSession === null ? props.onRetryAttach() : cloudSession.reconnect(),
+              }
             : {})}
           sends={props.sends}
           pending={conversation.pending}

@@ -7,10 +7,7 @@ import { EDiffLine, type DiffHunk, type DiffLine } from './hunk'
  * the rest as one overflow elision; the header counts and the clipboard patch still describe the
  * full change.
  */
-export function capHunks(args: {
-  hunks: readonly DiffHunk[]
-  cap: number
-}): readonly DiffHunk[] {
+export function capHunks(args: { hunks: readonly DiffHunk[]; cap: number }): readonly DiffHunk[] {
   const cap = Math.max(1, Math.trunc(args.cap))
   const total = args.hunks.reduce((sum, hunk) => sum + hunk.lines.length, 0)
   if (total <= cap) return args.hunks

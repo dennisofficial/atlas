@@ -4,12 +4,26 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { toEventId, toRunId, toThreadId, type EventDraft, type EventEnvelope } from '@dltech/atlas-core'
+import {
+  toEventId,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+  type EventEnvelope,
+} from '@dltech/atlas-core'
 
 import { EUnreadableReason } from '../../decode-events'
 import { encodeEventLine, EVENT_LINE_VERSION, parseEventLines, upcastEventLine } from '../lines'
 import { claimSession, ESessionClaim, releaseSession } from '../lock'
-import { newThreadMeta, readMetaSync, readSessionMetaSync, sessionMetaSchema, SessionFromNewerAtlasError, threadMetaSchema, writeMeta } from '../meta'
+import {
+  newThreadMeta,
+  readMetaSync,
+  readSessionMetaSync,
+  sessionMetaSchema,
+  SessionFromNewerAtlasError,
+  threadMetaSchema,
+  writeMeta,
+} from '../meta'
 import { canMigrateToCurrent, migrateSessionDirectory } from '../migrations'
 import { sessionLockFile, sessionMetaFile, threadMetaFile } from '../paths'
 
@@ -74,7 +88,17 @@ describe('event line codec', () => {
 
   it('reports an unrecognized body as a gap and keeps reading', () => {
     const good = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
-    const bad = JSON.stringify({ v: 1, id: 'evt_x', seq: 2, threadId, runId: 'run_1', depth: 0, at: 't', type: 'mystery', body: { nope: true } })
+    const bad = JSON.stringify({
+      v: 1,
+      id: 'evt_x',
+      seq: 2,
+      threadId,
+      runId: 'run_1',
+      depth: 0,
+      at: 't',
+      type: 'mystery',
+      body: { nope: true },
+    })
     const parsed = parseEventLines({ text: `${good}\n${bad}\n`, threadId })
     expect(parsed.events).toHaveLength(1)
     expect(parsed.unreadable[0]?.reason).toBe(EUnreadableReason.UnrecognizedBody)
@@ -82,7 +106,16 @@ describe('event line codec', () => {
 
   it('reads a line with no version field as v1', () => {
     const good = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
-    const legacy = JSON.stringify({ id: 'evt_x', seq: 2, threadId, runId: 'run_1', depth: 0, at: 't', type: 'nudge', body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 } })
+    const legacy = JSON.stringify({
+      id: 'evt_x',
+      seq: 2,
+      threadId,
+      runId: 'run_1',
+      depth: 0,
+      at: 't',
+      type: 'nudge',
+      body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 },
+    })
     const parsed = parseEventLines({ text: `${good}\n${legacy}\n`, threadId })
     expect(parsed.events).toHaveLength(2)
     expect(parsed.unreadable).toHaveLength(0)
@@ -90,7 +123,17 @@ describe('event line codec', () => {
 
   it('refuses a line written by a newer Atlas instead of dropping it as unrecognized', () => {
     const good = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
-    const newer = JSON.stringify({ v: EVENT_LINE_VERSION + 1, id: 'evt_x', seq: 2, threadId, runId: 'run_1', depth: 0, at: 't', type: 'nudge', body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 } })
+    const newer = JSON.stringify({
+      v: EVENT_LINE_VERSION + 1,
+      id: 'evt_x',
+      seq: 2,
+      threadId,
+      runId: 'run_1',
+      depth: 0,
+      at: 't',
+      type: 'nudge',
+      body: { type: 'nudge', text: 'hi', lifetimeSteps: 1 },
+    })
     const parsed = parseEventLines({ text: `${good}\n${newer}\n`, threadId })
     expect(parsed.events).toHaveLength(1)
     expect(parsed.unreadable[0]?.reason).toBe(EUnreadableReason.NewerVersion)
@@ -98,13 +141,18 @@ describe('event line codec', () => {
   })
 
   it('upcastEventLine passes current-version lines through untouched', () => {
-    const raw = JSON.parse(encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })) as unknown
+    const raw = JSON.parse(
+      encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) }),
+    ) as unknown
     const outcome = upcastEventLine({ raw, version: EVENT_LINE_VERSION })
     expect(outcome).toEqual({ ok: true, line: raw })
   })
 
   it('upcastEventLine refuses newer versions', () => {
-    expect(upcastEventLine({ raw: {}, version: EVENT_LINE_VERSION + 1 })).toEqual({ ok: false, reason: 'newer' })
+    expect(upcastEventLine({ raw: {}, version: EVENT_LINE_VERSION + 1 })).toEqual({
+      ok: false,
+      reason: 'newer',
+    })
   })
 })
 
@@ -121,7 +169,10 @@ describe('meta read/write', () => {
 
   it('returns undefined for a missing file', async () => {
     const dir = await tempDir()
-    const read = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema })
+    const read = readMetaSync({
+      file: sessionMetaFile({ sessionDir: dir }),
+      schema: sessionMetaSchema,
+    })
     expect(read).toBeUndefined()
   })
 
@@ -140,7 +191,10 @@ describe('meta read/write', () => {
   it('leaves a parseable file after concurrent writes to the same meta', async () => {
     const dir = await tempDir()
     const file = threadMetaFile({ sessionDir: dir, threadId })
-    const metas = [1, 2, 3, 4, 5].map((head) => ({ ...newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }), head }))
+    const metas = [1, 2, 3, 4, 5].map((head) => ({
+      ...newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }),
+      head,
+    }))
     await Promise.all(metas.map((meta) => writeMeta({ file, meta })))
     const read = readMetaSync({ file, schema: threadMetaSchema })
     expect(metas.some((meta) => meta.head === read?.head)).toBe(true)
@@ -164,15 +218,18 @@ describe('meta read/write', () => {
         spend: null,
       },
     })
-    expect(() => readSessionMetaSync({ file: sessionMetaFile({ sessionDir: dir }), sessionDir: dir })).toThrow(
-      SessionFromNewerAtlasError,
-    )
+    expect(() =>
+      readSessionMetaSync({ file: sessionMetaFile({ sessionDir: dir }), sessionDir: dir }),
+    ).toThrow(SessionFromNewerAtlasError)
   })
 
   it('reads a thread meta written before the v field existed', async () => {
     const dir = await tempDir()
     const file = threadMetaFile({ sessionDir: dir, threadId })
-    const meta = newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }) as Record<string, unknown>
+    const meta = newThreadMeta({ id: threadId, at: '2026-09-23T00:00:00.000Z' }) as Record<
+      string,
+      unknown
+    >
     delete meta.v
     await writeMeta({ file, meta })
     const read = readMetaSync({ file, schema: threadMetaSchema })
@@ -196,7 +253,11 @@ describe('session format migrations', () => {
 describe('session lock', () => {
   it('claims a free session', async () => {
     const dir = await tempDir()
-    const outcome = await claimSession({ sessionDir: dir, lockFile: sessionLockFile({ sessionDir: dir }), label: 'spec' })
+    const outcome = await claimSession({
+      sessionDir: dir,
+      lockFile: sessionLockFile({ sessionDir: dir }),
+      label: 'spec',
+    })
     expect(outcome.claim).toBe(ESessionClaim.Owned)
   })
 

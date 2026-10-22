@@ -1,9 +1,19 @@
-import { EClientRequest, EServeFrame, provideOperatorInputParamsSchema, type ServeFrame } from '@dltech/atlas-wire'
+import {
+  EClientRequest,
+  EServeFrame,
+  provideOperatorInputParamsSchema,
+  type ServeFrame,
+} from '@dltech/atlas-wire'
 
 import type { OperatorInputPort } from '@dltech/atlas-harness'
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 
 export const isOperatorInputOp = (op: EClientRequest): boolean =>
   op === EClientRequest.ProvideOperatorInput
@@ -15,7 +25,10 @@ export const operatorInputSnapshot = (args: {
 }): ServeFrame => ({
   kind: EServeFrame.Signal,
   seq: Math.max(0, args.seq - 1),
-  signal: { type: 'operator-input', request: args.operatorInput.pending({ threadId: args.threadId }) },
+  signal: {
+    type: 'operator-input',
+    request: args.operatorInput.pending({ threadId: args.threadId }),
+  },
 })
 
 export function routeOperatorInput(args: {
@@ -26,12 +39,25 @@ export function routeOperatorInput(args: {
 }): boolean {
   if (!isOperatorInputOp(args.frame.op)) return false
   if (args.operatorInput === undefined) {
-    args.reply(refusedRequest({ replyTo: args.frame.id, message: 'this serve holds no operator input requests' }))
+    args.reply(
+      refusedRequest({
+        replyTo: args.frame.id,
+        message: 'this serve holds no operator input requests',
+      }),
+    )
     return true
   }
-  void answerOperatorInput({ frame: args.frame, threadId: args.threadId, operatorInput: args.operatorInput })
+  void answerOperatorInput({
+    frame: args.frame,
+    threadId: args.threadId,
+    operatorInput: args.operatorInput,
+  })
     .then(args.reply)
-    .catch(() => args.reply(refusedRequest({ replyTo: args.frame.id, message: 'the operator input answer failed' })))
+    .catch(() =>
+      args.reply(
+        refusedRequest({ replyTo: args.frame.id, message: 'the operator input answer failed' }),
+      ),
+    )
   return true
 }
 

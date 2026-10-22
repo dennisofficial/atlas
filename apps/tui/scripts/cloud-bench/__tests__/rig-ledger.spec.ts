@@ -43,7 +43,9 @@ describe('createLedger', () => {
 
   test('keeps concurrent adds', async () => {
     const ledger = createLedger({ file: join(dir, 'ledger.json') })
-    await Promise.all(['one', 'two', 'three'].map((name) => ledger.add({ name, threadId: `thr_${name}` })))
+    await Promise.all(
+      ['one', 'two', 'three'].map((name) => ledger.add({ name, threadId: `thr_${name}` })),
+    )
 
     expect((await ledger.entries()).map((entry) => entry.name)).toEqual(['one', 'two', 'three'])
   })

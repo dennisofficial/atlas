@@ -23,10 +23,9 @@ const WARP_APP_PATH = '/Applications/Warp.app'
 
 const defaultWhich = (bin: string): boolean => Bun.which(bin) !== null
 
-export function detectInstalledEditors(args: {
-  platform?: string
-  which?: (bin: string) => boolean
-} = {}): EEditor[] {
+export function detectInstalledEditors(
+  args: { platform?: string; which?: (bin: string) => boolean } = {},
+): EEditor[] {
   const platform = args.platform ?? process.platform
   const which = args.which ?? defaultWhich
   const installed: EEditor[] = []

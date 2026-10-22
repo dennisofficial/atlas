@@ -25,5 +25,4 @@ export function sandboxBootPropsOf(view: BootView) {
 }
 
 export const isBootStarting = (view: BootView | null): boolean =>
-  view !== null &&
-  (view.state === EBootStepState.Running || view.state === EBootStepState.Pending)
+  view !== null && (view.state === EBootStepState.Running || view.state === EBootStepState.Pending)

@@ -1,7 +1,15 @@
 import { ESettingId, type SecretPrompt, type TextPrompt } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { theme } from '../theme'
-import { CUSTOM_DECISIONS, WIDE, ORIGIN, SECRETS_ORIGIN, page, rowsOf, stateOf } from './settings-render-fixture'
+import {
+  CUSTOM_DECISIONS,
+  WIDE,
+  ORIGIN,
+  SECRETS_ORIGIN,
+  page,
+  rowsOf,
+  stateOf,
+} from './settings-render-fixture'
 
 describe('the search key row', () => {
   const KEY_ROW = stateOf(ESettingId.WebSearchKey)

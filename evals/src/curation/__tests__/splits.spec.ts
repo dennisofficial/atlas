@@ -18,7 +18,9 @@ const makeCase = ({ id, group }: { id: string; group: string }): EvalCase => ({
 })
 
 const corpus = (): EvalCase[] =>
-  Array.from({ length: 200 }, (_, index) => makeCase({ id: `case-${String(index).padStart(3, '0')}`, group: `group-${index % 40}` }))
+  Array.from({ length: 200 }, (_, index) =>
+    makeCase({ id: `case-${String(index).padStart(3, '0')}`, group: `group-${index % 40}` }),
+  )
 
 describe('splitCases', () => {
   test('keeps whole groups together', () => {
@@ -63,7 +65,10 @@ describe('splitCases', () => {
   })
 
   test('zero groups yields empty splits', () => {
-    expect(splitCases({ cases: [], holdoutFraction: 0.2, seed: 1 })).toEqual({ development: [], holdout: [] })
+    expect(splitCases({ cases: [], holdoutFraction: 0.2, seed: 1 })).toEqual({
+      development: [],
+      holdout: [],
+    })
   })
 })
 

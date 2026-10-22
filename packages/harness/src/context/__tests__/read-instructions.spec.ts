@@ -96,9 +96,9 @@ describe('readInstructionFiles', () => {
     write({ at: 'AGENTS.md', content: 'agents' })
     write({ at: 'CLAUDE.md', content: 'claude' })
 
-    expect((await read({ family: EInstructionFamily.Agents })).map((entry) => entry.content)).toEqual([
-      'agents',
-    ])
+    expect(
+      (await read({ family: EInstructionFamily.Agents })).map((entry) => entry.content),
+    ).toEqual(['agents'])
   })
 
   it('labels a user-scope file with its own slot', async () => {

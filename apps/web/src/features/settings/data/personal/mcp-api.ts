@@ -15,25 +15,37 @@ import { targetOf, transportOfDraft } from '../workspace/mcp-mapping'
 
 const listSchema = z.object({ servers: z.array(mcpServerSchema) })
 
-export function transportOf(draft: Pick<McpServer, 'transport' | 'target'> & { extra?: string }): McpTransportWire {
-  const kind = draft.transport === EMcpTransport.Http ? EMcpTransportKind.Http : EMcpTransportKind.Stdio
+export function transportOf(
+  draft: Pick<McpServer, 'transport' | 'target'> & { extra?: string },
+): McpTransportWire {
+  const kind =
+    draft.transport === EMcpTransport.Http ? EMcpTransportKind.Http : EMcpTransportKind.Stdio
   if (kind === EMcpTransportKind.Stdio && splitCommandLine(draft.target).command === '') {
     throw new Error('Enter a command to run')
   }
-  return transportOfDraft({ kind, target: draft.target, ...(draft.extra === undefined ? {} : { extra: draft.extra }) })
+  return transportOfDraft({
+    kind,
+    target: draft.target,
+    ...(draft.extra === undefined ? {} : { extra: draft.extra }),
+  })
 }
 
 export function toMcpServer(wire: McpServerWire): McpServer {
   return {
     id: wire.name,
-    transport: wire.transport?.kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio,
+    transport:
+      wire.transport?.kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio,
     target: targetOf(wire.transport),
     enabled: wire.disabled !== true,
   }
 }
 
 export async function fetchMcpServers(): Promise<McpServerWire[]> {
-  const body = await cloudJson({ method: EHttpMethod.Get, path: '/v1/mcp-servers', schema: listSchema })
+  const body = await cloudJson({
+    method: EHttpMethod.Get,
+    path: '/v1/mcp-servers',
+    schema: listSchema,
+  })
   return body.servers
 }
 
@@ -52,10 +64,15 @@ export function putMcpServer(args: {
   })
 }
 
-export function addMcpServer(draft: Parameters<typeof transportOf>[0] & { id: string }): Promise<void> {
+export function addMcpServer(
+  draft: Parameters<typeof transportOf>[0] & { id: string },
+): Promise<void> {
   return putMcpServer({ name: draft.id, transport: transportOf(draft), disabled: false })
 }
 
 export function deleteMcpServer(name: string): Promise<void> {
-  return cloudSend({ method: EHttpMethod.Delete, path: `/v1/mcp-servers/${encodeURIComponent(name)}` })
+  return cloudSend({
+    method: EHttpMethod.Delete,
+    path: `/v1/mcp-servers/${encodeURIComponent(name)}`,
+  })
 }

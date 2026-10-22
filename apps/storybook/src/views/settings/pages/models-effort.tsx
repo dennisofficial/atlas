@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect } from 'react'
 
-import { ToggleGroup, ToggleGroupItem } from "@dltech/atlas-ui/components/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
 import {
   DEFAULT_MODELS_CONFIG,
@@ -12,38 +12,38 @@ import {
   type EAgentRole,
   type ModelsConfig,
   type RoleSetting,
-} from "../../../fixtures/settings-agent";
-import { ConfigFooter } from "../parts/agent-config-footer";
-import { RoleCard } from "../parts/agent-role-card";
-import { SettingsPage, SettingsSection } from "../settings-layout";
-import { useDraft } from "../use-draft";
+} from '../../../fixtures/settings-agent'
+import { ConfigFooter } from '../parts/agent-config-footer'
+import { RoleCard } from '../parts/agent-role-card'
+import { SettingsPage, SettingsSection } from '../settings-layout'
+import { useDraft } from '../use-draft'
 
-const PRESET_ORDER = [EPreset.Fast, EPreset.Balanced, EPreset.Thorough];
+const PRESET_ORDER = [EPreset.Fast, EPreset.Balanced, EPreset.Thorough]
 
 function findActivePreset(config: ModelsConfig): EPreset | null {
-  const serialized = JSON.stringify(config);
-  return PRESET_ORDER.find((preset) => JSON.stringify(PRESETS[preset]) === serialized) ?? null;
+  const serialized = JSON.stringify(config)
+  return PRESET_ORDER.find((preset) => JSON.stringify(PRESETS[preset]) === serialized) ?? null
 }
 
 function isPreset(value: unknown): value is EPreset {
-  return PRESET_ORDER.some((preset) => preset === value);
+  return PRESET_ORDER.some((preset) => preset === value)
 }
 
 export function ModelsEffortPage({ startEdited = false }: { startEdited?: boolean }) {
-  const draft = useDraft<ModelsConfig>(DEFAULT_MODELS_CONFIG);
-  const { setValue } = draft;
-  const activePreset = findActivePreset(draft.value);
+  const draft = useDraft<ModelsConfig>(DEFAULT_MODELS_CONFIG)
+  const { setValue } = draft
+  const activePreset = findActivePreset(draft.value)
 
   useEffect(() => {
-    if (startEdited) setValue(EDITED_MODELS_CONFIG);
-  }, [startEdited, setValue]);
+    if (startEdited) setValue(EDITED_MODELS_CONFIG)
+  }, [startEdited, setValue])
 
   const handlePresetChange = (selected: unknown[]) => {
-    const next = selected[0];
-    if (isPreset(next)) setValue(PRESETS[next]);
-  };
+    const next = selected[0]
+    if (isPreset(next)) setValue(PRESETS[next])
+  }
   const handleRoleChange = (role: EAgentRole, setting: RoleSetting) =>
-    setValue({ ...draft.value, [role]: setting });
+    setValue({ ...draft.value, [role]: setting })
 
   return (
     <SettingsPage
@@ -83,5 +83,5 @@ export function ModelsEffortPage({ startEdited = false }: { startEdited?: boolea
       ))}
       <ConfigFooter dirty={draft.dirty} onDiscard={draft.discard} onSave={draft.save} />
     </SettingsPage>
-  );
+  )
 }

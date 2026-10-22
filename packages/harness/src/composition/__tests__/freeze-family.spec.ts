@@ -21,8 +21,17 @@ describe('holding source-family intake for a handoff', () => {
     const released: string[] = []
     const release = await holdFamilyIntake({
       threadId: root,
-      threads: { spawned: async ({ threadId }) => threadId === root ? [summary(child)] : [summary(root)] },
-      intake: { hold: ({ threadId }) => { held.push(threadId); return () => { released.push(threadId) } } },
+      threads: {
+        spawned: async ({ threadId }) => (threadId === root ? [summary(child)] : [summary(root)]),
+      },
+      intake: {
+        hold: ({ threadId }) => {
+          held.push(threadId)
+          return () => {
+            released.push(threadId)
+          }
+        },
+      },
     })
     expect(held).toEqual([root, child])
     expect(released).toEqual([])
@@ -33,11 +42,23 @@ describe('holding source-family intake for a handoff', () => {
 
   it('releases all reservations if family discovery fails', async () => {
     const released: string[] = []
-    await expect(holdFamilyIntake({
-      threadId: root,
-      threads: { spawned: async () => { throw new Error('could not read children') } },
-      intake: { hold: ({ threadId }) => () => { released.push(threadId) } },
-    })).rejects.toThrow('could not read children')
+    await expect(
+      holdFamilyIntake({
+        threadId: root,
+        threads: {
+          spawned: async () => {
+            throw new Error('could not read children')
+          },
+        },
+        intake: {
+          hold:
+            ({ threadId }) =>
+            () => {
+              released.push(threadId)
+            },
+        },
+      }),
+    ).rejects.toThrow('could not read children')
     expect(released).toEqual([root])
   })
 })

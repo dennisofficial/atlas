@@ -5,7 +5,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
 
-import { defaultPipeline, EMPTY_PROMPT, EToolEffect, toCallId, type ToolDefinition } from '@dltech/atlas-core'
+import {
+  defaultPipeline,
+  EMPTY_PROMPT,
+  EToolEffect,
+  toCallId,
+  type ToolDefinition,
+} from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'
@@ -23,7 +29,9 @@ async function open(script: readonly ScriptedStep[]): Promise<AtlasHarness> {
   return (await openWithModel(scriptedModel({ script }))).harness
 }
 
-async function openWithModel(model: MockLanguageModelV4): Promise<{ harness: AtlasHarness; model: MockLanguageModelV4 }> {
+async function openWithModel(
+  model: MockLanguageModelV4,
+): Promise<{ harness: AtlasHarness; model: MockLanguageModelV4 }> {
   const temp = createTempHome()
   const harness = await buildHarness({ home: temp.home, model, prompt: fixturePrompt() })
   opened.push({ harness, temp })
@@ -51,7 +59,10 @@ describe('a turn over a real log', () => {
 
   it('appends one assistant event per model step holding every block it streamed', async () => {
     const harness = await open([
-      { reasoning: { text: 'two files touched', signature: 'sig-abc' }, text: 'auth and the router' },
+      {
+        reasoning: { text: 'two files touched', signature: 'sig-abc' },
+        text: 'auth and the router',
+      },
     ])
     const thread = await harness.threads.create({})
 
@@ -61,13 +72,19 @@ describe('a turn over a real log', () => {
     const assistantTurns = events.filter((event) => event.type === 'assistant-said')
     expect(assistantTurns).toHaveLength(1)
     expect(assistantTurns[0]?.type === 'assistant-said' ? assistantTurns[0].parts : []).toEqual([
-      { type: 'reasoning', text: 'two files touched', providerOptions: { anthropic: { signature: 'sig-abc' } } },
+      {
+        type: 'reasoning',
+        text: 'two files touched',
+        providerOptions: { anthropic: { signature: 'sig-abc' } },
+      },
       { type: 'text', text: 'auth and the router' },
     ])
   })
 
   it('hands the compiled prompt to the provider as an instruction, not as a message', async () => {
-    const { harness, model } = await openWithModel(scriptedModel({ script: [{ text: 'auth and the router' }] }))
+    const { harness, model } = await openWithModel(
+      scriptedModel({ script: [{ text: 'auth and the router' }] }),
+    )
     const thread = await harness.threads.create({})
 
     await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
@@ -77,7 +94,10 @@ describe('a turn over a real log', () => {
     expect(prompt.slice(1).map((message) => message.role)).toEqual(['user', 'user'])
     const runtime = prompt.at(-1)
     expect(runtime?.role === 'user' ? runtime.content : []).toEqual([
-      expect.objectContaining({ type: 'text', text: expect.stringContaining('Project directory:') }),
+      expect.objectContaining({
+        type: 'text',
+        text: expect.stringContaining('Project directory:'),
+      }),
     ])
   })
 
@@ -96,7 +116,9 @@ describe('a turn over a real log', () => {
 
 describe('position derived from the log', () => {
   it('does not ask the model anything on a thread that holds nothing', async () => {
-    const { harness, model } = await openWithModel(scriptedModel({ script: [{ text: 'unreachable' }] }))
+    const { harness, model } = await openWithModel(
+      scriptedModel({ script: [{ text: 'unreachable' }] }),
+    )
     const thread = await harness.threads.create({})
 
     const outcome = await harness.runner.runTurn({ threadId: thread.id })
@@ -106,7 +128,9 @@ describe('position derived from the log', () => {
   })
 
   it('leaves an already answered thread alone rather than re-asking', async () => {
-    const { harness, model } = await openWithModel(scriptedModel({ script: [{ text: 'auth and the router' }] }))
+    const { harness, model } = await openWithModel(
+      scriptedModel({ script: [{ text: 'auth and the router' }] }),
+    )
     const thread = await harness.threads.create({})
     await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
 
@@ -119,7 +143,9 @@ describe('position derived from the log', () => {
   })
 
   it('answers a user turn the previous process never got to', async () => {
-    const { harness, model } = await openWithModel(scriptedModel({ script: [{ text: 'answering late' }] }))
+    const { harness, model } = await openWithModel(
+      scriptedModel({ script: [{ text: 'answering late' }] }),
+    )
     const thread = await harness.threads.create({})
     await harness.log.append({
       threadId: thread.id,
@@ -138,7 +164,12 @@ describe('position derived from the log', () => {
   it('records a tool call nothing can settle and pauses on it', async () => {
     const temp = createTempHome()
     const model = scriptedModel({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }] }],
+      script: [
+        {
+          text: 'reading',
+          calls: [{ callId: 'call-1', name: 'read_file', input: { path: 'a.ts' } }],
+        },
+      ],
     })
     const harness = await buildHarness({
       home: temp.home,
@@ -160,7 +191,11 @@ describe('position derived from the log', () => {
     expect(outcome.status).toBe(ETurnStatus.Paused)
     expect(outcome.status === ETurnStatus.Paused ? outcome.callId : '').toBe(toCallId('call-1'))
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual(['user-said', 'assistant-said', 'tool-called'])
+    expect(events.map((event) => event.type)).toEqual([
+      'user-said',
+      'assistant-said',
+      'tool-called',
+    ])
   })
 })
 
@@ -177,7 +212,11 @@ function writeToolIn(root: string): ToolDefinition {
       if (!parsed.success) return { ok: false, reason: 'write needs a path and content' }
 
       await Bun.write(join(root, parsed.data.path), parsed.data.content)
-      return { ok: true, output: { path: parsed.data.path }, modelText: `wrote ${parsed.data.path}` }
+      return {
+        ok: true,
+        output: { path: parsed.data.path },
+        modelText: `wrote ${parsed.data.path}`,
+      }
     },
   }
 }
@@ -192,7 +231,9 @@ describe('a turn that settles its own tool call', () => {
         script: [
           {
             text: 'writing it',
-            calls: [{ callId: 'call-1', name: 'write', input: { path: 'notes.md', content: '# hello' } }],
+            calls: [
+              { callId: 'call-1', name: 'write', input: { path: 'notes.md', content: '# hello' } },
+            ],
           },
           { text: 'written' },
         ],
@@ -228,12 +269,17 @@ describe('a turn that settles its own tool call', () => {
   })
 })
 
-async function runnerDispatchingWith(dispatch: ToolDispatcher): Promise<{ runner: TurnRunner; harness: AtlasHarness }> {
+async function runnerDispatchingWith(
+  dispatch: ToolDispatcher,
+): Promise<{ runner: TurnRunner; harness: AtlasHarness }> {
   const temp = createTempHome()
   const harness = await buildHarness({
     home: temp.home,
     model: scriptedModel({
-      script: [{ text: 'reading', calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }] }, { text: 'read it' }],
+      script: [
+        { text: 'reading', calls: [{ callId: 'call-1', name: 'read', input: { path: 'a.ts' } }] },
+        { text: 'read it' },
+      ],
     }),
   })
   opened.push({ harness, temp })
@@ -256,12 +302,24 @@ describe('a turn whose settlement does not finish', () => {
     const { runner, harness } = await runnerDispatchingWith({
       dispatch: async ({ call }) => {
         controller.abort()
-        return [{ type: 'tool-result', callId: call.callId, name: call.name, output: 'read', modelText: 'read' }]
+        return [
+          {
+            type: 'tool-result',
+            callId: call.callId,
+            name: call.name,
+            output: 'read',
+            modelText: 'read',
+          },
+        ]
       },
     })
     const thread = await harness.threads.create({})
 
-    const outcome = await runner.say({ threadId: thread.id, text: 'read a.ts', signal: controller.signal })
+    const outcome = await runner.say({
+      threadId: thread.id,
+      text: 'read a.ts',
+      signal: controller.signal,
+    })
 
     expect(outcome.status).toBe(ETurnStatus.Interrupted)
   })

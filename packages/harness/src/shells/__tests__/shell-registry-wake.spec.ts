@@ -175,7 +175,9 @@ for (const adapter of shellAdapters) {
         const operations = new RecordingOperations()
         const { registry, log } = openRegistry({ adapter, operations })
         if (log === undefined) throw new Error('expected a recording log')
-        const started = await registry.start(job({ command: 'sleep 0.3; echo kept-despite-the-store' }))
+        const started = await registry.start(
+          job({ command: 'sleep 0.3; echo kept-despite-the-store' }),
+        )
         if (!started.ok) throw new Error(started.reason)
         const opened = Promise.withResolvers<void>()
         log.appending = async () => {

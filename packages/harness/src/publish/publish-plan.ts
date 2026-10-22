@@ -25,12 +25,17 @@ export function planPush(args: { items: readonly Publishable[]; last: PublishSta
   return { rows, removed }
 }
 
-export const hasChanges = (plan: PushPlan): boolean => pendingRows(plan).length > 0 || plan.removed.length > 0
+export const hasChanges = (plan: PushPlan): boolean =>
+  pendingRows(plan).length > 0 || plan.removed.length > 0
 
 export const pendingRows = (plan: PushPlan): readonly PlanRow[] =>
   plan.rows.filter((row) => row.status !== EPublishStatus.Unchanged)
 
-export function stateAfterPush(args: { rows: readonly PlanRow[]; selectedIds: ReadonlySet<string>; version: number }): PublishState {
+export function stateAfterPush(args: {
+  rows: readonly PlanRow[]
+  selectedIds: ReadonlySet<string>
+  version: number
+}): PublishState {
   const items: PublishState['items'] = {}
   for (const row of args.rows) {
     items[row.item.id] = { selected: args.selectedIds.has(row.item.id), hash: row.item.hash }

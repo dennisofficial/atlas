@@ -24,7 +24,9 @@ let ownsHome = false
 
 const noFiles: WorkspaceFiles = {
   exists: async () => false,
-  read: async () => { throw new Error('no such file') },
+  read: async () => {
+    throw new Error('no such file')
+  },
   write: async () => undefined,
   writeBytes: async () => undefined,
   ensureDirectory: async () => undefined,
@@ -34,7 +36,10 @@ const noFiles: WorkspaceFiles = {
 export const gate = () => {
   let release: () => void = () => undefined
   let fail: (failure: Error) => void = () => undefined
-  const promise = new Promise<void>((resolve, reject) => { release = resolve; fail = reject })
+  const promise = new Promise<void>((resolve, reject) => {
+    release = resolve
+    fail = reject
+  })
   return { promise, release, fail }
 }
 
@@ -42,21 +47,38 @@ export async function rotationFixture() {
   const store = scratchTranscriptStore({ prefix: 'rotation-seed' })
   const home = store.home
   homes.push(home)
-  if (!ownsHome) { priorHome = process.env.ATLAS_HOME; ownsHome = true }
+  if (!ownsHome) {
+    priorHome = process.env.ATLAS_HOME
+    ownsHome = true
+  }
   process.env.ATLAS_HOME = home
   await mkdir(join(home, 'bootstrap'), { recursive: true })
-  await writeFile(join(home, 'bootstrap', 'workspace-spec.json'), JSON.stringify({
-    remoteUrl: null, githubToken: null,
-  }))
+  await writeFile(
+    join(home, 'bootstrap', 'workspace-spec.json'),
+    JSON.stringify({
+      remoteUrl: null,
+      githubToken: null,
+    }),
+  )
   await store.log.append({
-    threadId, runId: toRunId('rotation-paused'), drafts: [
+    threadId,
+    runId: toRunId('rotation-paused'),
+    drafts: [
       { type: 'user-said', text: 'finish this work' },
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'partway through' }], interrupted: true },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'partway through' }],
+        interrupted: true,
+      },
     ],
   })
   const capture = createRuntimeCheckpointCapture({
-    threadId, atlasHome: home, env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
-    token, transcript: store.log, log: () => undefined,
+    threadId,
+    atlasHome: home,
+    env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
+    token,
+    transcript: store.log,
+    log: () => undefined,
   })
   const checkpoint = await capture.capture({
     phase: ERuntimePhase.Updating,
@@ -67,20 +89,31 @@ export async function rotationFixture() {
   }
   const receipt = checkpoint.receipt
   let boots = 0
-  const boot = async (args: {
-    sessionId?: string
-    modelGate?: ReturnType<typeof gate>
-    family?: ServeFamily
-    adopt?: () => Promise<readonly typeof childId[]>
-    onResume?: () => void
-    configure?: (args: { app: ReturnType<typeof fakeServeApp>; disk: TranscriptStore }) => Promise<void>
-  } = {}) => {
+  const boot = async (
+    args: {
+      sessionId?: string
+      modelGate?: ReturnType<typeof gate>
+      family?: ServeFamily
+      adopt?: () => Promise<readonly (typeof childId)[]>
+      onResume?: () => void
+      configure?: (args: {
+        app: ReturnType<typeof fakeServeApp>
+        disk: TranscriptStore
+      }) => Promise<void>
+    } = {},
+  ) => {
     boots += 1
     const disk = scratchTranscriptStore({ prefix: `rotation-boot-${boots}`, home })
     const modelEntered = gate()
     const app = fakeServeApp({
-      threadId, root: '/workspace', intake: true, log: disk.log,
-      holdStep: () => { modelEntered.release(); return args.modelGate?.promise },
+      threadId,
+      root: '/workspace',
+      intake: true,
+      log: disk.log,
+      holdStep: () => {
+        modelEntered.release()
+        return args.modelGate?.promise
+      },
       family: args.family,
       adoptChildren: args.adopt ?? (async () => [childId]),
     })
@@ -105,13 +138,29 @@ export async function rotationFixture() {
       },
     }
     const starting = startServe({
-      threadId, port: 0, token, controlPlaneUrl: 'https://api.example.com',
+      threadId,
+      port: 0,
+      token,
+      controlPlaneUrl: 'https://api.example.com',
       env: { ATLAS_SANDBOX_SESSION_ID: args.sessionId ?? replacementSession },
-      cwd: '/workspace', compose: async () => app,
+      cwd: '/workspace',
+      compose: async () => app,
       ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-      contextFiles: noFiles, write: () => undefined,
-    }).then((handle) => { handles.push(handle); return handle })
-    return { starting, app, disk, modelEntered: modelEntered.promise, resumed: () => resumed, ran: () => ran, outcomes }
+      contextFiles: noFiles,
+      write: () => undefined,
+    }).then((handle) => {
+      handles.push(handle)
+      return handle
+    })
+    return {
+      starting,
+      app,
+      disk,
+      modelEntered: modelEntered.promise,
+      resumed: () => resumed,
+      ran: () => ran,
+      outcomes,
+    }
   }
   return { home, receipt, store, boot }
 }

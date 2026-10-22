@@ -95,7 +95,11 @@ const stateDrafts = (args: {
   ]
 }
 
-const commentDraft = (args: { repo: string; number: number; comment: PrComment }): PrEventDraft => ({
+const commentDraft = (args: {
+  repo: string
+  number: number
+  comment: PrComment
+}): PrEventDraft => ({
   type: 'pr-event',
   repo: args.repo,
   prNumber: args.number,
@@ -187,7 +191,11 @@ export function prEventsOfPoll(args: {
 
 const GITHUB_PREFIX = 'github.com/'
 
-const frameOf = (args: { id: string; event: PollEvent; createdAt: string }): PrEventFrame | null => {
+const frameOf = (args: {
+  id: string
+  event: PollEvent
+  createdAt: string
+}): PrEventFrame | null => {
   const { draft } = args.event
   if (!draft.repo.startsWith(GITHUB_PREFIX)) return null
 

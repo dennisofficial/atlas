@@ -1,6 +1,5 @@
 import {
   ClockPort,
-  CredentialPort,
   EDefinitionOrigin,
   EExecutionLocation,
   EventLogPort,
@@ -22,7 +21,6 @@ import {
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
 import { isStepping } from '../agents/registry/child-state'
-import type { IntakeSubmit } from '../agents/registry/deps'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
@@ -96,7 +94,9 @@ function registerAgents({ container }: { container: DependencyContainer }): void
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
-  container.register(registeredPortToken(ExecutionLocationSinkPort), { useClass: NoopExecutionLocationSink })
+  container.register(registeredPortToken(ExecutionLocationSinkPort), {
+    useClass: NoopExecutionLocationSink,
+  })
 
   container.register(registeredPortToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
@@ -107,9 +107,10 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         clock: resolver.resolve(registeredPortToken(ClockPort)),
         agentTypes: resolver.resolve(AgentTypesToken),
         runners: childRunnerSource({ deps: () => resolver.resolve(ChildRunnerDepsToken)() }),
-        modelAtSpawn: async (args) => resolver.isRegistered(ChildRunnerDepsToken, true)
-          ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
-          : undefined,
+        modelAtSpawn: async (args) =>
+          resolver.isRegistered(ChildRunnerDepsToken, true)
+            ? resolver.resolve(ChildRunnerDepsToken)().modelAtSpawn?.(args)
+            : undefined,
         launchDirectory: resolver.resolve(WorkspaceRoot),
         sink: resolver.resolve(registeredPortToken(ExecutionLocationSinkPort)),
         telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
@@ -120,7 +121,8 @@ function registerAgents({ container }: { container: DependencyContainer }): void
         hasLiveWork: (threadId) => {
           if (live === undefined) return false
           const shells = resolver.resolve(registeredPortToken(ShellRegistryPort))
-          if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running)) return true
+          if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running))
+            return true
           return live.someChild(threadId, isStepping)
         },
         inheritOrphanedNotices: ({ from, to }) => {
@@ -210,15 +212,16 @@ export function createHarnessContainer(): DependencyContainer {
     ),
   })
   harness.register(registeredPortToken(ThreadStorePort), {
-    useFactory: instanceCachingFactory((resolver) =>
-      new JsonlThreadStore(
-        home,
-        resolver.resolve(SessionRegistryToken),
-        resolver.resolve(registeredPortToken(ClockPort)),
-        resolver.resolve(registeredPortToken(IdPort)),
-        resolver.resolve(registeredPortToken(EventLogPort)),
-        resolver.resolve(registeredPortToken(LogPort)),
-      ),
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new JsonlThreadStore(
+          home,
+          resolver.resolve(SessionRegistryToken),
+          resolver.resolve(registeredPortToken(ClockPort)),
+          resolver.resolve(registeredPortToken(IdPort)),
+          resolver.resolve(registeredPortToken(EventLogPort)),
+          resolver.resolve(registeredPortToken(LogPort)),
+        ),
     ),
   })
   registerCloudStores({ container: harness, clientVersion: clientVersionOf })
@@ -237,7 +240,9 @@ export function createHarnessContainer(): DependencyContainer {
       const state = createExecutionLocationState({ initial: EExecutionLocation.Host })
       state.bind({
         threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
-        workspace: resolver.isRegistered(WorkspaceRoot, true) ? resolver.resolve(WorkspaceRoot) : home,
+        workspace: resolver.isRegistered(WorkspaceRoot, true)
+          ? resolver.resolve(WorkspaceRoot)
+          : home,
         repo: null,
         authority: resolver.isRegistered(registeredPortToken(SessionAuthorityPort), true)
           ? resolver.resolve(registeredPortToken(SessionAuthorityPort))
@@ -261,7 +266,8 @@ export function createHarnessContainer(): DependencyContainer {
           hooks: resolver.resolve(HookChainToken),
           logPort: resolver.resolve(registeredPortToken(LogPort)),
           quality: resolver.isRegistered(registeredPortToken(QualityReviewPort), true)
-            ? resolver.resolve(registeredPortToken(QualityReviewPort)) : undefined,
+            ? resolver.resolve(registeredPortToken(QualityReviewPort))
+            : undefined,
         }),
         telemetry: resolver.resolve(registeredPortToken(TelemetryPort)),
       }),

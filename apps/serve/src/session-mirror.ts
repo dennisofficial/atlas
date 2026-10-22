@@ -43,7 +43,9 @@ const encodingOf = (content: Buffer): 'utf8' | 'base64' => {
 
 export type SessionMirrorReader = {
   manifest(): Promise<{ files: SessionMirrorFile[] }>
-  readFiles(args: { paths: readonly string[] }): Promise<{ files: SessionFileContent[]; missing: string[] }>
+  readFiles(args: {
+    paths: readonly string[]
+  }): Promise<{ files: SessionFileContent[]; missing: string[] }>
 }
 
 export function createSessionMirrorReader(args: { sessionDir: () => string }): SessionMirrorReader {

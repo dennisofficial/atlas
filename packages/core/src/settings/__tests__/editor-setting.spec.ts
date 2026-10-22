@@ -51,9 +51,7 @@ describe('the transcript file editor', () => {
   it('resolves out of a settings file, so a project can switch its own default', () => {
     const resolution = resolutionOver({ file: { [ESettingId.Editor]: 'cursor' } })
 
-    expect(choiceValueOf({ resolution, id: ESettingId.Editor, fallback: 'default' })).toBe(
-      'cursor',
-    )
+    expect(choiceValueOf({ resolution, id: ESettingId.Editor, fallback: 'default' })).toBe('cursor')
   })
 
   it('lets the environment override the file, so a launch can force an editor', () => {

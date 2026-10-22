@@ -36,7 +36,10 @@ const existingServersAt = (file: string): Record<string, unknown> => {
   return isRecord(wrapped) ? { ...wrapped } : { ...parsed }
 }
 
-export const mergeCloudMcpServers = (args: { atlasHome: string; servers: readonly ScopedMcpServer[] }): void => {
+export const mergeCloudMcpServers = (args: {
+  atlasHome: string
+  servers: readonly ScopedMcpServer[]
+}): void => {
   if (args.servers.length === 0) return
   const file = join(args.atlasHome, ATLAS_MCP_FILE_NAME)
   const servers = existingServersAt(file)

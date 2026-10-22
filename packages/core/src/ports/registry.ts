@@ -47,14 +47,24 @@ export interface PortRegistryEntries {
   readonly LogPort: PortRegistryEntry<LogPort> & { readonly transport: 'none' }
   readonly ModelPort: PortRegistryEntry<ModelPort> & { readonly transport: 'none' }
   readonly CredentialPort: PortRegistryEntry<CredentialPort> & { readonly transport: 'none' }
-  readonly AccountStorePort: PortRegistryEntry<AccountStorePort> & { readonly transport: 'detached' }
+  readonly AccountStorePort: PortRegistryEntry<AccountStorePort> & {
+    readonly transport: 'detached'
+  }
   readonly ProcessPort: PortRegistryEntry<ProcessPort> & { readonly transport: 'none' }
   readonly FileSystemPort: PortRegistryEntry<FileSystemPort> & { readonly transport: 'none' }
-  readonly AgentFileSystemPort: PortRegistryEntry<AgentFileSystemPort> & { readonly transport: 'none' }
-  readonly FileCapabilitiesPort: PortRegistryEntry<FileCapabilitiesPort> & { readonly transport: 'none' }
+  readonly AgentFileSystemPort: PortRegistryEntry<AgentFileSystemPort> & {
+    readonly transport: 'none'
+  }
+  readonly FileCapabilitiesPort: PortRegistryEntry<FileCapabilitiesPort> & {
+    readonly transport: 'none'
+  }
   readonly WorkspacePort: PortRegistryEntry<WorkspacePort> & { readonly transport: 'none' }
-  readonly WorkspaceFactsPort: PortRegistryEntry<WorkspaceFactsPort> & { readonly transport: 'none' }
-  readonly WorkspaceIdentityPort: PortRegistryEntry<WorkspaceIdentityPort> & { readonly transport: 'none' }
+  readonly WorkspaceFactsPort: PortRegistryEntry<WorkspaceFactsPort> & {
+    readonly transport: 'none'
+  }
+  readonly WorkspaceIdentityPort: PortRegistryEntry<WorkspaceIdentityPort> & {
+    readonly transport: 'none'
+  }
   readonly QualityReviewPort: PortRegistryEntry<QualityReviewPort> & { readonly transport: 'none' }
   readonly DecisionPort: PortRegistryEntry<DecisionPort> & { readonly transport: 'none' }
   readonly JudgePort: PortRegistryEntry<JudgePort> & { readonly transport: 'none' }

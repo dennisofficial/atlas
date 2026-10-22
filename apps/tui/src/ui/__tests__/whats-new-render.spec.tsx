@@ -10,7 +10,7 @@ const ROWS = [
   {
     version: '1.32.1',
     body: [
-      '## What\'s Changed',
+      "## What's Changed",
       '',
       '* feat(tui): show release notes on first launch of a new version by @dennislysenko in #860',
       '* fix(serve): reattach cloud thread pointer after /restart by @dennislysenko in #858',
@@ -19,7 +19,7 @@ const ROWS = [
   {
     version: '1.32.0',
     body: [
-      '## What\'s Changed',
+      "## What's Changed",
       '',
       '* feat(pipelines): prebuilt agent-recommended flows in the switcher by @dennislysenko in #851',
     ].join('\n'),
@@ -38,7 +38,7 @@ const modal = (over: { state?: WhatsNewState; from?: string | null } = {}) => (
   />
 )
 
-describe('the what\'s new modal', () => {
+describe("the what's new modal", () => {
   it('heads with the launch range', async () => {
     const frame = await frameOf(modal(), WIDTH)
     expect(frame).toContain('since your last launch · v1.28.0 → v1.32.1')
@@ -56,7 +56,7 @@ describe('the what\'s new modal', () => {
 
   it('points at the releases page when the fetch fails', async () => {
     const frame = await frameOf(modal({ state: { kind: 'failed' } }), WIDTH)
-    expect(frame).toContain('couldn\'t fetch the notes')
+    expect(frame).toContain("couldn't fetch the notes")
   })
 
   it('lists each version in the range with its notes', async () => {

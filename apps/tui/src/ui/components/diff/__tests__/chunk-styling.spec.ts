@@ -8,8 +8,7 @@ const WORD_BG = parseColor('#335030')
 const chunk = (text: string, fg?: string): TextChunk =>
   fg === undefined ? { __isChunk: true, text } : { __isChunk: true, text, fg: parseColor(fg) }
 
-const textOf = (chunks: readonly TextChunk[]): string =>
-  chunks.map((one) => one.text).join('')
+const textOf = (chunks: readonly TextChunk[]): string => chunks.map((one) => one.text).join('')
 
 describe('chunksFor', () => {
   it('keeps the highlighting when it still spells the line', () => {

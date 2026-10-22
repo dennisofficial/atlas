@@ -39,7 +39,11 @@ type Page = (typeof PAGES)[number]
 
 const noop = (): void => undefined
 
-const badge = (args: { pr: number; state: EPullRequestState; checks: EChecksState }): PullRequestBadge => ({
+const badge = (args: {
+  pr: number
+  state: EPullRequestState
+  checks: EChecksState
+}): PullRequestBadge => ({
   label: `#${args.pr}`,
   url: 'https://example.invalid/pull/0',
   state: args.state,
@@ -176,8 +180,10 @@ function Live(props: { width: number }): React.ReactNode {
       return
     }
 
-    if (key.name === 'left') setStrip(moveStripSelection({ state: strip, items: LIVE_ITEMS, delta: -1 }))
-    if (key.name === 'right') setStrip(moveStripSelection({ state: strip, items: LIVE_ITEMS, delta: 1 }))
+    if (key.name === 'left')
+      setStrip(moveStripSelection({ state: strip, items: LIVE_ITEMS, delta: -1 }))
+    if (key.name === 'right')
+      setStrip(moveStripSelection({ state: strip, items: LIVE_ITEMS, delta: 1 }))
     if (key.name === 'escape' || key.name === 'up') setStrip(null)
     if (key.name === 'return') setFired(`enter fired ${strip.itemId}`)
   })
@@ -185,7 +191,9 @@ function Live(props: { width: number }): React.ReactNode {
   return (
     <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
       <box flexDirection="column" paddingLeft={2} paddingTop={1} gap={0}>
-        <text fg={theme.rule}>↓ takes the band · ←/→ walk it · ⏎ fires · esc drops it · clicks work too</text>
+        <text fg={theme.rule}>
+          ↓ takes the band · ←/→ walk it · ⏎ fires · esc drops it · clicks work too
+        </text>
         <text fg={theme.hint}>{fired}</text>
       </box>
       <box flexGrow={1} />
@@ -205,8 +213,7 @@ function Live(props: { width: number }): React.ReactNode {
 const THEN = '2026-01-01T00:10:00.000Z'
 const NOW = Date.parse(THEN)
 
-const minutesAgo = (minutes: number): string =>
-  new Date(NOW - minutes * 60_000).toISOString()
+const minutesAgo = (minutes: number): string => new Date(NOW - minutes * 60_000).toISOString()
 
 const SIDEBAR_SHELLS: readonly ShellSnapshot[] = [
   {
@@ -253,7 +260,9 @@ function SidebarPage(): React.ReactNode {
   return (
     <box flexDirection="row" flexGrow={1} flexShrink={1} flexBasis={0}>
       <box flexGrow={1} paddingLeft={2} paddingTop={1}>
-        <text fg={theme.rule}>the full shells and subagents sections — the footer only carries counts</text>
+        <text fg={theme.rule}>
+          the full shells and subagents sections — the footer only carries counts
+        </text>
       </box>
       <Sidebar
         width={SIDEBAR_WIDTH}

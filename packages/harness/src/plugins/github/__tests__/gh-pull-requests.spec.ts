@@ -24,7 +24,13 @@ describe('GhPullRequestPort', () => {
 
     expect(run.calls).toEqual([
       {
-        argv: ['gh', 'pr', 'view', '--json', 'number,state,isDraft,url,headRefOid,statusCheckRollup,title,mergeable,comments,reviews'],
+        argv: [
+          'gh',
+          'pr',
+          'view',
+          '--json',
+          'number,state,isDraft,url,headRefOid,statusCheckRollup,title,mergeable,comments,reviews',
+        ],
         cwd: '/work/atlas/.claude/worktrees/thing',
         timeoutMs: GH_TIMEOUT_MS,
       },

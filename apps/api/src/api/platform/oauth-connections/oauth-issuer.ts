@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { EOauthProvider, OauthIssuer, OauthRateLimitedError, OauthRejectedError } from './oauth-connections.types'
+import {
+  EOauthProvider,
+  OauthIssuer,
+  OauthRateLimitedError,
+  OauthRejectedError,
+} from './oauth-connections.types'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const FALLBACK_LIFETIME_SECONDS = 3600
@@ -31,7 +36,9 @@ const claimsOf = (jwt: string | undefined): Record<string, unknown> | undefined 
   if (payload === undefined || payload.length === 0) return undefined
   try {
     const claims: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-    return typeof claims === 'object' && claims !== null ? (claims as Record<string, unknown>) : undefined
+    return typeof claims === 'object' && claims !== null
+      ? (claims as Record<string, unknown>)
+      : undefined
   } catch {
     return undefined
   }
@@ -103,7 +110,8 @@ export class HttpOauthIssuer implements OauthIssuer {
     if (REJECTING_STATUSES.includes(response.status)) {
       throw new OauthRejectedError(`the ${args.provider} token endpoint rejected the grant`)
     }
-    if (response.status === 429) throw new OauthRateLimitedError('the token endpoint is rate limiting')
+    if (response.status === 429)
+      throw new OauthRateLimitedError('the token endpoint is rate limiting')
     if (!response.ok) throw new Error(`the token endpoint answered HTTP ${response.status}`)
 
     const body: unknown = await response.json()

@@ -13,7 +13,6 @@ import {
   type FooterReadout,
 } from '../footer-layout'
 import type { FooterStripState } from '../footer-strip'
-import { HINT_SEPARATOR } from '../hint-layout'
 import { useAppearance } from '../hooks/use-appearance'
 import { meterTone } from '../meter-tone'
 import { theme } from '../theme'

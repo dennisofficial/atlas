@@ -19,7 +19,8 @@ import {
 import { fileProvisionLock } from '../provision-lock'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -37,14 +38,18 @@ const sweep = async (): Promise<void> => {
     await work().catch((failure: unknown) => failures.push(failure))
   }
   await attempt(async () => {
-    for (const container of await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })) {
+    for (const container of await engine.listContainers({
+      labels: { [podThreadLabel]: threadId },
+      all: true,
+    })) {
       await attempt(() => engine.removeContainer({ id: container.id }))
     }
   })
   for (const name of [workspaceVolume, dindVolume]) {
     await attempt(() => pods.removeVolume({ name }))
   }
-  if (failures.length > 0) throw new AggregateError(failures, 'pod-driver-live cleanup left resources behind')
+  if (failures.length > 0)
+    throw new AggregateError(failures, 'pod-driver-live cleanup left resources behind')
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
@@ -61,7 +66,8 @@ const dockerCli = async (args: readonly string[]): Promise<string> => {
 const sh = async (script: string): Promise<string> => {
   const result = await pods.execSh({ id: podName, script, timeoutMs: 30_000 })
   const stdout = (await result.stdout()).trim()
-  if (result.exitCode !== 0) throw new Error(`exit ${result.exitCode}: ${script}\n${stdout}\n${await result.stderr()}`)
+  if (result.exitCode !== 0)
+    throw new Error(`exit ${result.exitCode}: ${script}\n${stdout}\n${await result.stderr()}`)
   return stdout
 }
 
@@ -74,7 +80,9 @@ const healthStatus = async (args: { url: string; token: string }): Promise<numbe
 }
 
 const podIds = async (): Promise<string[]> =>
-  (await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })).map((one) => one.id)
+  (await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })).map(
+    (one) => one.id,
+  )
 
 describeDocker('DockerPodDriver against a live daemon', () => {
   afterAll(async () => {
@@ -116,7 +124,9 @@ describeDocker('DockerPodDriver against a live daemon', () => {
     expect(await driver.inspect({ name: podName })).toEqual({ state: 'running', url: first.url })
 
     const elfMachine = await sh(`od -An -tx1 -j${ELF_MACHINE_OFFSET} -N2 /opt/atlas/atlas-serve`)
-    expect(elfMachine.replace(/\s+/g, ' ').trim()).toBe(process.arch === 'arm64' ? 'b7 00' : '3e 00')
+    expect(elfMachine.replace(/\s+/g, ' ').trim()).toBe(
+      process.arch === 'arm64' ? 'b7 00' : '3e 00',
+    )
     expect(await sh('uname -m')).toBe(process.arch === 'arm64' ? 'aarch64' : 'x86_64')
 
     await sh(`printf '%s' ${MARKER_CONTENT} > ${MARKER_PATH}`)
@@ -138,8 +148,12 @@ describeDocker('DockerPodDriver against a live daemon', () => {
 
     await driver.destroy({ name: podName })
 
-    expect(await dockerCli(['ps', '-a', '--filter', `name=${podName}`, '--format', '{{.Names}}'])).toBe('')
-    expect(await dockerCli(['volume', 'ls', '--filter', `name=${podName}`, '--format', '{{.Name}}'])).toBe('')
+    expect(
+      await dockerCli(['ps', '-a', '--filter', `name=${podName}`, '--format', '{{.Names}}']),
+    ).toBe('')
+    expect(
+      await dockerCli(['volume', 'ls', '--filter', `name=${podName}`, '--format', '{{.Name}}']),
+    ).toBe('')
     expect(await driver.inspect({ name: podName })).toBeUndefined()
   }, 400_000)
 })

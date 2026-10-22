@@ -1,4 +1,9 @@
-import { EPullRequestLookup, pullRequestBadge, type PullRequestReading, type RepositoryCheckout } from '@dltech/atlas-harness'
+import {
+  EPullRequestLookup,
+  pullRequestBadge,
+  type PullRequestReading,
+  type RepositoryCheckout,
+} from '@dltech/atlas-harness'
 
 import { pullRequestChip } from '../plugins/github/pull-request-pill'
 import { theme } from '../ui/theme'

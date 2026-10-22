@@ -8,7 +8,9 @@ describe('renderPasswordResetEmail', () => {
     const email = renderPasswordResetEmail({ url: URL })
 
     expect(email.subject).toBe('Reset your Atlas password')
-    expect(email.html).toContain('href="https://byatlas.io/api/auth/reset-password/tok?callbackURL=%2Freset-password&amp;x=1&amp;y=2"')
+    expect(email.html).toContain(
+      'href="https://byatlas.io/api/auth/reset-password/tok?callbackURL=%2Freset-password&amp;x=1&amp;y=2"',
+    )
     expect(email.text).toContain(URL)
     expect(email.text).toContain("If you didn't ask for this, you can ignore this email.")
   })
@@ -42,7 +44,12 @@ describe('renderInvitationEmail', () => {
   })
 
   it('falls back to the inviter email when the name is blank', () => {
-    const email = renderInvitationEmail({ url: 'u', workspaceName: 'Acme', inviterName: ' ', inviterEmail: 'ada@acme.dev' })
+    const email = renderInvitationEmail({
+      url: 'u',
+      workspaceName: 'Acme',
+      inviterName: ' ',
+      inviterEmail: 'ada@acme.dev',
+    })
 
     expect(email.text).toContain('ada@acme.dev invited you to Acme.')
   })

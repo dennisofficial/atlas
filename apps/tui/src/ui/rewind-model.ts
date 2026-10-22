@@ -109,11 +109,7 @@ export function verbsFor(args: { state: RewindState }): readonly ERewindVerb[] {
   ]
 }
 
-function movedVerb(args: {
-  state: RewindState
-  verb: ERewindVerb
-  steps: number
-}): RewindState {
+function movedVerb(args: { state: RewindState; verb: ERewindVerb; steps: number }): RewindState {
   const { state } = args
   const verbs = verbsFor({ state })
   const at = clamped({ value: verbs.indexOf(args.verb) + args.steps, count: verbs.length })
@@ -218,8 +214,7 @@ function rewindConsequence(args: { state: RewindState; count: number }): string 
       ? 'nothing else is deleted'
       : `${plural({ count: args.count, noun: 'later message' })} and every reply are deleted`
 
-  if (point?.kind === ERewindPointKind.Compacted)
-    return `the compaction is undone and ${discarded}`
+  if (point?.kind === ERewindPointKind.Compacted) return `the compaction is undone and ${discarded}`
 
   if (args.count === 0)
     return 'every reply after this is deleted, this message returns to the composer'

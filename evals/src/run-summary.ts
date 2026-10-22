@@ -20,7 +20,9 @@ const MAX_SUMMARY_VALUE_LENGTH = 120
 function summarizeValue({ value }: { value: unknown }): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value)
   if (text === undefined) return String(value)
-  return text.length > MAX_SUMMARY_VALUE_LENGTH ? `${text.slice(0, MAX_SUMMARY_VALUE_LENGTH)}…` : text
+  return text.length > MAX_SUMMARY_VALUE_LENGTH
+    ? `${text.slice(0, MAX_SUMMARY_VALUE_LENGTH)}…`
+    : text
 }
 
 function countInconclusive({ rows }: { rows: readonly ResultRow[] }): number {
@@ -37,7 +39,11 @@ function countInconclusive({ rows }: { rows: readonly ResultRow[] }): number {
   return count
 }
 
-function groupCompletedTrials({ rows }: { rows: readonly ResultRow[] }): ReadonlyMap<string, readonly { trialId: string; passed: boolean }[]> {
+function groupCompletedTrials({
+  rows,
+}: {
+  rows: readonly ResultRow[]
+}): ReadonlyMap<string, readonly { trialId: string; passed: boolean }[]> {
   const grouped = new Map<string, { trialId: string; passed: boolean }[]>()
   for (const row of rows) {
     const passed = Object.values(row.scores).every((score) => score === 1)
@@ -48,7 +54,13 @@ function groupCompletedTrials({ rows }: { rows: readonly ResultRow[] }): Readonl
   return grouped
 }
 
-export function failureSummary({ request, invocationId, dataset, notes, enabledPolicyIds }: {
+export function failureSummary({
+  request,
+  invocationId,
+  dataset,
+  notes,
+  enabledPolicyIds,
+}: {
   request: RunRequest
   enabledPolicyIds: readonly string[]
   invocationId: string
@@ -89,14 +101,28 @@ export function failureSummary({ request, invocationId, dataset, notes, enabledP
   }
 }
 
-export function assembleSummary({ request, invocationId, feature, normalized, plannedRows, planned, enabledPolicyIds }: {
+export function assembleSummary({
+  request,
+  invocationId,
+  feature,
+  normalized,
+  plannedRows,
+  planned,
+  enabledPolicyIds,
+}: {
   request: RunRequest
   enabledPolicyIds: readonly string[]
   invocationId: string
   feature: AnyEvalFeature
   normalized: readonly ResultRow[]
   plannedRows: readonly PlannedRow[]
-  planned: { uniqueCases: number; trialsPerCase: number; variants: readonly string[]; datasetVersion: string; datasetHash: string }
+  planned: {
+    uniqueCases: number
+    trialsPerCase: number
+    variants: readonly string[]
+    datasetVersion: string
+    datasetHash: string
+  }
 }): RunSummary {
   const completedRows = normalized.filter((row) => row.status === ERowStatus.Completed)
   const errorRows = normalized.filter((row) => row.status !== ERowStatus.Completed)
@@ -114,12 +140,29 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
     const values = completedRows
       .map((row) => row.scores[metricId])
       .filter((value): value is number => typeof value === 'number')
-    const exact = exactMatchAccuracy({ matches: values.filter((value) => value === 1).length, total: values.length })
-    return { id: metricId, kind: 'exact-match-accuracy', value: exact.value, numerator: exact.numerator, denominator: exact.denominator }
+    const exact = exactMatchAccuracy({
+      matches: values.filter((value) => value === 1).length,
+      total: values.length,
+    })
+    return {
+      id: metricId,
+      kind: 'exact-match-accuracy',
+      value: exact.value,
+      numerator: exact.numerator,
+      denominator: exact.denominator,
+    }
   })
-  const featureAggregates = feature.reduceDataset === undefined ? [] : feature.reduceDataset({
-    rows: completedRows.map((row) => ({ caseId: row.caseId, expected: row.expected, actual: row.actual, scores: row.scores })),
-  })
+  const featureAggregates =
+    feature.reduceDataset === undefined
+      ? []
+      : feature.reduceDataset({
+          rows: completedRows.map((row) => ({
+            caseId: row.caseId,
+            expected: row.expected,
+            actual: row.actual,
+            scores: row.scores,
+          })),
+        })
 
   const emptyStats = { p50: null, p95: null, samples: 0 }
   return {
@@ -149,7 +192,9 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
     timing: {
       preparationMs: timingStats({ samples: completedRows.map((row) => row.timing.preparationMs) }),
       inferenceMs: timingStats({ samples: completedRows.map((row) => row.timing.inferenceMs) }),
-      interpretationMs: timingStats({ samples: completedRows.map((row) => row.timing.interpretationMs) }),
+      interpretationMs: timingStats({
+        samples: completedRows.map((row) => row.timing.interpretationMs),
+      }),
       gradingMs: emptyStats,
       endToEndMs: timingStats({ samples: completedRows.map((row) => row.timing.endToEndMs) }),
       childOverheadMs: 0,
@@ -160,7 +205,18 @@ export function assembleSummary({ request, invocationId, feature, normalized, pl
   }
 }
 
-export function buildRunManifest({ request, invocationId, startedAt, rows, variants, uniqueCases, dataset, codeDigests, enabledPolicyIds, concurrency }: {
+export function buildRunManifest({
+  request,
+  invocationId,
+  startedAt,
+  rows,
+  variants,
+  uniqueCases,
+  dataset,
+  codeDigests,
+  enabledPolicyIds,
+  concurrency,
+}: {
   request: RunRequest
   invocationId: string
   startedAt: Date

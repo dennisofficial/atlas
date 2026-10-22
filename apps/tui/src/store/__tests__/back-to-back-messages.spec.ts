@@ -23,9 +23,9 @@ describe('two messages sent one after the other', () => {
         text: 'are\nyou?',
         said: ['are', 'you?'],
         steer: false,
-    skills: [],
-    files: [],
-      images: [],
+        skills: [],
+        files: [],
+        images: [],
       },
     ])
   })
@@ -52,10 +52,9 @@ describe('two messages sent one after the other', () => {
       { type: 'user-said', text: 'and the fixtures' },
     ])
 
-    expect(fromTheOperator(deriveTranscript({ events, signals: [] })).map((entry) => entry.said)).toEqual([
-      ['check the tests too'],
-      ['and the fixtures'],
-    ])
+    expect(
+      fromTheOperator(deriveTranscript({ events, signals: [] })).map((entry) => entry.said),
+    ).toEqual([['check the tests too'], ['and the fixtures']])
   })
 
   it('folds a whole run of them, not only the last two', () => {
@@ -65,8 +64,8 @@ describe('two messages sent one after the other', () => {
       { type: 'user-said', text: 'three' },
     ])
 
-    expect(fromTheOperator(deriveTranscript({ events, signals: [] })).map((entry) => entry.said)).toEqual([
-      ['one', 'two', 'three'],
-    ])
+    expect(
+      fromTheOperator(deriveTranscript({ events, signals: [] })).map((entry) => entry.said),
+    ).toEqual([['one', 'two', 'three']])
   })
 })

@@ -22,7 +22,8 @@ function Entry({ entryKey, text }: { entryKey: string; text: string }): React.Re
 
 function Harness({ culling = true }: { culling?: boolean }): React.ReactNode {
   const entries = useMemo(
-    () => Array.from({ length: ENTRY_COUNT }, (_, index) => ({ key: `e${index}`, text: line(index) })),
+    () =>
+      Array.from({ length: ENTRY_COUNT }, (_, index) => ({ key: `e${index}`, text: line(index) })),
     [],
   )
   const scroller = useRef<ScrollBoxRenderable | null>(null)

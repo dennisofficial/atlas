@@ -1,7 +1,4 @@
-import {
-  EQualityReviewStatus,
-  type QualityAssessment,
-} from '@dltech/atlas-core'
+import { EQualityReviewStatus, type QualityAssessment } from '@dltech/atlas-core'
 
 import type { EvaluatorGrade } from '../src/feature'
 import type { CodeQualityOutput } from './task'
@@ -15,7 +12,11 @@ export type FieldGrades = {
 
 const SRP_POLICY_ID = 'single-responsibility'
 
-export function srpAssessmentOf({ output }: { output: CodeQualityOutput }): QualityAssessment | null {
+export function srpAssessmentOf({
+  output,
+}: {
+  output: CodeQualityOutput
+}): QualityAssessment | null {
   for (const assessment of output.assessments) {
     if (assessment.policyId === SRP_POLICY_ID) return assessment
   }
@@ -42,11 +43,17 @@ export function gradeFieldTuple({
   return {
     impact: assessment.impact === expected.fields.impact ? 1 : 0,
     currentConcern: predictedConcern === expected.fields.currentConcern ? 1 : 0,
-    evidenceIds: sortedIds({ ids: assessment.evidenceIds }) === sortedIds({ ids: expected.fields.evidenceIds }) ? 1 : 0,
+    evidenceIds:
+      sortedIds({ ids: assessment.evidenceIds }) === sortedIds({ ids: expected.fields.evidenceIds })
+        ? 1
+        : 0,
   }
 }
 
-export function gradeImpact({ expected, actual }: {
+export function gradeImpact({
+  expected,
+  actual,
+}: {
   expected: SrpExpected
   actual: CodeQualityOutput
 }): EvaluatorGrade {
@@ -56,7 +63,12 @@ export function gradeImpact({ expected, actual }: {
       assessment === null ||
       assessment.status === EQualityReviewStatus.Inconclusive ||
       assessment.status === EQualityReviewStatus.Skipped
-    return { score: abstained ? 1 : 0, difference: abstained ? undefined : `expected abstention, got ${assessment.status}/${assessment.impact}` }
+    return {
+      score: abstained ? 1 : 0,
+      difference: abstained
+        ? undefined
+        : `expected abstention, got ${assessment.status}/${assessment.impact}`,
+    }
   }
   const fields = gradeFieldTuple({ expected, actual })
   const assessment = srpAssessmentOf({ output: actual })
@@ -69,7 +81,10 @@ export function gradeImpact({ expected, actual }: {
   }
 }
 
-export function gradeCurrentConcern({ expected, actual }: {
+export function gradeCurrentConcern({
+  expected,
+  actual,
+}: {
   expected: SrpExpected
   actual: CodeQualityOutput
 }): EvaluatorGrade {
@@ -78,7 +93,10 @@ export function gradeCurrentConcern({ expected, actual }: {
   return { score: fields.currentConcern }
 }
 
-export function gradeEvidenceIds({ expected, actual }: {
+export function gradeEvidenceIds({
+  expected,
+  actual,
+}: {
   expected: SrpExpected
   actual: CodeQualityOutput
 }): EvaluatorGrade {
@@ -94,7 +112,10 @@ export function gradeEvidenceIds({ expected, actual }: {
   }
 }
 
-export function gradeExactTuple({ expected, actual }: {
+export function gradeExactTuple({
+  expected,
+  actual,
+}: {
   expected: SrpExpected
   actual: CodeQualityOutput
 }): EvaluatorGrade {

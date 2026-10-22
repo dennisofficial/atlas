@@ -1,8 +1,8 @@
-"use client";
+'use client'
 
-import { useRef, useState } from "react";
-import type { ChangeEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
-import { ArrowUpIcon, FileIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
+import { useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
+import { ArrowUpIcon, FileIcon, PlusIcon, SquareIcon, XIcon } from 'lucide-react'
 
 import {
   Attachment,
@@ -12,48 +12,48 @@ import {
   AttachmentGroup,
   AttachmentMedia,
   AttachmentTitle,
-} from "#components/attachment";
+} from '#components/attachment'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupTextarea,
-} from "#components/input-group";
+} from '#components/input-group'
 
 export interface PromptAttachment {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export interface PromptInputProps {
-  value?: string;
-  defaultValue?: string;
-  onValueChange?: (value: string) => void;
-  onSubmit?: (text: string) => void;
-  placeholder?: string;
-  busy?: boolean;
-  onStop?: () => void;
-  attachments?: PromptAttachment[];
-  onAttachFiles?: (files: File[]) => void;
-  onRemoveAttachment?: (id: string) => void;
-  children?: ReactNode;
+  value?: string
+  defaultValue?: string
+  onValueChange?: (value: string) => void
+  onSubmit?: (text: string) => void
+  placeholder?: string
+  busy?: boolean
+  onStop?: () => void
+  attachments?: PromptAttachment[]
+  onAttachFiles?: (files: File[]) => void
+  onRemoveAttachment?: (id: string) => void
+  children?: ReactNode
 }
 
 interface SendInput {
-  text: string;
-  busy: boolean;
+  text: string
+  busy: boolean
 }
 
 export function canSend({ text, busy }: SendInput): boolean {
-  return !busy && text.trim().length > 0;
+  return !busy && text.trim().length > 0
 }
 
 export function PromptInput({
   value,
-  defaultValue = "",
+  defaultValue = '',
   onValueChange,
   onSubmit,
-  placeholder = "Ask the agent to change your code...",
+  placeholder = 'Ask the agent to change your code...',
   busy = false,
   onStop,
   attachments = [],
@@ -61,37 +61,37 @@ export function PromptInput({
   onRemoveAttachment,
   children,
 }: PromptInputProps) {
-  const [draft, setDraft] = useState(defaultValue);
-  const formRef = useRef<HTMLFormElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const text = value ?? draft;
-  const sendable = canSend({ text, busy });
+  const [draft, setDraft] = useState(defaultValue)
+  const formRef = useRef<HTMLFormElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const text = value ?? draft
+  const sendable = canSend({ text, busy })
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setDraft(event.target.value);
-    onValueChange?.(event.target.value);
-  };
+    setDraft(event.target.value)
+    onValueChange?.(event.target.value)
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!sendable) return;
-    onSubmit?.(text.trim());
-    setDraft("");
-    onValueChange?.("");
-  };
+    event.preventDefault()
+    if (!sendable) return
+    onSubmit?.(text.trim())
+    setDraft('')
+    onValueChange?.('')
+  }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-    event.preventDefault();
-    formRef.current?.requestSubmit();
-  };
+    if (event.key !== 'Enter' || event.shiftKey) return
+    event.preventDefault()
+    formRef.current?.requestSubmit()
+  }
 
   const handleFilesChosen = (event: ChangeEvent<HTMLInputElement>) => {
-    onAttachFiles?.(Array.from(event.target.files ?? []));
-    event.target.value = "";
-  };
+    onAttachFiles?.(Array.from(event.target.files ?? []))
+    event.target.value = ''
+  }
 
-  const handleAttachClick = () => fileRef.current?.click();
+  const handleAttachClick = () => fileRef.current?.click()
 
   return (
     <form ref={formRef} onSubmit={handleSubmit}>
@@ -129,13 +129,7 @@ export function PromptInput({
           className="p-3"
         />
         <InputGroupAddon align="block-end">
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            hidden
-            onChange={handleFilesChosen}
-          />
+          <input ref={fileRef} type="file" multiple hidden onChange={handleFilesChosen} />
           <InputGroupButton
             size="icon-sm"
             variant="outline"
@@ -145,9 +139,7 @@ export function PromptInput({
           >
             <PlusIcon />
           </InputGroupButton>
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            {children}
-          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-1">{children}</div>
           {busy ? (
             <InputGroupButton
               size="icon-sm"
@@ -173,5 +165,5 @@ export function PromptInput({
         </InputGroupAddon>
       </InputGroup>
     </form>
-  );
+  )
 }

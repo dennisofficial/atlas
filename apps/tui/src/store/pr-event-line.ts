@@ -31,7 +31,8 @@ const reviewLead = (event: PrEvent): string => {
   return `${author(event)} reviewed`
 }
 
-const reviewLine = (event: PrEvent): string => withBody(`${prefix(event)}: ${reviewLead(event)}`, undefined)
+const reviewLine = (event: PrEvent): string =>
+  withBody(`${prefix(event)}: ${reviewLead(event)}`, undefined)
 
 const reviewCommentLine = (event: PrEvent): string =>
   withBody(`${prefix(event)}: ${author(event)} left an inline review comment`, event.body)

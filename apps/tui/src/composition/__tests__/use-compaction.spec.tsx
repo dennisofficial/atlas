@@ -1,10 +1,5 @@
 import { ECompactionAnchor, toRunId, toThreadId } from '@dltech/atlas-core'
-import {
-  CompactionPort,
-  ECompaction,
-  ECompactScope,
-  type Compaction,
-} from '@dltech/atlas-harness'
+import { CompactionPort, ECompaction, ECompactScope, type Compaction } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -25,12 +20,21 @@ class RecordingCompaction extends CompactionPort {
   outcome: Compaction = { type: ECompaction.Compacted, replaced: 2, fromSeq: 1, throughSeq: 2 }
   held = false
 
-  compact(args: { threadId: typeof THREAD; scope?: ECompactScope | undefined; signal?: AbortSignal | undefined }) {
+  compact(args: {
+    threadId: typeof THREAD
+    scope?: ECompactScope | undefined
+    signal?: AbortSignal | undefined
+  }) {
     this.calls.push({ kind: 'compact', scope: args.scope, signal: args.signal })
     return this.answer()
   }
 
-  summarise(args: { threadId: typeof THREAD; anchor: ECompactionAnchor; seq: number; signal?: AbortSignal | undefined }) {
+  summarise(args: {
+    threadId: typeof THREAD
+    anchor: ECompactionAnchor
+    seq: number
+    signal?: AbortSignal | undefined
+  }) {
     this.calls.push({ kind: 'summarise', anchor: args.anchor, seq: args.seq, signal: args.signal })
     return this.answer()
   }
@@ -71,7 +75,11 @@ const Harness = (props: {
   return <text>probe</text>
 }
 
-const mount = async (args: { port?: RecordingCompaction; frozen?: boolean; summarised?: { calls: number } }) => {
+const mount = async (args: {
+  port?: RecordingCompaction
+  frozen?: boolean
+  summarised?: { calls: number }
+}) => {
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
   const summarised = args.summarised ?? { calls: 0 }
   app.summarise = async () => {
@@ -82,7 +90,12 @@ const mount = async (args: { port?: RecordingCompaction; frozen?: boolean; summa
   const probe: Probe = { control: null }
   const events = { failures: [] as string[], compacted: 0, refreshed: 0 }
   const setup = await testRender(
-    <Harness app={app} probe={probe} events={events} {...(args.frozen === undefined ? {} : { frozen: args.frozen })} />,
+    <Harness
+      app={app}
+      probe={probe}
+      events={events}
+      {...(args.frozen === undefined ? {} : { frozen: args.frozen })}
+    />,
     { width: 20, height: 4 },
   )
   await setup.flush()
@@ -119,7 +132,9 @@ describe('the compaction controls over a compaction port', () => {
       await setup.flush()
       await new Promise((resolve) => setTimeout(resolve, 20))
 
-      expect(port.calls).toMatchObject([{ kind: 'summarise', anchor: ECompactionAnchor.Suffix, seq: 9 }])
+      expect(port.calls).toMatchObject([
+        { kind: 'summarise', anchor: ECompactionAnchor.Suffix, seq: 9 },
+      ])
       expect(summarised.calls).toBe(0)
     } finally {
       await teardown(setup)

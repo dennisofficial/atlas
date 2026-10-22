@@ -8,7 +8,10 @@ import { SANDBOX_SERVE_TOKEN_PREFIX } from './sandbox-attachment'
 
 const MCP_OAUTH_PREFIX = 'mcp-oauth'
 
-const LOCAL_ONLY_PREFIXES: readonly string[] = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, `${MCP_OAUTH_PREFIX}:`]
+const LOCAL_ONLY_PREFIXES: readonly string[] = [
+  `${SANDBOX_SERVE_TOKEN_PREFIX}:`,
+  `${MCP_OAUTH_PREFIX}:`,
+]
 
 export const isLocalOnlySecret = (name: string): boolean =>
   LOCAL_ONLY_PREFIXES.some((prefix) => name.startsWith(prefix))

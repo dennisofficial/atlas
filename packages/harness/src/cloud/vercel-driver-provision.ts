@@ -100,7 +100,10 @@ export type ProvisionArgs = {
   onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
 }
 
-export async function provisionSandbox(deps: ProvisionDeps, args: ProvisionArgs): Promise<SandboxPlacement> {
+export async function provisionSandbox(
+  deps: ProvisionDeps,
+  args: ProvisionArgs,
+): Promise<SandboxPlacement> {
   if (deps.config.image === undefined) {
     throw new Error('this driver was built for port exposure only, not for creating sandboxes')
   }

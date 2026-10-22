@@ -83,7 +83,8 @@ async function harnessContainer(): Promise<DependencyContainer> {
 }
 
 const spawnDescription = (container: DependencyContainer): string =>
-  container.resolve(registeredPortToken(ToolRegistry)).find(AGENT_SPAWN_TOOL_NAME)?.description ?? ''
+  container.resolve(registeredPortToken(ToolRegistry)).find(AGENT_SPAWN_TOOL_NAME)?.description ??
+  ''
 
 const spawnableTypes = (container: DependencyContainer): readonly AgentType[] =>
   container.resolve(registeredPortToken(AgentRegistryPort)).types()

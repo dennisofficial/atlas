@@ -3,13 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { toThreadId } from '../../events/ids'
-import {
-  EToolEffect,
-  SchemaTool,
-  type OnToolOutput,
-  type ToolOutcome,
-  type ToolRun,
-} from '../tool'
+import { EToolEffect, SchemaTool, type OnToolOutput, type ToolOutcome, type ToolRun } from '../tool'
 
 const schema = z.strictObject({ path: z.string() })
 

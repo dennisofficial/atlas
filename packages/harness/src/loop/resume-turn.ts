@@ -1,4 +1,10 @@
-import { resumeDrafts, type EventDraft, type EventLogPort, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  resumeDrafts,
+  type EventDraft,
+  type EventLogPort,
+  type IdPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 export async function appendResumeDrafts(args: {
   log: EventLogPort

@@ -6,7 +6,11 @@ export type WorkspaceFiles = {
   exists: (path: string) => Promise<boolean>
   read: (path: string) => Promise<string>
   write: (args: { path: string; text: string }) => Promise<void>
-  writeBytes: (args: { path: string; bytes: Buffer; overwrite?: boolean | undefined }) => Promise<void>
+  writeBytes: (args: {
+    path: string
+    bytes: Buffer
+    overwrite?: boolean | undefined
+  }) => Promise<void>
   ensureDirectory: (path: string) => Promise<void>
   empty: (path: string) => Promise<void>
 }
@@ -55,7 +59,9 @@ export const nodeWorkspaceFiles: WorkspaceFiles = {
 
   empty: async (path) => {
     if (refusesToEmpty(path)) {
-      throw new Error(`refusing to empty ${resolve(path)}: it is the filesystem root or the home directory, not a workspace`)
+      throw new Error(
+        `refusing to empty ${resolve(path)}: it is the filesystem root or the home directory, not a workspace`,
+      )
     }
     await mkdir(path, { recursive: true })
     for (const entry of await readdir(path)) {

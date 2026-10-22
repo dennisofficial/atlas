@@ -6,7 +6,7 @@ export const ATLAS_SVC_NAME = 'atlas-svc'
 const SHIM = `#!/usr/bin/env bash
 set -euo pipefail
 
-services_dir="\${ATLAS_HOME:-\$HOME/.atlas}/services"
+services_dir="\${ATLAS_HOME:-$HOME/.atlas}/services"
 
 usage() {
   echo "usage: atlas-svc ls | atlas-svc path <service-id> | atlas-svc logs <service-id> [tail flags, e.g. -n 200 -f]" >&2

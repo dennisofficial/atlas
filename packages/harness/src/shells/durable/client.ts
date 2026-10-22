@@ -69,7 +69,11 @@ export type AttachArgs = {
   clientId?: string | undefined
 }
 
-export type LaunchSpec = { cmd: readonly string[]; cwd: string; env: Record<string, string> | undefined }
+export type LaunchSpec = {
+  cmd: readonly string[]
+  cwd: string
+  env: Record<string, string> | undefined
+}
 
 export type LaunchArgs = Omit<AttachArgs, 'clientId'> & {
   command: string
@@ -105,19 +109,37 @@ export async function inspectDurableShell({ shellDir }: { shellDir: string }): P
   const meta = await readJsonFile({ path: join(shellDir, META_FILE), schema: metaSchema })
   const status = await readStatus({ shellDir })
   if (!meta.ok) return { status, supervisorLive: false, reason: meta.reason }
-  return { meta: meta.value, status, supervisorLive: await stampIsLive({ stamp: meta.value.supervisor }) }
+  return {
+    meta: meta.value,
+    status,
+    supervisorLive: await stampIsLive({ stamp: meta.value.supervisor }),
+  }
 }
 
-const failed = (code: EAttachFailure, reason: string): AttachOutcome => ({ ok: false, code, reason })
+const failed = (code: EAttachFailure, reason: string): AttachOutcome => ({
+  ok: false,
+  code,
+  reason,
+})
 
 export async function attachDurableShell(args: AttachArgs): Promise<AttachOutcome> {
   const status = await readStatus({ shellDir: args.shellDir })
   const metaRead = await readJsonFile({ path: join(args.shellDir, META_FILE), schema: metaSchema })
   const meta = metaRead.ok ? metaRead.value : undefined
   if (status === undefined && meta === undefined)
-    return failed(metaRead.ok ? EAttachFailure.Missing : metaRead.missing ? EAttachFailure.Missing : EAttachFailure.Invalid, metaRead.ok ? 'no status' : metaRead.reason)
+    return failed(
+      metaRead.ok
+        ? EAttachFailure.Missing
+        : metaRead.missing
+          ? EAttachFailure.Missing
+          : EAttachFailure.Invalid,
+      metaRead.ok ? 'no status' : metaRead.reason,
+    )
   if (status !== undefined && meta !== undefined && status.identity !== meta.identity)
-    return failed(EAttachFailure.IdentityMismatch, 'status.json and meta.json disagree on the durable identity')
+    return failed(
+      EAttachFailure.IdentityMismatch,
+      'status.json and meta.json disagree on the durable identity',
+    )
   const identity = status?.identity ?? meta?.identity ?? ''
   if (status?.phase === EShellPhase.StartFailed)
     return failed(EAttachFailure.StartFailed, status.failure ?? 'start failed')
@@ -134,17 +156,38 @@ export async function attachDurableShell(args: AttachArgs): Promise<AttachOutcom
     leaseMode: args.leaseMode,
   }
   if (status?.exit !== undefined)
-    return { ok: true, handle: createHandle({ ...base, token: undefined, terminal: status.exit, lostReason: undefined }) }
+    return {
+      ok: true,
+      handle: createHandle({
+        ...base,
+        token: undefined,
+        terminal: status.exit,
+        lostReason: undefined,
+      }),
+    }
 
   const token = await readTextFile({ path: join(args.shellDir, TOKEN_FILE) })
   if (meta === undefined || !token.ok)
-    return failed(EAttachFailure.Invalid, 'a running shell needs both meta.json and its control token to be controlled')
+    return failed(
+      EAttachFailure.Invalid,
+      'a running shell needs both meta.json and its control token to be controlled',
+    )
 
-  const hello = await (args.transport ?? ((call) => sendControl({ directory: args.shellDir, ...call })))({
+  const hello = await (
+    args.transport ?? ((call) => sendControl({ directory: args.shellDir, ...call }))
+  )({
     request: { type: 'heartbeat' },
   })
   if (!hello.ok) return settleUnreachable({ args, base, hello })
-  return { ok: true, handle: createHandle({ ...base, token: token.value.trim(), terminal: undefined, lostReason: undefined }) }
+  return {
+    ok: true,
+    handle: createHandle({
+      ...base,
+      token: token.value.trim(),
+      terminal: undefined,
+      lostReason: undefined,
+    }),
+  }
 }
 
 async function settleUnreachable({
@@ -157,12 +200,23 @@ async function settleUnreachable({
   hello: ControlResult
 }): Promise<AttachOutcome> {
   const reason = hello.ok ? '' : hello.message
-  if (!hello.ok && (hello.code === EControlError.Unauthorized || hello.code === EControlError.IdentityMismatch))
+  if (
+    !hello.ok &&
+    (hello.code === EControlError.Unauthorized || hello.code === EControlError.IdentityMismatch)
+  )
     return failed(EAttachFailure.IdentityMismatch, reason)
 
   const status = await readStatus({ shellDir: args.shellDir })
   if (status?.exit !== undefined)
-    return { ok: true, handle: createHandle({ ...base, token: undefined, terminal: status.exit, lostReason: undefined }) }
+    return {
+      ok: true,
+      handle: createHandle({
+        ...base,
+        token: undefined,
+        terminal: status.exit,
+        lostReason: undefined,
+      }),
+    }
 
   const probed = await probeSupervisor({ args, base })
   if (!probed.ok || probed.probe === undefined || probed.probe.supervisorAlive)
@@ -173,7 +227,8 @@ async function settleUnreachable({
       ...base,
       token: undefined,
       terminal: undefined,
-      lostReason: 'the supervisor is gone without recording an exit; the shell may still be running',
+      lostReason:
+        'the supervisor is gone without recording an exit; the shell may still be running',
     }),
   }
 }
@@ -190,7 +245,8 @@ async function probeSupervisor({
       return {
         ok: true,
         probe: {
-          supervisorAlive: base.meta !== undefined && (await stampIsLive({ stamp: base.meta.supervisor })),
+          supervisorAlive:
+            base.meta !== undefined && (await stampIsLive({ stamp: base.meta.supervisor })),
           childAlive: false,
           reachable: false,
         },
@@ -217,7 +273,8 @@ async function waitForStart({
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const status = await readStatus({ shellDir })
-    if (status?.phase === EShellPhase.Running || status?.phase === EShellPhase.Exited) return undefined
+    if (status?.phase === EShellPhase.Running || status?.phase === EShellPhase.Exited)
+      return undefined
     if (status?.phase === EShellPhase.StartFailed) return status.failure ?? 'start failed'
     await new Promise((resolve) => setTimeout(resolve, 20))
   }
@@ -230,13 +287,19 @@ async function cancelStart({ args }: { args: LaunchArgs }): Promise<void> {
   await send({ request: { type: 'kill' } }).catch(() => undefined)
   if (args.launch !== undefined) return
   const status = await readStatus({ shellDir: args.shellDir })
-  if (status?.supervisor !== undefined && (await stampIsLive({ stamp: status.supervisor })) && status.phase === EShellPhase.Starting)
+  if (
+    status?.supervisor !== undefined &&
+    (await stampIsLive({ stamp: status.supervisor })) &&
+    status.phase === EShellPhase.Starting
+  )
     process.kill(status.supervisor.pid, 'SIGTERM')
 }
 
 function launchEnv({ env }: { env: LaunchArgs['env'] }): Record<string, string> {
   const entries = Object.entries(env ?? process.env)
-  return Object.fromEntries(entries.filter((entry): entry is [string, string] => entry[1] !== undefined))
+  return Object.fromEntries(
+    entries.filter((entry): entry is [string, string] => entry[1] !== undefined),
+  )
 }
 
 async function spawnDetached({ cmd, cwd, env }: LaunchSpec): Promise<void> {
@@ -270,7 +333,11 @@ export async function launchDurableShell(args: LaunchArgs): Promise<AttachOutcom
       killGraceMs: args.killGraceMs ?? DEFAULT_KILL_GRACE_MS,
       ...(args.sessionLock === undefined ? {} : { sessionLock: args.sessionLock }),
     }
-    await createExclusiveFile({ path: join(args.shellDir, TOKEN_FILE), data: newControlToken(), mode: 0o600 })
+    await createExclusiveFile({
+      path: join(args.shellDir, TOKEN_FILE),
+      data: newControlToken(),
+      mode: 0o600,
+    })
     owned = true
     const configPath = join(args.shellDir, CONFIG_FILE)
     await createExclusiveFile({ path: configPath, data: JSON.stringify(config), mode: 0o600 })
@@ -278,7 +345,10 @@ export async function launchDurableShell(args: LaunchArgs): Promise<AttachOutcom
     const cmd = [...(args.supervisorCommand ?? defaultSupervisorCommand()), configPath]
     await (args.launch ?? spawnDetached)({ cmd, cwd: '/', env: launchEnv({ env: args.env }) })
 
-    const failure = await waitForStart({ shellDir: args.shellDir, timeoutMs: args.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS })
+    const failure = await waitForStart({
+      shellDir: args.shellDir,
+      timeoutMs: args.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS,
+    })
     if (failure !== undefined) {
       await cancelStart({ args })
       return failed(EAttachFailure.StartFailed, failure)

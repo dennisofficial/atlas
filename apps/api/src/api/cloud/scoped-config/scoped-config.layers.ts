@@ -12,17 +12,30 @@ type SettingRow = { key: string; value: string }
 const settingsOf = (rows: readonly SettingRow[]): Record<string, string> =>
   Object.fromEntries(rows.map((row) => [row.key, row.value]))
 
-const secretsOf = (args: { cipher: SecretCipherService; rows: readonly SealedSecretRow[] }): ScopedSecret[] =>
+const secretsOf = (args: {
+  cipher: SecretCipherService
+  rows: readonly SealedSecretRow[]
+}): ScopedSecret[] =>
   args.rows.map((row) => ({
     name: row.name,
     kind: kindOf(row.kind),
     value: openSecretValue({ cipher: args.cipher, sealed: row.sealedValue }),
   }))
 
-const mcpServersOf = (args: { cipher: SecretCipherService; rows: readonly SealedMcpRow[] }): ScopedMcpServer[] =>
+const mcpServersOf = (args: {
+  cipher: SecretCipherService
+  rows: readonly SealedMcpRow[]
+}): ScopedMcpServer[] =>
   args.rows.flatMap((row) => {
-    const opened = openMcpServer({ cipher: args.cipher, sealedSpec: row.sealedSpec, updatedAt: row.updatedAt })
-    const spec = mcpUpsertSchema.safeParse({ transport: opened.transport, disabled: opened.disabled })
+    const opened = openMcpServer({
+      cipher: args.cipher,
+      sealedSpec: row.sealedSpec,
+      updatedAt: row.updatedAt,
+    })
+    const spec = mcpUpsertSchema.safeParse({
+      transport: opened.transport,
+      disabled: opened.disabled,
+    })
     return spec.success ? [{ name: opened.name, spec: spec.data }] : []
   })
 
@@ -37,7 +50,10 @@ const layerOf = (args: {
   mcpServers: mcpServersOf({ cipher: args.cipher, rows: args.mcpServers }),
 })
 
-export const loadUserLayer = async (args: { cipher: SecretCipherService; userId: string }): Promise<ScopeLayer> => {
+export const loadUserLayer = async (args: {
+  cipher: SecretCipherService
+  userId: string
+}): Promise<ScopeLayer> => {
   const where = { userId: args.userId }
   const [settings, secrets, mcpServers] = await Promise.all([
     db.cloudSetting.findMany({ where }),
@@ -60,7 +76,10 @@ export const loadWorkspaceLayer = async (args: {
   return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
 }
 
-export const loadProjectLayer = async (args: { cipher: SecretCipherService; projectId: string }): Promise<ScopeLayer> => {
+export const loadProjectLayer = async (args: {
+  cipher: SecretCipherService
+  projectId: string
+}): Promise<ScopeLayer> => {
   const where = { projectId: args.projectId }
   const [settings, secrets, mcpServers] = await Promise.all([
     db.projectSetting.findMany({ where }),

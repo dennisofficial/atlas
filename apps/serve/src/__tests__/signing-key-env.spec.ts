@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, existsSync, writeFileSync, chmodSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  existsSync,
+  writeFileSync,
+  chmodSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -39,8 +47,12 @@ const preExistingGitEnv = (): Record<string, string | undefined> => {
   return env
 }
 
-const asFetch = (call: (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => Promise<Response>): typeof fetch =>
-  Object.assign(call, { preconnect: () => undefined })
+const asFetch = (
+  call: (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => Promise<Response>,
+): typeof fetch => Object.assign(call, { preconnect: () => undefined })
 
 const requestOf = (args: {
   input: Parameters<typeof fetch>[0]

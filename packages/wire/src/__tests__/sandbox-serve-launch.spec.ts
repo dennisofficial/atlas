@@ -49,7 +49,8 @@ const fakeSandbox = (args: {
       ? {}
       : {
           currentSession: () => ({
-            sessionId: commands.length === 0 ? lazyResume.staleSessionId : lazyResume.resumedSessionId,
+            sessionId:
+              commands.length === 0 ? lazyResume.staleSessionId : lazyResume.resumedSessionId,
           }),
         }
   const sandbox = {
@@ -73,7 +74,11 @@ const fakeSandbox = (args: {
       }
       if (script.startsWith('printf') && script.includes(SERVE_VERSION_PATH)) {
         const version = args.serveVersion ?? ''
-        return { exitCode: 0, stdout: async () => `${version}\n${version === '' ? '' : String(CHANNEL_PROTOCOL_VERSION)}\n` }
+        return {
+          exitCode: 0,
+          stdout: async () =>
+            `${version}\n${version === '' ? '' : String(CHANNEL_PROTOCOL_VERSION)}\n`,
+        }
       }
       if (script.startsWith('[ ! -s') && script.includes(SERVE_TOKEN_PATH)) {
         return { exitCode: args.tokenMatches === false ? 1 : 0 }
@@ -143,9 +148,9 @@ describe('createServeLauncher', () => {
       tokenMatches: false,
     })
 
-    await expect(
-      createServeLauncher()({ sandbox, token: 'tok_stranger' }),
-    ).rejects.toThrow('under a different token')
+    await expect(createServeLauncher()({ sandbox, token: 'tok_stranger' })).rejects.toThrow(
+      'under a different token',
+    )
 
     expect(writes).toHaveLength(0)
     expect(launchesOf(commands)).toHaveLength(0)
@@ -157,7 +162,9 @@ describe('createServeLauncher', () => {
     await createServeLauncher()({ sandbox })
 
     expect(HEALTH_PROBE).toContain(`_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true)`)
-    expect(HEALTH_PROBE).toContain('[ -n "$_serve_token" ] && export ATLAS_SERVE_TOKEN="$_serve_token"')
+    expect(HEALTH_PROBE).toContain(
+      '[ -n "$_serve_token" ] && export ATLAS_SERVE_TOKEN="$_serve_token"',
+    )
     expect(HEALTH_PROBE).toContain('Authorization: Bearer $ATLAS_SERVE_TOKEN')
   })
 

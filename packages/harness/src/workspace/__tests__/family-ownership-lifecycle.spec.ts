@@ -5,7 +5,13 @@ import { join } from 'node:path'
 import { ECompactionAnchor, EForkMode, EWorktreeExit } from '@dltech/atlas-core'
 
 import { threadMetaFile } from '../../store/sessions/paths'
-import { FAMILY_OWNERSHIP_FILE, ensureFamilyOwnership, presentFamilyCheckouts, readFamilyOwnership, writeFamilyOwnership } from '../family-ownership'
+import {
+  FAMILY_OWNERSHIP_FILE,
+  ensureFamilyOwnership,
+  presentFamilyCheckouts,
+  readFamilyOwnership,
+  writeFamilyOwnership,
+} from '../family-ownership'
 import { claimCheckoutMarker } from '../family-ownership-git'
 import {
   addLinked,
@@ -40,8 +46,19 @@ describe('seeding a session that predates the inventory', () => {
     await addLinked({ repo: fx.repo, root: fx.root, name: 'stranger' })
     const child = await spawnChild({ fx, parent: rootId, workspace: launched })
 
-    await appendTo({ fx, threadId: rootId, drafts: [entered({ path: kept }), exited({ path: kept, action: EWorktreeExit.Keep, returnTo: fx.repo })] })
-    await appendTo({ fx, threadId: child, drafts: [entered({ path: gone }), exited({ path: gone, action: EWorktreeExit.Remove })] })
+    await appendTo({
+      fx,
+      threadId: rootId,
+      drafts: [
+        entered({ path: kept }),
+        exited({ path: kept, action: EWorktreeExit.Keep, returnTo: fx.repo }),
+      ],
+    })
+    await appendTo({
+      fx,
+      threadId: child,
+      drafts: [entered({ path: gone }), exited({ path: gone, action: EWorktreeExit.Remove })],
+    })
     await removeLinked({ repo: fx.repo, path: gone })
     await rm(join(sessionDir, FAMILY_OWNERSHIP_FILE))
 
@@ -57,10 +74,16 @@ describe('seeding a session that predates the inventory', () => {
     const sessionDir = sessionDirOf({ fx, rootId })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'launchgone' })
     const child = await spawnChild({ fx, parent: rootId, workspace: wt })
-    await appendTo({ fx, threadId: child, drafts: [exited({ path: wt, action: EWorktreeExit.Remove })] })
+    await appendTo({
+      fx,
+      threadId: child,
+      drafts: [exited({ path: wt, action: EWorktreeExit.Remove })],
+    })
     await removeLinked({ repo: fx.repo, path: wt })
     await rm(join(sessionDir, FAMILY_OWNERSHIP_FILE), { force: true })
-    expect((await ensureFamilyOwnership({ sessionDir, registry: fx.registry }))?.checkouts).toEqual([])
+    expect((await ensureFamilyOwnership({ sessionDir, registry: fx.registry }))?.checkouts).toEqual(
+      [],
+    )
   })
 
   it('keeps a checkout the launch workspace sits inside after an exited Keep', async () => {
@@ -69,7 +92,11 @@ describe('seeding a session that predates the inventory', () => {
     const sessionDir = sessionDirOf({ fx, rootId })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'insidekeep' })
     const child = await spawnChild({ fx, parent: rootId, workspace: wt })
-    await appendTo({ fx, threadId: child, drafts: [exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo }), nudge()] })
+    await appendTo({
+      fx,
+      threadId: child,
+      drafts: [exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo }), nudge()],
+    })
     expect(pathsOf(await readFamilyOwnership({ sessionDir }))).toEqual([wt])
   })
 })
@@ -82,10 +109,24 @@ describe('inventory lifetime', () => {
     const child = await spawnChild({ fx, parent: rootId })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'childwork' })
     await appendTo({ fx, threadId: rootId, drafts: [nudge(), nudge()] })
-    await appendTo({ fx, threadId: child, drafts: [entered({ path: wt }), exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo })] })
+    await appendTo({
+      fx,
+      threadId: child,
+      drafts: [
+        entered({ path: wt }),
+        exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo }),
+      ],
+    })
     await rm(join(sessionDir, FAMILY_OWNERSHIP_FILE))
 
-    await fx.threads.summarise({ threadId: rootId, anchor: ECompactionAnchor.Prefix, fromSeq: 1, throughSeq: 2, summary: 's', cutAgents: [child] })
+    await fx.threads.summarise({
+      threadId: rootId,
+      anchor: ECompactionAnchor.Prefix,
+      fromSeq: 1,
+      throughSeq: 2,
+      summary: 's',
+      cutAgents: [child],
+    })
     expect(await fx.threads.find({ threadId: child })).toBeUndefined()
     expect(pathsOf(await readFamilyOwnership({ sessionDir }))).toEqual([wt])
   })
@@ -114,10 +155,14 @@ describe('inventory lifetime', () => {
     const fork = await fx.threads.fork({ from: rootId, seq: 2, mode: EForkMode.Copy })
     await appendTo({ fx, threadId: fork.id, drafts: [nudge()] })
 
-    const forkOwnership = await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId: fork.id }) })
+    const forkOwnership = await readFamilyOwnership({
+      sessionDir: sessionDirOf({ fx, rootId: fork.id }),
+    })
     expect(forkOwnership?.rootId).toBe(fork.id)
     expect(forkOwnership?.checkouts).toEqual([])
-    expect(pathsOf(await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))).toEqual([wt])
+    expect(
+      pathsOf(await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) })),
+    ).toEqual([wt])
   })
 })
 
@@ -143,7 +188,9 @@ describe('launch and directory adoption from inside a linked checkout', () => {
     await mkdir(nested, { recursive: true })
     const rootId = (await fx.threads.create({ title: 'r', workspace: nested, repo: fx.repo })).id
     const sessionDir = sessionDirOf({ fx, rootId })
-    expect(pathsOf(await ensureFamilyOwnership({ sessionDir, registry: fx.registry }))).toEqual([wt])
+    expect(pathsOf(await ensureFamilyOwnership({ sessionDir, registry: fx.registry }))).toEqual([
+      wt,
+    ])
   })
 
   it('owns the toplevel when a thread changes directory into a nested folder', async () => {
@@ -152,8 +199,14 @@ describe('launch and directory adoption from inside a linked checkout', () => {
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'cdnested' })
     const nested = join(wt, 'lib')
     await mkdir(nested, { recursive: true })
-    await appendTo({ fx, threadId: rootId, drafts: [{ type: 'directory-changed', path: nested, repo: fx.repo }] })
-    expect(pathsOf(await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))).toEqual([wt])
+    await appendTo({
+      fx,
+      threadId: rootId,
+      drafts: [{ type: 'directory-changed', path: nested, repo: fx.repo }],
+    })
+    expect(
+      pathsOf(await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) })),
+    ).toEqual([wt])
   })
 
   it('never reclaims a mismatched checkout through a directory change', async () => {
@@ -164,7 +217,11 @@ describe('launch and directory adoption from inside a linked checkout', () => {
     const before = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
     await removeLinked({ repo: fx.repo, path: wt })
     await git({ args: ['worktree', 'add', wt, 'cdmismatch'], cwd: fx.repo })
-    await appendTo({ fx, threadId: rootId, drafts: [{ type: 'directory-changed', path: wt, repo: fx.repo }] })
+    await appendTo({
+      fx,
+      threadId: rootId,
+      drafts: [{ type: 'directory-changed', path: wt, repo: fx.repo }],
+    })
     const after = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
     expect(after.checkouts).toEqual(before.checkouts)
     expect(await presentFamilyCheckouts({ ownership: after })).toEqual([])
@@ -175,7 +232,9 @@ describe('strict failures and marker races', () => {
   it('lets two claimers of one checkout agree on a single generation', async () => {
     const fx = await openFixture()
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'race' })
-    const ids = await Promise.all(Array.from({ length: 8 }, () => claimCheckoutMarker({ checkout: wt })))
+    const ids = await Promise.all(
+      Array.from({ length: 8 }, () => claimCheckoutMarker({ checkout: wt })),
+    )
     expect(new Set(ids).size).toBe(1)
     expect(ids[0]).toBe(await markerOf({ checkout: wt }))
   })
@@ -199,11 +258,20 @@ describe('a workspace that belongs to the other side of a transfer', () => {
     const local = await addLinked({ repo: fx.repo, root: fx.root, name: 'hostside' })
     const rootId = (await fx.threads.create({ title: 'r', workspace: local, repo: fx.repo })).id
     const sessionDir = sessionDirOf({ fx, rootId })
-    const foreign = { version: 1 as const, rootId, primaryRepository: join(fx.root, 'absent-cloud', 'repo'), checkouts: [{ id: 'cloud-id', path: join(fx.root, 'absent-cloud', 'wt'), claimedBy: rootId }] }
+    const foreign = {
+      version: 1 as const,
+      rootId,
+      primaryRepository: join(fx.root, 'absent-cloud', 'repo'),
+      checkouts: [{ id: 'cloud-id', path: join(fx.root, 'absent-cloud', 'wt'), claimedBy: rootId }],
+    }
     await writeFamilyOwnership({ sessionDir, ownership: foreign })
 
     await appendTo({ fx, threadId: rootId, drafts: [{ type: 'user-said', text: 'hi' }, nudge()] })
-    await appendTo({ fx, threadId: rootId, drafts: [{ type: 'directory-changed', path: local, repo: fx.repo }] })
+    await appendTo({
+      fx,
+      threadId: rootId,
+      drafts: [{ type: 'directory-changed', path: local, repo: fx.repo }],
+    })
     expect(await readFamilyOwnership({ sessionDir })).toEqual(foreign)
   })
 
@@ -211,10 +279,17 @@ describe('a workspace that belongs to the other side of a transfer', () => {
     const fx = await openFixture()
     const rootId = await startRoot({ fx })
     const sessionDir = sessionDirOf({ fx, rootId })
-    const foreign = { version: 1 as const, rootId, primaryRepository: join(fx.root, 'absent-cloud', 'repo'), checkouts: [] }
+    const foreign = {
+      version: 1 as const,
+      rootId,
+      primaryRepository: join(fx.root, 'absent-cloud', 'repo'),
+      checkouts: [],
+    }
     await writeFamilyOwnership({ sessionDir, ownership: foreign })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'explicit' })
-    await expect(appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })).rejects.toThrow()
+    await expect(
+      appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] }),
+    ).rejects.toThrow()
     expect(await readFamilyOwnership({ sessionDir })).toEqual(foreign)
   })
 
@@ -228,7 +303,9 @@ describe('a workspace that belongs to the other side of a transfer', () => {
     const stranger = await addLinked({ repo: other, root: otherRoot, name: 'foreign' })
     const child = await spawnChild({ fx, parent: rootId, workspace: stranger })
     await appendTo({ fx, threadId: child, drafts: [nudge()] })
-    expect((await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))?.checkouts).toEqual([])
+    expect(
+      (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))?.checkouts,
+    ).toEqual([])
   })
 })
 

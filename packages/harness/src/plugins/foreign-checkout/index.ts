@@ -25,8 +25,7 @@ export const guardForeignCheckout: BeforeTool = async ({ call, projectDirectory 
   }
 
   const path = declaredPath(call.input)
-  const reason =
-    path === undefined ? undefined : foreignCheckoutDenial({ path, projectDirectory })
+  const reason = path === undefined ? undefined : foreignCheckoutDenial({ path, projectDirectory })
 
   if (reason === undefined) {
     return { decision: EBeforeToolDecision.Allow, input: call.input }

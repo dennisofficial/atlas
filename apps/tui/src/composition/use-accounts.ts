@@ -9,12 +9,7 @@ import {
   type Account,
   type AccountId,
 } from '@dltech/atlas-core'
-import type {
-  AccountsService,
-  DeviceTicket,
-  LoginTicket,
-  UrlOpener,
-} from '@dltech/atlas-harness'
+import type { AccountsService, DeviceTicket, LoginTicket, UrlOpener } from '@dltech/atlas-harness'
 import { EDevicePoll } from '@dltech/atlas-harness'
 
 import {
@@ -74,8 +69,7 @@ const isPrintable = (key: KeyEvent): boolean => {
 const signInUnsupported = (provider: EAuthProvider): string =>
   `${providerSpec(provider).label} takes an api key — choose it from the actions menu.`
 
-const providerOf = (state: AccountsState): EAuthProvider | undefined =>
-  selectedRow(state)?.provider
+const providerOf = (state: AccountsState): EAuthProvider | undefined => selectedRow(state)?.provider
 
 /**
  * OpenTUI parses a whole input burst before React re-renders, so a pasted code arrives as a run of
@@ -214,7 +208,11 @@ export function useAccounts(args: {
           put(
             askForDeviceCode({
               state: now,
-              prompt: { provider: begun.provider, url: begun.verificationUrl, userCode: begun.userCode },
+              prompt: {
+                provider: begun.provider,
+                url: begun.verificationUrl,
+                userCode: begun.userCode,
+              },
             }),
           )
           openUrl(begun.verificationUrl)
@@ -285,9 +283,11 @@ export function useAccounts(args: {
         return
       }
 
-      void accounts.remove(account.id).then(() =>
-        refresh((next) => ({ ...backToList(next), notice: `Removed ${account.label}.` })),
-      )
+      void accounts
+        .remove(account.id)
+        .then(() =>
+          refresh((next) => ({ ...backToList(next), notice: `Removed ${account.label}.` })),
+        )
     },
     [accounts, refresh],
   )

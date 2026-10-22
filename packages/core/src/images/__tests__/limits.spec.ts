@@ -20,7 +20,12 @@ import { EImageTier, projectedSize } from '../projection'
 
 const bytes = (...values: number[]): Uint8Array => new Uint8Array(values)
 
-const bigEndian32 = (value: number): number[] => [(value >> 24) & 0xff, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
+const bigEndian32 = (value: number): number[] => [
+  (value >> 24) & 0xff,
+  (value >> 16) & 0xff,
+  (value >> 8) & 0xff,
+  value & 0xff,
+]
 
 const png = (width: number, height: number): Uint8Array =>
   bytes(
@@ -123,7 +128,10 @@ describe('header parsing', () => {
   })
 
   test('dispatches on the declared media type', () => {
-    expect(imageSize({ bytes: png(50, 60), mediaType: 'image/png' })).toEqual({ width: 50, height: 60 })
+    expect(imageSize({ bytes: png(50, 60), mediaType: 'image/png' })).toEqual({
+      width: 50,
+      height: 60,
+    })
     expect(imageSize({ bytes: png(50, 60), mediaType: 'image/tiff' })).toBeNull()
   })
 })
@@ -140,10 +148,23 @@ describe('jpegWellFormed', () => {
 
   test('refuses a segment whose length lands mid-garbage instead of on the next marker', () => {
     const corrupt = bytes(
-      0xff, 0xd8,
-      0xff, 0xdb, 0x00, 0x83,
+      0xff,
+      0xd8,
+      0xff,
+      0xdb,
+      0x00,
+      0x83,
       ...Array.from({ length: 129 }, () => 0x06),
-      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+      0xff,
+      0xc0,
+      0x00,
+      0x11,
+      0x08,
+      0x00,
+      0x50,
+      0x00,
+      0x78,
+      0x03,
     )
     expect(jpegSize(corrupt)).not.toBeNull()
     expect(jpegWellFormed(corrupt)).toBe(false)
@@ -168,10 +189,23 @@ describe('decodesAsImage', () => {
   test('accepts a lockstep JPEG, refuses a corrupt one', () => {
     const good = bytes(...jpeg(640, 480), 0xff, 0xda, 0x00, 0x08, 1, 2)
     const corrupt = bytes(
-      0xff, 0xd8,
-      0xff, 0xdb, 0x00, 0x83,
+      0xff,
+      0xd8,
+      0xff,
+      0xdb,
+      0x00,
+      0x83,
       ...Array.from({ length: 129 }, () => 0x06),
-      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+      0xff,
+      0xc0,
+      0x00,
+      0x11,
+      0x08,
+      0x00,
+      0x50,
+      0x00,
+      0x78,
+      0x03,
     )
     expect(decodesAsImage({ bytes: good, mediaType: 'image/jpeg' })).toBe(true)
     expect(decodesAsImage({ bytes: corrupt, mediaType: 'image/jpeg' })).toBe(false)

@@ -1,14 +1,14 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Tool, EToolKind, EToolState } from "@dltech/atlas-ui/ai/tool";
-import { WorkSummary } from "@dltech/atlas-ui/ai/work-summary";
+import { Tool, EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
+import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 
-import { GIT_STATUS_OUTPUT } from "../fixtures/agent";
+import { GIT_STATUS_OUTPUT } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Work Summary",
+  title: 'AI/Work Summary',
   component: WorkSummary,
-  args: { duration: "33m", stepCount: 3, children: null },
+  args: { duration: '33m', stepCount: 3, children: null },
   decorators: [
     (Story) => (
       <div className="w-[40rem] max-w-full">
@@ -16,11 +16,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof WorkSummary>;
+} satisfies Meta<typeof WorkSummary>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 function Steps() {
   return (
@@ -34,7 +34,7 @@ function Steps() {
       <Tool kind={EToolKind.Shell} label="bun run typecheck" state={EToolState.Done} />
       <Tool kind={EToolKind.Shell} label="bun run test" state={EToolState.Done} />
     </>
-  );
+  )
 }
 
 export const Finished: Story = {
@@ -43,19 +43,19 @@ export const Finished: Story = {
       <Steps />
     </WorkSummary>
   ),
-};
+}
 
 export const FinishedOpen: Story = {
   args: { defaultOpen: true },
   render: Finished.render,
-};
+}
 
 export const Running: Story = {
-  args: { duration: "2m", running: true, stepCount: 3 },
+  args: { duration: '2m', running: true, stepCount: 3 },
   render: (args) => (
     <WorkSummary {...args}>
       <Steps />
       <Tool kind={EToolKind.Shell} label="bun run build" state={EToolState.Running} />
     </WorkSummary>
   ),
-};
+}

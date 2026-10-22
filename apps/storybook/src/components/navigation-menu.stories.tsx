@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   NavigationMenu,
@@ -8,23 +8,23 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
-} from "@dltech/atlas-ui/components/navigation-menu";
+} from '@dltech/atlas-ui/components/navigation-menu'
 
 const meta = {
-  title: "Components/Navigation Menu",
+  title: 'Components/Navigation Menu',
   component: NavigationMenu,
-  parameters: { layout: "padded" },
-} satisfies Meta<typeof NavigationMenu>;
+  parameters: { layout: 'padded' },
+} satisfies Meta<typeof NavigationMenu>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 const guides = [
-  { title: "Sessions", description: "Start, resume, and rewind agent sessions." },
-  { title: "Tools", description: "What the model can call and who approves it." },
-  { title: "Plugins", description: "Contribute hooks, tools, and prompt fragments." },
-];
+  { title: 'Sessions', description: 'Start, resume, and rewind agent sessions.' },
+  { title: 'Tools', description: 'What the model can call and who approves it.' },
+  { title: 'Plugins', description: 'Contribute hooks, tools, and prompt fragments.' },
+]
 
 export const Default: Story = {
   render: () => (
@@ -58,4 +58,4 @@ export const Default: Story = {
       </NavigationMenuList>
     </NavigationMenu>
   ),
-};
+}

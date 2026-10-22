@@ -40,7 +40,8 @@ export function createLoopCut({
         if (owned.at(-1)?.seq !== throughSeq) return false
 
         const firstOwned = owned[0]
-        const floorSeq = firstOwned === undefined ? await log.head({ threadId }) : firstOwned.seq - 1
+        const floorSeq =
+          firstOwned === undefined ? await log.head({ threadId }) : firstOwned.seq - 1
         const target = rewindTarget({ events: owned, toSeq, floorSeq })
         if (!target.allowed) return false
 

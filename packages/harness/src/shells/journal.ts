@@ -97,7 +97,8 @@ type ShellKey = {
 }
 
 const shellScope = ({ threadId, shellId }: ShellKey): string => `${threadId}\u0000${shellId}\u0000`
-const keyOf = (args: ShellKey): string => `${shellScope(args)}${args.snapshot?.bootId ?? ''}\u0000${args.occurrenceId ?? ''}`
+const keyOf = (args: ShellKey): string =>
+  `${shellScope(args)}${args.snapshot?.bootId ?? ''}\u0000${args.occurrenceId ?? ''}`
 
 export class ShellEventJournal {
   private readonly log: EventLogPort
@@ -177,10 +178,14 @@ export class ShellEventJournal {
   async disown(args: ShellKey): Promise<void> {
     const scope = shellScope(args)
     this.disowned.add(scope)
-    await Promise.all([...this.tails].flatMap(([key, tail]) => key.startsWith(scope) ? [tail] : []))
+    await Promise.all(
+      [...this.tails].flatMap(([key, tail]) => (key.startsWith(scope) ? [tail] : [])),
+    )
   }
 
-  private enqueue(args: ShellKey & { kind: string; drafts: () => EventDraft[] }): Promise<JournalAppend> {
+  private enqueue(
+    args: ShellKey & { kind: string; drafts: () => EventDraft[] },
+  ): Promise<JournalAppend> {
     const key = keyOf(args)
     if (this.disowned.has(shellScope(args))) {
       return Promise.resolve({ appended: false, reason: EJournalSkip.Superseded })

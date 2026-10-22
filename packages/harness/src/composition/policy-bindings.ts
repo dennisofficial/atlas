@@ -9,7 +9,6 @@ import {
   EWebSearchBackend,
   backendOf,
   environmentFor,
-  textValueOf,
   toggleValueOf,
   type CredentialPort,
   type SecretsPort,
@@ -88,7 +87,9 @@ export async function bindSettingsPolicy(args: {
   container.register(SkillSuggestionEnabledToken, {
     useValue: () => {
       const resolution = settings.snapshot().resolution
-      return toggleValueOf({ resolution, id: ESettingId.SkillSuggest }) && decisionsEndpoint() !== null
+      return (
+        toggleValueOf({ resolution, id: ESettingId.SkillSuggest }) && decisionsEndpoint() !== null
+      )
     },
   })
 

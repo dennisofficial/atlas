@@ -37,7 +37,9 @@ function WrappedLine(props: { cells: number; text: string; fg: string }): React.
       {wrapCells({ text: props.text, cells: props.cells }).map((line, index) => (
         <SettingsLine key={`${index}-${line}`}>
           <text>
-            <Spans spans={clipSpans({ spans: [{ text: line, fg: props.fg }], cells: props.cells })} />
+            <Spans
+              spans={clipSpans({ spans: [{ text: line, fg: props.fg }], cells: props.cells })}
+            />
           </text>
         </SettingsLine>
       ))}

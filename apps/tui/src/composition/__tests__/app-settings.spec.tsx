@@ -1,7 +1,20 @@
 import { ESettingId } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { teardown } from '../../ui/markdown/__tests__/harness'
-import { appWith, widthOf, columnOf, landed, opened, onSettings, valueOf, SIDEBAR_WIDTH_ROW, DECISIONS_URL_ROW, CUSTOM_DECISIONS_SETTINGS, toModelsPage, downTo } from './app-settings-fixture'
+import {
+  appWith,
+  widthOf,
+  columnOf,
+  landed,
+  opened,
+  onSettings,
+  valueOf,
+  SIDEBAR_WIDTH_ROW,
+  DECISIONS_URL_ROW,
+  CUSTOM_DECISIONS_SETTINGS,
+  toModelsPage,
+  downTo,
+} from './app-settings-fixture'
 
 describe('the settings page', () => {
   it('stays closed until ctrl+o asks for it, and leaves on escape', async () => {
@@ -180,7 +193,10 @@ describe('the settings page', () => {
 
   it('opens a text row holding its current value, and clears the row on backspace', async () => {
     const app = appWith({
-      values: { ...CUSTOM_DECISIONS_SETTINGS.values, [ESettingId.DecisionsUrl]: 'https://jev.example/v1' },
+      values: {
+        ...CUSTOM_DECISIONS_SETTINGS.values,
+        [ESettingId.DecisionsUrl]: 'https://jev.example/v1',
+      },
     })
     const setup = await onSettings(app)
 

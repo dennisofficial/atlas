@@ -114,7 +114,9 @@ describe('rebol lexical highlighting', () => {
     expect(textFor({ spec, source: hyphenated, group: 'variable' })).toEqual(['do-nothing:'])
     expect(textFor({ spec, source: hyphenated, group: 'keyword' })).toEqual(['does'])
     expect(textFor({ spec, source: hyphenated, group: 'operator' })).toEqual([])
-    expect(textFor({ spec, source: 'total: to-string length? data', group: 'operator' })).toEqual([])
+    expect(textFor({ spec, source: 'total: to-string length? data', group: 'operator' })).toEqual(
+      [],
+    )
   })
 
   it('folds keyword case', () => {

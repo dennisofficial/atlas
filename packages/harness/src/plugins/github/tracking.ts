@@ -61,7 +61,10 @@ export function createCheckoutTracking(args: {
     threadId: ThreadId
     directory: string
   }): Promise<RepositoryCheckout | null> => {
-    if (args.cloud !== undefined && (request.threadId === mainThread || request.threadId === BOOT_THREAD)) {
+    if (
+      args.cloud !== undefined &&
+      (request.threadId === mainThread || request.threadId === BOOT_THREAD)
+    ) {
       // The birth marker is a snapshot: a thread that reaches the cloud before its
       // worktree exists folds null forever unless the sandbox's real directory is probed.
       const folded = args.cloud()
@@ -86,7 +89,9 @@ export function createCheckoutTracking(args: {
       checkoutKey(previous) !== checkoutKey(checkout) &&
       tracker.threadsOn({ key: checkoutKey(previous) }).length === 1
         ? [previous]
-        : previous !== null && checkout === null && tracker.threadsOn({ key: checkoutKey(previous) }).length === 1
+        : previous !== null &&
+            checkout === null &&
+            tracker.threadsOn({ key: checkoutKey(previous) }).length === 1
           ? [previous]
           : []
 

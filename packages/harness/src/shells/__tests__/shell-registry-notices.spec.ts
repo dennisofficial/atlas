@@ -93,9 +93,7 @@ for (const adapter of shellAdapters) {
 
         await Bun.sleep(100)
 
-        expect(
-          log?.appended.filter((draft) => draft.type === 'background-shell-ended'),
-        ).toEqual([])
+        expect(log?.appended.filter((draft) => draft.type === 'background-shell-ended')).toEqual([])
       })
     })
 

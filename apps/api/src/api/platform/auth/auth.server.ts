@@ -7,13 +7,17 @@ import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'
 
 const secret = process.env.SECRET_KEY
 if (!secret || secret.length < 32) {
-  throw new Error('SECRET_KEY must be set to at least 32 characters — run through the env:inject script')
+  throw new Error(
+    'SECRET_KEY must be set to at least 32 characters — run through the env:inject script',
+  )
 }
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
 if (!googleClientId || !googleClientSecret) {
-  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set — run through the env:inject script')
+  throw new Error(
+    'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set — run through the env:inject script',
+  )
 }
 
 const resendApiKey = process.env.RESEND_API_KEY

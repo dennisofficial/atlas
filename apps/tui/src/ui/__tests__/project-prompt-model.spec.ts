@@ -14,7 +14,12 @@ import {
 } from '../project-prompt-model'
 
 const created = (name: string): CreateState => {
-  const state = openProjectPrompt({ mode: EProjectPrompt.Create, repo: 'acme/widgets', name, baseBranch: '' })
+  const state = openProjectPrompt({
+    mode: EProjectPrompt.Create,
+    repo: 'acme/widgets',
+    name,
+    baseBranch: '',
+  })
   if (state.mode !== EProjectPrompt.Create) throw new Error('expected a create prompt')
   return state
 }

@@ -12,7 +12,6 @@ import type { OpenThreadArgs } from '../store/create-with-events'
 import type {
   ModelChosenListener,
   RenameListener,
-  SupervisedAgent,
   ThreadModel,
   ThreadSummary,
 } from '../store/thread-store'
@@ -101,10 +100,7 @@ export class RemoteThreadStore extends ThreadStorePort {
     return []
   }
 
-  async findNamed(args: {
-    project: string
-    handle: string
-  }): Promise<ThreadSummary | undefined> {
+  async findNamed(args: { project: string; handle: string }): Promise<ThreadSummary | undefined> {
     const reply = readThreadsReplySchema.parse(
       await this.channel.request({ op: EClientRequest.ReadThreads, params: {} }),
     )

@@ -18,7 +18,13 @@ export enum ERetryReason {
   Network = 'network',
 }
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
 
 export type ProviderOptions = Record<string, Record<string, JsonValue>>
 
@@ -50,7 +56,12 @@ export type Chunk =
   | { type: 'text-delta'; id: string; text: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'text-end'; id: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'reasoning-start'; id: string; providerMetadata?: ProviderOptions | undefined }
-  | { type: 'reasoning-delta'; id: string; text: string; providerMetadata?: ProviderOptions | undefined }
+  | {
+      type: 'reasoning-delta'
+      id: string
+      text: string
+      providerMetadata?: ProviderOptions | undefined
+    }
   | { type: 'reasoning-end'; id: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'tool-input-start'; callId: CallIdWire; name: string }
   | { type: 'tool-input-delta'; callId: CallIdWire; text: string }
@@ -60,14 +71,22 @@ export type Chunk =
   | { type: 'error'; message: string }
 
 export const chunkWireSchema: z.ZodType<Chunk> = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text-start'), id: z.string(), providerMetadata: providerOptionsSchema.optional() }),
+  z.object({
+    type: z.literal('text-start'),
+    id: z.string(),
+    providerMetadata: providerOptionsSchema.optional(),
+  }),
   z.object({
     type: z.literal('text-delta'),
     id: z.string(),
     text: z.string(),
     providerMetadata: providerOptionsSchema.optional(),
   }),
-  z.object({ type: z.literal('text-end'), id: z.string(), providerMetadata: providerOptionsSchema.optional() }),
+  z.object({
+    type: z.literal('text-end'),
+    id: z.string(),
+    providerMetadata: providerOptionsSchema.optional(),
+  }),
   z.object({
     type: z.literal('reasoning-start'),
     id: z.string(),

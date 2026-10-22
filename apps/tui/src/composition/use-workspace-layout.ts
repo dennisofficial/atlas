@@ -26,7 +26,9 @@ import type { useShells } from './use-shells'
 import { EChromePanel } from './workspace-panels'
 
 const repoNameOf = (args: { repo: string | null; projectDirectory: string }): string => {
-  const segments = (args.repo ?? args.projectDirectory).split('/').filter((segment) => segment !== '')
+  const segments = (args.repo ?? args.projectDirectory)
+    .split('/')
+    .filter((segment) => segment !== '')
   return segments[segments.length - 1] ?? args.projectDirectory
 }
 
@@ -100,15 +102,21 @@ export function useWorkspaceLayout(args: {
   const { width, sidebarWidth, wide } = frame
 
   const welcome = welcoming({ model: conversation.model, addressingChild: addressing !== null })
-  const sidebarVisible = !welcome && sidebarShown({ layout: frame.sidebarMode, peeking: frame.peeking })
+  const sidebarVisible =
+    !welcome && sidebarShown({ layout: frame.sidebarMode, peeking: frame.peeking })
   const overlay = sidebarVisible && !wide
 
   const repoRoot = conversation.repo ?? conversation.projectDirectory
   const sidebarWorktree =
     conversation.activeWorktree?.path ??
-    (conversation.projectDirectory.startsWith(`${repoRoot}/`) ? conversation.projectDirectory : null)
+    (conversation.projectDirectory.startsWith(`${repoRoot}/`)
+      ? conversation.projectDirectory
+      : null)
   const projectRoot = sidebarWorktree === null ? conversation.projectDirectory : repoRoot
-  const repoName = repoNameOf({ repo: conversation.repo, projectDirectory: conversation.projectDirectory })
+  const repoName = repoNameOf({
+    repo: conversation.repo,
+    projectDirectory: conversation.projectDirectory,
+  })
   const headerDiff = useDiffStat({
     projectDirectory: conversation.projectDirectory,
     working: conversation.working,

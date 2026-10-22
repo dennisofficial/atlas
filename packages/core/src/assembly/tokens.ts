@@ -42,7 +42,10 @@ function partTokens({ part, tier }: { part: MessagePart; tier: EImageTier }): nu
   return textTokens(JSON.stringify(part.output))
 }
 
-export function estimateMessageTokens(message: Message, tier: EImageTier = DEFAULT_IMAGE_TIER): number {
+export function estimateMessageTokens(
+  message: Message,
+  tier: EImageTier = DEFAULT_IMAGE_TIER,
+): number {
   const parts: readonly MessagePart[] = message.content
   return parts.reduce((total, part) => total + partTokens({ part, tier }), 0)
 }
@@ -54,7 +57,10 @@ export function estimateMessageTokens(message: Message, tier: EImageTier = DEFAU
 export const estimateTokensFor =
   (tier: EImageTier) =>
   (assembled: Assembled): number => {
-    const systemTokens = assembled.system.reduce((total, block) => total + textTokens(block.text), 0)
+    const systemTokens = assembled.system.reduce(
+      (total, block) => total + textTokens(block.text),
+      0,
+    )
     return assembled.messages.reduce(
       (total, assembledMessage) => total + estimateMessageTokens(assembledMessage.message, tier),
       systemTokens,

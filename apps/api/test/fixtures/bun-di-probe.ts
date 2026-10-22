@@ -11,7 +11,10 @@ function injectedField({ instance, field }: { instance: object; field: string })
 const context = await NestFactory.createApplicationContext(AppModule, { logger: false })
 
 const result = {
-  sessionAuthVerifier: injectedField({ instance: context.get(SessionAuthGuard), field: 'verifier' }),
+  sessionAuthVerifier: injectedField({
+    instance: context.get(SessionAuthGuard),
+    field: 'verifier',
+  }),
   wakeBootAdapter: injectedField({
     instance: context.get(GithubSandboxWakeService),
     field: 'bootAdapter',

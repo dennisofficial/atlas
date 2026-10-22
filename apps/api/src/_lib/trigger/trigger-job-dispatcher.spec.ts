@@ -58,7 +58,11 @@ describe('TriggerJobDispatcher', () => {
     trigger.mockResolvedValue({ id: 'run_456' })
     const dispatcher = new TriggerJobDispatcher({ secretKey: 'tr_dev_example' })
 
-    await dispatcher.dispatch({ task: echoContract, payload: { message: 'hi' }, idempotencyKey: 'k' })
+    await dispatcher.dispatch({
+      task: echoContract,
+      payload: { message: 'hi' },
+      idempotencyKey: 'k',
+    })
 
     expect(trigger).toHaveBeenCalledWith('echo', { message: 'hi' }, { idempotencyKey: 'k' })
   })

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { teardown } from '../markdown/__tests__/harness'
 

@@ -1,4 +1,4 @@
-import { AUTH_DEVICE_CODE, AUTH_LOGIN_COMMAND } from "../../fixtures/auth";
+import { AUTH_DEVICE_CODE, AUTH_LOGIN_COMMAND } from '../../fixtures/auth'
 
 export function AuthTerminal({ code = AUTH_DEVICE_CODE }: { code?: string }) {
   return (
@@ -21,5 +21,5 @@ export function AuthTerminal({ code = AUTH_DEVICE_CODE }: { code?: string }) {
         <p className="text-muted-foreground">Waiting for approval…</p>
       </div>
     </div>
-  );
+  )
 }

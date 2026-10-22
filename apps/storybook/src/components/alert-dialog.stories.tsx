@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Trash2Icon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { Trash2Icon } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -12,30 +12,28 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@dltech/atlas-ui/components/alert-dialog";
-import { Button } from "@dltech/atlas-ui/components/button";
+} from '@dltech/atlas-ui/components/alert-dialog'
+import { Button } from '@dltech/atlas-ui/components/button'
 
 const meta = {
-  title: "Components/Alert Dialog",
+  title: 'Components/Alert Dialog',
   component: AlertDialog,
-} satisfies Meta<typeof AlertDialog>;
+} satisfies Meta<typeof AlertDialog>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="outline" />}>
-        Delete session
-      </AlertDialogTrigger>
+      <AlertDialogTrigger render={<Button variant="outline" />}>Delete session</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this session?</AlertDialogTitle>
           <AlertDialogDescription>
-            The transcript and file checkpoints for “fix flaky ws reconnect”
-            are removed permanently.
+            The transcript and file checkpoints for “fix flaky ws reconnect” are removed
+            permanently.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -45,7 +43,7 @@ export const Default: Story = {
       </AlertDialogContent>
     </AlertDialog>
   ),
-};
+}
 
 export const Destructive: Story = {
   render: () => (
@@ -70,4 +68,4 @@ export const Destructive: Story = {
       </AlertDialogContent>
     </AlertDialog>
   ),
-};
+}

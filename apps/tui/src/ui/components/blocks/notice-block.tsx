@@ -52,7 +52,9 @@ export function NoticeBlock(props: {
           ))}
         </>
       ) : body === '' ? (
-        props.silentNote === undefined ? null : <BodyRow text={props.silentNote} inner={inner} />
+        props.silentNote === undefined ? null : (
+          <BodyRow text={props.silentNote} inner={inner} />
+        )
       ) : opened ? (
         <Body text={body} inner={inner} />
       ) : null}
@@ -60,10 +62,7 @@ export function NoticeBlock(props: {
   )
 }
 
-function previewLines(
-  body: string | null,
-  silentNote: string | undefined,
-): readonly string[] {
+function previewLines(body: string | null, silentNote: string | undefined): readonly string[] {
   if (body === null) return []
   const trimmed = body.trimEnd()
   if (trimmed === '') return silentNote === undefined ? [] : [silentNote]

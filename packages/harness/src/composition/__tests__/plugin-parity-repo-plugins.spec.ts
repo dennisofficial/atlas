@@ -4,14 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import {
-  ATLAS_SETTINGS,
-  ESettingId,
-  toCallId,
-  toRunId,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, toCallId, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { registeredPortToken } from '../../container/injection'
 import type { DependencyContainer } from '../../container/injection'
@@ -74,7 +67,10 @@ const settingsBinding = (): SettingsBinding => {
   return { service, bindTo: () => {} }
 }
 
-const dispatchWrite = (args: { container: DependencyContainer; path: string }): Promise<readonly EventDraft[]> => {
+const dispatchWrite = (args: {
+  container: DependencyContainer
+  path: string
+}): Promise<readonly EventDraft[]> => {
   const dispatcher = args.container.resolve(registeredPortToken(ToolDispatcher))
   const call: DispatchableCall = {
     callId: toCallId('call-1'),
@@ -98,7 +94,12 @@ describe('serve gets the same repo plugins the TUI gets, because composeHarness 
     let container: DependencyContainer | undefined
 
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: undefined },
+      launch: {
+        cwd: project,
+        command: 'atlas-serve',
+        model: undefined,
+        executionLocation: undefined,
+      },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),

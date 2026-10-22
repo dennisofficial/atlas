@@ -94,7 +94,11 @@ describe('transcriptOfRange', () => {
 
   it('names the new working directory when the move carries one', () => {
     const events = eventsFrom([
-      movedLocation({ from: EExecutionLocation.Host, to: EExecutionLocation.Cloud, cwd: '/workspace' }),
+      movedLocation({
+        from: EExecutionLocation.Host,
+        to: EExecutionLocation.Cloud,
+        cwd: '/workspace',
+      }),
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(

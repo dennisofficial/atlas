@@ -13,7 +13,8 @@ import {
   type LabelVerification,
 } from '../label-review'
 
-const candidate = (id: string, method = ECandidateMethod.ProspectiveCapture): Candidate => makeCandidate({ id, method })
+const candidate = (id: string, method = ECandidateMethod.ProspectiveCapture): Candidate =>
+  makeCandidate({ id, method })
 
 const draft = (id: string, expected: unknown = { label: 'draft' }): LabelDraft => ({
   candidateId: id,
@@ -22,7 +23,11 @@ const draft = (id: string, expected: unknown = { label: 'draft' }): LabelDraft =
   generatedAt: '2026-10-01T00:00:00Z',
 })
 
-const verification = (id: string, outcome: EVerificationOutcome, extra: Partial<LabelVerification> = {}): LabelVerification => ({
+const verification = (
+  id: string,
+  outcome: EVerificationOutcome,
+  extra: Partial<LabelVerification> = {},
+): LabelVerification => ({
   candidateId: id,
   verifier: 'alice',
   verifiedAt: '2026-10-02T00:00:00Z',
@@ -30,7 +35,9 @@ const verification = (id: string, outcome: EVerificationOutcome, extra: Partial<
   ...extra,
 })
 
-const buildInput = ({ candidate }: { candidate: Candidate }): unknown => ({ scope: candidate.snapshot.scope.after })
+const buildInput = ({ candidate }: { candidate: Candidate }): unknown => ({
+  scope: candidate.snapshot.scope.after,
+})
 
 const build = (args: {
   candidates: Candidate[]
@@ -64,7 +71,14 @@ describe('buildGoldenCases', () => {
         },
         review: {
           state: ECaseReviewState.Accepted,
-          verifications: [{ verifier: 'alice', outcome: EVerificationOutcome.Confirmed, at: '2026-10-02T00:00:00Z', note: 'ok' }],
+          verifications: [
+            {
+              verifier: 'alice',
+              outcome: EVerificationOutcome.Confirmed,
+              at: '2026-10-02T00:00:00Z',
+              note: 'ok',
+            },
+          ],
         },
       },
     ])
@@ -75,7 +89,9 @@ describe('buildGoldenCases', () => {
       candidates: [candidate('a'), candidate('b')],
       drafts: [draft('a'), draft('b')],
       verifications: [
-        verification('a', EVerificationOutcome.Corrected, { correctedExpected: { label: 'fixed' } }),
+        verification('a', EVerificationOutcome.Corrected, {
+          correctedExpected: { label: 'fixed' },
+        }),
         verification('b', EVerificationOutcome.Corrected),
       ],
     })
@@ -87,7 +103,10 @@ describe('buildGoldenCases', () => {
     const { cases, refused } = build({
       candidates: [candidate('amb'), candidate('unv'), candidate('nod')],
       drafts: [draft('amb'), draft('unv')],
-      verifications: [verification('amb', EVerificationOutcome.Ambiguous), verification('nod', EVerificationOutcome.Confirmed)],
+      verifications: [
+        verification('amb', EVerificationOutcome.Ambiguous),
+        verification('nod', EVerificationOutcome.Confirmed),
+      ],
     })
     expect(cases).toEqual([])
     expect(refused).toEqual([
@@ -104,14 +123,19 @@ describe('buildGoldenCases', () => {
       verifications: [verification('ghost', EVerificationOutcome.Confirmed)],
     })
     expect(cases).toEqual([])
-    expect(refused).toEqual([{ candidateId: 'ghost', reason: 'verification names an unknown candidate' }])
+    expect(refused).toEqual([
+      { candidateId: 'ghost', reason: 'verification names an unknown candidate' },
+    ])
   })
 
   test('historical candidates are marked reconstructed and cases sort by id', () => {
     const { cases } = build({
       candidates: [candidate('b', ECandidateMethod.HistoricalReconstruction), candidate('a')],
       drafts: [draft('a'), draft('b')],
-      verifications: [verification('b', EVerificationOutcome.Confirmed), verification('a', EVerificationOutcome.Confirmed)],
+      verifications: [
+        verification('b', EVerificationOutcome.Confirmed),
+        verification('a', EVerificationOutcome.Confirmed),
+      ],
     })
     expect(cases.map((entry) => entry.id)).toEqual(['a', 'b'])
     expect(cases[1]?.provenance.completeness).toBe('reconstructed')
@@ -150,7 +174,10 @@ describe('buildGoldenCases independence and validation', () => {
     const { cases, refused } = build({
       candidates: [candidate('a'), candidate('b')],
       drafts: [draft('a', { ok: true }), draft('b', { ok: false })],
-      verifications: [verification('a', EVerificationOutcome.Confirmed), verification('b', EVerificationOutcome.Confirmed)],
+      verifications: [
+        verification('a', EVerificationOutcome.Confirmed),
+        verification('b', EVerificationOutcome.Confirmed),
+      ],
       validateExpected: (expected) => (JSON.stringify(expected) === '{"ok":true}' ? null : 'bad'),
     })
     expect(cases.map((entry) => entry.id)).toEqual(['a'])
@@ -177,7 +204,10 @@ describe('decodeJsonlLines', () => {
 
   test('verification schema rejects unknown outcomes', () => {
     const { values, errors } = decodeJsonlLines({
-      text: JSON.stringify({ ...verification('a', EVerificationOutcome.Confirmed), outcome: 'maybe' }),
+      text: JSON.stringify({
+        ...verification('a', EVerificationOutcome.Confirmed),
+        outcome: 'maybe',
+      }),
       schema: labelVerificationSchema,
     })
     expect(values).toEqual([])

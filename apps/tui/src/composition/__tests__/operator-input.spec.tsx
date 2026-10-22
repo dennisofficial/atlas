@@ -13,8 +13,7 @@ async function paste(mounted: Awaited<ReturnType<typeof mountInput>>, value: str
   await mounted.flush()
 }
 
-const send = (mounted: Awaited<ReturnType<typeof mountInput>>) =>
-  mounted.input.pressEnter()
+const send = (mounted: Awaited<ReturnType<typeof mountInput>>) => mounted.input.pressEnter()
 
 describe('native operator input', () => {
   it('preserves a >10KB multiline paste and the composer, including repeated request signals', async () => {
@@ -41,7 +40,7 @@ describe('native operator input', () => {
 
   it('inserts Shift+Enter as a newline, edits natively, and submits Enter without an implicit newline', async () => {
     const mounted = await mountInput()
-    const answer = vi.fn(async () => ({ ok: true, bytes: 0 } as const))
+    const answer = vi.fn(async () => ({ ok: true, bytes: 0 }) as const)
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, '  first')
@@ -56,7 +55,10 @@ describe('native operator input', () => {
       send(mounted)
       await mounted.flush()
       expect(answer).toHaveBeenCalledTimes(1)
-      expect(answer).toHaveBeenCalledWith({ requestId: INPUT_REQUEST.requestId, value: '  first\nsecond ' })
+      expect(answer).toHaveBeenCalledWith({
+        requestId: INPUT_REQUEST.requestId,
+        value: '  first\nsecond ',
+      })
       expect(mounted.control().state?.typed).toBe('  first\nsecond ')
       expect(mounted.composerText()).toBe('composer stays here')
     } finally {
@@ -95,7 +97,9 @@ describe('native operator input', () => {
 
   it('sends whitespace-only answers exactly without adding the optional server-side newline', async () => {
     const mounted = await mountInput()
-    const answer = vi.fn(async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 4 } as const))
+    const answer = vi.fn(
+      async (_args: { requestId: string; value: string }) => ({ ok: true, bytes: 4 }) as const,
+    )
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, ' \t\n ')
@@ -137,13 +141,19 @@ describe('native operator input', () => {
 
   it('keeps the exact draft and re-enables editing after a local transport error', async () => {
     const mounted = await mountInput()
-    const answer = vi.fn(async () => { throw new Error('local transport lost') })
+    const answer = vi.fn(async () => {
+      throw new Error('local transport lost')
+    })
     mounted.app.operatorInput.answer = answer
     try {
       await paste(mounted, MULTILINE)
       send(mounted)
       await mounted.flush()
-      expect(mounted.control().state).toMatchObject({ kind: 'awaiting', typed: MULTILINE, failure: 'local transport lost' })
+      expect(mounted.control().state).toMatchObject({
+        kind: 'awaiting',
+        typed: MULTILINE,
+        failure: 'local transport lost',
+      })
       expect(mounted.control().editor.current?.plainText).toBe(operatorEditorText(MULTILINE))
       expect(mounted.control().editor.current?.focused).toBe(true)
       const frame = await frameWhen({
@@ -185,7 +195,7 @@ describe('native operator input', () => {
     const gate = deliveryGate<unknown>()
     const request = vi.fn((_args: { op: EClientRequest; params?: unknown }) => gate.promise)
     const mounted = await mountInput({ remote: request })
-    const localAnswer = vi.fn(async () => ({ ok: false, reason: 'must not run locally' } as const))
+    const localAnswer = vi.fn(async () => ({ ok: false, reason: 'must not run locally' }) as const)
     mounted.app.operatorInput.answer = localAnswer
     try {
       await paste(mounted, MULTILINE)
@@ -209,7 +219,13 @@ describe('native operator input', () => {
   })
 
   it.each([
-    ['request failure', async () => { throw new Error('socket lost') }, 'socket lost'],
+    [
+      'request failure',
+      async () => {
+        throw new Error('socket lost')
+      },
+      'socket lost',
+    ],
     ['malformed reply', async () => ({}), 'delivered'],
   ])('restores the remote draft after %s', async (_name, remote, failure) => {
     const mounted = await mountInput({ remote })
@@ -283,7 +299,10 @@ describe('native operator input', () => {
       await paste(mounted, 'answer')
       send(mounted)
       await mounted.flush()
-      expect(mounted.control().state).toMatchObject({ kind: 'awaiting', failure: 'the channel to the sandbox is not open' })
+      expect(mounted.control().state).toMatchObject({
+        kind: 'awaiting',
+        failure: 'the channel to the sandbox is not open',
+      })
     } finally {
       await mounted.done()
     }

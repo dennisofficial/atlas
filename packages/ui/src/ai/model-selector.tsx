@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import { useRef, useState } from "react";
-import { ChevronDownIcon, Settings2Icon } from "lucide-react";
+import { useRef, useState } from 'react'
+import { ChevronDownIcon, Settings2Icon } from 'lucide-react'
 
 import {
   Command,
@@ -10,18 +10,18 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "#components/command";
+} from '#components/command'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "#components/dropdown-menu";
-import { InputGroupButton } from "#components/input-group";
-import { Popover, PopoverContent, PopoverTrigger } from "#components/popover";
+} from '#components/dropdown-menu'
+import { InputGroupButton } from '#components/input-group'
+import { Popover, PopoverContent, PopoverTrigger } from '#components/popover'
 
-import { ModelRow, NoProvidersState, ReconnectRow } from "./internal/model-selector-rows";
+import { ModelRow, NoProvidersState, ReconnectRow } from './internal/model-selector-rows'
 import {
   EModelSelectorState,
   EProviderGroupKind,
@@ -30,7 +30,7 @@ import {
   modelSelectorGroups,
   togglePinned,
   type ModelOption,
-} from "./model-selector-groups";
+} from './model-selector-groups'
 
 export {
   EModelSelectorState,
@@ -42,39 +42,39 @@ export {
   type ModelSelectorGroups,
   type ProviderGroup,
   type ProviderModels,
-} from "./model-selector-groups";
+} from './model-selector-groups'
 
 export enum EEffort {
-  Low = "low",
-  Medium = "medium",
-  High = "high",
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
 }
 
 export interface ModelSelectorProps {
-  models: ModelOption[];
-  value: string;
-  onValueChange?: (id: string) => void;
-  effort?: EEffort;
-  onEffortChange?: (effort: EEffort) => void;
-  showRate?: boolean;
-  pinned?: string[];
-  onPinnedChange?: (ids: string[]) => void;
-  reconnectProviders?: string[];
-  onReconnect?: (provider: string) => void;
-  onManageProviders?: () => void;
-  defaultOpen?: boolean;
+  models: ModelOption[]
+  value: string
+  onValueChange?: (id: string) => void
+  effort?: EEffort
+  onEffortChange?: (effort: EEffort) => void
+  showRate?: boolean
+  pinned?: string[]
+  onPinnedChange?: (ids: string[]) => void
+  reconnectProviders?: string[]
+  onReconnect?: (provider: string) => void
+  onManageProviders?: () => void
+  defaultOpen?: boolean
 }
 
 const EFFORT_LABEL: Record<EEffort, string> = {
-  [EEffort.Low]: "Low",
-  [EEffort.Medium]: "Medium",
-  [EEffort.High]: "High",
-};
+  [EEffort.Low]: 'Low',
+  [EEffort.Medium]: 'Medium',
+  [EEffort.High]: 'High',
+}
 
-const EFFORTS = [EEffort.Low, EEffort.Medium, EEffort.High];
+const EFFORTS = [EEffort.Low, EEffort.Medium, EEffort.High]
 
 function isEffort(value: string): value is EEffort {
-  return EFFORTS.some((effort) => effort === value);
+  return EFFORTS.some((effort) => effort === value)
 }
 
 export function ModelSelector({
@@ -91,13 +91,13 @@ export function ModelSelector({
   onManageProviders,
   defaultOpen = false,
 }: ModelSelectorProps) {
-  const current = models.find((model) => model.id === value) ?? models[0];
-  const [open, setOpen] = useState(defaultOpen);
-  const [query, setQuery] = useState("");
-  const [highlighted, setHighlighted] = useState(current?.id ?? "");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const current = models.find((model) => model.id === value) ?? models[0]
+  const [open, setOpen] = useState(defaultOpen)
+  const [query, setQuery] = useState('')
+  const [highlighted, setHighlighted] = useState(current?.id ?? '')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const canManageProviders = onManageProviders !== undefined;
+  const canManageProviders = onManageProviders !== undefined
   const groupsFor = (nextQuery: string) =>
     modelSelectorGroups({
       models,
@@ -105,38 +105,38 @@ export function ModelSelector({
       pinned,
       reconnectProviders,
       canManageProviders,
-    });
-  const groups = groupsFor(query);
-  const pinnedIds = new Set(groups.pinned.map((model) => model.id));
-  const canPin = onPinnedChange !== undefined;
-  const hasNoProviders = groups.state === EModelSelectorState.NoProviders;
+    })
+  const groups = groupsFor(query)
+  const pinnedIds = new Set(groups.pinned.map((model) => model.id))
+  const canPin = onPinnedChange !== undefined
+  const hasNoProviders = groups.state === EModelSelectorState.NoProviders
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    setQuery("");
-    if (next) setHighlighted(current?.id ?? firstItemValue(groupsFor("")) ?? "");
-  };
+    setOpen(next)
+    setQuery('')
+    if (next) setHighlighted(current?.id ?? firstItemValue(groupsFor('')) ?? '')
+  }
   const handleQueryChange = (next: string) => {
-    setQuery(next);
-    const first = firstItemValue(groupsFor(next)) ?? "";
-    setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first);
-  };
+    setQuery(next)
+    const first = firstItemValue(groupsFor(next)) ?? ''
+    setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first)
+  }
   const handleModelSelect = (id: string) => {
-    onValueChange?.(id);
-    handleOpenChange(false);
-  };
+    onValueChange?.(id)
+    handleOpenChange(false)
+  }
   const handleReconnect = (provider: string) => {
-    onReconnect?.(provider);
-    handleOpenChange(false);
-  };
+    onReconnect?.(provider)
+    handleOpenChange(false)
+  }
   const handleManageProviders = () => {
-    onManageProviders?.();
-    handleOpenChange(false);
-  };
-  const handleTogglePin = (id: string) => onPinnedChange?.(togglePinned({ pinned, id }));
+    onManageProviders?.()
+    handleOpenChange(false)
+  }
+  const handleTogglePin = (id: string) => onPinnedChange?.(togglePinned({ pinned, id }))
   const handleEffortChange = (next: string) => {
-    if (isEffort(next)) onEffortChange?.(next);
-  };
+    if (isEffort(next)) onEffortChange?.(next)
+  }
 
   const renderRow = (model: ModelOption) => (
     <ModelRow
@@ -149,13 +149,13 @@ export function ModelSelector({
       onSelect={handleModelSelect}
       onTogglePin={handleTogglePin}
     />
-  );
+  )
 
   return (
     <>
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger render={<InputGroupButton size="sm" />}>
-          {current?.label ?? "No model"}
+          {current?.label ?? 'No model'}
           <ChevronDownIcon />
         </PopoverTrigger>
         <PopoverContent
@@ -237,5 +237,5 @@ export function ModelSelector({
         </DropdownMenu>
       ) : null}
     </>
-  );
+  )
 }

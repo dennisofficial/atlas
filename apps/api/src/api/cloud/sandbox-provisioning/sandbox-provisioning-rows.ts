@@ -57,7 +57,13 @@ export async function claimRow(args: {
   }
   const claimed = await db.cloudSandbox.updateMany({
     where: { threadId: args.thread.id, wakeClaim: args.existing.wakeClaim },
-    data: { wakeClaim, tokenHash, sealedToken, state: ESandboxState.Resuming, updatedAt: wakeClaim },
+    data: {
+      wakeClaim,
+      tokenHash,
+      sealedToken,
+      state: ESandboxState.Resuming,
+      updatedAt: wakeClaim,
+    },
   })
   return claimed.count === 0 ? null : { token, wakeClaim, name }
 }

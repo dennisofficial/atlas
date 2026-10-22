@@ -13,7 +13,9 @@ describe('sourceStampOf', () => {
   it('moves when the commit moves', () => {
     const diff = 'diff --git a/x b/x\n+line\n'
 
-    expect(sourceStampOf({ head: 'abc123', diff })).not.toBe(sourceStampOf({ head: 'def456', diff }))
+    expect(sourceStampOf({ head: 'abc123', diff })).not.toBe(
+      sourceStampOf({ head: 'def456', diff }),
+    )
   })
 
   it('moves when uncommitted work moves, though the commit stands', () => {

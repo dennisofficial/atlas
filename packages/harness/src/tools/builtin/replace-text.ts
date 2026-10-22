@@ -35,11 +35,15 @@ export function replaceInContent(args: {
   const replacement = toLf(args.newString)
   const rewritten = args.content.replace(
     new RegExp(pattern, args.replaceAll ? 'g' : ''),
-    (region) => withLineEnding({ content: replacement, ending: endingOfRegion({ region, fallback }) }),
+    (region) =>
+      withLineEnding({ content: replacement, ending: endingOfRegion({ region, fallback }) }),
   )
 
   if (rewritten === args.content) {
-    return { ok: false, reason: 'oldString and newString are identical; the file would not change.' }
+    return {
+      ok: false,
+      reason: 'oldString and newString are identical; the file would not change.',
+    }
   }
 
   return { ok: true, content: rewritten }

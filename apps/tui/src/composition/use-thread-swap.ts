@@ -55,16 +55,7 @@ export function useThreadSwap(args: {
         adopt(outcome.conversation)
       })
     },
-    [
-      adopt,
-      app.agents,
-      app.ids,
-      app.ledger,
-      app.log,
-      app.threads,
-      app.workspace,
-      onFailure,
-    ],
+    [adopt, app.agents, app.ids, app.ledger, app.log, app.threads, app.workspace, onFailure],
   )
 
   const handleOpenThread = useCallback(

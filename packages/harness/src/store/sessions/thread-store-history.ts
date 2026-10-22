@@ -1,4 +1,10 @@
-import { ECompactionAnchor, EForkMode, SURVIVES_SUMMARY, stampEvent, type ThreadId } from '@dltech/atlas-core'
+import {
+  ECompactionAnchor,
+  EForkMode,
+  SURVIVES_SUMMARY,
+  stampEvent,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { ensureFamilyOwnership } from '../../workspace/family-ownership'
 import { ForkSeqOutOfRange, ForkSourceMissing } from '../fork'
@@ -11,7 +17,13 @@ import type { ForkArgs, MarkArgs, RewindArgs, ThreadStoreContext } from './threa
 import { blankMeta, homeOf, sessionDirFor } from './thread-store-fields'
 import { appendStampedEvent, rewriteThreadLog } from './thread-places'
 
-export async function rewindThread({ context, args }: { context: ThreadStoreContext; args: RewindArgs }): Promise<void> {
+export async function rewindThread({
+  context,
+  args,
+}: {
+  context: ThreadStoreContext
+  args: RewindArgs
+}): Promise<void> {
   const { registry, ids, home, clock } = context
   const { threadId, toSeq, cutAgents = [] } = args
   const sessionDir = await sessionDirFor({ context, threadId })
@@ -66,14 +78,30 @@ export async function markThreadHistory({
           : vacated[0]
         : undefined
       const watermark = stampEvent({
-        draft: { type: 'history-compacted', anchor, fromSeq, throughSeq, summary, replaced: vacated.length },
-        envelope: { id: ids.nextEventId(), seq: standIn ?? log.head + 1, threadId, runId: ids.nextRunId(), depth: 0, at },
+        draft: {
+          type: 'history-compacted',
+          anchor,
+          fromSeq,
+          throughSeq,
+          summary,
+          replaced: vacated.length,
+        },
+        envelope: {
+          id: ids.nextEventId(),
+          seq: standIn ?? log.head + 1,
+          threadId,
+          runId: ids.nextRunId(),
+          depth: 0,
+          at,
+        },
       })
       if (!discardRows) {
         await appendStampedEvent({ registry, sessionDir, event: watermark })
       } else {
         const removed = new Set(vacated)
-        const merged = [...log.events.filter((event) => !removed.has(event.seq)), watermark].sort((a, b) => a.seq - b.seq)
+        const merged = [...log.events.filter((event) => !removed.has(event.seq)), watermark].sort(
+          (a, b) => a.seq - b.seq,
+        )
         await rewriteThreadLog({ registry, ids, sessionDir, threadId, events: merged })
         await dropRewoundChildren({ home, registry, agentIds: cutAgents })
       }
@@ -83,7 +111,13 @@ export async function markThreadHistory({
   })
 }
 
-export async function forkThread({ context, args }: { context: ThreadStoreContext; args: ForkArgs }): Promise<ThreadSummary> {
+export async function forkThread({
+  context,
+  args,
+}: {
+  context: ThreadStoreContext
+  args: ForkArgs
+}): Promise<ThreadSummary> {
   const { registry, ids, home, clock, log: eventLog } = context
   const { from, seq, mode, title } = args
   const fromDir = await sessionDirFor({ context, threadId: from })
@@ -91,7 +125,9 @@ export async function forkThread({ context, args }: { context: ThreadStoreContex
   const created = await registry.enqueue({
     handle,
     run: async () => {
-      const source = tryReadThreadMeta({ file: threadMetaFile({ sessionDir: fromDir, threadId: from }) })
+      const source = tryReadThreadMeta({
+        file: threadMetaFile({ sessionDir: fromDir, threadId: from }),
+      })
       if (source === undefined) throw new ForkSourceMissing({ from })
       const head = (await registry.readThreadLog({ sessionDir: fromDir, threadId: from })).head
       if (seq < 0 || seq > head) throw new ForkSeqOutOfRange({ from, seq, head })
@@ -120,6 +156,11 @@ export async function forkThread({ context, args }: { context: ThreadStoreContex
       return { meta, sessionDir }
     },
   })
-  await writeSessionMetaForRoot({ registry, sessionDir: created.sessionDir, root: created.meta, home: homeOf({ source: created.meta, fromDir }) })
+  await writeSessionMetaForRoot({
+    registry,
+    sessionDir: created.sessionDir,
+    root: created.meta,
+    home: homeOf({ source: created.meta, fromDir }),
+  })
   return toThreadSummary(created.meta)
 }

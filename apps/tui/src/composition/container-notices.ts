@@ -42,10 +42,7 @@ export const resourcesRefusalNotice = (location: EExecutionLocation): string =>
 export const resourcesConnectingNotice =
   'the sandbox is still connecting — /container resources works once the channel is open'
 
-export const pendingSwitchNotice = (args: {
-  target: EExecutionLocation
-  count: number
-}): string =>
+export const pendingSwitchNotice = (args: { target: EExecutionLocation; count: number }): string =>
   `moving ${whereItRuns(args.target)} stops ${args.count} running ${args.count === 1 ? 'shell' : 'shells'} — confirm below`
 
 const WHERE_IT_LIVES: Record<EExecutionLocation, string> = {

@@ -63,7 +63,11 @@ describe('GithubSandboxWakeService', () => {
       resumeToken: 'stored-token',
     })
     expect(calls[0]).not.toHaveProperty('driveName')
-    expect(calls[0]?.credentials).toEqual({ token: 'vercel-token', teamId: 'team-1', projectId: 'proj-1' })
+    expect(calls[0]?.credentials).toEqual({
+      token: 'vercel-token',
+      teamId: 'team-1',
+      projectId: 'proj-1',
+    })
     expect(row().serveUrl).toBe('https://serve.example.test')
     expect(row().tokenHash).toBe('stored-hash')
     expect(cipher.decrypt(row().sealedToken ?? '')).toBe('stored-token')
@@ -80,7 +84,11 @@ describe('GithubSandboxWakeService', () => {
     serviceWith({ boot, credentials: { workspaceOwned: true } }).notifyEvent(PR_EVENT)
     await flushDebounce()
 
-    expect(calls[0]?.credentials).toEqual({ token: 'vercel-token', teamId: 'team-1', projectId: 'proj-1' })
+    expect(calls[0]?.credentials).toEqual({
+      token: 'vercel-token',
+      teamId: 'team-1',
+      projectId: 'proj-1',
+    })
     expect(calls[0]?.injectVercelCredentials).toBe(false)
     expect(calls[0]?.environment).toEqual({ ATLAS_API_PROVISIONED: '1' })
   })

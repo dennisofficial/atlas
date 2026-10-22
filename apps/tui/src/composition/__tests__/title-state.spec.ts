@@ -33,7 +33,9 @@ describe('the tab title state', () => {
   })
 
   it('works when the loop is running again after a question', () => {
-    expect(titleStateOf({ ...quiet, working: true, endedOnQuestion: true })).toBe(ETitleState.Working)
+    expect(titleStateOf({ ...quiet, working: true, endedOnQuestion: true })).toBe(
+      ETitleState.Working,
+    )
   })
 })
 
@@ -68,13 +70,21 @@ const footer = (args: { anchorSeq: number; seq: number; status: ETldrStatus }): 
 
 describe('a turn that ended on a question', () => {
   it('is read off the latest footer of the latest operator message', () => {
-    const events = [asked(1), replied(2), footer({ anchorSeq: 1, seq: 3, status: ETldrStatus.NeedsOperator })]
+    const events = [
+      asked(1),
+      replied(2),
+      footer({ anchorSeq: 1, seq: 3, status: ETldrStatus.NeedsOperator }),
+    ]
 
     expect(endedOnQuestion(events)).toBe(true)
   })
 
   it('is not one when the footer says done', () => {
-    const events = [asked(1), replied(2), footer({ anchorSeq: 1, seq: 3, status: ETldrStatus.Done })]
+    const events = [
+      asked(1),
+      replied(2),
+      footer({ anchorSeq: 1, seq: 3, status: ETldrStatus.Done }),
+    ]
 
     expect(endedOnQuestion(events)).toBe(false)
   })

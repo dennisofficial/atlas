@@ -33,10 +33,7 @@ export function fenceWidth(args: {
   const available = Math.max(4, args.width - RIGHT_MARGIN)
   return Math.min(
     available,
-    Math.max(
-      fenceColumns(args.source) + gutterWidth(args.source) + CHROME,
-      headerColumns(args),
-    ),
+    Math.max(fenceColumns(args.source) + gutterWidth(args.source) + CHROME, headerColumns(args)),
   )
 }
 
@@ -113,13 +110,7 @@ export function FencedBlock(props: {
               ),
             }
           : {
-              badge: (
-                <CopyButton
-                  text={props.source}
-                  revealed={pointerInside}
-                  bg={theme.panelBg}
-                />
-              ),
+              badge: <CopyButton text={props.source} revealed={pointerInside} bg={theme.panelBg} />,
             })}
       >
         <box flexDirection="row" flexShrink={0}>

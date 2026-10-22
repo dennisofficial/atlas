@@ -46,9 +46,10 @@ const rig = async (
     type: 'assistant-said',
     parts: [{ type: 'text', text: 'Waiting for the background agent.' }],
   }
-  const channel = args.ready === false
-    ? harness({ lastEventSeq: 0, maxAttempts: 0 })
-    : readied({ lastEventSeq: 0 })
+  const channel =
+    args.ready === false
+      ? harness({ lastEventSeq: 0, maxAttempts: 0 })
+      : readied({ lastEventSeq: 0 })
   let requests = 0
   const log = new MirroredEventLog({
     channel: {
@@ -119,7 +120,9 @@ describe('authoritative cloud transcript synchronization', () => {
     const held = await rig({ ready: false })
     const rejected = held.log.synchronize().catch((failure: unknown) => failure)
     held.channel.drop()
-    expect(await rejected).toMatchObject({ message: 'the cloud transcript cannot synchronize while the channel is not open' })
+    expect(await rejected).toMatchObject({
+      message: 'the cloud transcript cannot synchronize while the channel is not open',
+    })
     expect(held.requests()).toBe(0)
   })
 

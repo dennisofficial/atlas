@@ -8,6 +8,9 @@ import { VercelBundleBlobStore } from './vercel-bundle-blob-store'
 @Module({
   imports: [SessionsModule],
   controllers: [PublishedBundlesController],
-  providers: [PublishedBundlesService, { provide: BundleBlobStore, useClass: VercelBundleBlobStore }],
+  providers: [
+    PublishedBundlesService,
+    { provide: BundleBlobStore, useClass: VercelBundleBlobStore },
+  ],
 })
 export class PublishedBundlesModule {}

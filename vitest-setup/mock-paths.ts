@@ -15,8 +15,10 @@ export function absoluteMockPaths(): Plugin {
     transform(code, id) {
       if (!code.includes('vi.') || id.includes('/node_modules/')) return null
       const from = dirname(id.split('?')[0] ?? id)
-      const out = code.replace(MOCK_CALL, (_match, lead: string, quote: string, specifier: string) =>
-        `${lead}${quote}${resolve(from, specifier)}${quote}`,
+      const out = code.replace(
+        MOCK_CALL,
+        (_match, lead: string, quote: string, specifier: string) =>
+          `${lead}${quote}${resolve(from, specifier)}${quote}`,
       )
       return out === code ? null : { code: out, map: null }
     },

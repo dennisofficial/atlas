@@ -81,11 +81,10 @@ function Rows(props: {
   )
 }
 
-function blockOf(args: {
-  state: RewindState
-  index: number
-  cells: number
-}): { lines: readonly string[]; secondary: string } {
+function blockOf(args: { state: RewindState; index: number; cells: number }): {
+  lines: readonly string[]
+  secondary: string
+} {
   const point = args.state.points[args.index]
   const label = point === undefined ? CURRENT_LABEL : pointLabel({ point })
 

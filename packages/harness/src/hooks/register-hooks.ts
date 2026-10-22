@@ -14,7 +14,8 @@ import { JevDecisionClient } from '../classifier/jev-client'
 import { GitWorkspaceFacts } from '../classifier/workspace-facts'
 import {
   instanceCachingFactory,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   resolveIfPossible,
   type DependencyContainer,
 } from '../container/injection'
@@ -78,7 +79,10 @@ export function registerBuiltinHooks({ container }: { container: DependencyConta
     useFactory: (resolver) =>
       new SkillSuggestionHook({
         log: resolveIfPossible({ container: resolver, token: registeredPortToken(EventLogPort) }),
-        skills: resolveIfPossible({ container: resolver, token: registeredPortToken(SkillRegistryPort) }),
+        skills: resolveIfPossible({
+          container: resolver,
+          token: registeredPortToken(SkillRegistryPort),
+        }),
         decisions: resolver.isRegistered(registeredPortToken(DecisionPort), true)
           ? resolver.resolve(registeredPortToken(DecisionPort))
           : new JevDecisionClient({ config: () => undefined }),

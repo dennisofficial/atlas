@@ -60,7 +60,7 @@ function DerivedEntryView(props: {
           width={props.width}
           skills={entry.skills}
           files={entry.files}
-        images={entry.images}
+          images={entry.images}
         />
       )
 

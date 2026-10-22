@@ -1,4 +1,4 @@
-import { AtlasMark } from "../app/atlas-mark";
+import { AtlasMark } from '../app/atlas-mark'
 
 export function AuthBrand() {
   return (
@@ -7,5 +7,5 @@ export function AuthBrand() {
       <span className="font-display text-lg font-semibold text-foreground">Atlas</span>
       <span className="text-xs text-muted-foreground">Cloud</span>
     </div>
-  );
+  )
 }

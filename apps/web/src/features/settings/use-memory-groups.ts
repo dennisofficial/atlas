@@ -60,7 +60,8 @@ export function useMemoryGroups(): MemoryGroups {
             reload()
           }
         },
-        success: args.names.length === 1 ? 'Memory deleted' : `${args.names.length} memories deleted`,
+        success:
+          args.names.length === 1 ? 'Memory deleted' : `${args.names.length} memories deleted`,
       })
       return deleted
     },

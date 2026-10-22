@@ -3,7 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ContainerSummary } from '../../../execution/docker/engine'
-import { POD_ROLE, podHomeDigestOf, podHomeLabel, podNameFor, podRoleLabel, podThreadLabel } from '../pod-create'
+import {
+  POD_ROLE,
+  podHomeDigestOf,
+  podHomeLabel,
+  podNameFor,
+  podRoleLabel,
+  podThreadLabel,
+} from '../pod-create'
 import { reapOrphanPods } from '../reaper'
 
 const HOME = '/home/atlas-test'
@@ -76,7 +83,10 @@ describe('reapOrphanPods', () => {
   })
 
   it('leaves a pod whose thread still exists', async () => {
-    const { run, destroyed } = harness({ containers: [summaryFor({ threadId: 'alive' })], live: ['alive'] })
+    const { run, destroyed } = harness({
+      containers: [summaryFor({ threadId: 'alive' })],
+      live: ['alive'],
+    })
     const sweep = await run()
     expect(destroyed).toEqual([])
     expect(sweep).toEqual({ reaped: [], kept: [podNameFor({ threadId: 'alive' })], failures: [] })
@@ -107,7 +117,9 @@ describe('reapOrphanPods', () => {
   })
 
   it('never destroys a container with an empty thread label', async () => {
-    const { run, destroyed } = harness({ containers: [summaryFor({ threadId: '', name: 'atlas-pod-empty' })] })
+    const { run, destroyed } = harness({
+      containers: [summaryFor({ threadId: '', name: 'atlas-pod-empty' })],
+    })
     const sweep = await run()
     expect(destroyed).toEqual([])
     expect(sweep.kept).toEqual(['atlas-pod-empty'])

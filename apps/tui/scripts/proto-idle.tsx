@@ -29,7 +29,14 @@ const harness = await buildHarness({
 const { channel, runner } = publishingRunner({ harness, root })
 const { registry: shells } = await benchShellRegistry({ root })
 const visibleThread = await harness.threads.create({ title: 'idle-visible' })
-const render = await mountBenchRender({ root, harness, shells, channel, runner, threadId: visibleThread.id })
+const render = await mountBenchRender({
+  root,
+  harness,
+  shells,
+  channel,
+  runner,
+  threadId: visibleThread.id,
+})
 
 await sleep(WARMUP_MS)
 const cpuBefore = process.cpuUsage()

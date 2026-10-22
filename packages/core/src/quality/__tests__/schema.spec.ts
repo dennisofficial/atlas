@@ -39,7 +39,10 @@ describe('codeQualityReviewedSchema', () => {
   })
 
   it('accepts a file-level skipped record with no scope or findings', () => {
-    const skipped = reviewFixture({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.WorkspaceUnidentified })
+    const skipped = reviewFixture({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.WorkspaceUnidentified,
+    })
     expect(codeQualityReviewedSchema.safeParse(skipped).success).toBe(true)
   })
 
@@ -53,7 +56,9 @@ describe('codeQualityReviewedSchema', () => {
   })
 
   it('rejects a concern probability outside [0, 1]', () => {
-    const bad = reviewFixture({ assessments: [assessmentFixture({ currentConcernProbability: 1.2 })] })
+    const bad = reviewFixture({
+      assessments: [assessmentFixture({ currentConcernProbability: 1.2 })],
+    })
     expect(codeQualityReviewedSchema.safeParse(bad).success).toBe(false)
   })
 

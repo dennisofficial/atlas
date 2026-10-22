@@ -47,7 +47,8 @@ const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve,
 const isKeptKey = (key: string): boolean =>
   key === KEPT_EXACT_KEY || KEPT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
 
-const isUnauthorized = (error: unknown): boolean => error instanceof CloudError && error.status === 401
+const isUnauthorized = (error: unknown): boolean =>
+  error instanceof CloudError && error.status === 401
 
 const requestCurrent = (args: CurrentRequest): Promise<unknown> =>
   cloudRequest({
@@ -72,7 +73,8 @@ const fetchCurrentBody = async (args: CurrentRequest): Promise<unknown> => {
   }
 }
 
-const tooLarge = (): Error => new Error(`the bundle is larger than ${PUBLISHED_BUNDLE_MAX_BYTES} bytes`)
+const tooLarge = (): Error =>
+  new Error(`the bundle is larger than ${PUBLISHED_BUNDLE_MAX_BYTES} bytes`)
 
 const downloadBundle = async (args: {
   current: PublishedBundleCurrent
@@ -88,7 +90,8 @@ const downloadBundle = async (args: {
   const bytes = Buffer.from(await response.arrayBuffer())
   if (bytes.byteLength > PUBLISHED_BUNDLE_MAX_BYTES) throw tooLarge()
   const digest = createHash('sha256').update(bytes).digest('hex')
-  if (digest !== args.current.sha256) throw new Error('the bundle sha256 does not match the published version')
+  if (digest !== args.current.sha256)
+    throw new Error('the bundle sha256 does not match the published version')
   return bytes
 }
 

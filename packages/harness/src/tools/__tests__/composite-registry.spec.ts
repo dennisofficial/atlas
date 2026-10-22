@@ -32,7 +32,10 @@ describe('CompositeToolRegistry', () => {
   it('declares the base set followed by every source, and finds each by name', () => {
     const registry = new CompositeToolRegistry({
       base: new InMemoryToolRegistry([definition('read'), definition('write')]),
-      sources: [new FakeSource([definition('mcp__fs__read')]), new FakeSource([definition('mcp__db__query')])],
+      sources: [
+        new FakeSource([definition('mcp__fs__read')]),
+        new FakeSource([definition('mcp__db__query')]),
+      ],
     })
 
     expect(registry.declarations().map((declaration) => declaration.name)).toEqual([

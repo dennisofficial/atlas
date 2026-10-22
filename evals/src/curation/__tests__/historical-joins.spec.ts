@@ -3,7 +3,8 @@ import { describe, expect, test } from 'vitest'
 import { EHistoricalRejection, recoverHistoricalChanges } from '../historical-recover'
 import { makeLog } from './historical-log'
 
-const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] => rejections.map((entry) => entry.kind)
+const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] =>
+  rejections.map((entry) => entry.kind)
 
 const A = '/proj/a.ts'
 const V1 = 'export const a = 1\n'
@@ -14,9 +15,16 @@ describe('recoverHistoricalChanges: joins and failures', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true, bytes: 3 })
     log.call({ callId: 'c2', name: 'write', input: { path: A, content: V2 } })
-    log.result({ callId: 'c2', name: 'write', output: { path: '/proj/other.ts', created: true, bytes: 19 } })
+    log.result({
+      callId: 'c2',
+      name: 'write',
+      output: { path: '/proj/other.ts', created: true, bytes: 19 },
+    })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.ByteMismatch, EHistoricalRejection.PathMismatch])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.ByteMismatch,
+      EHistoricalRejection.PathMismatch,
+    ])
   })
 
   test('counts UTF-8 bytes, not characters', () => {
@@ -30,14 +38,18 @@ describe('recoverHistoricalChanges: joins and failures', () => {
     const log = makeLog()
     log.call({ callId: 'c1', name: 'write', input: { path: A, content: V1 } })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.MissingResult])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.MissingResult,
+    ])
   })
 
   test('rejects a result with no earlier call', () => {
     const log = makeLog()
     log.result({ callId: 'c1', name: 'write', output: { path: A, created: true, bytes: 19 } })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.OrphanResult])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.OrphanResult,
+    ])
   })
 
   test('rejects duplicate result and duplicate call ids, recovering neither', () => {
@@ -63,12 +75,20 @@ describe('recoverHistoricalChanges: joins and failures', () => {
     log.call({ callId: 'c1', name: 'write', input: { path: A, content: V1 } })
     log.result({ callId: 'c1', name: 'edit', output: { path: A, created: true, bytes: 19 } })
     log.call({ callId: 'c2', name: 'write', input: { path: A, content: V1 } })
-    log.result({ callId: 'c2', name: 'write', output: { path: A, created: true, bytes: 19 }, extra: { runId: 'run_2' } })
+    log.result({
+      callId: 'c2',
+      name: 'write',
+      output: { path: A, created: true, bytes: 19 },
+      extra: { runId: 'run_2' },
+    })
 
     const { changes, rejections } = recoverHistoricalChanges({ events: log.events })
 
     expect(changes).toEqual([])
-    expect(kinds(rejections)).toEqual([EHistoricalRejection.CallResultMismatch, EHistoricalRejection.CallResultMismatch])
+    expect(kinds(rejections)).toEqual([
+      EHistoricalRejection.CallResultMismatch,
+      EHistoricalRejection.CallResultMismatch,
+    ])
   })
 
   test('rejects errored and interrupted results and drops the anchor', () => {
@@ -98,6 +118,9 @@ describe('recoverHistoricalChanges: joins and failures', () => {
     log.add({ type: 'tool-denied', callId: 'c2', name: 'edit', reason: 'no' })
     log.edit({ callId: 'c3', path: A, before: V1, after: V2 })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.ToolDenied, EHistoricalRejection.MissingBefore])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.ToolDenied,
+      EHistoricalRejection.MissingBefore,
+    ])
   })
 })

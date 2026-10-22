@@ -44,7 +44,12 @@ describe('typing while the turn is running', () => {
 
       expect(queued).toBe(true)
       expect(mounted.app.turnsDriven).toBe(1)
-      expect(mounted.app.pending.forThread({ threadId: THREAD }).getSnapshot().map((message) => message.text)).toEqual([STEER])
+      expect(
+        mounted.app.pending
+          .forThread({ threadId: THREAD })
+          .getSnapshot()
+          .map((message) => message.text),
+      ).toEqual([STEER])
 
       const midTurn = await mounted.app.log.read({ threadId: THREAD })
       expect(midTurn.filter((event) => event.type === 'user-said').length).toBe(1)

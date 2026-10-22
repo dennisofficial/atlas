@@ -1,4 +1,11 @@
-import type { ModelPort, NoticePort, SaidImage, SettingsResolution, ToolDeclaration, WorkspaceIdentity } from '@dltech/atlas-core'
+import type {
+  ModelPort,
+  NoticePort,
+  SaidImage,
+  SettingsResolution,
+  ToolDeclaration,
+  WorkspaceIdentity,
+} from '@dltech/atlas-core'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import type { WakeSignal } from '../wake/wake-signals'
 import type { LanguageModel } from 'ai'
@@ -34,7 +41,10 @@ export type TurnSetup<Command = never> = {
   stopSandbox: () => Promise<boolean>
   settled: SettingsResolution
   tldr: { feed: TldrFeed | undefined; model: LanguageModel; modelId: () => string }
-  titler: (args: { text: string; images?: readonly SaidImage[] | undefined }) => Promise<string | null>
+  titler: (args: {
+    text: string
+    images?: readonly SaidImage[] | undefined
+  }) => Promise<string | null>
   sleepPrevention?: SleepPrevention | undefined
   wake?: WakeSignal | undefined
 }

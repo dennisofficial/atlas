@@ -21,8 +21,7 @@ export const isAccountExistsError = (cause: unknown): boolean =>
 export const isInvalidTokenError = (cause: unknown): boolean =>
   cause instanceof AuthApiError && cause.code === EAuthErrorCode.InvalidToken
 
-export const UNREACHABLE =
-  'Could not reach Atlas Cloud — check your connection and retry.'
+export const UNREACHABLE = 'Could not reach Atlas Cloud — check your connection and retry.'
 
 export function normalizeUserCode(raw: string | null): string {
   return (raw ?? '').trim().replace(/-/g, '').toUpperCase()
@@ -110,10 +109,7 @@ export async function claimDeviceCode(userCode: string): Promise<void> {
 
 export type DeviceAction = 'approve' | 'deny'
 
-export async function actOnDevice(args: {
-  action: DeviceAction
-  userCode: string
-}): Promise<void> {
+export async function actOnDevice(args: { action: DeviceAction; userCode: string }): Promise<void> {
   let response: Response
   try {
     response = await fetch(`/api/auth/device/${args.action}`, {
@@ -172,7 +168,9 @@ export async function googleSignInUrl(args: {
 }): Promise<string> {
   const { origin, next } = args
   const errorPath =
-    next === null ? '/sign-in?error=google' : `/sign-in?error=google&next=${encodeURIComponent(next)}`
+    next === null
+      ? '/sign-in?error=google'
+      : `/sign-in?error=google&next=${encodeURIComponent(next)}`
   const response = await postJson({
     path: '/api/auth/sign-in/social',
     body: {
@@ -193,10 +191,7 @@ export async function signOut(): Promise<void> {
   if (!response.ok) await failWith(response, 'Sign-out failed')
 }
 
-export async function requestPasswordReset(args: {
-  email: string
-  origin: string
-}): Promise<void> {
+export async function requestPasswordReset(args: { email: string; origin: string }): Promise<void> {
   const response = await postJson({
     path: '/api/auth/request-password-reset',
     body: { email: args.email, redirectTo: `${args.origin}/reset-password` },
@@ -204,10 +199,7 @@ export async function requestPasswordReset(args: {
   if (!response.ok) await failWith(response, 'Could not send the reset link')
 }
 
-export async function resetPassword(args: {
-  newPassword: string
-  token: string
-}): Promise<void> {
+export async function resetPassword(args: { newPassword: string; token: string }): Promise<void> {
   const response = await postJson({
     path: '/api/auth/reset-password',
     body: { newPassword: args.newPassword, token: args.token },

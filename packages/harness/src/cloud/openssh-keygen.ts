@@ -23,12 +23,14 @@ const paddingFor = (length: number): Buffer => {
   return Buffer.from(Array.from({ length: missing }, (_, index) => index + 1))
 }
 
-const wrap = (text: string): string => text.match(new RegExp(`.{1,${PEM_COLUMNS}}`, 'g'))?.join('\n') ?? ''
+const wrap = (text: string): string =>
+  text.match(new RegExp(`.{1,${PEM_COLUMNS}}`, 'g'))?.join('\n') ?? ''
 
 const ed25519Material = (): { seed: Buffer; pub: Buffer } => {
   const { privateKey } = generateKeyPairSync('ed25519')
   const jwk = privateKey.export({ format: 'jwk' })
-  if (jwk.d === undefined || jwk.x === undefined) throw new Error('ed25519 key export lacked its components')
+  if (jwk.d === undefined || jwk.x === undefined)
+    throw new Error('ed25519 key export lacked its components')
   return { seed: Buffer.from(jwk.d, 'base64url'), pub: Buffer.from(jwk.x, 'base64url') }
 }
 
@@ -63,6 +65,9 @@ export const generateSigningKeyPair = (args: {
   const base64Blob = publicBlob.toString('base64')
   return {
     privateKey: `${PEM_HEADER}\n${wrap(container.toString('base64'))}\n${PEM_FOOTER}\n`,
-    publicKey: args.comment.length === 0 ? `${KEY_TYPE} ${base64Blob}` : `${KEY_TYPE} ${base64Blob} ${args.comment}`,
+    publicKey:
+      args.comment.length === 0
+        ? `${KEY_TYPE} ${base64Blob}`
+        : `${KEY_TYPE} ${base64Blob} ${args.comment}`,
   }
 }

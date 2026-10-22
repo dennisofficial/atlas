@@ -1,9 +1,6 @@
 import { z } from 'zod'
 
-import {
-  readRuntimeCheckpointReplySchema,
-  type RuntimeCheckpoint,
-} from '@dltech/atlas-wire'
+import { readRuntimeCheckpointReplySchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { CloudTransport } from './cloud-transport'
 

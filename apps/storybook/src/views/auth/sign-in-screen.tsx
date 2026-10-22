@@ -1,10 +1,10 @@
-import { Mail, TerminalSquare } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { Mail, TerminalSquare } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
 
-import { FieldGroup } from "@dltech/atlas-ui/components/field";
+import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
-import { AUTH_WORKSPACE } from "../../fixtures/auth";
-import { AuthField } from "./auth-field";
+import { AUTH_WORKSPACE } from '../../fixtures/auth'
+import { AuthField } from './auth-field'
 import {
   AuthFooterText,
   AuthLink,
@@ -12,8 +12,8 @@ import {
   GoogleButton,
   OrDivider,
   SubmitButton,
-} from "./auth-controls";
-import { AuthBanner, AuthHeading } from "./auth-heading";
+} from './auth-controls'
+import { AuthBanner, AuthHeading } from './auth-heading'
 import {
   EAuthScreen,
   EDeviceConfirmState,
@@ -23,75 +23,73 @@ import {
   ESignInState,
   type AuthRoute,
   type ScreenProps,
-} from "./auth-route";
-import { useDelayed } from "./use-demo";
+} from './auth-route'
+import { useDelayed } from './use-demo'
 
-const WRONG_PASSWORD = "wrong";
+const WRONG_PASSWORD = 'wrong'
 
 function routeAfterSignIn(context: ESignInContext): AuthRoute {
   switch (context) {
     case ESignInContext.Device:
-      return { screen: EAuthScreen.DeviceConfirm, state: EDeviceConfirmState.Idle };
+      return { screen: EAuthScreen.DeviceConfirm, state: EDeviceConfirmState.Idle }
     case ESignInContext.Invite:
-      return { screen: EAuthScreen.Invite, state: EInviteState.SignedIn };
+      return { screen: EAuthScreen.Invite, state: EInviteState.SignedIn }
     default:
-      return { screen: EAuthScreen.Home, state: EHomeState.SignedIn };
+      return { screen: EAuthScreen.Home, state: EHomeState.SignedIn }
   }
 }
 
 function ContextBanner({ context }: { context: ESignInContext }) {
   if (context === ESignInContext.Device) {
-    return (
-      <AuthBanner icon={TerminalSquare}>Sign in to authorize your terminal</AuthBanner>
-    );
+    return <AuthBanner icon={TerminalSquare}>Sign in to authorize your terminal</AuthBanner>
   }
   if (context === ESignInContext.Invite) {
     return (
       <AuthBanner icon={Mail}>
         Sign in to accept your invitation to {AUTH_WORKSPACE.name}
       </AuthBanner>
-    );
+    )
   }
-  return null;
+  return null
 }
 
 export function SignInScreen({ route, onNavigate }: ScreenProps<EAuthScreen.SignIn>) {
-  const context = route.context ?? ESignInContext.Default;
-  const [state, setState] = useState(route.state ?? ESignInState.Idle);
-  const [googleBusy, setGoogleBusy] = useState(false);
-  const later = useDelayed();
-  const busy = state === ESignInState.Busy;
+  const context = route.context ?? ESignInContext.Default
+  const [state, setState] = useState(route.state ?? ESignInState.Idle)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const later = useDelayed()
+  const busy = state === ESignInState.Busy
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const password = String(new FormData(event.currentTarget).get("password") ?? "");
-    setState(ESignInState.Busy);
+    event.preventDefault()
+    const password = String(new FormData(event.currentTarget).get('password') ?? '')
+    setState(ESignInState.Busy)
     later(() => {
       if (password === WRONG_PASSWORD) {
-        setState(ESignInState.Error);
-        return;
+        setState(ESignInState.Error)
+        return
       }
-      setState(ESignInState.Idle);
-      onNavigate?.(routeAfterSignIn(context));
-    });
-  };
+      setState(ESignInState.Idle)
+      onNavigate?.(routeAfterSignIn(context))
+    })
+  }
 
   const handleGoogle = () => {
-    setGoogleBusy(true);
-    setState(ESignInState.Idle);
+    setGoogleBusy(true)
+    setState(ESignInState.Idle)
     later(() => {
-      setGoogleBusy(false);
-      onNavigate?.(routeAfterSignIn(context));
-    });
-  };
+      setGoogleBusy(false)
+      onNavigate?.(routeAfterSignIn(context))
+    })
+  }
 
-  const handleForgot = () => onNavigate?.({ screen: EAuthScreen.Forgot });
-  const handleSignUp = () => onNavigate?.({ screen: EAuthScreen.SignUp });
+  const handleForgot = () => onNavigate?.({ screen: EAuthScreen.Forgot })
+  const handleSignUp = () => onNavigate?.({ screen: EAuthScreen.SignUp })
 
   return (
     <div className="flex flex-col gap-6">
       <AuthHeading
-        title={context === ESignInContext.Default ? "Sign in to Atlas" : "Sign in to continue"}
+        title={context === ESignInContext.Default ? 'Sign in to Atlas' : 'Sign in to continue'}
         description="Use the account you use in the terminal."
       />
       <ContextBanner context={context} />
@@ -124,9 +122,7 @@ export function SignInScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Sign
               disabled={busy}
               action={<AuthLink onPress={handleForgot}>Forgot password?</AuthLink>}
             />
-            {state === ESignInState.Error && (
-              <FormError>Incorrect email or password.</FormError>
-            )}
+            {state === ESignInState.Error && <FormError>Incorrect email or password.</FormError>}
             <SubmitButton busy={busy}>Sign in</SubmitButton>
           </FieldGroup>
         </form>
@@ -135,5 +131,5 @@ export function SignInScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Sign
         No account? <AuthLink onPress={handleSignUp}>Sign up</AuthLink>
       </AuthFooterText>
     </div>
-  );
+  )
 }

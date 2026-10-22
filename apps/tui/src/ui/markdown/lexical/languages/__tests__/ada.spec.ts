@@ -11,9 +11,9 @@ const source = [
   'procedure Main is',
   '',
   '   Verbose : constant Boolean   := True;',
-  '   Grade   : constant Character := \'A\';',
+  "   Grade   : constant Character := 'A';",
   '   Mask    : constant Integer   := 16#FF#;',
-  '   Lowest  : constant Integer   := Integer\'Base\'First;',
+  "   Lowest  : constant Integer   := Integer'Base'First;",
   '',
   '   subtype Small is Integer range 0 .. 100;',
   '',
@@ -105,9 +105,9 @@ describe('ada lexical highlighting', () => {
   })
 
   it('reads the tick character literal without help from the attribute rule', () => {
-    expect(textFor({ spec, source: "Tick : constant Character := ''';", group: 'character' })).toEqual([
-      "'''",
-    ])
+    expect(
+      textFor({ spec, source: "Tick : constant Character := ''';", group: 'character' }),
+    ).toEqual(["'''"])
   })
 
   it('closes a string on the doubled quote form', () => {

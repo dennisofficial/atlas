@@ -23,7 +23,9 @@ const p2002DriverAdapter = (fields: readonly string[]): Prisma.PrismaClientKnown
 
 describe('isUniqueViolation', () => {
   it('matches a P2002 on exactly the expected target', () => {
-    expect(isUniqueViolation(p2002(['surface', 'deliveryId']), ['surface', 'deliveryId'])).toBe(true)
+    expect(isUniqueViolation(p2002(['surface', 'deliveryId']), ['surface', 'deliveryId'])).toBe(
+      true,
+    )
   })
 
   it('reads the driver-adapter constraint shape, unquoting camelCase columns', () => {
@@ -37,7 +39,9 @@ describe('isUniqueViolation', () => {
   })
 
   it('is insensitive to target order', () => {
-    expect(isUniqueViolation(p2002(['deliveryId', 'surface']), ['surface', 'deliveryId'])).toBe(true)
+    expect(isUniqueViolation(p2002(['deliveryId', 'surface']), ['surface', 'deliveryId'])).toBe(
+      true,
+    )
   })
 
   it('rejects a P2002 on a different constraint, so unrelated violations surface raw', () => {

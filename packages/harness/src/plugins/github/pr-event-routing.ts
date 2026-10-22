@@ -1,6 +1,11 @@
 import type { BeforeTurn, LinkedPullRequest, OnThreadOpen, ThreadId } from '@dltech/atlas-core'
 
-import { prEventNoticeOf, repoOfFrame, type PrEventDraft, type PrEventFrame } from '../../cloud/pr-event-frame'
+import {
+  prEventNoticeOf,
+  repoOfFrame,
+  type PrEventDraft,
+  type PrEventFrame,
+} from '../../cloud/pr-event-frame'
 import type { FamilyTracker } from './family-tracker'
 import type { PrEventNoticeQueue } from './pr-event-queue'
 import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from './pure'
@@ -48,9 +53,14 @@ export function createPrEventRouting(args: {
       return reading.pullRequest.number === target.prNumber ? [key] : []
     })
 
-  const owners = async (target: { repo: string; prNumber: number }): Promise<readonly ThreadId[]> => [
+  const owners = async (target: {
+    repo: string
+    prNumber: number
+  }): Promise<readonly ThreadId[]> => [
     ...new Set(
-      (await Promise.all(standingKeys(target).map((key) => args.tracker.threadsOwning({ key })))).flat(),
+      (
+        await Promise.all(standingKeys(target).map((key) => args.tracker.threadsOwning({ key })))
+      ).flat(),
     ),
   ]
 

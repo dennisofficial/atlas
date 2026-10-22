@@ -37,12 +37,7 @@ export function DeviceConfirm({
         <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Device code
         </span>
-        <p
-          aria-label="Device code"
-          className="font-mono text-4xl font-medium tracking-[0.12em] text-foreground"
-        >
-          {code}
-        </p>
+        <p className="font-mono text-4xl font-medium tracking-[0.12em] text-foreground">{code}</p>
       </div>
       <p className={cn('text-sm text-muted-foreground', CENTER_TEXT)}>
         Signed in as <span className="font-medium text-foreground">{email}</span>.{' '}

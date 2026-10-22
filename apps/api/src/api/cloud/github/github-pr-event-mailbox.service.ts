@@ -2,11 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { db, type GithubPrEventModel } from '../../../db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import type {
-  EPrEventKind,
-  GithubPrEventDto,
-  GithubPrEventPayload,
-} from './github-realtime.types'
+import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
 
 /**
  * Durable per-user mailbox for PR events. Every event is one row per subscribing user, stamped

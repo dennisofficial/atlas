@@ -1,16 +1,21 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Checkbox } from "@dltech/atlas-ui/components/checkbox";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@dltech/atlas-ui/components/field";
+import { Checkbox } from '@dltech/atlas-ui/components/checkbox'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from '@dltech/atlas-ui/components/field'
 
 const meta = {
-  title: "Components/Checkbox",
+  title: 'Components/Checkbox',
   component: Checkbox,
-} satisfies Meta<typeof Checkbox>;
+} satisfies Meta<typeof Checkbox>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -19,7 +24,7 @@ export const Default: Story = {
       <FieldLabel htmlFor="terms">Allow edits without asking</FieldLabel>
     </Field>
   ),
-};
+}
 
 export const WithDescription: Story = {
   render: (args) => (
@@ -31,7 +36,7 @@ export const WithDescription: Story = {
       </FieldContent>
     </Field>
   ),
-};
+}
 
 export const States: Story = {
   render: () => (
@@ -58,4 +63,4 @@ export const States: Story = {
       </Field>
     </div>
   ),
-};
+}

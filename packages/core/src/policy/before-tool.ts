@@ -7,8 +7,16 @@ export enum EBeforeToolDecision {
 }
 
 export type BeforeToolOutcome =
-  | { decision: EBeforeToolDecision.Allow; input: unknown; drafts?: readonly EventDraft[] | undefined }
-  | { decision: EBeforeToolDecision.Deny; reason: string; drafts?: readonly EventDraft[] | undefined }
+  | {
+      decision: EBeforeToolDecision.Allow
+      input: unknown
+      drafts?: readonly EventDraft[] | undefined
+    }
+  | {
+      decision: EBeforeToolDecision.Deny
+      reason: string
+      drafts?: readonly EventDraft[] | undefined
+    }
 
 export type HookDissent = { hookName: string; decision: EBeforeToolDecision; reason: string }
 
@@ -37,7 +45,10 @@ function reasonOf(dissent: HookDissent): string {
   return `the ${dissent.hookName} hook returned ${dissent.decision} without a reason`
 }
 
-function lastAllowedInput(args: { outcomes: readonly ConsultedHook[]; fallback: unknown }): unknown {
+function lastAllowedInput(args: {
+  outcomes: readonly ConsultedHook[]
+  fallback: unknown
+}): unknown {
   const allowed = args.outcomes
     .map(({ outcome }) => outcome)
     .filter((outcome) => outcome.decision === EBeforeToolDecision.Allow)

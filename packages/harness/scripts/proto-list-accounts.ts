@@ -1,6 +1,11 @@
 import { AccountStoreProxy } from '../src/cloud/account-store-proxy'
 import { CloudSessionStore } from '../src/cloud/cloud-session'
-import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile, fileAccountStore } from '../src/credentials'
+import {
+  atlasCloudFile,
+  atlasVaultFile,
+  atlasVaultKeyFile,
+  fileAccountStore,
+} from '../src/credentials'
 import { SystemClock } from '../src/store'
 
 const clock = new SystemClock()
@@ -10,5 +15,9 @@ const accounts = new AccountStoreProxy({
   sessions,
 })
 for (const account of await accounts.list()) {
-  console.log(`${account.provider}  ${JSON.stringify(account).replace(/"(secret|apiKey|accessToken|refreshToken)":"[^"]*"/g, '"$1":"<redacted>"').slice(0, 220)}`)
+  console.log(
+    `${account.provider}  ${JSON.stringify(account)
+      .replace(/"(secret|apiKey|accessToken|refreshToken)":"[^"]*"/g, '"$1":"<redacted>"')
+      .slice(0, 220)}`,
+  )
 }

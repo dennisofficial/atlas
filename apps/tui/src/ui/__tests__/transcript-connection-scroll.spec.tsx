@@ -117,9 +117,7 @@ describe('connecting the cloud transcript', () => {
         await render({ model: updated, connected: false })
         expect(await frameSettled({ setup })).toContain(JUMP)
         await render({ model: updated, connected: true })
-        expect(
-          await frameShowing({ setup, text: scenario.tail }),
-        ).not.toContain(JUMP)
+        expect(await frameShowing({ setup, text: scenario.tail })).not.toContain(JUMP)
 
         const synchronized: TranscriptModel = {
           ...updated,
@@ -137,9 +135,7 @@ describe('connecting the cloud transcript', () => {
           ],
         }
         await render({ model: synchronized, connected: true })
-        expect(await frameShowing({ setup, text: SYNCED_TAIL })).not.toContain(
-          JUMP,
-        )
+        expect(await frameShowing({ setup, text: SYNCED_TAIL })).not.toContain(JUMP)
       } finally {
         await teardown(setup)
       }

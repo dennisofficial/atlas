@@ -11,7 +11,10 @@ export const mirrorStampSchema = z.object({
   v: z.literal(1),
   revision: z.number().int().nonnegative(),
   syncedAt: z.string(),
-  files: z.record(z.string(), z.object({ bytes: z.number().int().nonnegative(), sha256: z.string() })),
+  files: z.record(
+    z.string(),
+    z.object({ bytes: z.number().int().nonnegative(), sha256: z.string() }),
+  ),
 })
 export type MirrorStamp = z.infer<typeof mirrorStampSchema>
 
@@ -19,7 +22,9 @@ export function mirrorStampFile({ sessionDir }: { sessionDir: string }): string 
   return join(sessionDir, MIRROR_STAMP_NAME)
 }
 
-export async function readMirrorStamp(args: { sessionDir: string }): Promise<MirrorStamp | undefined> {
+export async function readMirrorStamp(args: {
+  sessionDir: string
+}): Promise<MirrorStamp | undefined> {
   const file = mirrorStampFile(args)
   const raw = await readFile(file, 'utf8').catch(() => undefined)
   if (raw === undefined) return undefined
@@ -30,6 +35,9 @@ export async function readMirrorStamp(args: { sessionDir: string }): Promise<Mir
   }
 }
 
-export async function writeMirrorStamp(args: { sessionDir: string; stamp: MirrorStamp }): Promise<void> {
+export async function writeMirrorStamp(args: {
+  sessionDir: string
+  stamp: MirrorStamp
+}): Promise<void> {
   await writeMeta({ file: mirrorStampFile(args), meta: args.stamp })
 }

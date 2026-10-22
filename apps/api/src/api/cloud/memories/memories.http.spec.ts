@@ -1,5 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
-import { Controller, Get, UnauthorizedException, UseGuards, ValidationPipe, VersioningType } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  UnauthorizedException,
+  UseGuards,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
@@ -56,7 +63,8 @@ describe('memories HTTP surface', () => {
 
   const http = () => request(app.getHttpServer())
   const as = (token: string) => ({ authorization: `Bearer ${token}` })
-  const entry = (token: string) => http().get('/v1/memories/entry').query({ scope: 'global', name: NOTE.name }).set(as(token))
+  const entry = (token: string) =>
+    http().get('/v1/memories/entry').query({ scope: 'global', name: NOTE.name }).set(as(token))
 
   beforeEach(async () => {
     fake.reset()
@@ -109,8 +117,17 @@ describe('memories HTTP surface', () => {
   afterEach(() => app.close())
 
   it("a session writes and the same user's pod lease token reads it", async () => {
-    const written = await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
-    expect(written.body).toMatchObject({ name: NOTE.name, scope: 'global', project: null, revision: 1 })
+    const written = await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send(NOTE)
+      .expect(200)
+    expect(written.body).toMatchObject({
+      name: NOTE.name,
+      scope: 'global',
+      project: null,
+      revision: 1,
+    })
 
     const read = await entry('pod-token-a').expect(200)
 
@@ -120,7 +137,11 @@ describe('memories HTTP surface', () => {
 
   it('a stale-revision PATCH is a 409 with the memory-stale-revision code', async () => {
     await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
-    await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, body: 'Raw deflate v2' }).expect(200)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send({ ...NOTE, body: 'Raw deflate v2' })
+      .expect(200)
 
     const stale = await http()
       .patch('/v1/memories/entry')
@@ -149,7 +170,11 @@ describe('memories HTTP surface', () => {
     await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
 
     await entry('session-b').expect(404)
-    await http().delete('/v1/memories/entry').query({ scope: 'global', name: NOTE.name }).set(as('session-b')).expect(404)
+    await http()
+      .delete('/v1/memories/entry')
+      .query({ scope: 'global', name: NOTE.name })
+      .set(as('session-b'))
+      .expect(404)
     await entry('session-a').expect(200)
   })
 
@@ -172,19 +197,35 @@ describe('memories HTTP surface', () => {
     await http().put('/v1/memories/entry').set(as('session-a')).send(projectNote).expect(200)
 
     const without = await http().get('/v1/memories').set(as('pod-token-a')).expect(200)
-    const withProject = await http().get('/v1/memories').query({ project: 'Acme/Widgets' }).set(as('pod-token-a')).expect(200)
+    const withProject = await http()
+      .get('/v1/memories')
+      .query({ project: 'Acme/Widgets' })
+      .set(as('pod-token-a'))
+      .expect(200)
 
     expect(without.body.memories).toEqual([])
-    expect(withProject.body.memories[0]).toMatchObject({ name: 'widget-fact', project: 'acme/widgets' })
+    expect(withProject.body.memories[0]).toMatchObject({
+      name: 'widget-fact',
+      project: 'acme/widgets',
+    })
   })
 
   it('GET /memories/all is session-only, no-store, and spans every scope and project of the caller newest first', async () => {
-    const orphanProject = { ...NOTE, scope: 'project', project: 'no/catalog-row', name: 'orphan-fact' }
+    const orphanProject = {
+      ...NOTE,
+      scope: 'project',
+      project: 'no/catalog-row',
+      name: 'orphan-fact',
+    }
     const otherProject = { ...NOTE, scope: 'project', project: 'acme/widgets', name: 'widget-fact' }
     await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
     await http().put('/v1/memories/entry').set(as('session-a')).send(orphanProject).expect(200)
     await http().put('/v1/memories/entry').set(as('session-a')).send(otherProject).expect(200)
-    await http().put('/v1/memories/entry').set(as('session-b')).send({ ...NOTE, name: 'b-private' }).expect(200)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-b'))
+      .send({ ...NOTE, name: 'b-private' })
+      .expect(200)
 
     const listed = await http().get('/v1/memories/all').set(as('session-a')).expect(200)
 
@@ -196,7 +237,9 @@ describe('memories HTTP surface', () => {
     ])
     expect(listed.body.memories[1]).toMatchObject({ scope: 'project', project: 'no/catalog-row' })
     const other = await http().get('/v1/memories/all').set(as('session-b')).expect(200)
-    expect(other.body.memories.map((memory: { name: string }) => memory.name)).toEqual(['b-private'])
+    expect(other.body.memories.map((memory: { name: string }) => memory.name)).toEqual([
+      'b-private',
+    ])
   })
 
   it('GET /memories/all refuses pod and sandbox tokens and anonymous callers', async () => {
@@ -208,17 +251,36 @@ describe('memories HTTP surface', () => {
   })
 
   it('rejects invalid names and scope/project mismatches with 400', async () => {
-    await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, name: 'Bad Name' }).expect(400)
-    await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, scope: 'project' }).expect(400)
-    await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, project: 'acme/widgets' }).expect(400)
-    await http().put('/v1/memories/entry').set(as('session-a')).send({ ...NOTE, scope: 'project', project: null }).expect(400)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send({ ...NOTE, name: 'Bad Name' })
+      .expect(400)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send({ ...NOTE, scope: 'project' })
+      .expect(400)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send({ ...NOTE, project: 'acme/widgets' })
+      .expect(400)
+    await http()
+      .put('/v1/memories/entry')
+      .set(as('session-a'))
+      .send({ ...NOTE, scope: 'project', project: null })
+      .expect(400)
     expect(fake.rows).toHaveLength(0)
   })
 
   it('delete answers 204 then 404', async () => {
     await http().put('/v1/memories/entry').set(as('session-a')).send(NOTE).expect(200)
     const remove = () =>
-      http().delete('/v1/memories/entry').query({ scope: 'global', name: NOTE.name }).set(as('session-a'))
+      http()
+        .delete('/v1/memories/entry')
+        .query({ scope: 'global', name: NOTE.name })
+        .set(as('session-a'))
 
     await remove().expect(204)
     await remove().expect(404)

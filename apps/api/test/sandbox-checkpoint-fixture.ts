@@ -1,8 +1,5 @@
 import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
-import {
-  fakeSessionDb,
-  type FakeCloudSandboxRow,
-} from './fake-session-db'
+import { fakeSessionDb, type FakeCloudSandboxRow } from './fake-session-db'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { storedCheckpointOf } from '../src/api/platform/sandboxes/sandbox-checkpoint'
 import { mintSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
@@ -49,16 +46,17 @@ export const storedRow = (
     ...partial,
   })
 
-export const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint => ({
-  threadId: THREAD,
-  runtimeId: 'runtime-abc',
-  sandboxSessionId: 'sandbox-session-xyz',
-  revision: 3,
-  phase: ERuntimePhase.Serving,
-  reportedAt: '2026-10-01T12:00:00.000Z',
-  transcript: { head: 41, count: 40, digest: 'b'.repeat(64) },
-  ...overrides,
-}) as RuntimeCheckpoint
+export const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  ({
+    threadId: THREAD,
+    runtimeId: 'runtime-abc',
+    sandboxSessionId: 'sandbox-session-xyz',
+    revision: 3,
+    phase: ERuntimePhase.Serving,
+    reportedAt: '2026-10-01T12:00:00.000Z',
+    transcript: { head: 41, count: 40, digest: 'b'.repeat(64) },
+    ...overrides,
+  }) as RuntimeCheckpoint
 
 export const validCheckpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
   runtimeCheckpointSchema.parse(checkpoint(overrides))

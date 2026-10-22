@@ -235,14 +235,21 @@ describeDocker('DockerProcessPort specifically', () => {
   const itWithAgent =
     DOCKER_AVAILABLE && sshAuthSock !== undefined && existsSync(sshAuthSock) ? it : it.skip
 
-  itWithAgent('forwards the ssh agent socket where the operator uid can reach it', async () => {
-    const agentWorktree = await freshWorktree('atlas-dev-port-agent-')
-    const port = new DockerProcessPort({
-      engine,
-      sandbox: { ...sandboxConfig(), worktree: agentWorktree, session: agentWorktree, sshAuthSock },
-    })
+  itWithAgent(
+    'forwards the ssh agent socket where the operator uid can reach it',
+    async () => {
+      const agentWorktree = await freshWorktree('atlas-dev-port-agent-')
+      const port = new DockerProcessPort({
+        engine,
+        sandbox: {
+          ...sandboxConfig(),
+          worktree: agentWorktree,
+          session: agentWorktree,
+          sshAuthSock,
+        },
+      })
 
-    const script = `
+      const script = `
       const net = require('net');
       const s = net.connect(process.env.SSH_AUTH_SOCK);
       s.on('connect', () => s.write(Buffer.from([0, 0, 0, 1, 11])));
@@ -250,9 +257,11 @@ describeDocker('DockerProcessPort specifically', () => {
       s.on('error', (error) => { console.log('connect-error ' + error.message); process.exit(1); });
       setTimeout(() => process.exit(2), 4000);
     `
-    const result = await run({ port, cmd: ['node', '-e', script], cwd: agentWorktree })
+      const result = await run({ port, cmd: ['node', '-e', script], cwd: agentWorktree })
 
-    expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain('agent-reply')
-  }, 30_000)
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('agent-reply')
+    },
+    30_000,
+  )
 })

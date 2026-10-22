@@ -26,7 +26,11 @@ export function createEmailSender({ apiKey, from }: { apiKey: string; from: stri
   return async (message) => {
     const { data, error } = await resend.emails.send({ from, ...message })
     if (error) {
-      throw new EmailError(`Resend refused the message: ${error.message}`, error.name, error.statusCode)
+      throw new EmailError(
+        `Resend refused the message: ${error.message}`,
+        error.name,
+        error.statusCode,
+      )
     }
     return { id: data.id }
   }

@@ -18,7 +18,10 @@ export function useWorkspaceCommands(args: {
   app: AtlasApp
   onRestart: (() => void) | null
   cloud: { view: EConnectionView | null; wake: (() => void) | null }
-  conversation: Pick<Conversation, 'handleChangeDirectory' | 'handleCompact' | 'handleRename' | 'handleRotate'>
+  conversation: Pick<
+    Conversation,
+    'handleChangeDirectory' | 'handleCompact' | 'handleRename' | 'handleRotate'
+  >
   rewind: Pick<RewindControl, 'handleOpen'>
   settings: Pick<SettingsControl, 'handleOpen'>
   shells: ShellsControl

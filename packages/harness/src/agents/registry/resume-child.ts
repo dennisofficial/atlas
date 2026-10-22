@@ -7,13 +7,19 @@ import { alreadyStepping, retiredAgentType, terminalAgent, unknownAgent } from '
 import { recordRestart } from './record-restart'
 import { childDirectory, type Relocation } from './relocate-children'
 
-type ResumeChildArgs = { agentId: ThreadId; threadId: ThreadId; via?: EAgentRestart | undefined } &
-  Pick<Relocation, 'deps' | 'roster' | 'steps'>
+type ResumeChildArgs = {
+  agentId: ThreadId
+  threadId: ThreadId
+  via?: EAgentRestart | undefined
+} & Pick<Relocation, 'deps' | 'roster' | 'steps'>
 
 const isTerminal = (child: ChildState): boolean => {
   if (child.status === EAgentStatus.Finished) return true
-  return child.status === EAgentStatus.Stopped && child.killedBy !== undefined &&
+  return (
+    child.status === EAgentStatus.Stopped &&
+    child.killedBy !== undefined &&
     child.killedBy !== EKilledBy.ContainerSwitch
+  )
 }
 
 export function resumeChild(args: ResumeChildArgs): Promise<AgentOutcome> {
@@ -28,11 +34,17 @@ async function resumeAdmitted(args: ResumeChildArgs): Promise<AgentOutcome> {
     return { ok: false, reason: unknownAgent({ agentId, known: roster.list(threadId) }) }
   }
   if (isStepping(child)) return { ok: false, reason: alreadyStepping(agentId) }
-  if (isTerminal(child)) return { ok: false, reason: terminalAgent({ agentId, status: child.status }) }
+  if (isTerminal(child))
+    return { ok: false, reason: terminalAgent({ agentId, status: child.status }) }
   const agentType = agentTypeNamed({ agentTypes: deps.agentTypes, name: child.agentType })
   if (agentType === undefined) return { ok: false, reason: retiredAgentType(child.agentType) }
   child.projectDirectory ??= await childDirectory({ deps, threadId })
-  await recordRestart({ log: deps.log, ids: deps.ids, child, via: args.via ?? EAgentRestart.Resume })
+  await recordRestart({
+    log: deps.log,
+    ids: deps.ids,
+    child,
+    via: args.via ?? EAgentRestart.Resume,
+  })
   steps.take({
     child,
     agentType,

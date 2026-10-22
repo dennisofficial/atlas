@@ -56,7 +56,13 @@ class ScriptedModel extends ModelPort {
   }
 }
 
-type RetryLogEntry = { attempt: number; maxAttempts: number; reason: string; willRetry: boolean; error: unknown }
+type RetryLogEntry = {
+  attempt: number
+  maxAttempts: number
+  reason: string
+  willRetry: boolean
+  error: unknown
+}
 
 function harness(args: { outcomes: readonly ('fail' | 'ok')[]; policy?: RetryPolicy }) {
   const model = new ScriptedModel(args.outcomes)
@@ -196,7 +202,12 @@ describe('retrying a model step that failed for a reason worth retrying', () => 
     await run()
 
     expect(notices).toEqual([
-      { attempt: 1, maxAttempts: POLICY.maxAttempts, delayMs: 1_000, reason: ERetryReason.Overloaded },
+      {
+        attempt: 1,
+        maxAttempts: POLICY.maxAttempts,
+        delayMs: 1_000,
+        reason: ERetryReason.Overloaded,
+      },
     ])
   })
 
@@ -314,7 +325,12 @@ describe('retrying a failure that was thrown rather than returned', () => {
     await run()
 
     expect(notices).toEqual([
-      { attempt: 1, maxAttempts: POLICY.maxAttempts, delayMs: 1_000, reason: ERetryReason.RateLimited },
+      {
+        attempt: 1,
+        maxAttempts: POLICY.maxAttempts,
+        delayMs: 1_000,
+        reason: ERetryReason.RateLimited,
+      },
     ])
   })
 
@@ -406,10 +422,7 @@ describe('recovering the retry budget after the machine slept', () => {
 
     expect(stepped.ok).toBe(false)
     expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([
-      1,
-      1, 2, 3,
-    ])
+    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
   })
 
   it('cuts the backoff sleep short on the jump instead of sitting out the delay', async () => {
@@ -432,10 +445,7 @@ describe('recovering the retry budget after the machine slept', () => {
 
     expect(stepped.ok).toBe(false)
     expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([
-      1,
-      1, 2, 3,
-    ])
+    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
   })
 
   it('cannot stack resets: one pending jump is spent once, so a wake loop runs out of budget', async () => {
@@ -449,9 +459,6 @@ describe('recovering the retry budget after the machine slept', () => {
 
     expect(stepped.ok).toBe(false)
     expect(model.steps).toBe(failsPerBudget + 1)
-    expect(notices.map((notice) => notice.attempt)).toEqual([
-      1,
-      1, 2, 3,
-    ])
+    expect(notices.map((notice) => notice.attempt)).toEqual([1, 1, 2, 3])
   })
 })

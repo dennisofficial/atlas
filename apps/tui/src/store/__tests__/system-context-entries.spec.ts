@@ -61,8 +61,16 @@ describe('system context entries', () => {
 
   it('labels known slots by name', () => {
     const entries = systemContexts([
-      contextLoaded({ slot: EContextSlot.UserInstructions, key: '/home/.atlas/ATLAS.md', content: 'x' }),
-      contextLoaded({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.md', content: 'x' }),
+      contextLoaded({
+        slot: EContextSlot.UserInstructions,
+        key: '/home/.atlas/ATLAS.md',
+        content: 'x',
+      }),
+      contextLoaded({
+        slot: EContextSlot.ProjectInstructions,
+        key: '/repo/CLAUDE.md',
+        content: 'x',
+      }),
       contextLoaded({ slot: 'memory', key: LEGACY_MEMORY, content: 'x' }),
     ])
 

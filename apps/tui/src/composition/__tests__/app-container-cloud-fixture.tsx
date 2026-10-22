@@ -1,4 +1,3 @@
-import React from 'react'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,7 +45,10 @@ export const seedCloudThread = async (args: {
     repo: null,
     ...(args.threadId === undefined ? {} : { id: args.threadId }),
   })
-  await args.app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await args.app.threads.chooseExecutionLocation({
+    threadId: thread.id,
+    location: EExecutionLocation.Cloud,
+  })
   await args.app.threads.rename({ threadId: thread.id, title: args.title ?? 'the cloud thread' })
   return { threadId: thread.id }
 }
@@ -136,7 +138,10 @@ export const mount = async (args: {
   }
 }
 
-export const cloudOpened = async (args: { app: FakeApp; bridge: FakeBridge }): Promise<OpenedConversation> => {
+export const cloudOpened = async (args: {
+  app: FakeApp
+  bridge: FakeBridge
+}): Promise<OpenedConversation> => {
   const { threadId } = await seedCloudThread({ app: args.app, threadId: THREAD })
   await args.bridge.log.append({
     threadId,
@@ -151,7 +156,14 @@ export const cloudOpened = async (args: { app: FakeApp; bridge: FakeBridge }): P
       },
     ],
   })
-  return { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId }
+  return {
+    threadId: THREAD,
+    events: [],
+    turns: [],
+    name: null,
+    started: false,
+    bootCloudThreadId: threadId,
+  }
 }
 
 /** A session that opens on a thread born in the cloud, attaching at boot the way a relaunch does. */
@@ -162,7 +174,10 @@ export const mountInCloud = async (args: {
 }) => {
   const opened = await cloudOpened({ app: args.app, bridge: args.bridge })
   const mounted = await mount({ ...args, opened })
-  const attached = await until({ holds: async () => args.bridge.attached.length === 1, within: 20_000 })
+  const attached = await until({
+    holds: async () => args.bridge.attached.length === 1,
+    within: 20_000,
+  })
   if (!attached) {
     await mounted.done()
     throw new Error('the boot attach never reached the sandbox')

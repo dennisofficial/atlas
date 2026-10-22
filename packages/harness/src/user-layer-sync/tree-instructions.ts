@@ -1,7 +1,13 @@
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { directoryExists, EUserLayerTree, flatFiles, type TreeLayout, type WatchTarget } from './layout'
+import {
+  directoryExists,
+  EUserLayerTree,
+  flatFiles,
+  type TreeLayout,
+  type WatchTarget,
+} from './layout'
 
 const ATLAS_INSTRUCTIONS_NAME = 'ATLAS.md'
 const ATLAS_KEY_PREFIX = '.atlas/'
@@ -24,7 +30,10 @@ export function instructionsTree(args: {
     }
     if (projectDirectory === undefined) return keyed
 
-    const locals = await flatFiles({ directory: projectDirectory, accept: (name) => name.endsWith(LOCAL_SUFFIX) })
+    const locals = await flatFiles({
+      directory: projectDirectory,
+      accept: (name) => name.endsWith(LOCAL_SUFFIX),
+    })
     for (const [name, path] of locals) keyed.set(`${PROJECT_KEY_PREFIX}${name}`, path)
     return keyed
   }
@@ -50,7 +59,11 @@ export function instructionsTree(args: {
       },
     ]
     if (projectDirectory !== undefined && (await directoryExists(projectDirectory))) {
-      targets.push({ directory: projectDirectory, recursive: false, accept: (name) => name.endsWith(LOCAL_SUFFIX) })
+      targets.push({
+        directory: projectDirectory,
+        recursive: false,
+        accept: (name) => name.endsWith(LOCAL_SUFFIX),
+      })
     }
     return targets
   }

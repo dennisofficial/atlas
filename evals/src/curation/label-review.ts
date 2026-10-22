@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-import { ECaseReviewState, EVAL_CASE_SCHEMA_VERSION, EVerificationOutcome, type EvalCase } from '../case'
+import {
+  ECaseReviewState,
+  EVAL_CASE_SCHEMA_VERSION,
+  EVerificationOutcome,
+  type EvalCase,
+} from '../case'
 import { ECandidateMethod, type Candidate } from './candidates'
 import { identifier } from './inventory'
 
@@ -40,13 +45,10 @@ export const labelVerificationSchema: z.ZodType<LabelVerification> = z.object({
   note: z.string().optional(),
 })
 
-export function decodeJsonlLines<T>({
-  text,
-  schema,
-}: {
-  text: string
-  schema: z.ZodType<T>
-}): { values: readonly T[]; errors: readonly { line: number; reason: string }[] } {
+export function decodeJsonlLines<T>({ text, schema }: { text: string; schema: z.ZodType<T> }): {
+  values: readonly T[]
+  errors: readonly { line: number; reason: string }[]
+} {
   const values: T[] = []
   const errors: { line: number; reason: string }[] = []
   for (const [index, line] of text.split('\n').entries()) {
@@ -60,7 +62,12 @@ export function decodeJsonlLines<T>({
     }
     const decoded = schema.safeParse(parsed)
     if (!decoded.success) {
-      errors.push({ line: index + 1, reason: decoded.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ') })
+      errors.push({
+        line: index + 1,
+        reason: decoded.error.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; '),
+      })
       continue
     }
     values.push(decoded.data)
@@ -70,10 +77,17 @@ export function decodeJsonlLines<T>({
 
 type Resolution = { expected: unknown } | { reason: string }
 
-function resolveExpected({ draft, verification }: { draft: LabelDraft; verification: LabelVerification }): Resolution {
+function resolveExpected({
+  draft,
+  verification,
+}: {
+  draft: LabelDraft
+  verification: LabelVerification
+}): Resolution {
   if (verification.outcome === EVerificationOutcome.Ambiguous) return { reason: 'marked ambiguous' }
   if (verification.outcome === EVerificationOutcome.Confirmed) return { expected: draft.expected }
-  if (verification.correctedExpected === undefined) return { reason: 'corrected without correctedExpected' }
+  if (verification.correctedExpected === undefined)
+    return { reason: 'corrected without correctedExpected' }
   return { expected: verification.correctedExpected }
 }
 
@@ -121,7 +135,11 @@ function buildCase({
   }
 }
 
-function indexUnique<T extends { candidateId: string }>({ items }: { items: readonly T[] }): {
+function indexUnique<T extends { candidateId: string }>({
+  items,
+}: {
+  items: readonly T[]
+}): {
   byId: Map<string, T>
   duplicated: Set<string>
 } {
@@ -152,12 +170,16 @@ export function buildGoldenCases({
   validateLabel?: ((args: { expected: unknown; input: unknown }) => string | null) | undefined
 }): { cases: readonly EvalCase[]; refused: readonly LabelRefusal[] } {
   const { byId: draftById, duplicated: duplicateDrafts } = indexUnique({ items: drafts })
-  const { byId: verificationById, duplicated: duplicateVerifications } = indexUnique({ items: verifications })
+  const { byId: verificationById, duplicated: duplicateVerifications } = indexUnique({
+    items: verifications,
+  })
   const candidateIds = new Set(candidates.map((candidate) => candidate.candidateId))
   const cases: EvalCase[] = []
   const refused: LabelRefusal[] = []
 
-  for (const candidate of [...candidates].sort((a, b) => a.candidateId.localeCompare(b.candidateId))) {
+  for (const candidate of [...candidates].sort((a, b) =>
+    a.candidateId.localeCompare(b.candidateId),
+  )) {
     const { candidateId } = candidate
     const refuse = (reason: string): void => {
       refused.push({ candidateId, reason })
@@ -199,11 +221,16 @@ export function buildGoldenCases({
       refuse(labelProblem)
       continue
     }
-    cases.push(buildCase({ featureId, candidate, input, expected: resolution.expected, verification }))
+    cases.push(
+      buildCase({ featureId, candidate, input, expected: resolution.expected, verification }),
+    )
   }
 
-  for (const candidateId of new Set(verifications.map((verification) => verification.candidateId))) {
-    if (!candidateIds.has(candidateId)) refused.push({ candidateId, reason: 'verification names an unknown candidate' })
+  for (const candidateId of new Set(
+    verifications.map((verification) => verification.candidateId),
+  )) {
+    if (!candidateIds.has(candidateId))
+      refused.push({ candidateId, reason: 'verification names an unknown candidate' })
   }
 
   cases.sort((a, b) => a.id.localeCompare(b.id))

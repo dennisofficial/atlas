@@ -70,13 +70,17 @@ export async function lockedRuntimePackages({
   function visit({ name, parentKey }: { name: string; parentKey: string }): void {
     const key = resolveLockKey({ packages, name, parentKey })
     const candidate = packages[key]
-    if (!candidate) throw new Error(`Runtime dependency ${JSON.stringify(name)} is missing from ${lockPath}`)
+    if (!candidate)
+      throw new Error(`Runtime dependency ${JSON.stringify(name)} is missing from ${lockPath}`)
     if (selected[key]) return
     selected[key] = candidate
 
     const [id, , manifest] = lockedPackageSchema.parse(candidate)
     if (!parentKey) dependencies[name] = exactVersionSchema.parse(id.slice(id.lastIndexOf('@') + 1))
-    for (const dependency of Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies })) {
+    for (const dependency of Object.keys({
+      ...manifest.dependencies,
+      ...manifest.optionalDependencies,
+    })) {
       visit({ name: dependency, parentKey: key })
     }
   }

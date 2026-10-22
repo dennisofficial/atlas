@@ -4,7 +4,13 @@ import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import { testRender } from '@opentui/react/test-utils'
 import React, { useState } from 'react'
 
-import { EAuthor, EEntryKind, EPendingKind, type PendingRow, type TranscriptEntry } from '../src/store'
+import {
+  EAuthor,
+  EEntryKind,
+  EPendingKind,
+  type PendingRow,
+  type TranscriptEntry,
+} from '../src/store'
 import { PendingBlock } from '../src/ui/components/blocks/pending-block'
 import { EntryView } from '../src/ui/components/entry-view'
 import { frameToHtml } from '../src/ui/frame-html'
@@ -94,9 +100,15 @@ function Scene(props: {
         onToggle={props.onToggle}
       />
       <EntryView
-        entry={{ kind: EEntryKind.AgentEnded, author: EAuthor.Model, key: 'teammate',
-          text: 'Teammate "Inspect serve" finished', agentId: 'peer',
-          report: 'Done. My report was delivered earlier.', failed: false }}
+        entry={{
+          kind: EEntryKind.AgentEnded,
+          author: EAuthor.Model,
+          key: 'teammate',
+          text: 'Teammate "Inspect serve" finished',
+          agentId: 'peer',
+          report: 'Done. My report was delivered earlier.',
+          failed: false,
+        }}
         width={WIDTH}
       />
       <box flexDirection="row" marginTop={1} marginBottom={1}>
@@ -129,7 +141,9 @@ function ProbeApp(): React.ReactNode {
   return (
     <box flexDirection="column" width="100%" height="100%">
       <Scene opened={opened} onToggle={(key) => setOpened((held) => new Set(held).add(key))} />
-      <text fg={theme.dim}>{'enter opens/closes the durable shell row · q quit · queued rows answer to nothing'}</text>
+      <text fg={theme.dim}>
+        {'enter opens/closes the durable shell row · q quit · queued rows answer to nothing'}
+      </text>
     </box>
   )
 }

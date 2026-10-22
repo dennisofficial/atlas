@@ -105,10 +105,7 @@ describe('folding adjacent thoughts', () => {
 
   it('drops empty thoughts out of the seam rather than opening the block on a blank line', () => {
     const folded = foldThoughts({
-      entries: [
-        thought({ key: 'a', text: '' }),
-        thought({ key: 'b', text: 'second' }),
-      ],
+      entries: [thought({ key: 'a', text: '' }), thought({ key: 'b', text: 'second' })],
       visibility: EThinkingVisibility.Keep,
     })
 
@@ -217,9 +214,7 @@ describe('standing tool groups above the thought they came out of', () => {
   it('sinks a thought below the group that opened under it', () => {
     const tools = toolsRan()
 
-    expect(
-      shape(toolsAboveThoughts([thought({ key: 'a', text: 'weighing it' }), tools])),
-    ).toEqual([
+    expect(shape(toolsAboveThoughts([thought({ key: 'a', text: 'weighing it' }), tools]))).toEqual([
       [tools.kind, tools.key, tools.text],
       [EEntryKind.ModelThought, 'a', 'weighing it'],
     ])
@@ -264,7 +259,9 @@ describe('standing tool groups above the thought they came out of', () => {
   it('leaves what the model said above the tools it then ran', () => {
     const tools = toolsRan()
 
-    expect(shape(toolsAboveThoughts([said({ key: 'answer', text: 'let me check' }), tools]))).toEqual([
+    expect(
+      shape(toolsAboveThoughts([said({ key: 'answer', text: 'let me check' }), tools])),
+    ).toEqual([
       [EEntryKind.ModelSaid, 'answer', 'let me check'],
       [tools.kind, tools.key, tools.text],
     ])

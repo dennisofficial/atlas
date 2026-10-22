@@ -107,7 +107,10 @@ describe('personal settings and secrets HTTP surface', () => {
   })
 
   it('PATCH requires a session', async () => {
-    await http().patch('/v1/settings').send({ values: { 'legacy.key': 'x' } }).expect(401)
+    await http()
+      .patch('/v1/settings')
+      .send({ values: { 'legacy.key': 'x' } })
+      .expect(401)
   })
 
   it('stores a secret kind and keeps GET /v1/secrets free of it', async () => {

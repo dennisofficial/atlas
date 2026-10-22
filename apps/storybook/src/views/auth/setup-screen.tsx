@@ -1,28 +1,28 @@
-import { ArrowRight, Check, Copy, ExternalLink } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ArrowRight, Check, Copy, ExternalLink } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { FieldGroup } from "@dltech/atlas-ui/components/field";
-import { cn } from "@dltech/atlas-ui/lib/utils";
-import { BrandMark, EBrand } from "@dltech/atlas-ui/components/brand-mark";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { FieldGroup } from '@dltech/atlas-ui/components/field'
+import { cn } from '@dltech/atlas-ui/lib/utils'
+import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
-import { AUTH_LOGIN_COMMAND, AUTH_INSTALL_COMMAND } from "../../fixtures/auth";
-import { AuthField } from "./auth-field";
-import { CONTROL_CLASS, SubmitButton } from "./auth-controls";
-import { AuthHeading } from "./auth-heading";
-import { EAuthScreen, EHomeState, ESetupState, type ScreenProps } from "./auth-route";
-import { slugify, useDelayed } from "./use-demo";
+import { AUTH_LOGIN_COMMAND, AUTH_INSTALL_COMMAND } from '../../fixtures/auth'
+import { AuthField } from './auth-field'
+import { CONTROL_CLASS, SubmitButton } from './auth-controls'
+import { AuthHeading } from './auth-heading'
+import { EAuthScreen, EHomeState, ESetupState, type ScreenProps } from './auth-route'
+import { slugify, useDelayed } from './use-demo'
 
-export const SETUP_STEPS = ["Account", "Workspace", "Ready"] as const;
+export const SETUP_STEPS = ['Account', 'Workspace', 'Ready'] as const
 
 function CopyRow({ label, command }: { label: string; command: string }) {
-  const [copied, setCopied] = useState(false);
-  const later = useDelayed();
+  const [copied, setCopied] = useState(false)
+  const later = useDelayed()
 
   const handleCopy = () => {
-    setCopied(true);
-    later(() => setCopied(false), 1600);
-  };
+    setCopied(true)
+    later(() => setCopied(false), 1600)
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -32,17 +32,12 @@ function CopyRow({ label, command }: { label: string; command: string }) {
           <span className="text-muted-foreground select-none">$ </span>
           {command}
         </code>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Copy ${label}`}
-          onClick={handleCopy}
-        >
+        <Button variant="ghost" size="icon-sm" aria-label={`Copy ${label}`} onClick={handleCopy}>
           {copied ? <Check className="text-success" /> : <Copy />}
         </Button>
       </div>
     </div>
-  );
+  )
 }
 
 function NextAction({
@@ -51,10 +46,10 @@ function NextAction({
   description,
   action,
 }: {
-  brand: EBrand;
-  title: string;
-  description: string;
-  action: string;
+  brand: EBrand
+  title: string
+  description: string
+  action: string
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border p-3">
@@ -67,27 +62,26 @@ function NextAction({
         {action}
       </Button>
     </div>
-  );
+  )
 }
 
 export function SetupScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Setup>) {
-  const [state, setState] = useState(route.state ?? ESetupState.Workspace);
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const later = useDelayed();
-  const slug = slugify(name);
+  const [state, setState] = useState(route.state ?? ESetupState.Workspace)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const later = useDelayed()
+  const slug = slugify(name)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setBusy(true);
+    event.preventDefault()
+    setBusy(true)
     later(() => {
-      setBusy(false);
-      setState(ESetupState.Done);
-    });
-  };
+      setBusy(false)
+      setState(ESetupState.Done)
+    })
+  }
 
-  const handleOpen = () =>
-    onNavigate?.({ screen: EAuthScreen.Home, state: EHomeState.SignedIn });
+  const handleOpen = () => onNavigate?.({ screen: EAuthScreen.Home, state: EHomeState.SignedIn })
 
   if (state === ESetupState.Done) {
     return (
@@ -106,12 +100,12 @@ export function SetupScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Setup
           <CopyRow label="Install the terminal app" command={AUTH_INSTALL_COMMAND} />
           <CopyRow label="Then sign in from your terminal" command={AUTH_LOGIN_COMMAND} />
         </div>
-        <Button className={cn(CONTROL_CLASS, "w-full")} onClick={handleOpen}>
+        <Button className={cn(CONTROL_CLASS, 'w-full')} onClick={handleOpen}>
           Open Atlas Cloud
           <ExternalLink data-icon="inline-end" />
         </Button>
       </div>
-    );
+    )
   }
 
   return (
@@ -132,7 +126,7 @@ export function SetupScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Setup
             autoFocus
             description={
               <span className="font-mono text-xs">
-                atlas.byatlas.io/<span className="text-foreground">{slug || "your-workspace"}</span>
+                atlas.byatlas.io/<span className="text-foreground">{slug || 'your-workspace'}</span>
               </span>
             }
           />
@@ -143,5 +137,5 @@ export function SetupScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Setup
         </FieldGroup>
       </form>
     </div>
-  );
+  )
 }

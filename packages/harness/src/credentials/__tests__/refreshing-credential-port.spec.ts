@@ -51,9 +51,7 @@ const unreachable = (): ScriptedRefresh =>
 let clock = movableClock()
 let vault: Vault
 
-const portWith = (args: {
-  client: ScriptedRefresh
-}) =>
+const portWith = (args: { client: ScriptedRefresh }) =>
   new RefreshingCredentialPort({
     accounts: vault.store,
     clients: { [EAuthProvider.Anthropic]: args.client },

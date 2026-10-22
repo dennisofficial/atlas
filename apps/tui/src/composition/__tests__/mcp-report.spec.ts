@@ -1,19 +1,10 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
-import {
-  EMcpServerStatus,
-  type LoadedMcpSpec,
-  type McpServerStatus,
-} from '@dltech/atlas-harness'
+import { EMcpServerStatus, type LoadedMcpSpec, type McpServerStatus } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch } from '../commands/dispatch'
 import { localCommands } from '../commands/registry'
-import {
-  mcpBootNotice,
-  mcpLayerOf,
-  mcpReport,
-  NO_MCP_SERVERS,
-} from '@dltech/atlas-harness'
+import { mcpBootNotice, mcpLayerOf, mcpReport, NO_MCP_SERVERS } from '@dltech/atlas-harness'
 import { handlers } from '../commands/__tests__/local-handlers'
 
 const server = (args: {
@@ -140,7 +131,9 @@ describe('the mcp command', () => {
   it('carries a summary /help can read out', () => {
     const mcp = localCommands(handlers()).find((one) => one.name === 'mcp')
 
-    expect(mcp?.summary).toBe('inspect the MCP servers this workspace is configured with, or sign one in')
+    expect(mcp?.summary).toBe(
+      'inspect the MCP servers this workspace is configured with, or sign one in',
+    )
   })
 })
 

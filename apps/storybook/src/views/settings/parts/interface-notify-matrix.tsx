@@ -1,30 +1,39 @@
-import { Checkbox } from "@dltech/atlas-ui/components/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@dltech/atlas-ui/components/table";
+import { Checkbox } from '@dltech/atlas-ui/components/checkbox'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@dltech/atlas-ui/components/table'
 
 import {
   ENotifyChannel,
   NOTIFY_EVENTS,
   type NotifyMatrix,
-} from "../../../fixtures/settings-interface";
+} from '../../../fixtures/settings-interface'
 
 const COLUMNS = [
-  { channel: ENotifyChannel.InApp, label: "In-app" },
-  { channel: ENotifyChannel.Push, label: "Push" },
-  { channel: ENotifyChannel.Email, label: "Email" },
-];
+  { channel: ENotifyChannel.InApp, label: 'In-app' },
+  { channel: ENotifyChannel.Push, label: 'Push' },
+  { channel: ENotifyChannel.Email, label: 'Email' },
+]
 
 export function NotifyMatrixTable({
   matrix,
   onToggle,
 }: {
-  matrix: NotifyMatrix;
-  onToggle: (params: { eventId: string; channel: ENotifyChannel; checked: boolean }) => void;
+  matrix: NotifyMatrix
+  onToggle: (params: { eventId: string; channel: ENotifyChannel; checked: boolean }) => void
 }) {
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="h-9 px-4 text-xs font-normal text-muted-foreground">Event</TableHead>
+          <TableHead className="h-9 px-4 text-xs font-normal text-muted-foreground">
+            Event
+          </TableHead>
           {COLUMNS.map((column) => (
             <TableHead
               key={column.channel}
@@ -61,5 +70,5 @@ export function NotifyMatrixTable({
         ))}
       </TableBody>
     </Table>
-  );
+  )
 }

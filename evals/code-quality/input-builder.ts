@@ -1,6 +1,9 @@
 import { EQualityScopeKind, type QualityScope } from '@dltech/atlas-core'
 
-import { QUALITY_SOURCE_ADAPTER_VERSION, hashScopeText } from '../../packages/harness/src/quality/source/typescript-parser'
+import {
+  QUALITY_SOURCE_ADAPTER_VERSION,
+  hashScopeText,
+} from '../../packages/harness/src/quality/source/typescript-parser'
 import { renderScopeDiff } from '../../packages/harness/src/quality/source/scope-diff'
 import type { Candidate } from '../src/curation/candidates'
 import { sha256Hex } from '../src/hash'
@@ -13,7 +16,8 @@ export class ScopeSnapshotError extends Error {
   }
 }
 
-const digestOrNull = (text: string | null): string | null => (text === null ? null : sha256Hex({ text }))
+const digestOrNull = (text: string | null): string | null =>
+  text === null ? null : sha256Hex({ text })
 
 function assertConsistent({ candidate }: { candidate: Candidate }): void {
   const { snapshot, candidateId } = candidate
@@ -22,17 +26,26 @@ function assertConsistent({ candidate }: { candidate: Candidate }): void {
     throw new ScopeSnapshotError(`candidate ${candidateId}: ${detail}`)
   }
   if (snapshot.adapterVersion !== QUALITY_SOURCE_ADAPTER_VERSION) {
-    fail(`adapter ${snapshot.adapterVersion} is not the current source adapter ${QUALITY_SOURCE_ADAPTER_VERSION}`)
+    fail(
+      `adapter ${snapshot.adapterVersion} is not the current source adapter ${QUALITY_SOURCE_ADAPTER_VERSION}`,
+    )
   }
   if (scope.before === null && scope.after === null) fail('scope has neither before nor after text')
-  if (digestOrNull(scope.before) !== digests.beforeSha256) fail('before text does not match its recorded digest')
-  if (digestOrNull(scope.after) !== digests.afterSha256) fail('after text does not match its recorded digest')
-  if (renderScopeDiff({ path: snapshot.path, before: scope.before, after: scope.after }) !== scope.diff) {
+  if (digestOrNull(scope.before) !== digests.beforeSha256)
+    fail('before text does not match its recorded digest')
+  if (digestOrNull(scope.after) !== digests.afterSha256)
+    fail('after text does not match its recorded digest')
+  if (
+    renderScopeDiff({ path: snapshot.path, before: scope.before, after: scope.after }) !==
+    scope.diff
+  ) {
     fail('diff does not match before and after text')
   }
   const evidenceIds = scope.evidence.map((entry) => entry.id)
-  if (new Set(evidenceIds).size !== evidenceIds.length) fail('evidence ids are ambiguous after redaction')
-  if (scope.kind === EQualityScopeKind.Module && scope.parentScopeId !== null) fail('module scope names a parent')
+  if (new Set(evidenceIds).size !== evidenceIds.length)
+    fail('evidence ids are ambiguous after redaction')
+  if (scope.kind === EQualityScopeKind.Module && scope.parentScopeId !== null)
+    fail('module scope names a parent')
 }
 
 export function scopeFromCandidate({ candidate }: { candidate: Candidate }): QualityScope {

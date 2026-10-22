@@ -4,7 +4,16 @@ import { join } from 'node:path'
 
 import { createUserLayerSync } from '../factory'
 
-import { FakeUserFilesServer, hashOf, makeDevice, namesIn, readAt, waitFor, writeAt, type Device } from './fixture'
+import {
+  FakeUserFilesServer,
+  hashOf,
+  makeDevice,
+  namesIn,
+  readAt,
+  waitFor,
+  writeAt,
+  type Device,
+} from './fixture'
 
 const devices: Device[] = []
 const track = async (args: Parameters<typeof makeDevice>[0]): Promise<Device> => {
@@ -24,7 +33,10 @@ describe('two-device convergence', () => {
     const b = await track({ server, name: 'b' })
 
     await writeAt({ path: join(a.atlasHome, 'skills', 'review', 'SKILL.md'), content: '# review' })
-    await writeAt({ path: join(a.home, '.agents', 'skills', 'explore', 'SKILL.md'), content: '# explore' })
+    await writeAt({
+      path: join(a.home, '.agents', 'skills', 'explore', 'SKILL.md'),
+      content: '# explore',
+    })
     await writeAt({ path: join(a.atlasHome, 'ATLAS.md'), content: '# global' })
     await writeAt({ path: join(a.atlasHome, 'skills', 'topic.md'), content: '# topic' })
     await a.engine.start()
@@ -34,9 +46,14 @@ describe('two-device convergence', () => {
     expect(await readAt(join(b.home, '.agents', 'skills', 'explore', 'SKILL.md'))).toBe('# explore')
     expect(await readAt(join(b.atlasHome, 'ATLAS.md'))).toBe('# global')
     expect(await readAt(join(b.atlasHome, 'skills', 'topic.md'))).toBe('# topic')
-    expect(server.row({ tree: 'skills', path: '.atlas/topic.md' })?.contentHash).toBe(hashOf('# topic'))
+    expect(server.row({ tree: 'skills', path: '.atlas/topic.md' })?.contentHash).toBe(
+      hashOf('# topic'),
+    )
 
-    await writeAt({ path: join(b.atlasHome, 'skills', 'topic.md'), content: '# topic, edited on B' })
+    await writeAt({
+      path: join(b.atlasHome, 'skills', 'topic.md'),
+      content: '# topic, edited on B',
+    })
     await b.engine.reconcileNow()
     await a.engine.pullNow()
     expect(await readAt(join(a.atlasHome, 'skills', 'topic.md'))).toBe('# topic, edited on B')
@@ -68,7 +85,9 @@ describe('two-device convergence', () => {
     await waitFor(() => server.text({ tree: 'skills', path: '.atlas/live.md' }) === '# live')
 
     await rm(join(a.atlasHome, 'skills', 'live.md'))
-    await waitFor(() => server.row({ tree: 'skills', path: '.atlas/live.md' })?.tombstonedAt != null)
+    await waitFor(
+      () => server.row({ tree: 'skills', path: '.atlas/live.md' })?.tombstonedAt != null,
+    )
     expect(server.row({ tree: 'skills', path: '.atlas/live.md' })?.revision).toBe(2)
   })
 
@@ -79,7 +98,12 @@ describe('two-device convergence', () => {
     const first = await a.deviceId()
     a.engine.stop()
 
-    const again = createUserLayerSync({ atlasHome: a.atlasHome, home: a.home, client: a.client, log: a.log })
+    const again = createUserLayerSync({
+      atlasHome: a.atlasHome,
+      home: a.home,
+      client: a.client,
+      log: a.log,
+    })
     await again.pullNow()
     again.stop()
 

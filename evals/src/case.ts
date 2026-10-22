@@ -109,7 +109,9 @@ export function decodeCasesJsonl({ text }: { text: string }): DecodedCases {
     }
     const decoded = evalCaseSchema.safeParse(parsed)
     if (!decoded.success) {
-      const reason = decoded.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
+      const reason = decoded.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ')
       rejected.push({ line: index + 1, id: extractedId(parsed), reason })
       continue
     }
@@ -131,7 +133,11 @@ export function acceptedOnly({ cases }: { cases: readonly EvalCase[] }): Accepta
       accepted.push(evalCase)
       continue
     }
-    excluded.push({ line: index + 1, id: evalCase.id, reason: `review state is ${evalCase.review.state}` })
+    excluded.push({
+      line: index + 1,
+      id: evalCase.id,
+      reason: `review state is ${evalCase.review.state}`,
+    })
   }
   return { accepted, excluded }
 }

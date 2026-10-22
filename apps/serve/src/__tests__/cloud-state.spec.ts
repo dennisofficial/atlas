@@ -8,7 +8,14 @@ import { encodeSettingValue, loadSettings } from '@dltech/atlas-harness'
 
 import { EServeEvent } from '../serve-log'
 import { apiKeyAccount, oauthAccount, SERVE_TOKEN } from './cloud-state-fixture'
-import { accountStoreAt, apply, cleanupCloudState, cloudWith, secretsAt, tempHome } from './cloud-state-harness'
+import {
+  accountStoreAt,
+  apply,
+  cleanupCloudState,
+  cloudWith,
+  secretsAt,
+  tempHome,
+} from './cloud-state-harness'
 
 afterEach(cleanupCloudState)
 
@@ -48,21 +55,27 @@ describe('applyCloudState', () => {
     process.env.ATLAS_HOME = home
     try {
       const settings = loadSettings({ env: {}, cwd: home })
-      expect(settings.service.snapshot().resolution.settings.get(ESettingId.SidebarWidth)?.value).toBe(42)
+      expect(
+        settings.service.snapshot().resolution.settings.get(ESettingId.SidebarWidth)?.value,
+      ).toBe(42)
       settings.service.close()
     } finally {
       if (previous === undefined) delete process.env.ATLAS_HOME
       else process.env.ATLAS_HOME = previous
     }
 
-    expect(lines).toEqual([{ event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 }])
+    expect(lines).toEqual([
+      { event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 },
+    ])
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
       '/v1/account-lease',
       '/v1/sandboxes/self/config',
       '/v1/secrets',
       '/v1/settings',
     ])
-    expect(cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`)).toBe(true)
+    expect(
+      cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`),
+    ).toBe(true)
   })
 
   it('writes the three files owner-only and never logs a value', async () => {
@@ -70,7 +83,12 @@ describe('applyCloudState', () => {
     const cloud = cloudWith({
       lease: {
         accounts: [
-          apiKeyAccount({ id: 'acc_or', provider: EAuthProvider.OpenRouter, apiKey: 'sk-or-secret', label: 'OR' }),
+          apiKeyAccount({
+            id: 'acc_or',
+            provider: EAuthProvider.OpenRouter,
+            apiKey: 'sk-or-secret',
+            label: 'OR',
+          }),
         ],
         active: [],
       },
@@ -94,7 +112,14 @@ describe('applyCloudState', () => {
       home,
       cloud: cloudWith({
         lease: {
-          accounts: [apiKeyAccount({ id: 'acc_old', provider: EAuthProvider.OpenRouter, apiKey: 'sk-old', label: 'Old' })],
+          accounts: [
+            apiKeyAccount({
+              id: 'acc_old',
+              provider: EAuthProvider.OpenRouter,
+              apiKey: 'sk-old',
+              label: 'Old',
+            }),
+          ],
           active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_old' }],
         },
         settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
@@ -107,7 +132,14 @@ describe('applyCloudState', () => {
       home,
       cloud: cloudWith({
         lease: {
-          accounts: [apiKeyAccount({ id: 'acc_new', provider: EAuthProvider.OpenRouter, apiKey: 'sk-new', label: 'New' })],
+          accounts: [
+            apiKeyAccount({
+              id: 'acc_new',
+              provider: EAuthProvider.OpenRouter,
+              apiKey: 'sk-new',
+              label: 'New',
+            }),
+          ],
           active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_new' }],
         },
       }),
@@ -145,8 +177,21 @@ describe('applyCloudState', () => {
     const cloud = cloudWith({
       lease: {
         accounts: [
-          apiKeyAccount({ id: 'acc_or', provider: EAuthProvider.OpenRouter, apiKey: 'sk-or', label: 'OR' }),
-          { ...apiKeyAccount({ id: 'acc_future', provider: EAuthProvider.OpenRouter, apiKey: 'k', label: 'F' }), provider: 'future-provider' },
+          apiKeyAccount({
+            id: 'acc_or',
+            provider: EAuthProvider.OpenRouter,
+            apiKey: 'sk-or',
+            label: 'OR',
+          }),
+          {
+            ...apiKeyAccount({
+              id: 'acc_future',
+              provider: EAuthProvider.OpenRouter,
+              apiKey: 'k',
+              label: 'F',
+            }),
+            provider: 'future-provider',
+          },
           { id: 'acc_broken' },
         ],
         active: [
@@ -200,7 +245,6 @@ describe('applyCloudState', () => {
     expect(sleeps.every((ms) => ms === 2_000)).toBe(true)
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.CloudStateReady])
   })
-
 
   it('stages nothing under the bootstrap directory', async () => {
     const home = tempHome()

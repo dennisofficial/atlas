@@ -24,7 +24,6 @@ const ATTRIBUTION_HEADERS = {
   'X-Title': 'Atlas',
 }
 
-
 export class OpenRouterAdapter extends ProviderAdapter {
   readonly id = OPENROUTER_PROVIDER_ID
   readonly label = 'OpenRouter'

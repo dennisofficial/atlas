@@ -36,7 +36,9 @@ describe('PodLeasesController', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -50,10 +52,18 @@ describe('PodLeasesController', () => {
   })
 
   it('registers the lease for the session user and answers 204', async () => {
-    const response = await http().put('/v1/pod-leases/brn_1').set(as('session-a')).send({ token: 'raw' }).expect(204)
+    const response = await http()
+      .put('/v1/pod-leases/brn_1')
+      .set(as('session-a'))
+      .send({ token: 'raw' })
+      .expect(204)
 
     expect(response.text).toBe('')
-    expect(leases.register).toHaveBeenCalledWith({ userId: 'user-a', threadId: 'brn_1', token: 'raw' })
+    expect(leases.register).toHaveBeenCalledWith({
+      userId: 'user-a',
+      threadId: 'brn_1',
+      token: 'raw',
+    })
   })
 
   it('validates the body', async () => {

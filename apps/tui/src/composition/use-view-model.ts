@@ -43,7 +43,13 @@ export function useViewModel(args: {
       const stored = thread?.model
       const parsed = stored === undefined ? undefined : parseRef(stored.ref)
       if (stored !== undefined && parsed !== undefined) {
-        setSelection(threadSelection({ stored, fallback: { ref: parsed, effort: app.model.choice().effort }, catalogue: app.models }))
+        setSelection(
+          threadSelection({
+            stored,
+            fallback: { ref: parsed, effort: app.model.choice().effort },
+            catalogue: app.models,
+          }),
+        )
         return
       }
       if (observedModel !== undefined) {
@@ -83,7 +89,8 @@ export function useViewModel(args: {
       const next: ModelSelection = { ref: choice.ref, effort: choice.effort }
       pendingPick.current = next
       setSelection(next)
-      void app.threads.chooseModel({ threadId, model: storedModel(next), retarget: true })
+      void app.threads
+        .chooseModel({ threadId, model: storedModel(next), retarget: true })
         .catch((error: unknown) => {
           setSelection(prior)
           notify({ text: error instanceof Error ? error.message : 'the model switch was refused' })

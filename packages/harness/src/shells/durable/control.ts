@@ -21,7 +21,11 @@ function failure({ code, message }: { code: EControlError; message: string }): C
   return { ok: false, code, message }
 }
 
-async function loadTarget({ directory }: { directory: string }): Promise<{ meta: ShellMeta; token: string } | ControlResult> {
+async function loadTarget({
+  directory,
+}: {
+  directory: string
+}): Promise<{ meta: ShellMeta; token: string } | ControlResult> {
   const meta = await readJsonFile({ path: join(directory, META_FILE), schema: metaSchema })
   if (!meta.ok) return failure({ code: EControlError.Unreachable, message: meta.reason })
   const token = await readTextFile({ path: join(directory, TOKEN_FILE) })
@@ -47,13 +51,17 @@ export async function sendControl({
     timeoutMs,
   })
   try {
-    const result = await requester.request({ request: request.type === 'probe' ? { type: 'heartbeat' } : request })
+    const result = await requester.request({
+      request: request.type === 'probe' ? { type: 'heartbeat' } : request,
+    })
     if (request.type !== 'probe') return result
     return {
       ok: true,
       probe: {
         supervisorAlive: await stampIsLive({ stamp: target.meta.supervisor }),
-        childAlive: isProcessAlive({ pid: target.meta.child.pid }) && await stampIsLive({ stamp: target.meta.child }),
+        childAlive:
+          isProcessAlive({ pid: target.meta.child.pid }) &&
+          (await stampIsLive({ stamp: target.meta.child })),
         reachable: result.ok,
       },
     }
@@ -63,7 +71,8 @@ export async function sendControl({
 }
 
 export function directTransport({ directory }: { directory: string }) {
-  return ({ request }: { request: ControlAction }): Promise<ControlResult> => sendControl({ directory, request })
+  return ({ request }: { request: ControlAction }): Promise<ControlResult> =>
+    sendControl({ directory, request })
 }
 
 export async function runControlCommand({ args }: { args: readonly string[] }): Promise<number> {

@@ -31,7 +31,10 @@ export async function createServeRotationRecovery(args: {
   if (state !== null && !args.sandboxSessionId?.trim()) {
     throw new Error('sandbox rotation recovery requires ATLAS_SANDBOX_SESSION_ID')
   }
-  type GuardedCheckpoint = Pick<RuntimeCheckpointBinding, 'current' | 'parkReopened' | 'consumeReceipt'>
+  type GuardedCheckpoint = Pick<
+    RuntimeCheckpointBinding,
+    'current' | 'parkReopened' | 'consumeReceipt'
+  >
   let guarded: { app: ServeApp; checkpoint: GuardedCheckpoint } | undefined
   let continuationStarted = false
   let consumption: Promise<void> | undefined
@@ -43,7 +46,10 @@ export async function createServeRotationRecovery(args: {
   let children: Awaited<ReturnType<typeof trackRotationChildren>> | undefined
   const resumeChildren = state?.resumeChildren?.map(toThreadId)
 
-  const consumeObligations = (given: { parent?: boolean; children?: readonly ThreadId[] }): Promise<void> => {
+  const consumeObligations = (given: {
+    parent?: boolean
+    children?: readonly ThreadId[]
+  }): Promise<void> => {
     if (state === null || preparingNextRotation) return Promise.resolve()
     const writing = (consumption ?? Promise.resolve()).then(async () => {
       if (guarded !== undefined) {
@@ -62,7 +68,10 @@ export async function createServeRotationRecovery(args: {
       if (given.parent === true) consumedParent = true
     })
     consumption = writing.catch((failure: unknown) => {
-      args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
+      args.log({
+        event: EServeEvent.CheckpointPersistFailed,
+        reason: failure instanceof Error ? failure.message : String(failure),
+      })
     })
     return writing
   }
@@ -74,7 +83,10 @@ export async function createServeRotationRecovery(args: {
     await given.app.family?.freeze?.({ threadId: args.threadId })
     if (children === undefined && (resumeChildren?.length ?? 0) > 0) {
       children = await trackRotationChildren({
-        app: given.app, root: args.threadId, children: resumeChildren ?? [], log: args.log,
+        app: given.app,
+        root: args.threadId,
+        children: resumeChildren ?? [],
+        log: args.log,
         consume: (completed) => consumeObligations({ children: completed }),
       })
     }
@@ -84,7 +96,10 @@ export async function createServeRotationRecovery(args: {
     if (guarded === undefined) return
     if (guarded.checkpoint.current() === null) {
       await guarded.checkpoint.parkReopened().catch((failure: unknown) => {
-        args.log({ event: EServeEvent.CheckpointPersistFailed, reason: failure instanceof Error ? failure.message : String(failure) })
+        args.log({
+          event: EServeEvent.CheckpointPersistFailed,
+          reason: failure instanceof Error ? failure.message : String(failure),
+        })
       })
     }
     if (guarded.checkpoint.current()?.phase === ERuntimePhase.Serving) admissionLatched = false
@@ -98,8 +113,18 @@ export async function createServeRotationRecovery(args: {
     guarded.app.intake?.resume()
   }
 
-  const continueParent = async (given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<void> => {
-    if (guarded === undefined || state === null || preparingNextRotation || !state.resumeParent || continuationStarted) return
+  const continueParent = async (given: {
+    session: RecoverySession
+    driver: ServeTurnDriver
+  }): Promise<void> => {
+    if (
+      guarded === undefined ||
+      state === null ||
+      preparingNextRotation ||
+      !state.resumeParent ||
+      continuationStarted
+    )
+      return
     const events = await guarded.app.log.readOwn({ threadId: args.threadId })
     if (preparingNextRotation || !isResumable(events)) return
     await reopenToServing()
@@ -116,7 +141,10 @@ export async function createServeRotationRecovery(args: {
     deferred: state !== null,
     resumeChildren,
     checkpointAllowed: true,
-    owed: { parent: state?.resumeParent ?? false, children: resumeChildren ?? [] as readonly ThreadId[] },
+    owed: {
+      parent: state?.resumeParent ?? false,
+      children: resumeChildren ?? ([] as readonly ThreadId[]),
+    },
     get admissionLatched() {
       return admissionLatched || preparingNextRotation
     },
@@ -128,18 +156,28 @@ export async function createServeRotationRecovery(args: {
         children?.changed()
         await continueParent(given)
         await release()
-      })().finally(() => { recovering = undefined })
+      })().finally(() => {
+        recovering = undefined
+      })
       return recovering
     },
-    activate(given: { session: RecoverySession; driver: ServeTurnDriver }): Promise<{ activated: boolean }> {
-      if (preparingNextRotation) return Promise.reject(new Error('this sandbox is still preparing rotation and accepts no new work'))
+    activate(given: {
+      session: RecoverySession
+      driver: ServeTurnDriver
+    }): Promise<{ activated: boolean }> {
+      if (preparingNextRotation)
+        return Promise.reject(
+          new Error('this sandbox is still preparing rotation and accepts no new work'),
+        )
       activating ??= (async () => {
         if (preparingNextRotation) return { activated: false }
         children?.changed()
         await continueParent(given)
         await discardIfConsumed()
         return { activated: true }
-      })().finally(() => { activating = undefined })
+      })().finally(() => {
+        activating = undefined
+      })
       return activating
     },
     async drain(given: { drain: ServeDrain; reason: string }): ReturnType<ServeDrain> {
@@ -168,10 +206,21 @@ export async function createServeRotationRecovery(args: {
       if (state === null || preparingNextRotation || !state.resumeParent || consumedParent) return
       if (frame.kind !== EServeFrame.TurnEnded) return
       const status = frame.outcome.status
-      if (status !== ETurnStatus.Completed && status !== ETurnStatus.Idle && status !== ETurnStatus.Paused && status !== ETurnStatus.Failed) return
-      void consumeObligations({ parent: true }).then(discardIfConsumed).catch(() => undefined)
+      if (
+        status !== ETurnStatus.Completed &&
+        status !== ETurnStatus.Idle &&
+        status !== ETurnStatus.Paused &&
+        status !== ETurnStatus.Failed
+      )
+        return
+      void consumeObligations({ parent: true })
+        .then(discardIfConsumed)
+        .catch(() => undefined)
     },
     detach: (): void => children?.detach(),
-    settled: async (): Promise<void> => { await children?.settled(); await consumption },
+    settled: async (): Promise<void> => {
+      await children?.settled()
+      await consumption
+    },
   }
 }

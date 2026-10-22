@@ -12,7 +12,10 @@ describe('renderMemoryIndex', () => {
   it('groups global and project entries under their own headings', () => {
     const text = renderMemoryIndex({
       global: [{ name: 'prefers-bun', description: 'Uses bun everywhere' }],
-      project: { key: 'org/repo', entries: [{ name: 'deploy-flow', description: 'How deploys run' }] },
+      project: {
+        key: 'org/repo',
+        entries: [{ name: 'deploy-flow', description: 'How deploys run' }],
+      },
     })
 
     expect(text).toBe(
@@ -38,7 +41,9 @@ describe('renderMemoryIndex', () => {
   it('prints (none yet) for an empty scope', () => {
     const text = renderMemoryIndex({ global: [], project: { key: 'org/repo', entries: [] } })
 
-    expect(text).toBe(['### Global', '(none yet)', '', '### Project org/repo', '(none yet)'].join('\n'))
+    expect(text).toBe(
+      ['### Global', '(none yet)', '', '### Project org/repo', '(none yet)'].join('\n'),
+    )
   })
 
   it('omits the project section when the session has no project', () => {
@@ -69,9 +74,11 @@ describe('renderMemoryIndex', () => {
     expect(text).toContain('- g-149 — claim 149')
     expect(text).toContain('- p-49 — claim 49')
     expect(text).not.toContain('- p-50 ')
-    expect(text.endsWith(
-      '> 30 more memories are not listed. Consolidate: merge overlapping memories and delete dead ones.',
-    )).toBe(true)
+    expect(
+      text.endsWith(
+        '> 30 more memories are not listed. Consolidate: merge overlapping memories and delete dead ones.',
+      ),
+    ).toBe(true)
   })
 
   it('drops all project lines when global alone fills the cap', () => {

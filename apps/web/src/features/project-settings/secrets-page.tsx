@@ -191,7 +191,12 @@ function SecretsEmpty() {
   )
 }
 
-function SecretsContent({ rows, inherited, onSave, onRemove }: {
+function SecretsContent({
+  rows,
+  inherited,
+  onSave,
+  onRemove,
+}: {
   rows: readonly SecretRow[]
   inherited: InheritedView
   onSave: (pairs: readonly SecretPair[]) => Promise<boolean>
@@ -246,7 +251,10 @@ export function SecretsPage() {
           await own.save({ name: pair.name, value: pair.value, kind: ESecretKind.Secret })
         }
       },
-      success: pairs.length === 1 ? `Saved ${pairs[0]?.name ?? 'secret'}` : `Saved ${pairs.length} secrets`,
+      success:
+        pairs.length === 1
+          ? `Saved ${pairs[0]?.name ?? 'secret'}`
+          : `Saved ${pairs.length} secrets`,
     })
   const handleRemove = (name: string) => {
     void runAction({ work: () => own.remove(name), success: `Deleted ${name}` })
@@ -258,8 +266,8 @@ export function SecretsPage() {
       description={
         <>
           Order of precedence: default, then workspace, then personal, then project. The project
-          value wins. Workspace values shown here are a preview of what will merge; sessions don&apos;t
-          load project or workspace values yet.
+          value wins. Workspace values shown here are a preview of what will merge; sessions
+          don&apos;t load project or workspace values yet.
         </>
       }
     >

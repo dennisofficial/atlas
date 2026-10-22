@@ -27,10 +27,7 @@ const EMPTY_REMOTE_PENDING: readonly RemotePendingEntry[] = Object.freeze([])
  */
 export function usePlacementMoving(args: { app: AtlasApp; threadId: ThreadId }): boolean {
   const { app, threadId } = args
-  return useSyncExternalStore(
-    app.executionLocation.subscribe,
-    () => false,
-  )
+  return useSyncExternalStore(app.executionLocation.subscribe, () => false)
 }
 
 /**
@@ -55,12 +52,22 @@ export function useRemotePending(args: {
     (listener: () => void) => channel?.onPendingChanged(listener) ?? (() => undefined),
     [channel],
   )
-  const remote = useSyncExternalStore(subscribe, () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING)
+  const remote = useSyncExternalStore(
+    subscribe,
+    () => channel?.pendingEntries() ?? EMPTY_REMOTE_PENDING,
+  )
 
   return useMemo(() => {
     const held = heldForWake.flatMap((entry): readonly RemotePendingEntry[] =>
       entry.kind === 'message'
-        ? [{ id: entry.id, text: entry.text, reserved: false, ...(entry.via === undefined ? {} : { via: entry.via }) }]
+        ? [
+            {
+              id: entry.id,
+              text: entry.text,
+              reserved: false,
+              ...(entry.via === undefined ? {} : { via: entry.via }),
+            },
+          ]
         : [],
     )
     return { channel, entries: held.length === 0 ? remote : [...remote, ...held] }
@@ -207,18 +214,37 @@ export function useSendMessage(args: {
       }
 
       drive(
-        [...(send.context ?? []), ...[...drained, { text, images, files, requestId }].map(userSaidDraft)],
+        [
+          ...(send.context ?? []),
+          ...[...drained, { text, images, files, requestId }].map(userSaidDraft),
+        ],
         { onCommitFailed },
       )
     },
-    [app.intake, cloudRunner, cloudView, drive, moving, pending, sending, setFailure, threadId, wakeCloud, working],
+    [
+      app.intake,
+      cloudRunner,
+      cloudView,
+      drive,
+      moving,
+      pending,
+      sending,
+      setFailure,
+      threadId,
+      wakeCloud,
+      working,
+    ],
   )
 }
 
-const saidDrafts = (said: PendingSaid): readonly EventDraft[] => [...(said.context ?? []), userSaidDraft(said)]
+const saidDrafts = (said: PendingSaid): readonly EventDraft[] => [
+  ...(said.context ?? []),
+  userSaidDraft(said),
+]
 
-const queuedMessageCount = (queue: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>): number =>
-  queue.filter((entry) => entry.kind === 'message').length
+const queuedMessageCount = (
+  queue: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>,
+): number => queue.filter((entry) => entry.kind === 'message').length
 
 function useCloudWakeDrain(args: {
   threadId: ThreadId

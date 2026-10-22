@@ -124,7 +124,10 @@ export function seedCloudSandbox(row: FakeCloudSandboxRow): void {
     sealedToken: null,
     ...row,
   }
-  cloudSandboxes = [...cloudSandboxes.filter((held) => held.threadId !== row.threadId), withDefaults]
+  cloudSandboxes = [
+    ...cloudSandboxes.filter((held) => held.threadId !== row.threadId),
+    withDefaults,
+  ]
 }
 
 function createFakeGithubDb() {
@@ -156,7 +159,9 @@ function createFakeGithubDb() {
 
   const db = {
     githubWebhookEvent: {
-      create: async (args: { data: Omit<FakeWebhookEventRow, 'receivedAt'> & { receivedAt?: Date } }) => {
+      create: async (args: {
+        data: Omit<FakeWebhookEventRow, 'receivedAt'> & { receivedAt?: Date }
+      }) => {
         if (events.some((row) => row.id === args.data.id)) throw uniqueViolation(['id'])
         const row: FakeWebhookEventRow = { receivedAt: new Date(), ...args.data }
         events.push(row)
@@ -176,9 +181,8 @@ function createFakeGithubDb() {
       }) => {
         const { repoFullName, number } = args.where.repoFullName_number
         return (
-          pullRequests.find(
-            (row) => row.repoFullName === repoFullName && row.number === number,
-          ) ?? null
+          pullRequests.find((row) => row.repoFullName === repoFullName && row.number === number) ??
+          null
         )
       },
       upsert: async (args: {

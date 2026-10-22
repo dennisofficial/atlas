@@ -7,18 +7,67 @@ import { EPickerOutcome, type PickerOutcome } from '../push-picker-model'
 import { PushPicker } from '../push-picker'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 
-const row = (args: { id: string; kind: EPublishKind; label: string; bytes: number; status: EPublishStatus; selected: boolean }): PlanRow => ({
-  item: { id: args.id, kind: args.kind, label: args.label, files: [], bytes: args.bytes, hash: args.id },
+const row = (args: {
+  id: string
+  kind: EPublishKind
+  label: string
+  bytes: number
+  status: EPublishStatus
+  selected: boolean
+}): PlanRow => ({
+  item: {
+    id: args.id,
+    kind: args.kind,
+    label: args.label,
+    files: [],
+    bytes: args.bytes,
+    hash: args.id,
+  },
   status: args.status,
   selected: args.selected,
 })
 
 const ROWS: readonly PlanRow[] = [
-  row({ id: 'skill:.agents/alpha', kind: EPublishKind.Skill, label: '.agents/alpha', bytes: 120_000, status: EPublishStatus.New, selected: true }),
-  row({ id: 'skill:.agents/beta', kind: EPublishKind.Skill, label: '.agents/beta', bytes: 2_400_000, status: EPublishStatus.Changed, selected: false }),
-  row({ id: 'skill:.claude/gamma', kind: EPublishKind.Skill, label: '.claude/gamma', bytes: 900, status: EPublishStatus.Unchanged, selected: true }),
-  row({ id: 'instructions:ATLAS.md', kind: EPublishKind.Instructions, label: 'ATLAS.md', bytes: 3_100, status: EPublishStatus.Changed, selected: true }),
-  row({ id: 'mcp', kind: EPublishKind.Mcp, label: 'mcp.json', bytes: 400, status: EPublishStatus.Unchanged, selected: false }),
+  row({
+    id: 'skill:.agents/alpha',
+    kind: EPublishKind.Skill,
+    label: '.agents/alpha',
+    bytes: 120_000,
+    status: EPublishStatus.New,
+    selected: true,
+  }),
+  row({
+    id: 'skill:.agents/beta',
+    kind: EPublishKind.Skill,
+    label: '.agents/beta',
+    bytes: 2_400_000,
+    status: EPublishStatus.Changed,
+    selected: false,
+  }),
+  row({
+    id: 'skill:.claude/gamma',
+    kind: EPublishKind.Skill,
+    label: '.claude/gamma',
+    bytes: 900,
+    status: EPublishStatus.Unchanged,
+    selected: true,
+  }),
+  row({
+    id: 'instructions:ATLAS.md',
+    kind: EPublishKind.Instructions,
+    label: 'ATLAS.md',
+    bytes: 3_100,
+    status: EPublishStatus.Changed,
+    selected: true,
+  }),
+  row({
+    id: 'mcp',
+    kind: EPublishKind.Mcp,
+    label: 'mcp.json',
+    bytes: 400,
+    status: EPublishStatus.Unchanged,
+    selected: false,
+  }),
 ]
 
 const READ_MS = 60
@@ -27,7 +76,10 @@ type Mounted = Awaited<ReturnType<typeof testRender>>
 
 async function mount(): Promise<{ setup: Mounted; outcomes: PickerOutcome[] }> {
   const outcomes: PickerOutcome[] = []
-  const setup = await testRender(<PushPicker rows={ROWS} onDone={(outcome) => outcomes.push(outcome)} />, { width: 90, height: 24 })
+  const setup = await testRender(
+    <PushPicker rows={ROWS} onDone={(outcome) => outcomes.push(outcome)} />,
+    { width: 90, height: 24 },
+  )
   await setup.flush()
   return { setup, outcomes }
 }
@@ -100,7 +152,10 @@ describe('push picker', () => {
 
   it('opens on every row when asked to show all', async () => {
     const outcomes: PickerOutcome[] = []
-    const setup = await testRender(<PushPicker rows={ROWS} showAll onDone={(outcome) => outcomes.push(outcome)} />, { width: 90, height: 24 })
+    const setup = await testRender(
+      <PushPicker rows={ROWS} showAll onDone={(outcome) => outcomes.push(outcome)} />,
+      { width: 90, height: 24 },
+    )
     try {
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('.claude/gamma')
@@ -120,7 +175,15 @@ describe('push picker', () => {
       setup.mockInput.pressEnter()
       await landed(setup)
       expect(outcomes).toEqual([
-        { kind: EPickerOutcome.Chosen, ids: ['skill:.agents/alpha', 'skill:.agents/beta', 'skill:.claude/gamma', 'instructions:ATLAS.md'] },
+        {
+          kind: EPickerOutcome.Chosen,
+          ids: [
+            'skill:.agents/alpha',
+            'skill:.agents/beta',
+            'skill:.claude/gamma',
+            'instructions:ATLAS.md',
+          ],
+        },
       ])
     } finally {
       await teardown(setup)

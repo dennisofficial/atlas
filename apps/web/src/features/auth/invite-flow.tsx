@@ -95,7 +95,11 @@ export function InviteFlow({ invitationId }: { invitationId: string }) {
           setStep(EInviteStep.WrongAccount)
           return
         }
-        setFailure(cause instanceof OrganizationApiError && cause.message === UNREACHABLE ? UNREACHABLE : null)
+        setFailure(
+          cause instanceof OrganizationApiError && cause.message === UNREACHABLE
+            ? UNREACHABLE
+            : null,
+        )
         setStep(EInviteStep.Unavailable)
       }
     }
@@ -120,7 +124,9 @@ export function InviteFlow({ invitationId }: { invitationId: string }) {
       await setActiveOrganization({ organizationId: invitation.organizationId })
       router.push('/threads/new')
     } catch (cause) {
-      setError(cause instanceof OrganizationApiError ? cause.message : 'Could not accept the invitation')
+      setError(
+        cause instanceof OrganizationApiError ? cause.message : 'Could not accept the invitation',
+      )
       setPending(null)
     }
   }
@@ -133,7 +139,9 @@ export function InviteFlow({ invitationId }: { invitationId: string }) {
       await rejectInvitation(invitation.id)
       router.push('/setup')
     } catch (cause) {
-      setError(cause instanceof OrganizationApiError ? cause.message : 'Could not decline the invitation')
+      setError(
+        cause instanceof OrganizationApiError ? cause.message : 'Could not decline the invitation',
+      )
       setPending(null)
     }
   }

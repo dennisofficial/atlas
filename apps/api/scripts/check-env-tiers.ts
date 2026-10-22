@@ -7,7 +7,8 @@ const ENVS = join(import.meta.dirname, '..', 'envs')
 const tiers = readdirSync(ENVS).filter((name) => name.endsWith('.enc'))
 const faults = tiers.flatMap((name) =>
   lineFaultsOf(readFileSync(join(ENVS, name), 'utf8')).map(
-    (fault) => `apps/api/envs/${name}:${fault.line} ${fault.fault}${fault.key ? ` ${fault.key}` : ''}`,
+    (fault) =>
+      `apps/api/envs/${name}:${fault.line} ${fault.fault}${fault.key ? ` ${fault.key}` : ''}`,
   ),
 )
 

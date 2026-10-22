@@ -98,7 +98,11 @@ describe('a row whose label changes mid-flight', () => {
     const begun = beginMove({ target: EExecutionLocation.Cloud, now: STARTED_AT, rows: BIRTH_ROWS })
     const waiting = activateMoveRow({ move: begun, id: 'provision', now: STARTED_AT + 4_000 })
 
-    const move = relabelMoveRow({ move: waiting, nodeId: 'provision', text: 'sending local config to the pod' })
+    const move = relabelMoveRow({
+      move: waiting,
+      nodeId: 'provision',
+      text: 'sending local config to the pod',
+    })
 
     const row = move.rows.find((candidate) => candidate.id === 'provision')
     expect(row?.text).toBe('sending local config to the pod')
@@ -118,12 +122,7 @@ describe('a move that grows a row mid-flight', () => {
       now: STARTED_AT + 5_000,
     })
 
-    expect(move.rows.map((row) => row.id)).toEqual([
-      'provision',
-      'rotating',
-      'attach',
-      'verify',
-    ])
+    expect(move.rows.map((row) => row.id)).toEqual(['provision', 'rotating', 'attach', 'verify'])
     expect(move.rows.map((row) => row.mark)).toEqual([
       EStepMark.Done,
       EStepMark.Active,

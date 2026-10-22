@@ -42,7 +42,9 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
   const local = new JsonlEventLog(home, new SessionRegistry(home), new SystemClock(), fakeIds())
   const threadId = CLOUD_THREAD
   const before = await local.append({
-    threadId, runId: toRunId('before-park'), drafts: [{ type: 'user-said', text: 'before park' }],
+    threadId,
+    runId: toRunId('before-park'),
+    drafts: [{ type: 'user-said', text: 'before park' }],
   })
   const parked: Event = {
     ...before[0]!,
@@ -57,20 +59,29 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
     clientsAttached: 1,
   }
   const remote = [...before]
-  const channel = fakeCloudChannel({ threadId, connection: { state: EConnectionView.Connected, detail: null } })
+  const channel = fakeCloudChannel({
+    threadId,
+    connection: { state: EConnectionView.Connected, detail: null },
+  })
   channel.request = async ({ op, params }) => {
     const query = params as { fromSeq?: number; upTo?: number }
     if (op === EClientRequest.ReadTranscriptIdentity) {
       return identityOf(remote.filter((event) => event.seq <= (query.upTo ?? Infinity)))
     }
     return {
-      events: remote.filter((event) => event.seq > (query.fromSeq ?? 0)).map((event) => ({
-        ...event, body: JSON.stringify(event),
-      })),
+      events: remote
+        .filter((event) => event.seq > (query.fromSeq ?? 0))
+        .map((event) => ({
+          ...event,
+          body: JSON.stringify(event),
+        })),
     }
   }
   const log = new MirroredEventLog({
-    channel, localLog: local, threadId, writer: mirrorWriter({ home: () => home }),
+    channel,
+    localLog: local,
+    threadId,
+    writer: mirrorWriter({ home: () => home }),
   })
   const spend = promiseGate()
   const ledger = fakeLedger()
@@ -85,15 +96,23 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
     return result
   }
   const app = {
-    channel, log, ledger,
+    channel,
+    log,
+    ledger,
     runner: Object.create(RemoteTurnRunner.prototype) as RemoteTurnRunner,
   } as unknown as AtlasApp
   const store = createConversationStore({ channel, threadId, events: before })
   let visible: readonly Event[] = before
   const readiness = cloudReadinessOf(channel)
   const refresh = createThreadViewRefresh({
-    app, threadId, rows: EThreadRows.Own, effects: () => undefined, store,
-    setEvents: (events) => { visible = events },
+    app,
+    threadId,
+    rows: EThreadRows.Own,
+    effects: () => undefined,
+    store,
+    setEvents: (events) => {
+      visible = events
+    },
     heldEvents: () => visible,
     readSeed: () => ({ events: before, identity: identityOf(before), appliedEvents: before }),
   })
@@ -105,10 +124,25 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
     store.dispose()
     await log.converge()
   })
-  return { local, log, remote, parked, readiness, refresh, spend,
-    store, unbind, threadId, visible: () => visible, spendReads: () => spendReads,
+  return {
+    local,
+    log,
+    remote,
+    parked,
+    readiness,
+    refresh,
+    spend,
+    store,
+    unbind,
+    threadId,
+    visible: () => visible,
+    spendReads: () => spendReads,
     spendAnswers: () => spendAnswers,
-    page: (events: readonly Event[]) => { store.setEvents({ events }); visible = events } }
+    page: (events: readonly Event[]) => {
+      store.setEvents({ events })
+      visible = events
+    },
+  }
 }
 
 describe('refreshing a mirrored cloud thread view', () => {
@@ -118,7 +152,12 @@ describe('refreshing a mirrored cloud thread view', () => {
     void held.refresh.refresh()
     await held.log.converge()
 
-    expect(await until({ holds: async () => held.readiness.applied()?.identity.head === 2, within: 1000 })).toBe(true)
+    expect(
+      await until({
+        holds: async () => held.readiness.applied()?.identity.head === 2,
+        within: 1000,
+      }),
+    ).toBe(true)
     expect(held.visible().at(-1)?.type).toBe('parked')
     expect(held.spendReads()).toBe(1)
     held.spend.release()
@@ -131,7 +170,9 @@ describe('refreshing a mirrored cloud thread view', () => {
     held.page([earlier, ...held.visible()])
     held.spend.release()
     expect(await until({ holds: async () => held.spendAnswers() === 1, within: 1000 })).toBe(true)
-    expect(held.store.getSnapshot().entries.some((entry) => entry.text.includes('older paged row'))).toBe(true)
+    expect(
+      held.store.getSnapshot().entries.some((entry) => entry.text.includes('older paged row')),
+    ).toBe(true)
   })
 
   it('reruns accounting when another transcript refresh arrives during the read', async () => {
@@ -145,7 +186,11 @@ describe('refreshing a mirrored cloud thread view', () => {
 
   it('does not let an unmounted view overwrite the replacement view readiness', async () => {
     const held = await rig()
-    await held.local.append({ threadId: held.threadId, runId: toRunId('local-park'), drafts: [held.parked] })
+    await held.local.append({
+      threadId: held.threadId,
+      runId: toRunId('local-park'),
+      drafts: [held.parked],
+    })
     const reading = promiseGate()
     const returnRead = promiseGate()
     const readOwn = held.local.readOwn.bind(held.local)

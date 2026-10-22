@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -181,9 +177,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('treats a revision-less stored payload as empty, so reporting recovers', async () => {
-    fake.cloudSandboxes.push(
-      sandboxRow({ threadId: THREAD, runtimeCheckpoint: { garbage: true } }),
-    )
+    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, runtimeCheckpoint: { garbage: true } }))
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint())

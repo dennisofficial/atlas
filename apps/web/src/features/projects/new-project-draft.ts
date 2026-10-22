@@ -99,13 +99,10 @@ export function previousStep({
   return ENewProjectStep.Source
 }
 
-export function stepPosition({
-  step,
-  source,
-}: {
-  step: ENewProjectStep
-  source: EProjectSource
-}): { current: number; total: number } {
+export function stepPosition({ step, source }: { step: ENewProjectStep; source: EProjectSource }): {
+  current: number
+  total: number
+} {
   const total = source === EProjectSource.NoRepo ? 2 : 3
   if (step === ENewProjectStep.Source) return { current: 1, total }
   if (step === ENewProjectStep.Repository) return { current: 2, total }

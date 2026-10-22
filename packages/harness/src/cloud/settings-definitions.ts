@@ -1,9 +1,4 @@
-import {
-  ESettingId,
-  ESettingKind,
-  ESettingPage,
-  type SettingDefinition,
-} from '@dltech/atlas-core'
+import { ESettingId, ESettingKind, ESettingPage, type SettingDefinition } from '@dltech/atlas-core'
 
 /**
  * The sandbox and cloud-client configuration: plain local settings, stored in the user settings

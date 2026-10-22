@@ -1,9 +1,4 @@
-import {
-  EAgentStatus,
-  EKilledBy,
-  type EventDraft,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EAgentStatus, EKilledBy, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { openChildThread } from '../open-child'
@@ -38,8 +33,11 @@ export const openChild = async (args: {
   return threadId
 }
 
-export const append = (entry: OpenedSupervisor, threadId: ThreadId, drafts: readonly EventDraft[]) =>
-  entry.harness.log.append({ threadId, runId: entry.harness.ids.nextRunId(), drafts })
+export const append = (
+  entry: OpenedSupervisor,
+  threadId: ThreadId,
+  drafts: readonly EventDraft[],
+) => entry.harness.log.append({ threadId, runId: entry.harness.ids.nextRunId(), drafts })
 
 export const endingFor = (args: {
   agentId: ThreadId
@@ -61,4 +59,3 @@ export const endingFor = (args: {
 
 export const snapshotOf = (entry: OpenedSupervisor, owner: ThreadId, agentId: ThreadId) =>
   entry.supervisor.list({ threadId: owner }).find((one) => one.agentId === agentId)
-

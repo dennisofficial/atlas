@@ -19,14 +19,22 @@ export enum EReparseStage {
 }
 
 export const identifier = z.string().min(1)
-export const sha256Digest = z.string().regex(/^[0-9a-f]{64}$/, 'digest is a lowercase sha256 hex digest')
-export const captureIdentifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'captureId must be a safe file stem')
+export const sha256Digest = z
+  .string()
+  .regex(/^[0-9a-f]{64}$/, 'digest is a lowercase sha256 hex digest')
+export const captureIdentifier = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'captureId must be a safe file stem')
 
 export const lineRangeSchema = z
   .strictObject({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
   .nullable()
 
-export const evidenceSchema = z.strictObject({ id: identifier, label: z.string(), changed: z.boolean() })
+export const evidenceSchema = z.strictObject({
+  id: identifier,
+  label: z.string(),
+  changed: z.boolean(),
+})
 
 export const provenanceSchema = z.strictObject({
   toolName: z.string().nullable(),
@@ -38,7 +46,13 @@ export const provenanceSchema = z.strictObject({
 export const policyRecordSchema = z.strictObject({ id: identifier, version: z.string().nullable() })
 
 const redactionMapSchema = z
-  .array(z.strictObject({ ruleId: identifier, digest: sha256Digest, occurrences: z.number().int().positive() }))
+  .array(
+    z.strictObject({
+      ruleId: identifier,
+      digest: sha256Digest,
+      occurrences: z.number().int().positive(),
+    }),
+  )
   .readonly()
 
 export const redactionMapsSchema = z.strictObject({
@@ -68,7 +82,10 @@ export const exportedScopeSchema = z.strictObject({
   evidence: z.array(evidenceSchema).readonly(),
 })
 
-export const scopeDigestsSchema = z.strictObject({ beforeSha256: sha256Digest.nullable(), afterSha256: sha256Digest.nullable() })
+export const scopeDigestsSchema = z.strictObject({
+  beforeSha256: sha256Digest.nullable(),
+  afterSha256: sha256Digest.nullable(),
+})
 
 export const exportedExampleSchema = z.strictObject({
   schemaVersion: z.literal(EXPORT_SCHEMA_VERSION),

@@ -8,7 +8,10 @@ describe('createQualityRegistry', () => {
   it('rejects duplicate policy ids', () => {
     expect(() =>
       createQualityRegistry({
-        policies: [policyFixture({ id: 'a', settingKey: 'k.a' }), policyFixture({ id: 'a', settingKey: 'k.b' })],
+        policies: [
+          policyFixture({ id: 'a', settingKey: 'k.a' }),
+          policyFixture({ id: 'a', settingKey: 'k.b' }),
+        ],
       }),
     ).toThrow(QualityContractError)
   })
@@ -16,21 +19,30 @@ describe('createQualityRegistry', () => {
   it('rejects duplicate setting keys', () => {
     expect(() =>
       createQualityRegistry({
-        policies: [policyFixture({ id: 'a', settingKey: 'k' }), policyFixture({ id: 'b', settingKey: 'k' })],
+        policies: [
+          policyFixture({ id: 'a', settingKey: 'k' }),
+          policyFixture({ id: 'b', settingKey: 'k' }),
+        ],
       }),
     ).toThrow('duplicate quality policy settingKey "k"')
   })
 
   it('orders policies by id regardless of registration order', () => {
     const registry = createQualityRegistry({
-      policies: [policyFixture({ id: 'c' }), policyFixture({ id: 'a' }), policyFixture({ id: 'b' })],
+      policies: [
+        policyFixture({ id: 'c' }),
+        policyFixture({ id: 'a' }),
+        policyFixture({ id: 'b' }),
+      ],
     })
     expect(registry.policies().map((policy) => policy.id)).toEqual(['a', 'b', 'c'])
     expect(registry.descriptors().map((descriptor) => descriptor.id)).toEqual(['a', 'b', 'c'])
   })
 
   it('projects descriptors without executable members', () => {
-    const [descriptor] = createQualityRegistry({ policies: [policyFixture({ id: 'a' })] }).descriptors()
+    const [descriptor] = createQualityRegistry({
+      policies: [policyFixture({ id: 'a' })],
+    }).descriptors()
     expect(Object.keys(descriptor ?? {}).sort()).toEqual([
       'defaultEnabled',
       'description',

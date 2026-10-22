@@ -41,9 +41,7 @@ afterEach(async () => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
-const start = async (
-  agents: ServeAgentSteer | undefined,
-): Promise<{ client: TestClient }> => {
+const start = async (agents: ServeAgentSteer | undefined): Promise<{ client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-steer-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
@@ -101,7 +99,10 @@ describe('the operator agent-steer ops', () => {
       params: { ...params, text: 'keep the commits conventional' },
     })
 
-    expect(reply).toMatchObject({ ok: true, data: { ok: true, snapshot: { intent: 'map the seam' } } })
+    expect(reply).toMatchObject({
+      ok: true,
+      data: { ok: true, snapshot: { intent: 'map the seam' } },
+    })
     expect(seen).toEqual([
       { threadId, agentId: CHILD.agentId, text: 'keep the commits conventional' },
     ])
@@ -131,7 +132,10 @@ describe('the operator agent-steer ops', () => {
       resume: async () => ({ ok: true, snapshot: CHILD }),
       stop: async (asked) => {
         seen.push({ by: asked.by })
-        return { ok: true, snapshot: { ...CHILD, status: EAgentStatus.Stopped, killedBy: asked.by } }
+        return {
+          ok: true,
+          snapshot: { ...CHILD, status: EAgentStatus.Stopped, killedBy: asked.by },
+        }
       },
     })
 
@@ -189,6 +193,9 @@ describe('the operator agent-steer ops', () => {
 
     const reply = await steer({ client, id: 'stop-2', op: EClientRequest.StopAgent, params })
 
-    expect(reply).toMatchObject({ ok: false, data: { message: 'this serve holds no agents to steer' } })
+    expect(reply).toMatchObject({
+      ok: false,
+      data: { message: 'this serve holds no agents to steer' },
+    })
   })
 })

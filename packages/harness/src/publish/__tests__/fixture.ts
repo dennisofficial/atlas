@@ -4,7 +4,9 @@ import { dirname, join } from 'node:path'
 
 export type PublishFixture = { atlasHome: string; home: string; cleanup: () => Promise<void> }
 
-export async function makeFixture(files: Readonly<Record<string, string>>): Promise<PublishFixture> {
+export async function makeFixture(
+  files: Readonly<Record<string, string>>,
+): Promise<PublishFixture> {
   const root = await mkdtemp(join(tmpdir(), 'atlas-publish-'))
   const atlasHome = join(root, 'atlas-home')
   const home = join(root, 'home')

@@ -17,9 +17,15 @@ export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/w
 
 const sniffImage = (read: Buffer): ImageMediaType | null => {
   if (read.length >= 8 && read.readUInt32BE(0) === 0x89504e47) return 'image/png'
-  if (read.length >= 3 && read[0] === 0xff && read[1] === 0xd8 && read[2] === 0xff) return 'image/jpeg'
+  if (read.length >= 3 && read[0] === 0xff && read[1] === 0xd8 && read[2] === 0xff)
+    return 'image/jpeg'
   if (read.length >= 6 && read.toString('ascii', 0, 4) === 'GIF8') return 'image/gif'
-  if (read.length >= 12 && read.toString('ascii', 0, 4) === 'RIFF' && read.toString('ascii', 8, 12) === 'WEBP') return 'image/webp'
+  if (
+    read.length >= 12 &&
+    read.toString('ascii', 0, 4) === 'RIFF' &&
+    read.toString('ascii', 8, 12) === 'WEBP'
+  )
+    return 'image/webp'
   return null
 }
 
@@ -54,7 +60,8 @@ export class ContextBrowser {
 
   async load(path: string): Promise<ContextFileContent> {
     const full = await this.resolve({ path })
-    if (full === null) return { type: 'refused', reason: 'the file is missing or outside the context folder' }
+    if (full === null)
+      return { type: 'refused', reason: 'the file is missing or outside the context folder' }
     const found = await stat(full).catch(() => null)
     if (found === null) return { type: 'refused', reason: 'the file does not exist' }
     if (!found.isFile()) return { type: 'refused', reason: 'the path is not a file' }

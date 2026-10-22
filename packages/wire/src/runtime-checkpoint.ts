@@ -30,17 +30,20 @@ const updatingLifecycleCheckpointSchema = z.strictObject({
   phase: z.literal(ERuntimePhase.Updating),
 })
 
-export const sandboxRotationReceiptSchema = z.object({
-  version: z.literal(1),
-  threadId: z.string().min(1),
-  sandboxSessionId: z.string().min(1),
-  resumeParent: z.boolean(),
-  resumeChildren: z.array(z.string().min(1)).optional(),
-  checkpoint: updatingLifecycleCheckpointSchema,
-}).refine((receipt) =>
-  receipt.checkpoint.threadId === receipt.threadId &&
-  receipt.checkpoint.sandboxSessionId === receipt.sandboxSessionId,
-)
+export const sandboxRotationReceiptSchema = z
+  .object({
+    version: z.literal(1),
+    threadId: z.string().min(1),
+    sandboxSessionId: z.string().min(1),
+    resumeParent: z.boolean(),
+    resumeChildren: z.array(z.string().min(1)).optional(),
+    checkpoint: updatingLifecycleCheckpointSchema,
+  })
+  .refine(
+    (receipt) =>
+      receipt.checkpoint.threadId === receipt.threadId &&
+      receipt.checkpoint.sandboxSessionId === receipt.sandboxSessionId,
+  )
 
 export type SandboxRotationReceipt = z.infer<typeof sandboxRotationReceiptSchema>
 

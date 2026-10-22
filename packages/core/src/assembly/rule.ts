@@ -22,7 +22,9 @@ export type AnnotatorFn = (input: Assembled, trace: AssemblyTrace, ctx: RuleCont
 export type Annotator = AnnotatorFn & { readonly annotatorName: string }
 
 export function defineRule({ name, apply }: { name: string; apply: RuleFn }): Rule {
-  return Object.assign((input: Assembled, ctx: RuleContext) => apply(input, ctx), { ruleName: name })
+  return Object.assign((input: Assembled, ctx: RuleContext) => apply(input, ctx), {
+    ruleName: name,
+  })
 }
 
 export function defineAnnotator({ name, apply }: { name: string; apply: AnnotatorFn }): Annotator {

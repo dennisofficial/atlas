@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import {
-  EQualityLanguage,
-  EQualityScopeKind,
-  type QualityLineRange,
-} from '@dltech/atlas-core'
+import { EQualityLanguage, EQualityScopeKind, type QualityLineRange } from '@dltech/atlas-core'
 import ts from 'typescript'
 
 export const QUALITY_SOURCE_ADAPTER_VERSION = '1'
@@ -35,7 +31,9 @@ export type ParsedDocument =
   | { ok: true; source: ParsedSource }
   | { ok: false; invalidSyntax: boolean }
 
-const SCRIPT_KIND_BY_EXTENSION: Readonly<Record<string, { kind: ts.ScriptKind; language: EQualityLanguage }>> = {
+const SCRIPT_KIND_BY_EXTENSION: Readonly<
+  Record<string, { kind: ts.ScriptKind; language: EQualityLanguage }>
+> = {
   '.ts': { kind: ts.ScriptKind.TS, language: EQualityLanguage.TypeScript },
   '.tsx': { kind: ts.ScriptKind.TSX, language: EQualityLanguage.TypeScript },
   '.mts': { kind: ts.ScriptKind.TS, language: EQualityLanguage.TypeScript },
@@ -118,7 +116,11 @@ function declarationOf(node: ts.Node): { kind: EQualityScopeKind; name: string }
     if (name === null) return null
     return { kind: EQualityScopeKind.Function, name }
   }
-  if (ts.isMethodDeclaration(node) || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) {
+  if (
+    ts.isMethodDeclaration(node) ||
+    ts.isGetAccessorDeclaration(node) ||
+    ts.isSetAccessorDeclaration(node)
+  ) {
     const name = nameOf(node)
     if (name === null) return null
     return { kind: EQualityScopeKind.Method, name }
@@ -140,7 +142,9 @@ function hasSyntaxErrors(args: { path: string; text: string }): boolean {
     compilerOptions: { target: ts.ScriptTarget.ESNext, jsx: ts.JsxEmit.Preserve },
     reportDiagnostics: true,
   })
-  return (output.diagnostics ?? []).some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)
+  return (output.diagnostics ?? []).some(
+    (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+  )
 }
 
 function parseSourceFile(args: {
@@ -149,7 +153,13 @@ function parseSourceFile(args: {
   kind: ts.ScriptKind
   language: EQualityLanguage
 }): ParsedDocument {
-  const sourceFile = ts.createSourceFile(args.path, args.text, ts.ScriptTarget.ESNext, true, args.kind)
+  const sourceFile = ts.createSourceFile(
+    args.path,
+    args.text,
+    ts.ScriptTarget.ESNext,
+    true,
+    args.kind,
+  )
 
   const declarations: ParsedDeclaration[] = []
   const nameCounts = new Map<string, number>()
@@ -160,7 +170,8 @@ function parseSourceFile(args: {
       return
     }
 
-    const qualifiedName = parentQualifiedName === null ? declared.name : `${parentQualifiedName}.${declared.name}`
+    const qualifiedName =
+      parentQualifiedName === null ? declared.name : `${parentQualifiedName}.${declared.name}`
     const position = nameCounts.get(qualifiedName) ?? 0
     nameCounts.set(qualifiedName, position + 1)
     const startPosition = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
@@ -180,7 +191,9 @@ function parseSourceFile(args: {
       start: node.getStart(sourceFile),
       end: node.getEnd(),
       lineRange: { start: startPosition.line + 1, end: endPosition.line + 1 },
-      structuralHash: hashText(normalizeStructuralBody(structuralTextOf(node, sourceFile, args.text))),
+      structuralHash: hashText(
+        normalizeStructuralBody(structuralTextOf(node, sourceFile, args.text)),
+      ),
       memberLabels,
     })
 
@@ -238,7 +251,12 @@ export function parseQualitySource(args: { path: string; text: string }): Parsed
   if (mapping === null) {
     return { ok: false, invalidSyntax: false }
   }
-  return parseSourceFile({ path: args.path, text: args.text, kind: mapping.kind, language: mapping.language })
+  return parseSourceFile({
+    path: args.path,
+    text: args.text,
+    kind: mapping.kind,
+    language: mapping.language,
+  })
 }
 
 export function hasSyntaxDiagnostics(args: { path: string; text: string }): boolean {

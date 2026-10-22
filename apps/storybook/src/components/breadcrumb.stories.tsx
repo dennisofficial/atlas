@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   Breadcrumb,
@@ -8,16 +8,16 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@dltech/atlas-ui/components/breadcrumb";
+} from '@dltech/atlas-ui/components/breadcrumb'
 
 const meta = {
-  title: "Components/Breadcrumb",
+  title: 'Components/Breadcrumb',
   component: Breadcrumb,
-} satisfies Meta<typeof Breadcrumb>;
+} satisfies Meta<typeof Breadcrumb>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -37,7 +37,7 @@ export const Default: Story = {
       </BreadcrumbList>
     </Breadcrumb>
   ),
-};
+}
 
 export const Collapsed: Story = {
   render: () => (
@@ -61,4 +61,4 @@ export const Collapsed: Story = {
       </BreadcrumbList>
     </Breadcrumb>
   ),
-};
+}

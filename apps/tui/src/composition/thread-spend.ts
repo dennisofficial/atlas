@@ -25,11 +25,21 @@ export async function readThreadSpend(args: {
     const tree = await args.ledger.forThreadTree({ threadId: args.threadId })
     return { turns: [...tree.own, ...tree.delegated] }
   } catch {
-    notify({ key: 'spend-ledger', text: TREE_UNWALKABLE, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    notify({
+      key: 'spend-ledger',
+      text: TREE_UNWALKABLE,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
     try {
       return { turns: await args.ledger.forThread({ threadId: args.threadId }) }
     } catch {
-      notify({ key: 'spend-ledger', text: UNREADABLE, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+      notify({
+        key: 'spend-ledger',
+        text: UNREADABLE,
+        tone: ENoticeTone.Warn,
+        ttlMs: NOTICE_WARN_MS,
+      })
       return { turns: [] }
     }
   }

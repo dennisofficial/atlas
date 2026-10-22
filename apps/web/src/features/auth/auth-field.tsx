@@ -1,11 +1,6 @@
 import type { ChangeEvent, ReactNode } from 'react'
 
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from '@dltech/atlas-ui/components/field'
+import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 
 import { CONTROL_CLASS } from './auth-controls'

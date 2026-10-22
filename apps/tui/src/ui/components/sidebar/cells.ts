@@ -122,7 +122,10 @@ export function justifySpans(args: {
   if (right.length === 0) return left
 
   const pad = args.cells - spanCells(left) - spanCells(right)
-  return clipSpans({ spans: [...left, { text: ' '.repeat(Math.max(gap, pad)) }, ...right], cells: args.cells })
+  return clipSpans({
+    spans: [...left, { text: ' '.repeat(Math.max(gap, pad)) }, ...right],
+    cells: args.cells,
+  })
 }
 
 export function fitLabel(args: { label: string; valueCells: number; cells: number }): string {

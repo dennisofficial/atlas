@@ -4,7 +4,12 @@ import { EQualityScopeKind, type QualityScope } from '../../change'
 import { scopeFixture } from '../../__tests__/fixtures'
 import { singleResponsibilityPolicy } from '../single-responsibility'
 
-type ScopeSpec = { id: string; kind: EQualityScopeKind; parent?: string; changed?: boolean } & Partial<QualityScope>
+type ScopeSpec = {
+  id: string
+  kind: EQualityScopeKind
+  parent?: string
+  changed?: boolean
+} & Partial<QualityScope>
 
 function scopeOf({ id, kind, parent, changed = true, ...overrides }: ScopeSpec): QualityScope {
   return scopeFixture({
@@ -20,7 +25,8 @@ function scopeOf({ id, kind, parent, changed = true, ...overrides }: ScopeSpec):
   })
 }
 
-const select = (scopes: readonly QualityScope[]): readonly string[] => singleResponsibilityPolicy.selectScopes({ scopes })
+const select = (scopes: readonly QualityScope[]): readonly string[] =>
+  singleResponsibilityPolicy.selectScopes({ scopes })
 
 const { Class, Method, Function: Fn, Module } = EQualityScopeKind
 
@@ -46,12 +52,18 @@ describe('single responsibility selectScopes', () => {
   })
 
   it('selects the outer function when only it changed', () => {
-    const scopes = [scopeOf({ id: 'outerFn', kind: Fn }), scopeOf({ id: 'innerFn', kind: Fn, parent: 'outerFn', changed: false })]
+    const scopes = [
+      scopeOf({ id: 'outerFn', kind: Fn }),
+      scopeOf({ id: 'innerFn', kind: Fn, parent: 'outerFn', changed: false }),
+    ]
     expect(select(scopes)).toEqual(['outerFn'])
   })
 
   it('selects functions under an unchanged class', () => {
-    const scopes = [scopeOf({ id: 'C', kind: Class, changed: false }), scopeOf({ id: 'fn', kind: Fn, parent: 'C' })]
+    const scopes = [
+      scopeOf({ id: 'C', kind: Class, changed: false }),
+      scopeOf({ id: 'fn', kind: Fn, parent: 'C' }),
+    ]
     expect(select(scopes)).toEqual(['fn'])
   })
 
@@ -69,7 +81,10 @@ describe('single responsibility selectScopes', () => {
   })
 
   it('selects a class nested in a function instead of the enclosing function', () => {
-    const scopes = [scopeOf({ id: 'fn', kind: Fn }), scopeOf({ id: 'K', kind: Class, parent: 'fn' })]
+    const scopes = [
+      scopeOf({ id: 'fn', kind: Fn }),
+      scopeOf({ id: 'K', kind: Class, parent: 'fn' }),
+    ]
     expect(select(scopes)).toEqual(['K'])
   })
 
@@ -90,7 +105,11 @@ describe('single responsibility selectScopes', () => {
   })
 
   it('returns ids in sorted order regardless of input order', () => {
-    const scopes = [scopeOf({ id: 'zeta', kind: Fn }), scopeOf({ id: 'alpha', kind: Class }), scopeOf({ id: 'mid', kind: Fn })]
+    const scopes = [
+      scopeOf({ id: 'zeta', kind: Fn }),
+      scopeOf({ id: 'alpha', kind: Class }),
+      scopeOf({ id: 'mid', kind: Fn }),
+    ]
     expect(select(scopes)).toEqual(['alpha', 'mid', 'zeta'])
     expect(select([...scopes].reverse())).toEqual(['alpha', 'mid', 'zeta'])
   })

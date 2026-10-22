@@ -1,9 +1,11 @@
-import {
-  EClientRequest,
-  readSessionFilesParamsSchema,
-} from '@dltech/atlas-harness'
+import { EClientRequest, readSessionFilesParamsSchema } from '@dltech/atlas-harness'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 import type { SessionMirrorReader } from './session-mirror'
 
 export const isSessionMirrorOp = (op: EClientRequest): boolean =>
@@ -45,7 +47,12 @@ export function routeSessionMirrorRead(args: {
   const { frame, mirror, reply } = args
   if (!isSessionMirrorOp(frame.op)) return false
   if (mirror === undefined) {
-    reply(refusedRequest({ replyTo: frame.id, message: 'this serve has no session directory to mirror' }))
+    reply(
+      refusedRequest({
+        replyTo: frame.id,
+        message: 'this serve has no session directory to mirror',
+      }),
+    )
     return true
   }
   void answerSessionMirrorRead({ frame, mirror })

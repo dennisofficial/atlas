@@ -53,7 +53,11 @@ const sha256Of = (content: string): string => createHash('sha256').update(conten
 const manifestOf = (serve: FakeServe): SessionManifestReply => ({
   revision: serve.revision,
   files: [...serve.files.entries()]
-    .map(([path, file]) => ({ path, bytes: Buffer.byteLength(file.content), sha256: sha256Of(file.content) }))
+    .map(([path, file]) => ({
+      path,
+      bytes: Buffer.byteLength(file.content),
+      sha256: sha256Of(file.content),
+    }))
     .sort((left, right) => left.path.localeCompare(right.path)),
 })
 
@@ -114,7 +118,11 @@ function fakeChannel(serve: FakeServe): FakeChannel {
           const held = serve.files.get(path)
           return held === undefined ? [] : [{ path, encoding: 'utf8', content: held.content }]
         })
-        return { revision: serve.revision, files, missing: paths.filter((path) => !serve.files.has(path)) }
+        return {
+          revision: serve.revision,
+          files,
+          missing: paths.filter((path) => !serve.files.has(path)),
+        }
       }
       throw new Error(`unexpected op: ${op}`)
     },
@@ -232,7 +240,9 @@ describe('the session-directory mirror', () => {
     syncer.kick()
     await syncer.converge()
 
-    await expect(readFile(join(sessionDir, 'threads/thr_mirror.events.jsonl'), 'utf8')).rejects.toThrow()
+    await expect(
+      readFile(join(sessionDir, 'threads/thr_mirror.events.jsonl'), 'utf8'),
+    ).rejects.toThrow()
     await expect(readFile(join(sessionDir, 'lock'), 'utf8')).rejects.toThrow()
     const stamp = await readMirrorStamp({ sessionDir })
     expect(stamp?.files['threads/thr_mirror.events.jsonl']).toBeDefined()
@@ -252,7 +262,9 @@ describe('the session-directory mirror', () => {
     await syncer.converge()
 
     const mirrored = await readFile(join(sessionDir, 'context/plan.md'))
-    expect(mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8'))).toBe(true)
+    expect(
+      mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8')),
+    ).toBe(true)
     const stamp = await readMirrorStamp({ sessionDir })
     expect(stamp?.revision).toBe(2)
     expect(stamp?.files['context/plan.md']?.sha256).toBe(sha256Of('# v2 while down\n'))
@@ -271,7 +283,9 @@ describe('the session-directory mirror', () => {
     await syncer.converge()
 
     const mirrored = await readFile(join(sessionDir, 'context/plan.md'))
-    expect(mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8'))).toBe(true)
+    expect(
+      mirrored.equals(Buffer.from(serve.files.get('context/plan.md')?.content ?? '', 'utf8')),
+    ).toBe(true)
     const stamp = await readMirrorStamp({ sessionDir })
     expect(stamp?.revision).toBe(2)
   })
@@ -321,7 +335,8 @@ describe('the session-directory mirror', () => {
     const flakyChannel = {
       ...channel,
       async request(args: { op: string; params: unknown }): Promise<unknown> {
-        if (args.op === 'read-session-manifest' && manifestFails) throw new Error('wire died mid-read')
+        if (args.op === 'read-session-manifest' && manifestFails)
+          throw new Error('wire died mid-read')
         return channel.request(args)
       },
     }
@@ -364,7 +379,11 @@ describe('the session-directory mirror', () => {
     syncer.kick()
     await syncer.converge()
 
-    await expect(readFile(join(sibling, 'threads', 'thr_host.meta.json'), 'utf8')).resolves.toBe(siblingMeta)
-    await expect(readFile(join(sibling, 'meta.json'), 'utf8')).resolves.toBe('{"format":1,"id":"thr_host"}')
+    await expect(readFile(join(sibling, 'threads', 'thr_host.meta.json'), 'utf8')).resolves.toBe(
+      siblingMeta,
+    )
+    await expect(readFile(join(sibling, 'meta.json'), 'utf8')).resolves.toBe(
+      '{"format":1,"id":"thr_host"}',
+    )
   })
 })

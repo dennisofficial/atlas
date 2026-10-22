@@ -38,11 +38,7 @@ import { crewPullRequestOf } from '../plugins/github/crew-pull-request'
 import { standingsOfCrew, type CrewMember } from '../store/crew-retirement'
 import { NO_VISITS, lastVisitOf, recordDeparture, type CrewVisits } from '../store/crew-visits'
 import { withCrew, type SidebarModel } from '../store/sidebar-model'
-import {
-  isSubagentWorking,
-  subagentRows,
-  subagentShowsElapsed,
-} from '../store/subagent-row'
+import { isSubagentWorking, subagentRows, subagentShowsElapsed } from '../store/subagent-row'
 import { modelLabel } from '../ui/model-label'
 import type { AtlasApp } from './compose'
 import type { ShellSnapshot } from '@dltech/atlas-harness'
@@ -167,7 +163,9 @@ export function useAgents({
   }, [surfaces, everywhere])
   const pullRequestOf = useCallback(
     (args: { threadId: ThreadId }): PullRequestBadge | null =>
-      crewPullRequests === null ? null : crewPullRequestOf({ reader: crewPullRequests, threadId: args.threadId }),
+      crewPullRequests === null
+        ? null
+        : crewPullRequestOf({ reader: crewPullRequests, threadId: args.threadId }),
     [crewPullRequests],
   )
   const members = useMemo(
@@ -196,7 +194,17 @@ export function useAgents({
       subagents,
       running: subagents.filter(isSubagentWorking).length,
     }
-  }, [app.models, everywhere, members, now, own, pullRequestOf, pullRequestVersion, surfaces, viewing])
+  }, [
+    app.models,
+    everywhere,
+    members,
+    now,
+    own,
+    pullRequestOf,
+    pullRequestVersion,
+    surfaces,
+    viewing,
+  ])
 
   return useMemo(
     () => ({

@@ -1,7 +1,6 @@
 import { copyFile, mkdtemp, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import React from 'react'
 
 import { testRender } from '@opentui/react/test-utils'
 

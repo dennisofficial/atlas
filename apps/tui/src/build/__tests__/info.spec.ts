@@ -5,7 +5,12 @@ import { clientVersionHeader, clientVersionOf, EBuildKind, versionLabelOf } from
 describe('clientVersionOf', () => {
   it('uses the version string of a release build', () => {
     expect(
-      clientVersionOf({ kind: EBuildKind.Release, version: '1.4.2', releaseRepo: null, buildSha: null }),
+      clientVersionOf({
+        kind: EBuildKind.Release,
+        version: '1.4.2',
+        releaseRepo: null,
+        buildSha: null,
+      }),
     ).toBe('1.4.2')
   })
 
@@ -28,9 +33,14 @@ describe('clientVersionHeader', () => {
 
 describe('versionLabelOf', () => {
   it('prefixes a release version with v, the way the notices spell it', () => {
-    expect(versionLabelOf({ kind: EBuildKind.Release, version: '1.4.2', releaseRepo: null, buildSha: null })).toBe(
-      'v1.4.2',
-    )
+    expect(
+      versionLabelOf({
+        kind: EBuildKind.Release,
+        version: '1.4.2',
+        releaseRepo: null,
+        buildSha: null,
+      }),
+    ).toBe('v1.4.2')
   })
 
   it('leaves dev and source builds alone', () => {

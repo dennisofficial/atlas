@@ -1,18 +1,18 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Kbd, KbdGroup } from "@dltech/atlas-ui/components/kbd";
+import { Kbd, KbdGroup } from '@dltech/atlas-ui/components/kbd'
 
 const meta = {
-  title: "Components/Kbd",
+  title: 'Components/Kbd',
   component: Kbd,
-  args: { children: "K" },
-} satisfies Meta<typeof Kbd>;
+  args: { children: 'K' },
+} satisfies Meta<typeof Kbd>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const Combination: Story = {
   render: () => (
@@ -24,4 +24,4 @@ export const Combination: Story = {
       </KbdGroup>
     </div>
   ),
-};
+}

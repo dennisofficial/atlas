@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Put,
-  Req,
-  UseGuards,
-} from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Param, Put, Req, UseGuards } from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'

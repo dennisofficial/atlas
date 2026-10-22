@@ -5,17 +5,17 @@ import {
   IdPort,
   WorkspacePort,
 } from '@dltech/atlas-core'
-import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../container/injection'
+import {
+  portToken,
+  registeredPortToken,
+  resolveSet,
+  type DependencyContainer,
+} from '../container/injection'
 import { projectPluginsDirectory, userPluginsDirectory } from '../settings/paths'
 
 import { loadPluginDirectory } from './directory-source'
 import { installPluginApi } from './install-api'
-import {
-  loadPlugins,
-  type LoadedPlugins,
-  type OriginatedPlugin,
-  type PluginIdentity,
-} from './load'
+import { loadPlugins, type LoadedPlugins, type OriginatedPlugin, type PluginIdentity } from './load'
 import { registerNativePlugins } from './manifest.generated'
 import { NativePlugin, type PluginHost } from './plugin'
 import type { LoadedRepoPlugin, RepoPluginRefusal } from './validate'

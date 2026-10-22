@@ -2,7 +2,11 @@ import type { GithubPrStateModel } from '../../../db'
 
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { verdictTimingByUser } from './github-pr-event-policy'
-import { transitionsOf, type PrTransitionSnapshot, type PrVerdictTiming } from './github-pr-event-transitions'
+import {
+  transitionsOf,
+  type PrTransitionSnapshot,
+  type PrVerdictTiming,
+} from './github-pr-event-transitions'
 
 /**
  * The webhook path is not the only thing that can observe a pull request crossing a boundary:
@@ -33,7 +37,11 @@ export async function pushPrTransitions(args: {
   }
 
   for (const [verdictTiming, groupUserIds] of byTiming) {
-    for (const event of transitionsOf({ prior: args.prior, next: nextWithUrl, options: { verdictTiming } })) {
+    for (const event of transitionsOf({
+      prior: args.prior,
+      next: nextWithUrl,
+      options: { verdictTiming },
+    })) {
       await args.mailbox.record({
         userIds: groupUserIds,
         repoFullName: args.row.repoFullName,

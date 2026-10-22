@@ -1,19 +1,9 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@dltech/atlas-ui/components/tooltip";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
-export function RowAction({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+export function RowAction({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -30,5 +20,5 @@ export function RowAction({
       </TooltipTrigger>
       <TooltipContent side="top">{label}</TooltipContent>
     </Tooltip>
-  );
+  )
 }

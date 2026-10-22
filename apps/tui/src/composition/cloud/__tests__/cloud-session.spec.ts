@@ -44,17 +44,26 @@ const sessionOn = (
   const session = createCloudSession({
     channel,
     sandboxes: {
-      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
+      create: async () => ({
+        url: '',
+        token: '',
+        state: ECloudSandboxState.Running,
+        created: false,
+      }),
       find: async () => undefined,
       readResources: async () => ({}),
       updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
       destroy: async () => undefined,
     },
     wake: async () => undefined,
-    onReload: args.onReload ?? (async (reload) => {
-      reloads.push(reload)
-    }),
-    ...(args.appliedAt === undefined ? {} : { appliedSnapshot: () => ({ appliedAt: args.appliedAt ?? 0 }) }),
+    onReload:
+      args.onReload ??
+      (async (reload) => {
+        reloads.push(reload)
+      }),
+    ...(args.appliedAt === undefined
+      ? {}
+      : { appliedSnapshot: () => ({ appliedAt: args.appliedAt ?? 0 }) }),
     ...(args.settleMs === undefined ? {} : { settleMs: args.settleMs }),
   })
   return { channel, session, reloads }
@@ -62,13 +71,18 @@ const sessionOn = (
 
 describe('the connection view a cloud session reports', () => {
   it('is the channel view, followed through every move', () => {
-    const { channel, session } = sessionOn({ connection: { state: EConnectionView.Waking, detail: null } })
+    const { channel, session } = sessionOn({
+      connection: { state: EConnectionView.Waking, detail: null },
+    })
     const seen: EConnectionView[] = [session.health().view.state]
     session.subscribe(() => seen.push(session.health().view.state))
 
     channel.moveTo(CONNECTED)
     channel.moveTo({ state: EConnectionView.Reconnecting, detail: null })
-    channel.moveTo({ state: EConnectionView.Disconnected, detail: 'did not reopen after 5 attempts' })
+    channel.moveTo({
+      state: EConnectionView.Disconnected,
+      detail: 'did not reopen after 5 attempts',
+    })
 
     expect(seen).toEqual([
       EConnectionView.Waking,
@@ -257,7 +271,12 @@ describe('what the sandbox itself refuses', () => {
     const { channel, session } = sessionOn()
     channel.fail('workspace failed at git apply: patch does not apply')
 
-    channel.endTurn({ status: ETurnStatus.Failed, runId: toRunId('run-1'), message: 'the model fell over', cause: null })
+    channel.endTurn({
+      status: ETurnStatus.Failed,
+      runId: toRunId('run-1'),
+      message: 'the model fell over',
+      cause: null,
+    })
 
     expect(session.health().failure).toContain('git apply')
   })

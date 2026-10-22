@@ -25,7 +25,8 @@ import { SkillListingFragment } from '../../prompt/fragments/skills'
 const OPUS: PromptContext = {
   agent: EPromptAgent.Main,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 }, projectDirectory: '/w'
+  model: { contextWindow: 1_000_000 },
+  projectDirectory: '/w',
 }
 
 const wired = (): DependencyContainer => {

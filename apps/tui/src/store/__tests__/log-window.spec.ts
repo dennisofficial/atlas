@@ -24,7 +24,10 @@ describe('the log window', () => {
     const events = log(drafts)
     const window = createLogWindow({ effects })
 
-    window.seed({ events: events.slice(2), base: foldLogEvents({ events: events.slice(0, 2), effects }) })
+    window.seed({
+      events: events.slice(2),
+      base: foldLogEvents({ events: events.slice(0, 2), effects }),
+    })
     window.advance({ events: events.slice(3) })
 
     expect(sidebarFoldFrom(window.acc)).toEqual(sidebarFoldOf(events))
@@ -55,7 +58,10 @@ describe('the log window', () => {
     const events = log(drafts)
     const window = createLogWindow({ effects })
 
-    window.seed({ events: events.slice(1), base: foldLogEvents({ events: events.slice(0, 1), effects }) })
+    window.seed({
+      events: events.slice(1),
+      base: foldLogEvents({ events: events.slice(0, 1), effects }),
+    })
     window.advance({ events: events.slice(4) })
 
     expect(sidebarFoldFrom(window.acc).opening).toBe('one')

@@ -23,9 +23,19 @@ import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 import { answerSetThreadModel } from './thread-model'
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 
-export { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+export {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 
 export { answerSetThreadModel } from './thread-model'
 
@@ -44,7 +54,10 @@ async function completePaths(args: {
 }): Promise<ReplyFrame> {
   const parsed = completePathsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'complete-paths wants { query, limit? }' })
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'complete-paths wants { query, limit? }',
+    })
   }
 
   const { directory, fragment } = splitMentionQuery(parsed.data.query)
@@ -54,7 +67,10 @@ async function completePaths(args: {
     parsed.data.limit ?? MAX_COMPLETIONS,
   )
 
-  return answeredRequest({ replyTo: args.frame.id, data: { directory, fragment, entries: matches } })
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { directory, fragment, entries: matches },
+  })
 }
 
 async function browseDirectory(args: {
@@ -63,11 +79,17 @@ async function browseDirectory(args: {
 }): Promise<ReplyFrame> {
   const parsed = browseDirectorySchema.safeParse(args.frame.params)
   if (!parsed.success) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'browse-directory wants { directory }' })
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'browse-directory wants { directory }',
+    })
   }
 
   const entries = await args.files.list(parsed.data.directory)
-  return answeredRequest({ replyTo: args.frame.id, data: { directory: parsed.data.directory, entries } })
+  return answeredRequest({
+    replyTo: args.frame.id,
+    data: { directory: parsed.data.directory, entries },
+  })
 }
 
 export async function answerRequest(args: {
@@ -103,7 +125,10 @@ export async function answerTakeBackPending(args: {
 }): Promise<ReplyFrame> {
   const parsed = takeBackPendingParamsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
-    return refusedRequest({ replyTo: args.frame.id, message: 'take-back-pending wants { threadId }' })
+    return refusedRequest({
+      replyTo: args.frame.id,
+      message: 'take-back-pending wants { threadId }',
+    })
   }
   const said = args.pending.forThread({ threadId: parsed.data.threadId as ThreadId }).takeBackLast()
   if (said === null) return answeredRequest({ replyTo: args.frame.id, data: { taken: null } })
@@ -174,7 +199,10 @@ export async function answerTranscriptRead(args: {
       ...(fromSeq === undefined ? {} : { fromSeq }),
       ...(upTo === undefined ? {} : { upTo }),
     }
-    const events = own === true ? await args.transcript.log.readOwn(readArgs) : await args.transcript.log.read(readArgs)
+    const events =
+      own === true
+        ? await args.transcript.log.readOwn(readArgs)
+        : await args.transcript.log.read(readArgs)
     return answeredRequest({
       replyTo: args.frame.id,
       data: { events: events.map(wireEventOf) },
@@ -197,7 +225,9 @@ export async function answerTranscriptRead(args: {
     if (!parsed.success) {
       return refusedRequest({ replyTo: args.frame.id, message: 'read-thread wants { threadId }' })
     }
-    const thread = await args.transcript.threads.find({ threadId: parsed.data.threadId as ThreadId })
+    const thread = await args.transcript.threads.find({
+      threadId: parsed.data.threadId as ThreadId,
+    })
     return answeredRequest({
       replyTo: args.frame.id,
       data: { thread: thread === undefined ? null : wireThreadOf(thread) },
@@ -228,7 +258,9 @@ export async function answerTranscriptRead(args: {
   if (!parsed.success) {
     return refusedRequest({ replyTo: args.frame.id, message: 'read-turns wants { threadId }' })
   }
-  const tree = await args.transcript.ledger.forThreadTree({ threadId: parsed.data.threadId as ThreadId })
+  const tree = await args.transcript.ledger.forThreadTree({
+    threadId: parsed.data.threadId as ThreadId,
+  })
   return answeredRequest({
     replyTo: args.frame.id,
     data: { own: tree.own.map(wireTurnOf), delegated: tree.delegated.map(wireTurnOf) },

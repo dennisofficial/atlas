@@ -9,7 +9,11 @@ import { log } from './fixture'
 describe('the rotated divider as a logged event', () => {
   it('names the predecessor and the handoff path, pinned where the event landed', () => {
     const events = log([
-      { type: 'rotated', predecessor: toThreadId('thr_old'), handoffPath: '/s/context/handoffs/op.md' },
+      {
+        type: 'rotated',
+        predecessor: toThreadId('thr_old'),
+        handoffPath: '/s/context/handoffs/op.md',
+      },
       { type: 'user-said', text: 'carry on' },
     ])
 

@@ -1,25 +1,25 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { DirectionProvider } from "@dltech/atlas-ui/components/direction";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { DirectionProvider } from '@dltech/atlas-ui/components/direction'
 import {
   Item,
   ItemActions,
   ItemContent,
   ItemDescription,
   ItemTitle,
-} from "@dltech/atlas-ui/components/item";
+} from '@dltech/atlas-ui/components/item'
 
 const meta = {
-  title: "Components/Direction",
+  title: 'Components/Direction',
   component: DirectionProvider,
-  argTypes: { direction: { control: "inline-radio", options: ["ltr", "rtl"] } },
-  args: { direction: "rtl" },
-} satisfies Meta<typeof DirectionProvider>;
+  argTypes: { direction: { control: 'inline-radio', options: ['ltr', 'rtl'] } },
+  args: { direction: 'rtl' },
+} satisfies Meta<typeof DirectionProvider>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Rtl: Story = {
   render: (args) => (
@@ -37,6 +37,6 @@ export const Rtl: Story = {
       </div>
     </DirectionProvider>
   ),
-};
+}
 
-export const Ltr: Story = { args: { direction: "ltr" }, render: Rtl.render };
+export const Ltr: Story = { args: { direction: 'ltr' }, render: Rtl.render }

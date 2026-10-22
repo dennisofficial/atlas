@@ -16,10 +16,7 @@ export function useDelegatedToolCalls(args: {
   threadId: ThreadId
 }): number {
   const { agents, threadId } = args
-  const subscribe = useCallback(
-    (listener: () => void) => agents.onChange(listener),
-    [agents],
-  )
+  const subscribe = useCallback((listener: () => void) => agents.onChange(listener), [agents])
   const read = useCallback(() => toolCallsOf(agents.list({ threadId })), [agents, threadId])
 
   return useSyncExternalStore(subscribe, read)

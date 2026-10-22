@@ -24,7 +24,11 @@ async function listJsonFiles({ dir }: { dir: string }): Promise<string[]> {
   return found
 }
 
-export async function assertSessionDirExists({ sessionDir }: { sessionDir: string }): Promise<void> {
+export async function assertSessionDirExists({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<void> {
   const exists = await access(sessionDir).then(
     () => true,
     () => false,
@@ -32,13 +36,21 @@ export async function assertSessionDirExists({ sessionDir }: { sessionDir: strin
   if (!exists) throw new Error(`session directory does not exist: ${sessionDir}`)
 }
 
-export async function listExampleFiles({ sessionDir }: { sessionDir: string }): Promise<readonly ExampleFile[]> {
+export async function listExampleFiles({
+  sessionDir,
+}: {
+  sessionDir: string
+}): Promise<readonly ExampleFile[]> {
   await assertSessionDirExists({ sessionDir })
   const threads = await listDirectory({ path: join(sessionDir, 'threads') })
-  const threadIds = sortedNames(threads.filter((entry) => entry.isDirectory()).map((entry) => entry.name))
+  const threadIds = sortedNames(
+    threads.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+  )
   const files: ExampleFile[] = []
   for (const threadId of threadIds) {
-    const paths = await listJsonFiles({ dir: join(sessionDir, 'threads', threadId, 'quality', 'examples') })
+    const paths = await listJsonFiles({
+      dir: join(sessionDir, 'threads', threadId, 'quality', 'examples'),
+    })
     for (const path of paths) files.push({ threadId, path })
   }
   return files

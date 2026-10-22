@@ -58,9 +58,11 @@ describe('reading a fault out of the environment', () => {
   })
 
   it('carries a retry-after, so the header branch is reachable', () => {
-    expect(
-      faultFromEnv({ ATLAS_FAULT_STATUS: '429', ATLAS_FAULT_RETRY_AFTER: '5' }),
-    ).toEqual({ status: 429, times: Number.POSITIVE_INFINITY, retryAfterSeconds: 5 })
+    expect(faultFromEnv({ ATLAS_FAULT_STATUS: '429', ATLAS_FAULT_RETRY_AFTER: '5' })).toEqual({
+      status: 429,
+      times: Number.POSITIVE_INFINITY,
+      retryAfterSeconds: 5,
+    })
   })
 })
 

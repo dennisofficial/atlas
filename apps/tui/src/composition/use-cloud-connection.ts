@@ -75,7 +75,12 @@ export function useCloudHealth(args: {
       clearNotice({ key: CLOUD_SERVER_FAILURE_NOTICE_KEY })
       return
     }
-    notify({ key: CLOUD_SERVER_FAILURE_NOTICE_KEY, text: failure, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    notify({
+      key: CLOUD_SERVER_FAILURE_NOTICE_KEY,
+      text: failure,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
   }, [failure])
 
   if (location !== EExecutionLocation.Cloud || !bound) return null

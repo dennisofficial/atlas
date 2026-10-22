@@ -119,7 +119,8 @@ export async function claimSession({
   logPort?: LogPort | undefined
 }): Promise<SessionClaim> {
   const claimed = await writeOwnLock({ lockFile, label })
-  if (claimed !== undefined) return { claim: ESessionClaim.Owned, heldBy: claimed.pid, note: undefined }
+  if (claimed !== undefined)
+    return { claim: ESessionClaim.Owned, heldBy: claimed.pid, note: undefined }
 
   const existing = await readLock({ lockFile, label, logPort })
   if (existing === undefined) {
@@ -130,7 +131,8 @@ export async function claimSession({
     }
   }
 
-  if (existing.pid === process.pid) return { claim: ESessionClaim.Owned, heldBy: existing.pid, note: undefined }
+  if (existing.pid === process.pid)
+    return { claim: ESessionClaim.Owned, heldBy: existing.pid, note: undefined }
 
   const live = await holderIsLive({ pid: existing.pid, start: existing.start })
   if (live) {
@@ -142,7 +144,13 @@ export async function claimSession({
   }
 
   await unlink(lockFile).catch((error) =>
-    warnSwallowed({ logPort, lockFile, label, message: 'could not remove a stale session lock file', error }),
+    warnSwallowed({
+      logPort,
+      lockFile,
+      label,
+      message: 'could not remove a stale session lock file',
+      error,
+    }),
   )
   const retaken = await writeOwnLock({ lockFile, label })
   if (retaken !== undefined) {

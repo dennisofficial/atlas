@@ -42,7 +42,8 @@ export async function undoTurn(args: {
     if ('needsConfirmation' in rewound) {
       return {
         type: EUndo.Refused,
-        reason: 'undoing this turn would destroy work it started — rewind past it with /rewind to confirm',
+        reason:
+          'undoing this turn would destroy work it started — rewind past it with /rewind to confirm',
       }
     }
     return { type: EUndo.Refused, reason: rewound.reason }

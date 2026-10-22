@@ -39,7 +39,9 @@ const found = (number: number): PullRequestReading => ({
     state: EPullRequestState.Open,
     checks: EChecksState.Passing,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -57,7 +59,10 @@ describe('the display list of pull requests', () => {
 
   it('lists the links oldest first with their own readings', () => {
     const entries = pullRequestEntries({
-      linked: [link({ number: 401, branch: 'dennis/first' }), link({ number: 412, branch: 'dennis/second' })],
+      linked: [
+        link({ number: 401, branch: 'dennis/first' }),
+        link({ number: 412, branch: 'dennis/second' }),
+      ],
       read: readingsOf({ [`${REPO}#401`]: found(401) }),
       current: null,
     })

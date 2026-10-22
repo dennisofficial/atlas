@@ -96,7 +96,12 @@ describe('the active form', () => {
 
   it('survives the parse onto the task', () => {
     expect(tasksOf({ tasks: [{ text: 'Fix the bug', activeForm: 'Fixing the bug' }] })).toEqual([
-      { ordinal: 1, text: 'Fix the bug', activeForm: 'Fixing the bug', status: EPlanStatus.Pending },
+      {
+        ordinal: 1,
+        text: 'Fix the bug',
+        activeForm: 'Fixing the bug',
+        status: EPlanStatus.Pending,
+      },
     ])
   })
 

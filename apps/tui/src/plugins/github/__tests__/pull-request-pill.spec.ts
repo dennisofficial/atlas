@@ -21,7 +21,9 @@ const groundOf = (badgeArgs: { state: EPullRequestState; checks: EChecksState })
 
 describe('pullRequestChip', () => {
   it('spells the number and nothing else — the fill is the whole reading', () => {
-    const chip = pullRequestChip(badge({ state: EPullRequestState.Open, checks: EChecksState.None }))
+    const chip = pullRequestChip(
+      badge({ state: EPullRequestState.Open, checks: EChecksState.None }),
+    )
 
     expect(chip.spans).toEqual([{ text: '#123', fg: theme.appBg }])
   })
@@ -33,9 +35,7 @@ describe('pullRequestChip', () => {
     expect(groundOf({ state: EPullRequestState.Open, checks: EChecksState.Running })).toBe(
       theme.warn,
     )
-    expect(groundOf({ state: EPullRequestState.Open, checks: EChecksState.Passing })).toBe(
-      theme.ok,
-    )
+    expect(groundOf({ state: EPullRequestState.Open, checks: EChecksState.Passing })).toBe(theme.ok)
     expect(groundOf({ state: EPullRequestState.Draft, checks: EChecksState.Failing })).toBe(
       theme.error,
     )
@@ -93,9 +93,7 @@ describe('pullRequestStatusColor', () => {
     expect(toneOf({ state: EPullRequestState.Open, checks: EChecksState.Failing })).toBe(
       theme.error,
     )
-    expect(toneOf({ state: EPullRequestState.Open, checks: EChecksState.Running })).toBe(
-      theme.warn,
-    )
+    expect(toneOf({ state: EPullRequestState.Open, checks: EChecksState.Running })).toBe(theme.warn)
     expect(toneOf({ state: EPullRequestState.Open, checks: EChecksState.Passing })).toBe(theme.ok)
   })
 

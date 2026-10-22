@@ -296,7 +296,12 @@ describe('GithubDeliveryService', () => {
     await waitFor(() => {
       expect(received).toHaveLength(1)
     })
-    expect(received[0]).toMatchObject({ prNumber: 42, mergeable: null, checksRunning: 0, checksPassed: 0 })
+    expect(received[0]).toMatchObject({
+      prNumber: 42,
+      mergeable: null,
+      checksRunning: 0,
+      checksPassed: 0,
+    })
 
     releaseFill(REST_FIELDS)
     await handled
@@ -351,10 +356,13 @@ describe('GithubDeliveryService', () => {
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
     expect(pushes).toHaveBeenCalledTimes(1)
-    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
+    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({
+      prNumber: 42,
+      checksRunning: 1,
+      mergeable: null,
+    })
     expect(fake.prStates[0]).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
   })
-
 
   it('coalesces a check storm into the first frame plus one latest-state follow-up', async () => {
     vi.useFakeTimers()
@@ -554,9 +562,7 @@ describe('GithubDeliveryService', () => {
       expect(byUser.get('usr-a')?.deliveredAt).not.toBeNull()
     })
     expect(byUser.get('usr-b')?.deliveredAt).toBeNull()
-    expect(
-      (fake.prEvents[0]?.payload as Record<string, unknown>).headSha,
-    ).toBeUndefined()
+    expect((fake.prEvents[0]!.payload as Record<string, unknown>).headSha).toBeUndefined()
     expect(received).toHaveLength(1)
     expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
   })
@@ -570,7 +576,10 @@ describe('GithubDeliveryService', () => {
       payload: {
         action: 'created',
         issue: { number: 42, html_url: 'https://github.com/compai/app/issues/42' },
-        comment: { body: 'not a pr', html_url: 'https://github.com/compai/app/issues/42#issuecomment-2' },
+        comment: {
+          body: 'not a pr',
+          html_url: 'https://github.com/compai/app/issues/42#issuecomment-2',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },
@@ -584,7 +593,10 @@ describe('GithubDeliveryService', () => {
           html_url: 'https://github.com/compai/app/pull/42',
           pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
         },
-        comment: { body: 'edited', html_url: 'https://github.com/compai/app/pull/42#issuecomment-3' },
+        comment: {
+          body: 'edited',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-3',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },
@@ -635,7 +647,11 @@ describe('GithubDeliveryService', () => {
       payload: {
         action: 'submitted',
         pull_request: PULL_REQUEST_PAYLOAD.pull_request,
-        review: { state: 'dismissed', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-9' },
+        review: {
+          state: 'dismissed',
+          body: null,
+          html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-9',
+        },
         sender: { login: 'reviewer' },
         repository: { full_name: 'compai/app' },
       },
@@ -645,7 +661,11 @@ describe('GithubDeliveryService', () => {
       payload: {
         action: 'edited',
         pull_request: PULL_REQUEST_PAYLOAD.pull_request,
-        review: { state: 'approved', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1' },
+        review: {
+          state: 'approved',
+          body: null,
+          html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1',
+        },
         sender: { login: 'reviewer' },
         repository: { full_name: 'compai/app' },
       },
@@ -720,7 +740,10 @@ describe('GithubDeliveryService', () => {
           html_url: 'https://github.com/compai/app/pull/42',
           pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
         },
-        comment: { body: 'hello', html_url: 'https://github.com/compai/app/pull/42#issuecomment-5' },
+        comment: {
+          body: 'hello',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-5',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },
@@ -749,11 +772,13 @@ describe('GithubDeliveryService', () => {
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({
       userId: 'usr-a',
-      payload: { verdict: 'failed', headSha: 'abc123', url: 'https://github.com/compai/app/pull/42' },
+      payload: {
+        verdict: 'failed',
+        headSha: 'abc123',
+        url: 'https://github.com/compai/app/pull/42',
+      },
     })
-    expect(
-      (verdicts[0]?.payload as Record<string, unknown>).authorLogin,
-    ).toBeUndefined()
+    expect((verdicts[0]!.payload as Record<string, unknown>).authorLogin).toBeUndefined()
   })
 
   it('records a green verdict when checks settle passing after running', async () => {
@@ -797,7 +822,12 @@ describe('GithubDeliveryService', () => {
   })
 
   it('records a mergeability flip but not a repeated mergeable value', async () => {
-    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 0,
+      checksPassed: 3,
+      mergeable: true,
+    }))
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
@@ -814,7 +844,12 @@ describe('GithubDeliveryService', () => {
     expect(settled).toMatchObject({ mergeable: true })
 
     const before = fake.prEvents.filter((row) => row.kind === 'mergeability').length
-    readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
+    readPullRequest.mockImplementation(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 0,
+      checksPassed: 3,
+      mergeable: true,
+    }))
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(before)
   })

@@ -92,7 +92,10 @@ describe('the rows a checklist lays out', () => {
       taskOf({ id: '2', label: 'Pending thing', state: ESidebarTaskState.Pending }),
     ])
 
-    expect(laid.map((row) => row.state)).toEqual([ESidebarTaskState.Done, ESidebarTaskState.Pending])
+    expect(laid.map((row) => row.state)).toEqual([
+      ESidebarTaskState.Done,
+      ESidebarTaskState.Pending,
+    ])
   })
 
   it('lays out nothing for no tasks', () => {
@@ -104,8 +107,7 @@ describe('the fold that tucks finished tasks away', () => {
   const doneTask = (id: string) =>
     taskOf({ id, label: `Done ${id}`, state: ESidebarTaskState.Done })
 
-  const fold = (tasks: readonly SidebarTask[], expanded = false) =>
-    foldTodo({ tasks, expanded })
+  const fold = (tasks: readonly SidebarTask[], expanded = false) => foldTodo({ tasks, expanded })
 
   it('shows everything in plain order while too little is done to earn the toggle', () => {
     const tasks = [doneTask('1'), doneTask('2'), doneTask('3'), taskOf({ id: '4' })]

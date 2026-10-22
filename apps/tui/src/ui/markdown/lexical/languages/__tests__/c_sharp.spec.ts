@@ -105,9 +105,9 @@ describe('c_sharp lexical highlighting', () => {
   })
 
   it('reads an attribute that carries arguments', () => {
-    expect(
-      textFor({ spec, source: '[Obsolete("use Add")]\nint x;', group: 'attribute' }),
-    ).toEqual(['[Obsolete("use Add")]'])
+    expect(textFor({ spec, source: '[Obsolete("use Add")]\nint x;', group: 'attribute' })).toEqual([
+      '[Obsolete("use Add")]',
+    ])
   })
 
   it('reads an attribute whose argument nests its own parentheses', () => {

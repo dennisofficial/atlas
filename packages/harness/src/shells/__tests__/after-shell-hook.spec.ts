@@ -148,7 +148,8 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
+        if (!killed.ok || killed.settled === undefined)
+          throw new Error('a model kill hands back the settled continuation')
         await killed.settled
         for (let attempt = 0; attempt < 400 && seen.length === 0; attempt += 1) {
           await Bun.sleep(25)
@@ -188,7 +189,9 @@ for (const adapter of shellAdapters) {
           hooks: chainOf([observe({ name: 'watch', seen })]),
         })
 
-        const started = await registry.start(job({ command: 'echo elsewhere', threadId: ELSEWHERE }))
+        const started = await registry.start(
+          job({ command: 'echo elsewhere', threadId: ELSEWHERE }),
+        )
         if (!started.ok) throw new Error(started.reason)
         await settle({ registry, shellId: started.snapshot.shellId, threadId: ELSEWHERE })
 
@@ -227,10 +230,14 @@ for (const adapter of shellAdapters) {
         })
       })
 
-      it('sends a hook\'s drafts without the ending, when the kill was the model\'s own', async () => {
-        const hook = new ObservingHook('poll-ci', { stage: EStage.Observe, nudge: 0 }, async () => ({
-          additionalContext: 'the checks are green',
-        }))
+      it("sends a hook's drafts without the ending, when the kill was the model's own", async () => {
+        const hook = new ObservingHook(
+          'poll-ci',
+          { stage: EStage.Observe, nudge: 0 },
+          async () => ({
+            additionalContext: 'the checks are green',
+          }),
+        )
         const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
         const started = await registry.start(job({ command: 'sleep 60' }))
@@ -240,7 +247,8 @@ for (const adapter of shellAdapters) {
           by: EKilledBy.Model,
           threadId: THREAD,
         })
-        if (!killed.ok || killed.settled === undefined) throw new Error('a model kill hands back the settled continuation')
+        if (!killed.ok || killed.settled === undefined)
+          throw new Error('a model kill hands back the settled continuation')
         await killed.settled
         await recorded({ log })
 
@@ -279,28 +287,32 @@ for (const adapter of shellAdapters) {
         expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
       })
 
-      it('queues the ending and lets teardown return when a hook never settles', async () => {
-        const hook = new ObservingHook(
-          'never-settles',
-          { stage: EStage.Observe, nudge: 0 },
-          () => new Promise(() => {}),
-        )
-        const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
+      it(
+        'queues the ending and lets teardown return when a hook never settles',
+        async () => {
+          const hook = new ObservingHook(
+            'never-settles',
+            { stage: EStage.Observe, nudge: 0 },
+            () => new Promise(() => {}),
+          )
+          const { registry, log } = openRegistry({ adapter, hooks: chainOf([hook]) })
 
-        const shell = await registry.start(job({ command: 'echo pushed' }))
-        if (!shell.ok) throw new Error(shell.reason)
-        await settle({ registry, shellId: shell.snapshot.shellId })
+          const shell = await registry.start(job({ command: 'echo pushed' }))
+          if (!shell.ok) throw new Error(shell.reason)
+          await settle({ registry, shellId: shell.snapshot.shellId })
 
-        const closing = Date.now()
-        await registry.closeAll()
+          const closing = Date.now()
+          await registry.closeAll()
 
-        expect(Date.now() - closing).toBeLessThan(AFTER_SHELL_BUDGET_MS * 2)
-        const appended = (log?.appended ?? []).filter(
-          (draft) => draft.type !== 'background-shell-started',
-        )
-        expect(appended).toHaveLength(1)
-        expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
-      }, AFTER_SHELL_BUDGET_MS * 4)
+          expect(Date.now() - closing).toBeLessThan(AFTER_SHELL_BUDGET_MS * 2)
+          const appended = (log?.appended ?? []).filter(
+            (draft) => draft.type !== 'background-shell-started',
+          )
+          expect(appended).toHaveLength(1)
+          expect(endedDraft(appended[0]).shellId).toBe(shell.snapshot.shellId)
+        },
+        AFTER_SHELL_BUDGET_MS * 4,
+      )
 
       it('has run before teardown returns, so the close path can still record what it produced', async () => {
         const hook = new ObservingHook(

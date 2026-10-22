@@ -45,7 +45,10 @@ async function runEndingAfterFinalMessage(args: { wakesTurn: boolean }): Promise
 }> {
   const temp = createTempHome()
   const model = scriptedModel({
-    script: [{ text: 'the build will wake me when it finishes' }, { text: 'the build failed; rerunning' }],
+    script: [
+      { text: 'the build will wake me when it finishes' },
+      { text: 'the build failed; rerunning' },
+    ],
   })
   const harness = await buildHarness({ home: temp.home, model })
   opened.push({ harness, temp })
@@ -140,7 +143,12 @@ class AlreadyExitedLauncher extends ShellLauncherPort {
       kill: () => undefined,
       watch: ({ onExit }) => {
         queueMicrotask(() =>
-          onExit({ status: EShellStatus.Exited, exitCode: 0, endedAt: fakeClock.now(), totalBytes: 0 }),
+          onExit({
+            status: EShellStatus.Exited,
+            exitCode: 0,
+            endedAt: fakeClock.now(),
+            totalBytes: 0,
+          }),
         )
       },
       detach: () => Promise.resolve(),

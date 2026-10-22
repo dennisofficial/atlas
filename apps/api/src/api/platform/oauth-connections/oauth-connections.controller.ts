@@ -17,7 +17,11 @@ import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.de
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
-import { AccessTokenRequestDto, ReauthorizeConnectionDto, UploadConnectionDto } from './oauth-connections.dto'
+import {
+  AccessTokenRequestDto,
+  ReauthorizeConnectionDto,
+  UploadConnectionDto,
+} from './oauth-connections.dto'
 import { OauthConnectionsService } from './oauth-connections.service'
 import type { AccessTokenDto } from './oauth-connections.types'
 

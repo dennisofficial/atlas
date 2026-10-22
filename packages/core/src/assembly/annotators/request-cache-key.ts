@@ -15,7 +15,10 @@ export const INFERENCE_PROVIDER_ID = 'inference'
 export function requestCacheKey({
   providerId = OPENAI_PROVIDER_ID,
   optionKey = 'promptCacheKey',
-}: { providerId?: string; optionKey?: string } = {}): Annotator {
+}: {
+  providerId?: string
+  optionKey?: string
+} = {}): Annotator {
   return defineAnnotator({
     name: `requestCacheKey:${providerId}`,
     apply: (input, _trace, ctx): Assembled => {
@@ -25,7 +28,10 @@ export function requestCacheKey({
         ...input,
         requestOptions: {
           ...input.requestOptions,
-          [providerId]: { ...input.requestOptions?.[providerId], [optionKey]: String(ctx.threadId) },
+          [providerId]: {
+            ...input.requestOptions?.[providerId],
+            [optionKey]: String(ctx.threadId),
+          },
         },
       }
     },

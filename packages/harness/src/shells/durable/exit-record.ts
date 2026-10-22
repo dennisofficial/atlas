@@ -2,13 +2,7 @@ import { constants, openSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { signalGroup } from './child'
-import {
-  EExitCause,
-  EOverflowEvidence,
-  exitCodeOf,
-  SPOOL_FILE,
-  type ExitRecord,
-} from './protocol'
+import { EExitCause, EOverflowEvidence, exitCodeOf, SPOOL_FILE, type ExitRecord } from './protocol'
 
 const GROUP_DRAIN_STEP_MS = 50
 const GROUP_DRAIN_ATTEMPTS = 6
@@ -21,7 +15,12 @@ export async function groupDrained({ pgid }: { pgid: number }): Promise<void> {
 }
 
 export function openSpool({ shellDir }: { shellDir: string }): number {
-  const flags = constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW
+  const flags =
+    constants.O_WRONLY |
+    constants.O_APPEND |
+    constants.O_CREAT |
+    constants.O_EXCL |
+    constants.O_NOFOLLOW
   return openSync(join(shellDir, SPOOL_FILE), flags, 0o600)
 }
 

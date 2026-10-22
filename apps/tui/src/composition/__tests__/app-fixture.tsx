@@ -2,7 +2,6 @@ import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { TextareaRenderable, type Renderable } from '@opentui/core'
 import type { MockMouse } from '@opentui/core/testing'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImageReader } from '../../ui/clipboard-image'
@@ -27,7 +26,6 @@ export const THREAD = toThreadId('opened-thread')
 export const THINKING = 'The loop reads the log, so position is derived rather than remembered.'
 
 export const REPLY = 'Atlas derives every prompt from the event log.'
-
 
 export type Mounted = {
   app: FakeApp

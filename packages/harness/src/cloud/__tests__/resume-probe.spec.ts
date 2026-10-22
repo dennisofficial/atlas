@@ -421,7 +421,9 @@ describe('probeSandboxForResume', () => {
         sandbox,
         health: FULL_IDLE,
         swapServe: async () => {
-          throw new Error('atlas-serve 2.0.0 failed to install into the sandbox (exit 1): curl: 404')
+          throw new Error(
+            'atlas-serve 2.0.0 failed to install into the sandbox (exit 1): curl: 404',
+          )
         },
       }),
     ).rejects.toThrow('failed to install')

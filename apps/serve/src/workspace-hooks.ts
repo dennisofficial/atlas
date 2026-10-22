@@ -29,7 +29,8 @@ export const familyThreadIdsOf = async (args: {
 
 type FamilyShells = Pick<ShellRegistryPort, 'stopOwners'>
 
-const STILL_WRITING = 'background processes are still writing to the workspace, so it cannot be captured consistently'
+const STILL_WRITING =
+  'background processes are still writing to the workspace, so it cannot be captured consistently'
 
 export function endFamilyShellsFor(args: {
   root: ThreadId
@@ -74,8 +75,13 @@ export function stopWorkspaceProcessesFor(args: {
         if (!stopped.ok) throw new Error(stopped.reason)
       }
     }
-    const [, stragglers] = await Promise.all([shellEndings, services.awaitEndings({ ms: STOP_SETTLE_MS })])
-    const stillRunning = services.list().filter((service) => service.status === EServiceStatus.Running).length
+    const [, stragglers] = await Promise.all([
+      shellEndings,
+      services.awaitEndings({ ms: STOP_SETTLE_MS }),
+    ])
+    const stillRunning = services
+      .list()
+      .filter((service) => service.status === EServiceStatus.Running).length
     if (stillRunning > 0 || stragglers > 0) throw new Error(STILL_WRITING)
     for (const threadId of family) {
       const drafts = [

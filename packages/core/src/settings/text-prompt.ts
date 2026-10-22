@@ -19,10 +19,10 @@ export const openTextPrompt = (args: {
   current: string
 }): TextPrompt => ({ id: args.id, label: args.label, typed: args.current })
 
-export const typeIntoTextPrompt = (args: {
-  prompt: TextPrompt
-  text: string
-}): TextPrompt => ({ ...args.prompt, typed: `${args.prompt.typed}${args.text}` })
+export const typeIntoTextPrompt = (args: { prompt: TextPrompt; text: string }): TextPrompt => ({
+  ...args.prompt,
+  typed: `${args.prompt.typed}${args.text}`,
+})
 
 export const backspaceTextPrompt = (prompt: TextPrompt): TextPrompt => ({
   ...prompt,

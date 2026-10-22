@@ -43,14 +43,24 @@ const textOf = async (file: string): Promise<string | undefined> =>
  * a park checkpoint vouches for is a digest over those very ids and seqs.
  */
 export function localTranscriptFiles(args: { home: () => string }): TranscriptFiles {
-  const exclusively = async <T>(threadId: ThreadId, run: (file: string, sessionDir: string) => Promise<T>): Promise<T> => {
+  const exclusively = async <T>(
+    threadId: ThreadId,
+    run: (file: string, sessionDir: string) => Promise<T>,
+  ): Promise<T> => {
     const registry = registryFor({ home: args.home() })
     const sessionDir = await registry.sessionDirFor({ threadId })
     const file = eventLogFile({ sessionDir, threadId })
-    return registry.enqueue({ handle: registry.handleFor({ sessionDir }), run: () => run(file, sessionDir) })
+    return registry.enqueue({
+      handle: registry.handleFor({ sessionDir }),
+      run: () => run(file, sessionDir),
+    })
   }
 
-  const raiseHead = async (given: { threadId: ThreadId; sessionDir: string; head: number }): Promise<void> => {
+  const raiseHead = async (given: {
+    threadId: ThreadId
+    sessionDir: string
+    head: number
+  }): Promise<void> => {
     const metaFile = threadMetaFile({ sessionDir: given.sessionDir, threadId: given.threadId })
     const meta = readMetaSync({ file: metaFile, schema: threadMetaSchema })
     if (meta === undefined || meta.head >= given.head) return

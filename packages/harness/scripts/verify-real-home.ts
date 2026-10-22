@@ -14,7 +14,9 @@ const threads = new JsonlThreadStore(home, registry, clock, ids, log)
 const project = process.argv[2] ?? '/Users/dennislysenko/Developer/atlas'
 const recent = await threads.mostRecent({ project })
 if (recent === undefined) throw new Error(`no recent thread for ${project}`)
-console.log(`most recent: "${recent.title}" (${recent.id}) head=${recent.head} updated=${recent.updatedAt}`)
+console.log(
+  `most recent: "${recent.title}" (${recent.id}) head=${recent.head} updated=${recent.updatedAt}`,
+)
 
 const listed = await threads.list({ project, limit: 5 })
 console.log(`listed ${listed.length} sessions for the project`)

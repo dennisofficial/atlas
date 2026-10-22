@@ -12,10 +12,7 @@ import {
   type ServeHandle,
   type WorkspaceFiles,
 } from '../index'
-import {
-  composeOwnershipApp,
-  type OwnershipRegistries,
-} from './serve-execution-ownership-compose'
+import { composeOwnershipApp, type OwnershipRegistries } from './serve-execution-ownership-compose'
 import type { OwnershipStep } from './serve-execution-ownership-model'
 
 export const OWNERSHIP_TOKEN = 'ownership-token'
@@ -107,7 +104,9 @@ export async function startOwnershipServe(args: {
       handle: {
         port: handle.port,
         close: async (shutdown) => {
-          try { await handle.close(shutdown) } finally {
+          try {
+            await handle.close(shutdown)
+          } finally {
             if (heldHome === undefined) delete process.env.ATLAS_HOME
             else process.env.ATLAS_HOME = heldHome
           }

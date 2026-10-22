@@ -1,4 +1,9 @@
-import { choiceValueOf, ESettingId, rangeValueOf, type SettingsResolution } from '@dltech/atlas-core'
+import {
+  choiceValueOf,
+  ESettingId,
+  rangeValueOf,
+  type SettingsResolution,
+} from '@dltech/atlas-core'
 
 import { accentHex, accentPalette } from './accents'
 import {
@@ -7,8 +12,18 @@ import {
   SHIPPED_COMPOSER_EDGE,
   type EComposerEdge,
 } from './composer-edge-store'
-import { applyBlockDensity, blockDensityOf, SHIPPED_DENSITY, type EBlockDensity } from './density-store'
-import { applyFenceWrap, fenceWrapOf, SHIPPED_FENCE_WRAP, type EFenceWrap } from './fence-wrap-store'
+import {
+  applyBlockDensity,
+  blockDensityOf,
+  SHIPPED_DENSITY,
+  type EBlockDensity,
+} from './density-store'
+import {
+  applyFenceWrap,
+  fenceWrapOf,
+  SHIPPED_FENCE_WRAP,
+  type EFenceWrap,
+} from './fence-wrap-store'
 import { applyImageRows, SHIPPED_IMAGE_ROWS } from './image-rows-store'
 import { applyLogo, logoOf, SHIPPED_LOGO, type ELogo } from './logo-store'
 import { applyPalette } from './palette-store'

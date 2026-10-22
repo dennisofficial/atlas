@@ -148,7 +148,8 @@ export function bootViewOf(args: { events: readonly WireEvent[]; now: number }):
   const folded = foldBootSteps(attempt.map(({ event }) => event))
   const steps = BOOT_STEP_ORDER.map((id): BootStepView => {
     const status = folded[id]
-    const detail = status.state === EBootStepState.Error ? (status.error ?? status.detail) : status.detail
+    const detail =
+      status.state === EBootStepState.Error ? (status.error ?? status.detail) : status.detail
     return {
       id,
       label: BOOT_LABELS[id],

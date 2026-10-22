@@ -7,17 +7,16 @@ import { isExpandable } from '../expandable'
 import { EEntryKind, type BackgroundShellMatchedEntry } from '../transcript-model'
 import { log } from './fixture'
 
-const shellMatched = (over: Record<string, unknown> = {}) =>
-  ({
-    type: 'background-shell-matched' as const,
-    shellId: 'bash_1',
-    command: 'bun test',
-    description: 'Run full TUI suite',
-    pattern: '(fail|error)',
-    lines: '12 fail\n',
-    matchCount: 1,
-    ...over,
-  })
+const shellMatched = (over: Record<string, unknown> = {}) => ({
+  type: 'background-shell-matched' as const,
+  shellId: 'bash_1',
+  command: 'bun test',
+  description: 'Run full TUI suite',
+  pattern: '(fail|error)',
+  lines: '12 fail\n',
+  matchCount: 1,
+  ...over,
+})
 
 const onlyMatchedEntry = (events: readonly Event[]): BackgroundShellMatchedEntry => {
   const entry = durableEntries({ events }).find(
@@ -57,9 +56,7 @@ describe('a background shell watch match in the transcript', () => {
   it('says a disarmed watch stopped watching without saying the shell stopped', () => {
     const text = onlyMatchedEntry(log([shellMatched({ watchDisarmed: true })])).text
 
-    expect(text).toBe(
-      'Background shell "Run full TUI suite" matched 1 line, but stopped watching',
-    )
+    expect(text).toBe('Background shell "Run full TUI suite" matched 1 line, but stopped watching')
   })
 
   it('keeps the matched lines for the fold rather than putting them on the line', () => {

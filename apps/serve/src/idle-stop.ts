@@ -89,7 +89,10 @@ export function startServeIdleStop(args: {
 
   // halt clears the interval; reset re-arms it, because a failed finalized park re-arms after
   // park() already halted — without a fresh interval the retry the re-arm promises never fires.
-  let timer: ReturnType<typeof setInterval> | undefined = setInterval(check, args.tickMs ?? IDLE_TICK_MS)
+  let timer: ReturnType<typeof setInterval> | undefined = setInterval(
+    check,
+    args.tickMs ?? IDLE_TICK_MS,
+  )
   timer.unref()
 
   return {

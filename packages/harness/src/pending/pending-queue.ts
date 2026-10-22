@@ -1,4 +1,10 @@
-import { EMessageOrigin, saidBody, type EventDraft, type SaidFile, type SaidImage } from '@dltech/atlas-core'
+import {
+  EMessageOrigin,
+  saidBody,
+  type EventDraft,
+  type SaidFile,
+  type SaidImage,
+} from '@dltech/atlas-core'
 import type { InputBatch } from '../intake/input-batch'
 
 export type PendingSaid = {
@@ -25,7 +31,14 @@ export type PendingQueue<Command = never> = {
   subscribe(listener: () => void): () => void
   getSnapshot(): readonly PendingEntry<Command>[]
   reserved(entryId: string): boolean
-  enqueue(args: { text: string; images?: readonly SaidImage[]; files?: readonly SaidFile[]; context?: readonly EventDraft[] | undefined; via?: EMessageOrigin | undefined; requestId?: string | undefined }): void
+  enqueue(args: {
+    text: string
+    images?: readonly SaidImage[]
+    files?: readonly SaidFile[]
+    context?: readonly EventDraft[] | undefined
+    via?: EMessageOrigin | undefined
+    requestId?: string | undefined
+  }): void
   prepare(): InputBatch
   enqueueCommand(args: { text: string; command: Command }): void
   takeBackLast(): PendingSaid | null
@@ -78,9 +91,16 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
     enqueue({ text, images, files, context, via, requestId }) {
       settle([
         ...entries,
-        { kind: 'message', id: stamp(), text, images: images ?? NO_IMAGES, files: files ?? NO_FILES,
-          ...(context === undefined ? {} : { context }), ...(via === undefined ? {} : { via }),
-          ...(requestId === undefined ? {} : { requestId }) },
+        {
+          kind: 'message',
+          id: stamp(),
+          text,
+          images: images ?? NO_IMAGES,
+          files: files ?? NO_FILES,
+          ...(context === undefined ? {} : { context }),
+          ...(via === undefined ? {} : { via }),
+          ...(requestId === undefined ? {} : { requestId }),
+        },
       ])
     },
 
@@ -89,11 +109,13 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
     },
 
     takeBackLast() {
-      const last = [...entries].reverse().find(
-        (entry) =>
-          !reserved.has(entry.id) &&
-          (!('via' in entry) || entry.via === undefined || entry.via === EMessageOrigin.Operator),
-      )
+      const last = [...entries]
+        .reverse()
+        .find(
+          (entry) =>
+            !reserved.has(entry.id) &&
+            (!('via' in entry) || entry.via === undefined || entry.via === EMessageOrigin.Operator),
+        )
       if (last === undefined) return null
 
       settle(entries.filter((entry) => entry.id !== last.id))
@@ -134,7 +156,9 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
     },
 
     drain() {
-      const messages = entries.filter((entry): entry is PendingMessage => entry.kind === 'message' && !reserved.has(entry.id))
+      const messages = entries.filter(
+        (entry): entry is PendingMessage => entry.kind === 'message' && !reserved.has(entry.id),
+      )
       if (messages.length === 0) return NOTHING_TAKEN
 
       const handed = new Set(messages.map((message) => message.id))

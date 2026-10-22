@@ -64,7 +64,11 @@ describe('operational logging for degraded store reads', () => {
       const log = new CapturingLog()
       const first = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 1 }) })
       const second = encodeEventLine({ draft: draft(), envelope: envelope({ seq: 2 }) })
-      const parsed = parseEventLines({ text: `${first}\n{not json\n${second}\n`, threadId, logPort: log })
+      const parsed = parseEventLines({
+        text: `${first}\n{not json\n${second}\n`,
+        threadId,
+        logPort: log,
+      })
       expect(parsed.unreadable).toHaveLength(1)
       const entry = log.entries.find((one) => one.source === 'store.lines')
       expect(entry?.severity).toBe(ELogSeverity.Warn)
@@ -98,7 +102,11 @@ describe('operational logging for degraded store reads', () => {
     it('stays silent for a missing meta file', async () => {
       const dir = await tempDir()
       const log = new CapturingLog()
-      const read = readMetaSync({ file: sessionMetaFile({ sessionDir: dir }), schema: sessionMetaSchema, logPort: log })
+      const read = readMetaSync({
+        file: sessionMetaFile({ sessionDir: dir }),
+        schema: sessionMetaSchema,
+        logPort: log,
+      })
       expect(read).toBeUndefined()
       expect(log.entries).toHaveLength(0)
     })
@@ -123,10 +131,19 @@ describe('operational logging for degraded store reads', () => {
       const lockFile = sessionLockFile({ sessionDir: dir })
       mkdirSync(dirname(lockFile), { recursive: true })
       const log = new CapturingLog()
-      const held = Bun.spawn(['sleep', '60'], { stdout: 'ignore', stderr: 'ignore', stdin: 'ignore' })
+      const held = Bun.spawn(['sleep', '60'], {
+        stdout: 'ignore',
+        stderr: 'ignore',
+        stdin: 'ignore',
+      })
       try {
         writeFileSync(lockFile, JSON.stringify({ pid: held.pid, label: 'other' }))
-        const outcome = await claimSession({ sessionDir: dir, lockFile, label: 'spec', logPort: log })
+        const outcome = await claimSession({
+          sessionDir: dir,
+          lockFile,
+          label: 'spec',
+          logPort: log,
+        })
         expect(outcome.claim).toBe(ESessionClaim.Held)
         expect(log.entries).toHaveLength(0)
       } finally {

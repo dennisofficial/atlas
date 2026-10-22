@@ -7,7 +7,9 @@ import { fakeApp, scriptedModelPort } from './fake-app'
 await grammarsReady()
 
 const slowly = () =>
-  fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY }, perChunkMs: 50 }) })
+  fakeApp({
+    model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY }, perChunkMs: 50 }),
+  })
 
 const STEER = 'check the tests too'
 

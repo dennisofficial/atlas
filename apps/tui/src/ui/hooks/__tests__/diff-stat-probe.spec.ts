@@ -40,10 +40,12 @@ describe('probeDiffStat on a repository without commits', () => {
 })
 
 describe('untracked line counting', () => {
-  const cleanTreeWith = (untracked: string): GitRunner => async ({ args }) => {
-    if (args[0] === 'ls-files') return ok(untracked)
-    return ok('')
-  }
+  const cleanTreeWith =
+    (untracked: string): GitRunner =>
+    async ({ args }) => {
+      if (args[0] === 'ls-files') return ok(untracked)
+      return ok('')
+    }
 
   let directory: string | null = null
   afterEach(async () => {

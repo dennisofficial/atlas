@@ -4,9 +4,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
+} from '@dltech/atlas-ui/components/select'
 
-import { QUIET_HOUR_OPTIONS } from "../../../fixtures/settings-interface";
+import { QUIET_HOUR_OPTIONS } from '../../../fixtures/settings-interface'
 
 export function QuietHourSelect({
   value,
@@ -14,10 +14,10 @@ export function QuietHourSelect({
   disabled,
   onChange,
 }: {
-  value: string;
-  label: string;
-  disabled: boolean;
-  onChange: (next: string) => void;
+  value: string
+  label: string
+  disabled: boolean
+  onChange: (next: string) => void
 }) {
   return (
     <Select
@@ -37,5 +37,5 @@ export function QuietHourSelect({
         ))}
       </SelectContent>
     </Select>
-  );
+  )
 }

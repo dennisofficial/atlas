@@ -13,5 +13,10 @@ type Request = (args: { method: string; path: string; body?: unknown }) => Promi
 export const listProjectsVia = async (request: Request): Promise<Project[]> =>
   z.array(projectSchema).parse(await request({ method: 'GET', path: '/v1/projects' }))
 
-export const createProjectVia = async (args: { request: Request; input: ProjectInput }): Promise<Project> =>
-  projectSchema.parse(await args.request({ method: 'POST', path: '/v1/projects', body: args.input }))
+export const createProjectVia = async (args: {
+  request: Request
+  input: ProjectInput
+}): Promise<Project> =>
+  projectSchema.parse(
+    await args.request({ method: 'POST', path: '/v1/projects', body: args.input }),
+  )

@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FileCodeIcon, FileTextIcon, XIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { FileCodeIcon, FileTextIcon, XIcon } from 'lucide-react'
 
 import {
   Attachment,
@@ -11,19 +11,19 @@ import {
   AttachmentMedia,
   AttachmentTitle,
   AttachmentTrigger,
-} from "@dltech/atlas-ui/components/attachment";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
+} from '@dltech/atlas-ui/components/attachment'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 const meta = {
-  title: "Components/Attachment",
+  title: 'Components/Attachment',
   component: Attachment,
-  argTypes: { size: { control: "inline-radio", options: ["default", "sm", "xs"] } },
-  args: { size: "default" },
-} satisfies Meta<typeof Attachment>;
+  argTypes: { size: { control: 'inline-radio', options: ['default', 'sm', 'xs'] } },
+  args: { size: 'default' },
+} satisfies Meta<typeof Attachment>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -42,7 +42,7 @@ export const Default: Story = {
       </AttachmentActions>
     </Attachment>
   ),
-};
+}
 
 export const Uploading: Story = {
   render: (args) => (
@@ -56,12 +56,12 @@ export const Uploading: Story = {
       </AttachmentContent>
     </Attachment>
   ),
-};
+}
 
 export const Group: Story = {
   render: (args) => (
     <AttachmentGroup className="w-72">
-      {["notes.md", "trace.log", "schema.sql"].map((name) => (
+      {['notes.md', 'trace.log', 'schema.sql'].map((name) => (
         <Attachment key={name} {...args}>
           <AttachmentMedia>
             <FileTextIcon />
@@ -74,4 +74,4 @@ export const Group: Story = {
       ))}
     </AttachmentGroup>
   ),
-};
+}

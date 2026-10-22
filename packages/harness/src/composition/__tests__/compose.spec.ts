@@ -4,7 +4,14 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { ATLAS_SETTINGS, EExecutionLocation, ESettingId, EToolEffect, toThreadId, type ToolOutcome } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  EExecutionLocation,
+  ESettingId,
+  EToolEffect,
+  toThreadId,
+  type ToolOutcome,
+} from '@dltech/atlas-core'
 
 import { ToolDefinition } from '@dltech/atlas-core'
 import { z } from 'zod'
@@ -65,13 +72,21 @@ const compose = <TSurface = undefined>(args?: {
     settings: settingsBinding(),
     ports: testPortBindings(),
     clientVersion: 'compose-spec',
-    surface: { notice: recordingNotices().port, ...(args?.bind === undefined ? {} : { bind: args.bind }) },
+    surface: {
+      notice: recordingNotices().port,
+      ...(args?.bind === undefined ? {} : { bind: args.bind }),
+    },
   })
 
 describe('composeHarness', () => {
   it('composes a workspace-less session for an orchestrator with no project', async () => {
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: undefined, command: 'atlas-test', model: undefined, executionLocation: undefined },
+      launch: {
+        cwd: undefined,
+        command: 'atlas-test',
+        model: undefined,
+        executionLocation: undefined,
+      },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),
@@ -114,7 +129,12 @@ describe('composeHarness', () => {
 
   it('a launch naming the cloud composes with the cloud placement the prompt fragment reads', async () => {
     const app = await composeHarness<undefined, never>({
-      launch: { cwd: project, command: 'atlas-serve', model: undefined, executionLocation: 'cloud' },
+      launch: {
+        cwd: project,
+        command: 'atlas-serve',
+        model: undefined,
+        executionLocation: 'cloud',
+      },
       env: {},
       settings: settingsBinding(),
       ports: testPortBindings(),
@@ -153,7 +173,11 @@ describe('composeHarness', () => {
             description: 'proves the surface bound in time',
             effect: EToolEffect.Read,
             inputSchema: z.object({}),
-            invoke: async (): Promise<ToolOutcome> => ({ ok: true, modelText: 'marked', output: {} }),
+            invoke: async (): Promise<ToolOutcome> => ({
+              ok: true,
+              modelText: 'marked',
+              output: {},
+            }),
           },
         })
         return { bound: true }
@@ -173,9 +197,12 @@ describe('composeHarness', () => {
     app.pending.forThread({ threadId }).enqueue({ text: 'typed ahead' })
     app.pending.forThread({ threadId: toThreadId('other') }).enqueue({ text: 'elsewhere' })
 
-    expect(app.pending.forThread({ threadId }).drain().map((said) => said.text)).toEqual([
-      'typed ahead',
-    ])
+    expect(
+      app.pending
+        .forThread({ threadId })
+        .drain()
+        .map((said) => said.text),
+    ).toEqual(['typed ahead'])
     expect(app.pending.waitingCount()).toBe(1)
 
     await app.close()
@@ -196,7 +223,12 @@ describe('composeHarness', () => {
 
       const started = Date.now()
       const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        launch: {
+          cwd: project,
+          command: 'atlas-test',
+          model: undefined,
+          executionLocation: undefined,
+        },
         env: {},
         settings: settingsBinding(),
         ports: testPortBindings(),
@@ -212,9 +244,9 @@ describe('composeHarness', () => {
       expect(app.settings.set({ id: ESettingId.VercelTeamId, value: 'team_local' })).toEqual({
         ok: true,
       })
-      expect(
-        app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value,
-      ).toBe('team_local')
+      expect(app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value).toBe(
+        'team_local',
+      )
 
       await expect(app.close()).resolves.toBeUndefined()
     } finally {
@@ -236,7 +268,12 @@ describe('composeHarness', () => {
 
       const notices = recordingNotices()
       const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        launch: {
+          cwd: project,
+          command: 'atlas-test',
+          model: undefined,
+          executionLocation: undefined,
+        },
         env: {},
         settings: settingsBinding(),
         ports: testPortBindings(),
@@ -246,8 +283,7 @@ describe('composeHarness', () => {
 
       expect(
         notices.posts.some(
-          (post) =>
-            post.key === 'cloud:legacy-accounts' && post.text.includes('cloud download'),
+          (post) => post.key === 'cloud:legacy-accounts' && post.text.includes('cloud download'),
         ),
       ).toBe(true)
 
@@ -266,7 +302,12 @@ describe('composeHarness', () => {
     try {
       const notices = recordingNotices()
       const app = await composeHarness<undefined, never>({
-        launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
+        launch: {
+          cwd: project,
+          command: 'atlas-test',
+          model: undefined,
+          executionLocation: undefined,
+        },
         env: {},
         settings: settingsBinding(),
         ports: testPortBindings(),

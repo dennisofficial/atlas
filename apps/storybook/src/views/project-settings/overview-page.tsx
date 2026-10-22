@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react'
 import {
   ArrowUpRightIcon,
   EllipsisIcon,
@@ -6,39 +6,39 @@ import {
   PlusIcon,
   RefreshCwIcon,
   XIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
-import { Input } from "@dltech/atlas-ui/components/input";
+} from '@dltech/atlas-ui/components/dropdown-menu'
+import { Input } from '@dltech/atlas-ui/components/input'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from "@dltech/atlas-ui/components/input-group";
+} from '@dltech/atlas-ui/components/input-group'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
+} from '@dltech/atlas-ui/components/select'
 
 import {
   EShipBehavior,
-    PROJECT,
+  PROJECT,
   SHIP_BEHAVIORS,
   WORKSPACE_OPTIONS,
   type ProjectFixture,
-} from "../../fixtures/project-settings";
-import { DangerZone } from "./overview-danger-zone";
+} from '../../fixtures/project-settings'
+import { DangerZone } from './overview-danger-zone'
 import {
   ERowLayout,
   MonogramTile,
@@ -46,23 +46,23 @@ import {
   SettingsRow,
   SettingsSection,
   UnsavedHint,
-} from "./settings-layout";
+} from './settings-layout'
 
 type OverviewDraft = Pick<
   ProjectFixture,
-  "name" | "description" | "baseBranch" | "shipBehavior" | "additionalRepositories" | "workspace"
->;
+  'name' | 'description' | 'baseBranch' | 'shipBehavior' | 'additionalRepositories' | 'workspace'
+>
 
-const LEGACY_MERGE_LABEL = "Merge when green (no longer offered)";
+const LEGACY_MERGE_LABEL = 'Merge when green (no longer offered)'
 
 function shipItemsOf(current: EShipBehavior) {
-  const items = SHIP_BEHAVIORS.map(({ value, label }) => ({ value, label, disabled: false }));
-  if (items.some((item) => item.value === current)) return items;
-  return [...items, { value: current, label: LEGACY_MERGE_LABEL, disabled: true }];
+  const items = SHIP_BEHAVIORS.map(({ value, label }) => ({ value, label, disabled: false }))
+  if (items.some((item) => item.value === current)) return items
+  return [...items, { value: current, label: LEGACY_MERGE_LABEL, disabled: true }]
 }
 
 function isShipBehavior(value: unknown): value is EShipBehavior {
-  return Object.values(EShipBehavior).some((behavior) => behavior === value);
+  return Object.values(EShipBehavior).some((behavior) => behavior === value)
 }
 
 function draftsEqual({ left, right }: { left: OverviewDraft; right: OverviewDraft }): boolean {
@@ -72,12 +72,12 @@ function draftsEqual({ left, right }: { left: OverviewDraft; right: OverviewDraf
     left.baseBranch === right.baseBranch &&
     left.shipBehavior === right.shipBehavior &&
     left.workspace === right.workspace &&
-    left.additionalRepositories.join("\n") === right.additionalRepositories.join("\n")
-  );
+    left.additionalRepositories.join('\n') === right.additionalRepositories.join('\n')
+  )
 }
 
 function RepositoryControls() {
-  const slug = `${PROJECT.owner}/${PROJECT.name}`;
+  const slug = `${PROJECT.owner}/${PROJECT.name}`
   return (
     <>
       <a
@@ -107,22 +107,22 @@ function RepositoryControls() {
         </DropdownMenuContent>
       </DropdownMenu>
     </>
-  );
+  )
 }
 
 function AdditionalRepositories({
   repositories,
   onChange,
 }: {
-  repositories: readonly string[];
-  onChange: (next: readonly string[]) => void;
+  repositories: readonly string[]
+  onChange: (next: readonly string[]) => void
 }) {
   const handleRemove = (index: number) => {
-    onChange(repositories.filter((_, position) => position !== index));
-  };
+    onChange(repositories.filter((_, position) => position !== index))
+  }
   const handleEdit = ({ index, value }: { index: number; value: string }) => {
-    onChange(repositories.map((repo, position) => (position === index ? value : repo)));
-  };
+    onChange(repositories.map((repo, position) => (position === index ? value : repo)))
+  }
   return (
     <>
       {repositories.map((repo, index) => (
@@ -141,7 +141,7 @@ function AdditionalRepositories({
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label={`Remove ${repo || "repository"}`}
+              aria-label={`Remove ${repo || 'repository'}`}
               onClick={() => handleRemove(index)}
             >
               <XIcon />
@@ -153,42 +153,48 @@ function AdditionalRepositories({
         variant="outline"
         size="sm"
         className="self-start"
-        onClick={() => onChange([...repositories, ""])}
+        onClick={() => onChange([...repositories, ''])}
       >
         <PlusIcon data-icon="inline-start" />
         Add repository
       </Button>
     </>
-  );
+  )
 }
 
 export function OverviewPage({
   initial = PROJECT,
   showWorkspace = true,
 }: {
-  initial?: ProjectFixture;
-  showWorkspace?: boolean;
+  initial?: ProjectFixture
+  showWorkspace?: boolean
 }) {
-  const [saved, setSaved] = useState<OverviewDraft>(initial);
-  const [draft, setDraft] = useState<OverviewDraft>(initial);
-  const dirty = !draftsEqual({ left: draft, right: saved });
+  const [saved, setSaved] = useState<OverviewDraft>(initial)
+  const [draft, setDraft] = useState<OverviewDraft>(initial)
+  const dirty = !draftsEqual({ left: draft, right: saved })
 
-  const update = (patch: Partial<OverviewDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  const update = (patch: Partial<OverviewDraft>) =>
+    setDraft((current) => ({ ...current, ...patch }))
 
   const handleShipChange = (value: unknown) => {
-    if (isShipBehavior(value)) update({ shipBehavior: value });
-  };
+    if (isShipBehavior(value)) update({ shipBehavior: value })
+  }
 
   const handleWorkspaceChange = (value: unknown) => {
-    if (typeof value === "string") update({ workspace: value });
-  };
+    if (typeof value === 'string') update({ workspace: value })
+  }
 
-  const shipItems = shipItemsOf(draft.shipBehavior);
-  const shipDescription = SHIP_BEHAVIORS.find((item) => item.value === draft.shipBehavior)?.description;
+  const shipItems = shipItemsOf(draft.shipBehavior)
+  const shipDescription = SHIP_BEHAVIORS.find(
+    (item) => item.value === draft.shipBehavior,
+  )?.description
 
   return (
     <>
-      <SettingsSection title="Overview" description="How Atlas names, clones, and ships this project.">
+      <SettingsSection
+        title="Overview"
+        description="How Atlas names, clones, and ships this project."
+      >
         <SettingsCard
           footer={
             <>
@@ -204,7 +210,11 @@ export function OverviewPage({
             </>
           }
         >
-          <SettingsRow title="Name" htmlFor="project-name" description="Shown in the sidebar and on threads.">
+          <SettingsRow
+            title="Name"
+            htmlFor="project-name"
+            description="Shown in the sidebar and on threads."
+          >
             <InputGroup>
               <InputGroupAddon>
                 <InputGroupText className="font-mono">{initial.owner} /</InputGroupText>
@@ -222,7 +232,11 @@ export function OverviewPage({
               htmlFor="project-workspace"
               description="The workspace this project belongs to. Members of the workspace can see it."
             >
-              <Select items={WORKSPACE_OPTIONS} value={draft.workspace} onValueChange={handleWorkspaceChange}>
+              <Select
+                items={WORKSPACE_OPTIONS}
+                value={draft.workspace}
+                onValueChange={handleWorkspaceChange}
+              >
                 <SelectTrigger id="project-workspace" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -250,7 +264,10 @@ export function OverviewPage({
               onChange={(event) => update({ description: event.target.value })}
             />
           </SettingsRow>
-          <SettingsRow title="GitHub repository" description="Threads clone this repository into their sandbox.">
+          <SettingsRow
+            title="GitHub repository"
+            description="Threads clone this repository into their sandbox."
+          >
             <RepositoryControls />
           </SettingsRow>
           <SettingsRow
@@ -294,5 +311,5 @@ export function OverviewPage({
       </SettingsSection>
       <DangerZone projectSlug={`${initial.owner}/${saved.name}`} />
     </>
-  );
+  )
 }

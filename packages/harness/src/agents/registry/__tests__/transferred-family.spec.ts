@@ -9,9 +9,12 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { activateTransferredChildren, adoptTransferredChildren } from '../adopt-transferred-children'
+import {
+  activateTransferredChildren,
+  adoptTransferredChildren,
+} from '../adopt-transferred-children'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
-import { finished, settled, type OpenedSupervisor } from './fixtures'
+import { finished, type OpenedSupervisor } from './fixtures'
 import { append, endingFor, openChild, openFamily, snapshotOf } from './transferred-fixture'
 
 const opened: OpenedSupervisor[] = []
@@ -32,7 +35,9 @@ describe('hydrating a family that arrived from another location', () => {
     await entry.supervisor.hydrate({ threadId: entry.parent })
     expect(snapshotOf(entry, entry.parent, childId)).toMatchObject({ turns: 0, endedAt: undefined })
 
-    await append(entry, entry.parent, [endingFor({ agentId: childId, status: EAgentStatus.Finished })])
+    await append(entry, entry.parent, [
+      endingFor({ agentId: childId, status: EAgentStatus.Finished }),
+    ])
     await entry.harness.threads.chooseModel({
       threadId: childId,
       model: { ref: 'anthropic/claude-opus-5', effort: 'medium' },
@@ -61,7 +66,9 @@ describe('hydrating a family that arrived from another location', () => {
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })
 
     expect(await entry.harness.log.head({ threadId: entry.parent })).toBe(headBefore)
-    expect((await spawnEvents(entry, entry.parent)).map((event) => event.agentId)).toEqual([childId])
+    expect((await spawnEvents(entry, entry.parent)).map((event) => event.agentId)).toEqual([
+      childId,
+    ])
   })
 
   it('adds a child that only the incoming log names, under its original id', async () => {
@@ -71,16 +78,24 @@ describe('hydrating a family that arrived from another location', () => {
 
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })
 
-    expect(entry.supervisor.list({ threadId: entry.parent }).map((one) => one.agentId)).toEqual([lateId])
+    expect(entry.supervisor.list({ threadId: entry.parent }).map((one) => one.agentId)).toEqual([
+      lateId,
+    ])
   })
 
   it('refreshes nested children from each owner log', async () => {
     const entry = await open()
-    const childId = await openChild({ entry, spawnedBy: entry.parent, agentType: TEAMMATE_AGENT_TYPE })
+    const childId = await openChild({
+      entry,
+      spawnedBy: entry.parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+    })
     const nestedId = await openChild({ entry, spawnedBy: childId })
     await entry.supervisor.hydrate({ threadId: entry.parent })
     await entry.supervisor.hydrate({ threadId: childId })
-    await append(entry, childId, [endingFor({ agentId: nestedId, status: EAgentStatus.Finished, turns: 7 })])
+    await append(entry, childId, [
+      endingFor({ agentId: nestedId, status: EAgentStatus.Finished, turns: 7 }),
+    ])
 
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })
 
@@ -107,7 +122,9 @@ describe('hydrating a family that arrived from another location', () => {
     const mine = await spawn(entry.parent)
     const theirs = await spawn(second)
     for (const run of entry.runners.started) run.settle(finished())
-    await Promise.all([entry.parent, second].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })))
+    await Promise.all(
+      [entry.parent, second].map((threadId) => entry.supervisor.whenChildrenSettled({ threadId })),
+    )
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
     expect(entry.supervisor.pendingNotices({ threadId: second })).toHaveLength(1)
     await append(entry, entry.parent, [endingFor({ agentId: mine, status: EAgentStatus.Finished })])
@@ -115,7 +132,9 @@ describe('hydrating a family that arrived from another location', () => {
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })
 
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
-    expect(entry.supervisor.pendingNotices({ threadId: second }).map((one) => one.agentId)).toEqual([theirs])
+    expect(entry.supervisor.pendingNotices({ threadId: second }).map((one) => one.agentId)).toEqual(
+      [theirs],
+    )
     expect(snapshotOf(entry, second, theirs)?.status).toBe(EAgentStatus.Finished)
   })
 
@@ -150,7 +169,9 @@ describe('hydrating a family that arrived from another location', () => {
     })
 
     expect(hydrated).toEqual([entry.parent])
-    expect((await spawnEvents(entry, entry.parent)).map((event) => event.agentId)).toEqual([childId])
+    expect((await spawnEvents(entry, entry.parent)).map((event) => event.agentId)).toEqual([
+      childId,
+    ])
   })
 })
 
@@ -171,14 +192,23 @@ describe('activating a transferred family', () => {
   it('resumes sub-agents and teammates the source left unended or paused by the move', async () => {
     const entry = await open()
     const unended = await openChild({ entry, spawnedBy: entry.parent })
-    const teammate = await openChild({ entry, spawnedBy: entry.parent, agentType: TEAMMATE_AGENT_TYPE })
+    const teammate = await openChild({
+      entry,
+      spawnedBy: entry.parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+    })
     const paused = await openChild({ entry, spawnedBy: entry.parent })
     const switched = await openChild({ entry, spawnedBy: entry.parent })
     await append(entry, entry.parent, [
       endingFor({ agentId: paused, status: EAgentStatus.Stopped }),
-      endingFor({ agentId: switched, status: EAgentStatus.Stopped, killedBy: EKilledBy.ContainerSwitch }),
+      endingFor({
+        agentId: switched,
+        status: EAgentStatus.Stopped,
+        killedBy: EKilledBy.ContainerSwitch,
+      }),
     ])
-    for (const id of [unended, teammate, paused, switched]) await append(entry, id, interruptedMidTool)
+    for (const id of [unended, teammate, paused, switched])
+      await append(entry, id, interruptedMidTool)
 
     const resumed = await activate(entry)
 
@@ -188,7 +218,11 @@ describe('activating a transferred family', () => {
 
   it('keeps what the user or the source already ended ended, with its attribution', async () => {
     const entry = await open()
-    const byUser = await openChild({ entry, spawnedBy: entry.parent, agentType: TEAMMATE_AGENT_TYPE })
+    const byUser = await openChild({
+      entry,
+      spawnedBy: entry.parent,
+      agentType: TEAMMATE_AGENT_TYPE,
+    })
     const done = await openChild({ entry, spawnedBy: entry.parent })
     const failed = await openChild({ entry, spawnedBy: entry.parent })
     await append(entry, entry.parent, [

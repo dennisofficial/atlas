@@ -128,9 +128,12 @@ describe('settling a turn the sandbox started by itself', () => {
     try {
       await screen.until((frame) => frame.includes(WORKING), 'the working line')
       let settled = false
-      const waiting = screen.conversation().whenSettled().then(() => {
-        settled = true
-      })
+      const waiting = screen
+        .conversation()
+        .whenSettled()
+        .then(() => {
+          settled = true
+        })
 
       await screen.quiet(200)
       expect(settled).toBe(false)
@@ -203,9 +206,12 @@ describe('a rerender while the sandbox turn is running', () => {
     try {
       await screen.until((frame) => frame.includes(WORKING), 'the working line')
       let settled = false
-      const waiting = screen.conversation().whenSettled().then(() => {
-        settled = true
-      })
+      const waiting = screen
+        .conversation()
+        .whenSettled()
+        .then(() => {
+          settled = true
+        })
 
       await screen.togglePaceReveal(true)
       await screen.quiet(200)
@@ -254,7 +260,10 @@ describe('the synchronous working guard on a remote turn', () => {
   it('refuses a drive in the same tick the sandbox reports working, before React renders', async () => {
     const { app, channel } = await arrange()
     const probe: Probe = { driver: null }
-    const setup = await testRender(<DriverProbe app={app} probe={probe} />, { width: 40, height: 4 })
+    const setup = await testRender(<DriverProbe app={app} probe={probe} />, {
+      width: 40,
+      height: 4,
+    })
     await setup.flush()
 
     try {

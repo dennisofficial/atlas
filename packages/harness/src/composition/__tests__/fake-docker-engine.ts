@@ -1,6 +1,11 @@
 import type { DockerEngine } from '@dltech/atlas-harness'
 
-export type FakeContainer = { id: string; labels: Record<string, string>; binds: readonly string[]; workingDir: string }
+export type FakeContainer = {
+  id: string
+  labels: Record<string, string>
+  binds: readonly string[]
+  workingDir: string
+}
 
 export const statefulEngine = () => {
   const containers: FakeContainer[] = []
@@ -33,7 +38,11 @@ export const statefulEngine = () => {
     createNetwork: async () => ({ id: 'net' }),
     removeNetwork: async () => undefined,
     createContainer: async (args: {
-      body: { Labels?: Record<string, string>; HostConfig?: { Binds?: readonly string[] }; WorkingDir?: string }
+      body: {
+        Labels?: Record<string, string>
+        HostConfig?: { Binds?: readonly string[] }
+        WorkingDir?: string
+      }
     }) => {
       const id = `container-${containers.length + removals.length + 1}`
       containers.push({
@@ -52,7 +61,8 @@ export const statefulEngine = () => {
     stopContainer: async () => undefined,
     startContainer: async () => undefined,
     createExec: async () => ({ id: 'exec' }),
-    startExec: async () => new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
+    startExec: async () =>
+      new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
     inspectExec: async () => ({ running: false, exitCode: 0 }),
     images: { listImages: async () => [], buildImage: async () => undefined },
   }

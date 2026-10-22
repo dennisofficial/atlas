@@ -24,7 +24,8 @@ export type {
 export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
   const driverWith =
     args.driverWith ??
-    ((config: PodDriverConfig): PodBridgeDriver => new DockerPodDriver({ ...config, log: args.onDriverLog }))
+    ((config: PodDriverConfig): PodBridgeDriver =>
+      new DockerPodDriver({ ...config, log: args.onDriverLog }))
 
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
@@ -67,12 +68,16 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
       state: sandboxStateSchema.parse(placement.state),
       created: placement.created,
       ...(placement.rotatedFrom === undefined ? {} : { rotatedFrom: placement.rotatedFrom }),
-      ...(placement.rotatedProtocol === undefined ? {} : { rotatedProtocol: placement.rotatedProtocol }),
+      ...(placement.rotatedProtocol === undefined
+        ? {}
+        : { rotatedProtocol: placement.rotatedProtocol }),
     }
   }
 
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
-    const observed = await driverWith(args.pod()).inspect({ name: podNameFor({ threadId: findArgs.threadId }) })
+    const observed = await driverWith(args.pod()).inspect({
+      name: podNameFor({ threadId: findArgs.threadId }),
+    })
     return {
       ...(observed === undefined
         ? { state: ECloudSandboxState.Stopped }
@@ -84,13 +89,17 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
   const sandboxes: CloudSandboxes = {
     create,
     find,
-    readResources: ({ threadId }) => driverWith(args.pod()).readResources({ name: podNameFor({ threadId }) }),
+    readResources: ({ threadId }) =>
+      driverWith(args.pod()).readResources({ name: podNameFor({ threadId }) }),
     updateResources: async ({ threadId, vcpus }) => {
       await driverWith(args.pod()).updateResources({ name: podNameFor({ threadId }), vcpus })
       return { appliesAt: EResizeApplies.Live }
     },
     destroy: ({ threadId, expectedSandboxSessionId }) =>
-      driverWith(args.pod()).destroy({ name: podNameFor({ threadId }), sessionId: expectedSandboxSessionId }),
+      driverWith(args.pod()).destroy({
+        name: podNameFor({ threadId }),
+        sessionId: expectedSandboxSessionId,
+      }),
   }
 
   return { sandboxes, attach: attachmentOf({ options: args, sandboxes }) }

@@ -110,7 +110,11 @@ describe('CachingAccountStore', () => {
     expect(await store.activeFor(EAuthProvider.Anthropic)).toBe(account.id)
     expect(await store.activeFor(EAuthProvider.Anthropic)).toBe(account.id)
 
-    expect(remote.calls).toEqual(['list', `read:${account.id}`, `activeFor:${EAuthProvider.Anthropic}`])
+    expect(remote.calls).toEqual([
+      'list',
+      `read:${account.id}`,
+      `activeFor:${EAuthProvider.Anthropic}`,
+    ])
   })
 
   it('refetches once the TTL has passed', async () => {
@@ -171,7 +175,11 @@ describe('CachingAccountStore', () => {
     await store.read(account.id)
     await store.activeFor(EAuthProvider.Anthropic)
 
-    expect(remote.calls).toEqual(['list', `read:${account.id}`, `activeFor:${EAuthProvider.Anthropic}`])
+    expect(remote.calls).toEqual([
+      'list',
+      `read:${account.id}`,
+      `activeFor:${EAuthProvider.Anthropic}`,
+    ])
   })
 
   it('never serves a write from the cache', async () => {

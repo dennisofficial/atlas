@@ -11,7 +11,9 @@ import { THREAD, call, policyNamed, scopeNamed, stampHistory } from './fixtures'
 
 describe('qualitySettingDefinitions', () => {
   it('maps each descriptor to a toggle row keyed by its settingKey', () => {
-    const rows = qualitySettingDefinitions({ policies: [policyNamed({ id: 'a' }), { ...policyNamed({ id: 'b' }), defaultEnabled: false }] })
+    const rows = qualitySettingDefinitions({
+      policies: [policyNamed({ id: 'a' }), { ...policyNamed({ id: 'b' }), defaultEnabled: false }],
+    })
     expect(rows).toHaveLength(2)
     expect(rows[0]).toMatchObject({
       id: 'quality.policies.a',
@@ -31,12 +33,21 @@ describe('qualitySettingDefinitions', () => {
 
 describe('qualitySwitches', () => {
   it('defaults every switch to false', () => {
-    expect(qualitySwitches({ values: {} })).toEqual({ enabled: false, recordExamples: false, policyFlags: {} })
+    expect(qualitySwitches({ values: {} })).toEqual({
+      enabled: false,
+      recordExamples: false,
+      policyFlags: {},
+    })
   })
 
   it('reads master, collection and boolean policy flags only', () => {
     const switches = qualitySwitches({
-      values: { 'quality.enabled': true, 'quality.recordExamples': true, 'quality.policies.a': false, other: 'text' },
+      values: {
+        'quality.enabled': true,
+        'quality.recordExamples': true,
+        'quality.policies.a': false,
+        other: 'text',
+      },
     })
     expect(switches.enabled).toBe(true)
     expect(switches.recordExamples).toBe(true)
@@ -84,9 +95,22 @@ describe('readQualityHealth', () => {
     const events = stampHistory({
       batches: [
         [
-          buildRecord({ callId: call.callId, workspaceNamespace: 'ns', path: 'src/a.ts', status: EQualityReviewStatus.Skipped, durationMs: 1 }),
+          buildRecord({
+            callId: call.callId,
+            workspaceNamespace: 'ns',
+            path: 'src/a.ts',
+            status: EQualityReviewStatus.Skipped,
+            durationMs: 1,
+          }),
           { type: 'nudge', text: 'ignored', lifetimeSteps: 1 },
-          buildRecord({ callId: call.callId, workspaceNamespace: 'ns', path: 'src/a.ts', scope, status: EQualityReviewStatus.Completed, durationMs: 1 }),
+          buildRecord({
+            callId: call.callId,
+            workspaceNamespace: 'ns',
+            path: 'src/a.ts',
+            scope,
+            status: EQualityReviewStatus.Completed,
+            durationMs: 1,
+          }),
         ],
       ],
     })

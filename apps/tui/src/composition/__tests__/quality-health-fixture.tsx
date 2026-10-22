@@ -27,7 +27,12 @@ type Probe = { current: QualityHealthRead | undefined }
 
 type Drive = { state: SettingsState | null; threadId: ThreadId }
 
-function Harness(args: { probe: Probe; app: FakeApp; state: SettingsState | null; threadId: ThreadId }) {
+function Harness(args: {
+  probe: Probe
+  app: FakeApp
+  state: SettingsState | null
+  threadId: ThreadId
+}) {
   args.probe.current = useQualityHealth({
     app: args.app as unknown as AtlasApp,
     state: args.state,
@@ -49,7 +54,6 @@ export type Mounted = {
 }
 
 const live: Mounted[] = []
-
 
 export async function unmountAll(): Promise<void> {
   const held = live.splice(0)
@@ -76,9 +80,7 @@ export async function mount(args: {
     const [drive, update] = useState<Drive>(initial)
     setDrive = update
     snapshot = drive
-    return (
-      <Harness probe={probe} app={args.app} state={drive.state} threadId={drive.threadId} />
-    )
+    return <Harness probe={probe} app={args.app} state={drive.state} threadId={drive.threadId} />
   }
 
   await act(async () => {

@@ -56,7 +56,10 @@ const revoked: EventDraft = eventBodySchema.parse({
   grantId: 'grant-1',
 })
 
-const summarises = (summary: string | null): Summarise => async () => summary
+const summarises =
+  (summary: string | null): Summarise =>
+  async () =>
+    summary
 
 const openThread = async (drafts: readonly EventDraft[]): Promise<ThreadId> => {
   fixture = await openStoreFixture()
@@ -281,7 +284,9 @@ describe('what neither operation will do', () => {
       anchor: ECompactionAnchor.Prefix,
       seq: 2,
       summarise: async () => {
-        throw new SummaryFailure('The Anthropic login for work has expired and could not be refreshed. Sign in with /auth.')
+        throw new SummaryFailure(
+          'The Anthropic login for work has expired and could not be refreshed. Sign in with /auth.',
+        )
       },
     })
 
@@ -312,7 +317,12 @@ describe('what neither operation will do', () => {
   })
 
   it('spares a grant from a destructive summary and takes the turn beside it', async () => {
-    const threadId = await openThread([said('clean it'), granted, said('and again'), replied('done')])
+    const threadId = await openThread([
+      said('clean it'),
+      granted,
+      said('and again'),
+      replied('done'),
+    ])
 
     const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the cleanup' })
 
@@ -338,7 +348,12 @@ describe('what neither operation will do', () => {
   })
 
   it('counts only the rows it actually replaced, not the grant it spared', async () => {
-    const threadId = await openThread([said('clean it'), granted, said('and again'), replied('done')])
+    const threadId = await openThread([
+      said('clean it'),
+      granted,
+      said('and again'),
+      replied('done'),
+    ])
 
     const outcome = await summariseTo({ threadId, throughSeq: 3, summary: 'the cleanup' })
 

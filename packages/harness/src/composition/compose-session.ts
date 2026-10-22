@@ -14,7 +14,12 @@ import type { ContributedSurface } from '../plugins/surface'
 import type { MentionReader } from '../files/mention-reader'
 
 import type { ExecutionLocationState } from './execution-location-state'
-import { createSessionOwner, ERuntimeKind, type SessionOwner, type SessionRuntime } from './session-owner'
+import {
+  createSessionOwner,
+  ERuntimeKind,
+  type SessionOwner,
+  type SessionRuntime,
+} from './session-owner'
 
 export function localSessionOwner(args: {
   placement: ExecutionLocationState

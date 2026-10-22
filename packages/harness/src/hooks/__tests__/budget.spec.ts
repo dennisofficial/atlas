@@ -52,7 +52,9 @@ describe('withinBudget', () => {
     })
 
     expect(value).toBe('fallback')
-    expect(seen).toEqual([{ label: 'hanger', kind: EHookMishapKind.Overran, detail: 'exceeded 5ms' }])
+    expect(seen).toEqual([
+      { label: 'hanger', kind: EHookMishapKind.Overran, detail: 'exceeded 5ms' },
+    ])
   })
 
   it('falls back and reports when the hook returns undefined', async () => {
@@ -66,7 +68,9 @@ describe('withinBudget', () => {
     })
 
     expect(value).toBe('fallback')
-    expect(seen).toEqual([{ label: 'forgetful', kind: EHookMishapKind.ReturnedNothing, detail: 'returned undefined' }])
+    expect(seen).toEqual([
+      { label: 'forgetful', kind: EHookMishapKind.ReturnedNothing, detail: 'returned undefined' },
+    ])
   })
 
   it('passes null through, because a chunk hook drops with it', async () => {
@@ -108,7 +112,12 @@ describe('withinBudget', () => {
 
   it('is usable with no reporter', async () => {
     expect(
-      await withinBudget({ label: 'quiet', run: never<string>, fallback: () => 'fallback', budgetMs: 5 }),
+      await withinBudget({
+        label: 'quiet',
+        run: never<string>,
+        fallback: () => 'fallback',
+        budgetMs: 5,
+      }),
     ).toBe('fallback')
   })
 })

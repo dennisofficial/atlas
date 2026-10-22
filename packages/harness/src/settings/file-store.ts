@@ -11,7 +11,6 @@ import {
   type SettingsStorePort,
 } from '@dltech/atlas-core'
 
-
 const missing = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 
@@ -31,7 +30,10 @@ export class FileSettingsStore implements SettingsStorePort {
       text = readFileSync(this.args.file, 'utf8')
     } catch (error) {
       if (missing(error)) return { document: EMPTY_SETTINGS_DOCUMENT }
-      return { document: EMPTY_SETTINGS_DOCUMENT, problem: `${this.args.label}: ${messageOf(error)}` }
+      return {
+        document: EMPTY_SETTINGS_DOCUMENT,
+        problem: `${this.args.label}: ${messageOf(error)}`,
+      }
     }
 
     let parsed: JsonValue

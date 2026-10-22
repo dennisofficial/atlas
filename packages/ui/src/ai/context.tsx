@@ -1,58 +1,48 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
-import { Button } from "#components/button";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "#components/hover-card";
-import { Progress } from "#components/progress";
-import { cn } from "#lib/utils";
+import { Button } from '#components/button'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '#components/hover-card'
+import { Progress } from '#components/progress'
+import { cn } from '#lib/utils'
 
 export interface ContextBreakdownRow {
-  label: string;
-  tokens: number;
+  label: string
+  tokens: number
 }
 
 export interface ContextProps {
-  used: number;
-  limit: number;
-  breakdown?: ContextBreakdownRow[];
-  trigger?: ReactNode;
-  className?: string;
+  used: number
+  limit: number
+  breakdown?: ContextBreakdownRow[]
+  trigger?: ReactNode
+  className?: string
 }
 
 interface UsageInput {
-  used: number;
-  limit: number;
+  used: number
+  limit: number
 }
 
 export function contextPercent({ used, limit }: UsageInput): number {
-  if (limit <= 0) return 0;
-  return Math.min(100, Math.round((used / limit) * 100));
+  if (limit <= 0) return 0
+  return Math.min(100, Math.round((used / limit) * 100))
 }
 
 export function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
-  return String(tokens);
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`
+  return String(tokens)
 }
 
-export function Context({
-  used,
-  limit,
-  breakdown = [],
-  trigger,
-  className,
-}: ContextProps) {
-  const percent = contextPercent({ used, limit });
+export function Context({ used, limit, breakdown = [], trigger, className }: ContextProps) {
+  const percent = contextPercent({ used, limit })
 
   return (
     <HoverCard>
       <HoverCardTrigger
         delay={10}
         closeDelay={100}
-        render={<Button variant="ghost" size="sm" className={cn("tabular-nums", className)} />}
+        render={<Button variant="ghost" size="sm" className={cn('tabular-nums', className)} />}
       >
         {trigger ?? `${percent}% context`}
       </HoverCardTrigger>
@@ -76,5 +66,5 @@ export function Context({
         ) : null}
       </HoverCardContent>
     </HoverCard>
-  );
+  )
 }

@@ -140,7 +140,7 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
     expect(events.indexOf('authorize')).toBeLessThan(events.indexOf('launch'))
   })
 
-  it('re-authorizes when a wake re-creates a dropped channel\'s sandbox', async () => {
+  it("re-authorizes when a wake re-creates a dropped channel's sandbox", async () => {
     const events: string[] = []
     const bridge = bridgeWith({
       driver: recordingDriver({ created: false, events }),
@@ -181,7 +181,11 @@ describe('createCloudBridge sandbox OAuth authorization', () => {
       },
     })
 
-    await bridge.sandboxes.create({ threadId: THREAD, projectId: null, model: 'anthropic/claude-test' })
+    await bridge.sandboxes.create({
+      threadId: THREAD,
+      projectId: null,
+      model: 'anthropic/claude-test',
+    })
 
     expect(authorizations).toEqual([
       {

@@ -79,7 +79,10 @@ describe('the notice stack', () => {
     const rows = frame.split('\n').filter((row) => row.includes('x'))
     expect(rows.length).toBeGreaterThan(1)
     expect(frame).not.toContain('…')
-    const kept = rows.join('').split('').filter((char) => char === 'x').length
+    const kept = rows
+      .join('')
+      .split('')
+      .filter((char) => char === 'x').length
     expect(kept).toBe(WIDTH * 2)
   })
 

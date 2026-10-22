@@ -4,7 +4,9 @@ import { truncatesWatch, waitsByWatching } from '../watching'
 
 describe('a foreground command that only ends when what it watches ends', () => {
   it('catches the gh blocking waits', () => {
-    expect(waitsByWatching({ command: 'gh run watch 36029861813 --exit-status --interval 60' })).toBe(true)
+    expect(
+      waitsByWatching({ command: 'gh run watch 36029861813 --exit-status --interval 60' }),
+    ).toBe(true)
     expect(waitsByWatching({ command: 'gh pr checks 272 --watch' })).toBe(true)
   })
 

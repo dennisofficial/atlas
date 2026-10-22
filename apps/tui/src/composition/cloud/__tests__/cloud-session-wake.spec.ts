@@ -11,7 +11,11 @@ import {
 import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
-import { CLOUD_WAKE_FAILED_NOTICE_KEY, createCloudSession, type CloudSession } from '../cloud-session'
+import {
+  CLOUD_WAKE_FAILED_NOTICE_KEY,
+  createCloudSession,
+  type CloudSession,
+} from '../cloud-session'
 import { CLOUD_THREAD, fakeCloudChannel, type FakeCloudChannel } from './fixture'
 
 beforeEach(() => {
@@ -49,7 +53,12 @@ const sessionOn = (
   const session = createCloudSession({
     channel,
     sandboxes: {
-      create: async () => ({ url: '', token: '', state: ECloudSandboxState.Running, created: false }),
+      create: async () => ({
+        url: '',
+        token: '',
+        state: ECloudSandboxState.Running,
+        created: false,
+      }),
       find: args.find ?? (async () => undefined),
       readResources: async () => ({}),
       updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
@@ -157,7 +166,9 @@ describe('the quiet background wake', () => {
   })
 
   it('dials a sandbox the record says is waking when this client holds no attachment yet', async () => {
-    const { session, wakes } = sessionOn({ connection: { state: EConnectionView.Waking, detail: null } })
+    const { session, wakes } = sessionOn({
+      connection: { state: EConnectionView.Waking, detail: null },
+    })
 
     session.wake()
     await tick()
@@ -178,7 +189,9 @@ describe('the quiet background wake', () => {
   })
 
   it('does nothing against a connected socket', async () => {
-    const { session, wakes } = sessionOn({ connection: { state: EConnectionView.Connected, detail: null } })
+    const { session, wakes } = sessionOn({
+      connection: { state: EConnectionView.Connected, detail: null },
+    })
 
     session.wake()
     await tick()
@@ -223,7 +236,9 @@ describe('the quiet background wake', () => {
 
 describe('a park', () => {
   it('never produces a notice', async () => {
-    const { channel } = sessionOn({ connection: { state: EConnectionView.Connected, detail: null } })
+    const { channel } = sessionOn({
+      connection: { state: EConnectionView.Connected, detail: null },
+    })
 
     channel.pushCheckpoint(checkpointAt(ERuntimePhase.Parked))
     channel.moveTo(PARKED)

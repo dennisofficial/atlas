@@ -3,7 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import type { EventDraft } from '../body'
 import type { Event } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
-import { crashedCalls, dispatchedCalls, pendingCalls, submissionWithRequestId } from '../projections'
+import {
+  crashedCalls,
+  dispatchedCalls,
+  pendingCalls,
+  submissionWithRequestId,
+} from '../projections'
 import { stampDrafts } from '../stamp'
 
 const eventsFrom = (drafts: readonly EventDraft[]): Event[] =>
@@ -48,9 +53,9 @@ describe('submissionWithRequestId', () => {
     ])
 
     expect(submissionWithRequestId({ events, requestId: 'req-1' })?.type).toBe('user-said')
-    expect(
-      (submissionWithRequestId({ events, requestId: 'req-1' }) as { text: string }).text,
-    ).toBe('first try')
+    expect((submissionWithRequestId({ events, requestId: 'req-1' }) as { text: string }).text).toBe(
+      'first try',
+    )
   })
 
   it('returns undefined when no submission carries the requestId', () => {

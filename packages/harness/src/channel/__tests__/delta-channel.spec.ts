@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, toCallId, toEventId, toRunId, type Chunk, type Event } from '@dltech/atlas-core'
+import {
+  toThreadId,
+  toCallId,
+  toEventId,
+  toRunId,
+  type Chunk,
+  type Event,
+} from '@dltech/atlas-core'
 
 import { createDeltaChannel, EStepEnd } from '..'
 import { firstStepId, recorder, stepEnded } from './signals'
@@ -63,11 +70,9 @@ describe('the step in flight', () => {
     publisher.onChunk({ type: 'reasoning-delta', id: 'r1', text: 'two files touched' })
     publisher.onChunk({ type: 'reasoning-end', id: 'r1' })
 
-    expect(seen.filter((signal) => signal.type === 'chunk').map((signal) => signal.chunk.type)).toEqual([
-      'reasoning-start',
-      'reasoning-delta',
-      'reasoning-end',
-    ])
+    expect(
+      seen.filter((signal) => signal.type === 'chunk').map((signal) => signal.chunk.type),
+    ).toEqual(['reasoning-start', 'reasoning-delta', 'reasoning-end'])
   })
 
   it('returns the chunk unchanged so the accumulator still sees it', () => {
@@ -124,7 +129,9 @@ describe('completing a step', () => {
     const publisher = channel.publisherFor({ threadId })
     publisher.onChunk({ type: 'text-delta', id: 't1', text: 'half a th' })
 
-    publisher.settleAppend({ events: [assistantSaid({ seq: 2, text: 'half a th', interrupted: true })] })
+    publisher.settleAppend({
+      events: [assistantSaid({ seq: 2, text: 'half a th', interrupted: true })],
+    })
 
     const ended = stepEnded(seen)
     expect(ended.end).toBe(EStepEnd.Interrupted)
@@ -165,7 +172,9 @@ describe('completing a step', () => {
     const { seen, listener } = recorder()
     channel.subscribe({ threadId, listener })
 
-    channel.publisherFor({ threadId }).settleAppend({ events: [assistantSaid({ seq: 1, text: 'stale' })] })
+    channel
+      .publisherFor({ threadId })
+      .settleAppend({ events: [assistantSaid({ seq: 1, text: 'stale' })] })
 
     expect(seen).toEqual([{ type: 'events-appended' }])
   })
@@ -174,7 +183,9 @@ describe('completing a step', () => {
     const channel = createDeltaChannel()
     channel.subscribe({ threadId, listener: () => undefined })
 
-    channel.publisherFor({ threadId }).settleAppend({ events: [assistantSaid({ seq: 1, text: 'stale' })] })
+    channel
+      .publisherFor({ threadId })
+      .settleAppend({ events: [assistantSaid({ seq: 1, text: 'stale' })] })
 
     expect(channel.snapshot({ threadId })).toEqual([])
   })
@@ -266,13 +277,9 @@ describe('attaching mid-step', () => {
     publisher.onChunk({ type: 'text-delta', id: 't1', text: 'and the router' })
     publisher.settleAppend({ events: [assistantSaid({ seq: 2, text: 'auth and the router' })] })
 
-    expect(seen.map((signal) => (signal.type === 'chunk' ? signal.chunk.type : signal.type))).toEqual([
-      'step-started',
-      'text-start',
-      'text-delta',
-      'text-delta',
-      'step-ended',
-    ])
+    expect(
+      seen.map((signal) => (signal.type === 'chunk' ? signal.chunk.type : signal.type)),
+    ).toEqual(['step-started', 'text-start', 'text-delta', 'text-delta', 'step-ended'])
     const deltas = seen.flatMap((signal) =>
       signal.type === 'chunk' && signal.chunk.type === 'text-delta' ? [signal.chunk.text] : [],
     )
@@ -290,7 +297,8 @@ describe('attaching mid-step', () => {
       listener: (signal) => {
         if (signal.type !== 'chunk' || signal.chunk.type !== 'text-delta') return
         seen.push(signal.chunk.text)
-        if (seen.length === 1) publisher.onChunk({ type: 'text-delta', id: 't1', text: ' and the router' })
+        if (seen.length === 1)
+          publisher.onChunk({ type: 'text-delta', id: 't1', text: ' and the router' })
       },
     })
 
@@ -380,7 +388,8 @@ describe('a filter in front of the channel', () => {
     channel.subscribe({ threadId, listener })
     const publisher = channel.publisherFor({
       threadId,
-      filter: (chunk) => (chunk.type === 'text-delta' && chunk.text.includes('secret') ? null : chunk),
+      filter: (chunk) =>
+        chunk.type === 'text-delta' && chunk.text.includes('secret') ? null : chunk,
     })
 
     expect(publisher.onChunk({ type: 'text-delta', id: 't1', text: 'secret token' })).toBeNull()

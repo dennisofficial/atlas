@@ -16,9 +16,7 @@ describe('pendingMigrations', () => {
   })
 
   it('is empty when the database is level with the image', () => {
-    expect(
-      pendingMigrations({ shipped: ['a', 'b'], applied: ['b', 'a'] }),
-    ).toEqual([])
+    expect(pendingMigrations({ shipped: ['a', 'b'], applied: ['b', 'a'] })).toEqual([])
   })
 
   it('is empty when the database is ahead, which is an ordinary deploy window', () => {
@@ -44,10 +42,7 @@ describe('shippedMigrationNames', () => {
     mkdirSync(join(directory, '20250101000000_a'))
     writeFileSync(join(directory, 'migration_lock.toml'), 'provider = "postgresql"')
 
-    expect(shippedMigrationNames({ directory })).toEqual([
-      '20250101000000_a',
-      '20260101000000_b',
-    ])
+    expect(shippedMigrationNames({ directory })).toEqual(['20250101000000_a', '20260101000000_b'])
   })
 
   it('uses the build-time inlined names when the bundle defines them', () => {

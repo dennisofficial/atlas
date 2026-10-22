@@ -21,7 +21,12 @@ export function makeCandidate({
     candidateId: id,
     method,
     group: `group-${id}`,
-    provenance: { session: 's', captureId: id, adapterVersion: '1', sourceHash: sha256Hex({ text: after }) },
+    provenance: {
+      session: 's',
+      captureId: id,
+      adapterVersion: '1',
+      sourceHash: sha256Hex({ text: after }),
+    },
     snapshot: {
       path,
       workspaceNamespace: 'ns',
@@ -42,8 +47,19 @@ export function makeCandidate({
         dependencyContext: [],
         evidence: [],
       },
-      digests: { beforeSha256: before === null ? null : sha256Hex({ text: before }), afterSha256: sha256Hex({ text: after }) },
-      redaction: { path: [], name: [], before: [], after: [], diff: [], dependencyContext: [], evidence: [] },
+      digests: {
+        beforeSha256: before === null ? null : sha256Hex({ text: before }),
+        afterSha256: sha256Hex({ text: after }),
+      },
+      redaction: {
+        path: [],
+        name: [],
+        before: [],
+        after: [],
+        diff: [],
+        dependencyContext: [],
+        evidence: [],
+      },
     },
   }
 }

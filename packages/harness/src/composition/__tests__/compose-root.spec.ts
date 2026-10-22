@@ -43,10 +43,19 @@ describe('localSessionOwner', () => {
     const parent = toThreadId('parent')
     const child = toThreadId('child')
     const threads = {
-      spawned: async ({ threadId }: { threadId: string }) => (threadId === parent ? [{ id: child }] : []),
+      spawned: async ({ threadId }: { threadId: string }) =>
+        threadId === parent ? [{ id: child }] : [],
     }
     const adapters = {
-      runner: {}, channel: {}, log: {}, threads, ledger: {}, intake, shells: {}, agents: {}, services: {},
+      runner: {},
+      channel: {},
+      log: {},
+      threads,
+      ledger: {},
+      intake,
+      shells: {},
+      agents: {},
+      services: {},
     }
     const owner = localSessionOwner({
       placement: new PlacementController(EExecutionLocation.Host),
@@ -116,7 +125,12 @@ describe('bindBrowser', () => {
         user: new MemorySettingsStore({ label: 'compose root spec' }),
       })
       const location = new PlacementController(EExecutionLocation.Host)
-      const browser = bindBrowser({ anchor, settings, executionLocation: location, mounts: ['/mnt'] })
+      const browser = bindBrowser({
+        anchor,
+        settings,
+        executionLocation: location,
+        mounts: ['/mnt'],
+      })
 
       expect(browser.pathResolver({ path: 'notes.md' })).toEqual({ path: join(anchor, 'notes.md') })
       expect(browser.pathResolver({ path: 'missing.md' })).toBeNull()

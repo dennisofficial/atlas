@@ -32,7 +32,10 @@ describe('the model a teammate starts on', () => {
   it('still sends a plain sub-agent to the sub-agent role model', async () => {
     const fixture = await childModelFixture({ settings: { 'agents.subagentModel': keyOf(GPT) } })
 
-    const chosen = await fixture.selection()({ agentType: childType(), spawnedBy: fixture.threadId })
+    const chosen = await fixture.selection()({
+      agentType: childType(),
+      spawnedBy: fixture.threadId,
+    })
 
     expect(chosen.ref).toBe(keyOf(GPT))
   })
@@ -114,7 +117,10 @@ describe('a model a teammate is explicitly given', () => {
     fixture.parent.select({ ref: GPT, effort: EEffort.High })
     const resumed = await fixture.respawn()({ agentType: teammate, threadId })
 
-    expect(await fixture.savedModel(threadId)).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.Medium })
+    expect(await fixture.savedModel(threadId)).toEqual({
+      ref: keyOf(CLAUDE),
+      effort: EEffort.Medium,
+    })
     expect(resumed.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
   })
 })

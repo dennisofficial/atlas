@@ -16,7 +16,11 @@ import { warnSync } from './log'
 
 const TOMBSTONE_HASH = ''
 
-async function preserveLocal(args: { path: string; text: LocalText; deviceId: string }): Promise<void> {
+async function preserveLocal(args: {
+  path: string
+  text: LocalText
+  deviceId: string
+}): Promise<void> {
   for (let attempt = 1; ; attempt += 1) {
     const copy = conflictCopyName({
       path: args.path,
@@ -35,7 +39,7 @@ type RowContext = {
   ctx: TreeSyncContext
   row: UserFileContent
   path: string
-  local: LocalRead & { exists: true } | { exists: false }
+  local: (LocalRead & { exists: true }) | { exists: false }
 }
 
 async function applyTombstone(args: RowContext): Promise<void> {

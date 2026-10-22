@@ -33,7 +33,12 @@ const withLength = (bytes: Buffer): Buffer => {
   return Buffer.concat([length, bytes])
 }
 
-function encode(args: { key: DecodedKey; block?: Buffer; omitBlock?: boolean; trailing?: Buffer }): string {
+function encode(args: {
+  key: DecodedKey
+  block?: Buffer
+  omitBlock?: boolean
+  trailing?: Buffer
+}): string {
   const bytes = Buffer.concat([
     args.key.preamble,
     withLength(args.key.blob),
@@ -73,12 +78,13 @@ describe('publicKeyLineOf', () => {
     expect(() => publicKeyLineOf({ privateKey: key.privateKey })).toThrow(BadRequestException)
   })
 
-  it.each(['', 'garbage', '-----BEGIN OPENSSH PRIVATE KEY-----\n!!!\n-----END OPENSSH PRIVATE KEY-----'])(
-    'refuses garbage %j',
-    (privateKey) => {
-      expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
-    },
-  )
+  it.each([
+    '',
+    'garbage',
+    '-----BEGIN OPENSSH PRIVATE KEY-----\n!!!\n-----END OPENSSH PRIVATE KEY-----',
+  ])('refuses garbage %j', (privateKey) => {
+    expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
+  })
 
   it('refuses a truncated key', () => {
     const key = generateKey({ type: 'ed25519' })
@@ -103,27 +109,39 @@ describe('publicKeyLineOf', () => {
     it('refuses a key with no private block', () => {
       const { key } = fresh()
 
-      expect(() => publicKeyLineOf({ privateKey: encode({ key, omitBlock: true }) })).toThrow(BadRequestException)
+      expect(() => publicKeyLineOf({ privateKey: encode({ key, omitBlock: true }) })).toThrow(
+        BadRequestException,
+      )
     })
 
     it('refuses a garbage private block', () => {
       const { key } = fresh()
 
-      expect(() => publicKeyLineOf({ privateKey: encode({ key, block: Buffer.alloc(40, 0x61) }) })).toThrow(
-        BadRequestException,
-      )
+      expect(() =>
+        publicKeyLineOf({ privateKey: encode({ key, block: Buffer.alloc(40, 0x61) }) }),
+      ).toThrow(BadRequestException)
     })
 
     it('refuses mismatched checkints', () => {
       const { key } = fresh()
-      const privateKey = mutated({ key, edit: (block) => void block.writeUInt32BE((block.readUInt32BE(4) ^ 1) >>> 0, 4) })
+      const privateKey = mutated({
+        key,
+        edit: (block) => void block.writeUInt32BE((block.readUInt32BE(4) ^ 1) >>> 0, 4),
+      })
 
       expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
     })
 
     it('refuses a private block whose public key differs from the outer one', () => {
       const { key } = fresh()
-      const privateKey = mutated({ key, edit: (block) => void block.writeUInt8(block[PUBLIC_OFFSET_IN_PRIVATE_BLOCK]! ^ 1, PUBLIC_OFFSET_IN_PRIVATE_BLOCK) })
+      const privateKey = mutated({
+        key,
+        edit: (block) =>
+          void block.writeUInt8(
+            block[PUBLIC_OFFSET_IN_PRIVATE_BLOCK]! ^ 1,
+            PUBLIC_OFFSET_IN_PRIVATE_BLOCK,
+          ),
+      })
 
       expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
     })
@@ -131,14 +149,20 @@ describe('publicKeyLineOf', () => {
     it('refuses a private half whose embedded public key differs', () => {
       const { key } = fresh()
       const lastSecretByte = PUBLIC_OFFSET_IN_PRIVATE_BLOCK + 32 + 4 + 63
-      const privateKey = mutated({ key, edit: (block) => void block.writeUInt8(block[lastSecretByte]! ^ 1, lastSecretByte) })
+      const privateKey = mutated({
+        key,
+        edit: (block) => void block.writeUInt8(block[lastSecretByte]! ^ 1, lastSecretByte),
+      })
 
       expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
     })
 
     it('refuses bad padding', () => {
       const { key } = fresh()
-      const privateKey = mutated({ key, edit: (block) => void block.writeUInt8(0x7f, block.length - 1) })
+      const privateKey = mutated({
+        key,
+        edit: (block) => void block.writeUInt8(0x7f, block.length - 1),
+      })
 
       expect(() => publicKeyLineOf({ privateKey })).toThrow(BadRequestException)
     })
@@ -154,9 +178,9 @@ describe('publicKeyLineOf', () => {
     it('refuses trailing bytes after the private block', () => {
       const { key } = fresh()
 
-      expect(() => publicKeyLineOf({ privateKey: encode({ key, trailing: Buffer.from([0]) }) })).toThrow(
-        BadRequestException,
-      )
+      expect(() =>
+        publicKeyLineOf({ privateKey: encode({ key, trailing: Buffer.from([0]) }) }),
+      ).toThrow(BadRequestException)
     })
   })
 })

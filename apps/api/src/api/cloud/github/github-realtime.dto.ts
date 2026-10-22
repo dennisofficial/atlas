@@ -15,7 +15,7 @@ import {
  * by branch. Zero or both is a 400, not an ambiguous read.
  */
 function ExactlyOneTarget(validationOptions?: ValidationOptions) {
-  return function (object: object, propertyName: string) {
+  return (object: object, propertyName: string) => {
     registerDecorator({
       name: 'exactlyOneTarget',
       target: object.constructor,

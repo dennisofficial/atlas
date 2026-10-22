@@ -7,7 +7,12 @@ import { EDefinitionOrigin, EWebSearchBackend, ToolDefinition } from '@dltech/at
 import { AgentRegistryPort } from '../../agents/registry/port'
 import type { AgentType } from '../../agents/types/agent-type'
 import { createHarnessContainer } from '../../container/create-harness-container'
-import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../../container/injection'
+import {
+  portToken,
+  registeredPortToken,
+  resolveSet,
+  type DependencyContainer,
+} from '../../container/injection'
 import {
   WebSearchBackendToken,
   WorktreeDirectoryToken,

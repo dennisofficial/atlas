@@ -51,7 +51,7 @@ const sandboxAnswering = (args: {
         requested = true
         return { exitCode: args.exitCode ?? 0, stdout: async () => args.stdout }
       }
-      const record = sealed() ? args.afterRequest ?? args.persisted ?? '' : args.persisted ?? ''
+      const record = sealed() ? (args.afterRequest ?? args.persisted ?? '') : (args.persisted ?? '')
       return { exitCode: 0, stdout: async () => record }
     },
   } as unknown as Sandbox
@@ -61,7 +61,14 @@ const URL = 'https://sb-3000.vercel.run'
 describe('confirmed drainServe', () => {
   it('POSTs the drain with the reason and requires a full receipt reply and a durable record', async () => {
     const calls: { script: string; timeoutMs: number }[] = []
-    await drainServe({ sandbox: sandboxAnswering({ stdout: `${reply}\n200`, afterRequest: recordOf(JSON.stringify(receipt)), calls }), url: URL })
+    await drainServe({
+      sandbox: sandboxAnswering({
+        stdout: `${reply}\n200`,
+        afterRequest: recordOf(JSON.stringify(receipt)),
+        calls,
+      }),
+      url: URL,
+    })
     const call = calls.find((entry) => entry.script.includes('/v1/drain'))
     expect(call?.script).toContain(SERVE_TOKEN_PATH)
     expect(call?.script).toContain(`${URL}/v1/drain`)
@@ -71,14 +78,18 @@ describe('confirmed drainServe', () => {
 
   it('does not trust the old endpoint returning bare HTTP 200', async () => {
     for (const stdout of ['200', '{"ok":true,"paused":true}\n200', 'not-json\n200']) {
-      await expect(drainServe({ sandbox: sandboxAnswering({ stdout }), url: URL })).rejects.toThrow()
+      await expect(
+        drainServe({ sandbox: sandboxAnswering({ stdout }), url: URL }),
+      ).rejects.toThrow()
     }
   })
 
   it('rejects a definitive refusal at once, without waiting for a seal', async () => {
     for (const stdout of ['401', '404', '503']) {
       const calls: { script: string; timeoutMs: number }[] = []
-      await expect(drainServe({ sandbox: sandboxAnswering({ stdout, calls }), url: URL })).rejects.toThrow(`HTTP ${stdout}`)
+      await expect(
+        drainServe({ sandbox: sandboxAnswering({ stdout, calls }), url: URL }),
+      ).rejects.toThrow(`HTTP ${stdout}`)
       expect(calls).toHaveLength(3)
     }
   })
@@ -99,15 +110,25 @@ describe('confirmed drainServe', () => {
     })
     await drainServe({ sandbox, url: URL, sealBudget: { deadlineMs: 5_000, pollMs: 1 } })
     expect(calls.filter((call) => call.script.includes('/v1/drain'))).toHaveLength(1)
-    expect(calls.filter((call) => call.script.includes(RECORD_PATH)).length).toBeGreaterThanOrEqual(5)
+    expect(calls.filter((call) => call.script.includes(RECORD_PATH)).length).toBeGreaterThanOrEqual(
+      5,
+    )
   })
 
   it('rejects after the deadline when an unanswered request never seals', async () => {
-    for (const run of [{ stdout: '000', exitCode: 28 }, { stdout: '', exitCode: 0 }, { stdout: '000', exitCode: 0 }]) {
+    for (const run of [
+      { stdout: '000', exitCode: 28 },
+      { stdout: '', exitCode: 0 },
+      { stdout: '000', exitCode: 0 },
+    ]) {
       const calls: { script: string; timeoutMs: number }[] = []
       const startedAt = Date.now()
       await expect(
-        drainServe({ sandbox: sandboxAnswering({ ...run, calls }), url: URL, sealBudget: SHRUNK_BUDGET }),
+        drainServe({
+          sandbox: sandboxAnswering({ ...run, calls }),
+          url: URL,
+          sealBudget: SHRUNK_BUDGET,
+        }),
       ).rejects.toThrow('nothing was destroyed')
       expect(Date.now() - startedAt).toBeGreaterThanOrEqual(SHRUNK_BUDGET.deadlineMs - 5)
       expect(calls.filter((call) => call.script.includes('/v1/drain'))).toHaveLength(1)
@@ -124,7 +145,10 @@ describe('confirmed drainServe', () => {
           requested = true
           throw new Error('command timed out')
         }
-        return { exitCode: 0, stdout: async () => (requested ? recordOf(JSON.stringify(receipt)) : '') }
+        return {
+          exitCode: 0,
+          stdout: async () => (requested ? recordOf(JSON.stringify(receipt)) : ''),
+        }
       },
     } as unknown as Sandbox
     await drainServe({ sandbox, url: URL, sealBudget: SHRUNK_BUDGET })
@@ -132,28 +156,61 @@ describe('confirmed drainServe', () => {
 
   it('lets a later wake recover a box an earlier client abandoned mid-drain: one probe, no request', async () => {
     const calls: { script: string; timeoutMs: number }[] = []
-    await drainServe({ sandbox: sandboxAnswering({ stdout: '000', exitCode: 28, persisted: recordOf(JSON.stringify(receipt)), calls }), url: URL })
+    await drainServe({
+      sandbox: sandboxAnswering({
+        stdout: '000',
+        exitCode: 28,
+        persisted: recordOf(JSON.stringify(receipt)),
+        calls,
+      }),
+      url: URL,
+    })
     expect(calls).toHaveLength(1)
     expect(calls[0]?.script).toContain(RECORD_PATH)
   })
 
   it('rejects a success reply with no persisted receipt', async () => {
-    await expect(drainServe({ sandbox: sandboxAnswering({ stdout: `${reply}\n200` }), url: URL })).rejects.toThrow('without durable preparation')
+    await expect(
+      drainServe({ sandbox: sandboxAnswering({ stdout: `${reply}\n200` }), url: URL }),
+    ).rejects.toThrow('without durable preparation')
   })
 
   it('recovers a lost reply from the lifecycle record without requesting another drain', async () => {
     const calls: { script: string; timeoutMs: number }[] = []
-    await drainServe({ sandbox: sandboxAnswering({ stdout: '', persisted: recordOf(JSON.stringify(receipt)), calls }), url: URL })
+    await drainServe({
+      sandbox: sandboxAnswering({
+        stdout: '',
+        persisted: recordOf(JSON.stringify(receipt)),
+        calls,
+      }),
+      url: URL,
+    })
     expect(calls.some((call) => call.script.includes('/v1/drain'))).toBe(false)
   })
 
   it('allows preparation that completed after the HTTP client timed out', async () => {
-    await drainServe({ sandbox: sandboxAnswering({ stdout: '000', exitCode: 28, afterRequest: recordOf(JSON.stringify(receipt)) }), url: URL })
+    await drainServe({
+      sandbox: sandboxAnswering({
+        stdout: '000',
+        exitCode: 28,
+        afterRequest: recordOf(JSON.stringify(receipt)),
+      }),
+      url: URL,
+    })
   })
 
   it('ignores receipts from another sandbox generation and rejects stale replies', async () => {
-    const stale = { ...receipt, sandboxSessionId: 'old', checkpoint: { ...receipt.checkpoint, sandboxSessionId: 'old' } }
+    const stale = {
+      ...receipt,
+      sandboxSessionId: 'old',
+      checkpoint: { ...receipt.checkpoint, sandboxSessionId: 'old' },
+    }
     const stdout = `${JSON.stringify({ ok: true, prepared: true, receipt: stale })}\n200`
-    await expect(drainServe({ sandbox: sandboxAnswering({ stdout, persisted: recordOf(JSON.stringify(stale)) }), url: URL })).rejects.toThrow('another sandbox session')
+    await expect(
+      drainServe({
+        sandbox: sandboxAnswering({ stdout, persisted: recordOf(JSON.stringify(stale)) }),
+        url: URL,
+      }),
+    ).rejects.toThrow('another sandbox session')
   })
 })

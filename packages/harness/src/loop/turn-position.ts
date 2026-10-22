@@ -1,4 +1,10 @@
-import { awaitsReply, pendingCalls, type CallId, type Event, type ThreadId } from '@dltech/atlas-core'
+import {
+  awaitsReply,
+  pendingCalls,
+  type CallId,
+  type Event,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { SettlePending } from './settle-pending'
 import { stalledReport } from './turn-faults'
@@ -11,7 +17,9 @@ export function messageArrivedSince({
   seenThrough: number | undefined
 }): boolean {
   if (seenThrough === undefined) return false
-  return awaitsReply(events.filter((event) => event.seq > seenThrough && event.type !== 'assistant-said'))
+  return awaitsReply(
+    events.filter((event) => event.seq > seenThrough && event.type !== 'assistant-said'),
+  )
 }
 
 export function committedSinceLastMessage(events: readonly Event[]): boolean {

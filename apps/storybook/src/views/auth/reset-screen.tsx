@@ -1,42 +1,47 @@
-import { CircleCheck, LinkIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { CircleCheck, LinkIcon } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { FieldGroup } from "@dltech/atlas-ui/components/field";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { FieldGroup } from '@dltech/atlas-ui/components/field'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { AUTH_PASSWORD_MIN_LENGTH } from "../../fixtures/auth";
-import { AuthField } from "./auth-field";
-import { CONTROL_CLASS, SubmitButton } from "./auth-controls";
-import { AuthHeading } from "./auth-heading";
-import { EAuthScreen, EForgotState, EResetState, ESignInState, type ScreenProps } from "./auth-route";
-import { EStatusTone, StatusIcon } from "./status-icon";
-import { useDelayed } from "./use-demo";
+import { AUTH_PASSWORD_MIN_LENGTH } from '../../fixtures/auth'
+import { AuthField } from './auth-field'
+import { CONTROL_CLASS, SubmitButton } from './auth-controls'
+import { AuthHeading } from './auth-heading'
+import {
+  EAuthScreen,
+  EForgotState,
+  EResetState,
+  ESignInState,
+  type ScreenProps,
+} from './auth-route'
+import { EStatusTone, StatusIcon } from './status-icon'
+import { useDelayed } from './use-demo'
 
 export function ResetScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Reset>) {
-  const [state, setState] = useState(route.state ?? EResetState.Idle);
-  const [busy, setBusy] = useState(false);
-  const later = useDelayed();
+  const [state, setState] = useState(route.state ?? EResetState.Idle)
+  const [busy, setBusy] = useState(false)
+  const later = useDelayed()
 
-  const handleSignIn = () =>
-    onNavigate?.({ screen: EAuthScreen.SignIn, state: ESignInState.Idle });
+  const handleSignIn = () => onNavigate?.({ screen: EAuthScreen.SignIn, state: ESignInState.Idle })
   const handleRequestNew = () =>
-    onNavigate?.({ screen: EAuthScreen.Forgot, state: EForgotState.Idle });
+    onNavigate?.({ screen: EAuthScreen.Forgot, state: EForgotState.Idle })
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    if (form.get("password") !== form.get("confirm")) {
-      setState(EResetState.Mismatch);
-      return;
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    if (form.get('password') !== form.get('confirm')) {
+      setState(EResetState.Mismatch)
+      return
     }
-    setState(EResetState.Idle);
-    setBusy(true);
+    setState(EResetState.Idle)
+    setBusy(true)
     later(() => {
-      setBusy(false);
-      setState(EResetState.Success);
-    });
-  };
+      setBusy(false)
+      setState(EResetState.Success)
+    })
+  }
 
   if (state === EResetState.Success) {
     return (
@@ -46,11 +51,11 @@ export function ResetScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Reset
           title="Password updated"
           description="You're signed out everywhere else. Sign in with your new password."
         />
-        <Button className={cn(CONTROL_CLASS, "w-full")} onClick={handleSignIn}>
+        <Button className={cn(CONTROL_CLASS, 'w-full')} onClick={handleSignIn}>
           Continue to sign in
         </Button>
       </div>
-    );
+    )
   }
 
   if (state === EResetState.Expired) {
@@ -62,15 +67,15 @@ export function ResetScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Reset
           description="Reset links work once and expire after an hour. Request a new one to continue."
         />
         <div className="flex flex-col gap-2">
-          <Button className={cn(CONTROL_CLASS, "w-full")} onClick={handleRequestNew}>
+          <Button className={cn(CONTROL_CLASS, 'w-full')} onClick={handleRequestNew}>
             Request a new link
           </Button>
-          <Button variant="ghost" className={cn(CONTROL_CLASS, "w-full")} onClick={handleSignIn}>
+          <Button variant="ghost" className={cn(CONTROL_CLASS, 'w-full')} onClick={handleSignIn}>
             Back to sign in
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -101,5 +106,5 @@ export function ResetScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Reset
         </FieldGroup>
       </form>
     </div>
-  );
+  )
 }

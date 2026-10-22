@@ -43,7 +43,11 @@ describe('prEventsOfPoll', () => {
 
     const flipped = second(running, green)
     expect(drafts(flipped)).toEqual([
-      expect.objectContaining({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, prNumber: 42 }),
+      expect.objectContaining({
+        kind: EPrEventKind.Verdict,
+        verdict: EPrVerdict.Green,
+        prNumber: 42,
+      }),
     ])
     expect(diff({ previous: flipped.memory, current: green }).events).toEqual([])
   })
@@ -53,21 +57,29 @@ describe('prEventsOfPoll', () => {
     const after = aPullRequest({ checks: EChecksState.Passing, headSha: 'bbbbbbb2' })
 
     expect(drafts(second(before, after))).toEqual([
-      expect.objectContaining({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'bbbbbbb2' }),
+      expect.objectContaining({
+        kind: EPrEventKind.Verdict,
+        verdict: EPrVerdict.Green,
+        headSha: 'bbbbbbb2',
+      }),
     ])
   })
 
   it('emits nothing for a new tip whose checks have not settled', () => {
     const before = aPullRequest({ checks: EChecksState.Passing, headSha: 'aaaaaaa1' })
 
-    expect(second(before, aPullRequest({ checks: EChecksState.Running, headSha: 'bbbbbbb2' })).events).toEqual([])
+    expect(
+      second(before, aPullRequest({ checks: EChecksState.Running, headSha: 'bbbbbbb2' })).events,
+    ).toEqual([])
   })
 
   it('puts the tip on the verdict draft when checks flip on the same tip', () => {
     const running = aPullRequest({ checks: EChecksState.Running, headSha: 'aaaaaaa1' })
     const green = aPullRequest({ checks: EChecksState.Passing, headSha: 'aaaaaaa1' })
 
-    expect(drafts(second(running, green))).toEqual([expect.objectContaining({ headSha: 'aaaaaaa1' })])
+    expect(drafts(second(running, green))).toEqual([
+      expect.objectContaining({ headSha: 'aaaaaaa1' }),
+    ])
   })
 
   it('emits a failed verdict, and nothing on a flip to running', () => {
@@ -87,17 +99,24 @@ describe('prEventsOfPoll', () => {
     ])
     expect(second(unknown, aPullRequest({ mergeable: true })).events).toEqual([])
     expect(second(aPullRequest({ mergeable: true }), unknown).events).toEqual([])
-    expect(drafts(second(aPullRequest({ mergeable: true }), aPullRequest({ mergeable: false })))).toEqual([
-      expect.objectContaining({ mergeable: false }),
-    ])
+    expect(
+      drafts(second(aPullRequest({ mergeable: true }), aPullRequest({ mergeable: false }))),
+    ).toEqual([expect.objectContaining({ mergeable: false })])
   })
 
   it('reads true, unknown, false as a conflict and true, unknown, true as nothing', () => {
     const settled = diff({ current: aPullRequest({ mergeable: true }) })
-    const recomputing = diff({ previous: settled.memory, current: aPullRequest({ mergeable: null }) })
+    const recomputing = diff({
+      previous: settled.memory,
+      current: aPullRequest({ mergeable: null }),
+    })
 
-    expect(diff({ previous: recomputing.memory, current: aPullRequest({ mergeable: false }) }).events).toHaveLength(1)
-    expect(diff({ previous: recomputing.memory, current: aPullRequest({ mergeable: true }) }).events).toEqual([])
+    expect(
+      diff({ previous: recomputing.memory, current: aPullRequest({ mergeable: false }) }).events,
+    ).toHaveLength(1)
+    expect(
+      diff({ previous: recomputing.memory, current: aPullRequest({ mergeable: true }) }).events,
+    ).toEqual([])
   })
 
   it('emits a state draft when the pull request settles', () => {
@@ -164,9 +183,21 @@ describe('createPollDiffer', () => {
   it('keeps memory per key and emits frames in the SSE shape', () => {
     const { frames, poller } = differ()
 
-    poller.onPolled({ key: 'a', repo: REPO, pullRequest: aPullRequest({ checks: EChecksState.Running }) })
-    poller.onPolled({ key: 'b', repo: REPO, pullRequest: aPullRequest({ checks: EChecksState.Passing }) })
-    poller.onPolled({ key: 'a', repo: REPO, pullRequest: aPullRequest({ checks: EChecksState.Passing }) })
+    poller.onPolled({
+      key: 'a',
+      repo: REPO,
+      pullRequest: aPullRequest({ checks: EChecksState.Running }),
+    })
+    poller.onPolled({
+      key: 'b',
+      repo: REPO,
+      pullRequest: aPullRequest({ checks: EChecksState.Passing }),
+    })
+    poller.onPolled({
+      key: 'a',
+      repo: REPO,
+      pullRequest: aPullRequest({ checks: EChecksState.Passing }),
+    })
 
     expect(frames).toHaveLength(1)
     expect(frames[0]).toMatchObject({
@@ -195,7 +226,11 @@ describe('createPollDiffer', () => {
     const { frames, poller } = differ()
 
     poller.onPolled({ key: 'a', repo: REPO, pullRequest: aPullRequest() })
-    poller.onPolled({ key: 'a', repo: REPO, pullRequest: aPullRequest({ comments: [comment('IC_1')] }) })
+    poller.onPolled({
+      key: 'a',
+      repo: REPO,
+      pullRequest: aPullRequest({ comments: [comment('IC_1')] }),
+    })
 
     expect(frames.map((frame) => frame.id)).toEqual(['IC_1'])
   })
@@ -203,8 +238,16 @@ describe('createPollDiffer', () => {
   it('drops a repo that is not on github.com rather than inventing a slug', () => {
     const { frames, poller } = differ()
 
-    poller.onPolled({ key: 'a', repo: 'gitlab.com/o/r', pullRequest: aPullRequest({ checks: EChecksState.Running }) })
-    poller.onPolled({ key: 'a', repo: 'gitlab.com/o/r', pullRequest: aPullRequest({ checks: EChecksState.Passing }) })
+    poller.onPolled({
+      key: 'a',
+      repo: 'gitlab.com/o/r',
+      pullRequest: aPullRequest({ checks: EChecksState.Running }),
+    })
+    poller.onPolled({
+      key: 'a',
+      repo: 'gitlab.com/o/r',
+      pullRequest: aPullRequest({ checks: EChecksState.Passing }),
+    })
 
     expect(frames).toEqual([])
   })

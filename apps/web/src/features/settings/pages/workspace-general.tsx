@@ -27,7 +27,11 @@ import { useGeneralSettings } from '../data/workspace/use-general-settings'
 import type { WorkspaceAccess } from '../data/workspace/use-workspace-access'
 import { pageWrapOf, WorkspaceGate } from '../data/workspace/workspace-gate'
 import { describeAccess } from '../data/workspace/workspace-role'
-import { EWorkspaceRole, DEFAULT_MODEL_OPTIONS, REGION_OPTIONS } from '../fixtures/settings-workspace'
+import {
+  EWorkspaceRole,
+  DEFAULT_MODEL_OPTIONS,
+  REGION_OPTIONS,
+} from '../fixtures/settings-workspace'
 import { WorkspaceDangerZone } from '../parts/workspace-danger-zone'
 import { WorkspaceDetailsCard, type WorkspaceDetails } from '../parts/workspace-details-card'
 import { WorkspaceLogoTile } from '../parts/workspace-logo-tile'
@@ -218,5 +222,7 @@ function LoadedGeneral({ access }: { access: WorkspaceAccess }) {
 }
 
 export function WorkspaceGeneralPage() {
-  return <WorkspaceGate title={TITLE}>{(access) => <LoadedGeneral access={access} />}</WorkspaceGate>
+  return (
+    <WorkspaceGate title={TITLE}>{(access) => <LoadedGeneral access={access} />}</WorkspaceGate>
+  )
 }

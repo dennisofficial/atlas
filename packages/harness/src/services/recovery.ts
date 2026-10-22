@@ -124,9 +124,7 @@ export function lostServiceEnding(service: {
   }
 }
 
-export const liveServicesOf = (
-  snapshots: readonly ServiceSnapshot[],
-): readonly LiveService[] =>
+export const liveServicesOf = (snapshots: readonly ServiceSnapshot[]): readonly LiveService[] =>
   snapshots
     .filter((snapshot) => snapshot.endedAt === undefined)
     .map((snapshot) => ({ serviceId: snapshot.serviceId }))

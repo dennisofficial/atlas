@@ -44,7 +44,11 @@ describe('createOrResume', () => {
         },
       },
     })
-    await driverDefault.createOrResume({ name: 'atlas-thread-x', threadId: 'brn_cloud', token: 't' })
+    await driverDefault.createOrResume({
+      name: 'atlas-thread-x',
+      threadId: 'brn_cloud',
+      token: 't',
+    })
 
     expect(seen).toEqual([4, undefined])
   })
@@ -168,8 +172,7 @@ describe('createOrResume', () => {
       (call) => call.kind === ERecordedCallKind.Write && call.path === 'context.tar.gz',
     )
     const tokenStage = calls.findIndex(
-      (call) =>
-        call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+      (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -213,8 +216,7 @@ describe('createOrResume', () => {
       (call) => call.kind === ERecordedCallKind.Write && call.path === 'context.tar.gz',
     )
     const tokenStage = calls.findIndex(
-      (call) =>
-        call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+      (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -251,8 +253,7 @@ describe('createOrResume', () => {
 
     expect(
       calls.some(
-        (call) =>
-          call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+        (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
       ),
     ).toBe(false)
     expect(
@@ -291,8 +292,7 @@ describe('createOrResume', () => {
 
     expect(
       calls.some(
-        (call) =>
-          call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+        (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
       ),
     ).toBe(false)
     expect(

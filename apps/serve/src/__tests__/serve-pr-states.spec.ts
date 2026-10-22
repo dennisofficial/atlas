@@ -46,10 +46,18 @@ const freshSocket = (): { socket: SessionSocket; sent: string[] } => {
 
 // The greet reads the transcript head off the wire's async store, so the socket is greeted a
 // microtask after the hello — awaiting it lets the Request that follows land on a greeted socket.
-const hello = async (socket: SessionSocket, handlers: ReturnType<typeof handlersFor>): Promise<void> => {
+const hello = async (
+  socket: SessionSocket,
+  handlers: ReturnType<typeof handlersFor>,
+): Promise<void> => {
   handlers.message({
     socket,
-    message: encodeFrame({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 }),
+    message: encodeFrame({
+      kind: EClientFrame.Hello,
+      threadId,
+      channelCursor: null,
+      lastEventSeq: 0,
+    }),
   })
   await Promise.resolve()
   await Promise.resolve()
@@ -82,11 +90,20 @@ describe('the serve channel pull request states', () => {
 
     handlers.message({
       socket,
-      message: encodeFrame({ kind: EClientFrame.Request, id: 'req-1', op: EClientRequest.ListPrStates, params: {} }),
+      message: encodeFrame({
+        kind: EClientFrame.Request,
+        id: 'req-1',
+        op: EClientRequest.ListPrStates,
+        params: {},
+      }),
     })
 
     expect(sent).toHaveLength(1)
-    const reply = JSON.parse(sent[0] ?? '{}') as { kind: string; ok: boolean; data: { states: PrStateWire[] } }
+    const reply = JSON.parse(sent[0] ?? '{}') as {
+      kind: string
+      ok: boolean
+      data: { states: PrStateWire[] }
+    }
     expect(reply.kind).toBe(EServeFrame.Reply)
     expect(reply.ok).toBe(true)
     expect(reply.data.states).toHaveLength(1)
@@ -101,7 +118,12 @@ describe('the serve channel pull request states', () => {
 
     handlers.message({
       socket,
-      message: encodeFrame({ kind: EClientFrame.Request, id: 'req-1', op: EClientRequest.ListPrStates, params: {} }),
+      message: encodeFrame({
+        kind: EClientFrame.Request,
+        id: 'req-1',
+        op: EClientRequest.ListPrStates,
+        params: {},
+      }),
     })
 
     const reply = JSON.parse(sent[0] ?? '{}') as { kind: string; data: { states: PrStateWire[] } }

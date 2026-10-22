@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { PlusIcon } from "lucide-react";
+import { useState } from 'react'
+import { PlusIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogClose,
@@ -11,24 +11,24 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@dltech/atlas-ui/components/dialog";
-import { Field, FieldDescription, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@dltech/atlas-ui/components/toggle-group";
+} from '@dltech/atlas-ui/components/dialog'
+import { Field, FieldDescription, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
-import { EMcpTransport } from "../../fixtures/project-settings";
+import { EMcpTransport } from '../../fixtures/project-settings'
 
 export interface McpServerDraft {
-  id: string;
-  transport: EMcpTransport;
-  target: string;
+  id: string
+  transport: EMcpTransport
+  target: string
 }
 
-const SERVER_ID = /^[a-zA-Z0-9_-]+$/;
+const SERVER_ID = /^[a-zA-Z0-9_-]+$/
 
 function isTransport(value: unknown): value is EMcpTransport {
-  return Object.values(EMcpTransport).some((transport) => transport === value);
+  return Object.values(EMcpTransport).some((transport) => transport === value)
 }
 
 export function AddMcpServerDialog({
@@ -36,34 +36,34 @@ export function AddMcpServerDialog({
   initialTransport = EMcpTransport.Stdio,
   onAdd,
 }: {
-  defaultOpen?: boolean;
-  initialTransport?: EMcpTransport;
-  onAdd: (draft: McpServerDraft) => void;
+  defaultOpen?: boolean
+  initialTransport?: EMcpTransport
+  onAdd: (draft: McpServerDraft) => void
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [id, setId] = useState("");
-  const [transport, setTransport] = useState(initialTransport);
-  const [target, setTarget] = useState("");
-  const [extra, setExtra] = useState("");
-  const isStdio = transport === EMcpTransport.Stdio;
-  const canSave = SERVER_ID.test(id) && target.trim() !== "";
+  const [open, setOpen] = useState(defaultOpen)
+  const [id, setId] = useState('')
+  const [transport, setTransport] = useState(initialTransport)
+  const [target, setTarget] = useState('')
+  const [extra, setExtra] = useState('')
+  const isStdio = transport === EMcpTransport.Stdio
+  const canSave = SERVER_ID.test(id) && target.trim() !== ''
 
   const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (next) return;
-    setId("");
-    setTarget("");
-    setExtra("");
-  };
+    setOpen(next)
+    if (next) return
+    setId('')
+    setTarget('')
+    setExtra('')
+  }
   const handleTransportChange = (value: unknown[]) => {
-    const [next] = value;
-    if (isTransport(next)) setTransport(next);
-  };
+    const [next] = value
+    if (isTransport(next)) setTransport(next)
+  }
   const handleSubmit = () => {
-    if (!canSave) return;
-    onAdd({ id, transport, target: target.trim() });
-    handleOpenChange(false);
-  };
+    if (!canSave) return
+    onAdd({ id, transport, target: target.trim() })
+    handleOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -108,28 +108,28 @@ export function AddMcpServerDialog({
           </ToggleGroup>
         </Field>
         <Field>
-          <FieldLabel htmlFor="mcp-target">{isStdio ? "Command" : "URL"}</FieldLabel>
+          <FieldLabel htmlFor="mcp-target">{isStdio ? 'Command' : 'URL'}</FieldLabel>
           <Input
             id="mcp-target"
             className="font-mono"
-            placeholder={isStdio ? "bunx @playwright/mcp@latest" : "https://mcp.example.com/mcp"}
+            placeholder={isStdio ? 'bunx @playwright/mcp@latest' : 'https://mcp.example.com/mcp'}
             autoComplete="off"
             value={target}
             onChange={(event) => setTarget(event.target.value)}
           />
           <FieldDescription>
             {isStdio
-              ? "Runs inside the sandbox, so the binary must be installed by the setup script."
-              : "Atlas signs in with OAuth when the server asks for it."}
+              ? 'Runs inside the sandbox, so the binary must be installed by the setup script.'
+              : 'Atlas signs in with OAuth when the server asks for it.'}
           </FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor="mcp-extra">{isStdio ? "Environment" : "Headers"}</FieldLabel>
+          <FieldLabel htmlFor="mcp-extra">{isStdio ? 'Environment' : 'Headers'}</FieldLabel>
           <Textarea
             id="mcp-extra"
             className="min-h-20 font-mono text-xs md:text-xs"
             spellCheck={false}
-            placeholder={isStdio ? "DEBUG=mcp:*" : "Authorization: Bearer $LINEAR_TOKEN"}
+            placeholder={isStdio ? 'DEBUG=mcp:*' : 'Authorization: Bearer $LINEAR_TOKEN'}
             value={extra}
             onChange={(event) => setExtra(event.target.value)}
           />
@@ -146,5 +146,5 @@ export function AddMcpServerDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

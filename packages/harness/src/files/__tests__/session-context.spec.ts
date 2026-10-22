@@ -39,7 +39,11 @@ describe('session context reader', () => {
     for (const threadId of [root, child]) {
       const reader = createSessionContextReader({ home, threadId })
       expect(await reader.list()).toEqual([{ name: 'plan.md', isDirectory: false }])
-      expect(await reader.load('plan.md')).toEqual({ type: 'text', content: 'shared plan', truncated: false })
+      expect(await reader.load('plan.md')).toEqual({
+        type: 'text',
+        content: 'shared plan',
+        truncated: false,
+      })
     }
   })
 
@@ -78,6 +82,8 @@ describe('session context reader', () => {
       await writeFile(join(context, 'notes.md'), 'new note')
       await created.promise
       expect(await reader.list()).toEqual([{ name: 'notes.md', isDirectory: false }])
-    } finally { stop() }
+    } finally {
+      stop()
+    }
   }, 5000)
 })

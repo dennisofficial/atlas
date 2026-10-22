@@ -10,7 +10,11 @@ describe('an interrupted turn', () => {
   it('renders the durable partial answer as interrupted', () => {
     const events = log([
       { type: 'user-said', text: 'write me an essay' },
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'It was the best of' }], interrupted: true },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'It was the best of' }],
+        interrupted: true,
+      },
     ])
 
     const model = deriveTranscript({ events, signals: [] })
@@ -67,7 +71,6 @@ describe('an interrupted turn', () => {
   })
 })
 
-
 describe('a step that failed', () => {
   const streamed = [
     started(stepOne),
@@ -89,7 +92,10 @@ describe('a step that failed', () => {
   })
 
   it('reports a failure with no message when nothing said why', () => {
-    const signals = [...streamed, ended({ stepId: stepOne, end: EStepEnd.Failed, supersededBy: null })]
+    const signals = [
+      ...streamed,
+      ended({ stepId: stepOne, end: EStepEnd.Failed, supersededBy: null }),
+    ]
 
     expect(deriveTranscript({ events: [], signals }).failure).toEqual({ message: null })
   })
@@ -109,9 +115,11 @@ describe('a step that failed', () => {
   })
 
   it('does not report a failure for a completed step that committed nothing', () => {
-    const signals = [started(stepOne), ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: null })]
+    const signals = [
+      started(stepOne),
+      ended({ stepId: stepOne, end: EStepEnd.Completed, supersededBy: null }),
+    ]
 
     expect(deriveTranscript({ events: [], signals }).failure).toBeNull()
   })
 })
-

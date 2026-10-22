@@ -22,7 +22,10 @@ const messageOf = (error: unknown): string =>
  * sandbox image's GNU tar both read each other's ustar/pax output — so no archive library ever
  * joins the dependency tree for it.
  */
-const runTar = async (args: { argv: readonly string[]; tarCommand?: string | undefined }): Promise<void> => {
+const runTar = async (args: {
+  argv: readonly string[]
+  tarCommand?: string | undefined
+}): Promise<void> => {
   const command = args.tarCommand ?? 'tar'
   let proc
   try {
@@ -68,9 +71,7 @@ export async function buildContextArchive(args: {
         await mkdir(join(target, '..'), { recursive: true })
         await cp(file.path, target, { preserveTimestamps: true, dereference: true })
         staged += 1
-      } catch {
-        continue
-      }
+      } catch {}
     }
     if (staged === 0) return undefined
 
@@ -100,9 +101,7 @@ const collectEntries = async (contentDir: string): Promise<readonly ExtractedArc
     try {
       const stats = await stat(path)
       entries.push({ key, path, mtimeMs: stats.mtimeMs })
-    } catch {
-      continue
-    }
+    } catch {}
   }
   return entries
 }
@@ -122,10 +121,11 @@ export async function extractContextArchive(args: {
   const archivePath = join(workDir, 'archive.tar.gz')
   await mkdir(contentDir, { recursive: true })
 
-  const cleanup = (): Promise<void> => rm(workDir, { recursive: true, force: true }).then(
-    () => undefined,
-    () => undefined,
-  )
+  const cleanup = (): Promise<void> =>
+    rm(workDir, { recursive: true, force: true }).then(
+      () => undefined,
+      () => undefined,
+    )
 
   try {
     await writeFile(archivePath, args.archive)

@@ -136,9 +136,11 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         'Quitting detaches by default; shell_kill, a confirmed stop, and execution-location moves stop the command.',
         'Its ending will be delivered with a bounded output excerpt and the full output file path.',
         'A prompt can be answered with shell_input; interactive terminal programs still require a terminal, not this pipe.',
-        ...(started.snapshot.outputPath === undefined ? [] : [
-          `Output is being written to: ${started.snapshot.outputPath}. Use Read or Grep on that file for full history.`,
-        ]),
+        ...(started.snapshot.outputPath === undefined
+          ? []
+          : [
+              `Output is being written to: ${started.snapshot.outputPath}. Use Read or Grep on that file for full history.`,
+            ]),
         'A kill you asked for still lands that way: shell_kill waits for the death and hands you everything the shell printed as its result,',
         'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
@@ -158,7 +160,8 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     threadId,
     onOutput,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    if (signal.aborted) return { ok: false, reason: 'the developer interrupted the turn before the command started' }
+    if (signal.aborted)
+      return { ok: false, reason: 'the developer interrupted the turn before the command started' }
 
     const { command, timeoutMs } = input
     const cwd = input.workdir ?? projectDirectory
@@ -172,7 +175,11 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     }
 
     if (input.outputLimitBytes !== undefined && input.runInBackground !== true) {
-      return { ok: false, reason: 'outputLimitBytes is the durable background command’s kernel file-size cap; use runInBackground to configure it' }
+      return {
+        ok: false,
+        reason:
+          'outputLimitBytes is the durable background command’s kernel file-size cap; use runInBackground to configure it',
+      }
     }
 
     if (input.exposePort !== undefined && input.runInBackground !== true) {
@@ -182,7 +189,10 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     if (input.workdir !== undefined) {
       const directory = await this.files.stat({ path: input.workdir }).catch(() => undefined)
       if (directory === undefined) {
-        return { ok: false, reason: `workdir ${input.workdir} does not exist, so there is nowhere to run the command` }
+        return {
+          ok: false,
+          reason: `workdir ${input.workdir} does not exist, so there is nowhere to run the command`,
+        }
       }
       if (!directory.isDirectory()) {
         return { ok: false, reason: `workdir ${input.workdir} is a file, not a directory` }
@@ -253,7 +263,10 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     }
 
     if (signal.aborted && !timedOut) {
-      return { ok: false, reason: 'the developer interrupted the turn while the command was running' }
+      return {
+        ok: false,
+        reason: 'the developer interrupted the turn while the command was running',
+      }
     }
 
     const merged = mergeStreams({ stdout: read.stdout, stderr: read.stderr })

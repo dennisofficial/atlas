@@ -3,13 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Event, EventEnvelope } from '../../events/envelope'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { EShellStatus, type EventOfType } from '../../index'
-import {
-  ELifecycleState,
-  endedKeysOf,
-  lifecycleOf,
-  lostOf,
-  type LifecycleKind,
-} from '../lifecycle'
+import { ELifecycleState, endedKeysOf, lifecycleOf, lostOf, type LifecycleKind } from '../lifecycle'
 
 const threadId = toThreadId('thread-lifecycle')
 

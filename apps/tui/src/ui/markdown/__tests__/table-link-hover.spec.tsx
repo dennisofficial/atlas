@@ -11,7 +11,8 @@ import { teardown } from './harness'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const TABLE = '| Name | Link |\n| --- | --- |\n| a | [Table target](t/one.md) |\n| b | [Other target](t/two.md) |'
+const TABLE =
+  '| Name | Link |\n| --- | --- |\n| a | [Table target](t/one.md) |\n| b | [Other target](t/two.md) |'
 
 type Setup = Awaited<ReturnType<typeof testRender>>
 
@@ -30,7 +31,11 @@ async function mount(args: { markdown?: string; width?: number } = {}): Promise<
     </box>,
     { width: 60, height: 10 },
   )
-  installLinkClickOpen({ renderer: setup.renderer, openUrl: () => undefined, openFile: () => undefined })
+  installLinkClickOpen({
+    renderer: setup.renderer,
+    openUrl: () => undefined,
+    openFile: () => undefined,
+  })
   await act(async () => {
     await setup.flush()
     await setup.flush()
@@ -98,7 +103,9 @@ describe('native table link hover', () => {
   })
 
   it('inverts inside a table that pans horizontally', async () => {
-    const wide = `${TABLE.split('\n').map((line, row) => `${line} ${row === 1 ? '--- |' : `${'x'.repeat(50)} |`}`).join('\n')}`
+    const wide = `${TABLE.split('\n')
+      .map((line, row) => `${line} ${row === 1 ? '--- |' : `${'x'.repeat(50)} |`}`)
+      .join('\n')}`
     const setup = await mount({ markdown: wide, width: 30 })
     const target = locate({ setup, label: 'Table target' })
     await act(async () => {
@@ -163,10 +170,16 @@ describe('table content updates under a stationary pointer', () => {
     })
   }
 
-  async function hovered(markdown: string): Promise<{ setup: Setup; target: { x: number; y: number } }> {
+  async function hovered(
+    markdown: string,
+  ): Promise<{ setup: Setup; target: { x: number; y: number } }> {
     const setup = await testRender(<Table markdown={markdown} />, { width: 60, height: 10 })
     live.push(setup)
-    installLinkClickOpen({ renderer: setup.renderer, openUrl: () => undefined, openFile: () => undefined })
+    installLinkClickOpen({
+      renderer: setup.renderer,
+      openUrl: () => undefined,
+      openFile: () => undefined,
+    })
     await settleFrames(setup)
     const target = locate({ setup, label: 'Table target' })
     await act(async () => {
@@ -200,7 +213,9 @@ describe('table content updates under a stationary pointer', () => {
 
   it('preserves the inversion and uppercase header when terminal capabilities rebuild the table', async () => {
     const { setup, target } = await hovered(TABLE)
-    await act(async () => { setup.renderer.emit('capabilities', { ...setup.renderer.capabilities, hyperlinks: true }) })
+    await act(async () => {
+      setup.renderer.emit('capabilities', { ...setup.renderer.capabilities, hyperlinks: true })
+    })
     await settleFrames(setup)
     expect(setup.captureCharFrame()).toContain('NAME')
     expect(inkAt({ setup, ...target })).toEqual(HOVER)
@@ -212,7 +227,11 @@ describe('table content updates under a stationary pointer', () => {
     await teardown(setup)
     const fresh = await testRender(<Table markdown={TABLE} />, { width: 60, height: 10 })
     live.push(fresh)
-    installLinkClickOpen({ renderer: fresh.renderer, openUrl: () => undefined, openFile: () => undefined })
+    installLinkClickOpen({
+      renderer: fresh.renderer,
+      openUrl: () => undefined,
+      openFile: () => undefined,
+    })
     notifyLinkHover('t/one.md')
     await settleFrames(fresh)
     expect(inkAt({ setup: fresh, ...target })).toEqual(HOVER)

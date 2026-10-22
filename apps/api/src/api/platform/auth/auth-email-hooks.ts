@@ -12,12 +12,29 @@ interface IInvitationEmailData {
   inviter: { user: { name: string; email: string } }
 }
 
-export function createAuthEmailHooks({ sendEmail, webOrigin }: { sendEmail: EmailSender; webOrigin: string }) {
+export function createAuthEmailHooks({
+  sendEmail,
+  webOrigin,
+}: {
+  sendEmail: EmailSender
+  webOrigin: string
+}) {
   return {
-    async sendResetPassword({ user, url }: { user: { email: string }; url: string }): Promise<void> {
+    async sendResetPassword({
+      user,
+      url,
+    }: {
+      user: { email: string }
+      url: string
+    }): Promise<void> {
       await sendEmail({ to: user.email, ...renderPasswordResetEmail({ url }) })
     },
-    async sendInvitationEmail({ id, email, organization, inviter }: IInvitationEmailData): Promise<void> {
+    async sendInvitationEmail({
+      id,
+      email,
+      organization,
+      inviter,
+    }: IInvitationEmailData): Promise<void> {
       await sendEmail({
         to: email,
         ...renderInvitationEmail({

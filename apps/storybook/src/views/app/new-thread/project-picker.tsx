@@ -1,4 +1,4 @@
-import { FolderGit2Icon, FolderXIcon } from "lucide-react";
+import { FolderGit2Icon, FolderXIcon } from 'lucide-react'
 
 import {
   Combobox,
@@ -9,33 +9,33 @@ import {
   ComboboxList,
   ComboboxTrigger,
   ComboboxValue,
-} from "@dltech/atlas-ui/components/combobox";
-import { InputGroupButton } from "@dltech/atlas-ui/components/input-group";
+} from '@dltech/atlas-ui/components/combobox'
+import { InputGroupButton } from '@dltech/atlas-ui/components/input-group'
 
-import { PROJECTS, type AppProject } from "../../../fixtures/app";
-import { NO_PROJECT_LABEL } from "./new-thread-data";
+import { PROJECTS, type AppProject } from '../../../fixtures/app'
+import { NO_PROJECT_LABEL } from './new-thread-data'
 
 export interface ProjectPickerProps {
-  projectId: string | null;
-  onProjectChange: (projectId: string | null) => void;
+  projectId: string | null
+  onProjectChange: (projectId: string | null) => void
 }
 
 export function projectLabel(project: AppProject): string {
-  return `${project.owner}/${project.name}`;
+  return `${project.owner}/${project.name}`
 }
 
-const LABELS = [NO_PROJECT_LABEL, ...PROJECTS.map(projectLabel)];
+const LABELS = [NO_PROJECT_LABEL, ...PROJECTS.map(projectLabel)]
 
 export function ProjectPicker({ projectId, onProjectChange }: ProjectPickerProps) {
-  const selected = PROJECTS.find((project) => project.id === projectId);
-  const value = selected ? projectLabel(selected) : NO_PROJECT_LABEL;
-  const TriggerIcon = selected ? FolderGit2Icon : FolderXIcon;
+  const selected = PROJECTS.find((project) => project.id === projectId)
+  const value = selected ? projectLabel(selected) : NO_PROJECT_LABEL
+  const TriggerIcon = selected ? FolderGit2Icon : FolderXIcon
 
   const handleValueChange = (next: string | null) => {
-    if (next === NO_PROJECT_LABEL) return onProjectChange(null);
-    const match = PROJECTS.find((project) => projectLabel(project) === next);
-    if (match) onProjectChange(match.id);
-  };
+    if (next === NO_PROJECT_LABEL) return onProjectChange(null)
+    const match = PROJECTS.find((project) => projectLabel(project) === next)
+    if (match) onProjectChange(match.id)
+  }
 
   return (
     <Combobox items={LABELS} value={value} onValueChange={handleValueChange}>
@@ -61,7 +61,7 @@ export function ProjectPicker({ projectId, onProjectChange }: ProjectPickerProps
             <ComboboxItem
               key={label}
               value={label}
-              className={label === NO_PROJECT_LABEL ? "text-xs" : "font-mono text-xs"}
+              className={label === NO_PROJECT_LABEL ? 'text-xs' : 'font-mono text-xs'}
             >
               {label}
             </ComboboxItem>
@@ -69,5 +69,5 @@ export function ProjectPicker({ projectId, onProjectChange }: ProjectPickerProps
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
-  );
+  )
 }

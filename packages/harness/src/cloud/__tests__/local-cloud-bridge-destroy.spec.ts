@@ -61,9 +61,9 @@ describe('bridge destroy forwarding', () => {
   it('throws without credentials when fenced so the cleanup warning stays', async () => {
     const { bridge, seen } = bridgeWith({ vercel: unconfigured })
 
-    await expect(bridge.sandboxes.destroy({ threadId, expectedSandboxSessionId: 'session-1' })).rejects.toThrow(
-      'no Vercel credentials',
-    )
+    await expect(
+      bridge.sandboxes.destroy({ threadId, expectedSandboxSessionId: 'session-1' }),
+    ).rejects.toThrow('no Vercel credentials')
 
     expect(seen).toEqual([])
   })

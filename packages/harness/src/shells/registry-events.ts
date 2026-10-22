@@ -16,7 +16,13 @@ const outputExcerpt = async (args: { entry: Tracked; finished: boolean }): Promi
   const total = attachment.totalBytes()
   const start = Math.max(total - ENDED_TAIL_BYTES, 0)
   const text = await tailOf({ attachment, limit: ENDED_TAIL_BYTES, finished: args.finished })
-  return { text, droppedCharacters: 0, remainingCharacters: 0, outputStart: start, outputEnd: total }
+  return {
+    text,
+    droppedCharacters: 0,
+    remainingCharacters: 0,
+    outputStart: start,
+    outputEnd: total,
+  }
 }
 
 export class ShellEvents {
@@ -25,7 +31,9 @@ export class ShellEvents {
     private readonly hooks: HookChainSource,
   ) {}
 
-  async recordEnding(entry: Tracked): Promise<{ delta: ShellDelta; appended: boolean } | undefined> {
+  async recordEnding(
+    entry: Tracked,
+  ): Promise<{ delta: ShellDelta; appended: boolean } | undefined> {
     const { state } = this
     const snapshot = entry.shell.snapshot()
     const delta = await outputExcerpt({ entry, finished: true }).catch((error: unknown) => ({

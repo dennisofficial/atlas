@@ -85,9 +85,7 @@ describe('applyPublishedBundle', () => {
     const requests: Request[] = []
     const fetchFn = asFetch((request) => {
       requests.push(request)
-      return request.url === BLOB_URL
-        ? new Response(bytes)
-        : Response.json(currentOf({ bytes }))
+      return request.url === BLOB_URL ? new Response(bytes) : Response.json(currentOf({ bytes }))
     })
 
     const { written, lines } = await run({ fetchFn })
@@ -109,7 +107,9 @@ describe('applyPublishedBundle', () => {
   })
 
   it('logs absent and writes nothing on a 404', async () => {
-    const { written, lines } = await run({ fetchFn: asFetch(() => new Response(null, { status: 404 })) })
+    const { written, lines } = await run({
+      fetchFn: asFetch(() => new Response(null, { status: 404 })),
+    })
 
     expect(written.size).toBe(0)
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleAbsent])
@@ -133,7 +133,9 @@ describe('applyPublishedBundle', () => {
   it('fails when the blob download is not 2xx', async () => {
     const bytes = await fullBundle()
     const fetchFn = asFetch((request) =>
-      request.url === BLOB_URL ? new Response(null, { status: 403 }) : Response.json(currentOf({ bytes })),
+      request.url === BLOB_URL
+        ? new Response(null, { status: 403 })
+        : Response.json(currentOf({ bytes })),
     )
 
     const { written, lines } = await run({ fetchFn })

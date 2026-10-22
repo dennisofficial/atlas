@@ -33,21 +33,49 @@ describe('GET /v1/sandboxes/self/config', () => {
     fake.tables.project.rows.push({ id: PROJECT, userId: 'user-a', organizationId: ORG })
     fake.tables.thread.rows.push({ id: THREAD, userId: 'user-a', projectId: PROJECT })
     fake.tables.member.rows.push({ id: 'm1', organizationId: ORG, userId: 'user-a', role: 'owner' })
-    fake.tables.workspaceSetting.rows.push({ id: 'w1', organizationId: ORG, key: KEY, value: setting('low') })
+    fake.tables.workspaceSetting.rows.push({
+      id: 'w1',
+      organizationId: ORG,
+      key: KEY,
+      value: setting('low'),
+    })
     fake.tables.cloudSetting.rows.push(
       { id: 'u1', userId: 'user-a', key: KEY, value: setting('medium') },
       { id: 'u2', userId: 'user-a', key: 'sandbox.vercelTeamId', value: setting('team_user') },
     )
     fake.tables.projectSetting.rows.push(
       { id: 'p1', projectId: PROJECT, key: KEY, value: setting('high') },
-      { id: 'p2', projectId: PROJECT, key: 'sandbox.vercelProjectId', value: setting('prj_vercel') },
+      {
+        id: 'p2',
+        projectId: PROJECT,
+        key: 'sandbox.vercelProjectId',
+        value: setting('prj_vercel'),
+      },
     )
-    fake.tables.workspaceSecret.rows.push({ id: 's1', organizationId: ORG, name: 'API', kind: 'secret', sealedValue: seal('ws') })
+    fake.tables.workspaceSecret.rows.push({
+      id: 's1',
+      organizationId: ORG,
+      name: 'API',
+      kind: 'secret',
+      sealedValue: seal('ws'),
+    })
     fake.tables.secretEntry.rows.push(
       { id: 's2', userId: 'user-a', name: 'API', kind: 'secret', sealedValue: seal('user') },
-      { id: 's3', userId: 'user-a', name: 'sandbox.vercelToken', kind: 'secret', sealedValue: seal('vtok_user') },
+      {
+        id: 's3',
+        userId: 'user-a',
+        name: 'sandbox.vercelToken',
+        kind: 'secret',
+        sealedValue: seal('vtok_user'),
+      },
     )
-    fake.tables.projectSecret.rows.push({ id: 's4', projectId: PROJECT, name: 'API', kind: 'env', sealedValue: seal('proj') })
+    fake.tables.projectSecret.rows.push({
+      id: 's4',
+      projectId: PROJECT,
+      name: 'API',
+      kind: 'env',
+      sealedValue: seal('proj'),
+    })
     fake.tables.workspaceVercelCredential.rows.push({
       id: ORG,
       organizationId: ORG,
@@ -71,19 +99,31 @@ describe('GET /v1/sandboxes/self/config', () => {
 
   it('lets the project beat user and workspace for one key, and never carries vercel values', async () => {
     seedAllScopes()
-    const response = await http().get('/v1/sandboxes/self/config').set(as(SANDBOX_TOKEN)).expect(200)
+    const response = await http()
+      .get('/v1/sandboxes/self/config')
+      .set(as(SANDBOX_TOKEN))
+      .expect(200)
 
     expect(response.body.settings).toEqual({ [KEY]: setting('high') })
     expect(response.body.provenance[`setting:${KEY}`]).toBe('project')
     expect(response.body.secrets).toEqual([{ name: 'API', value: 'proj', kind: 'env' }])
     const body = JSON.stringify(response.body)
-    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_vercel']) expect(body).not.toContain(leaked)
+    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_vercel'])
+      expect(body).not.toContain(leaked)
   })
 
   it('resolves user + defaults when the thread has no project', async () => {
     fake.tables.thread.rows.push({ id: THREAD, userId: 'user-a', projectId: null })
-    fake.tables.cloudSetting.rows.push({ id: 'u1', userId: 'user-a', key: KEY, value: setting('medium') })
-    const response = await http().get('/v1/sandboxes/self/config').set(as(SANDBOX_TOKEN)).expect(200)
+    fake.tables.cloudSetting.rows.push({
+      id: 'u1',
+      userId: 'user-a',
+      key: KEY,
+      value: setting('medium'),
+    })
+    const response = await http()
+      .get('/v1/sandboxes/self/config')
+      .set(as(SANDBOX_TOKEN))
+      .expect(200)
     expect(response.body.settings).toEqual({ [KEY]: setting('medium') })
     expect(response.body.provenance[`setting:${KEY}`]).toBe('user')
   })
@@ -112,7 +152,9 @@ describe('GET /v1/sandboxes/self/config', () => {
     })
     const project = fake.tables.project.rows[0]
     if (project !== undefined) project.organizationId = null
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toBeInstanceOf(VercelNotConfiguredError)
+    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toBeInstanceOf(
+      VercelNotConfiguredError,
+    )
     await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
       gap: EVercelCredentialGap.ProjectWorkspace,
     })
@@ -120,7 +162,9 @@ describe('GET /v1/sandboxes/self/config', () => {
 
   it('keeps vercel keys for the provisioning resolve only', async () => {
     seedAllScopes()
-    const full = await app.get(ScopedConfigService).resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
+    const full = await app
+      .get(ScopedConfigService)
+      .resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
     expect(full.settings['sandbox.vercelProjectId']).toBe(setting('prj_vercel'))
   })
 })

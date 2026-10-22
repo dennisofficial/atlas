@@ -1,35 +1,31 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from 'react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import {
-  EEffort,
-  ModelSelector,
-  type ModelOption,
-} from "@dltech/atlas-ui/ai/model-selector";
-import { InputGroup, InputGroupAddon } from "@dltech/atlas-ui/components/input-group";
+import { EEffort, ModelSelector, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
+import { InputGroup, InputGroupAddon } from '@dltech/atlas-ui/components/input-group'
 
-import { MODELS } from "../fixtures/agent";
-import MODEL_CATALOGUE from "../fixtures/model-catalogue.json";
+import { MODELS } from '../fixtures/agent'
+import MODEL_CATALOGUE from '../fixtures/model-catalogue.json'
 
-const CATALOGUE: ModelOption[] = MODEL_CATALOGUE;
+const CATALOGUE: ModelOption[] = MODEL_CATALOGUE
 
-const RECONNECT_PROVIDERS = ["OpenRouter"];
+const RECONNECT_PROVIDERS = ['OpenRouter']
 
-const DEFAULT_PINNED = ["anthropic/claude-sonnet-5", "anthropic/claude-opus-5", "openai/gpt-5.5"];
+const DEFAULT_PINNED = ['anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'openai/gpt-5.5']
 
 const meta = {
-  title: "AI/Model Selector",
+  title: 'AI/Model Selector',
   component: ModelSelector,
-  args: { models: MODELS, value: "claude-sonnet" },
-} satisfies Meta<typeof ModelSelector>;
+  args: { models: MODELS, value: 'claude-sonnet' },
+} satisfies Meta<typeof ModelSelector>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 function SelectorDemo({ withEffort }: { withEffort: boolean }) {
-  const [model, setModel] = useState("claude-sonnet");
-  const [effort, setEffort] = useState(EEffort.Medium);
+  const [model, setModel] = useState('claude-sonnet')
+  const [effort, setEffort] = useState(EEffort.Medium)
 
   return (
     <InputGroup className="w-96">
@@ -43,7 +39,7 @@ function SelectorDemo({ withEffort }: { withEffort: boolean }) {
         />
       </InputGroupAddon>
     </InputGroup>
-  );
+  )
 }
 
 function CatalogueDemo({
@@ -52,18 +48,18 @@ function CatalogueDemo({
   initialPinned,
   reconnectProviders,
 }: {
-  models: ModelOption[];
-  defaultOpen: boolean;
-  initialPinned: string[];
-  reconnectProviders: string[];
+  models: ModelOption[]
+  defaultOpen: boolean
+  initialPinned: string[]
+  reconnectProviders: string[]
 }) {
-  const [model, setModel] = useState("anthropic/claude-sonnet-5");
-  const [effort, setEffort] = useState(EEffort.Medium);
-  const [pinned, setPinned] = useState(initialPinned);
-  const [lastAction, setLastAction] = useState("");
+  const [model, setModel] = useState('anthropic/claude-sonnet-5')
+  const [effort, setEffort] = useState(EEffort.Medium)
+  const [pinned, setPinned] = useState(initialPinned)
+  const [lastAction, setLastAction] = useState('')
 
-  const handleReconnect = (provider: string) => setLastAction(`Reconnect ${provider}`);
-  const handleManageProviders = () => setLastAction("Manage providers");
+  const handleReconnect = (provider: string) => setLastAction(`Reconnect ${provider}`)
+  const handleManageProviders = () => setLastAction('Manage providers')
 
   return (
     <div className="flex h-[640px] w-[28rem] flex-col items-start gap-2">
@@ -88,12 +84,12 @@ function CatalogueDemo({
         <p className="text-xs text-muted-foreground">Last action: {lastAction}</p>
       ) : null}
     </div>
-  );
+  )
 }
 
-export const ModelOnly: Story = { render: () => <SelectorDemo withEffort={false} /> };
+export const ModelOnly: Story = { render: () => <SelectorDemo withEffort={false} /> }
 
-export const ModelAndEffort: Story = { render: () => <SelectorDemo withEffort /> };
+export const ModelAndEffort: Story = { render: () => <SelectorDemo withEffort /> }
 
 export const FullCatalogue: Story = {
   render: () => (
@@ -104,7 +100,7 @@ export const FullCatalogue: Story = {
       reconnectProviders={RECONNECT_PROVIDERS}
     />
   ),
-};
+}
 
 export const FullCatalogueOpen: Story = {
   render: () => (
@@ -115,7 +111,7 @@ export const FullCatalogueOpen: Story = {
       reconnectProviders={RECONNECT_PROVIDERS}
     />
   ),
-};
+}
 
 export const FullCatalogueNoPins: Story = {
   render: () => (
@@ -126,10 +122,10 @@ export const FullCatalogueNoPins: Story = {
       reconnectProviders={RECONNECT_PROVIDERS}
     />
   ),
-};
+}
 
 export const NoProviders: Story = {
   render: () => (
     <CatalogueDemo models={[]} defaultOpen initialPinned={[]} reconnectProviders={[]} />
   ),
-};
+}

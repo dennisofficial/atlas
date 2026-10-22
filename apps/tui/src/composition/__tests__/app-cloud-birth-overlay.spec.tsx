@@ -29,7 +29,9 @@ describe('the birth overlay on a first send', () => {
       expect(mounted.draft()).toBe('')
 
       held.release()
-      expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.created.length === 1, within: 20_000 })).toBe(
+        true,
+      )
     } finally {
       held.release()
       await mounted.done()

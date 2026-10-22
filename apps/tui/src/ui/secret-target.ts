@@ -24,7 +24,9 @@ export function secretTargetOf(args: {
 }): SecretTarget | undefined {
   if (args.id === ESettingId.DecisionsToken) {
     return {
-      name: decisionsTokenNameOf({ provider: decisionsProviderIn({ resolution: args.resolution }) }),
+      name: decisionsTokenNameOf({
+        provider: decisionsProviderIn({ resolution: args.resolution }),
+      }),
       label: 'decision API key',
       masked: true,
       required: false,

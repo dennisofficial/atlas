@@ -92,7 +92,10 @@ class OutputLossEngine extends DockerEngine {
     return { id: isMain ? 'exec-main' : `exec-${this.execs.length}` }
   }
 
-  override async startExec(args: { execId: string; detach?: boolean }): Promise<ReadableStream<Uint8Array>> {
+  override async startExec(args: {
+    execId: string
+    detach?: boolean
+  }): Promise<ReadableStream<Uint8Array>> {
     if (args.detach === true) {
       this.detachedStarts += 1
       return new ReadableStream({ start: (controller) => controller.close() })
@@ -153,7 +156,9 @@ describe('DockerProcessPort when the exec output stream dies mid-run', () => {
 
     expect(await handle.exited).toBe(7)
     await heard
-    const killScript = engine.execs.find((exec) => exec.cmd.some((part) => part.includes('kill -TERM')))
+    const killScript = engine.execs.find((exec) =>
+      exec.cmd.some((part) => part.includes('kill -TERM')),
+    )
     expect(killScript).toBeDefined()
     expect(engine.detachedStarts).toBe(1)
   })

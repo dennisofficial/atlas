@@ -190,10 +190,16 @@ const askOnce = async (args: {
   const latencyMs = performance.now() - started
 
   if (!response.ok) {
-    throw new Error(`${args.spec.label} ${response.status}: ${(await response.text()).slice(0, 300)}`)
+    throw new Error(
+      `${args.spec.label} ${response.status}: ${(await response.text()).slice(0, 300)}`,
+    )
   }
 
-  const payload = (await response.json()) as { usage?: UsageShape; provider?: string; model?: string }
+  const payload = (await response.json()) as {
+    usage?: UsageShape
+    provider?: string
+    model?: string
+  }
   const usage = payload.usage ?? {}
   if (process.argv.includes('--raw')) {
     console.log(
@@ -246,7 +252,9 @@ const runRoute = async (args: {
           `  ${Math.round(result.latencyMs)}ms`,
       )
     } catch (error) {
-      console.log(`  ${String(round).padStart(2)}  failed: ${error instanceof Error ? error.message : String(error)}`)
+      console.log(
+        `  ${String(round).padStart(2)}  failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
     if (round < args.rounds) await sleep(args.gapMs)
   }

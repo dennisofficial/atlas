@@ -11,7 +11,9 @@ export enum EServiceJournalSkip {
   Superseded = 'superseded',
 }
 
-export type ServiceJournalAppend = { appended: true } | { appended: false; reason: EServiceJournalSkip }
+export type ServiceJournalAppend =
+  | { appended: true }
+  | { appended: false; reason: EServiceJournalSkip }
 
 enum EServiceRecord {
   Start = 'start',

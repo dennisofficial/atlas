@@ -32,10 +32,7 @@ const textDefinition = (id: ESettingId): TextDefinition => {
   return definition
 }
 
-const resolutionOver = (args: {
-  file?: Record<string, unknown>
-  env?: Record<string, unknown>
-}) =>
+const resolutionOver = (args: { file?: Record<string, unknown>; env?: Record<string, unknown> }) =>
   resolveSettings({
     definitions: ATLAS_SETTINGS,
     layers: [
@@ -94,7 +91,9 @@ describe('the settings a launch used to carry in its environment', () => {
     })
 
     expect(textValueOf({ resolution, id: ESettingId.ModelFavourites })).toBe('from-env')
-    expect(resolution.settings.get(ESettingId.ModelFavourites)?.layer).toBe(ESettingsLayer.Environment)
+    expect(resolution.settings.get(ESettingId.ModelFavourites)?.layer).toBe(
+      ESettingsLayer.Environment,
+    )
   })
 
   it('reports where a value came from, which an env read of its own never could', () => {

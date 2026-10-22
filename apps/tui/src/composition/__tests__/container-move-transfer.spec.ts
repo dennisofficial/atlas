@@ -77,7 +77,12 @@ describe('transfer progress on a running row', () => {
 
     const move = updateMoveTransfer({
       move: first,
-      progress: reading({ transferId: 'session-upload', label: 'uploading conversation', transferredBytes: 5, totalBytes: 10 }),
+      progress: reading({
+        transferId: 'session-upload',
+        label: 'uploading conversation',
+        transferredBytes: 5,
+        totalBytes: 10,
+      }),
     })
 
     expect(move.rows[0]?.transfers?.map((transfer) => transfer.transferId)).toEqual([
@@ -90,7 +95,10 @@ describe('transfer progress on a running row', () => {
     const both = startMoveNode({ move: started(), nodeId: 'archiveSession', now: STARTED_AT + 600 })
     const first = updateMoveTransfer({ move: both, progress: reading() })
 
-    const move = updateMoveTransfer({ move: first, progress: reading({ nodeId: 'archiveSession', transferredBytes: 7 }) })
+    const move = updateMoveTransfer({
+      move: first,
+      progress: reading({ nodeId: 'archiveSession', transferredBytes: 7 }),
+    })
 
     expect(move.rows[0]?.transfers?.map((transfer) => transfer.nodeId)).toEqual([
       'captureWorkspace',
@@ -110,7 +118,10 @@ describe('transfer progress on a running row', () => {
   })
 
   it('carries an unknown total through as undefined', () => {
-    const move = updateMoveTransfer({ move: started(), progress: reading({ totalBytes: undefined }) })
+    const move = updateMoveTransfer({
+      move: started(),
+      progress: reading({ totalBytes: undefined }),
+    })
 
     expect(move.rows[0]?.transfers?.[0]?.totalBytes).toBeUndefined()
   })
@@ -142,12 +153,21 @@ describe('archive build progress on a running row', () => {
   })
 
   it('advances the label and count in place as the phases change', () => {
-    const first = updateMoveTransfer({ move: started(), progress: build({ label: 'scanning the workspace', transferredBytes: 0 }) })
+    const first = updateMoveTransfer({
+      move: started(),
+      progress: build({ label: 'scanning the workspace', transferredBytes: 0 }),
+    })
 
-    const move = updateMoveTransfer({ move: first, progress: build({ label: 'compressing the workspace', transferredBytes: 9000 }) })
+    const move = updateMoveTransfer({
+      move: first,
+      progress: build({ label: 'compressing the workspace', transferredBytes: 9000 }),
+    })
 
     expect(move.rows[0]?.transfers).toHaveLength(1)
-    expect(move.rows[0]?.transfers?.[0]).toMatchObject({ label: 'compressing the workspace', transferredBytes: 9000 })
+    expect(move.rows[0]?.transfers?.[0]).toMatchObject({
+      label: 'compressing the workspace',
+      transferredBytes: 9000,
+    })
   })
 })
 
@@ -155,17 +175,25 @@ describe('transfer progress that has nowhere to land', () => {
   it('ignores a node no row holds', () => {
     const before = started()
 
-    expect(updateMoveTransfer({ move: before, progress: reading({ nodeId: 'ghost' }) })).toBe(before)
+    expect(updateMoveTransfer({ move: before, progress: reading({ nodeId: 'ghost' }) })).toBe(
+      before,
+    )
   })
 
   it('ignores a node that has not started', () => {
     const before = started()
 
-    expect(updateMoveTransfer({ move: before, progress: reading({ nodeId: 'provision' }) })).toBe(before)
+    expect(updateMoveTransfer({ move: before, progress: reading({ nodeId: 'provision' }) })).toBe(
+      before,
+    )
   })
 
   it('ignores a node that already settled', () => {
-    const settled = settleMoveNode({ move: started(), nodeId: 'captureWorkspace', now: STARTED_AT + 900 })
+    const settled = settleMoveNode({
+      move: started(),
+      nodeId: 'captureWorkspace',
+      now: STARTED_AT + 900,
+    })
 
     expect(updateMoveTransfer({ move: settled, progress: reading() })).toBe(settled)
   })

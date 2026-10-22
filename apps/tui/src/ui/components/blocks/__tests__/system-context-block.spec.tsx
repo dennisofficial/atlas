@@ -62,7 +62,10 @@ const mount = async (entry: SystemContextEntry): Promise<Setup> => {
 }
 
 const rowOf = (setup: Setup, text: string): number =>
-  setup.captureCharFrame().split('\n').findIndex((line) => line.includes(text))
+  setup
+    .captureCharFrame()
+    .split('\n')
+    .findIndex((line) => line.includes(text))
 
 const clickRow = async (setup: Setup, text: string): Promise<void> => {
   const row = rowOf(setup, text)

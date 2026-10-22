@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason, JEV_QUALITY_MODEL, type DecisionOutcome, type EventDraft } from '@dltech/atlas-core'
+import {
+  EQualityFindingState,
+  EQualityReviewStatus,
+  EQualitySkipReason,
+  JEV_QUALITY_MODEL,
+  type DecisionOutcome,
+  type EventDraft,
+} from '@dltech/atlas-core'
 
 import {
   IMPROVE,
@@ -22,10 +29,21 @@ function verdictRig() {
   const rig = createRig({
     decide: async () => calibrated({ answers: answersFor({ verdicts: { srp: current.verdict } }) }),
   })
-  const step = async ({ verdict, history }: { verdict: Verdict; history: readonly (readonly EventDraft[])[] }) => {
+  const step = async ({
+    verdict,
+    history,
+  }: {
+    verdict: Verdict
+    history: readonly (readonly EventDraft[])[]
+  }) => {
     current.verdict = verdict
     current.edits += 1
-    rig.setScopes([scopeNamed({ afterHash: `a${current.edits}`, after: `class Widget { run() { return ${current.edits} } }` })])
+    rig.setScopes([
+      scopeNamed({
+        afterHash: `a${current.edits}`,
+        after: `class Widget { run() { return ${current.edits} } }`,
+      }),
+    ])
     const drafts = await rig.review({ events: stampHistory({ batches: history }) })
     return { drafts, record: recordsOf(drafts)[0], nudges: nudgesOf(drafts) }
   }
@@ -45,7 +63,11 @@ describe('happy path', () => {
     expect(record?.requestedModel).toBe(JEV_QUALITY_MODEL)
     expect(record?.resolvedModel).toBe(JEV_QUALITY_MODEL)
     expect(record?.findings).toHaveLength(1)
-    expect(record?.findings[0]).toMatchObject({ episode: 1, state: EQualityFindingState.Active, notified: true })
+    expect(record?.findings[0]).toMatchObject({
+      episode: 1,
+      state: EQualityFindingState.Active,
+      notified: true,
+    })
     expect(record?.durationMs).toBeGreaterThan(0)
     expect(nudge?.lifetimeSteps).toBe(1)
     expect(nudge?.text).toContain('Widget')
@@ -75,7 +97,10 @@ describe('transition-driven ledger from supplied events', () => {
 
     expect(first.nudges).toHaveLength(1)
     expect(repeat.nudges).toHaveLength(0)
-    expect(repeat.record?.findings[0]).toMatchObject({ episode: 1, state: EQualityFindingState.Active })
+    expect(repeat.record?.findings[0]).toMatchObject({
+      episode: 1,
+      state: EQualityFindingState.Active,
+    })
     expect(improved.nudges).toHaveLength(0)
     expect(improved.drafts).toHaveLength(1)
   })
@@ -88,7 +113,10 @@ describe('transition-driven ledger from supplied events', () => {
 
     expect(resolved.record?.findings[0]?.state).toBe(EQualityFindingState.Resolved)
     expect(resolved.nudges).toHaveLength(0)
-    expect(again.record?.findings[0]).toMatchObject({ episode: 2, state: EQualityFindingState.Active })
+    expect(again.record?.findings[0]).toMatchObject({
+      episode: 2,
+      state: EQualityFindingState.Active,
+    })
     expect(again.nudges).toHaveLength(1)
   })
 
@@ -116,36 +144,55 @@ describe('transition-driven ledger from supplied events', () => {
 
 describe('model identity and faults', () => {
   it.each<[string, DecisionOutcome]>([
-    ['a different model', { ok: true, answers: answersFor({ verdicts: { srp: INTRODUCE } }), model: 'something-else' }],
+    [
+      'a different model',
+      { ok: true, answers: answersFor({ verdicts: { srp: INTRODUCE } }), model: 'something-else' },
+    ],
     ['no model identity', { ok: true, answers: answersFor({ verdicts: { srp: INTRODUCE } }) }],
-  ])('records UncalibratedModel inconclusive for %s and never a finding', async (_name, outcome) => {
-    const rig = createRig({ decide: async () => outcome })
-    const drafts = await rig.review()
-    expect(recordsOf(drafts)[0]).toMatchObject({
-      status: EQualityReviewStatus.Inconclusive,
-      reason: EQualitySkipReason.UncalibratedModel,
-      findings: [],
-      assessments: [],
-    })
-    expect(nudgesOf(drafts)).toHaveLength(0)
-  })
+  ])(
+    'records UncalibratedModel inconclusive for %s and never a finding',
+    async (_name, outcome) => {
+      const rig = createRig({ decide: async () => outcome })
+      const drafts = await rig.review()
+      expect(recordsOf(drafts)[0]).toMatchObject({
+        status: EQualityReviewStatus.Inconclusive,
+        reason: EQualitySkipReason.UncalibratedModel,
+        findings: [],
+        assessments: [],
+      })
+      expect(nudgesOf(drafts)).toHaveLength(0)
+    },
+  )
 
   it('records DecisionUnavailable for ok:false', async () => {
     const rig = createRig({ decide: async () => ({ ok: false, fault: 'timeout' }) })
     const [record] = recordsOf(await rig.review())
-    expect(record).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.DecisionUnavailable, detail: 'timeout' })
+    expect(record).toMatchObject({
+      status: EQualityReviewStatus.OperationalError,
+      reason: EQualitySkipReason.DecisionUnavailable,
+      detail: 'timeout',
+    })
   })
 
   it('keeps a faulted scope as a fault while the other scope reviews normally', async () => {
     const rig = createRig({
-      scopes: [scopeNamed(), scopeNamed({ id: 'scope-2', name: 'Broken', after: 'class Broken {}' })],
+      scopes: [
+        scopeNamed(),
+        scopeNamed({ id: 'scope-2', name: 'Broken', after: 'class Broken {}' }),
+      ],
       decide: async ({ state }) =>
-        state.includes('class Broken') ? { ok: false, fault: 'provider down' } : calibrated({ answers: answersFor({ verdicts: { srp: INTRODUCE } }) }),
+        state.includes('class Broken')
+          ? { ok: false, fault: 'provider down' }
+          : calibrated({ answers: answersFor({ verdicts: { srp: INTRODUCE } }) }),
     })
     const drafts = await rig.review()
     const byScope = new Map(recordsOf(drafts).map((record) => [record.scope?.id, record]))
 
-    expect(byScope.get('scope-2')).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.DecisionUnavailable, findings: [] })
+    expect(byScope.get('scope-2')).toMatchObject({
+      status: EQualityReviewStatus.OperationalError,
+      reason: EQualitySkipReason.DecisionUnavailable,
+      findings: [],
+    })
     expect(byScope.get('scope-1')?.status).toBe(EQualityReviewStatus.Completed)
     const [nudge] = nudgesOf(drafts)
     expect(nudge?.text).toContain('Widget')
@@ -158,7 +205,10 @@ describe('deadline and cancellation', () => {
     const rig = createRig({ deadlineMs: 20, decide: () => new Promise(() => {}) })
     const drafts = await rig.review()
     expect(drafts).toHaveLength(1)
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
+    expect(recordsOf(drafts)[0]).toMatchObject({
+      status: EQualityReviewStatus.OperationalError,
+      reason: EQualitySkipReason.ReviewDeadline,
+    })
   })
 
   it('discards a late result from a transport that ignores the signal', async () => {
@@ -191,7 +241,10 @@ describe('deadline and cancellation', () => {
     const pending = rig.review({ signal: controller.signal })
     setTimeout(() => controller.abort(), 10)
     const drafts = await pending
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.TurnInterrupted })
+    expect(recordsOf(drafts)[0]).toMatchObject({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.TurnInterrupted,
+    })
     expect(nudgesOf(drafts)).toHaveLength(0)
   })
 })

@@ -29,7 +29,11 @@ type FakeOptions = {
   podDetails?: Partial<PodDetails>
 }
 
-export const detailsFor = (args: { id: string; status: string; extra?: Partial<PodDetails> | undefined }): PodDetails => ({
+export const detailsFor = (args: {
+  id: string
+  status: string
+  extra?: Partial<PodDetails> | undefined
+}): PodDetails => ({
   id: args.id,
   name: NAME,
   status: args.status,

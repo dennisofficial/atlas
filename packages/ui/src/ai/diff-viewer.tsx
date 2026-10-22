@@ -1,58 +1,58 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties } from 'react'
 
-import { cn } from "#lib/utils";
+import { cn } from '#lib/utils'
 
-const MINUS = "−";
+const MINUS = '−'
 
-export type DiffLineKind = "add" | "remove" | "context" | "gap";
-export type DiffMode = "inline" | "split";
+export type DiffLineKind = 'add' | 'remove' | 'context' | 'gap'
+export type DiffMode = 'inline' | 'split'
 
 export interface DiffLine {
-  kind: DiffLineKind;
-  text: string;
-  oldNumber?: number;
-  newNumber?: number;
+  kind: DiffLineKind
+  text: string
+  oldNumber?: number
+  newNumber?: number
 }
 
 export interface DiffViewerProps {
-  path: string;
-  lines: DiffLine[];
-  added?: number;
-  removed?: number;
-  mode?: DiffMode;
-  hunk?: string;
-  style?: CSSProperties;
+  path: string
+  lines: DiffLine[]
+  added?: number
+  removed?: number
+  mode?: DiffMode
+  hunk?: string
+  style?: CSSProperties
 }
 
 interface RowProps {
-  line: DiffLine;
-  mode: DiffMode;
+  line: DiffLine
+  mode: DiffMode
 }
 
 interface GutterInput {
-  line: DiffLine;
-  mode: DiffMode;
+  line: DiffLine
+  mode: DiffMode
 }
 
 export function gutterNumbers({ line, mode }: GutterInput): string[] {
-  if (line.kind === "gap") return ["⋯"];
-  if (mode === "split") return [`${line.oldNumber ?? ""}`, `${line.newNumber ?? ""}`];
-  return [`${line.newNumber ?? line.oldNumber ?? ""}`];
+  if (line.kind === 'gap') return ['⋯']
+  if (mode === 'split') return [`${line.oldNumber ?? ''}`, `${line.newNumber ?? ''}`]
+  return [`${line.newNumber ?? line.oldNumber ?? ''}`]
 }
 
 function Row({ line, mode }: RowProps) {
-  const added = line.kind === "add";
-  const removed = line.kind === "remove";
-  const gap = line.kind === "gap";
+  const added = line.kind === 'add'
+  const removed = line.kind === 'remove'
+  const gap = line.kind === 'gap'
 
   return (
     <div
       data-kind={line.kind}
       className={cn(
-        "flex min-w-0",
-        added && "bg-diff-add",
-        removed && "bg-diff-remove",
-        gap && "bg-diff-band",
+        'flex min-w-0',
+        added && 'bg-diff-add',
+        removed && 'bg-diff-remove',
+        gap && 'bg-diff-band',
       )}
     >
       {gutterNumbers({ line, mode }).map((number, index) => (
@@ -65,24 +65,24 @@ function Row({ line, mode }: RowProps) {
       ))}
       <span
         className={cn(
-          "w-5 shrink-0 text-center select-none",
-          added && "text-diff-add-foreground",
-          removed && "text-diff-remove-foreground",
-          !added && !removed && "text-diff-gutter",
+          'w-5 shrink-0 text-center select-none',
+          added && 'text-diff-add-foreground',
+          removed && 'text-diff-remove-foreground',
+          !added && !removed && 'text-diff-gutter',
         )}
       >
-        {added ? "+" : removed ? MINUS : " "}
+        {added ? '+' : removed ? MINUS : ' '}
       </span>
       <span
         className={cn(
-          "min-w-0 flex-1 truncate pr-3 whitespace-pre",
-          gap ? "text-muted-foreground italic" : "text-foreground",
+          'min-w-0 flex-1 truncate pr-3 whitespace-pre',
+          gap ? 'text-muted-foreground italic' : 'text-foreground',
         )}
       >
         {line.text}
       </span>
     </div>
-  );
+  )
 }
 
 export function DiffViewer({
@@ -90,7 +90,7 @@ export function DiffViewer({
   lines,
   added,
   removed,
-  mode = "inline",
+  mode = 'inline',
   hunk,
   style,
 }: DiffViewerProps) {
@@ -112,9 +112,7 @@ export function DiffViewer({
         ) : null}
       </div>
       {hunk ? (
-        <div className="bg-diff-band px-3 py-0.5 font-semibold text-primary">
-          {hunk}
-        </div>
+        <div className="bg-diff-band px-3 py-0.5 font-semibold text-primary">{hunk}</div>
       ) : null}
       <div className="overflow-auto py-1 leading-relaxed">
         {lines.map((line, index) => (
@@ -122,5 +120,5 @@ export function DiffViewer({
         ))}
       </div>
     </div>
-  );
+  )
 }

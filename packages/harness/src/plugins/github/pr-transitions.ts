@@ -7,7 +7,9 @@ import { checkoutKey, EPullRequestLookup, type PullRequestReading } from './pure
 const SHORT_SHA_LENGTH = 7
 
 const onTip = (pullRequest: { headSha?: string }): string =>
-  pullRequest.headSha === undefined || pullRequest.headSha === '' ? '' : ` on ${pullRequest.headSha.slice(0, SHORT_SHA_LENGTH)}`
+  pullRequest.headSha === undefined || pullRequest.headSha === ''
+    ? ''
+    : ` on ${pullRequest.headSha.slice(0, SHORT_SHA_LENGTH)}`
 
 const label = (reading: PullRequestReading): string | null => {
   if (reading.lookup !== EPullRequestLookup.Found) return null

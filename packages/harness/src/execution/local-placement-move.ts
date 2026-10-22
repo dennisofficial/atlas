@@ -40,10 +40,16 @@ export async function moveLocalPlacement(args: {
   shells: ShellRegistryPort
   services: ServiceRegistryPort
   /** The store-backed ports, resolved at call time: building the caller must not open a database. */
-  stores: () => { threads: ThreadStorePort; log: Parameters<typeof relocateSession>[0]['log']; agents: AgentRegistryPort }
+  stores: () => {
+    threads: ThreadStorePort
+    log: Parameters<typeof relocateSession>[0]['log']
+    agents: AgentRegistryPort
+  }
   caller?: ThreadId | undefined
   cwd?: string | undefined
-  pause?: ((args: { threadId: ThreadId; caller: ThreadId | undefined }) => Promise<void>) | undefined
+  pause?:
+    | ((args: { threadId: ThreadId; caller: ThreadId | undefined }) => Promise<void>)
+    | undefined
   whenSettled?: (() => Promise<void>) | undefined
   onProgress?: ((note: string) => void) | undefined
   logPort?: LogPort | undefined
@@ -143,7 +149,14 @@ export async function moveLocalPlacement(args: {
         await stores.threads.chooseExecutionLocation({ threadId: owner, location: target })
         await commit()
 
-        return { ok: true as const, from, to: target, killedShells, moved, stillDying: moved.stillStopping }
+        return {
+          ok: true as const,
+          from,
+          to: target,
+          killedShells,
+          moved,
+          stillDying: moved.stillStopping,
+        }
       },
     })
   } catch (error) {

@@ -37,12 +37,19 @@ const NO_REVIEW: QualityHealth = {
 function statusOf(record: QualityHealthRecord): EQualityHealthStatus {
   if (record.status === EQualityReviewStatus.Skipped) return EQualityHealthStatus.Skipped
   if (record.status === EQualityReviewStatus.Inconclusive) return EQualityHealthStatus.Inconclusive
-  if (record.status === EQualityReviewStatus.OperationalError) return EQualityHealthStatus.OperationalError
-  const hasFinding = record.findings.some((finding) => finding.state === EQualityFindingState.Active)
+  if (record.status === EQualityReviewStatus.OperationalError)
+    return EQualityHealthStatus.OperationalError
+  const hasFinding = record.findings.some(
+    (finding) => finding.state === EQualityFindingState.Active,
+  )
   return hasFinding ? EQualityHealthStatus.Finding : EQualityHealthStatus.CompletedNoFinding
 }
 
-export function projectQualityHealth({ records }: { records: readonly QualityHealthRecord[] }): QualityHealth {
+export function projectQualityHealth({
+  records,
+}: {
+  records: readonly QualityHealthRecord[]
+}): QualityHealth {
   const latest = records.at(-1)
   if (latest === undefined) return NO_REVIEW
 
@@ -50,7 +57,10 @@ export function projectQualityHealth({ records }: { records: readonly QualityHea
     label: QUALITY_HEALTH_LABEL,
     status: statusOf(latest),
     path: latest.path,
-    scope: latest.scope === undefined ? null : { id: latest.scope.id, name: latest.scope.name, kind: latest.scope.kind },
+    scope:
+      latest.scope === undefined
+        ? null
+        : { id: latest.scope.id, name: latest.scope.name, kind: latest.scope.kind },
     policyIds: [...new Set(latest.assessments.map((assessment) => assessment.policyId))],
     recordedAt: latest.at,
     reason: latest.reason,

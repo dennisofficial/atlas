@@ -130,7 +130,8 @@ export async function bootServeFiles(args: {
       }),
   })
 
-  const identity = spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
+  const identity =
+    spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
   await reporter.track({
     step: EBootStep.Context,
     work: () =>

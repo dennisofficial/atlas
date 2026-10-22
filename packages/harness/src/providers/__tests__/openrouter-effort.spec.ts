@@ -30,6 +30,8 @@ describe('openrouterEffortOptions', () => {
   })
 
   it('says nothing for a model that declares no reasoning at all', () => {
-    expect(openrouterEffortOptions({ card: cardWith(undefined), effort: EEffort.High })).toBeUndefined()
+    expect(
+      openrouterEffortOptions({ card: cardWith(undefined), effort: EEffort.High }),
+    ).toBeUndefined()
   })
 })

@@ -193,7 +193,11 @@ export class UserFilesService {
   private async replaceRevision(args: {
     key: { userId: string; tree: string; path: string }
     baseRevision: number
-    data: { contentHash: string; content: Uint8Array<ArrayBuffer> | null; tombstonedAt: Date | null }
+    data: {
+      contentHash: string
+      content: Uint8Array<ArrayBuffer> | null
+      tombstonedAt: Date | null
+    }
     currentRevision: number
     currentHash: string
   }): Promise<void> {

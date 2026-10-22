@@ -43,7 +43,11 @@ export function imageTagSpans(text: string): readonly ImageTagSpan[] {
 
   for (const match of text.matchAll(IMAGE_TAG)) {
     if (match.index === undefined) continue
-    spans.push({ start: match.index, end: match.index + match[0].length, ordinal: Number(match[1]) })
+    spans.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      ordinal: Number(match[1]),
+    })
   }
 
   return spans
@@ -68,7 +72,8 @@ export function imageTagOrdinals(text: string): readonly number[] {
  * being intercepted.
  */
 export const imageTagAround = (args: { text: string; offset: number }): ImageTagSpan | null =>
-  imageTagSpans(args.text).find((span) => span.start < args.offset && args.offset < span.end) ?? null
+  imageTagSpans(args.text).find((span) => span.start < args.offset && args.offset < span.end) ??
+  null
 
 /** The near edge, so a caret dropped into a tag leaves by the side it was closest to. */
 export const nearerEdgeOf = (args: { span: ImageTagSpan; offset: number }): number =>

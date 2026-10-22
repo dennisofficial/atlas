@@ -81,7 +81,9 @@ const exportManifestSchema: z.ZodType<ExportManifest> = z.object({
 export type DuplicateRecord = { candidateId: string; duplicateOf: string }
 
 const contentKey = ({ snapshot }: { snapshot: CandidateSnapshot }): string =>
-  sha256Hex({ text: `${snapshot.scope.id}\0${snapshot.scope.before ?? ''}\0${snapshot.scope.after ?? ''}` })
+  sha256Hex({
+    text: `${snapshot.scope.id}\0${snapshot.scope.before ?? ''}\0${snapshot.scope.after ?? ''}`,
+  })
 
 export function dedupeCandidates({ candidates }: { candidates: readonly Candidate[] }): {
   kept: readonly Candidate[]
@@ -112,13 +114,19 @@ export function candidateFromExport({
   method: ECandidateMethod
 }): Candidate {
   const sourceHash = example.digests.redacted.afterSha256 ?? example.digests.redacted.beforeSha256
-  if (sourceHash === null) throw new Error(`exported example ${example.captureId} carries no scope text digest`)
+  if (sourceHash === null)
+    throw new Error(`exported example ${example.captureId} carries no scope text digest`)
   return {
     schemaVersion: CANDIDATE_SCHEMA_VERSION,
     candidateId: example.captureId,
     method,
     group: sha256Hex({ text: `${example.session}\n${example.path}` }),
-    provenance: { session: example.session, captureId: example.captureId, adapterVersion: example.adapterVersion, sourceHash },
+    provenance: {
+      session: example.session,
+      captureId: example.captureId,
+      adapterVersion: example.adapterVersion,
+      sourceHash,
+    },
     snapshot: {
       path: example.path,
       workspaceNamespace: example.workspaceNamespace,
@@ -142,24 +150,41 @@ export async function readExportDir({ exportDir }: { exportDir: string }): Promi
   examples: readonly ExportedExample[]
   manifest: ExportManifest
 }> {
-  const manifestResult = exportManifestSchema.safeParse(await readJson({ path: join(exportDir, EXPORT_MANIFEST_FILE) }))
-  if (!manifestResult.success) throw new Error(`export manifest is invalid: ${manifestResult.error.issues[0]?.message ?? 'unknown'}`)
+  const manifestResult = exportManifestSchema.safeParse(
+    await readJson({ path: join(exportDir, EXPORT_MANIFEST_FILE) }),
+  )
+  if (!manifestResult.success)
+    throw new Error(
+      `export manifest is invalid: ${manifestResult.error.issues[0]?.message ?? 'unknown'}`,
+    )
   const manifest = manifestResult.data
 
   const entries = await readdir(exportDir, { withFileTypes: true })
   const present = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.json') && entry.name !== EXPORT_MANIFEST_FILE)
+    .filter(
+      (entry) =>
+        entry.isFile() && entry.name.endsWith('.json') && entry.name !== EXPORT_MANIFEST_FILE,
+    )
     .map((entry) => entry.name.slice(0, -'.json'.length))
     .sort()
   const declared = [...manifest.exported].sort()
-  const matches = present.length === declared.length && present.every((id, index) => id === declared[index])
+  const matches =
+    present.length === declared.length && present.every((id, index) => id === declared[index])
   if (!matches) throw new Error('export manifest does not match the example files present')
 
   const examples: ExportedExample[] = []
   for (const captureId of declared) {
-    const decoded = exportedExampleSchema.safeParse(await readJson({ path: join(exportDir, `${captureId}.json`) }))
-    if (!decoded.success) throw new Error(`exported example ${captureId} is invalid: ${decoded.error.issues[0]?.message ?? 'unknown'}`)
-    if (decoded.data.captureId !== captureId) throw new Error(`exported example file ${captureId} names captureId ${decoded.data.captureId}`)
+    const decoded = exportedExampleSchema.safeParse(
+      await readJson({ path: join(exportDir, `${captureId}.json`) }),
+    )
+    if (!decoded.success)
+      throw new Error(
+        `exported example ${captureId} is invalid: ${decoded.error.issues[0]?.message ?? 'unknown'}`,
+      )
+    if (decoded.data.captureId !== captureId)
+      throw new Error(
+        `exported example file ${captureId} names captureId ${decoded.data.captureId}`,
+      )
     examples.push(decoded.data)
   }
   return { examples, manifest }

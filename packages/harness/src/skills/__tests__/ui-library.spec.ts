@@ -37,17 +37,19 @@ const pageSchema = z.object({
   image_sha256: z.string(),
 })
 const tokensSchema = z.record(z.string(), z.string().regex(/^#[\dA-Fa-f]{6}$/))
-const videoCoverageSchema = z.array(z.object({
-  slug: z.string(),
-  video_duration_seconds: z.number(),
-  audio_duration_seconds: z.number(),
-  segments: z.number(),
-  excluded_segments: z.number(),
-  frames: z.number(),
-  transcript: z.string(),
-  transcript_sha256: z.string(),
-  references: z.array(z.string()),
-}))
+const videoCoverageSchema = z.array(
+  z.object({
+    slug: z.string(),
+    video_duration_seconds: z.number(),
+    audio_duration_seconds: z.number(),
+    segments: z.number(),
+    excluded_segments: z.number(),
+    frames: z.number(),
+    transcript: z.string(),
+    transcript_sha256: z.string(),
+    references: z.array(z.string()),
+  }),
+)
 const transcriptSchema = z.object({
   duration_seconds: z.number(),
   transcription: z.object({ disclaimer: z.string() }),
@@ -57,15 +59,20 @@ const transcriptSchema = z.object({
     transcription_text_capped: z.literal(false),
     tail_status: z.string(),
   }),
-  segments: z.array(z.object({ id: z.number(), start: z.number(), end: z.number(), text: z.string() })),
+  segments: z.array(
+    z.object({ id: z.number(), start: z.number(), end: z.number(), text: z.string() }),
+  ),
   excluded_segments: z.array(z.object({ id: z.number(), exclusion_reason: z.string() })),
   frames: z.array(z.object({ path: z.string(), time_seconds: z.number() })),
 })
 
-const sha256 = (data: string | Uint8Array): string => createHash('sha256').update(data).digest('hex')
+const sha256 = (data: string | Uint8Array): string =>
+  createHash('sha256').update(data).digest('hex')
 const jsonAt = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'))
 const linksIn = (text: string): readonly string[] =>
-  [...text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)].flatMap((match) => match[1] === undefined ? [] : [match[1]])
+  [...text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)].flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]],
+  )
 
 function pageText(args: { markdown: string; page: number }): string {
   const marker = `### Source page ${args.page}\n`
@@ -83,9 +90,11 @@ const originalTokens = (text: string): Record<string, string> =>
   tokensSchema.parse(JSON.parse(text.replace(/\/\/[^\n]*/g, '').replace(/,\s*}/g, '}')))
 
 async function textCache(): Promise<ReadonlyMap<string, string>> {
-  const pairs = await Promise.all((await readdir(REFERENCES)).map(async (file) =>
-    [file, await readFile(join(REFERENCES, file), 'utf8')] as const,
-  ))
+  const pairs = await Promise.all(
+    (await readdir(REFERENCES)).map(
+      async (file) => [file, await readFile(join(REFERENCES, file), 'utf8')] as const,
+    ),
+  )
   return new Map(pairs)
 }
 
@@ -93,7 +102,9 @@ describe('the shipped UI design library', () => {
   it('routes straight to every focused reference without loading source bodies', async () => {
     const entry = await readFile(join(ROOT, 'SKILL.md'), 'utf8')
     const files = (await readdir(REFERENCES)).sort()
-    const linked = linksIn(entry).filter((path) => path.startsWith('references/')).map((path) => path.slice('references/'.length))
+    const linked = linksIn(entry)
+      .filter((path) => path.startsWith('references/'))
+      .map((path) => path.slice('references/'.length))
 
     expect(entry).toContain('name: ui-design')
     expect(entry).toContain('web, mobile, or terminal')
@@ -122,18 +133,26 @@ describe('the shipped UI design library', () => {
     const references = await textCache()
     let characters = 0
     let pages = 0
-    expect(metadata.sources.map((source) => [source.id, source.pages])).toEqual(Object.entries(SOURCE_COUNTS))
+    expect(metadata.sources.map((source) => [source.id, source.pages])).toEqual(
+      Object.entries(SOURCE_COUNTS),
+    )
 
     for (const source of metadata.sources) {
       const coveragePath = join(ASSETS, 'coverage', `${source.id}.json`)
       expect((await readFile(coveragePath, 'utf8')).split('\n').length).toBeLessThanOrEqual(300)
       const coverage = z.array(pageSchema).parse(await jsonAt(coveragePath))
       const reconstructed: { page: number; text: string }[] = []
-      expect(coverage.map((row) => row.page)).toEqual(Array.from({ length: source.pages }, (_, index) => index + 1))
+      expect(coverage.map((row) => row.page)).toEqual(
+        Array.from({ length: source.pages }, (_, index) => index + 1),
+      )
       for (const reference of new Set(coverage.map((row) => row.reference))) {
         const text = references.get(reference) ?? ''
-        const actualPages = [...text.matchAll(/^### Source page (\d+)$/gm)].map((match) => Number(match[1]))
-        expect(actualPages).toEqual(coverage.filter((row) => row.reference === reference).map((row) => row.page))
+        const actualPages = [...text.matchAll(/^### Source page (\d+)$/gm)].map((match) =>
+          Number(match[1]),
+        )
+        expect(actualPages).toEqual(
+          coverage.filter((row) => row.reference === reference).map((row) => row.page),
+        )
       }
       let sourceCharacters = 0
       for (const row of coverage) {
@@ -161,10 +180,13 @@ describe('the shipped UI design library', () => {
     expect(characters).toBe(metadata.source_text_characters)
     expect(pages).toBe(525)
     expect(pages).toBe(metadata.visual_pages)
-    const outline = z.array(z.tuple([z.number(), z.string(), z.number()])).parse(await jsonAt(join(ASSETS, 'book-outline.json')))
+    const outline = z
+      .array(z.tuple([z.number(), z.string(), z.number()]))
+      .parse(await jsonAt(join(ASSETS, 'book-outline.json')))
     expect(outline).toHaveLength(153)
     const allText = [...references.values()].join('\n')
-    for (const [, title, page] of outline) expect(allText).toContain(`${title} (source page ${page})`)
+    for (const [, title, page] of outline)
+      expect(allText).toContain(`${title} (source page ${page})`)
   })
 
   it('preserves palette-local values, source roles, and valid strict JSON companions', async () => {
@@ -190,7 +212,11 @@ describe('the shipped UI design library', () => {
 
   it('preserves every accepted video segment with timestamps, caveats, and visual frames', async () => {
     const videos = videoCoverageSchema.parse(await jsonAt(join(ASSETS, 'video-coverage.json')))
-    expect(videos.map((video) => video.slug)).toEqual(['content-design', 'complex-form', 'dashboard'])
+    expect(videos.map((video) => video.slug)).toEqual([
+      'content-design',
+      'complex-form',
+      'dashboard',
+    ])
     expect(videos.map((video) => video.video_duration_seconds)).toEqual([728.45, 672.85, 1039.98])
     expect(videos.reduce((sum, video) => sum + video.segments, 0)).toBe(550)
     expect(videos.reduce((sum, video) => sum + video.excluded_segments, 0)).toBe(10)
@@ -205,7 +231,9 @@ describe('the shipped UI design library', () => {
       expect(data.coverage.tail_status).toContain('not human-audited')
       expect(data.segments).toHaveLength(video.segments)
       expect(data.excluded_segments).toHaveLength(video.excluded_segments)
-      expect(new Set([...data.segments, ...data.excluded_segments].map((segment) => segment.id)).size).toBe(video.segments + video.excluded_segments)
+      expect(
+        new Set([...data.segments, ...data.excluded_segments].map((segment) => segment.id)).size,
+      ).toBe(video.segments + video.excluded_segments)
       const narrated: string[] = []
       for (const reference of video.references) {
         const text = await readFile(join(REFERENCES, reference), 'utf8')

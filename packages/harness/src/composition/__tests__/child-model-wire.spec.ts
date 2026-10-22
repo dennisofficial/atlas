@@ -31,18 +31,32 @@ const credentials: CredentialPort = {
   discard: async () => undefined,
 }
 
-const response = () => new Response([
-  'data: ' + JSON.stringify({
-    id: 'reply', object: 'chat.completion.chunk', created: 1, model: card.ref.modelId,
-    choices: [{ index: 0, delta: { role: 'assistant', content: 'hello' }, finish_reason: null }],
-  }),
-  'data: ' + JSON.stringify({
-    id: 'reply', object: 'chat.completion.chunk', created: 1, model: card.ref.modelId,
-    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-  }),
-  'data: [DONE]',
-].join('\n\n') + '\n\n', { headers: { 'content-type': 'text/event-stream' } })
+const response = () =>
+  new Response(
+    [
+      'data: ' +
+        JSON.stringify({
+          id: 'reply',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: card.ref.modelId,
+          choices: [
+            { index: 0, delta: { role: 'assistant', content: 'hello' }, finish_reason: null },
+          ],
+        }),
+      'data: ' +
+        JSON.stringify({
+          id: 'reply',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: card.ref.modelId,
+          choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+      'data: [DONE]',
+    ].join('\n\n') + '\n\n',
+    { headers: { 'content-type': 'text/event-stream' } },
+  )
 
 afterEach(cleanupHomes)
 
@@ -56,13 +70,19 @@ describe('a child through the real provider adapter', () => {
       cardFor: () => card,
       adapterFor: () => adapter,
     }
-    const parent = selectableModel({ catalogue: models, initial: { ref: card.ref, effort: EEffort.Low } })
+    const parent = selectableModel({
+      catalogue: models,
+      initial: { ref: card.ref, effort: EEffort.Low },
+    })
     const child = await childModelSource({
       models,
       model: parent,
       threads: fixture.threads,
       hooks: () => new HookChain({}),
-      settings: createSettingsService({ definitions: ATLAS_SETTINGS, user: new MemorySettingsStore({}) }),
+      settings: createSettingsService({
+        definitions: ATLAS_SETTINGS,
+        user: new MemorySettingsStore({}),
+      }),
     })({ threadId: fixture.threadId, agentType: childType() })
 
     expect(await askModel(child)).toBe('hello')

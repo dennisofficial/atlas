@@ -31,7 +31,9 @@ try {
   const thread = matches[0]
   if (thread === undefined) throw new Error(`no thread matching ${title}`)
 
-  const events = await container.resolve(registeredPortToken(EventLogPort)).read({ threadId: toThreadId(thread.id) })
+  const events = await container
+    .resolve(registeredPortToken(EventLogPort))
+    .read({ threadId: toThreadId(thread.id) })
   console.log(
     transcriptOfRange({
       events,

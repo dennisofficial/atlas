@@ -32,7 +32,11 @@ export type PodProvisionArgs<THandle> = {
 export type RunnerDriver<THandle = RunnerPodHandle> = {
   createOrResume(args: PodProvisionArgs<THandle>): Promise<PodPlacement>
   inspect(args: { name: string }): Promise<PodObservation | undefined>
-  writeBootstrapFile(args: { name: string; path: string; content: Uint8Array | string }): Promise<void>
+  writeBootstrapFile(args: {
+    name: string
+    path: string
+    content: Uint8Array | string
+  }): Promise<void>
   readResources(args: { name: string }): Promise<{ vcpus?: number; memoryMb?: number }>
   updateResources(args: { name: string; vcpus: number }): Promise<void>
   destroy(args: { name: string; sessionId?: string | undefined }): Promise<void>

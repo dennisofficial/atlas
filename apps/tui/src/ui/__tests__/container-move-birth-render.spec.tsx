@@ -4,7 +4,13 @@ import React from 'react'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
-import { beginMove, failMove, startMoveNode, updateMoveTransfer, type ContainerMove } from '../../composition/container-move'
+import {
+  beginMove,
+  failMove,
+  startMoveNode,
+  updateMoveTransfer,
+  type ContainerMove,
+} from '../../composition/container-move'
 import { ContainerMoveOverlay } from '../components/container-move'
 import { frameOf } from './transcript-fixture'
 
@@ -78,7 +84,10 @@ describe('the birth overlay', () => {
   })
 
   it('swaps the cancel hint for the failure reason and a dismiss hint', async () => {
-    const move = failMove({ move: birth(), reason: 'the sandbox would not start — this thread started on this machine instead' })
+    const move = failMove({
+      move: birth(),
+      reason: 'the sandbox would not start — this thread started on this machine instead',
+    })
     const text = await frame({ move, elapsedMs: 5_000 })
 
     expect(text).toContain('started on this machine instead')

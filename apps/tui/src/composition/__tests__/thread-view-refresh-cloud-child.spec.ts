@@ -16,7 +16,11 @@ import {
 } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
-import { createThreadViewRefresh, driveThreadViewExternally, type ThreadViewRefresh } from '../thread-view-refresh'
+import {
+  createThreadViewRefresh,
+  driveThreadViewExternally,
+  type ThreadViewRefresh,
+} from '../thread-view-refresh'
 import { EThreadRows } from '../use-thread-view'
 import type { ConversationStore } from '../../store'
 
@@ -39,8 +43,7 @@ const stubLog = (served: Map<ThreadId, Event[]>): EventLogPort => {
     Promise.resolve(
       (served.get(args.threadId) ?? []).filter(
         (event) =>
-          event.seq > (args.fromSeq ?? 0) &&
-          (args.upTo === undefined || event.seq <= args.upTo),
+          event.seq > (args.fromSeq ?? 0) && (args.upTo === undefined || event.seq <= args.upTo),
       ),
     )
 
@@ -137,8 +140,7 @@ describe('a cloud child thread refresh', () => {
     applied = []
   })
 
-  const drive = () =>
-    refreshOf({ app, threadId: CHILD, setEvents: (next) => (applied = next) })
+  const drive = () => refreshOf({ app, threadId: CHILD, setEvents: (next) => (applied = next) })
 
   it('reads the child transcript the serve answers for', async () => {
     await drive().refresh()
@@ -199,7 +201,13 @@ const controllableChannelFor = (args: { connection: ChannelConnection }) => {
     },
     subscribe: () => () => undefined,
   }
-  return { channel, state, emitReady: () => [...readyListeners].forEach((fire) => fire()) }
+  return {
+    channel,
+    state,
+    emitReady: () => {
+      for (const fire of [...readyListeners]) fire()
+    },
+  }
 }
 
 describe('driveThreadViewExternally', () => {

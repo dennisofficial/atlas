@@ -75,9 +75,9 @@ describe('SandboxTokenGuard', () => {
       verifyTokenPrincipal: vi.fn(),
     } as unknown as SandboxesService)
 
-    await expect(
-      guard.canActivate(contextWith({ params: {} })),
-    ).rejects.toBeInstanceOf(UnauthorizedException)
+    await expect(guard.canActivate(contextWith({ params: {} }))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
   })
   it('refuses a pod lease token on a route with no :threadId', async () => {
     const verifyTokenPrincipal = vi.fn(async () => ({

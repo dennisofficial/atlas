@@ -24,7 +24,11 @@ async function run(args: {
 }): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const child = Bun.spawn({
     cmd: ['bash', '-c', args.command],
-    env: { ...process.env, ATLAS_HOME: args.home, PATH: `${join(args.home, 'bin')}:${process.env.PATH ?? ''}` },
+    env: {
+      ...process.env,
+      ATLAS_HOME: args.home,
+      PATH: `${join(args.home, 'bin')}:${process.env.PATH ?? ''}`,
+    },
     stdin: 'ignore',
     stdout: 'pipe',
     stderr: 'pipe',
@@ -64,7 +68,11 @@ describe('the atlas-svc shim', () => {
   it('pipes a service log through whatever the caller builds', async () => {
     const home = openHome()
     ensureAtlasSvcShim({ binDirectory: join(home, 'bin') })
-    plantLog({ home, name: 'svc_1.aaaabbbb.log', content: 'ready on 3024\nerror: boom\nready again\n' })
+    plantLog({
+      home,
+      name: 'svc_1.aaaabbbb.log',
+      content: 'ready on 3024\nerror: boom\nready again\n',
+    })
 
     const piped = await run({ home, command: 'atlas-svc logs svc_1 | grep error' })
     expect(piped.exitCode).toBe(0)

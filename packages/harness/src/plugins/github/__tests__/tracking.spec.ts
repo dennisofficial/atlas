@@ -102,7 +102,10 @@ describe('the checkout tracking hooks', () => {
     const cloud = aCheckout({ branch: 'dennis/cloud-branch' })
     const { service, tracking, probeCalls } = rig({ probed: null, cloud: () => cloud })
 
-    await tracking.beforeTurn({ threadId: THREAD, projectDirectory: '/Users/dennis/Developer/atlas' })
+    await tracking.beforeTurn({
+      threadId: THREAD,
+      projectDirectory: '/Users/dennis/Developer/atlas',
+    })
     await tracking.afterTurn({ threadId: THREAD })
 
     expect(probeCalls).toEqual([])
@@ -174,7 +177,10 @@ describe('the family of threads', () => {
   }
 
   const branches = (service: ReturnType<typeof createPullRequestService>): string[] =>
-    service.tracked().map((checkout) => checkout.branch).sort()
+    service
+      .tracked()
+      .map((checkout) => checkout.branch)
+      .sort()
 
   it('tracks the main thread and a teammate at once, the main thread staying visible', async () => {
     const { service, tracking } = familyRig()
@@ -275,7 +281,9 @@ describe('a thread that entered a worktree', () => {
 
   const worktreeRig = (
     extras: {
-      linkDropped?: (args: { checkouts: readonly RepositoryCheckout[] }) => readonly import('@dltech/atlas-core').EventDraft[]
+      linkDropped?: (args: {
+        checkouts: readonly RepositoryCheckout[]
+      }) => readonly import('@dltech/atlas-core').EventDraft[]
     } = {},
   ) => {
     const places = new Map<string, RepositoryCheckout | null>()
@@ -332,8 +340,10 @@ describe('a thread that entered a worktree', () => {
       signal: new AbortController().signal,
     })
 
-  const branchOf = (tracking: ReturnType<typeof worktreeRig>['tracking'], threadId: typeof THREAD) =>
-    tracking.tracker.checkoutFor({ threadId })?.branch
+  const branchOf = (
+    tracking: ReturnType<typeof worktreeRig>['tracking'],
+    threadId: typeof THREAD,
+  ) => tracking.tracker.checkoutFor({ threadId })?.branch
 
   for (const [label, threadId] of [
     ['the main thread', THREAD],

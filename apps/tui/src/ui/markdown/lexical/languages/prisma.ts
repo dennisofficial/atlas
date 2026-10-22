@@ -9,7 +9,10 @@ export const prisma: LanguageSpec = {
   rules: [
     lineComment({ open: '//' }),
     doubleQuoted(),
-    pattern({ match: /@@?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/, group: 'attribute' }),
+    pattern({
+      match: /@@?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/,
+      group: 'attribute',
+    }),
     pattern({
       match: /(?:String|Boolean|Int|BigInt|Float|Decimal|DateTime|Json|Bytes|Unsupported)\b/,
       group: 'type.builtin',

@@ -12,8 +12,14 @@ describe('parseInstalledStamps', () => {
   })
 
   it('treats empty and malformed stamps as unstamped', () => {
-    expect(parseInstalledStamps('\n\n')).toEqual({ version: undefined, protocol: UNSTAMPED_PROTOCOL })
-    expect(parseInstalledStamps('1.2.3\nnope\n')).toEqual({ version: '1.2.3', protocol: UNSTAMPED_PROTOCOL })
+    expect(parseInstalledStamps('\n\n')).toEqual({
+      version: undefined,
+      protocol: UNSTAMPED_PROTOCOL,
+    })
+    expect(parseInstalledStamps('1.2.3\nnope\n')).toEqual({
+      version: '1.2.3',
+      protocol: UNSTAMPED_PROTOCOL,
+    })
     expect(parseInstalledStamps('')).toEqual({ version: undefined, protocol: UNSTAMPED_PROTOCOL })
   })
 })
@@ -30,7 +36,10 @@ describe('serveDriftedFor', () => {
 
   it('does not drift on an unstamped protocol', () => {
     expect(
-      serveDriftedFor({ stamps: { version: undefined, protocol: UNSTAMPED_PROTOCOL }, desiredVersion: '9.9.9' }),
+      serveDriftedFor({
+        stamps: { version: undefined, protocol: UNSTAMPED_PROTOCOL },
+        desiredVersion: '9.9.9',
+      }),
     ).toBe(false)
   })
 

@@ -1,15 +1,15 @@
-import { MailX } from "lucide-react";
-import { useState } from "react";
+import { MailX } from 'lucide-react'
+import { useState } from 'react'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { AUTH_INVITER, AUTH_USER, AUTH_WORKSPACE } from "../../fixtures/auth";
-import { AuthLink, CONTROL_CLASS } from "./auth-controls";
-import { AuthHeading } from "./auth-heading";
+import { AUTH_INVITER, AUTH_USER, AUTH_WORKSPACE } from '../../fixtures/auth'
+import { AuthLink, CONTROL_CLASS } from './auth-controls'
+import { AuthHeading } from './auth-heading'
 import {
   EAuthScreen,
   EHomeState,
@@ -17,14 +17,14 @@ import {
   ESignInContext,
   ESignInState,
   type ScreenProps,
-} from "./auth-route";
-import { EStatusTone, StatusIcon } from "./status-icon";
-import { useDelayed } from "./use-demo";
+} from './auth-route'
+import { EStatusTone, StatusIcon } from './status-icon'
+import { useDelayed } from './use-demo'
 
 enum EPending {
-  None = "none",
-  Accept = "accept",
-  Decline = "decline",
+  None = 'none',
+  Accept = 'accept',
+  Decline = 'decline',
 }
 
 function InviteCard() {
@@ -45,32 +45,31 @@ function InviteCard() {
         </span>
       </div>
     </div>
-  );
+  )
 }
 
 export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invite>) {
-  const state = route.state ?? EInviteState.SignedIn;
-  const [pending, setPending] = useState(EPending.None);
-  const later = useDelayed();
-  const busy = pending !== EPending.None;
+  const state = route.state ?? EInviteState.SignedIn
+  const [pending, setPending] = useState(EPending.None)
+  const later = useDelayed()
+  const busy = pending !== EPending.None
 
-  const handleHome = () =>
-    onNavigate?.({ screen: EAuthScreen.Home, state: EHomeState.SignedIn });
+  const handleHome = () => onNavigate?.({ screen: EAuthScreen.Home, state: EHomeState.SignedIn })
 
   const handleAct = (action: EPending.Accept | EPending.Decline) => {
-    setPending(action);
+    setPending(action)
     later(() => {
-      setPending(EPending.None);
-      handleHome();
-    });
-  };
+      setPending(EPending.None)
+      handleHome()
+    })
+  }
 
   const handleSignIn = () =>
     onNavigate?.({
       screen: EAuthScreen.SignIn,
       state: ESignInState.Idle,
       context: ESignInContext.Invite,
-    });
+    })
 
   if (state === EInviteState.Expired) {
     return (
@@ -80,11 +79,11 @@ export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invi
           title="This invitation has expired"
           description={`Invitations to ${AUTH_WORKSPACE.name} are valid for 7 days. Ask ${AUTH_INVITER.name} to send a new one.`}
         />
-        <Button variant="outline" className={cn(CONTROL_CLASS, "w-full")} onClick={handleHome}>
+        <Button variant="outline" className={cn(CONTROL_CLASS, 'w-full')} onClick={handleHome}>
           Go to Atlas Cloud
         </Button>
       </div>
-    );
+    )
   }
 
   if (state === EInviteState.SignedOut) {
@@ -96,19 +95,19 @@ export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invi
         />
         <InviteCard />
         <div className="flex flex-col gap-2">
-          <Button className={cn(CONTROL_CLASS, "w-full")} onClick={handleSignIn}>
+          <Button className={cn(CONTROL_CLASS, 'w-full')} onClick={handleSignIn}>
             Sign in to accept
           </Button>
           <Button
             variant="outline"
-            className={cn(CONTROL_CLASS, "w-full")}
+            className={cn(CONTROL_CLASS, 'w-full')}
             onClick={() => onNavigate?.({ screen: EAuthScreen.SignUp })}
           >
             Create account
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -120,7 +119,7 @@ export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invi
       <InviteCard />
       <div className="flex flex-col gap-2">
         <Button
-          className={cn(CONTROL_CLASS, "w-full")}
+          className={cn(CONTROL_CLASS, 'w-full')}
           disabled={busy}
           onClick={() => handleAct(EPending.Accept)}
         >
@@ -129,7 +128,7 @@ export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invi
         </Button>
         <Button
           variant="ghost"
-          className={cn(CONTROL_CLASS, "w-full")}
+          className={cn(CONTROL_CLASS, 'w-full')}
           disabled={busy}
           onClick={() => handleAct(EPending.Decline)}
         >
@@ -140,5 +139,5 @@ export function InviteScreen({ route, onNavigate }: ScreenProps<EAuthScreen.Invi
         Joining as {AUTH_USER.email}. <AuthLink onPress={handleSignIn}>Not you?</AuthLink>
       </p>
     </div>
-  );
+  )
 }

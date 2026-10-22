@@ -36,12 +36,15 @@ describe('parseRepoInput', () => {
     expect(parseRepoInput(raw)).toEqual({ kind: ERepoInputKind.Valid, repo: expected })
   })
 
-  it.each(['gitlab.com/acme/widgets', 'https://bitbucket.org/a/b', 'just-a-word', 'a/b/c d', 'owner/..'])(
-    'rejects %s',
-    (raw) => {
-      expect(parseRepoInput(raw).kind).toBe(ERepoInputKind.Invalid)
-    },
-  )
+  it.each([
+    'gitlab.com/acme/widgets',
+    'https://bitbucket.org/a/b',
+    'just-a-word',
+    'a/b/c d',
+    'owner/..',
+  ])('rejects %s', (raw) => {
+    expect(parseRepoInput(raw).kind).toBe(ERepoInputKind.Invalid)
+  })
 })
 
 describe('repoChoices', () => {

@@ -1,11 +1,22 @@
-import { EServeFrame, createSessionContextReader, sessionDirectory, type ServeFrame, type StepId } from '@dltech/atlas-harness'
+import {
+  EServeFrame,
+  createSessionContextReader,
+  sessionDirectory,
+  type ServeFrame,
+  type StepId,
+} from '@dltech/atlas-harness'
 import { admissionClosedFor, EBootStep } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { createChannelBridge } from './channel-bridge'
 import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
-import { createFrameBuffer, DEFAULT_FRAME_BUFFER, type LifecycleFrame, type SignalFrame } from './frame-buffer'
+import {
+  createFrameBuffer,
+  DEFAULT_FRAME_BUFFER,
+  type LifecycleFrame,
+  type SignalFrame,
+} from './frame-buffer'
 import { startServeIdleStop } from './idle-stop'
 import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
@@ -50,7 +61,15 @@ export async function finishServeBoot(args: {
   const { server, port } = boot
   const fetchFn = serveArgs.fetchFn ?? fetch
   const clientVersion = serveArgs.clientVersion ?? 'dev'
-  const reporter = bootReporterFor({ env, controlPlaneUrl, threadId, token, clientVersion, fetchFn, log })
+  const reporter = bootReporterFor({
+    env,
+    controlPlaneUrl,
+    threadId,
+    token,
+    clientVersion,
+    fetchFn,
+    log,
+  })
   const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
   const { workspace, activeCwd, spec, identity } = await bootServeFiles({
     env,
@@ -94,8 +113,13 @@ export async function finishServeBoot(args: {
   }
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
-  const settling = { count: 0 }, noop = (): void => undefined
-  let idleStop: { note: () => void; halt: () => void; reset: () => void } = { note: noop, halt: noop, reset: noop }
+  const settling = { count: 0 },
+    noop = (): void => undefined
+  let idleStop: { note: () => void; halt: () => void; reset: () => void } = {
+    note: noop,
+    halt: noop,
+    reset: noop,
+  }
   const note = (): void => idleStop.note()
   const session = createServeWorkspaceSession({
     threadId,
@@ -145,7 +169,14 @@ export async function finishServeBoot(args: {
     if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
-  const driver = createServeDriver({ app, threadId, workspace, log, idleStop: () => idleStop, emitLifecycle })
+  const driver = createServeDriver({
+    app,
+    threadId,
+    workspace,
+    log,
+    idleStop: () => idleStop,
+    emitLifecycle,
+  })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({
     app,
@@ -205,24 +236,31 @@ export async function finishServeBoot(args: {
       handlers.broadcast(frame)
       if (frame.kind !== EServeFrame.Signal) return
       if (frame.signal.type === 'events-appended') mirrorRevision.bump()
-      if (frame.signal.type === 'events-appended' || frame.signal.type === 'step-ended') captureRunning()
+      if (frame.signal.type === 'events-appended' || frame.signal.type === 'step-ended')
+        captureRunning()
     },
   })
   inFlight = bridge.inFlight
   liveStepId = bridge.liveStepId
   broadcast = handlers.broadcast
   const work = () => {
-    const activity = runtimeWork({ app, driver, settling: settling.count, clientsAttached: handlers.clients })
+    const activity = runtimeWork({
+      app,
+      driver,
+      settling: settling.count,
+      clientsAttached: handlers.clients,
+    })
     return { ...activity, settlingWork: activity.settlingWork || handlers.settling() }
   }
 
   const { resumable } = await announceBoot({ app, threadId, log })
-  if (recovery.checkpointAllowed) await checkpoint.boot().catch((failure: unknown) => {
-    log({
-      event: EServeEvent.CheckpointPersistFailed,
-      reason: failure instanceof Error ? failure.message : String(failure),
+  if (recovery.checkpointAllowed)
+    await checkpoint.boot().catch((failure: unknown) => {
+      log({
+        event: EServeEvent.CheckpointPersistFailed,
+        reason: failure instanceof Error ? failure.message : String(failure),
+      })
     })
-  })
 
   await recovery.recover({ session, driver })
   const exit = serveArgs.exit ?? process.exit
@@ -234,7 +272,10 @@ export async function finishServeBoot(args: {
     sandboxSessionId,
     owed: recovery.owed,
     haltIdle: () => idleStop.halt(),
-    whenMutationsSettled: async () => { await session.whenStarted(); await handlers.whenSettled() },
+    whenMutationsSettled: async () => {
+      await session.whenStarted()
+      await handlers.whenSettled()
+    },
     checkpoint,
     close: (given) => lifecycle.close(given),
     exit,
@@ -244,7 +285,13 @@ export async function finishServeBoot(args: {
   boot.complete({
     handlers,
     drain: (given) => recovery.drain({ drain, ...given }).finally(handlers.replayDeferred),
-    health: { workspace, clients: handlers.clients, work, nextSeq: () => buffer.nextSeq(), resumable },
+    health: {
+      workspace,
+      clients: handlers.clients,
+      work,
+      nextSeq: () => buffer.nextSeq(),
+      resumable,
+    },
   })
 
   log({ event: EServeEvent.Started, threadId, port, ms: Date.now() - startedAt })
@@ -268,24 +315,28 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
     },
-    stopSandbox: serveArgs.stopSandbox ?? providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
+    stopSandbox:
+      serveArgs.stopSandbox ??
+      providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
     exit,
   })
 
-  idleStop = recovery.checkpointAllowed ? startServeIdleStop({
-    turnRunning: driver.busy,
-    childrenSettling: () => work().settlingWork,
-    runningChildren: () => work().childrenRunning,
-    runningShells: () => work().shellsRunning,
-    runningServices: () => work().servicesRunning,
-    pendingInput: () => work().pendingInput,
-    clientsAttached: handlers.clients,
-    idleMinutes: serveArgs.idleMinutes,
-    serviceIdleMinutes: serveArgs.serviceIdleMinutes,
-    tickMs: serveArgs.idleTickMs,
-    log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
-    onDue: () => void lifecycle.park(),
-  }) : idleStop
+  idleStop = recovery.checkpointAllowed
+    ? startServeIdleStop({
+        turnRunning: driver.busy,
+        childrenSettling: () => work().settlingWork,
+        runningChildren: () => work().childrenRunning,
+        runningShells: () => work().shellsRunning,
+        runningServices: () => work().servicesRunning,
+        pendingInput: () => work().pendingInput,
+        clientsAttached: handlers.clients,
+        idleMinutes: serveArgs.idleMinutes,
+        serviceIdleMinutes: serveArgs.serviceIdleMinutes,
+        tickMs: serveArgs.idleTickMs,
+        log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
+        onDue: () => void lifecycle.park(),
+      })
+    : idleStop
 
   const close = async (shutdown?: { reason: string }): Promise<void> => {
     await lifecycle.close({ reason: shutdown?.reason ?? 'owner-shutdown' })

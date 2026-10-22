@@ -33,10 +33,7 @@ export function deadFragmentIds(args: {
     .map((fragment) => fragment.id)
 }
 
-const renderOf = (args: {
-  fragments: readonly PromptFragment[]
-  ctx: PromptContext
-}): string =>
+const renderOf = (args: { fragments: readonly PromptFragment[]; ctx: PromptContext }): string =>
   args.fragments
     .filter((fragment) => fragment.applies(args.ctx))
     .map((fragment) => `${fragment.id}\n${fragment.text(args.ctx)}`)

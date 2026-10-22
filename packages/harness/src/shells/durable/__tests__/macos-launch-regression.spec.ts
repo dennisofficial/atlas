@@ -19,7 +19,9 @@ test('the supervisor boots independently of the shell storage directory and pres
     })
     if (!outcome.ok) throw new Error(outcome.reason)
     expect(await outcome.handle.exited).toBe(7)
-    expect(await collect({ stream: outcome.handle.stdout })).toBe(`${await realpath(scratch.shellDir)}\n`)
+    expect(await collect({ stream: outcome.handle.stdout })).toBe(
+      `${await realpath(scratch.shellDir)}\n`,
+    )
   } finally {
     await scratch.cleanup()
   }
@@ -41,7 +43,12 @@ test('the portable source launcher receives a neutral boot cwd through the injec
         expect(spec.cwd).toBe('/')
         const [executable, ...rest] = spec.cmd
         if (executable === undefined) throw new Error('missing executable')
-        const child = spawn(executable, rest, { detached: true, stdio: 'ignore', cwd: spec.cwd, env: spec.env })
+        const child = spawn(executable, rest, {
+          detached: true,
+          stdio: 'ignore',
+          cwd: spec.cwd,
+          env: spec.env,
+        })
         child.unref()
         await new Promise<void>((resolve, reject) => {
           child.once('error', reject)

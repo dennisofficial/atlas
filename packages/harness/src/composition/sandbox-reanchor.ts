@@ -81,7 +81,9 @@ export async function resolveWorkspaceAnchor(args: {
       ...atlasSubtrees.map((subtree) => subtree.path),
     ],
     image:
-      resolution.image.kind === EImageKind.Image ? resolution.image.reference : resolution.image.path,
+      resolution.image.kind === EImageKind.Image
+        ? resolution.image.reference
+        : resolution.image.path,
     label: imageLabelOf(resolution.image),
   }
 }
@@ -94,7 +96,9 @@ export async function anchorRootFor(args: { requested: string; current: string }
   if (wanted.workspace === held.workspace) return args.current
   if (wanted.repo !== null) return wanted.workspace
 
-  return isUnderPath({ directory: args.current, path: args.requested }) ? args.current : args.requested
+  return isUnderPath({ directory: args.current, path: args.requested })
+    ? args.current
+    : args.requested
 }
 
 export async function removeSandboxMountedElsewhere(args: {
@@ -128,7 +132,8 @@ export class DelegatingProcessPort extends ProcessPort {
 
   override async launchDetached(args: SpawnCommand): Promise<void> {
     const port = this.current()
-    if (port.launchDetached === undefined) throw new Error('this execution location cannot launch a durable supervisor')
+    if (port.launchDetached === undefined)
+      throw new Error('this execution location cannot launch a durable supervisor')
     await port.launchDetached(args)
   }
 }
@@ -145,7 +150,9 @@ export function retargetableStatus(args: {
   const base = createSandboxStatusState(args)
   const listeners = new Set<() => void>()
   let target = { image: args.image, label: args.label }
-  let shown: { source: SandboxContainer; target: typeof target; value: SandboxContainer } | undefined
+  let shown:
+    | { source: SandboxContainer; target: typeof target; value: SandboxContainer }
+    | undefined
 
   const emit = (): void => {
     for (const listener of listeners) listener()

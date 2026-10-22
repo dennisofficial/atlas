@@ -4,7 +4,8 @@ import { logFieldsOf } from '../store/logs'
 
 import type { DispatchableCall } from './dispatch'
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const MAX_REPORTED_ISSUES = 3
 
@@ -34,7 +35,10 @@ export async function markDispatchStarted(args: {
   }
 }
 
-export function unknownToolDraft(args: { call: DispatchableCall; available: readonly string[] }): EventDraft {
+export function unknownToolDraft(args: {
+  call: DispatchableCall
+  available: readonly string[]
+}): EventDraft {
   const known = args.available.length === 0 ? 'none' : args.available.join(', ')
   return {
     type: 'tool-result',
@@ -70,7 +74,11 @@ export function invalidInputDraft(args: {
   }
 }
 
-export function markerFailureDraft(args: { callId: CallId; name: string; failure: string }): EventDraft {
+export function markerFailureDraft(args: {
+  callId: CallId
+  name: string
+  failure: string
+}): EventDraft {
   return {
     type: 'tool-result',
     callId: args.callId,

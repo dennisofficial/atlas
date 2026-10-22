@@ -75,9 +75,7 @@ describe('createProject', () => {
 describe('fetchGithubRepos', () => {
   it('gets the repo list', async () => {
     answerWith(
-      json([
-        { fullName: 'compai/csa', isPrivate: true, defaultBranch: 'main', pushedAt: null },
-      ]),
+      json([{ fullName: 'compai/csa', isPrivate: true, defaultBranch: 'main', pushedAt: null }]),
     )
     const repos = await fetchGithubRepos()
     expect(repos[0]?.fullName).toBe('compai/csa')

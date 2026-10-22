@@ -27,7 +27,12 @@ const COULD_NOT_START = 127
 
 type Environment = Record<string, string | undefined>
 
-export type SessionPaths = { sessionDir: string; threadDir: string; contextDir: string; imagesDir: string }
+export type SessionPaths = {
+  sessionDir: string
+  threadDir: string
+  contextDir: string
+  imagesDir: string
+}
 
 type ChunkReader = {
   read(): Promise<{ done: boolean; value?: Uint8Array | undefined }>
@@ -43,7 +48,13 @@ export const withoutReservedSessionEnv = (env: Environment): Environment => {
   return stripped
 }
 
-const withPaths = ({ env, paths }: { env: Environment; paths: SessionPaths | undefined }): Environment =>
+const withPaths = ({
+  env,
+  paths,
+}: {
+  env: Environment
+  paths: SessionPaths | undefined
+}): Environment =>
   paths === undefined
     ? env
     : {
@@ -53,7 +64,8 @@ const withPaths = ({ env, paths }: { env: Environment; paths: SessionPaths | und
         [ATLAS_CONTEXT_DIR_ENV]: paths.contextDir,
       }
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const streamOf = (text: string): ReadableStream<Uint8Array> =>
   new ReadableStream({
@@ -117,7 +129,9 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
 
     const sessionDir = await this.sessions.sessionDirOf({ threadId })
     if (sessionDir === undefined) {
-      throw new Error(`thread ${threadId} is not registered in any session, so it has no session directory`)
+      throw new Error(
+        `thread ${threadId} is not registered in any session, so it has no session directory`,
+      )
     }
 
     const threadDir = threadDataDirectory({ sessionDir, threadId })
@@ -163,7 +177,10 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
     return this.inner.which(args)
   }
 
-  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+  async vendored(args: {
+    command: string
+    threadId?: ThreadId | undefined
+  }): Promise<string | null> {
     if (this.inner.vendored === undefined) return null
     return await this.inner.vendored(args)
   }
@@ -187,7 +204,13 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
     return { ...args, env: withPaths({ env, paths }) }
   }
 
-  private spawnAfterPrepare({ args, threadId }: { args: SpawnCommand; threadId: ThreadId }): ProcessHandle {
+  private spawnAfterPrepare({
+    args,
+    threadId,
+  }: {
+    args: SpawnCommand
+    threadId: ThreadId
+  }): ProcessHandle {
     let terminated = false
 
     const started: Promise<SpawnedHandle | undefined> = this.prepare({ threadId }).then(
@@ -200,7 +223,9 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
         }
       },
       (error: unknown) =>
-        failedHandle(`could not prepare the session directories for thread ${threadId}: ${messageOf(error)}`),
+        failedHandle(
+          `could not prepare the session directories for thread ${threadId}: ${messageOf(error)}`,
+        ),
     )
 
     const forward = (pick: 'stdout' | 'stderr'): ReadableStream<Uint8Array> => {

@@ -1,4 +1,10 @@
-import { EToolEffect, SchemaTool, TAKES_NO_PATHS, type ToolOutcome, type ToolRun } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  SchemaTool,
+  TAKES_NO_PATHS,
+  type ToolOutcome,
+  type ToolRun,
+} from '@dltech/atlas-core'
 import { EMemoryScope, MAX_MEMORY_BODY_CHARS, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
 import { z } from 'zod'
 

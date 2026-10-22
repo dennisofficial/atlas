@@ -15,10 +15,15 @@ export function createFakePodLeaseDb() {
     rows.some((row) => row.tokenHash === args.tokenHash && row !== args.except)
 
   const localPodLease = {
-    findUnique: async (args: { where: { tokenHash: string }; select?: Record<string, boolean> }) => {
+    findUnique: async (args: {
+      where: { tokenHash: string }
+      select?: Record<string, boolean>
+    }) => {
       const row = rows.find((one) => one.tokenHash === args.where.tokenHash) ?? null
       if (row === null || args.select === undefined) return row
-      return Object.fromEntries(Object.keys(args.select).map((key) => [key, row[key as keyof FakePodLeaseRow]]))
+      return Object.fromEntries(
+        Object.keys(args.select).map((key) => [key, row[key as keyof FakePodLeaseRow]]),
+      )
     },
     upsert: async (args: {
       where: { userId_threadId: { userId: string; threadId: string } }
@@ -28,7 +33,8 @@ export function createFakePodLeaseDb() {
       const { userId, threadId } = args.where.userId_threadId
       const existing = rows.find((one) => one.userId === userId && one.threadId === threadId)
       if (existing === undefined) {
-        if (heldByAnother({ tokenHash: args.create.tokenHash })) throw uniqueViolation(['tokenHash'])
+        if (heldByAnother({ tokenHash: args.create.tokenHash }))
+          throw uniqueViolation(['tokenHash'])
         sequence += 1
         const row = { id: `lease_${sequence}`, ...args.create }
         rows.push(row)
@@ -42,7 +48,9 @@ export function createFakePodLeaseDb() {
     },
     deleteMany: async (args: { where: Where }) => {
       const doomed = rows.filter((row) =>
-        Object.entries(args.where).every(([key, value]) => row[key as keyof FakePodLeaseRow] === value),
+        Object.entries(args.where).every(
+          ([key, value]) => row[key as keyof FakePodLeaseRow] === value,
+        ),
       )
       for (const row of doomed) rows.splice(rows.indexOf(row), 1)
       return { count: doomed.length }

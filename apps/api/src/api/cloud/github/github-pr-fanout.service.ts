@@ -130,11 +130,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
    * immediately, and a burst of the same kind inside the one-second window collapses to the
    * latest — a re-push storm must not turn into an event storm.
    */
-  pushEvent(args: {
-    userIds: readonly string[]
-    event: GithubPrEventDto
-    ackId?: string
-  }): void {
+  pushEvent(args: { userIds: readonly string[]; event: GithubPrEventDto; ackId?: string }): void {
     const key = `${args.event.repoFullName}#${args.event.prNumber}#${args.event.kind}#${[...args.userIds].sort().join(',')}`
     const held = this.pendingEvents.get(key)
 

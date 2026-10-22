@@ -16,7 +16,11 @@ export type QualitySwitches = {
 
 const POLICY_GROUP = 'Policies'
 
-export function qualitySwitches({ values }: { values: Readonly<Record<string, unknown>> }): QualitySwitches {
+export function qualitySwitches({
+  values,
+}: {
+  values: Readonly<Record<string, unknown>>
+}): QualitySwitches {
   const policyFlags: Record<string, boolean> = {}
   for (const [key, value] of Object.entries(values)) {
     if (typeof value === 'boolean') policyFlags[key] = value

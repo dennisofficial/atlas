@@ -6,7 +6,8 @@ import { runSandboxScript } from '../sandbox-scripts'
 import { quoted } from './live-docker'
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..', '..', '..')
-const RELEASE_URL = /https:\/\/github\.com\/dennisofficial\/atlas\/releases\/download\/tui-v[^/"\s]+/g
+const RELEASE_URL =
+  /https:\/\/github\.com\/dennisofficial\/atlas\/releases\/download\/tui-v[^/"\s]+/g
 
 export const OLD_SERVE_STUB = `#!/usr/bin/python3
 import http.server, os
@@ -33,7 +34,8 @@ export const buildServeBinary = async (outfile: string): Promise<void> => {
     new Response(build.stderr).text(),
     build.exited,
   ])
-  if (exitCode !== 0) throw new Error(`building atlas-serve exited ${exitCode}\n${stdout}\n${stderr}`)
+  if (exitCode !== 0)
+    throw new Error(`building atlas-serve exited ${exitCode}\n${stdout}\n${stderr}`)
 }
 
 export type DownloadSource = { base: string }
@@ -79,7 +81,8 @@ export const dockerSandbox = (args: {
     },
     writeFiles: async (files: { path: string; content: string | Uint8Array; mode?: number }[]) => {
       for (const file of files) {
-        const text = typeof file.content === 'string' ? file.content : Buffer.from(file.content).toString()
+        const text =
+          typeof file.content === 'string' ? file.content : Buffer.from(file.content).toString()
         const mode = (file.mode ?? 0o644).toString(8)
         const outcome = await runSandboxScript({
           engine,
@@ -94,13 +97,19 @@ export const dockerSandbox = (args: {
   return sandbox as unknown as Sandbox
 }
 
-export const serveRelease = (args: { bytes: Uint8Array; sha256: string }): ReturnType<typeof Bun.serve> =>
+export const serveRelease = (args: {
+  bytes: Uint8Array
+  sha256: string
+}): ReturnType<typeof Bun.serve> =>
   Bun.serve({
     hostname: '0.0.0.0',
     port: 0,
     fetch: (request) => {
       const { pathname } = new URL(request.url)
-      if (pathname === '/release/atlas-serve-linux-x64' || pathname === '/corrupt/atlas-serve-linux-x64') {
+      if (
+        pathname === '/release/atlas-serve-linux-x64' ||
+        pathname === '/corrupt/atlas-serve-linux-x64'
+      ) {
         return new Response(args.bytes)
       }
       if (pathname === '/release/atlas-serve-linux-x64.sha256') {

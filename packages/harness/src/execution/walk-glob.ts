@@ -6,7 +6,8 @@ type Candidate = {
   readonly hops: number
 }
 
-const identityKeyOf = (identity: { dev: number; ino: number }): string => `${identity.dev}:${identity.ino}`
+const identityKeyOf = (identity: { dev: number; ino: number }): string =>
+  `${identity.dev}:${identity.ino}`
 
 const ranksBetter = (next: Candidate, current: Candidate): boolean => {
   if (next.hops !== current.hops) return next.hops < current.hops
@@ -45,7 +46,8 @@ export async function walkGlob(args: {
   const consider = (candidate: Candidate, identityKey: string, relative: string): void => {
     if (!matcher.match(relative)) return
     const current = bestByInode.get(identityKey)
-    if (current === undefined || ranksBetter(candidate, current)) bestByInode.set(identityKey, candidate)
+    if (current === undefined || ranksBetter(candidate, current))
+      bestByInode.set(identityKey, candidate)
   }
 
   const walk = async (

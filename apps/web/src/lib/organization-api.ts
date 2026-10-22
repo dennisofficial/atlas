@@ -14,7 +14,8 @@ export class OrganizationApiError extends Error {
 }
 
 export const isWrongRecipientError = (cause: unknown): boolean =>
-  cause instanceof OrganizationApiError && cause.code === EOrganizationErrorCode.NotInvitationRecipient
+  cause instanceof OrganizationApiError &&
+  cause.code === EOrganizationErrorCode.NotInvitationRecipient
 
 export type Organization = {
   id: string
@@ -59,10 +60,7 @@ export async function listOrganizations(): Promise<Organization[]> {
   return (await response.json()) as Organization[]
 }
 
-export async function createOrganization(args: {
-  name: string
-  slug: string
-}): Promise<string> {
+export async function createOrganization(args: { name: string; slug: string }): Promise<string> {
   let response: Response
   try {
     response = await fetch('/api/auth/organization/create', {
@@ -75,13 +73,12 @@ export async function createOrganization(args: {
   }
   if (!response.ok) await failWith(response, 'Could not create the organization')
   const body = await readBody(response)
-  if (typeof body.id !== 'string') throw new OrganizationApiError('Could not create the organization')
+  if (typeof body.id !== 'string')
+    throw new OrganizationApiError('Could not create the organization')
   return body.id
 }
 
-export async function setActiveOrganization(args: {
-  organizationId: string
-}): Promise<void> {
+export async function setActiveOrganization(args: { organizationId: string }): Promise<void> {
   let response: Response
   try {
     response = await fetch('/api/auth/organization/set-active', {
@@ -109,7 +106,9 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value : 
 export async function getInvitation(invitationId: string): Promise<Invitation> {
   let response: Response
   try {
-    response = await fetch(`/api/auth/organization/get-invitation?id=${encodeURIComponent(invitationId)}`)
+    response = await fetch(
+      `/api/auth/organization/get-invitation?id=${encodeURIComponent(invitationId)}`,
+    )
   } catch {
     throw new OrganizationApiError(UNREACHABLE)
   }

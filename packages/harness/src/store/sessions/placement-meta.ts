@@ -37,10 +37,13 @@ const placementFrom = (value: unknown): SessionPlacement | undefined => {
 
 export function placementRecordOf(meta: ThreadMeta): PlacementRecord {
   const stored = meta.placement
-  const placement = stored === undefined || stored === null ? undefined : placementFrom(stored.placement)
+  const placement =
+    stored === undefined || stored === null ? undefined : placementFrom(stored.placement)
   if (placement === undefined) {
     return {
-      placement: placementOf(executionLocationOf(meta.executionLocation) ?? EExecutionLocation.Host),
+      placement: placementOf(
+        executionLocationOf(meta.executionLocation) ?? EExecutionLocation.Host,
+      ),
       revision: 0,
     }
   }

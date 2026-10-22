@@ -1,6 +1,5 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-
 export class DestructiveActionsFragment extends PromptFragment {
   readonly id = 'safety.destructive-actions'
 

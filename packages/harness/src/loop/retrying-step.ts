@@ -34,7 +34,15 @@ export type RetryDeps = {
   sleep?: ((args: { ms: number; signal: AbortSignal }) => Promise<void>) | undefined
   jitter?: (() => number) | undefined
   clockJumps?: ClockJumpDetector | undefined
-  log?: ((entry: { attempt: number; maxAttempts: number; reason: string; willRetry: boolean; error: unknown }) => void) | undefined
+  log?:
+    | ((entry: {
+        attempt: number
+        maxAttempts: number
+        reason: string
+        willRetry: boolean
+        error: unknown
+      }) => void)
+    | undefined
   /**
    * Fired once, when a retryable fault has spent its whole budget. Returning true means the model
    * has been switched to a fallback worth one more attempt; that attempt runs against the new
@@ -161,22 +169,46 @@ export async function takeModelStepWithRetry(args: {
 
       const failure = modelFailureOf(attempt.cause)
       if (failure === null) {
-        args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: 'non-retryable', willRetry: false, error: attempt.cause })
+        args.retry?.log?.({
+          attempt: attempts,
+          maxAttempts: policy.maxAttempts,
+          reason: 'non-retryable',
+          willRetry: false,
+          error: attempt.cause,
+        })
         return settled()
       }
 
       const decision = planRetry({ failure, attempts, policy, jitter: jitter() })
       if (!decision.retry) {
         if (args.retry?.onGiveUp?.() === true) {
-          args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: retryReasonOf(failure) ?? 'non-retryable', willRetry: true, error: attempt.cause })
+          args.retry?.log?.({
+            attempt: attempts,
+            maxAttempts: policy.maxAttempts,
+            reason: retryReasonOf(failure) ?? 'non-retryable',
+            willRetry: true,
+            error: attempt.cause,
+          })
           attempts = 0
           continue
         }
-        args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: retryReasonOf(failure) ?? 'non-retryable', willRetry: false, error: attempt.cause })
+        args.retry?.log?.({
+          attempt: attempts,
+          maxAttempts: policy.maxAttempts,
+          reason: retryReasonOf(failure) ?? 'non-retryable',
+          willRetry: false,
+          error: attempt.cause,
+        })
         return settled()
       }
 
-      args.retry?.log?.({ attempt: attempts, maxAttempts: policy.maxAttempts, reason: decision.reason, willRetry: true, error: attempt.cause })
+      args.retry?.log?.({
+        attempt: attempts,
+        maxAttempts: policy.maxAttempts,
+        reason: decision.reason,
+        willRetry: true,
+        error: attempt.cause,
+      })
       args.retry?.onWaiting?.({
         attempt: attempts,
         maxAttempts: policy.maxAttempts,
@@ -184,7 +216,12 @@ export async function takeModelStepWithRetry(args: {
         reason: decision.reason,
       })
 
-      await interruptibleSleep({ ms: decision.delayMs, callerSignal: args.signal, jumpSignal: wake.signal, sleep })
+      await interruptibleSleep({
+        ms: decision.delayMs,
+        callerSignal: args.signal,
+        jumpSignal: wake.signal,
+        sleep,
+      })
       if (args.signal.aborted) return settled()
 
       if (args.prepare !== undefined) {

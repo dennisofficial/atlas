@@ -188,7 +188,10 @@ export function DrawerHints(props: {
   const click = useClickRegion(props.onDismiss)
 
   return (
-    <DrawerLine {...(click.wash.bg === undefined ? {} : { band: click.wash.bg })} press={click.handlers}>
+    <DrawerLine
+      {...(click.wash.bg === undefined ? {} : { band: click.wash.bg })}
+      press={click.handlers}
+    >
       <text>
         <Spans
           spans={clipSpans({

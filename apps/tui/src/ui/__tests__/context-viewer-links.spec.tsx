@@ -21,8 +21,16 @@ type Mounted = {
   files: string[]
 }
 
-async function mount(args: { source: string; path?: string; outside?: boolean; hidden?: boolean; shell?: 'hidden' | 'overlay' }): Promise<Mounted> {
-  bindPathLinks({ resolve: (mention) => (mention.path === EDITOR_FILE ? { path: mention.path } : null) })
+async function mount(args: {
+  source: string
+  path?: string
+  outside?: boolean
+  hidden?: boolean
+  shell?: 'hidden' | 'overlay'
+}): Promise<Mounted> {
+  bindPathLinks({
+    resolve: (mention) => (mention.path === EDITOR_FILE ? { path: mention.path } : null),
+  })
   const navigated: string[] = []
   const urls: string[] = []
   const files: string[] = []
@@ -44,9 +52,20 @@ async function mount(args: { source: string; path?: string; outside?: boolean; h
           <span link={{ url: 'https://example.com/x' }}>outside link</span>
         </text>
       ) : null}
-      {args.hidden === true ? null : args.shell === 'hidden' ? <box visible={false}>{viewer}</box> : viewer}
+      {args.hidden === true ? null : args.shell === 'hidden' ? (
+        <box visible={false}>{viewer}</box>
+      ) : (
+        viewer
+      )}
       {args.shell === 'overlay' ? (
-        <box position="absolute" top={2} left={0} width={WIDTH} height={3} backgroundColor="#000000">
+        <box
+          position="absolute"
+          top={2}
+          left={0}
+          width={WIDTH}
+          height={3}
+          backgroundColor="#000000"
+        >
           <text>
             <span link={{ url: 'rel/over.md' }}>overlay link</span>
           </text>
@@ -125,7 +144,9 @@ describe('context viewer links', () => {
   })
 
   it('opens a link inside a native markdown table in the pane', async () => {
-    const mounted = await mount({ source: '| Name | Link |\n| --- | --- |\n| a | [Table target](t/one.md) |' })
+    const mounted = await mount({
+      source: '| Name | Link |\n| --- | --- |\n| a | [Table target](t/one.md) |',
+    })
     await clickOn({ mounted, label: 'Table target' })
     expect(mounted.navigated).toEqual(['docs/t/one.md'])
   })
@@ -228,7 +249,11 @@ describe('context viewer links', () => {
   })
 
   it('does not capture clicks through a pane hidden by an ancestor', async () => {
-    const mounted = await mount({ source: '[Sibling note](notes/next.md)', outside: true, shell: 'hidden' })
+    const mounted = await mount({
+      source: '[Sibling note](notes/next.md)',
+      outside: true,
+      shell: 'hidden',
+    })
     await clickOn({ mounted, label: 'outside link' })
     expect(mounted.urls).toEqual(['https://example.com/x'])
     expect(mounted.navigated).toEqual([])

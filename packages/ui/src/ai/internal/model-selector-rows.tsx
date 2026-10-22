@@ -1,20 +1,20 @@
-import type { KeyboardEvent, MouseEvent } from "react";
-import { PinIcon, TriangleAlertIcon } from "lucide-react";
-import { cn } from "cn";
+import type { KeyboardEvent, MouseEvent } from 'react'
+import { PinIcon, TriangleAlertIcon } from 'lucide-react'
+import { cn } from 'cn'
 
-import { Button } from "#components/button";
-import { CommandItem } from "#components/command";
+import { Button } from '#components/button'
+import { CommandItem } from '#components/command'
 
-import { reconnectItemValue, type ModelOption } from "../model-selector-groups";
+import { reconnectItemValue, type ModelOption } from '../model-selector-groups'
 
 interface ModelRowProps {
-  model: ModelOption;
-  checked: boolean;
-  pinned: boolean;
-  canPin: boolean;
-  showRate: boolean;
-  onSelect: (id: string) => void;
-  onTogglePin: (id: string) => void;
+  model: ModelOption
+  checked: boolean
+  pinned: boolean
+  canPin: boolean
+  showRate: boolean
+  onSelect: (id: string) => void
+  onTogglePin: (id: string) => void
 }
 
 export function ModelRow({
@@ -26,16 +26,16 @@ export function ModelRow({
   onSelect,
   onTogglePin,
 }: ModelRowProps) {
-  const handleSelect = () => onSelect(model.id);
-  const handlePinMouseDown = (event: MouseEvent) => event.preventDefault();
+  const handleSelect = () => onSelect(model.id)
+  const handlePinMouseDown = (event: MouseEvent) => event.preventDefault()
   const handlePinKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") event.stopPropagation();
-  };
+    if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+  }
   const handlePinClick = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onTogglePin(model.id);
-  };
+    event.preventDefault()
+    event.stopPropagation()
+    onTogglePin(model.id)
+  }
 
   return (
     <CommandItem value={model.id} data-checked={checked} onSelect={handleSelect} className="h-8">
@@ -55,27 +55,27 @@ export function ModelRow({
           onKeyDown={handlePinKeyDown}
           onClick={handlePinClick}
           className={cn(
-            "pointer-events-auto flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+            'pointer-events-auto flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
             pinned
-              ? "text-foreground"
-              : "opacity-0 group-hover/command-item:opacity-100 group-data-selected/command-item:opacity-100 focus-visible:opacity-100",
+              ? 'text-foreground'
+              : 'opacity-0 group-hover/command-item:opacity-100 group-data-selected/command-item:opacity-100 focus-visible:opacity-100',
           )}
         >
-          <PinIcon className={cn("size-3.5", pinned && "fill-current")} />
+          <PinIcon className={cn('size-3.5', pinned && 'fill-current')} />
         </button>
       ) : null}
     </CommandItem>
-  );
+  )
 }
 
 export function ReconnectRow({
   provider,
   onReconnect,
 }: {
-  provider: string;
-  onReconnect: (provider: string) => void;
+  provider: string
+  onReconnect: (provider: string) => void
 }) {
-  const handleSelect = () => onReconnect(provider);
+  const handleSelect = () => onReconnect(provider)
   return (
     <CommandItem
       value={reconnectItemValue(provider)}
@@ -89,15 +89,15 @@ export function ReconnectRow({
         Reconnect
       </span>
     </CommandItem>
-  );
+  )
 }
 
 export function NoProvidersState({
   canConnect,
   onConnect,
 }: {
-  canConnect: boolean;
-  onConnect: () => void;
+  canConnect: boolean
+  onConnect: () => void
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
@@ -111,5 +111,5 @@ export function NoProvidersState({
         </Button>
       ) : null}
     </div>
-  );
+  )
 }

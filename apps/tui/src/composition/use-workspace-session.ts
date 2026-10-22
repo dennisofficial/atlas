@@ -45,7 +45,10 @@ type SessionProps = Pick<
 
 export function useWorkspaceSession(args: {
   props: SessionProps
-  settings: Pick<SettingsControl, 'paceReveal' | 'thinking' | 'tldrStatus' | 'handleOpenCloudSignIn'>
+  settings: Pick<
+    SettingsControl,
+    'paceReveal' | 'thinking' | 'tldrStatus' | 'handleOpenCloudSignIn'
+  >
   exit: Pick<ReturnType<typeof useWorkspaceExit>, 'exitGuard'>
 }) {
   const { props, settings, exit } = args

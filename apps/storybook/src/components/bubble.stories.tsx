@@ -1,30 +1,30 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   Bubble,
   BubbleContent,
   BubbleGroup,
   BubbleReactions,
-} from "@dltech/atlas-ui/components/bubble";
+} from '@dltech/atlas-ui/components/bubble'
 
 const variants = [
-  "default",
-  "secondary",
-  "muted",
-  "tinted",
-  "outline",
-  "ghost",
-  "destructive",
-] as const;
+  'default',
+  'secondary',
+  'muted',
+  'tinted',
+  'outline',
+  'ghost',
+  'destructive',
+] as const
 
 const meta = {
-  title: "Components/Bubble",
+  title: 'Components/Bubble',
   component: Bubble,
   argTypes: {
-    variant: { control: "select", options: variants },
-    align: { control: "inline-radio", options: ["start", "end"] },
+    variant: { control: 'select', options: variants },
+    align: { control: 'inline-radio', options: ['start', 'end'] },
   },
-  args: { variant: "secondary", align: "start" },
+  args: { variant: 'secondary', align: 'start' },
   decorators: [
     (Story) => (
       <div className="w-[28rem] max-w-full">
@@ -32,11 +32,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Bubble>;
+} satisfies Meta<typeof Bubble>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -44,7 +44,7 @@ export const Default: Story = {
       <BubbleContent>Can you rename the session store and update its imports?</BubbleContent>
     </Bubble>
   ),
-};
+}
 
 export const Variants: Story = {
   render: () => (
@@ -56,7 +56,7 @@ export const Variants: Story = {
       ))}
     </BubbleGroup>
   ),
-};
+}
 
 export const Reply: Story = {
   render: () => (
@@ -70,4 +70,4 @@ export const Reply: Story = {
       </Bubble>
     </BubbleGroup>
   ),
-};
+}

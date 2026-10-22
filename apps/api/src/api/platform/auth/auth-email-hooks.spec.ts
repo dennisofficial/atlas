@@ -3,14 +3,19 @@ import { createAuthEmailHooks, invitationUrl } from './auth-email-hooks'
 
 describe('auth email hooks', () => {
   it('builds the invitation link on the web origin', () => {
-    expect(invitationUrl({ webOrigin: 'http://localhost:3001', id: 'inv_1' })).toBe('http://localhost:3001/invite/inv_1')
+    expect(invitationUrl({ webOrigin: 'http://localhost:3001', id: 'inv_1' })).toBe(
+      'http://localhost:3001/invite/inv_1',
+    )
   })
 
   it('emails the reset link to the user', async () => {
     const sendEmail = vi.fn().mockResolvedValue({ id: 'e1' })
     const hooks = createAuthEmailHooks({ sendEmail, webOrigin: 'http://localhost:3001' })
 
-    await hooks.sendResetPassword({ user: { email: 'delivered@resend.dev' }, url: 'http://x/reset' })
+    await hooks.sendResetPassword({
+      user: { email: 'delivered@resend.dev' },
+      url: 'http://x/reset',
+    })
 
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'delivered@resend.dev', subject: 'Reset your Atlas password' }),

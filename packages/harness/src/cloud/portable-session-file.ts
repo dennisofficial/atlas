@@ -33,7 +33,11 @@ export function isPortableSessionFile({ key }: { key: string }): boolean {
   if (directory === undefined) return true
   const rest = key.slice(directory.length + 1).split(KEY_SEPARATOR)
   if (rest.length === 1) return !MACHINE_BOUND_SHELL_FILES.has(rest[0] ?? '')
-  return !(rest.length === 2 && rest[0] === LEASE_DIRECTORY && (rest[1] ?? '').endsWith(LEASE_SUFFIX))
+  return !(
+    rest.length === 2 &&
+    rest[0] === LEASE_DIRECTORY &&
+    (rest[1] ?? '').endsWith(LEASE_SUFFIX)
+  )
 }
 
 export function shellDirectoriesOf({ keys }: { keys: readonly string[] }): readonly string[] {

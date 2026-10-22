@@ -69,9 +69,6 @@ export class ScriptedLocalModel extends ModelPort {
   }
 }
 
-export const registerModel = (args: {
-  container: DependencyContainer
-  model: ModelPort
-}): void => {
+export const registerModel = (args: { container: DependencyContainer; model: ModelPort }): void => {
   args.container.register(registeredPortToken(ModelPort), { useValue: args.model })
 }

@@ -199,9 +199,9 @@ describe('googleSignInUrl', () => {
   it('fails when the answer carries no url', async () => {
     answerWith(json({}))
 
-    await expect(googleSignInUrl({ origin: 'https://byatlas.io', next: null })).rejects.toBeInstanceOf(
-      AuthApiError,
-    )
+    await expect(
+      googleSignInUrl({ origin: 'https://byatlas.io', next: null }),
+    ).rejects.toBeInstanceOf(AuthApiError)
   })
 
   it('maps a rejected fetch to the unreachable message', async () => {
@@ -209,7 +209,9 @@ describe('googleSignInUrl', () => {
       throw new TypeError('network')
     }) as typeof fetch
 
-    await expect(googleSignInUrl({ origin: 'https://byatlas.io', next: null })).rejects.toMatchObject({
+    await expect(
+      googleSignInUrl({ origin: 'https://byatlas.io', next: null }),
+    ).rejects.toMatchObject({
       message: UNREACHABLE,
     })
   })
@@ -243,11 +245,11 @@ describe('requestPasswordReset', () => {
   })
 
   it('raises with the server message on failure', async () => {
-    answerWith(json({ message: 'Reset password isn\'t enabled' }, 400))
+    answerWith(json({ message: "Reset password isn't enabled" }, 400))
 
     await expect(
       requestPasswordReset({ email: 'a@b.c', origin: 'https://byatlas.io' }),
-    ).rejects.toMatchObject({ message: 'Reset password isn\'t enabled' })
+    ).rejects.toMatchObject({ message: "Reset password isn't enabled" })
   })
 })
 

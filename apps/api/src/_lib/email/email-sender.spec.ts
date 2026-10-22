@@ -22,9 +22,17 @@ describe('createEmailSender', () => {
 
   it('sends from the configured address and returns the Resend id', async () => {
     send.mockResolvedValue({ data: { id: 'email_1' }, error: null })
-    const sendEmail = createEmailSender({ apiKey: 're_key', from: 'Atlas <noreply@mail.byatlas.io>' })
+    const sendEmail = createEmailSender({
+      apiKey: 're_key',
+      from: 'Atlas <noreply@mail.byatlas.io>',
+    })
 
-    const result = await sendEmail({ to: 'delivered@resend.dev', subject: 'Hi', html: '<p>Hi</p>', text: 'Hi' })
+    const result = await sendEmail({
+      to: 'delivered@resend.dev',
+      subject: 'Hi',
+      html: '<p>Hi</p>',
+      text: 'Hi',
+    })
 
     expect(constructed).toHaveBeenCalledWith('re_key')
     expect(send).toHaveBeenCalledWith({
@@ -44,7 +52,9 @@ describe('createEmailSender', () => {
     })
     const sendEmail = createEmailSender({ apiKey: 're_key', from: 'a@b.c' })
 
-    const failure = await sendEmail({ to: 'x@y.z', subject: 's', html: 'h', text: 't' }).catch((e: unknown) => e)
+    const failure = await sendEmail({ to: 'x@y.z', subject: 's', html: 'h', text: 't' }).catch(
+      (e: unknown) => e,
+    )
 
     expect(failure).toBeInstanceOf(EmailError)
     expect(failure).toMatchObject({ code: 'invalid_api_key', statusCode: 403 })

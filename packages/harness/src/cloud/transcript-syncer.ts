@@ -1,9 +1,4 @@
-import {
-  findDivergence,
-  type Event,
-  type PrefixDigest,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { findDivergence, type Event, type PrefixDigest, type ThreadId } from '@dltech/atlas-core'
 
 import type { ChannelListener } from '../channel/delta-channel'
 import { EClientRequest, transcriptIdentityReplySchema } from './channel-wire'
@@ -16,14 +11,26 @@ import {
 import { EConnectionView } from './connection-view'
 
 export type MirrorLocalLog = {
-  read(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
-  readOwn(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
+  read(args: {
+    threadId: ThreadId
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]>
+  readOwn(args: {
+    threadId: ThreadId
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]>
   head(args: { threadId: ThreadId }): Promise<number>
   refresh(args: { threadId: ThreadId }): Promise<void>
 }
 
 export type MirrorRemoteLog = {
-  read(args: { threadId: ThreadId; fromSeq?: number | undefined; upTo?: number | undefined }): Promise<Event[]>
+  read(args: {
+    threadId: ThreadId
+    fromSeq?: number | undefined
+    upTo?: number | undefined
+  }): Promise<Event[]>
 }
 
 type SyncChannel = Pick<

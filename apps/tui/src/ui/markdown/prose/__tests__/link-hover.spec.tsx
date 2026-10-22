@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { rgbToHex } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { installLinkClickOpen, notifyLinkHover } from '../../../../composition/link-click'
 import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'
@@ -45,7 +45,10 @@ async function mount(): Promise<Setup> {
   bindPathLinks({
     resolve: (mention) =>
       ['apps/tui/inline.ts', '/repo/apps/tui/inline.ts'].includes(mention.path)
-        ? { path: '/repo/apps/tui/inline.ts', ...(mention.line === undefined ? {} : { line: mention.line }) }
+        ? {
+            path: '/repo/apps/tui/inline.ts',
+            ...(mention.line === undefined ? {} : { line: mention.line }),
+          }
         : null,
   })
   const setup = await testRender(

@@ -6,12 +6,7 @@ import { useState, type FormEvent } from 'react'
 
 import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
-import {
-  AuthApiError,
-  EAuthErrorCode,
-  isInvalidTokenError,
-  resetPassword,
-} from '@/lib/auth-api'
+import { AuthApiError, EAuthErrorCode, isInvalidTokenError, resetPassword } from '@/lib/auth-api'
 
 import { FormError, LinkButton, SubmitButton } from './auth-controls'
 import { AuthField } from './auth-field'
@@ -60,7 +55,9 @@ export function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const linkBroken =
-    token === null || token.length === 0 || searchParams.get('error') === EAuthErrorCode.InvalidToken
+    token === null ||
+    token.length === 0 ||
+    searchParams.get('error') === EAuthErrorCode.InvalidToken
   const [step, setStep] = useState(linkBroken ? EResetStep.Expired : EResetStep.Form)
   const [busy, setBusy] = useState(false)
   const [mismatch, setMismatch] = useState(false)

@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SquareTerminalIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { SquareTerminalIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Empty,
   EmptyContent,
@@ -9,16 +9,16 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
+} from '@dltech/atlas-ui/components/empty'
 
 const meta = {
-  title: "Components/Empty",
+  title: 'Components/Empty',
   component: Empty,
-} satisfies Meta<typeof Empty>;
+} satisfies Meta<typeof Empty>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -37,7 +37,7 @@ export const Default: Story = {
       </EmptyContent>
     </Empty>
   ),
-};
+}
 
 export const NoMedia: Story = {
   render: (args) => (
@@ -51,4 +51,4 @@ export const NoMedia: Story = {
       </EmptyContent>
     </Empty>
   ),
-};
+}

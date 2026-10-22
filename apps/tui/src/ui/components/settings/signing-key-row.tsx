@@ -60,7 +60,9 @@ export function SigningKeyRow(props: {
   account: SigningKeyAccountView
 }): React.ReactNode {
   const { account } = props
-  const region = useClickRegion(isActionable(account.view) ? account.activateRotateOrEnable : undefined)
+  const region = useClickRegion(
+    isActionable(account.view) ? account.activateRotateOrEnable : undefined,
+  )
 
   return (
     <SettingsTextLine

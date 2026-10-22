@@ -38,10 +38,13 @@ describe('package warning notices', () => {
   it('shows the SDK model and cause instead of a hidden-warning counter', () => {
     const { log, entries } = captureWarnings()
     const redirect = activeRedirect(log)
-    const cause = 'AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported.'
+    const cause =
+      'AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported.'
     const payload = 'private reasoning '.repeat(40)
     try {
-      process.emitWarning(`${cause} Skipping reasoning part: {"text":"${payload}"}`, { type: 'Warning' })
+      process.emitWarning(`${cause} Skipping reasoning part: {"text":"${payload}"}`, {
+        type: 'Warning',
+      })
       vi.advanceTimersByTime(FLUSH_WAIT_MS)
     } finally {
       redirect.restore()
@@ -95,7 +98,8 @@ describe('package warning notices', () => {
   it('groups warnings that differ only in the reasoning payload', () => {
     const { log } = captureWarnings()
     const redirect = activeRedirect(log)
-    const head = 'AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported. Skipping reasoning part:'
+    const head =
+      'AI SDK Warning (openai / gpt-6.1-sol): Non-OpenAI reasoning parts are not supported. Skipping reasoning part:'
     try {
       process.emitWarning(`${head} {"text":"first thought"}`, { type: 'Warning' })
       process.emitWarning(`${head} {"text":"second thought"}`, { type: 'Warning' })

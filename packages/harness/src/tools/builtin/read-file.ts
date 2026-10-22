@@ -30,7 +30,12 @@ const textOnly = (args: {
   because: string
 }): ToolOutcome => ({
   ok: true,
-  output: { path: args.path, mediaType: args.mediaType, byteLength: args.byteLength, inlined: false },
+  output: {
+    path: args.path,
+    mediaType: args.mediaType,
+    byteLength: args.byteLength,
+    inlined: false,
+  },
   modelText: `${describe(args)} It was not sent to you because ${args.because}.`,
 })
 

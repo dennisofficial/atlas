@@ -19,5 +19,4 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'history-compacted'
 
 export const transcriptNotice = (event: Event): boolean =>
-  breaksEveryRun(event) ||
-  (event.type === 'agent-restarted' && deliberateAgentRestart(event))
+  breaksEveryRun(event) || (event.type === 'agent-restarted' && deliberateAgentRestart(event))

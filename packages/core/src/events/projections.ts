@@ -132,9 +132,11 @@ export function inputForCall({
   callId: CallId
 }): unknown {
   const answer = answeredApproval({ events, callId })
-  if (answer?.decision === EDecision.Allow && answer.editedInput !== undefined) return answer.editedInput
+  if (answer?.decision === EDecision.Allow && answer.editedInput !== undefined)
+    return answer.editedInput
 
-  return eventsOfType({ events, type: 'tool-called' }).findLast((event) => event.callId === callId)?.input
+  return eventsOfType({ events, type: 'tool-called' }).findLast((event) => event.callId === callId)
+    ?.input
 }
 
 export function awaitsReply(events: readonly Event[]): boolean {

@@ -1,9 +1,4 @@
-import {
-  decodeBase64,
-  MAX_API_EDGE,
-  MAX_INLINE_BYTES,
-  toThreadId,
-} from '@dltech/atlas-core'
+import { decodeBase64, MAX_API_EDGE, MAX_INLINE_BYTES, toThreadId } from '@dltech/atlas-core'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readdir, readFile as readFileFromDisk, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -173,10 +168,23 @@ describe('read on an image it cannot send', () => {
 describe('read on an image that is not a valid image', () => {
   it('withholds the pixels, so a corrupt file cannot poison the history', async () => {
     const corrupt = new Uint8Array([
-      0xff, 0xd8,
-      0xff, 0xdb, 0x00, 0x83,
+      0xff,
+      0xd8,
+      0xff,
+      0xdb,
+      0x00,
+      0x83,
       ...Array.from({ length: 129 }, () => 0x06),
-      0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x50, 0x00, 0x78, 0x03,
+      0xff,
+      0xc0,
+      0x00,
+      0x11,
+      0x08,
+      0x00,
+      0x50,
+      0x00,
+      0x78,
+      0x03,
     ])
     const path = join(root, 'corrupt.jpg')
     await writeFile(path, corrupt)
@@ -211,8 +219,7 @@ describe('read on a text file', () => {
   })
 })
 describe('caching an inlined image in the session directory', () => {
-  const sha256 = (bytes: Uint8Array): string =>
-    createHash('sha256').update(bytes).digest('hex')
+  const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 
   const readWithSession = async (args: { path: string; sessionDir: string }) => {
     const sessionTool = new ReadTool({

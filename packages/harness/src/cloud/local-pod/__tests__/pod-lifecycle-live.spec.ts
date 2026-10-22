@@ -22,7 +22,8 @@ import { fileProvisionLock } from '../provision-lock'
 import { reapOrphanPods } from '../reaper'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -36,12 +37,21 @@ const MARKER_CONTENT = 'survives-a-self-park'
 const EXIT_DEADLINE_MS = 5_000
 const EXIT_POLL_MS = 50
 
-const sweepThread = async ({ threadId, failures }: { threadId: string; failures: unknown[] }): Promise<void> => {
+const sweepThread = async ({
+  threadId,
+  failures,
+}: {
+  threadId: string
+  failures: unknown[]
+}): Promise<void> => {
   const attempt = async (work: () => Promise<void>): Promise<void> => {
     await work().catch((failure: unknown) => failures.push(failure))
   }
   await attempt(async () => {
-    for (const container of await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })) {
+    for (const container of await engine.listContainers({
+      labels: { [podThreadLabel]: threadId },
+      all: true,
+    })) {
       await attempt(() => engine.removeContainer({ id: container.id }))
     }
   })
@@ -53,7 +63,8 @@ const sweepThread = async ({ threadId, failures }: { threadId: string; failures:
 const sweep = async (): Promise<void> => {
   const failures: unknown[] = []
   for (const threadId of [parkedThreadId, orphanThreadId]) await sweepThread({ threadId, failures })
-  if (failures.length > 0) throw new AggregateError(failures, 'pod-lifecycle-live cleanup left resources behind')
+  if (failures.length > 0)
+    throw new AggregateError(failures, 'pod-lifecycle-live cleanup left resources behind')
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
@@ -85,12 +96,15 @@ const healthStatus = async (args: { url: string; token: string }): Promise<numbe
 }
 
 const podIdsOf = async (threadId: string): Promise<string[]> =>
-  (await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })).map((one) => one.id)
+  (await engine.listContainers({ labels: { [podThreadLabel]: threadId }, all: true })).map(
+    (one) => one.id,
+  )
 
 const msUntilExited = async (args: { podName: string; startedAt: number }): Promise<number> => {
   const deadline = args.startedAt + EXIT_DEADLINE_MS
   while (Date.now() < deadline) {
-    if ((await pods.inspectPod({ id: args.podName }))?.status === 'exited') return Date.now() - args.startedAt
+    if ((await pods.inspectPod({ id: args.podName }))?.status === 'exited')
+      return Date.now() - args.startedAt
     await Bun.sleep(EXIT_POLL_MS)
   }
   throw new Error(`${args.podName} did not exit within ${EXIT_DEADLINE_MS} ms of SIGTERM to pid 1`)
@@ -129,7 +143,9 @@ describeDocker('pod lifecycle against a live daemon', () => {
   }, 120_000)
 
   it('parks itself on SIGTERM to pid 1 and wakes with its disk intact', async () => {
-    const first = await driver.createOrResume(bootArgsFor({ driver, threadId: parkedThreadId, token: parkedToken }))
+    const first = await driver.createOrResume(
+      bootArgsFor({ driver, threadId: parkedThreadId, token: parkedToken }),
+    )
     expect(first.created).toBe(true)
     expect(await healthStatus({ url: first.url, token: parkedToken })).toBe(200)
 
@@ -147,7 +163,11 @@ describeDocker('pod lifecycle against a live daemon', () => {
     expect(exitLatencyMs).toBeLessThan(EXIT_DEADLINE_MS)
     expect((await driver.inspect({ name: parkedPodName }))?.state).toBe('parked')
 
-    const second = await driver.createOrResume({ name: parkedPodName, threadId: parkedThreadId, token: parkedToken })
+    const second = await driver.createOrResume({
+      name: parkedPodName,
+      threadId: parkedThreadId,
+      token: parkedToken,
+    })
 
     expect(second.created).toBe(false)
     expect(await podIdsOf(parkedThreadId)).toEqual([parkedOriginalId!])
@@ -157,7 +177,9 @@ describeDocker('pod lifecycle against a live daemon', () => {
 
   it('reaps only the orphan pod, volumes included, and keeps a pod whose thread lives', async () => {
     const orphanToken = `live-${randomUUID()}`
-    const orphan = await driver.createOrResume(bootArgsFor({ driver, threadId: orphanThreadId, token: orphanToken }))
+    const orphan = await driver.createOrResume(
+      bootArgsFor({ driver, threadId: orphanThreadId, token: orphanToken }),
+    )
     expect(orphan.created).toBe(true)
     expect(await podIdsOf(orphanThreadId)).toHaveLength(1)
 
@@ -177,14 +199,36 @@ describeDocker('pod lifecycle against a live daemon', () => {
     expect(result.reaped).toEqual([orphanPodName])
     expect(consulted).toContain(orphanThreadId)
     expect(result.kept).toContain(parkedPodName)
-    expect(await dockerCli(['ps', '-a', '--filter', `name=${orphanPodName}`, '--format', '{{.Names}}'])).toBe('')
-    expect(await dockerCli(['volume', 'ls', '--filter', `name=${orphanPodName}`, '--format', '{{.Name}}'])).toBe('')
+    expect(
+      await dockerCli(['ps', '-a', '--filter', `name=${orphanPodName}`, '--format', '{{.Names}}']),
+    ).toBe('')
+    expect(
+      await dockerCli([
+        'volume',
+        'ls',
+        '--filter',
+        `name=${orphanPodName}`,
+        '--format',
+        '{{.Name}}',
+      ]),
+    ).toBe('')
 
     expect(await podIdsOf(parkedThreadId)).toEqual([parkedOriginalId!])
     expect((await driver.inspect({ name: parkedPodName }))?.state).toBe('running')
 
     await driver.destroy({ name: parkedPodName })
-    expect(await dockerCli(['ps', '-a', '--filter', `name=${parkedPodName}`, '--format', '{{.Names}}'])).toBe('')
-    expect(await dockerCli(['volume', 'ls', '--filter', `name=${parkedPodName}`, '--format', '{{.Name}}'])).toBe('')
+    expect(
+      await dockerCli(['ps', '-a', '--filter', `name=${parkedPodName}`, '--format', '{{.Names}}']),
+    ).toBe('')
+    expect(
+      await dockerCli([
+        'volume',
+        'ls',
+        '--filter',
+        `name=${parkedPodName}`,
+        '--format',
+        '{{.Name}}',
+      ]),
+    ).toBe('')
   }, 400_000)
 })

@@ -34,9 +34,12 @@ describe('installOutputRedirect', () => {
     const { log, entries } = recordingLog()
     const redirect = installOutputRedirect({ log })
     try {
-      process.emitWarning('AI SDK Warning (anthropic / claude-haiku-4-5): unsupported reasoning metadata', {
-        type: 'Warning',
-      })
+      process.emitWarning(
+        'AI SDK Warning (anthropic / claude-haiku-4-5): unsupported reasoning metadata',
+        {
+          type: 'Warning',
+        },
+      )
     } finally {
       redirect.restore()
     }

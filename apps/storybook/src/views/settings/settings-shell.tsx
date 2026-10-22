@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode } from 'react'
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -6,16 +6,16 @@ import {
   GitBranchIcon,
   MailIcon,
   SearchIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@dltech/atlas-ui/components/input-group";
-import { Kbd } from "@dltech/atlas-ui/components/kbd";
+} from '@dltech/atlas-ui/components/input-group'
+import { Kbd } from '@dltech/atlas-ui/components/kbd'
 import {
   Sidebar,
   SidebarContent,
@@ -28,10 +28,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-} from "@dltech/atlas-ui/components/sidebar";
-import { Tabs, TabsList, TabsTrigger } from "@dltech/atlas-ui/components/tabs";
+} from '@dltech/atlas-ui/components/sidebar'
+import { Tabs, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
-import { CURRENT_USER, CURRENT_WORKSPACE } from "../../fixtures/settings";
+import { CURRENT_USER, CURRENT_WORKSPACE } from '../../fixtures/settings'
 import {
   ESettingsPage,
   ESettingsScope,
@@ -39,38 +39,35 @@ import {
   firstPageOf,
   navForScope,
   scopeOfPage,
-} from "./settings-nav";
+} from './settings-nav'
 
 const HELP_LINKS = [
-  { label: "Docs", icon: BookOpenIcon },
-  { label: "GitHub", icon: GitBranchIcon },
-  { label: "Report a bug", icon: BugIcon },
-  { label: "Email us", icon: MailIcon },
-];
+  { label: 'Docs', icon: BookOpenIcon },
+  { label: 'GitHub', icon: GitBranchIcon },
+  { label: 'Report a bug', icon: BugIcon },
+  { label: 'Email us', icon: MailIcon },
+]
 
 export function WorkspaceLogo({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
-      className={`flex size-4 items-center justify-center rounded-[4px] bg-primary text-[10px] font-semibold text-primary-foreground ${className ?? ""}`}
+      className={`flex size-4 items-center justify-center rounded-[4px] bg-primary text-[10px] font-semibold text-primary-foreground ${className ?? ''}`}
     >
       {CURRENT_WORKSPACE.initial}
     </span>
-  );
+  )
 }
 
 function ScopeTabs({
   scope,
   onScopeChange,
 }: {
-  scope: ESettingsScope;
-  onScopeChange: (scope: ESettingsScope) => void;
+  scope: ESettingsScope
+  onScopeChange: (scope: ESettingsScope) => void
 }) {
   return (
-    <Tabs
-      value={scope}
-      onValueChange={(value) => onScopeChange(value as ESettingsScope)}
-    >
+    <Tabs value={scope} onValueChange={(value) => onScopeChange(value as ESettingsScope)}>
       <TabsList>
         <TabsTrigger value={ESettingsScope.Personal} className="px-3">
           <Avatar size="sm" className="size-4">
@@ -84,15 +81,15 @@ function ScopeTabs({
         </TabsTrigger>
       </TabsList>
     </Tabs>
-  );
+  )
 }
 
 function SettingsTopBar({
   scope,
   onScopeChange,
 }: {
-  scope: ESettingsScope;
-  onScopeChange: (scope: ESettingsScope) => void;
+  scope: ESettingsScope
+  onScopeChange: (scope: ESettingsScope) => void
 }) {
   return (
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
@@ -103,7 +100,7 @@ function SettingsTopBar({
       <ScopeTabs scope={scope} onScopeChange={onScopeChange} />
       <span />
     </header>
-  );
+  )
 }
 
 function HelpCard() {
@@ -120,7 +117,7 @@ function HelpCard() {
         </a>
       ))}
     </div>
-  );
+  )
 }
 
 function SettingsNav({
@@ -128,12 +125,12 @@ function SettingsNav({
   page,
   onPageChange,
 }: {
-  scope: ESettingsScope;
-  page: ESettingsPage;
-  onPageChange: (page: ESettingsPage) => void;
+  scope: ESettingsScope
+  page: ESettingsPage
+  onPageChange: (page: ESettingsPage) => void
 }) {
-  const [query, setQuery] = useState("");
-  const groups = filterNav({ groups: navForScope(scope), query });
+  const [query, setQuery] = useState('')
+  const groups = filterNav({ groups: navForScope(scope), query })
   return (
     <Sidebar collapsible="none" className="w-60 border-r">
       <SidebarHeader className="pt-3">
@@ -155,7 +152,9 @@ function SettingsNav({
       <SidebarContent className="gap-0">
         {groups.map((group, index) => (
           <SidebarGroup key={group.label ?? `group-${index}`} className="py-1">
-            {group.label ? <SidebarGroupLabel className="h-7">{group.label}</SidebarGroupLabel> : null}
+            {group.label ? (
+              <SidebarGroupLabel className="h-7">{group.label}</SidebarGroupLabel>
+            ) : null}
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => (
@@ -182,19 +181,19 @@ function SettingsNav({
         <HelpCard />
       </SidebarFooter>
     </Sidebar>
-  );
+  )
 }
 
 export function SettingsShell({
   initialPage,
   renderPage,
 }: {
-  initialPage: ESettingsPage;
-  renderPage: (page: ESettingsPage) => ReactNode;
+  initialPage: ESettingsPage
+  renderPage: (page: ESettingsPage) => ReactNode
 }) {
-  const [page, setPage] = useState(initialPage);
-  const scope = scopeOfPage(page);
-  const handleScopeChange = (next: ESettingsScope) => setPage(firstPageOf(next));
+  const [page, setPage] = useState(initialPage)
+  const scope = scopeOfPage(page)
+  const handleScopeChange = (next: ESettingsScope) => setPage(firstPageOf(next))
   return (
     <SidebarProvider className="h-svh min-h-0 flex-col">
       <SettingsTopBar scope={scope} onScopeChange={handleScopeChange} />
@@ -205,5 +204,5 @@ export function SettingsShell({
         </main>
       </div>
     </SidebarProvider>
-  );
+  )
 }

@@ -1,6 +1,5 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-
 export class ConcernThenBuildFragment extends PromptFragment {
   readonly id = 'scope.concern-then-build'
 

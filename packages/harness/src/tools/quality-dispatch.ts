@@ -23,7 +23,8 @@ const UNIDENTIFIED_NAMESPACE = 'unidentified'
 
 const NUDGE_LIFETIME_STEPS = 1
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export type QualityReviewOutcome = {
   reviews: readonly CodeQualityReviewedBody[]
@@ -50,7 +51,10 @@ function containedLog(args: {
   }
 }
 
-function reviewOutcomeOf(args: { value: unknown; callId: CallId }): QualityReviewOutcome | undefined {
+function reviewOutcomeOf(args: {
+  value: unknown
+  callId: CallId
+}): QualityReviewOutcome | undefined {
   if (!Array.isArray(args.value)) return undefined
   const reviews: CodeQualityReviewedBody[] = []
   let nudge: EventDraft | undefined
@@ -149,9 +153,13 @@ async function qualityReviewFor(args: {
   if (raced.kind === 'completed') {
     const valid = reviewOutcomeOf({ value: raced.value, callId: call.callId })
     if (raced.afterDeadline) {
-      const late = valid?.reviews.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
+      const late =
+        valid?.reviews.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
       if (late.length > 0) return { reviews: late, nudge: undefined }
-      return { reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })], nudge: undefined }
+      return {
+        reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })],
+        nudge: undefined,
+      }
     }
     if (valid !== undefined) return valid
     containedLog({
@@ -174,7 +182,10 @@ async function qualityReviewFor(args: {
   }
 
   if (raced.kind === 'deadline') {
-    return { reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })], nudge: undefined }
+    return {
+      reviews: [deadlineBookkeeping({ call, path, startedAt, budgetMs: args.budgetMs })],
+      nudge: undefined,
+    }
   }
 
   if (raced.kind === 'aborted') {
@@ -246,6 +257,10 @@ export class QualityStage {
     projectDirectory: string
     signal: AbortSignal
   }): Promise<QualityReviewOutcome> {
-    return qualityReviewFor({ ...this.deps, ...args, budgetMs: this.deps.budgetMs ?? QUALITY_REVIEW_BUDGET_MS })
+    return qualityReviewFor({
+      ...this.deps,
+      ...args,
+      budgetMs: this.deps.budgetMs ?? QUALITY_REVIEW_BUDGET_MS,
+    })
   }
 }

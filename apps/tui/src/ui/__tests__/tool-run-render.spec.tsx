@@ -99,7 +99,11 @@ async function frameOf(
 }
 
 const read = (path: string, lines: number): ToolCall =>
-  call({ name: 'read', input: { path: `${CWD}/${path}` }, output: { path: `${CWD}/${path}`, lines } })
+  call({
+    name: 'read',
+    input: { path: `${CWD}/${path}` },
+    output: { path: `${CWD}/${path}`, lines },
+  })
 
 describe('a run of tool calls in the transcript', () => {
   it('says what a stretch of gathering added up to', async () => {
@@ -236,7 +240,10 @@ describe('a run of tool calls in the transcript', () => {
       runOf([
         call({
           name: 'write',
-          input: { path: `${CWD}/src/new.ts`, content: 'export const two = 2\nexport const three = 3\n' },
+          input: {
+            path: `${CWD}/src/new.ts`,
+            content: 'export const two = 2\nexport const three = 3\n',
+          },
           output: { path: `${CWD}/src/new.ts`, created: true, bytes: 44 },
         }),
       ]),
@@ -590,10 +597,10 @@ describe('a run of tool calls in the transcript', () => {
     })
     const run = runOf([shot])
 
-    const setup = await testRender(
-      <ToolRunBlock run={run} width={WIDTH} cwd={CWD} />,
-      { width: WIDTH, height: HEIGHT },
-    )
+    const setup = await testRender(<ToolRunBlock run={run} width={WIDTH} cwd={CWD} />, {
+      width: WIDTH,
+      height: HEIGHT,
+    })
     const frame = await frameWhen({
       setup,
       holds: painted,
@@ -748,12 +755,6 @@ function Toggling(props: { run: ToolRun }): React.ReactNode {
   }, [])
 
   return (
-    <ToolRunBlock
-      run={props.run}
-      width={WIDTH}
-      cwd={CWD}
-      opened={opened}
-      onToggle={handleToggle}
-    />
+    <ToolRunBlock run={props.run} width={WIDTH} cwd={CWD} opened={opened} onToggle={handleToggle} />
   )
 }

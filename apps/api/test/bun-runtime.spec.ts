@@ -86,17 +86,21 @@ describe('api under the bun runtime', () => {
     expect(response.status).toBe(401)
   })
 
-  it('injects the session verifier and wake boot adapter by constructor token', () => {
-    const probe = spawnSync('bun', ['test/fixtures/bun-di-probe.ts'], {
-      cwd: API_ROOT,
-      env: probeEnv({ port }),
-      encoding: 'utf8',
-      timeout: BOOT_TIMEOUT_MS,
-    })
-    expect(probe.status, probe.stderr).toBe(0)
-    expect(JSON.parse(probe.stdout.trim().split('\n').pop() ?? '{}')).toEqual({
-      sessionAuthVerifier: true,
-      wakeBootAdapter: true,
-    })
-  }, BOOT_TIMEOUT_MS + 5_000)
+  it(
+    'injects the session verifier and wake boot adapter by constructor token',
+    () => {
+      const probe = spawnSync('bun', ['test/fixtures/bun-di-probe.ts'], {
+        cwd: API_ROOT,
+        env: probeEnv({ port }),
+        encoding: 'utf8',
+        timeout: BOOT_TIMEOUT_MS,
+      })
+      expect(probe.status, probe.stderr).toBe(0)
+      expect(JSON.parse(probe.stdout.trim().split('\n').pop() ?? '{}')).toEqual({
+        sessionAuthVerifier: true,
+        wakeBootAdapter: true,
+      })
+    },
+    BOOT_TIMEOUT_MS + 5_000,
+  )
 })

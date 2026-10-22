@@ -24,7 +24,8 @@ import { fileProvisionLock } from '../provision-lock'
 import { buildDevServe } from './dev-serve-build'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -33,7 +34,8 @@ const CURRENT_PATH = '/v1/published-bundles/current'
 const BLOB_PATH = '/blob/bundle.tar.gz'
 const SKILL_KEY = 'user-layer/skills/.agents/live-pushed/SKILL.md'
 const SKILL_PATH = '/atlas/home/.agents/skills/live-pushed/SKILL.md'
-const SKILL_BODY = '---\nname: live-pushed\ndescription: pushed from a live spec\n---\nlive pushed body\n'
+const SKILL_BODY =
+  '---\nname: live-pushed\ndescription: pushed from a live spec\n---\nlive pushed body\n'
 const SERVE_LOG_PATH = '/atlas/home/operational/atlas-serve.log'
 const POLL_BUDGET_MS = 30_000
 
@@ -48,14 +50,21 @@ const sweepOf = async (target: LivePod): Promise<void> => {
     await work().catch((failure: unknown) => failures.push(failure))
   }
   await attempt(async () => {
-    for (const container of await engine.listContainers({ labels: { [podThreadLabel]: target.threadId }, all: true })) {
+    for (const container of await engine.listContainers({
+      labels: { [podThreadLabel]: target.threadId },
+      all: true,
+    })) {
       await attempt(() => engine.removeContainer({ id: container.id }))
     }
   })
   for (const name of [workspaceVolumeNameFor(target), dindVolumeNameFor(target)]) {
     await attempt(() => pods.removeVolume({ name }))
   }
-  if (failures.length > 0) throw new AggregateError(failures, `published-bundle-live cleanup of ${target.podName} left resources behind`)
+  if (failures.length > 0)
+    throw new AggregateError(
+      failures,
+      `published-bundle-live cleanup of ${target.podName} left resources behind`,
+    )
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
@@ -72,7 +81,13 @@ const dockerCli = async (args: readonly string[]): Promise<string> => {
 const podReachableHost = async (): Promise<string> =>
   process.platform === 'darwin'
     ? 'host.docker.internal'
-    : await dockerCli(['network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'])
+    : await dockerCli([
+        'network',
+        'inspect',
+        'bridge',
+        '--format',
+        '{{(index .IPAM.Config 0).Gateway}}',
+      ])
 
 const execIn = async (script: string) => {
   const result = await pods.execSh({ id: pod.podName, script, timeoutMs: 60_000 })
@@ -115,7 +130,8 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
         const authorized = request.headers.get('authorization') === `Bearer ${pod.token}`
         requests.push({ path, authorized })
         if (request.method === 'GET' && path === CURRENT_PATH) {
-          if (!authorized) return new Response(JSON.stringify({ message: 'unauthorized' }), { status: 401 })
+          if (!authorized)
+            return new Response(JSON.stringify({ message: 'unauthorized' }), { status: 401 })
           return Response.json({
             version: 1,
             sha256,
@@ -138,7 +154,11 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
     const outcome = await Promise.allSettled([sweepOf(pod)])
     if (workDirectory !== '') await rm(workDirectory, { recursive: true, force: true })
     const failed = outcome.filter((result) => result.status === 'rejected')
-    if (failed.length > 0) throw new AggregateError(failed.map((result) => result.reason), 'published-bundle-live cleanup failed')
+    if (failed.length > 0)
+      throw new AggregateError(
+        failed.map((result) => result.reason),
+        'published-bundle-live cleanup failed',
+      )
   }, 180_000)
 
   it('lands the pushed skill in the pod home and logs bundle-ready', async () => {
@@ -169,7 +189,9 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
     })
     expect(placement.state).toBe('running')
 
-    const landed = await pollUntil(async () => (await execIn(`cat ${SKILL_PATH}`)).output.includes('live pushed body'))
+    const landed = await pollUntil(async () =>
+      (await execIn(`cat ${SKILL_PATH}`)).output.includes('live pushed body'),
+    )
     const content = await execIn(`cat ${SKILL_PATH}`)
     console.log(`[${SKILL_PATH}]\n${content.output}`)
     expect(landed).toBe(true)
@@ -177,7 +199,9 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
 
     const logged = await execIn(`grep -o 'serve.bundle-[a-z]*' ${SERVE_LOG_PATH}`)
     expect(logged.output.split('\n')).toContain('serve.bundle-ready')
-    expect(requests.some((request) => request.path === CURRENT_PATH && request.authorized)).toBe(true)
+    expect(requests.some((request) => request.path === CURRENT_PATH && request.authorized)).toBe(
+      true,
+    )
     expect(requests.some((request) => request.path === BLOB_PATH && !request.authorized)).toBe(true)
   }, 600_000)
 })

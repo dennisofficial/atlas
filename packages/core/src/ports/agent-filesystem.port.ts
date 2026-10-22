@@ -5,10 +5,7 @@ export abstract class AgentFileSystemPort {
   abstract stat(args: { path: string; threadId?: ThreadId | undefined }): Promise<FileStat>
 
   /** Leaf symlink target (relative links unresolved), or null when the path is not a symlink. */
-  abstract readLink(args: {
-    path: string
-    threadId?: ThreadId | undefined
-  }): Promise<string | null>
+  abstract readLink(args: { path: string; threadId?: ThreadId | undefined }): Promise<string | null>
 
   abstract readFile(args: { path: string; threadId?: ThreadId | undefined }): Promise<string>
 

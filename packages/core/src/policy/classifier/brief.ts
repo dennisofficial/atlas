@@ -95,7 +95,9 @@ const exchangeLines = ({
   transcript: readonly TranscriptMessage[]
 }): readonly string[] =>
   transcript.map((message) =>
-    message.speaker === ESpeaker.Operator ? `- operator: ${message.text}` : `- agent: ${message.text}`,
+    message.speaker === ESpeaker.Operator
+      ? `- operator: ${message.text}`
+      : `- agent: ${message.text}`,
   )
 
 const grantLines = ({ grants }: { grants: readonly Grant[] }): readonly string[] =>
@@ -175,7 +177,10 @@ const sectionsOf = ({
       body:
         evidence.transcript.length === 0
           ? 'nothing yet in this thread.'
-          : fenced({ source: 'recent-exchange', lines: exchangeLines({ transcript: evidence.transcript }) }),
+          : fenced({
+              source: 'recent-exchange',
+              lines: exchangeLines({ transcript: evidence.transcript }),
+            }),
     }),
     heading({
       title: 'standing permissions the developer granted',

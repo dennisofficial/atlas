@@ -32,11 +32,15 @@ const SANDBOX_URL = 'https://sandbox.example/thread'
 
 const LOCAL_TEXT = 'said before the sandbox parked'
 
-const appFor = (): FakeApp => fakeApp({ model: scriptedModelPort({ script: { thinking: 'a', reply: 'b' } }) })
+const appFor = (): FakeApp =>
+  fakeApp({ model: scriptedModelPort({ script: { thinking: 'a', reply: 'b' } }) })
 
 const cloudThread = async (app: FakeApp): Promise<ThreadId> => {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-  await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await app.threads.chooseExecutionLocation({
+    threadId: thread.id,
+    location: EExecutionLocation.Cloud,
+  })
   await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   await app.log.append({
     threadId: thread.id,
@@ -66,10 +70,13 @@ const bootOn = (threadId: ThreadId) => ({
   bootCloudThreadId: threadId,
 })
 
-const viewOf = (app: FakeApp) => cloudAttachmentOf(app.sessionOwner.snapshot().binding)?.session.health().view
+const viewOf = (app: FakeApp) =>
+  cloudAttachmentOf(app.sessionOwner.snapshot().binding)?.session.health().view
 
 const stickyNotices = (): readonly string[] =>
-  currentNotices().filter((notice) => notice.ttlMs === null).map((notice) => notice.key)
+  currentNotices()
+    .filter((notice) => notice.ttlMs === null)
+    .map((notice) => notice.key)
 
 const CLOUD_NOTICE_KEYS: ReadonlySet<string> = new Set([
   CLOUD_WAKE_FAILED_NOTICE_KEY,
@@ -78,15 +85,22 @@ const CLOUD_NOTICE_KEYS: ReadonlySet<string> = new Set([
 ])
 
 const cloudNotices = (): readonly string[] =>
-  currentNotices().map((notice) => notice.key).filter((key) => CLOUD_NOTICE_KEYS.has(key))
+  currentNotices()
+    .map((notice) => notice.key)
+    .filter((key) => CLOUD_NOTICE_KEYS.has(key))
 
 const bridgeAt = (args: { threadId: ThreadId; phase: ERuntimePhase | null }): FakeBridge =>
   fakeBridge({
     status: {
-      state: args.phase === ERuntimePhase.Parked ? ECloudSandboxState.Parked : ECloudSandboxState.Running,
+      state:
+        args.phase === ERuntimePhase.Parked
+          ? ECloudSandboxState.Parked
+          : ECloudSandboxState.Running,
       url: SANDBOX_URL,
     },
-    ...(args.phase === null ? {} : { checkpoint: checkpointAt({ threadId: args.threadId, phase: args.phase }) }),
+    ...(args.phase === null
+      ? {}
+      : { checkpoint: checkpointAt({ threadId: args.threadId, phase: args.phase }) }),
   })
 
 const gateCreate = (bridge: FakeBridge): { release: () => void } => {
@@ -115,7 +129,9 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
       expect(bridge.created).toHaveLength(0)
       expect(bridge.attached).toHaveLength(0)
       expect(bridge.parkedAttaches).toEqual([threadId])
-      expect(bridge.channel.observed.map((checkpoint) => checkpoint.phase)).toEqual([ERuntimePhase.Parked])
+      expect(bridge.channel.observed.map((checkpoint) => checkpoint.phase)).toEqual([
+        ERuntimePhase.Parked,
+      ])
       expect(viewOf(app)?.state).toBe(EConnectionView.Parked)
       expect(mounted.mutedEntries()).toBe(0)
       expect(cloudNotices()).toEqual([])
@@ -137,8 +153,12 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
 
       await mounted.command('now wake up')
 
-      expect(await until({ holds: async () => bridge.created.length === 1, within: 10_000 })).toBe(true)
-      expect(await until({ holds: async () => bridge.channel.woken.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.created.length === 1, within: 10_000 })).toBe(
+        true,
+      )
+      expect(
+        await until({ holds: async () => bridge.channel.woken.length === 1, within: 10_000 }),
+      ).toBe(true)
     } finally {
       await mounted.done()
     }
@@ -147,29 +167,45 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
   it.each([
     ['a serving record', ERuntimePhase.Serving],
     ['no record at all', null],
-  ])('wakes in the background given %s, Waking until the sandbox answers, then Connected', async (_name, phase) => {
-    const app = appFor()
-    const threadId = await cloudThread(app)
-    const bridge = bridgeAt({ threadId, phase })
-    const wake = gateCreate(bridge)
-    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
+  ])(
+    'wakes in the background given %s, Waking until the sandbox answers, then Connected',
+    async (_name, phase) => {
+      const app = appFor()
+      const threadId = await cloudThread(app)
+      const bridge = bridgeAt({ threadId, phase })
+      const wake = gateCreate(bridge)
+      const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
-    try {
-      const frame = await mounted.showing(LOCAL_TEXT)
-      expect(frame).toContain(LOCAL_TEXT)
-      expect(await until({ holds: async () => viewOf(app)?.state === EConnectionView.Waking, within: 10_000 })).toBe(true)
-      expect(bridge.attached).toHaveLength(0)
+      try {
+        const frame = await mounted.showing(LOCAL_TEXT)
+        expect(frame).toContain(LOCAL_TEXT)
+        expect(
+          await until({
+            holds: async () => viewOf(app)?.state === EConnectionView.Waking,
+            within: 10_000,
+          }),
+        ).toBe(true)
+        expect(bridge.attached).toHaveLength(0)
 
-      wake.release()
+        wake.release()
 
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
-      expect(await until({ holds: async () => viewOf(app)?.state === EConnectionView.Connected, within: 10_000 })).toBe(true)
-      expect(bridge.created).toHaveLength(1)
-      expect(await mounted.frame()).toContain(LOCAL_TEXT)
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
+        expect(
+          await until({ holds: async () => bridge.attached.length === 1, within: 10_000 }),
+        ).toBe(true)
+        expect(
+          await until({
+            holds: async () => viewOf(app)?.state === EConnectionView.Connected,
+            within: 10_000,
+          }),
+        ).toBe(true)
+        expect(bridge.created).toHaveLength(1)
+        expect(await mounted.frame()).toContain(LOCAL_TEXT)
+      } finally {
+        await mounted.done()
+      }
+    },
+    60_000,
+  )
 
   it('reads Disconnected with the reason and a passing notice when the background wake fails — never a sticky banner', async () => {
     const app = appFor()
@@ -183,7 +219,12 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
     try {
       await mounted.showing(LOCAL_TEXT)
 
-      expect(await until({ holds: async () => viewOf(app)?.state === EConnectionView.Disconnected, within: 10_000 })).toBe(true)
+      expect(
+        await until({
+          holds: async () => viewOf(app)?.state === EConnectionView.Disconnected,
+          within: 10_000,
+        }),
+      ).toBe(true)
       expect(viewOf(app)?.detail).toContain('the sandbox would not start')
       expect(currentNotices().map((notice) => notice.key)).toContain(CLOUD_WAKE_FAILED_NOTICE_KEY)
       await mounted.frame()
@@ -201,7 +242,12 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
 
     try {
       await mounted.showing(LOCAL_TEXT)
-      expect(await until({ holds: async () => viewOf(app)?.state === EConnectionView.Connected, within: 10_000 })).toBe(true)
+      expect(
+        await until({
+          holds: async () => viewOf(app)?.state === EConnectionView.Connected,
+          within: 10_000,
+        }),
+      ).toBe(true)
       dismissNotice()
 
       bridge.channel.pushCheckpoint(checkpointAt({ threadId, phase: ERuntimePhase.Parked }))

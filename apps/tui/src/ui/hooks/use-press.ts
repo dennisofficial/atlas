@@ -19,7 +19,9 @@ export type PressHandlers = {
  * path where no selection began. An anchor is stored relative to the renderable under the pointer,
  * so a reflow between press and release settles a drag the user never made.
  */
-export function usePress(args: { intent?: EPressIntent } = {}): (onPress?: () => void) => PressHandlers {
+export function usePress(
+  args: { intent?: EPressIntent } = {},
+): (onPress?: () => void) => PressHandlers {
   const intent = args.intent ?? EPressIntent.Activate
   const renderer = useRenderer()
   const origin = useRef<{ x: number; y: number } | null>(null)

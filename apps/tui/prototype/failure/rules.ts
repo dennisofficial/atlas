@@ -2,7 +2,14 @@
 // between them is a diff rather than an argument.
 
 import type { ToolCall } from '../../src/store'
-import { classify, EToolClass, inputOf, str, type Classification, type Read } from '../../src/store/tools'
+import {
+  classify,
+  EToolClass,
+  inputOf,
+  str,
+  type Classification,
+  type Read,
+} from '../../src/store/tools'
 import { CWD } from '../../src/store/tools/__tests__/fixture'
 
 const STAGES = /&&|\|\||\||;/
@@ -35,7 +42,11 @@ type Row =
 
 /** `segmentsOf`, with the pull-out rule optionally in force. Deliberately a copy — the point is to
  *  diff the two rules, which a shared implementation would hide. */
-export function rowsOf(args: { calls: readonly ToolCall[]; pullOut: boolean; exitFix: boolean }): Row[] {
+export function rowsOf(args: {
+  calls: readonly ToolCall[]
+  pullOut: boolean
+  exitFix: boolean
+}): Row[] {
   const rows: Row[] = []
 
   for (const call of args.calls) {

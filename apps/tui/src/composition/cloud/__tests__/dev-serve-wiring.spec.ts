@@ -37,7 +37,11 @@ const appWith = (values: Record<string, string>): AtlasApp => {
     ],
     user: new MemorySettingsStore({
       document: {
-        values: { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1', ...values },
+        values: {
+          [ESettingId.VercelTeamId]: 'team_1',
+          [ESettingId.VercelProjectId]: 'prj_1',
+          ...values,
+        },
       },
     }),
   })
@@ -68,7 +72,9 @@ describe('liveBridgeOptionsFor sandbox serve', () => {
   })
 
   it('pins nothing under an operator-set image, even from source', () => {
-    const config = liveBridgeOptionsFor(appWith({ [ESettingId.SandboxImage]: 'my/image:1' })).vercel()
+    const config = liveBridgeOptionsFor(
+      appWith({ [ESettingId.SandboxImage]: 'my/image:1' }),
+    ).vercel()
 
     expect(config.image).toBe('my/image:1')
     expect(config.devServe).toBeUndefined()

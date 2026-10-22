@@ -13,8 +13,13 @@ import type { GithubService } from './github.service'
 
 const fake = fakeGithubDb()
 
-const CIPHER = { encrypt: (plain: string) => `sealed:${plain}`, decrypt: () => 'secret' } as unknown as SecretCipherService
-const ENV = { get: (key: string) => (key === 'BETTER_AUTH_URL' ? 'https://api.byatlas.io' : undefined) } as unknown as EnvService
+const CIPHER = {
+  encrypt: (plain: string) => `sealed:${plain}`,
+  decrypt: () => 'secret',
+} as unknown as SecretCipherService
+const ENV = {
+  get: (key: string) => (key === 'BETTER_AUTH_URL' ? 'https://api.byatlas.io' : undefined),
+} as unknown as EnvService
 
 function serviceWith(args: {
   tokens?: Record<string, string>
@@ -40,7 +45,9 @@ function serviceWith(args: {
   const reads = {
     createHook: async (call: { repo: string }) => {
       created.push(call.repo)
-      return (args.createHook ?? (async () => ({ outcome: 'created', hookId: 555 }) as CreateHookResult))({
+      return (
+        args.createHook ?? (async () => ({ outcome: 'created', hookId: 555 }) as CreateHookResult)
+      )({
         repo: call.repo,
       })
     },
@@ -87,7 +94,7 @@ describe('GithubHookLifecycleService', () => {
   beforeEach(() => fake.reset())
 
   it('creates the hook as the subscribing user on the first subscription for a repo', async () => {
-    const { service, created } = serviceWith({ tokens: { 'usr_1': 'ghu_1' } })
+    const { service, created } = serviceWith({ tokens: { usr_1: 'ghu_1' } })
 
     const result = await service.ensureHook({ userId: 'usr_1', repoFullName: 'compai/app' })
 
@@ -104,7 +111,7 @@ describe('GithubHookLifecycleService', () => {
   })
 
   it('reuses the existing hook row on later subscribes when github still has it', async () => {
-    const { service, created, verified } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
+    const { service, created, verified } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
     seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
@@ -116,7 +123,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('recreates the hook when github no longer has it', async () => {
     const { service, created } = serviceWith({
-      tokens: { 'usr_2': 'ghu_2' },
+      tokens: { usr_2: 'ghu_2' },
       getHook: async () => 'missing',
     })
     seedHook()
@@ -134,7 +141,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('patches the hook event list on verify when it has drifted', async () => {
     const { service, created, updated } = serviceWith({
-      tokens: { 'usr_2': 'ghu_2' },
+      tokens: { usr_2: 'ghu_2' },
       getHookEvents: async () => ['pull_request', 'check_suite', 'check_run', 'push'],
     })
     seedHook()
@@ -148,7 +155,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('does not patch the hook when the event list already covers every event', async () => {
     const { service, updated } = serviceWith({
-      tokens: { 'usr_2': 'ghu_2' },
+      tokens: { usr_2: 'ghu_2' },
       getHookEvents: async () => [...HOOK_EVENTS],
     })
     seedHook()
@@ -161,7 +168,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('trusts the row when the verify token cannot read the hook', async () => {
     const { service, created } = serviceWith({
-      tokens: { 'usr_2': 'ghu_2' },
+      tokens: { usr_2: 'ghu_2' },
       getHook: async () => 'unauthorized',
     })
     seedHook()
@@ -174,7 +181,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('trusts the row when the verify call fails outright', async () => {
     const { service, created } = serviceWith({
-      tokens: { 'usr_2': 'ghu_2' },
+      tokens: { usr_2: 'ghu_2' },
       getHook: async () => {
         throw new Error('github is down')
       },
@@ -188,7 +195,7 @@ describe('GithubHookLifecycleService', () => {
   })
 
   it('memoizes the verify for a few minutes instead of hammering github on every resubscribe', async () => {
-    const { service, verified } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
+    const { service, verified } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
     seedHook()
 
     await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
@@ -199,7 +206,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('adopts a hook github already has (422) instead of failing', async () => {
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       createHook: async () => ({ outcome: 'adopted', hookId: 777 }),
     })
 
@@ -211,7 +218,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('reports poll-backed when github forbids hook creation', async () => {
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       createHook: async () => ({ outcome: 'forbidden' }),
     })
 
@@ -223,7 +230,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('tolerates a concurrent creator who won the row', async () => {
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       createHook: async () => ({ outcome: 'created', hookId: 555 }),
     })
     const { uniqueViolation } = await import('../../../../test/fake-db-support.js')
@@ -238,7 +245,7 @@ describe('GithubHookLifecycleService', () => {
   })
 
   it('recreates an orphaned hook with the new subscriber as creator', async () => {
-    const { service } = serviceWith({ tokens: { 'usr_2': 'ghu_2' } })
+    const { service } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
     seedHook({ status: 'orphaned' })
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })

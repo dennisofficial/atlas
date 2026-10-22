@@ -1,6 +1,10 @@
 import { ELexRule, type LineRule, type PatternRule, type QuotedRule, type SpanRule } from './spec'
 
-export function lineComment(args: { open: string; atLineStart?: boolean; atColumn?: number }): LineRule {
+export function lineComment(args: {
+  open: string
+  atLineStart?: boolean
+  atColumn?: number
+}): LineRule {
   return {
     kind: ELexRule.line,
     open: args.open,
@@ -62,7 +66,11 @@ export function quoted(args: {
 }
 
 export function doubleQuoted(args?: { escape?: string | null; multiline?: boolean }): QuotedRule {
-  return quoted({ open: '"', escape: args?.escape ?? '\\', ...(args?.multiline === undefined ? {} : { multiline: args.multiline }) })
+  return quoted({
+    open: '"',
+    escape: args?.escape ?? '\\',
+    ...(args?.multiline === undefined ? {} : { multiline: args.multiline }),
+  })
 }
 
 export function singleQuoted(args?: { escape?: string | null; doubled?: boolean }): QuotedRule {
@@ -81,7 +89,11 @@ export function tripleQuoted(): QuotedRule {
   return quoted({ open: '"""', escape: null, multiline: true })
 }
 
-export function pattern(args: { match: RegExp; group: string; atLineStart?: boolean }): PatternRule {
+export function pattern(args: {
+  match: RegExp
+  group: string
+  atLineStart?: boolean
+}): PatternRule {
   return {
     kind: ELexRule.pattern,
     match: args.match,

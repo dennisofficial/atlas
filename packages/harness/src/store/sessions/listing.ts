@@ -137,20 +137,31 @@ export async function readThreadMetas({
   const metas = await Promise.all(
     names
       .filter((name) => name.endsWith('.meta.json'))
-      .map((name) => readMeta({ file: join(directory, name), schema: threadMetaSchema }).catch(() => undefined)),
+      .map((name) =>
+        readMeta({ file: join(directory, name), schema: threadMetaSchema }).catch(() => undefined),
+      ),
   )
   return metas.filter((meta): meta is ThreadMeta => meta !== undefined)
 }
 
 function activityAtOf({ metas, root }: { metas: readonly ThreadMeta[]; root: ThreadMeta }): string {
-  return metas.reduce((latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest), root.updatedAt)
+  return metas.reduce(
+    (latest, meta) => (meta.updatedAt > latest ? meta.updatedAt : latest),
+    root.updatedAt,
+  )
 }
 
 function basicOf({ entry }: { entry: RootEntry }): ThreadSummary {
   return { ...toThreadSummary(entry.root), updatedAt: entry.activityAt }
 }
 
-function withPlaces({ summary, places }: { summary: ThreadSummary; places: ListingPlaces }): ThreadSummary {
+function withPlaces({
+  summary,
+  places,
+}: {
+  summary: ThreadSummary
+  places: ListingPlaces
+}): ThreadSummary {
   return {
     ...summary,
     ...(places.worktree === null ? {} : { worktree: places.worktree }),
@@ -172,23 +183,28 @@ async function scanRoots({
     warnDirectoryUnreadable({ logPort, path: root, error })
     return []
   })
-  const candidates = dirs.filter((dir) => dir.isDirectory()).map((dir) => ({
-    sessionDir: join(root, dir.name),
-    id: toThreadId(dir.name),
-  }))
+  const candidates = dirs
+    .filter((dir) => dir.isDirectory())
+    .map((dir) => ({
+      sessionDir: join(root, dir.name),
+      id: toThreadId(dir.name),
+    }))
   const roots = await mapConcurrent({
     items: candidates,
     limit: SCAN_CONCURRENCY,
     map: async ({ sessionDir, id }) => {
-      const meta = await readMeta({ file: threadMetaFile({ sessionDir, threadId: id }), schema: threadMetaSchema }).catch(
-        () => undefined,
-      )
+      const meta = await readMeta({
+        file: threadMetaFile({ sessionDir, threadId: id }),
+        schema: threadMetaSchema,
+      }).catch(() => undefined)
       if (meta === undefined || meta.spawnerThreadId !== null) return undefined
       if (meta.repo !== project && meta.workspace !== project) return undefined
       return { sessionDir, root: meta }
     },
   })
-  const matched = roots.filter((entry): entry is { sessionDir: string; root: ThreadMeta } => entry !== undefined)
+  const matched = roots.filter(
+    (entry): entry is { sessionDir: string; root: ThreadMeta } => entry !== undefined,
+  )
   return mapConcurrent({
     items: matched,
     limit: SCAN_CONCURRENCY,
@@ -199,7 +215,8 @@ async function scanRoots({
   })
 }
 
-const byActivityDesc = (a: RootEntry, b: RootEntry): number => b.activityAt.localeCompare(a.activityAt)
+const byActivityDesc = (a: RootEntry, b: RootEntry): number =>
+  b.activityAt.localeCompare(a.activityAt)
 
 function snapshotOf({ rows }: { rows: readonly ListingRow[] }): ThreadSummary[] {
   return rows.map((row) => withPlaces({ summary: row.summary, places: row.places }))
@@ -232,7 +249,11 @@ async function enrichRoots({
     limit: ENRICH_CONCURRENCY,
     map: async (row) => {
       row.places = await placesForSegments({
-        segments: planSegments({ home, sessionDir: row.entry.sessionDir, threadId: toThreadId(row.entry.root.id) }),
+        segments: planSegments({
+          home,
+          sessionDir: row.entry.sessionDir,
+          threadId: toThreadId(row.entry.root.id),
+        }),
       })
       onUpdate?.(snapshotOf({ rows }))
     },

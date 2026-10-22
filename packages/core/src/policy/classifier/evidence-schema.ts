@@ -58,13 +58,15 @@ const worktreeFactSchema = z
     changedCount: maybeCount,
     unpushedCommits: maybeCount,
   })
-  .transform((worktree): WorktreeFact => ({
-    ...worktree,
-    branch: worktree.branch,
-    heldBy: worktree.heldBy,
-    changedCount: worktree.changedCount,
-    unpushedCommits: worktree.unpushedCommits,
-  }))
+  .transform(
+    (worktree): WorktreeFact => ({
+      ...worktree,
+      branch: worktree.branch,
+      heldBy: worktree.heldBy,
+      changedCount: worktree.changedCount,
+      unpushedCommits: worktree.unpushedCommits,
+    }),
+  )
 
 const refFactSchema = z.object({
   ref: z.string(),

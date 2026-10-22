@@ -7,7 +7,12 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import { CountingIds, SteppingClock } from '../../store/__tests__/harness'
 import { JsonlEventLog } from '../../store/sessions/event-log'
-import { sessionDirectory, sessionLockFile, threadDataDirectory, threadMetaFile } from '../../store/sessions/paths'
+import {
+  sessionDirectory,
+  sessionLockFile,
+  threadDataDirectory,
+  threadMetaFile,
+} from '../../store/sessions/paths'
 import { SessionRegistry } from '../../store/sessions/registry'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import { toShellId } from '../shell-id'
@@ -39,13 +44,19 @@ describe('ShellStorage', () => {
 
     const shell = await storage.create({ threadId: child.id })
 
-    expect(shell.directory.startsWith(join(threadDataDirectory({ sessionDir, threadId: child.id }), 'shells'))).toBe(true)
+    expect(
+      shell.directory.startsWith(
+        join(threadDataDirectory({ sessionDir, threadId: child.id }), 'shells'),
+      ),
+    ).toBe(true)
     expect((await stat(shell.directory)).mode & 0o777).toBe(0o700)
     expect(shell.output).toBe(join(shell.directory, 'spool.out'))
     expect(shell.sessionDirectory).toBe(sessionDir)
     expect(shell.threadDirectory).toBe(threadDataDirectory({ sessionDir, threadId: child.id }))
     expect(shell.sessionLock).toBe(sessionLockFile({ sessionDir }))
-    expect(new Set([shell.output, shell.config, shell.lock, shell.cursor, shell.sessionLock]).size).toBe(5)
+    expect(
+      new Set([shell.output, shell.config, shell.lock, shell.cursor, shell.sessionLock]).size,
+    ).toBe(5)
     expect((await stat(threadMetaFile({ sessionDir, threadId: child.id }))).isFile()).toBe(true)
   })
 
@@ -77,7 +88,9 @@ describe('ShellStorage', () => {
   })
 
   it('rejects shell ids that could escape their directory', () => {
-    expect(() => shellFiles({ sessionDir: '/s', threadId: toThreadId('t'), shellId: toShellId('../x') })).toThrow()
+    expect(() =>
+      shellFiles({ sessionDir: '/s', threadId: toThreadId('t'), shellId: toShellId('../x') }),
+    ).toThrow()
   })
 
   it('locates the files of an existing shell', async () => {
@@ -94,7 +107,13 @@ describe('ShellStorage', () => {
     const main = await threads.create({ title: 'main' })
     const outside = await mkdtemp(join(tmpdir(), 'atlas-shell-outside-'))
     homes.push(outside)
-    await symlink(outside, threadDataDirectory({ sessionDir: sessionDirectory({ home, sessionId: main.id }), threadId: main.id }))
+    await symlink(
+      outside,
+      threadDataDirectory({
+        sessionDir: sessionDirectory({ home, sessionId: main.id }),
+        threadId: main.id,
+      }),
+    )
 
     await expect(storage.create({ threadId: main.id })).rejects.toThrow('must be a plain directory')
   })

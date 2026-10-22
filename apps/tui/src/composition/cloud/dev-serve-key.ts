@@ -25,12 +25,17 @@ export function devServeKeyOf(args: { source: DevServeSource; target: ELinuxServ
   hasher.update(`target\0${target}\0head\0${source.head}\0diff\0`)
   hasher.update(source.diff)
   hasher.update('\0untracked\0')
-  const untracked = [...source.untracked].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+  const untracked = [...source.untracked].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  )
   for (const file of untracked) hasher.update(`${file.path}\0${file.sha256}\0`)
   return hasher.digest('hex')
 }
 
-export function devServeCacheKeyOf(args: { source: DevServeSource; target: ELinuxServeTarget }): string {
+export function devServeCacheKeyOf(args: {
+  source: DevServeSource
+  target: ELinuxServeTarget
+}): string {
   return devServeKeyOf(args).slice(0, 16)
 }
 
@@ -39,7 +44,10 @@ export function devServePinOf(binarySha256: string): string {
 }
 
 const git = async (args: { repo: string; argv: readonly string[] }): Promise<string | null> => {
-  const proc = Bun.spawn(['git', '-C', args.repo, ...args.argv], { stdout: 'pipe', stderr: 'ignore' })
+  const proc = Bun.spawn(['git', '-C', args.repo, ...args.argv], {
+    stdout: 'pipe',
+    stderr: 'ignore',
+  })
   const text = await new Response(proc.stdout).text()
   return (await proc.exited) === 0 ? text : null
 }

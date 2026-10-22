@@ -24,10 +24,7 @@ describe('registering a client token that a pod lease already holds', () => {
 
   beforeEach(() => {
     fake.reset()
-    service = new SandboxesService(
-      {} as unknown as VercelSandboxClient,
-      cipher,
-    )
+    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
     fake.podLeaseRows.push({
       id: 'lease_1',
       userId: 'user-b',
@@ -36,12 +33,15 @@ describe('registering a client token that a pod lease already holds', () => {
     })
   })
 
-  it.each(['user-a', 'user-b'])('refuses with a conflict for owner %s and writes nothing', async (userId) => {
-    await expect(
-      service.claim({ userId, threadId: 'brn_new', clientToken: TOKEN, serveUrl: SERVE_URL }),
-    ).rejects.toBeInstanceOf(ConflictException)
+  it.each(['user-a', 'user-b'])(
+    'refuses with a conflict for owner %s and writes nothing',
+    async (userId) => {
+      await expect(
+        service.claim({ userId, threadId: 'brn_new', clientToken: TOKEN, serveUrl: SERVE_URL }),
+      ).rejects.toBeInstanceOf(ConflictException)
 
-    expect(fake.cloudSandboxes).toHaveLength(0)
-    expect(fake.threads).toHaveLength(0)
-  })
+      expect(fake.cloudSandboxes).toHaveLength(0)
+      expect(fake.threads).toHaveLength(0)
+    },
+  )
 })

@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { db } from '../../../db'
-import { pendingMigrations, shippedMigrationNames } from '../../../_lib/migrations/pending-migrations'
+import {
+  pendingMigrations,
+  shippedMigrationNames,
+} from '../../../_lib/migrations/pending-migrations'
 
 export enum EMigrationState {
   Level = 'level',

@@ -22,7 +22,9 @@ let vault: Vault
 
 class ScriptedBrowserClient {
   cancelled = 0
-  private settle: { resolve: (login: OauthLogin) => void; reject: (reason: Error) => void } | undefined
+  private settle:
+    | { resolve: (login: OauthLogin) => void; reject: (reason: Error) => void }
+    | undefined
 
   startBrowserLogin = async (): Promise<BrowserLoginSession> => ({
     url: 'https://auth.openai.com/oauth/authorize?state=s',
@@ -137,7 +139,11 @@ describe('AccountsService browser login', () => {
 
     const noFlow = new AccountsService({
       accounts: vault.store,
-      clients: { [EAuthProvider.OpenAI]: { refresh: async () => ({ accessToken: '', refreshToken: '', expiresAt: '' }) } },
+      clients: {
+        [EAuthProvider.OpenAI]: {
+          refresh: async () => ({ accessToken: '', refreshToken: '', expiresAt: '' }),
+        },
+      },
     })
     expect(noFlow.beginBrowser(EAuthProvider.OpenAI)).rejects.toThrow(CredentialError)
   })

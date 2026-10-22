@@ -22,7 +22,10 @@ const handsOff = (
   definition.kind === ESettingKind.Secret ||
   definition.kind === ESettingKind.Model
 
-const optionIndex = (args: { options: readonly { value: string }[]; value: SettingValue }): number => {
+const optionIndex = (args: {
+  options: readonly { value: string }[]
+  value: SettingValue
+}): number => {
   const found = args.options.findIndex((option) => option.value === args.value)
   return found < 0 ? 0 : found
 }

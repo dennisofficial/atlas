@@ -11,7 +11,11 @@ import { fakeBridge, CLOUD_THREAD, type FakeCloudChannel } from './fixture'
 const attached = () => {
   const bridge = fakeBridge()
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }) })
-  const { stores } = bridge.attach({ threadId: CLOUD_THREAD, url: 'https://sandbox.example', token: 'tok' })
+  const { stores } = bridge.attach({
+    threadId: CLOUD_THREAD,
+    url: 'https://sandbox.example',
+    token: 'tok',
+  })
   const channel: FakeCloudChannel = bridge.channel
   const answers = new Map<EClientRequest, unknown>()
   const delegate = channel.request.bind(channel)
@@ -41,15 +45,28 @@ describe('the compaction a cloud thread carries', () => {
 
   it('sends a compact request to the sandbox and returns its answer', async () => {
     const { app, channel, stores, answers } = attached()
-    answers.set(EClientRequest.CompactHistory, { type: 'compacted', replaced: 4, fromSeq: 1, throughSeq: 4 })
+    answers.set(EClientRequest.CompactHistory, {
+      type: 'compacted',
+      replaced: 4,
+      fromSeq: 1,
+      throughSeq: 4,
+    })
     const port = cloudRuntimeParts({ channel, stores, runner: app.runner }).compaction
 
-    const compaction = await port?.compact({ threadId: CLOUD_THREAD, scope: ECompactScope.Everything })
+    const compaction = await port?.compact({
+      threadId: CLOUD_THREAD,
+      scope: ECompactScope.Everything,
+    })
 
-    expect(compaction).toEqual({ type: ECompaction.Compacted, replaced: 4, fromSeq: 1, throughSeq: 4 })
-    expect(channel.requests.filter((sent) => sent.op === EClientRequest.CompactHistory)).toMatchObject([
-      { params: { threadId: CLOUD_THREAD, scope: 'everything' } },
-    ])
+    expect(compaction).toEqual({
+      type: ECompaction.Compacted,
+      replaced: 4,
+      fromSeq: 1,
+      throughSeq: 4,
+    })
+    expect(
+      channel.requests.filter((sent) => sent.op === EClientRequest.CompactHistory),
+    ).toMatchObject([{ params: { threadId: CLOUD_THREAD, scope: 'everything' } }])
   })
 
   it('sends a summarise request with the anchor and seq', async () => {
@@ -64,9 +81,9 @@ describe('the compaction a cloud thread carries', () => {
     })
 
     expect(compaction).toEqual({ type: ECompaction.Nothing })
-    expect(channel.requests.filter((sent) => sent.op === EClientRequest.SummariseHistory)).toMatchObject([
-      { params: { threadId: CLOUD_THREAD, anchor: 'suffix', seq: 7 } },
-    ])
+    expect(
+      channel.requests.filter((sent) => sent.op === EClientRequest.SummariseHistory),
+    ).toMatchObject([{ params: { threadId: CLOUD_THREAD, anchor: 'suffix', seq: 7 } }])
   })
 })
 

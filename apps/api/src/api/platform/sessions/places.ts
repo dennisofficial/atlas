@@ -37,10 +37,7 @@ const linkedFrom = (body: string): LinkedPullRequestDto | null => {
 
 type ForkLink = { parentThreadId: string; forkSeq: number } | null
 
-async function referenceLink(args: {
-  reader: SessionReader
-  threadId: string
-}): Promise<ForkLink> {
+async function referenceLink(args: { reader: SessionReader; threadId: string }): Promise<ForkLink> {
   const link = await args.reader.thread.findUnique({
     where: { id: args.threadId },
     select: { parentThreadId: true, forkSeq: true, forkMode: true },

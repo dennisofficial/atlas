@@ -11,16 +11,29 @@ import type { ContainerDetails } from '../engine'
 import type { SandboxConfig } from '../sandbox'
 
 const config: SandboxConfig = {
-  image: 'node:22-trixie-slim', worktree: '/project', session: 'session-test', uid: 501, gid: 20,
-  home: '/home/operator', dockerSocket: '/var/run/docker.sock',
+  image: 'node:22-trixie-slim',
+  worktree: '/project',
+  session: 'session-test',
+  uid: 501,
+  gid: 20,
+  home: '/home/operator',
+  dockerSocket: '/var/run/docker.sock',
   limits: { cpus: 1, memoryBytes: 1024 ** 3 },
   sshKnownHostsPath: '/home/operator/.ssh/known_hosts',
   gpgAgentExtraSocket: '/home/operator/.gnupg/S.gpg-agent.extra',
   gpgPubringPath: '/home/operator/.gnupg/pubring.kbx',
 }
 const actual = [
-  { source: '/home/operator/.ssh/known_hosts', destination: '/home/operator/.ssh/known_hosts', readOnly: true },
-  { source: '/home/operator/.gnupg/pubring.kbx', destination: '/run/atlas/gnupg/pubring.kbx', readOnly: true },
+  {
+    source: '/home/operator/.ssh/known_hosts',
+    destination: '/home/operator/.ssh/known_hosts',
+    readOnly: true,
+  },
+  {
+    source: '/home/operator/.gnupg/pubring.kbx',
+    destination: '/run/atlas/gnupg/pubring.kbx',
+    readOnly: true,
+  },
 ]
 
 describe('missing identity mounts', () => {
@@ -133,13 +146,17 @@ describe('declared mounts drift, label-stamped at creation', () => {
   })
 
   it('reuses a labeled container whose declared mounts still match, whatever the live mounts look like', () => {
-    const labeled = details({ labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) } })
+    const labeled = details({
+      labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) },
+    })
 
     expect(declaredMountsDrift({ config, details: labeled, prefix: 'atlas' })).toBe(false)
   })
 
   it('drifts when the declared mounts no longer match the label', () => {
-    const labeled = details({ labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) } })
+    const labeled = details({
+      labels: { [declaredMountsLabel('atlas')]: encodeDeclaredMounts([]) },
+    })
 
     expect(
       declaredMountsDrift({
@@ -160,7 +177,11 @@ describe('declared mounts drift, label-stamped at creation', () => {
     })
 
     expect(
-      declaredMountsDrift({ config: { ...config, mounts: [...mounts] }, details: labeled, prefix: 'atlas' }),
+      declaredMountsDrift({
+        config: { ...config, mounts: [...mounts] },
+        details: labeled,
+        prefix: 'atlas',
+      }),
     ).toBe(false)
   })
 

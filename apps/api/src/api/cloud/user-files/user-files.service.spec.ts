@@ -35,7 +35,9 @@ const fake = hoisted(() => {
         findManyCalls.push(args)
         return rows
           .filter((row) => row.userId === args.where.userId && row.tree === args.where.tree)
-          .filter((row) => args.where.revision === undefined || row.revision > args.where.revision.gt)
+          .filter(
+            (row) => args.where.revision === undefined || row.revision > args.where.revision.gt,
+          )
           .filter((row) => args.where.path === undefined || args.where.path.in.includes(row.path))
           .sort((a, b) => a.revision - b.revision)
       },
@@ -140,16 +142,19 @@ describe('UserFilesService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(fake.rows[0] ?? null)
 
-      const conflict = await conflictOf(
-        service.put(putArgs({ text: 'racer', baseRevision: 0 })),
-      )
+      const conflict = await conflictOf(service.put(putArgs({ text: 'racer', baseRevision: 0 })))
 
       expect(conflict.getResponse()).toMatchObject({ currentRevision: 1 })
     })
 
     it('bumps the revision, stores the hash and clears a tombstone on a matching base', async () => {
       await service.put(putArgs({ text: 'one', baseRevision: 0 }))
-      await service.remove({ userId: USER_A, tree: 'skills', path: 'review/SKILL.md', baseRevision: 1 })
+      await service.remove({
+        userId: USER_A,
+        tree: 'skills',
+        path: 'review/SKILL.md',
+        baseRevision: 1,
+      })
 
       expect(await service.put(putArgs({ text: 'back', baseRevision: 2 }))).toEqual({ revision: 3 })
 
@@ -226,7 +231,11 @@ describe('UserFilesService', () => {
       await service.put(putArgs({ text: 'b', baseRevision: 0, path: 'b.md' }))
       await service.remove({ userId: USER_A, tree: 'skills', path: 'b.md', baseRevision: 1 })
 
-      const files = await service.getMany({ userId: USER_A, tree: 'skills', paths: ['a.md', 'b.md'] })
+      const files = await service.getMany({
+        userId: USER_A,
+        tree: 'skills',
+        paths: ['a.md', 'b.md'],
+      })
 
       expect(files.map((file) => [file.path, file.content])).toEqual([
         ['a.md', encode('a')],
@@ -249,9 +258,9 @@ describe('UserFilesService', () => {
       ['trailing whitespace', 'a /b'],
       ['too long', 'a'.repeat(501)],
     ])('rejects a %s path', async (_label, path) => {
-      await expect(service.put(putArgs({ text: 'x', baseRevision: 0, path }))).rejects.toBeInstanceOf(
-        BadRequestException,
-      )
+      await expect(
+        service.put(putArgs({ text: 'x', baseRevision: 0, path })),
+      ).rejects.toBeInstanceOf(BadRequestException)
       await expect(
         service.remove({ userId: USER_A, tree: 'skills', path, baseRevision: 1 }),
       ).rejects.toBeInstanceOf(BadRequestException)

@@ -1,7 +1,13 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useCloudSettings, ESettingsTarget, type CloudSettings, type SettingChanges, type SettingValues } from '@/lib/cloud-settings'
+import {
+  useCloudSettings,
+  ESettingsTarget,
+  type CloudSettings,
+  type SettingChanges,
+  type SettingValues,
+} from '@/lib/cloud-settings'
 import { useSaveAction } from './use-save-action'
 import { useDraft, type Draft } from '../../use-draft'
 

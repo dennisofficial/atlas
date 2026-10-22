@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor } from '@dltech/atlas-core'
-import { ECompaction, ECompactScope, EClientRequest, RemoteRequestFailed } from '@dltech/atlas-harness'
+import {
+  ECompaction,
+  ECompactScope,
+  EClientRequest,
+  RemoteRequestFailed,
+} from '@dltech/atlas-harness'
 
 import {
   jsonlRows,
@@ -30,7 +35,10 @@ describe('history compaction over a real websocket and JSONL log', () => {
     const after = jsonlRows(served.store)
     expect(after.slice(0, before.length)).toEqual(before)
     expect(after.at(-1)?.type).toBe('history-compacted')
-    await until({ what: 'both clients to reload', condition: () => served.client.reloads.length > 0 && watcher.reloads.length > 0 })
+    await until({
+      what: 'both clients to reload',
+      condition: () => served.client.reloads.length > 0 && watcher.reloads.length > 0,
+    })
     const remote = await served.remoteLog.read({ threadId })
     expect(remote.map((event) => event.seq)).toEqual(after.map((row) => row.seq))
     expect(remote.some((event) => event.type === 'history-compacted')).toBe(true)
@@ -52,13 +60,29 @@ describe('history compaction over a real websocket and JSONL log', () => {
     const through = seqOf({ events, match: 'four' })
     const loaded = seqOf({ events, match: 'context-loaded' })
 
-    const outcome = await served.compaction.summarise({ threadId, anchor: ECompactionAnchor.Prefix, seq: through })
+    const outcome = await served.compaction.summarise({
+      threadId,
+      anchor: ECompactionAnchor.Prefix,
+      seq: through,
+    })
 
-    expect(outcome).toMatchObject({ type: ECompaction.Compacted, fromSeq: events[0]!.seq, throughSeq: through })
+    expect(outcome).toMatchObject({
+      type: ECompaction.Compacted,
+      fromSeq: events[0]!.seq,
+      throughSeq: through,
+    })
     const rows = jsonlRows(served.store)
-    expect(rows.filter((row) => row.seq <= through).map((row) => row.type).sort()).toEqual(['context-loaded', 'history-compacted'].sort())
+    expect(
+      rows
+        .filter((row) => row.seq <= through)
+        .map((row) => row.type)
+        .sort(),
+    ).toEqual(['context-loaded', 'history-compacted'].sort())
     expect(rows.some((row) => row.seq === loaded)).toBe(true)
-    expect(rows.filter((row) => row.seq > through).map((row) => row.type)).toEqual(['user-said', 'assistant-said'])
+    expect(rows.filter((row) => row.seq > through).map((row) => row.type)).toEqual([
+      'user-said',
+      'assistant-said',
+    ])
   })
 
   it('summarises a suffix destructively from the anchor to the head', async () => {
@@ -66,10 +90,22 @@ describe('history compaction over a real websocket and JSONL log', () => {
     const events = await served.remoteLog.read({ threadId })
     const from = seqOf({ events, match: 'five' })
 
-    const outcome = await served.compaction.summarise({ threadId, anchor: ECompactionAnchor.Suffix, seq: from })
+    const outcome = await served.compaction.summarise({
+      threadId,
+      anchor: ECompactionAnchor.Suffix,
+      seq: from,
+    })
 
-    expect(outcome).toMatchObject({ type: ECompaction.Compacted, fromSeq: from, throughSeq: events.at(-1)!.seq })
-    expect(jsonlRows(served.store).filter((row) => row.seq >= from).map((row) => row.type)).toEqual(['history-compacted'])
+    expect(outcome).toMatchObject({
+      type: ECompaction.Compacted,
+      fromSeq: from,
+      throughSeq: events.at(-1)!.seq,
+    })
+    expect(
+      jsonlRows(served.store)
+        .filter((row) => row.seq >= from)
+        .map((row) => row.type),
+    ).toEqual(['history-compacted'])
   })
 
   it('reports a guard refusal for a split tool exchange and leaves the JSONL alone', async () => {
@@ -97,11 +133,17 @@ describe('history compaction over a real websocket and JSONL log', () => {
     const controller = new AbortController()
 
     const running = served.compaction.compact({ threadId, signal: controller.signal })
-    const settled = running.then(() => 'resolved', () => 'rejected')
+    const settled = running.then(
+      () => 'resolved',
+      () => 'rejected',
+    )
     await probe.entered
     controller.abort()
 
-    await until({ what: 'the serve to abort the summariser', condition: () => probe.calls[0]?.signal?.aborted === true })
+    await until({
+      what: 'the serve to abort the summariser',
+      condition: () => probe.calls[0]?.signal?.aborted === true,
+    })
     expect(await settled).toBe('rejected')
     expect(jsonlRows(served.store)).toEqual(before)
     expect(served.client.reloads).toEqual([])
@@ -114,17 +156,28 @@ describe('history compaction over a real websocket and JSONL log', () => {
     const controller = new AbortController()
 
     const running = served.compaction.compact({ threadId, signal: controller.signal })
-    const settled = running.then(() => 'resolved', () => 'rejected')
+    const settled = running.then(
+      () => 'resolved',
+      () => 'rejected',
+    )
     await probe.entered
     controller.abort()
-    await until({ what: 'the serve to abort the summariser', condition: () => probe.calls[0]?.signal?.aborted === true })
+    await until({
+      what: 'the serve to abort the summariser',
+      condition: () => probe.calls[0]?.signal?.aborted === true,
+    })
     probe.release()
 
-    await until({ what: 'the late summary to settle', condition: () => !served.client.workingNow() })
+    await until({
+      what: 'the late summary to settle',
+      condition: () => !served.client.workingNow(),
+    })
     await Bun.sleep(50)
     expect(jsonlRows(served.store)).toEqual(before)
     expect(served.client.reloads).toEqual([])
-    expect(await served.compaction.compact({ threadId })).toMatchObject({ type: ECompaction.Compacted })
+    expect(await served.compaction.compact({ threadId })).toMatchObject({
+      type: ECompaction.Compacted,
+    })
     void settled
   })
 
@@ -171,7 +224,11 @@ describe('history compaction over a real websocket and JSONL log', () => {
     await probe.entered
     served.client.channel.send({ text: 'sneaky' })
     served.client.channel.run()
-    await until({ what: 'the run refusal and send acknowledgement', condition: () => errors.length >= 1 && served.client.frames.some((frame) => frame.kind === 'send-acked') })
+    await until({
+      what: 'the run refusal and send acknowledgement',
+      condition: () =>
+        errors.length >= 1 && served.client.frames.some((frame) => frame.kind === 'send-acked'),
+    })
     const rewind = second.channel.request({
       op: EClientRequest.Rewind,
       params: { threadId, cuts: [], toSeq: 1 },
@@ -192,7 +249,13 @@ describe('history compaction over a real websocket and JSONL log', () => {
     expect(jsonlRows(served.store)).toEqual(before)
     probe.release()
     expect(await running).toMatchObject({ type: ECompaction.Compacted })
-    await until({ what: 'the queued message to commit after compaction', condition: () => jsonlRows(served.store).some((row) => row.type === 'user-said' && row.seq > before.at(-1)!.seq) })
+    await until({
+      what: 'the queued message to commit after compaction',
+      condition: () =>
+        jsonlRows(served.store).some(
+          (row) => row.type === 'user-said' && row.seq > before.at(-1)!.seq,
+        ),
+    })
     expect(jsonlRows(served.store).filter((row) => row.type === 'user-said')).toHaveLength(4)
   })
 

@@ -26,7 +26,9 @@ afterEach(async () => {
 
 describe('a step the provider did not let finish cleanly', () => {
   it('fails the turn naming the safety filter rather than reading it as a stop', async () => {
-    const { harness } = await open([{ text: 'partial answer', finishReason: EFinishReason.ContentFilter }])
+    const { harness } = await open([
+      { text: 'partial answer', finishReason: EFinishReason.ContentFilter },
+    ])
     const thread = await harness.threads.create({})
 
     const outcome = await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
@@ -44,7 +46,9 @@ describe('a step the provider did not let finish cleanly', () => {
     const outcome = await harness.runner.say({ threadId: thread.id, text: 'what changed?' })
 
     expect(outcome.status).toBe(ETurnStatus.Failed)
-    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/finish reason "error"/)
+    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(
+      /finish reason "error"/,
+    )
   })
 
   it('names the finish reason when an empty reply also fails the nudge', async () => {

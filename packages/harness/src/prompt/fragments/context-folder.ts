@@ -1,6 +1,5 @@
 import { EPromptAgent, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
-
 export class ContextFolderFragment extends PromptFragment {
   readonly id = 'environment.context-folder'
 

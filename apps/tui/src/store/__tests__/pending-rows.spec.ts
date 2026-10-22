@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EKilledBy, EServiceStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EKilledBy,
+  EServiceStatus,
+  EShellStatus,
+  toThreadId,
+} from '@dltech/atlas-core'
 import {
   ENotice,
   toShellId,
@@ -240,7 +246,10 @@ describe('what waits under the working indicator', () => {
       ],
     })
 
-    expect(rows.map((row) => row.kind === EPendingKind.Service && row.failed)).toEqual([true, false])
+    expect(rows.map((row) => row.kind === EPendingKind.Service && row.failed)).toEqual([
+      true,
+      false,
+    ])
   })
 
   it('shows a queued command where it was typed, between the messages', () => {
@@ -258,7 +267,6 @@ describe('what waits under the working indicator', () => {
     ])
     expect(rows[1]).toEqual({ kind: EPendingKind.Command, id: 'p2', text: '/new' })
   })
-
 })
 
 describe('the sandbox queue a cloud session renders', () => {
@@ -278,7 +286,9 @@ describe('the sandbox queue a cloud session renders', () => {
       services: [],
     })
 
-    expect(rows).toEqual([{ kind: EPendingKind.Operator, id: 'remote-1', text: 'steer from the phone' }])
+    expect(rows).toEqual([
+      { kind: EPendingKind.Operator, id: 'remote-1', text: 'steer from the phone' },
+    ])
   })
 
   it('drops entries the intake already reserved, since ↑ can no longer reach them', () => {

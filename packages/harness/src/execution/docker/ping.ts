@@ -11,7 +11,9 @@ export async function pingDocker(args: {
     })
     if (!response.ok) return `Docker answered _ping with HTTP ${response.status}`
     const body = (await response.text()).trim()
-    return body === 'OK' ? undefined : `Docker answered _ping with an unexpected body: ${body.slice(0, 80)}`
+    return body === 'OK'
+      ? undefined
+      : `Docker answered _ping with an unexpected body: ${body.slice(0, 80)}`
   } catch (error) {
     return error instanceof Error ? error.message : String(error)
   }

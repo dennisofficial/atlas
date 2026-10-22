@@ -3,7 +3,6 @@ import React from 'react'
 
 import { Accounts } from '../ui/components/accounts'
 import type { Span } from '../ui/components/spans'
-import type { ProviderRow } from '../ui/accounts-model'
 import { CompactingOverlay, type Compacting } from '../ui/components/compacting'
 import { ContainerGuard } from '../ui/components/container-guard'
 import { ContainerMoveOverlay } from '../ui/components/container-move'

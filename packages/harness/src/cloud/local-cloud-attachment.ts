@@ -15,15 +15,28 @@ import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
 export type AttachOptions = Pick<
   LocalCloudBridgeOptions,
-  'lastEventSeq' | 'settings' | 'localLog' | 'onMirrorFailed' | 'onMirrorRecovered' | 'sessionMirror' | 'projectIdOf'
+  | 'lastEventSeq'
+  | 'settings'
+  | 'localLog'
+  | 'onMirrorFailed'
+  | 'onMirrorRecovered'
+  | 'sessionMirror'
+  | 'projectIdOf'
 >
 
 export const attachmentOf =
-  (args: {
-    options: AttachOptions
-    sandboxes: CloudSandboxes
-  }): CloudBridge['attach'] =>
-  ({ threadId, url, token, sandboxThreadId }: { threadId: ThreadId; url: string; token: string; sandboxThreadId?: ThreadId | undefined }) => {
+  (args: { options: AttachOptions; sandboxes: CloudSandboxes }): CloudBridge['attach'] =>
+  ({
+    threadId,
+    url,
+    token,
+    sandboxThreadId,
+  }: {
+    threadId: ThreadId
+    url: string
+    token: string
+    sandboxThreadId?: ThreadId | undefined
+  }) => {
     const { options, sandboxes } = args
     const hosted = sandboxThreadId ?? threadId
     let unbindSettings: (() => void) | undefined
@@ -35,7 +48,8 @@ export const attachmentOf =
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
       wakeSandbox: async ({ onRotationStarted }) => {
-        const projectId = (await options.projectIdOf?.({ threadId: hosted }).catch(() => null)) ?? null
+        const projectId =
+          (await options.projectIdOf?.({ threadId: hosted }).catch(() => null)) ?? null
         const { url: woken, token: minted } = await sandboxes.create({
           threadId: hosted,
           projectId,
@@ -55,8 +69,12 @@ export const attachmentOf =
             channel,
             writer: sessionMirrorWriter({ home: atlasDirectory }),
             threadId: hosted,
-            ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
-            ...(options.onMirrorRecovered === undefined ? {} : { onSyncRecovered: options.onMirrorRecovered }),
+            ...(options.onMirrorFailed === undefined
+              ? {}
+              : { onSyncFailed: options.onMirrorFailed }),
+            ...(options.onMirrorRecovered === undefined
+              ? {}
+              : { onSyncRecovered: options.onMirrorRecovered }),
           })
     const localLog = options.localLog
     return {
@@ -71,8 +89,12 @@ export const attachmentOf =
                 localLog,
                 writer: mirrorWriter({ home: atlasDirectory }),
                 threadId,
-                ...(options.onMirrorFailed === undefined ? {} : { onSyncFailed: options.onMirrorFailed }),
-                ...(options.onMirrorRecovered === undefined ? {} : { onSyncRecovered: options.onMirrorRecovered }),
+                ...(options.onMirrorFailed === undefined
+                  ? {}
+                  : { onSyncFailed: options.onMirrorFailed }),
+                ...(options.onMirrorRecovered === undefined
+                  ? {}
+                  : { onSyncRecovered: options.onMirrorRecovered }),
               }),
         threads: new RemoteThreadStore({ channel }),
         ledger: new RemoteTurnLedger({ channel }),

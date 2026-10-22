@@ -25,7 +25,8 @@ type KeyWhere = { userId: string; githubKeyId?: bigint }
 type KeyData = Partial<Omit<FakeSigningKeyRow, 'id' | 'userId' | 'createdAt'>>
 
 const matches = (where: KeyWhere) => (row: FakeSigningKeyRow) =>
-  row.userId === where.userId && (where.githubKeyId === undefined || row.githubKeyId === where.githubKeyId)
+  row.userId === where.userId &&
+  (where.githubKeyId === undefined || row.githubKeyId === where.githubKeyId)
 
 export function createFakeSigningKeyDb() {
   const keys: FakeSigningKeyRow[] = []
@@ -51,7 +52,12 @@ export function createFakeSigningKeyDb() {
         throw uniqueViolation(['userId'])
       }
       sequence += 1
-      const row = { id: `key_${sequence}`, ...args.data, createdAt: new Date(), updatedAt: new Date() }
+      const row = {
+        id: `key_${sequence}`,
+        ...args.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
       keys.push(row)
       return row
     },

@@ -23,10 +23,7 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
 
   beforeEach(() => {
     sessions.reset()
-    service = new SandboxesService(
-      {} as unknown as VercelSandboxClient,
-      cipher,
-    )
+    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
     sessions.cloudSandboxes.push({
       id: 'sbx_1',
       userId: 'user-a',
@@ -53,7 +50,11 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
   it('falls through to the pod lease on a sandbox miss, carrying no sandbox id', async () => {
     const principal = await service.verifyTokenPrincipal({ token: 'pod-token' })
 
-    expect(principal).toEqual({ kind: ETokenPrincipalKind.Pod, threadId: 'brn_pod', userId: 'user-b' })
+    expect(principal).toEqual({
+      kind: ETokenPrincipalKind.Pod,
+      threadId: 'brn_pod',
+      userId: 'user-b',
+    })
     expect(principal).not.toHaveProperty('id')
   })
 

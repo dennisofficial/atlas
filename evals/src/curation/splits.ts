@@ -21,7 +21,15 @@ function fnv1a(text: string): number {
 
 const byId = (a: EvalCase, b: EvalCase): number => a.id.localeCompare(b.id)
 
-export function isHoldoutGroup({ group, holdoutFraction, seed }: { group: string; holdoutFraction: number; seed: number }): boolean {
+export function isHoldoutGroup({
+  group,
+  holdoutFraction,
+  seed,
+}: {
+  group: string
+  holdoutFraction: number
+  seed: number
+}): boolean {
   return fnv1a(`${seed}:${group}`) % BUCKETS < holdoutFraction * BUCKETS
 }
 
@@ -34,7 +42,11 @@ export function splitCases({
   holdoutFraction: number
   seed: number
 }): SplitResult {
-  if (!Number.isFinite(holdoutFraction) || holdoutFraction < 0 || holdoutFraction > MAX_HOLDOUT_FRACTION) {
+  if (
+    !Number.isFinite(holdoutFraction) ||
+    holdoutFraction < 0 ||
+    holdoutFraction > MAX_HOLDOUT_FRACTION
+  ) {
     throw new Error(`holdoutFraction must be within [0, ${MAX_HOLDOUT_FRACTION}]`)
   }
   const groups = new Map<string, EvalCase[]>()
@@ -57,7 +69,8 @@ export function splitCounts({ split }: { split: SplitResult }): {
   holdout: number
   groups: { development: number; holdout: number }
 } {
-  const groupCount = (members: readonly EvalCase[]): number => new Set(members.map((member) => member.provenance.group)).size
+  const groupCount = (members: readonly EvalCase[]): number =>
+    new Set(members.map((member) => member.provenance.group)).size
   return {
     development: split.development.length,
     holdout: split.holdout.length,

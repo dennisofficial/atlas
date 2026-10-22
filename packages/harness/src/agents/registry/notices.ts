@@ -85,9 +85,11 @@ export class AgentNoticeQueue {
   }
 
   threadsAwaiting(): readonly ThreadId[] {
-    return [...new Set(
-      this.queued.filter((notice) => isTurnTaking(notice.draft)).map((notice) => notice.threadId),
-    )]
+    return [
+      ...new Set(
+        this.queued.filter((notice) => isTurnTaking(notice.draft)).map((notice) => notice.threadId),
+      ),
+    ]
   }
 
   threadsQueued(): readonly ThreadId[] {
@@ -106,7 +108,13 @@ export class AgentNoticeQueue {
     this.settle(kept)
   }
 
-  forgetAgents({ threadId, agentIds }: { threadId: ThreadId; agentIds: readonly ThreadId[] }): void {
+  forgetAgents({
+    threadId,
+    agentIds,
+  }: {
+    threadId: ThreadId
+    agentIds: readonly ThreadId[]
+  }): void {
     const removed = new Set(agentIds)
     const kept = this.queued.filter(
       (notice) => notice.threadId !== threadId || !removed.has(notice.snapshot.agentId),

@@ -35,7 +35,7 @@ export function CompactedBlock(props: {
         expanded={props.expanded ?? false}
         hovered={hovered}
       />
-      {props.expanded ?? false ? <Summary text={props.text} inner={inner} /> : null}
+      {(props.expanded ?? false) ? <Summary text={props.text} inner={inner} /> : null}
     </box>
   )
 }
@@ -48,9 +48,7 @@ function DividerRow(props: {
 }): React.ReactNode {
   const label = `${HEADING} · ${summarised(props.compactedEntries)}`
   const trailing = props.expanded ? '' : ` ${OPEN_HINT}`
-  const rule = RULE_CHARACTER.repeat(
-    Math.max(0, props.inner - label.length - trailing.length - 1),
-  )
+  const rule = RULE_CHARACTER.repeat(Math.max(0, props.inner - label.length - trailing.length - 1))
 
   return (
     <text wrapMode="none" width={props.inner} flexShrink={0}>

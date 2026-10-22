@@ -1,44 +1,50 @@
-import { RadioGroup } from "@dltech/atlas-ui/components/radio-group";
+import { RadioGroup } from '@dltech/atlas-ui/components/radio-group'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
-import { Switch } from "@dltech/atlas-ui/components/switch";
-import { ToggleGroup, ToggleGroupItem } from "@dltech/atlas-ui/components/toggle-group";
+} from '@dltech/atlas-ui/components/select'
+import { Switch } from '@dltech/atlas-ui/components/switch'
+import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
 import {
   APPEARANCE_DEFAULTS,
   CODE_FONT_SIZES,
   EDensity,
   ETheme,
-} from "../../../fixtures/settings-interface";
-import { ThemeCard } from "../parts/interface-theme-card";
-import { SaveFooter, SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "../settings-layout";
-import { useDraft } from "../use-draft";
+} from '../../../fixtures/settings-interface'
+import { ThemeCard } from '../parts/interface-theme-card'
+import {
+  SaveFooter,
+  SettingsCard,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+} from '../settings-layout'
+import { useDraft } from '../use-draft'
 
-const THEMES = [ETheme.Dark, ETheme.Light, ETheme.System];
+const THEMES = [ETheme.Dark, ETheme.Light, ETheme.System]
 
 function isTheme(value: unknown): value is ETheme {
-  return THEMES.some((theme) => theme === value);
+  return THEMES.some((theme) => theme === value)
 }
 
 export function AppearancePage() {
-  const draft = useDraft(APPEARANCE_DEFAULTS);
-  const { value, setValue } = draft;
+  const draft = useDraft(APPEARANCE_DEFAULTS)
+  const { value, setValue } = draft
 
   const handleThemeChange = (next: unknown) => {
-    if (isTheme(next)) setValue({ ...value, theme: next });
-  };
+    if (isTheme(next)) setValue({ ...value, theme: next })
+  }
 
   const handleDensityChange = (next: string[]) => {
-    const density = next.find((item) => item === EDensity.Comfortable || item === EDensity.Compact);
+    const density = next.find((item) => item === EDensity.Comfortable || item === EDensity.Compact)
     if (density === EDensity.Comfortable || density === EDensity.Compact) {
-      setValue({ ...value, density });
+      setValue({ ...value, density })
     }
-  };
+  }
 
   return (
     <SettingsPage title="Appearance" description="How Atlas looks on this device.">
@@ -122,5 +128,5 @@ export function AppearancePage() {
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
-  );
+  )
 }

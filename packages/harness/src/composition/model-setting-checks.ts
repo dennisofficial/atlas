@@ -35,7 +35,12 @@ export function unreachableModelSettings(args: {
 
     const ref = parseRef(reference)
     if (ref === undefined || args.catalogue.cardFor(ref) === undefined) {
-      problems.push({ id: definition.id, label: definition.label, reference, reason: 'unknown-model' })
+      problems.push({
+        id: definition.id,
+        label: definition.label,
+        reference,
+        reason: 'unknown-model',
+      })
       continue
     }
 

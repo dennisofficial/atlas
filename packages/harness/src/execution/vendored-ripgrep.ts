@@ -38,7 +38,9 @@ async function installedRipgrepPath(): Promise<string | null> {
  */
 async function materializeEmbeddedRipgrep(): Promise<string | null> {
   try {
-    const embedded: { default: string } = await import('./vendor/rg' as string, { with: { type: 'file' } })
+    const embedded: { default: string } = await import('./vendor/rg' as string, {
+      with: { type: 'file' },
+    })
     const bytes = await Bun.file(embedded.default).arrayBuffer()
 
     const directory = join(tmpdir(), `atlas-${process.getuid?.() ?? 'user'}-bin`)

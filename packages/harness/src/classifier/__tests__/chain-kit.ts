@@ -14,7 +14,12 @@ import {
   type ToolCall,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
+import {
+  createIsolatedContainer,
+  portToken,
+  registeredPortToken,
+  resolveSet,
+} from '../../container/injection'
 import {
   ClassifierPolicyToken,
   HookMishapReporterToken,
@@ -56,7 +61,8 @@ export function chainWith(args: {
     useValue: new RecordingFacts(factsInAWorktree({ siblingChangedCount: 12 })),
   })
   container.register(WorkspaceRoot, { useValue: REPO })
-  if (args.judge !== undefined) container.register(registeredPortToken(JudgePort), { useValue: args.judge })
+  if (args.judge !== undefined)
+    container.register(registeredPortToken(JudgePort), { useValue: args.judge })
 
   registerClassifier({ container })
   container.register(ClassifierPolicyToken, {

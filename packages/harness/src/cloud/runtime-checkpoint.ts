@@ -90,7 +90,10 @@ export const consumeSandboxRotationReceipt = async (args: {
     }
     const owed = persisted.receipt
     if (owed === undefined) return
-    if (owed.threadId !== args.receipt.threadId || owed.sandboxSessionId !== args.receipt.sandboxSessionId) {
+    if (
+      owed.threadId !== args.receipt.threadId ||
+      owed.sandboxSessionId !== args.receipt.sandboxSessionId
+    ) {
       return
     }
     const consumed = {

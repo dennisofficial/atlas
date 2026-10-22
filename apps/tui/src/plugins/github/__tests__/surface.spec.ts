@@ -48,7 +48,9 @@ describe('pullRequestItem', () => {
 
   it('reads a merged pull request in the court purple', () => {
     const item = pullRequestItem({
-      footer: footer({ badge: badge({ state: EPullRequestState.Merged, checks: EChecksState.None }) }),
+      footer: footer({
+        badge: badge({ state: EPullRequestState.Merged, checks: EChecksState.None }),
+      }),
       onOpen: NEVER,
     })
     expect(item?.spans.map((span) => span.text).join('')).toBe('#123')

@@ -58,7 +58,10 @@ function sectionOf(event: Ending): string {
 export function agentEndingsText({ endings }: { endings: readonly Ending[] }): string {
   const roster = `${countedNoun({ count: endings.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
 
-  return systemNotice({ kind: 'agents-ended', content: [roster, ...endings.map(sectionOf)].join('\n\n') })
+  return systemNotice({
+    kind: 'agents-ended',
+    content: [roster, ...endings.map(sectionOf)].join('\n\n'),
+  })
 }
 
 /**

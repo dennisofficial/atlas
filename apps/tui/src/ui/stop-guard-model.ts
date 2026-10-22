@@ -70,11 +70,7 @@ function nextEnabled<C extends string>(args: {
   from: number
   step: number
 }): number {
-  for (
-    let at = args.from + args.step;
-    at >= 0 && at < args.options.length;
-    at += args.step
-  ) {
+  for (let at = args.from + args.step; at >= 0 && at < args.options.length; at += args.step) {
     if (args.options[at]?.enabled === true) return at
   }
 

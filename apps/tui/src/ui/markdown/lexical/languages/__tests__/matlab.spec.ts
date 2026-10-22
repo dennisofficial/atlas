@@ -148,7 +148,11 @@ describe('matlab lexical highlighting', () => {
   })
 
   it('reads the colon and left-divide operators', () => {
-    expect(textFor({ spec, source: 'w = A(2:end, :);', group: 'operator' })).toEqual(['=', ':', ':'])
+    expect(textFor({ spec, source: 'w = A(2:end, :);', group: 'operator' })).toEqual([
+      '=',
+      ':',
+      ':',
+    ])
     expect(textFor({ spec, source: 'x = A \\ b;', group: 'operator' })).toEqual(['=', '\\'])
   })
 

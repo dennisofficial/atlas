@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import type { DecisionQuestion } from '../../ports/decision.port'
 import { JEV_MODEL } from '../../policy/classifier/jev'
-import { EQualityImpact, EQualityReviewStatus, EQualityTransition, QualityContractError } from '../policy'
+import {
+  EQualityImpact,
+  EQualityReviewStatus,
+  EQualityTransition,
+  QualityContractError,
+} from '../policy'
 import { interpretQualityResponse, JEV_QUALITY_MODEL, prepareQualityRequest } from '../request'
 import { policyFixture, scopeFixture } from './fixtures'
 
@@ -17,7 +22,10 @@ describe('prepareQualityRequest', () => {
   it('prefixes question ids with the policy id and binds them back', () => {
     const request = prepareQualityRequest({
       scope,
-      policies: [policyFixture({ id: 'srp' }), policyFixture({ id: 'other', settingKey: 'k.other' })],
+      policies: [
+        policyFixture({ id: 'srp' }),
+        policyFixture({ id: 'other', settingKey: 'k.other' }),
+      ],
     })
     expect(Object.keys(request.questions).sort()).toEqual([
       'other:concern',
@@ -30,7 +38,9 @@ describe('prepareQualityRequest', () => {
   })
 
   it('serializes named JSON state with scope text and policy definitions', () => {
-    const state: unknown = JSON.parse(prepareQualityRequest({ scope, policies: [policyFixture()] }).state)
+    const state: unknown = JSON.parse(
+      prepareQualityRequest({ scope, policies: [policyFixture()] }).state,
+    )
     expect(state).toEqual({
       scope: {
         before: scope.before,
@@ -39,38 +49,54 @@ describe('prepareQualityRequest', () => {
         dependencyContext: scope.dependencyContext,
         evidence: scope.evidence,
       },
-      policies: [{ id: 'srp', definition: 'a class has one responsibility', exceptions: ['data holders'] }],
+      policies: [
+        { id: 'srp', definition: 'a class has one responsibility', exceptions: ['data holders'] },
+      ],
     })
   })
 
   it('rejects a choice with more than 255 options', () => {
-    const criteria = Object.fromEntries(Array.from({ length: 256 }, (_, index) => [`e${index}`, 'x']))
+    const criteria = Object.fromEntries(
+      Array.from({ length: 256 }, (_, index) => [`e${index}`, 'x']),
+    )
     const wide = policyFixture({
-      questions: (): Record<string, DecisionQuestion> => ({ focus: { type: 'choice', instructions: 'i', criteria } }),
+      questions: (): Record<string, DecisionQuestion> => ({
+        focus: { type: 'choice', instructions: 'i', criteria },
+      }),
     })
     expect(() => prepareQualityRequest({ scope, policies: [wide] })).toThrow('over the 255 limit')
   })
 
   it('accepts a choice with exactly 255 options', () => {
-    const criteria = Object.fromEntries(Array.from({ length: 255 }, (_, index) => [`e${index}`, 'x']))
+    const criteria = Object.fromEntries(
+      Array.from({ length: 255 }, (_, index) => [`e${index}`, 'x']),
+    )
     const edge = policyFixture({
-      questions: (): Record<string, DecisionQuestion> => ({ focus: { type: 'choice', instructions: 'i', criteria } }),
+      questions: (): Record<string, DecisionQuestion> => ({
+        focus: { type: 'choice', instructions: 'i', criteria },
+      }),
     })
-    expect(Object.keys(prepareQualityRequest({ scope, policies: [edge] }).questions)).toEqual(['srp:focus'])
+    expect(Object.keys(prepareQualityRequest({ scope, policies: [edge] }).questions)).toEqual([
+      'srp:focus',
+    ])
   })
 
   it('rejects a policy listed twice and ambiguous prefixed ids', () => {
-    expect(() => prepareQualityRequest({ scope, policies: [policyFixture(), policyFixture()] })).toThrow(
-      QualityContractError,
-    )
+    expect(() =>
+      prepareQualityRequest({ scope, policies: [policyFixture(), policyFixture()] }),
+    ).toThrow(QualityContractError)
     const colliding = [
       policyFixture({
         id: 'a',
-        questions: (): Record<string, DecisionQuestion> => ({ 'b:x': { type: 'noul', instructions: 'i' } }),
+        questions: (): Record<string, DecisionQuestion> => ({
+          'b:x': { type: 'noul', instructions: 'i' },
+        }),
       }),
       policyFixture({
         id: 'a:b',
-        questions: (): Record<string, DecisionQuestion> => ({ x: { type: 'noul', instructions: 'i' } }),
+        questions: (): Record<string, DecisionQuestion> => ({
+          x: { type: 'noul', instructions: 'i' },
+        }),
       }),
     ]
     expect(() => prepareQualityRequest({ scope, policies: colliding })).toThrow('ambiguous')
@@ -78,7 +104,10 @@ describe('prepareQualityRequest', () => {
 })
 
 describe('interpretQualityResponse', () => {
-  const policies = [policyFixture({ id: 'srp' }), policyFixture({ id: 'other', settingKey: 'k.other' })]
+  const policies = [
+    policyFixture({ id: 'srp' }),
+    policyFixture({ id: 'other', settingKey: 'k.other' }),
+  ]
   const request = prepareQualityRequest({ scope, policies })
   const good = {
     'srp:concern': { noul: 0.9 },
@@ -92,7 +121,9 @@ describe('interpretQualityResponse', () => {
     expect(result.map((assessment) => assessment.policyId)).toEqual(['srp', 'other'])
     expect(result[0]?.rawAnswers).toEqual({ concern: { noul: 0.9 }, focus: { choice: 'ev-1' } })
     expect(result[1]?.rawAnswers).toEqual({ concern: { noul: 0.1 }, focus: { choice: 'ev-1' } })
-    expect(result.every((assessment) => assessment.status === EQualityReviewStatus.Completed)).toBe(true)
+    expect(result.every((assessment) => assessment.status === EQualityReviewStatus.Completed)).toBe(
+      true,
+    )
   })
 
   it('goes inconclusive for the policy whose answer is missing, leaving others intact', () => {
@@ -121,13 +152,21 @@ describe('interpretQualityResponse', () => {
       request,
       scope,
       policies,
-      answers: { ...good, 'srp:focus': { choice: 'ev-1', probabilities: { 'ev-1': 0.2, other: 0.7 } } },
+      answers: {
+        ...good,
+        'srp:focus': { choice: 'ev-1', probabilities: { 'ev-1': 0.2, other: 0.7 } },
+      },
     })
     expect(srp?.status).toBe(EQualityReviewStatus.Inconclusive)
   })
 
   it('goes inconclusive on out-of-range noul or confidence', () => {
-    const noul = interpretQualityResponse({ request, scope, policies, answers: { ...good, 'srp:concern': { noul: 1.5 } } })
+    const noul = interpretQualityResponse({
+      request,
+      scope,
+      policies,
+      answers: { ...good, 'srp:concern': { noul: 1.5 } },
+    })
     const confidence = interpretQualityResponse({
       request,
       scope,
@@ -147,8 +186,8 @@ describe('interpretQualityResponse', () => {
 
   it('throws for a policy that was never part of the request', () => {
     const stranger = [policyFixture({ id: 'stranger', settingKey: 'k.s' })]
-    expect(() => interpretQualityResponse({ request, scope, policies: stranger, answers: good })).toThrow(
-      QualityContractError,
-    )
+    expect(() =>
+      interpretQualityResponse({ request, scope, policies: stranger, answers: good }),
+    ).toThrow(QualityContractError)
   })
 })

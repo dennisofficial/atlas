@@ -77,11 +77,17 @@ class ExposingProcesses extends RecordingProcesses {
 }
 
 class VendoredProcesses extends RecordingProcesses {
-  constructor(answer: string | null, private readonly vendoredAnswer: string | null) {
+  constructor(
+    answer: string | null,
+    private readonly vendoredAnswer: string | null,
+  ) {
     super(answer)
   }
 
-  async vendored(args: { command: string; threadId?: ThreadId | undefined }): Promise<string | null> {
+  async vendored(args: {
+    command: string
+    threadId?: ThreadId | undefined
+  }): Promise<string | null> {
     return this.vendoredAnswer
   }
 }

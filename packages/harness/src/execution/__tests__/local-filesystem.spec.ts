@@ -209,7 +209,10 @@ describe('LocalFileSystemPort', () => {
       const path = join(root, 'ok.ts')
       await port.writeFile({ path, content: 'héllo ✓\n' })
 
-      expect(await port.readTextForEdit({ path })).toEqual({ text: 'héllo ✓\n', strict: 'héllo ✓\n' })
+      expect(await port.readTextForEdit({ path })).toEqual({
+        text: 'héllo ✓\n',
+        strict: 'héllo ✓\n',
+      })
     })
 
     it('keeps a leading BOM in both decodes', async () => {
@@ -235,7 +238,9 @@ describe('LocalFileSystemPort', () => {
     })
 
     it('rejects a path nothing occupies', async () => {
-      await expect(port.readTextForEdit({ path: join(root, 'absent.ts') })).rejects.toThrow(/ENOENT/)
+      await expect(port.readTextForEdit({ path: join(root, 'absent.ts') })).rejects.toThrow(
+        /ENOENT/,
+      )
     })
   })
 })

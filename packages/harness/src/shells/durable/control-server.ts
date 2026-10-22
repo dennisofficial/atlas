@@ -7,7 +7,6 @@ import {
   encodeFrame,
   FrameDecoder,
   HELLO_TIMEOUT_MS,
-  INPUT_FRAME_BYTES,
   MAX_CONNECTIONS,
   type ClientMessage,
   type ControlResult,
@@ -93,7 +92,12 @@ function handleConnection({ socket, args }: { socket: Socket; args: ControlServe
         message.identity === args.identity &&
         tokensMatch({ expected: args.token, presented: message.token })
       if (!accepted) {
-        fail({ socket, id: message.id, code: EControlError.Unauthorized, message: 'hello rejected' })
+        fail({
+          socket,
+          id: message.id,
+          code: EControlError.Unauthorized,
+          message: 'hello rejected',
+        })
         socket.end()
         return
       }
@@ -129,9 +133,11 @@ function handleConnection({ socket, args }: { socket: Socket; args: ControlServe
         return
       }
       const message = parsed.data
-      queue = queue.then(() => handleMessage(message)).catch((): void => {
-        socket.destroy()
-      })
+      queue = queue
+        .then(() => handleMessage(message))
+        .catch((): void => {
+          socket.destroy()
+        })
     }
     if (decoded.error !== undefined) {
       fail({ socket, id: 0, code: EControlError.InvalidMessage, message: decoded.error })

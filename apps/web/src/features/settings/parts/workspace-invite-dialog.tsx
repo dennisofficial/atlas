@@ -65,7 +65,9 @@ export function WorkspaceInviteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite members to {workspaceName}</DialogTitle>
-          <DialogDescription>Invitations are recorded and expire after 2 days. No email is sent yet.</DialogDescription>
+          <DialogDescription>
+            Invitations are recorded and expire after 2 days. No email is sent yet.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -96,7 +98,11 @@ export function WorkspaceInviteDialog({
           <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" disabled={emails.length === 0 || sending} onClick={() => void handleSend()}>
+          <Button
+            size="sm"
+            disabled={emails.length === 0 || sending}
+            onClick={() => void handleSend()}
+          >
             {emails.length > 1 ? `Send ${emails.length} invites` : 'Send invite'}
           </Button>
         </DialogFooter>

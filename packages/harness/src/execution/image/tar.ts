@@ -15,14 +15,24 @@ const FIELD = {
   prefix: { offset: 345, length: 155 },
 } as const
 
-const writeOctal = (args: { target: Uint8Array; offset: number; length: number; value: number }): void => {
+const writeOctal = (args: {
+  target: Uint8Array
+  offset: number
+  length: number
+  value: number
+}): void => {
   const text = args.value.toString(8).padStart(args.length - 1, '0')
   for (let index = 0; index < text.length; index += 1) {
     args.target[args.offset + index] = text.charCodeAt(index)
   }
 }
 
-const writeText = (args: { target: Uint8Array; offset: number; length: number; value: string }): void => {
+const writeText = (args: {
+  target: Uint8Array
+  offset: number
+  length: number
+  value: string
+}): void => {
   const bytes = new TextEncoder().encode(args.value)
   args.target.set(bytes.subarray(0, args.length - 1), args.offset)
 }
@@ -53,7 +63,9 @@ export type TarEntry = {
   linkname?: string
 }
 
-const header = (entry: Required<Pick<TarEntry, 'kind'>> & TarEntry & { size: number }): Uint8Array => {
+const header = (
+  entry: Required<Pick<TarEntry, 'kind'>> & TarEntry & { size: number },
+): Uint8Array => {
   const block = new Uint8Array(BLOCK)
   const { name, prefix } = splitName(entry.name)
   writeText({ target: block, ...FIELD.name, value: name })
@@ -64,7 +76,8 @@ const header = (entry: Required<Pick<TarEntry, 'kind'>> & TarEntry & { size: num
   writeOctal({ target: block, ...FIELD.mtime, value: 0 })
   block.fill(0x20, FIELD.checksum.offset, FIELD.checksum.offset + FIELD.checksum.length)
   block[FIELD.typeflag.offset] = entry.kind.charCodeAt(0)
-  if (entry.linkname !== undefined) writeText({ target: block, ...FIELD.linkname, value: entry.linkname })
+  if (entry.linkname !== undefined)
+    writeText({ target: block, ...FIELD.linkname, value: entry.linkname })
   block.set(new TextEncoder().encode('ustar\x0000'), FIELD.magic.offset)
   writeText({ target: block, ...FIELD.prefix, value: prefix })
   let checksum = 0

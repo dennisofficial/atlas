@@ -21,9 +21,7 @@ export type SkillInstallOutcome =
   | { ok: false; reason: string }
 
 const skillsRootOf = (args: { layer: ESkillInstallLayer; cwd: string }): string =>
-  args.layer === ESkillInstallLayer.User
-    ? userSkillsDirectory()
-    : projectSkillsDirectory(args.cwd)
+  args.layer === ESkillInstallLayer.User ? userSkillsDirectory() : projectSkillsDirectory(args.cwd)
 
 const nameProblem = (name: string): string | undefined => {
   if (name.trim() === '') return 'a skill needs a name'
@@ -39,7 +37,11 @@ export async function writeSkill(
 
   if (args.body.trim() === '') return { ok: false, reason: 'a skill needs a body' }
 
-  const path = join(skillsRootOf({ layer: args.layer, cwd: args.cwd }), args.name, SKILL_ENTRY_FILENAME)
+  const path = join(
+    skillsRootOf({ layer: args.layer, cwd: args.cwd }),
+    args.name,
+    SKILL_ENTRY_FILENAME,
+  )
 
   const existing = await stat(path).catch(() => null)
   if (existing !== null && !existing.isFile()) {

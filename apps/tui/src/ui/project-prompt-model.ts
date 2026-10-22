@@ -57,12 +57,18 @@ export const NAME_TOO_LONG = `keep the name to ${MAX_PROJECT_NAME_LENGTH} charac
 
 export const BRANCH_INVALID = 'that is not a valid branch name'
 
-const newestFirst = (a: Project, b: Project): number => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0)
+const newestFirst = (a: Project, b: Project): number =>
+  a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
 
 export function projectRows(projects: readonly Project[]): readonly ProjectRow[] {
-  const rows = [...projects]
-    .sort(newestFirst)
-    .map((project): ProjectRow => ({ projectId: project.id, name: project.name, repo: project.repo, updatedAt: project.updatedAt }))
+  const rows = [...projects].sort(newestFirst).map(
+    (project): ProjectRow => ({
+      projectId: project.id,
+      name: project.name,
+      repo: project.repo,
+      updatedAt: project.updatedAt,
+    }),
+  )
   return [...rows, { projectId: null, name: NO_WORKSPACE_LABEL, repo: null, updatedAt: null }]
 }
 
@@ -100,14 +106,20 @@ export const focusField = (args: { state: CreateState; field: EProjectField }): 
   field: args.field,
 })
 
-export function editField(args: { state: CreateState; edit: (value: string) => string }): CreateState {
+export function editField(args: {
+  state: CreateState
+  edit: (value: string) => string
+}): CreateState {
   const { state } = args
   return state.field === EProjectField.Name
     ? { ...state, name: args.edit(state.name), problem: null }
     : { ...state, base: args.edit(state.base), problem: null }
 }
 
-export const appended = (text: string) => (value: string): string => `${value}${text}`
+export const appended =
+  (text: string) =>
+  (value: string): string =>
+    `${value}${text}`
 
 export const withoutLast = (value: string): string => [...value].slice(0, -1).join('')
 
@@ -121,12 +133,22 @@ export function problemOf(state: CreateState): string | null {
 
 export function createAnswer(state: CreateState): ProjectAnswer {
   const base = state.base.trim()
-  return { kind: EProjectAnswer.Create, name: state.name.trim(), baseBranch: base.length === 0 ? null : base }
+  return {
+    kind: EProjectAnswer.Create,
+    name: state.name.trim(),
+    baseBranch: base.length === 0 ? null : base,
+  }
 }
 
 export const PROJECT_LIST_ROWS = 10
 
-export function rowWindow(args: { count: number; index: number; size: number }): { start: number; end: number } {
-  const start = Math.max(0, Math.min(args.index - Math.floor(args.size / 2), args.count - args.size))
+export function rowWindow(args: { count: number; index: number; size: number }): {
+  start: number
+  end: number
+} {
+  const start = Math.max(
+    0,
+    Math.min(args.index - Math.floor(args.size / 2), args.count - args.size),
+  )
   return { start, end: Math.min(args.count, start + args.size) }
 }

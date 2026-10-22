@@ -54,10 +54,15 @@ export type LinkedCheckouts =
   | { readonly kind: ELinkedCheckouts.Repository; readonly linked: ReadonlyMap<string, Worktree> }
   | { readonly kind: ELinkedCheckouts.NotARepository }
 
-export async function linkedCheckoutsOf({ primary }: { primary: string }): Promise<LinkedCheckouts> {
+export async function linkedCheckoutsOf({
+  primary,
+}: {
+  primary: string
+}): Promise<LinkedCheckouts> {
   const listing = await listWorktrees({ cwd: primary })
   if (!listing.ok) {
-    if (listing.message.toLowerCase().includes(NOT_A_REPOSITORY)) return { kind: ELinkedCheckouts.NotARepository }
+    if (listing.message.toLowerCase().includes(NOT_A_REPOSITORY))
+      return { kind: ELinkedCheckouts.NotARepository }
     throw new Error(`could not list the checkouts of ${primary}: ${listing.message}`)
   }
   const linked = new Map<string, Worktree>()
@@ -68,23 +73,37 @@ export async function linkedCheckoutsOf({ primary }: { primary: string }): Promi
   return { kind: ELinkedCheckouts.Repository, linked }
 }
 
-export async function registeredPrimaryOf({ checkout }: { checkout: string }): Promise<string | null> {
+export async function registeredPrimaryOf({
+  checkout,
+}: {
+  checkout: string
+}): Promise<string | null> {
   const listing = await listWorktrees({ cwd: checkout })
   if (!listing.ok) {
     if (listing.message.toLowerCase().includes(NOT_A_REPOSITORY)) return null
-    throw new Error(`could not read the registered checkouts around ${checkout}: ${listing.message}`)
+    throw new Error(
+      `could not read the registered checkouts around ${checkout}: ${listing.message}`,
+    )
   }
   return listing.worktrees.find((worktree) => worktree.isMain)?.path ?? null
 }
 
 async function markerFile({ checkout }: { checkout: string }): Promise<string> {
-  const run = await runGit({ args: ['rev-parse', '--path-format=absolute', '--git-dir'], cwd: checkout })
+  const run = await runGit({
+    args: ['rev-parse', '--path-format=absolute', '--git-dir'],
+    cwd: checkout,
+  })
   const gitDir = run.stdout.trim()
-  if (!run.ok || gitDir.length === 0) throw new Error(`could not inspect the git administration of ${checkout}: ${run.stderr.trim()}`)
+  if (!run.ok || gitDir.length === 0)
+    throw new Error(`could not inspect the git administration of ${checkout}: ${run.stderr.trim()}`)
   return join(gitDir, CHECKOUT_MARKER_NAME)
 }
 
-export async function readCheckoutMarker({ checkout }: { checkout: string }): Promise<string | null> {
+export async function readCheckoutMarker({
+  checkout,
+}: {
+  checkout: string
+}): Promise<string | null> {
   const file = await markerFile({ checkout })
   try {
     const text = await readFile(file, 'utf8')

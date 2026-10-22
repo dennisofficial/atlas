@@ -82,7 +82,12 @@ export class CloudMemoryPort extends MemoryPort {
     const body = await this.transport().request({
       method: 'PUT',
       path: ENTRY_PATH,
-      body: { ...this.addressBody(args), description: args.description, type: args.type, body: args.body },
+      body: {
+        ...this.addressBody(args),
+        description: args.description,
+        type: args.type,
+        body: args.body,
+      },
       retry: false,
     })
     return this.parseSummary(body)
@@ -143,7 +148,11 @@ export class CloudMemoryPort extends MemoryPort {
     }).toString()
   }
 
-  private addressBody(args: MemoryAddress): { scope: EMemoryScope; name: string; project?: string } {
+  private addressBody(args: MemoryAddress): {
+    scope: EMemoryScope
+    name: string
+    project?: string
+  } {
     const project = this.projectFor(args.scope)
     return { scope: args.scope, name: args.name, ...(project === undefined ? {} : { project }) }
   }

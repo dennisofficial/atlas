@@ -17,7 +17,11 @@ const THOUGHT = 'Weighed a jti denylist against a per-user token version.\n\nThe
 
 const hexOf = (colour: { r: number; g: number; b: number }): string =>
   [colour.r, colour.g, colour.b]
-    .map((channel) => Math.round(channel * 255).toString(16).padStart(2, '0'))
+    .map((channel) =>
+      Math.round(channel * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
     .join('')
 
 type Flags = { streaming?: boolean; heldOpen?: boolean; expanded?: boolean }
@@ -56,9 +60,7 @@ const groundsUnder = (flags: Flags): Promise<Set<string>> =>
     flags,
     read: (setup) =>
       new Set(
-        setup
-          .captureSpans()
-          .lines.flatMap((line) => line.spans.map((span) => hexOf(span.bg))),
+        setup.captureSpans().lines.flatMap((line) => line.spans.map((span) => hexOf(span.bg))),
       ),
   })
 

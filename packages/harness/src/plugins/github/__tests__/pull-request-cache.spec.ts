@@ -28,7 +28,9 @@ const found = (args: { number: number; state?: EPullRequestState }): PullRequest
     state: args.state ?? EPullRequestState.Open,
     checks: EChecksState.None,
     tally: NO_CHECKS,
-    mergeable: null, comments: [], reviews: [],
+    mergeable: null,
+    comments: [],
+    reviews: [],
   },
 })
 
@@ -40,7 +42,11 @@ const tipped = (args: { number: number; headSha: string }): PullRequestReading =
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
-const deferred = <T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (error: unknown) => void } => {
+const deferred = <T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+} => {
   let resolve!: (value: T) => void
   let reject!: (error: unknown) => void
   const promise = new Promise<T>((res, rej) => {
@@ -65,7 +71,10 @@ describe('createPullRequestCache', () => {
 
   const cacheIn = (now: () => number) => {
     dir = mkdtempSync(join(tmpdir(), 'pr-cache-'))
-    return { cache: createPullRequestCache({ file: join(dir, 'pull-request-badges.json'), now }), dir }
+    return {
+      cache: createPullRequestCache({ file: join(dir, 'pull-request-badges.json'), now }),
+      dir,
+    }
   }
 
   it('answers null for a key it has never held', () => {
@@ -90,9 +99,27 @@ describe('createPullRequestCache', () => {
     const gate = deferred<PullRequestReading>()
     let asked = 0
 
-    cache.freshen({ key: 'k1', ask: () => { asked += 1; return gate.promise } })
-    cache.freshen({ key: 'k1', ask: () => { asked += 1; return gate.promise } })
-    cache.freshen({ key: 'k1', ask: () => { asked += 1; return gate.promise } })
+    cache.freshen({
+      key: 'k1',
+      ask: () => {
+        asked += 1
+        return gate.promise
+      },
+    })
+    cache.freshen({
+      key: 'k1',
+      ask: () => {
+        asked += 1
+        return gate.promise
+      },
+    })
+    cache.freshen({
+      key: 'k1',
+      ask: () => {
+        asked += 1
+        return gate.promise
+      },
+    })
     expect(asked).toBe(1)
 
     gate.resolve(found({ number: 2 }))
@@ -111,7 +138,12 @@ describe('createPullRequestCache', () => {
     const before = readFileSync(file, 'utf8')
 
     now = 1000 + PULL_REQUEST_CACHE_ACTIVE_TTL_MS + 1
-    cache.freshen({ key: 'k1', ask: async () => { throw new Error('offline') } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        throw new Error('offline')
+      },
+    })
     await flush()
 
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 3 }))
@@ -126,19 +158,34 @@ describe('createPullRequestCache', () => {
     await flush()
 
     now = 1000 + PULL_REQUEST_CACHE_ACTIVE_TTL_MS + 1
-    cache.freshen({ key: 'k1', ask: async () => ({ lookup: EPullRequestLookup.Unavailable, retryable: true }) })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => ({ lookup: EPullRequestLookup.Unavailable, retryable: true }),
+    })
     await flush()
 
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 4 }))
 
     let askedAgain = false
-    cache.freshen({ key: 'k1', ask: async () => { askedAgain = true; return found({ number: 5 }) } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        askedAgain = true
+        return found({ number: 5 })
+      },
+    })
     await flush()
     expect(askedAgain).toBe(false)
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 4 }))
 
     now += PULL_REQUEST_CACHE_FAILURE_TTL_MS + 1
-    cache.freshen({ key: 'k1', ask: async () => { askedAgain = true; return found({ number: 5 }) } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        askedAgain = true
+        return found({ number: 5 })
+      },
+    })
     await flush()
     expect(askedAgain).toBe(true)
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 5 }))
@@ -150,7 +197,10 @@ describe('createPullRequestCache', () => {
     first.cache.freshen({ key: 'k2', ask: async () => ABSENT })
     await flush()
 
-    const second = createPullRequestCache({ file: join(first.dir, 'pull-request-badges.json'), now: () => 1000 })
+    const second = createPullRequestCache({
+      file: join(first.dir, 'pull-request-badges.json'),
+      now: () => 1000,
+    })
     expect(second.peek({ key: 'k1' })).toEqual(found({ number: 6 }))
     expect(second.peek({ key: 'k2' })).toEqual(ABSENT)
   })
@@ -193,8 +243,20 @@ describe('createPullRequestCache', () => {
 
     let absentAsked = false
     let activeAsked = false
-    cache.freshen({ key: 'absent', ask: async () => { absentAsked = true; return ABSENT } })
-    cache.freshen({ key: 'active', ask: async () => { activeAsked = true; return found({ number: 8 }) } })
+    cache.freshen({
+      key: 'absent',
+      ask: async () => {
+        absentAsked = true
+        return ABSENT
+      },
+    })
+    cache.freshen({
+      key: 'active',
+      ask: async () => {
+        activeAsked = true
+        return found({ number: 8 })
+      },
+    })
     await flush()
 
     expect(absentAsked).toBe(true)
@@ -205,17 +267,32 @@ describe('createPullRequestCache', () => {
     let now = 5000
     const { cache } = cacheIn(() => now)
 
-    cache.freshen({ key: 'merged', ask: async () => found({ number: 9, state: EPullRequestState.Merged }) })
+    cache.freshen({
+      key: 'merged',
+      ask: async () => found({ number: 9, state: EPullRequestState.Merged }),
+    })
     await flush()
 
     now += PULL_REQUEST_CACHE_ACTIVE_TTL_MS + 1
     let asked = false
-    cache.freshen({ key: 'merged', ask: async () => { asked = true; return found({ number: 9, state: EPullRequestState.Merged }) } })
+    cache.freshen({
+      key: 'merged',
+      ask: async () => {
+        asked = true
+        return found({ number: 9, state: EPullRequestState.Merged })
+      },
+    })
     await flush()
     expect(asked).toBe(false)
 
     now += PULL_REQUEST_CACHE_SETTLED_TTL_MS
-    cache.freshen({ key: 'merged', ask: async () => { asked = true; return found({ number: 9, state: EPullRequestState.Merged }) } })
+    cache.freshen({
+      key: 'merged',
+      ask: async () => {
+        asked = true
+        return found({ number: 9, state: EPullRequestState.Merged })
+      },
+    })
     await flush()
     expect(asked).toBe(true)
   })
@@ -231,7 +308,13 @@ describe('createPullRequestCache', () => {
     cache.ingest({ key: 'k1', reading: found({ number: 10 }) })
 
     let asked = false
-    cache.freshen({ key: 'k1', ask: async () => { asked = true; return found({ number: 11 }) } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        asked = true
+        return found({ number: 11 })
+      },
+    })
     await flush()
     expect(asked).toBe(true)
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 11 }))
@@ -249,12 +332,24 @@ describe('createPullRequestCache', () => {
     expect(cache.peek({ key: 'k1' })).toEqual(found({ number: 11 }))
 
     let asked = false
-    cache.freshen({ key: 'k1', ask: async () => { asked = true; return found({ number: 12 }) } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        asked = true
+        return found({ number: 12 })
+      },
+    })
     await flush()
     expect(asked).toBe(false)
 
     now += PULL_REQUEST_CACHE_ACTIVE_TTL_MS + 1
-    cache.freshen({ key: 'k1', ask: async () => { asked = true; return found({ number: 12 }) } })
+    cache.freshen({
+      key: 'k1',
+      ask: async () => {
+        asked = true
+        return found({ number: 12 })
+      },
+    })
     await flush()
     expect(asked).toBe(true)
   })

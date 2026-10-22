@@ -71,7 +71,8 @@ export function planAppend({
       entries.map((entry) => {
         if (entry.kind === 'reused') return entry.event
         const event = stamped[entry.position]
-        if (!event) throw new Error(`append plan expected a stamped event at position ${entry.position}`)
+        if (!event)
+          throw new Error(`append plan expected a stamped event at position ${entry.position}`)
         return event
       }),
   }

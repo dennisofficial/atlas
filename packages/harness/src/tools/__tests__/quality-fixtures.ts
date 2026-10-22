@@ -117,7 +117,10 @@ export function qualityDispatcher(args: {
   })
 }
 
-export const dispatchWrite = (dispatcher: HookedToolDispatcher, signal = new AbortController().signal) =>
+export const dispatchWrite = (
+  dispatcher: HookedToolDispatcher,
+  signal = new AbortController().signal,
+) =>
   dispatcher.dispatch({
     call: writeCall,
     signal,
