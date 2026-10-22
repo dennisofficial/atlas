@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { EMode } from './types';
 
 export function emptyStats() {
@@ -51,5 +51,6 @@ export function report(params: {
     executed: stats.executedFiles.length,
     timings: { totalMs: Date.now() - startedAt },
   };
+  mkdirSync(dirname(summaryFile), { recursive: true });
   writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
 }
