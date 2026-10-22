@@ -47,6 +47,7 @@ describe('createEventFlusher', () => {
       events: store.log,
       durableHead: 1,
       post: api.post,
+      truncate: async (toSeq) => toSeq,
       log: (line) => lines.push(line),
     })
 
@@ -72,6 +73,7 @@ describe('createEventFlusher', () => {
       events: store.log,
       durableHead: 1,
       post: api.post,
+      truncate: async (toSeq) => toSeq,
       log: (line) => lines.push(line),
     })
 
@@ -91,6 +93,7 @@ describe('createEventFlusher', () => {
       threadId,
       events: store.log,
       durableHead: 0,
+      truncate: async (toSeq) => toSeq,
       post: async (events) => {
         if (fail) throw new Error('the control plane answered 503')
         return stored(events)
@@ -118,6 +121,7 @@ describe('createEventFlusher', () => {
       threadId,
       events: store.log,
       durableHead: 0,
+      truncate: async (toSeq) => toSeq,
       post: async (events) => {
         calls += 1
         if (calls === 1) await held
@@ -135,5 +139,68 @@ describe('createEventFlusher', () => {
     expect(second).toBe(third)
     expect(calls).toBe(1)
     expect(flusher.durableHead()).toBe(2)
+  })
+})
+
+describe('createEventFlusher rebase', () => {
+  it('truncates Postgres below the edit, then re-ships the local tail with its gaps', async () => {
+    const store = await seeded(['one', 'two', 'three', 'four'])
+    const api = recordingPost(stored)
+    const truncated: number[] = []
+    const flusher = createEventFlusher({
+      threadId,
+      events: store.log,
+      durableHead: 4,
+      post: api.post,
+      truncate: async (toSeq) => {
+        truncated.push(toSeq)
+        return toSeq
+      },
+      log: () => undefined,
+    })
+
+    expect(await flusher.rebase({ toSeq: 2 })).toBe(true)
+
+    expect(truncated).toEqual([2])
+    expect(api.posted.map((batch) => batch.map((event) => event.seq))).toEqual([[3, 4]])
+    expect(flusher.durableHead()).toBe(4)
+  })
+
+  it('skips the truncate when nothing durable sits above the edit', async () => {
+    const store = await seeded(['one'])
+    const truncated: number[] = []
+    const flusher = createEventFlusher({
+      threadId,
+      events: store.log,
+      durableHead: 1,
+      post: recordingPost(stored).post,
+      truncate: async (toSeq) => {
+        truncated.push(toSeq)
+        return toSeq
+      },
+      log: () => undefined,
+    })
+
+    expect(await flusher.rebase({ toSeq: 5 })).toBe(true)
+    expect(truncated).toEqual([])
+  })
+
+  it('reports failure and keeps the head when the truncate fails', async () => {
+    const store = await seeded(['one', 'two'])
+    const api = recordingPost(stored)
+    const flusher = createEventFlusher({
+      threadId,
+      events: store.log,
+      durableHead: 2,
+      post: api.post,
+      truncate: async () => {
+        throw new Error('the control plane answered 503')
+      },
+      log: () => undefined,
+    })
+
+    expect(await flusher.rebase({ toSeq: 1 })).toBe(false)
+    expect(flusher.durableHead()).toBe(2)
+    expect(api.posted).toEqual([])
   })
 })

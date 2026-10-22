@@ -4,6 +4,7 @@ import {
   MAX_POD_EVENTS_PER_FLUSH,
   podEventsReplySchema,
   SANDBOX_SELF_EVENTS_PATH,
+  SANDBOX_SELF_EVENTS_TRUNCATE_PATH,
   type PodEvent,
 } from '@dltech/atlas-wire'
 
@@ -20,8 +21,11 @@ export type FlushReply =
 
 export type PostPodEvents = (events: readonly PodEvent[]) => Promise<FlushReply>
 
+export type TruncatePodEvents = (toSeq: number) => Promise<number>
+
 export type EventFlusher = {
   flush: () => Promise<boolean>
+  rebase: (args: { toSeq: number }) => Promise<boolean>
   durableHead: () => number
 }
 
@@ -50,6 +54,7 @@ export function createEventFlusher(args: {
   events: Pick<EventLogPort, 'readOwn'>
   durableHead: number
   post: PostPodEvents
+  truncate: TruncatePodEvents
   log: ServeLog
 }): EventFlusher {
   const { threadId, log } = args
@@ -94,26 +99,61 @@ export function createEventFlusher(args: {
     return next
   }
 
-  return { flush, durableHead: () => durable }
+  const truncateTo = async (toSeq: number): Promise<boolean> => {
+    if (toSeq >= durable) return true
+    try {
+      durable = await args.truncate(toSeq)
+      log({ event: EServeEvent.EventsTruncated, threadId, head: durable })
+      return true
+    } catch (failure) {
+      log({ event: EServeEvent.EventFlushFailed, threadId, reason: reasonOf(failure) })
+      return false
+    }
+  }
+
+  const rebase = (given: { toSeq: number }): Promise<boolean> => {
+    queued = undefined
+    const next = chain.then(async () => (await truncateTo(given.toSeq)) && once())
+    chain = next
+    return next
+  }
+
+  return { flush, rebase, durableHead: () => durable }
 }
 
-export function httpPostPodEvents(args: {
+type PodRemote = {
   controlPlaneUrl: string
   token: string
   clientVersion: string
   fetchFn: typeof fetch
-}): PostPodEvents {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}${SANDBOX_SELF_EVENTS_PATH}`
-  return async (events) => {
-    const response = await args.fetchFn(url, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${args.token}`,
-        'content-type': 'application/json',
-        'atlas-client-version': args.clientVersion,
-      },
-      body: JSON.stringify({ events }),
+}
+
+const postTo = (args: { remote: PodRemote; path: string; body: unknown }): Promise<Response> =>
+  args.remote.fetchFn(`${args.remote.controlPlaneUrl.replace(/\/+$/, '')}${args.path}`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${args.remote.token}`,
+      'content-type': 'application/json',
+      'atlas-client-version': args.remote.clientVersion,
+    },
+    body: JSON.stringify(args.body),
+  })
+
+export function httpTruncatePodEvents(remote: PodRemote): TruncatePodEvents {
+  return async (toSeq) => {
+    const response = await postTo({
+      remote,
+      path: SANDBOX_SELF_EVENTS_TRUNCATE_PATH,
+      body: { toSeq },
     })
+    if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
+    return podEventsReplySchema.parse(await response.json()).head
+  }
+}
+
+export function httpPostPodEvents(remote: PodRemote): PostPodEvents {
+  return async (events) => {
+    const response = await postTo({ remote, path: SANDBOX_SELF_EVENTS_PATH, body: { events } })
     if (response.status === 409) {
       const body: unknown = await response.json().catch(() => ({}))
       const seq =
