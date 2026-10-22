@@ -27,7 +27,7 @@ const serviceWith = (scoped: ScopedConfigService) =>
 describe('ThreadSandboxCredentialsService provenance', () => {
   useTestDatabase()
 
-  it('keeps a TUI-registered no-project thread on the env credential with workspaceOwned false', async () => {
+  it('keeps a TUI-registered no-project thread on the env credential with ownerCredential false', async () => {
     const { service } = await prepareSandboxes()
     await service.claim({
       userId: USER_A,
@@ -44,7 +44,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
       token: 'env-token',
       teamId: 'env-team',
       projectId: 'env-prj',
-      workspaceOwned: false,
+      ownerCredential: false,
     })
     expect(scoped.vercelCredentials).not.toHaveBeenCalled()
   })
@@ -61,7 +61,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
 
     const credentials = await serviceWith(scoped).forThread({ threadId: reply.thread.id ?? '' })
 
-    expect(credentials).toMatchObject({ token: 'ws-token', workspaceOwned: true })
+    expect(credentials).toMatchObject({ token: 'ws-token', ownerCredential: true })
     expect(scoped.vercelCredentials).toHaveBeenCalledWith({
       thread: { userId: 'usr-1', organizationId: null },
     })
@@ -81,6 +81,6 @@ describe('ThreadSandboxCredentialsService provenance', () => {
 
     const credentials = await serviceWith(scoped).forThread({ threadId: 'thr-gap' })
 
-    expect(credentials.workspaceOwned).toBe(true)
+    expect(credentials.ownerCredential).toBe(true)
   })
 })

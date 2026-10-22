@@ -129,7 +129,7 @@ export function serviceWith(args: {
       token: 'vercel-token',
       teamId: 'team-1',
       projectId: 'proj-1',
-      workspaceOwned: false,
+      ownerCredential: false,
       ...args.credentials,
     }),
   }
