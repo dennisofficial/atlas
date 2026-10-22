@@ -173,9 +173,10 @@ spec passes 8/8 without one, so the lazily imported externals fail as ordinary, 
 
 Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
 because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
-`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. First-message
-provisioning boots ride it, and so do wake boots. Both share `VercelSandboxWakeBoot`, which mounts,
-launches serve and rolls back a sandbox it created when the boot fails. A boot can outlive one
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. GitHub wake boots
+ride it; web-thread provisioning runs in the `pod-provision` trigger.dev task instead. Both share
+`VercelSandboxWakeBoot`, which mounts, launches serve and rolls back a sandbox it created when the
+boot fails. A boot can outlive one
 response: a sandbox create plus the serve download can approach the function's `maxDuration`.
 `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
 wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
