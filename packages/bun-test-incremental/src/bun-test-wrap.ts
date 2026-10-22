@@ -8,8 +8,10 @@ export interface WrapContext {
   current: () => FileRecord | undefined;
 }
 
+type RowArities = ReadonlySet<number> | 'unknown';
+
 interface ProxyHooks {
-  args: (args: unknown[]) => unknown[];
+  args: (params: { args: unknown[]; rows: RowArities | undefined }) => unknown[];
   access: (key: string) => void;
 }
 
@@ -24,8 +26,31 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
   );
 }
 
-function instrument(params: { context: WrapContext; body: Callable }): Callable {
-  const { context, body } = params;
+// Bun appends a `done` callback only when the body declares more parameters than the
+// `.each` row supplies, so a function as the last argument is `done` only if the row arity says so.
+function hasDoneCallback(params: {
+  body: Callable;
+  args: unknown[];
+  rows: RowArities | undefined;
+}) {
+  const { body, args, rows } = params;
+  if (body.length === 0 || typeof args[args.length - 1] !== 'function') return false;
+  if (rows === undefined) return true;
+  if (rows === 'unknown') return false;
+  return rows.has(args.length - 1) && !rows.has(args.length);
+}
+
+function rowArities(table: unknown): RowArities {
+  if (!Array.isArray(table) || 'raw' in table) return 'unknown';
+  return new Set(table.map((row: unknown) => (Array.isArray(row) ? row.length : 1)));
+}
+
+function instrument(params: {
+  context: WrapContext;
+  body: Callable;
+  rows: RowArities | undefined;
+}): Callable {
+  const { context, body, rows } = params;
   const wrapper = function (this: unknown, ...args: unknown[]) {
     const record = context.current();
     if (!record) return body.apply(this, args);
@@ -37,7 +62,7 @@ function instrument(params: { context: WrapContext; body: Callable }): Callable 
     };
     const last = args.length - 1;
     const done = args[last];
-    if (body.length > 0 && typeof done === 'function') {
+    if (typeof done === 'function' && hasDoneCallback({ body, args, rows })) {
       args[last] = (error?: unknown) => {
         settle(error ? describeError(error) : undefined);
         return done(error);
@@ -75,18 +100,41 @@ function instrument(params: { context: WrapContext; body: Callable }): Callable 
   return wrapper;
 }
 
-function deep(params: { target: Callable; hooks: ProxyHooks; owner?: object }): Callable {
-  const { target, hooks, owner } = params;
+function deep(params: {
+  target: Callable;
+  hooks: ProxyHooks;
+  owner?: object | undefined;
+  key?: string | undefined;
+  rows?: RowArities | undefined;
+}): Callable {
+  const { target, hooks, owner, key, rows } = params;
   return new Proxy(target, {
-    get(inner, key) {
-      const value: unknown = Reflect.get(inner, key);
-      if (typeof key === 'string') hooks.access(key);
+    get(inner, name) {
+      const value: unknown = Reflect.get(inner, name);
+      if (typeof name === 'string') hooks.access(name);
       if (typeof value !== 'function') return value;
-      return deep({ target: value as Callable, hooks, owner: inner });
+      return deep({
+        target: value as Callable,
+        hooks,
+        owner: inner,
+        key: typeof name === 'string' ? name : undefined,
+      });
     },
     apply(inner, self, args) {
-      const result = Reflect.apply(inner, owner ?? self, hooks.args(args));
-      return typeof result === 'function' ? deep({ target: result as Callable, hooks }) : result;
+      const result = Reflect.apply(inner, owner ?? self, hooks.args({ args, rows }));
+      if (typeof result !== 'function') return result;
+      const next = key === 'each' ? rowArities(args[0]) : undefined;
+      return deep({ target: result as Callable, hooks, rows: next });
+    },
+  });
+}
+
+function watched(params: { target: Callable; access: (key: string) => void }): Callable {
+  const { target, access } = params;
+  return new Proxy(target, {
+    get(inner, name) {
+      if (typeof name === 'string') access(name);
+      return Reflect.get(inner, name);
     },
   });
 }
@@ -109,8 +157,8 @@ export function installBunTestWrap(context: WrapContext) {
       target: real[name] as Callable,
       hooks: {
         access,
-        args: (args) =>
-          replaceFirstFunction({ args, replace: (body) => instrument({ context, body }) }),
+        args: ({ args, rows }) =>
+          replaceFirstFunction({ args, replace: (body) => instrument({ context, body, rows }) }),
       },
     });
   const onlyFlag = flagged(['only'], 'uses .only');
@@ -119,16 +167,10 @@ export function installBunTestWrap(context: WrapContext) {
   for (const name of ['beforeAll', 'beforeEach', 'afterEach', 'afterAll']) {
     overrides[name] = wrapFor(name, idle);
   }
-  overrides.describe = deep({
-    target: real.describe as Callable,
-    hooks: { args: (args) => args, access: onlyFlag },
-  });
-  overrides.expect = deep({
+  overrides.describe = watched({ target: real.describe as Callable, access: onlyFlag });
+  overrides.expect = watched({
     target: real.expect as Callable,
-    hooks: {
-      args: (args) => args,
-      access: flagged(['assertions', 'hasAssertions'], 'uses expect.assertions'),
-    },
+    access: flagged(['assertions', 'hasAssertions'], 'uses expect.assertions'),
   });
   mock.module('bun:test', () => ({ ...real, ...overrides }));
 }

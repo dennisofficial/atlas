@@ -48,8 +48,9 @@ export function buildEntry(params: {
   file: FileRecord;
   repoRoot: string;
   hasher: Hasher;
+  env: NodeJS.ProcessEnv;
 }): CacheEntry | string {
-  const { file, repoRoot, hasher } = params;
+  const { file, repoRoot, hasher, env } = params;
   if (file.uncacheable) return file.uncacheable;
   if (!file.evaluated) return 'the module did not finish evaluating';
   const keys = dependencyKeys({ file, repoRoot });
@@ -68,7 +69,7 @@ export function buildEntry(params: {
   return {
     deps,
     envKeys,
-    envDigest: envDigest(envKeys, process.env),
+    envDigest: envDigest(envKeys, env),
     passedAt: new Date().toISOString(),
     durationMs: Date.now() - file.loadedAt,
     tests: file.settled,

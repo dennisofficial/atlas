@@ -69,6 +69,8 @@ export function startSession(config: IncrementalConfig) {
   const records = new Map<string, FileRecord>();
   const realMain = new Map<string, string>();
   const lookupHasher = new Hasher(repoRoot);
+  let baselineEnv: NodeJS.ProcessEnv | undefined;
+  const baseline = () => (baselineEnv ??= { ...realEnv });
 
   const mainPath = () => {
     const main = Bun.main;
@@ -98,7 +100,7 @@ export function startSession(config: IncrementalConfig) {
       return;
     }
     if (partialRun) return;
-    const entry = buildEntry({ file: record, repoRoot, hasher: new Hasher(repoRoot) });
+    const entry = buildEntry({ file: record, repoRoot, hasher: new Hasher(repoRoot), env: baseline() });
     if (typeof entry === 'string') {
       stats.notRecorded++;
       const spawned = record.spawned.slice(0, 3).join(' | ');
@@ -114,7 +116,7 @@ export function startSession(config: IncrementalConfig) {
 
   const decide = (test: string) => {
     if (mode === EMode.Force) return { status: 'miss' as const, reason: 'forced' };
-    return store.lookup(test, lookupHasher, realEnv);
+    return store.lookup(test, lookupHasher, baseline());
   };
 
   const load = (path: string) => {

@@ -172,6 +172,28 @@ describe('incremental pass cache', () => {
     expect(fixture.run('1', ['-t', 'a']).recorded).toBe(0);
   });
 
+  test('it.each rows that are functions reach the test body untouched', () => {
+    const fixture = new Fixture({
+      '__tests__/each.spec.ts':
+        "import { expect, it } from 'bun:test'\nclass First {}\nclass Second {}\nconst tagged = new Map<unknown, unknown[]>([[First, [First]], [Second, [Second]]])\nit.each([First, Second])('$name keeps its identity', (klass) => {\n  expect(tagged.get(klass)).toContain(klass)\n  expect([1, 2]).toContain(2)\n})\nit.each([[First, 1], [Second, 2]])('row %#', (klass, n) => {\n  expect(tagged.get(klass)).toContain(klass)\n  expect(n).toBeGreaterThan(0)\n})\n",
+    });
+    const cold = fixture.run('1');
+    expect(cold.output).not.toContain('(fail)');
+    expect(cold.exitCode).toBe(0);
+    expect(cold.recorded).toBe(1);
+  });
+
+  test('an env var a spec sets after reading it does not invalidate its own cached pass', () => {
+    const fixture = new Fixture({
+      '__tests__/mutate.spec.ts':
+        "import { expect, test } from 'bun:test'\ntest('mutate', () => {\n  expect(typeof (process.env.FX_COUNTER ?? '')).toBe('string')\n  process.env.FX_COUNTER = String(Math.random())\n})\n",
+    });
+    expect(fixture.run('1').recorded).toBe(1);
+    const warm = fixture.run('1');
+    expect(warm.executed).toEqual([]);
+    expect(warm.reused).toBe(1);
+  });
+
   test('is inert when BUN_TEST_INCREMENTAL is unset or 0', () => {
     const fixture = abc();
     const result = Bun.spawnSync(['bun', 'test', '--preload', PRELOAD_PATH], {
