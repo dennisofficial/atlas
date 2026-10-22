@@ -20,6 +20,16 @@ export type SaveProjectBody = {
   organizationId?: string | null
 }
 
+export type CreateProjectBody = Omit<SaveProjectBody, 'shipBehavior'>
+
+export const createProject = (body: CreateProjectBody) =>
+  cloudJson({
+    method: EHttpMethod.Post,
+    path: '/v1/projects',
+    body,
+    schema: projectViewSchema,
+  })
+
 export const fetchProject = (projectId: string) =>
   cloudJson({ method: EHttpMethod.Get, path: projectBase(projectId), schema: projectViewSchema })
 

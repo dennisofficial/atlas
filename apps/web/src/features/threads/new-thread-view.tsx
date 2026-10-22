@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useRef, useState } from 'react'
 import { FolderXIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -41,8 +41,13 @@ function NoProjects() {
         <EmptyDescription>Atlas runs each thread against a project.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/settings" />}>
-          Open settings
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/projects?new=1" />}
+        >
+          New project
         </Button>
       </EmptyContent>
     </Empty>
@@ -52,7 +57,10 @@ function NoProjects() {
 function Welcome({ projects }: { projects: readonly Project[] }) {
   const router = useRouter()
   const { sending, notConfigured, send } = useSend()
-  const [selected, setSelected] = useState<string | null>(null)
+  const preselected = useSearchParams().get('project')
+  const [selected, setSelected] = useState<string | null>(() =>
+    projects.some((project) => project.id === preselected) ? preselected : null,
+  )
   const [draft, setDraft] = useState('')
   const [creating, setCreating] = useState(false)
   const thread = useRef<{ projectId: string; threadId: string } | null>(null)
@@ -108,9 +116,18 @@ export function NewThreadView() {
   const query = useCloudQuery({ key: 'projects', load: fetchProjects })
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">
-      <h1 className="text-xl font-medium tracking-tight">What should Atlas work on?</h1>
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-xl font-medium tracking-tight">What should Atlas work on?</h1>
+        <Button variant="link" size="sm" nativeButton={false} render={<Link href="/projects" />}>
+          Projects
+        </Button>
+      </div>
       <QueryGate query={query} label="projects">
-        {(projects) => <Welcome projects={projects} />}
+        {(projects) => (
+          <Suspense>
+            <Welcome projects={projects} />
+          </Suspense>
+        )}
       </QueryGate>
     </main>
   )
