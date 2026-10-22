@@ -9,7 +9,6 @@ import {
   EWebSearchBackend,
   backendOf,
   environmentFor,
-  textValueOf,
   toggleValueOf,
   type CredentialPort,
   type SecretsPort,

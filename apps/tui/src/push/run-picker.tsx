@@ -1,7 +1,6 @@
 import type { PlanRow } from '@dltech/atlas-harness'
 import { createCliRenderer } from '@opentui/core'
 import { createRoot } from '@opentui/react'
-import React from 'react'
 
 import { PushPicker } from './push-picker'
 import type { PickerOutcome } from './push-picker-model'

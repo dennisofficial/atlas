@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorityOf, EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
+import { authorityOf, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import { CloudManagedCredentialPort } from '../cloud-managed-credential-port'
 import { CredentialError } from '../credential-error'

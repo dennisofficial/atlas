@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot } from '@opentui/react'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { EExecutionLocation, toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {

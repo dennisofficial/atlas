@@ -10,7 +10,6 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { SecretsStoreToken, WebSearchBackendToken } from '../../container/tokens'
 import { runSearch } from '../../web/search'
 
 const DEFAULT_COUNT = 8

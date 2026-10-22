@@ -1,6 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'vitest'
-import React from 'react'
 
 import { NoticeBlock } from '../notice-block'
 

@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   AccountStorePort,
-  CredentialPort,
   EAccountOrigin,
   EAuthKind,
   EAuthProvider,
@@ -23,7 +22,6 @@ import { atlasVaultFile, atlasVaultKeyFile } from '../../credentials/paths'
 import { fileAccountStore } from '../../credentials/account-store'
 import { CloudManagedCredentialPort } from '../../credentials/cloud-managed-credential-port'
 import { bindAccounts } from '../account-bindings'
-import { recordingNotices } from './fakes'
 
 let atlasHome: string
 let previousAtlasHome: string | undefined

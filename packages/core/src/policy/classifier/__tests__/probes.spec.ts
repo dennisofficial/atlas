@@ -11,7 +11,6 @@ import { reachProbe } from '../probes/reach'
 import { signalsFor, type RiskSignal, type SignalProbe } from '../signals'
 import { ETriage } from '../triage'
 import {
-  OURS,
   REPO,
   SIBLING,
   bashEvidence,

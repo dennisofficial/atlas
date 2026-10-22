@@ -66,7 +66,6 @@ for await (const chunk of process.stdin) {
         process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...response })}\n`)
       }
     } catch {
-      continue
     }
   }
 }

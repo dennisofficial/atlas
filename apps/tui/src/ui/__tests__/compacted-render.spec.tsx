@@ -1,6 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { CompactedBlock } from '../components/blocks/compacted-block'
 import { grammarsReady, settle, teardown } from '../markdown/__tests__/harness'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EConnectionView } from '../connection-view'
 
-import { toRunId, toThreadId } from '@dltech/atlas-core'
+import { toRunId, } from '@dltech/atlas-core'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import {

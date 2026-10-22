@@ -2,7 +2,6 @@ import { EAuthProvider, toThreadId, type Account } from '@dltech/atlas-core'
 import type { BrowserTicket } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { frameSettled, frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { grammarsReady, teardown } from '../../ui/markdown/__tests__/harness'

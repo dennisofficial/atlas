@@ -26,7 +26,7 @@ import { EUnreadableReason, type UnreadableRow } from '../decode-events'
 import { planSegments } from './compose'
 import { dropTornTail, encodeEventLine } from './lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from './meta'
-import { eventLogFile, sessionDirectory, threadMetaFile, threadsDirectory } from './paths'
+import { eventLogFile, threadMetaFile, threadsDirectory } from './paths'
 import { rebuildContextIndex, type SessionRegistry } from './registry'
 
 export type DecodedSessionLog = {

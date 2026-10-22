@@ -8,7 +8,7 @@ import {
 import { EKilledBy, type RecoveredAgents } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { HEADING } from '../../ui/components/exit-guard'
 import { frameShowing } from '../../ui/__tests__/waiting'

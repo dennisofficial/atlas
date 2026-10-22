@@ -2,7 +2,6 @@ import type {
   EAgentRestart,
   EExecutionLocation,
   EKilledBy,
-  EventDraft,
   SaidFile,
   SaidImage,
   ThreadId,

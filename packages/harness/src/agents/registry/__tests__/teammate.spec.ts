@@ -9,7 +9,6 @@ import {
   EToolEffect,
   PromptFragment,
   type PromptContext,
-  type ThreadId,
   type ToolDefinition,
   type ToolOutcome,
 } from '@dltech/atlas-core'

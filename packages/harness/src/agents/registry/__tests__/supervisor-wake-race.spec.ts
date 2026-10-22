@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import type { EventLogPort, } from '@dltech/atlas-core'
 
 import { finished, openSupervisor, settled, type OpenedSupervisor } from './fixtures'
 

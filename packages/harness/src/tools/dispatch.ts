@@ -4,7 +4,6 @@ import {
   hookOutcomeDrafts,
   resolveBeforeTool,
   type ActiveWorktree,
-  type AfterTool,
   type BeforeTool,
   type BeforeToolOutcome,
   type CallId,

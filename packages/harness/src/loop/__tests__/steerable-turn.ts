@@ -14,7 +14,7 @@ import {
   type ToolDefinition,
 } from '@dltech/atlas-core'
 
-import { buildHarness, ETurnStatus, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
+import { buildHarness, LoopTurnRunner, TurnRunner, type AtlasHarness } from '..'
 import type { PendingDrain } from '../run-turn'
 import { HookChain } from '../../hooks/registry'
 import { scriptedModel, type ScriptedStep } from '../../model/testing/scripted-model'

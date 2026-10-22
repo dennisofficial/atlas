@@ -9,7 +9,7 @@ import { loadDataset } from '../../dataset-io'
 import type { AnyEvalFeature } from '../../feature-registry'
 import { EDatasetSplit } from '../../manifest'
 import { makeCandidate } from '../../../__fixtures__/candidate'
-import { ECandidateMethod, type Candidate } from '../candidates'
+import { type Candidate } from '../candidates'
 import { buildGoldenCases } from '../label-review'
 import { writeGoldenDataset } from '../label-review-io'
 

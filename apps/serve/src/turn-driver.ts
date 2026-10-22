@@ -5,7 +5,6 @@ import {
   type RotationSettle,
   type TurnOutcome,
   type MessageIntake,
-  type PendingQueues,
 } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'

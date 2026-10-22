@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { NoticeStack } from '../../ui/components/notice-stack'
 import { dismissNotice, ENoticeTone, notify } from '../../ui/notice-store'

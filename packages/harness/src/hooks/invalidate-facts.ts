@@ -7,7 +7,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../container/injection'
 
 export class InvalidateFactsHook extends AfterToolHook {
   readonly name = 'invalidateFacts'

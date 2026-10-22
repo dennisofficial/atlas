@@ -15,11 +15,11 @@ export const clojure: LanguageSpec = {
       group: 'character',
     }),
     pattern({ match: new RegExp(`-${NUMERIC}`), group: 'number' }),
-    pattern({ match: /::?[A-Za-z0-9*+!\-_<>=&%$?\/.]+/, group: 'string.special.symbol' }),
+    pattern({ match: /::?[A-Za-z0-9*+!\-_<>=&%$?/.]+/, group: 'string.special.symbol' }),
     pattern({ match: /[@'`~^#]+/, group: 'punctuation.special' }),
     pattern({ match: /[A-Z][A-Za-z0-9*+!\-_<>=?.]*/, group: 'type' }),
   ],
-  identifier: /[A-Za-z*+!\-_<>=&%$?\/.][A-Za-z0-9*+!\-_<>=&%$?\/.']*/,
+  identifier: /[A-Za-z*+!\-_<>=&%$?/.][A-Za-z0-9*+!\-_<>=&%$?/.']*/,
   number: new RegExp(NUMERIC),
   operators: '',
   words: {

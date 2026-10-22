@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ENoticeTone, toThreadId } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { liveBridgeOptionsFor } from '../live-cloud'

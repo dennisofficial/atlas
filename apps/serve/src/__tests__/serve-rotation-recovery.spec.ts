@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
-  EClientFrame,
-  EServeFrame,
   ETurnStatus,
-  persistSandboxRotationReceipt,
   readPersistedRuntimeCheckpoint,
   readSandboxRotationReceipt,
   runtimeCheckpointFile,
@@ -13,7 +10,6 @@ import {
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
-import { connect } from './client'
 import {
   childId,
   cleanupRotationFixtures,

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
 import { EExecutionLocation, ESettingId, type SettingsDocument } from '@dltech/atlas-core'

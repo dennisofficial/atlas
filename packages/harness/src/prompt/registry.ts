@@ -8,7 +8,6 @@ import {
   type SkippedFragment,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../container/injection'
 import { isVolatilePromptFragment, type VolatilePromptFragment } from './volatile'
 
 export abstract class PromptRegistry {

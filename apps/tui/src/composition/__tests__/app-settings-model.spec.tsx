@@ -11,7 +11,6 @@ import {
 } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'

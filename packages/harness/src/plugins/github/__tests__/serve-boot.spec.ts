@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { toThreadId } from '@dltech/atlas-core'
 
@@ -6,7 +6,7 @@ import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 
 import { createSessionFacts } from '../session'
 import { createPullRequestService } from '../pull-request-service'
-import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from '../pure'
+import { checkoutKey, } from '../pure'
 import { aCheckout, pullRequestsByKey, wasFound } from '../testing'
 import { createCheckoutTracking } from '../tracking'
 

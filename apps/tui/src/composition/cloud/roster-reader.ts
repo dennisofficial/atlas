@@ -1,7 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 import {
-  createRemoteRosterReader,
   EMPTY_ROSTER,
   rosterAgents,
   rosterShells,

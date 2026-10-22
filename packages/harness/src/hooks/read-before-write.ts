@@ -5,7 +5,6 @@ import {
   EBeforeToolDecision,
   EContentAccess,
   EStage,
-  ToolDefinition,
   type AgentFileSystemPort,
   type BeforeTool,
   type DeclaredPathField,

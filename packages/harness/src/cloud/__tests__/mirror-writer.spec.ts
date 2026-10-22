@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   toEventId,
   toRunId,
-  toThreadId,
   type Event,
   type EventDraft,
   type EventEnvelope,

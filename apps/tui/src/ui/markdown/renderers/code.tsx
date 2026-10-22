@@ -1,5 +1,4 @@
 import { infoStringToFiletype } from '@opentui/core'
-import React from 'react'
 
 import type { FencedBlockView, FencedRenderArgs, FencedRenderer } from '../registry'
 import { codeSyntaxStyleFor } from '../syntax-style'

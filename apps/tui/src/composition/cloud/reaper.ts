@@ -1,6 +1,5 @@
 import {
   EExecutionLocation,
-  ELocationChangeCause,
   toThreadId,
   type ThreadId,
 } from '@dltech/atlas-core'

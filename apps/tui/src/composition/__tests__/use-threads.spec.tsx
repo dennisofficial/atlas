@@ -5,7 +5,6 @@ import React from 'react'
 
 import {
   checkoutKey,
-  EForge,
   EPullRequestLookup,
   EPullRequestState,
   EChecksState,
@@ -13,11 +12,9 @@ import {
   PullRequestPort,
   type PullRequestBadgeKey,
   type PullRequestReading,
-  type RepositoryCheckout,
   type ThreadSummary,
 } from '@dltech/atlas-harness'
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
-import type { ThreadsState } from '../../ui/threads-model'
 import type { AtlasApp } from '../compose'
 import { useThreads, type ThreadsControl } from '../use-threads'
 

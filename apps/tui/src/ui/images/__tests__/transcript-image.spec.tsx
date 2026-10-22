@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from 'vitest'
 import type { NativeImage, OptimizedBuffer } from '@opentui/core'
 import { setRendererCapabilities } from '@opentui/core/testing'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

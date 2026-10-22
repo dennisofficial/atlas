@@ -1,7 +1,6 @@
 import type {
   EExecutionLocation,
   EKilledBy,
-  EventDraft,
   SaidFile,
   SaidImage,
   ThreadId,

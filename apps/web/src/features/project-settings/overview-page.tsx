@@ -19,7 +19,6 @@ import {
   overviewDraftOf,
   saveBodyOf,
   type OverviewDraft,
-  type ProjectIdentity,
 } from './data/project-mapping'
 import { DangerZone } from './overview-danger-zone'
 import { AdditionalRepositories, RepositoryControls } from './overview-repositories'

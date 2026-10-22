@@ -2,7 +2,6 @@ import {
   acceptContentType,
   acceptUrl,
   EContentVerdict,
-  looksBinary,
   sameHost,
   type FetchedPage,
 } from '@dltech/atlas-core'

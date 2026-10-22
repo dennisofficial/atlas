@@ -1,4 +1,4 @@
-import type { SessionPlacement, ThreadId } from '@dltech/atlas-core'
+import type { SessionPlacement, } from '@dltech/atlas-core'
 
 import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'

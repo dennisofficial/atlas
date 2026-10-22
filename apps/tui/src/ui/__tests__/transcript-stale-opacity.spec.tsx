@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { testRender } from '@opentui/react/test-utils'
 

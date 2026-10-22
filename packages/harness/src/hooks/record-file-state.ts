@@ -5,7 +5,6 @@ import {
   declaredFieldsOf,
   EContentAccess,
   EStage,
-  ToolDefinition,
   type AgentFileSystemPort,
   type AfterTool,
   type DeclaredPathField,

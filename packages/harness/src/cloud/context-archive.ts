@@ -72,7 +72,6 @@ export async function buildContextArchive(args: {
         await cp(file.path, target, { preserveTimestamps: true, dereference: true })
         staged += 1
       } catch {
-        continue
       }
     }
     if (staged === 0) return undefined
@@ -104,7 +103,6 @@ const collectEntries = async (contentDir: string): Promise<readonly ExtractedArc
       const stats = await stat(path)
       entries.push({ key, path, mtimeMs: stats.mtimeMs })
     } catch {
-      continue
     }
   }
   return entries

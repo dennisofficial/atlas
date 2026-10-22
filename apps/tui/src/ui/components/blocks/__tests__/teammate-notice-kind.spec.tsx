@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { durableEntries } from '../../../../store/durable-entries'
 import { EEntryKind } from '../../../../store/transcript-model'

@@ -6,8 +6,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../container/injection'
-import { WorkspaceRoot } from '../container/tokens'
 
 export class PrewarmFactsHook extends BeforeTurnHook {
   readonly name = 'prewarmFacts'

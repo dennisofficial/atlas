@@ -1,7 +1,6 @@
 import { EAgentRestart, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'vitest'
-import React from 'react'
 
 import { durableEntries } from '../../../store/durable-entries'
 import { EEntryKind, type TranscriptEntry } from '../../../store/transcript-model'

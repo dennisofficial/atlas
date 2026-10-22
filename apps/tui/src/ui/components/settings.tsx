@@ -2,7 +2,6 @@ import {
   ESettingPage,
   type SecretPrompt as SecretPromptState,
   type TextPrompt as TextPromptState,
-  type ThreadId,
 } from '@dltech/atlas-core'
 import type { ScrollBoxRenderable } from '@opentui/core'
 import React, { useEffect, useRef } from 'react'

@@ -8,7 +8,6 @@ import {
 import { ERowStatus, type ResultRow } from '../src/results'
 import type { PlannedRow } from '../src/run-plan'
 import { codeQualityOutputSchema } from './feature'
-import { srpAssessmentOf } from './grading'
 import { EfficacyInputError, type PreparedCase } from './efficacy-judgment'
 import {
   EOperationalReason,

@@ -9,7 +9,7 @@ import {
   type ChannelConnection,
   type CloudConnection,
 } from '@dltech/atlas-harness'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import type { CloudSession } from '../cloud/cloud-session'
 import { createCloudSession } from '../cloud/cloud-session'

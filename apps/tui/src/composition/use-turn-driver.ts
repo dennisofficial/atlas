@@ -1,4 +1,4 @@
-import { isResumable, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isResumable, type ThreadId } from '@dltech/atlas-core'
 import {
   ESuppress,
   LocalRewindMachinery,

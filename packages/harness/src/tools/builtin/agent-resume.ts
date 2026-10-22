@@ -9,7 +9,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { AgentRegistrySourceToken, type AgentRegistrySource } from './agent-tokens'
+import { type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({
   agentId: z.string().min(1),

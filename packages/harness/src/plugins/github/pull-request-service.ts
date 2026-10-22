@@ -7,7 +7,6 @@ import {
   POLL_FLOOR_MS,
   pollDecision,
   type PullRequestPort,
-  type PullRequestReading,
   type RepositoryCheckout,
 } from './pure'
 import { announcePolled, type PolledPullRequest } from './polled-pull-request'

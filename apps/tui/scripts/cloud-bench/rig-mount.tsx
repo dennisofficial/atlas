@@ -1,4 +1,4 @@
-import React from 'react'
+
 
 import { testRender } from '@opentui/react/test-utils'
 

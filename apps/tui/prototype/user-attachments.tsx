@@ -28,7 +28,7 @@
 import { base64Bytes, visualTokens, type SaidImage } from '@dltech/atlas-core'
 import { createCliRenderer } from '@opentui/core'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
-import React, { type ReactNode, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import {
   BLANK_BORDER,

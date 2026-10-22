@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { rgbToHex } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { installLinkClickOpen, notifyLinkHover } from '../../../../composition/link-click'
 import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'

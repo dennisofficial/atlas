@@ -133,7 +133,7 @@ describe('runtime checkpoint mirror', () => {
 
   it('sends a parked mirror immediately, coalescing queued progress into the final report', async () => {
     const home = scratchHome()
-    let clock = 1_000_000
+    const clock = 1_000_000
     const sent: { revision: number; phase: string }[] = []
     const capture = captureFor({
       home,

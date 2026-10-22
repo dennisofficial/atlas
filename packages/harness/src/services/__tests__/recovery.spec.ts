@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { EKilledBy, EServiceStatus, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { ServiceRecovery } from '../recovery'
 import { MemoryLog, SequenceIds } from './recovery-fixture'

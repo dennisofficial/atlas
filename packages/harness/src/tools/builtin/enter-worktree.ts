@@ -11,7 +11,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { WorkspaceRoot, WorktreeDirectoryToken } from '../../container/tokens'
 import {
   addWorktree,
   defaultBranch,

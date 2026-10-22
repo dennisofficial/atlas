@@ -7,7 +7,6 @@ import {
   encodeFrame,
   FrameDecoder,
   HELLO_TIMEOUT_MS,
-  INPUT_FRAME_BYTES,
   MAX_CONNECTIONS,
   type ClientMessage,
   type ControlResult,

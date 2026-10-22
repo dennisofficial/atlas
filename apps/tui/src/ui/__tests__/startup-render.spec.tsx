@@ -1,6 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { Startup } from '../components/startup'
 import { glyph } from '../glyphs'

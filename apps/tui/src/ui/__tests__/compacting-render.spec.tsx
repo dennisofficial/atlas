@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { CompactingOverlay } from '../components/compacting'
 import { frameOf, mount } from './transcript-fixture'

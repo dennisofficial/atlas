@@ -1,6 +1,5 @@
 import { ESettingId, toThreadId, type SettingsDocument } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'

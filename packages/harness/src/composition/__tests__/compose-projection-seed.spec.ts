@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ATLAS_SETTINGS, toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
 import { composeHarness } from '../compose'

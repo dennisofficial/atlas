@@ -2,7 +2,7 @@ import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testin
 import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { useExecutionLocation, type ExecutionLocationControl } from '../use-execution-location'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'

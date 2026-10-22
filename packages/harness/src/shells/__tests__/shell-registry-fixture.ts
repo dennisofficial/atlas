@@ -1,9 +1,8 @@
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  ProcessPort,
   toThreadId,
   type ClockPort,
   type EventDraft,

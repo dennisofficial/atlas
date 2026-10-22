@@ -8,11 +8,8 @@ import {
   EShellStatus,
   EStopAction,
   LogPort,
-  locationOfPlacement,
-  placementOf,
   toThreadId,
   type LogEntry,
-  type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
 

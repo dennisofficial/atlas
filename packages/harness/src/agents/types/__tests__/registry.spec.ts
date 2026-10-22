@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import {
   AGENT_SPAWN_TOOL_NAME,
   AgentTypeSource,
-  EAgentTypeRefusal,
   type AgentTypeRead,
 } from '../agent-type'
 import { DirectoryAgentTypeSource } from '../directory-source'

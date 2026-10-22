@@ -12,7 +12,6 @@ import type { OpenThreadArgs } from '../store/create-with-events'
 import type {
   ModelChosenListener,
   RenameListener,
-  SupervisedAgent,
   ThreadModel,
   ThreadSummary,
 } from '../store/thread-store'

@@ -2,7 +2,6 @@ import { toRunId } from '@dltech/atlas-core'
 import { EConnectionView } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { createBootProgress, EBootStep } from '../boot-progress'

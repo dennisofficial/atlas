@@ -3,14 +3,13 @@ import { appendFile, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/prom
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { EForkMode, toThreadId, type EventDraft, type LinkedPullRequest } from '@dltech/atlas-core'
+import { EForkMode, toThreadId, type EventDraft, } from '@dltech/atlas-core'
 
 import type { ThreadSummary } from '../../thread-store'
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
 import { listRoots } from '../listing'
-import { placesForSegments } from '../session-place-reader'
-import { readMetaSync, sessionMetaSchema, type SessionMeta } from '../meta'
+import { readMetaSync, sessionMetaSchema, } from '../meta'
 import { eventLogFile, sessionDirectory, sessionMetaFile, threadMetaFile } from '../paths'
 import { SessionRegistry } from '../registry'
 import { JsonlThreadStore } from '../thread-store'

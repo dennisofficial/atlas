@@ -9,7 +9,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../../container/injection'
 import { SkillRegistryPort } from '../../skills/port'
 import type { DiscoveredSkill } from '../../skills/skill'
 

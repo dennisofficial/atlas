@@ -5,7 +5,6 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import {
   EventLogPort,
-  EExecutionLocation,
   EWebSearchBackend,
   ExecutionLocationSinkPort,
   toCallId,

@@ -1,5 +1,4 @@
 import {
-  ClockPort,
   EAgentStatus,
   EventLogPort,
   EServiceStatus,
@@ -15,7 +14,6 @@ import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/a
 import { loadSettings } from '@dltech/atlas-harness'
 import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
 import {
-  SecretsStoreToken,
   ServeSessionToken,
   SessionRegistryToken,
   SessionEnvironmentProcessPort,

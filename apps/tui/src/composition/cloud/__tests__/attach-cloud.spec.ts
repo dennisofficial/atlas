@@ -8,7 +8,6 @@ import {
   toRunId,
   toThreadId,
   type Event,
-  type ThreadId,
 } from '@dltech/atlas-core'
 import {
   atlasDirectory,
@@ -22,7 +21,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { attachCloudSession, MissingCloudThreadError } from '../attach-cloud'
-import { FAKE_WORKSPACE, SPEC_SHARD } from '../../__tests__/fake-backend'
+import { SPEC_SHARD } from '../../__tests__/fake-backend'
 
 const REMOTE_THREAD = toThreadId(`attach-${SPEC_SHARD}`)
 

@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { EConnectionView } from '@dltech/atlas-harness'
 import type { ReleaseRangeDecision } from '@dltech/atlas-core'

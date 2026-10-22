@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { EMessageOrigin, toThreadId } from '@dltech/atlas-core'
 import { createPendingQueues } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { pendingRows } from '../../../../store/pending-rows'
 import { PendingBlock, pendingRuns } from '../pending-block'

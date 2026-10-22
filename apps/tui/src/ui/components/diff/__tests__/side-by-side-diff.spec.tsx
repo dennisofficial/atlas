@@ -1,7 +1,6 @@
 import { sideBySideRows } from '@dltech/atlas-core'
 import { parseColor } from '@opentui/core'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { rowDigits, sideBySideColumns } from '../../../diff-layout'
 import { theme } from '../../../theme'

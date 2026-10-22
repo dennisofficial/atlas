@@ -58,7 +58,6 @@ export function createSessionOwner<Adapters>(args: {
       try {
         listener()
       } catch {
-        continue
       }
     }
   }

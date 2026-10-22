@@ -4,7 +4,6 @@ import {
   EQualityTransition,
   type QualityAssessment,
   type QualityPolicy,
-  type QualityScope,
 } from '@dltech/atlas-core'
 
 export const FAKE_SRP_POLICY_ID = 'single-responsibility'

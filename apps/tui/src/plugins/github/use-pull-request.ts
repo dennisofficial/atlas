@@ -164,7 +164,7 @@ export function usePullRequest(args: {
     if (cloud === null || remote === null) return
 
     setCheckout((current) => (sameCheckout(current, cloud) ? current : cloud))
-    let owned = true
+    const owned = true
     const apply = (states: readonly PrStateWire[]) => {
       if (owned) setRemoteStates(states)
     }

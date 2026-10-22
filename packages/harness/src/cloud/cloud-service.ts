@@ -10,7 +10,6 @@ import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
 import {
-  classifyOauthAccounts,
   prepareSandboxOauth,
   type OauthHandoffCallback,
 } from './cloud-oauth-sandbox'

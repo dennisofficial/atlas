@@ -4,13 +4,12 @@ import { parseColor, type CapturedFrame, type Renderable } from '@opentui/core'
 import { ESettingId, EWorktreeExit, toRunId, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { theme, SIDEBAR_WIDTH } from '../../ui/theme'
 import { App } from '../app'
 import { spokenIn } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 
 await grammarsReady()
 

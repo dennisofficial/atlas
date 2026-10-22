@@ -9,7 +9,6 @@ import {
   type PendingRow,
   type TranscriptEntry,
 } from '../../../../store'
-import { teardown } from '../../../markdown/__tests__/harness'
 import { EntryView } from '../../entry-view'
 import { NoticeBlock } from '../notice-block'
 import { PendingBlock } from '../pending-block'

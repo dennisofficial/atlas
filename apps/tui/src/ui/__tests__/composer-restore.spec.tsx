@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import type { TextareaRenderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { insertToken, liveTokens, substitutePastedTokens } from '../composer-tokens'
 import { adoptToken, planRestoredTokens, restoredDraft } from '../composer-restore'

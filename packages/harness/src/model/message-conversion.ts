@@ -2,7 +2,6 @@ import type {
   AssistantContent,
   ModelMessage,
   ToolResultPart as ModelToolResultPart,
-  UserContent,
 } from 'ai'
 
 import type {
@@ -13,10 +12,8 @@ import type {
   ReasoningPart,
   TextPart,
   ToolCallPart,
-  ToolMessage,
   ToolResultOutput,
   ToolResultPart,
-  UserMessage,
 } from '@dltech/atlas-core'
 
 import { carriedProviderOptions } from './provider-options'

@@ -12,7 +12,6 @@ import type {
   FilePart,
   ImagePart,
   Message,
-  ReasoningPart,
   TextPart,
   ToolMessage,
   ToolResultOutput,

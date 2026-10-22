@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   chmod,
   lstat,
-  mkdir,
   mkdtemp,
   readFile,
   readdir,

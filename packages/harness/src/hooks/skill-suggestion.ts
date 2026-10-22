@@ -9,7 +9,6 @@ import {
   type EventOfType,
   type HookOrder,
   type SkillSuggestionCandidate,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { suggestSkill } from '../skills/suggest'

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { App } from '../app'
 import { spokenIn, until, THREAD, REPLY, THINKING } from './app-fixture'

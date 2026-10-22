@@ -9,7 +9,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { WorkspaceRoot } from '../../container/tokens'
 import { probeWorkspace } from '../../workspace/probe'
 import { releaseWorktree } from '../../workspace/worktree-lock'
 import { inspectWorktree, removeWorktree, type WorktreeInspection } from '../../workspace/worktrees'

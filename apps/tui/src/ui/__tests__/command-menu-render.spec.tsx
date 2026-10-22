@@ -1,6 +1,5 @@
 import { ECommandGroup, ECommandKind, type CommandSpec } from '@dltech/atlas-core'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { openCommandMenu, type CommandMenuState } from '../command-menu-model'
 import { CommandMenu, KIND_MARK } from '../components/command-menu'

@@ -3,7 +3,6 @@ import { testRender } from '@opentui/react/test-utils'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import React from 'react'
 
 import type { ToolCall } from '../../../../store'
 import { applyTranscriptCovered } from '../../../covered-store'

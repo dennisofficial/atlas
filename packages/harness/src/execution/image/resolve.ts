@@ -5,7 +5,7 @@ import { DEFAULT_SANDBOX_IMAGE } from '../docker/sandbox'
 import { EBuildContext } from './build'
 import { type Mount } from './mounts'
 import { parseContainerJson, parseDevcontainerJson } from './parse'
-import { EConfigRefusal, type ConfigRefusal } from './refusals'
+import { type ConfigRefusal } from './refusals'
 
 export enum EConfigSource {
   ContainerJson = 'container.json',

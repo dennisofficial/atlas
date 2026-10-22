@@ -11,18 +11,18 @@ export const racket: LanguageSpec = {
     doubleQuoted(),
     pattern({ match: /#lang[ \t]+[^\s()[\]{}]+/, group: 'keyword.directive', atLineStart: true }),
     pattern({ match: /#(?:true|false|[tf])(?![A-Za-z0-9_])/, group: 'constant.builtin' }),
-    pattern({ match: /#:[A-Za-z][A-Za-z0-9_+\-*\/<>=!?]*/, group: 'attribute' }),
-    pattern({ match: /#[eibodx]#?[0-9A-Fa-f]+(?:[.\/][0-9A-Fa-f]+)?/, group: 'number' }),
+    pattern({ match: /#:[A-Za-z][A-Za-z0-9_+\-*/<>=!?]*/, group: 'attribute' }),
+    pattern({ match: /#[eibodx]#?[0-9A-Fa-f]+(?:[./][0-9A-Fa-f]+)?/, group: 'number' }),
     pattern({ match: /#\\(?:[A-Za-z]+|.)/, group: 'character' }),
     pattern({ match: /#(?:hash(?:eqv?)?|s)?(?=[([])/, group: 'punctuation' }),
     pattern({
       match: /[+-]?(?:(?:inf|nan)\.0|\d+(?:\/\d+|\.\d*)?(?:[eE][+-]?\d+)?|\.\d+)/,
       group: 'number',
     }),
-    pattern({ match: /λ(?![A-Za-z0-9_+\-*\/<>=!?])/, group: 'keyword' }),
-    pattern({ match: /'[A-Za-z_][A-Za-z0-9_+\-*\/<>=!?]*/, group: 'string.special.symbol' }),
+    pattern({ match: /λ(?![A-Za-z0-9_+\-*/<>=!?])/, group: 'keyword' }),
+    pattern({ match: /'[A-Za-z_][A-Za-z0-9_+\-*/<>=!?]*/, group: 'string.special.symbol' }),
   ],
-  identifier: /[A-Za-z_+\-*\/<>=!?][A-Za-z0-9_+\-*\/<>=!?]*/,
+  identifier: /[A-Za-z_+\-*/<>=!?][A-Za-z0-9_+\-*/<>=!?]*/,
   operators: '',
   words: {
     keyword: [

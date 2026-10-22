@@ -1,7 +1,6 @@
 import { EEffort, refKey, toRunId, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'

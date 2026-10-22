@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import {
-  fakeRunners,
   finished,
   loggedOfType,
   openSupervisor,

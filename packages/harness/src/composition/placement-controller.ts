@@ -284,7 +284,6 @@ export class PlacementController {
       try {
         listener()
       } catch {
-        continue
       }
     }
   }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { KeyEvent } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React, { act, useState } from 'react'
+import { act, useState } from 'react'
 
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { ECloudAction } from '../../ui/components/settings/cloud'

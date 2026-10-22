@@ -3,7 +3,6 @@ import {
   DEFAULT_WARN_PERCENT,
   ESettingId,
   EUsageWindow,
-  formatFavourites,
   parseFavourites,
   rangeValueOf,
   textValueOf,

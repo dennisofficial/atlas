@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { SpawnCommand } from '@dltech/atlas-core'
 
-import type { ShellAttachment, ShellLaunchOutcome, ShellLaunchSpec } from '../port'
+import type { ShellLaunchOutcome, ShellLaunchSpec } from '../port'
 import { closeRegistries, job, openRegistry, type ShellAdapter } from './shell-registry-fixture'
 import { ShellLauncherPort } from '../port'
 

@@ -1,6 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { CONTENT_PADDING, gutterWidth } from '../fenced-block'
 import { MarkdownView } from '../markdown-view'

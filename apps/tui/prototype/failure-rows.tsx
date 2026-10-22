@@ -27,18 +27,15 @@
 
 import { createCliRenderer } from '@opentui/core'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 
 import { toolRuns, type ToolCall } from '../src/store'
 import {
   classify,
-  EToolClass,
-  inputOf,
   measureOfSentence,
   outputOf,
   sentenceOf,
   str,
-  type Classification,
   type Read,
 } from '../src/store/tools'
 import { CWD } from '../src/store/tools/__tests__/fixture'

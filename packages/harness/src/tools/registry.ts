@@ -5,7 +5,6 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-import { portToken } from '../container/injection'
 
 export abstract class ToolRegistry {
   abstract declarations(): readonly ToolDeclaration[]

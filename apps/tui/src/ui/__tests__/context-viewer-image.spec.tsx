@@ -2,7 +2,6 @@ import { OptimizedBuffer } from '@opentui/core'
 import { setRendererCapabilities } from '@opentui/core/testing'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import React from 'react'
 
 import { ContextViewer } from '../components/context-viewer'
 import { encodePng } from '../images/__tests__/png-fixture'

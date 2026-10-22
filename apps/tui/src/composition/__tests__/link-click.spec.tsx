@@ -2,7 +2,7 @@ import { TextAttributes } from '@opentui/core'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import {
   installLinkClickOpen,

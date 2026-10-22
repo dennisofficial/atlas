@@ -4,8 +4,6 @@ import {
   ELocationChangeCause,
   ESettingId,
   ESettingsLayer,
-  parseRef,
-  refKey,
   textValueOf,
   type SettingsResolution,
   type ThreadId,

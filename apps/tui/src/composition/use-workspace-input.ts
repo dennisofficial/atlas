@@ -13,7 +13,6 @@ import {
   transcriptCovered,
   type OverlayPresence,
 } from './overlay-presence'
-import { swallowsFocusedTextareaKey } from './use-overlay-keys'
 import type { useAccounts } from './use-accounts'
 import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'

@@ -1,5 +1,4 @@
 import type {
-  EExecutionLocation,
   EKilledBy,
   EToolEffect,
   EventLogPort,

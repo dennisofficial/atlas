@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { EWorkspaceState, EWorkspaceStep, startServe } from '../index'
+import { EWorkspaceState, startServe } from '../index'
 
 import { fakeServeApp } from './fakes'
 import {

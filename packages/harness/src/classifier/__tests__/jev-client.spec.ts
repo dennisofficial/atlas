@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { JEV_MODEL, jevRiskQuestions } from '@dltech/atlas-core'
 
 import { JevDecisionClient, jevBaseUrl, type JevSystemOne } from '../jev-client'

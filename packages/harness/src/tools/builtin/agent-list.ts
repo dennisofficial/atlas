@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentSnapshot } from '../../agents/registry/snapshot'
-import { AgentRegistrySourceToken, type AgentRegistrySource } from './agent-tokens'
+import { type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({})
 

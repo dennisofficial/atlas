@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   EKilledBy,
-  EServiceStatus,
   toThreadId,
   type ClockPort,
   type ProcessHandle,

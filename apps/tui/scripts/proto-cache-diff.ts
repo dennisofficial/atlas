@@ -22,7 +22,6 @@ import {
   ledgerFile,
   parseEventLines,
   readMetaSync,
-  sessionsDirectory,
   threadMetaFile,
   threadMetaSchema,
   type ThreadMeta,

@@ -4,10 +4,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'

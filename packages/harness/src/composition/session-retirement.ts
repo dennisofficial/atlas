@@ -16,7 +16,6 @@ export function createRetirementQueue<
       try {
         binding.close?.()
       } catch {
-        continue
       }
     }
   }

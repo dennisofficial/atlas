@@ -96,15 +96,10 @@
         "noThenProperty": "off",
         "noUndeclaredEnvVars": "off"
       }
-    }
+    },
+    "includes": ["**", "!packages/ui/src/components"]
   },
   "overrides": [
-    {
-      "includes": ["packages/ui/src/components/**"],
-      "linter": {
-        "enabled": false
-      }
-    },
     {
       "includes": ["apps/tui/**"],
       "linter": {
@@ -132,6 +127,16 @@
         "rules": {
           "suspicious": {
             "noFocusedTests": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/__tests__/**", "**/*.spec.*", "**/*.test.*"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noComponentHookFactories": "off"
           }
         }
       }

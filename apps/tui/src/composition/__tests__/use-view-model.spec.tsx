@@ -3,7 +3,7 @@ import type { ModelSelection } from '@dltech/atlas-harness'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot, type Root } from '@opentui/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
 import { useViewModel, type ViewModelControl } from '../use-view-model'

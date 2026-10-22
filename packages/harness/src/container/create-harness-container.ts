@@ -1,6 +1,5 @@
 import {
   ClockPort,
-  CredentialPort,
   EDefinitionOrigin,
   EExecutionLocation,
   EventLogPort,
@@ -22,7 +21,6 @@ import {
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
 import { isStepping } from '../agents/registry/child-state'
-import type { IntakeSubmit } from '../agents/registry/deps'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'

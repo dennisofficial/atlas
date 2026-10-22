@@ -5,15 +5,12 @@ import {
   EBeforeToolDecision,
   EPathForm,
   EStage,
-  ToolDefinition,
   type BeforeTool,
   type BeforeToolOutcome,
   type HookOrder,
   type ThreadId,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
-
-import { portToken } from '../container/injection'
 import {
   ABSENT,
   createDeclaredPaths,

@@ -9,7 +9,7 @@ export const icon: LanguageSpec = {
     hashComment(),
     doubleQuoted(),
     singleQuoted(),
-    pattern({ match: /[+\-*\/%<>=!|^~\\?:@]+(?=&[a-z])/, group: 'operator' }),
+    pattern({ match: /[+\-*/%<>=!|^~\\?:@]+(?=&[a-z])/, group: 'operator' }),
     pattern({ match: /(?<=\.)[A-Za-z_][A-Za-z0-9_]*/, group: 'variable.member' }),
     pattern({ match: /\$[a-z]+/, group: 'keyword.directive', atLineStart: true }),
   ],

@@ -101,7 +101,6 @@ class GitProbe {
       try {
         handle.terminate()
       } catch {
-        continue
       }
     }
     this.running.clear()

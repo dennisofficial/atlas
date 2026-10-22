@@ -7,7 +7,6 @@ import { ECompactionAnchor, EForkMode, EWorktreeExit, type EventDraft } from '@d
 
 import { CountingIds, SteppingClock } from '../../__tests__/harness'
 import { JsonlEventLog } from '../event-log'
-import { readMetaSync, sessionMetaSchema } from '../meta'
 import { sessionDirectory, sessionMetaFile } from '../paths'
 import { SessionRegistry } from '../registry'
 import { JsonlThreadStore } from '../thread-store'

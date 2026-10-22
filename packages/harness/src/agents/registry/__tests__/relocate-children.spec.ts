@@ -16,7 +16,7 @@ import type { TurnOutcome } from '../../../loop/turn-outcome'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { ChildRunnerSource } from '../child-runner'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, finished, interrupted, loggedOfType, settled } from './fixtures'
+import { agentTypeNamed, finished, interrupted, loggedOfType, } from './fixtures'
 
 type HeldRun = {
   threadId: ThreadId

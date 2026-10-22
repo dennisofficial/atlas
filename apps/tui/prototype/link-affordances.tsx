@@ -17,7 +17,7 @@
  *
  * Question: which affordance makes "clickable" discoverable without adding chrome?
  */
-import { createCliRenderer, TextAttributes, type CliRenderer, type MouseEvent } from '@opentui/core'
+import { createCliRenderer, TextAttributes, type MouseEvent } from '@opentui/core'
 import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import React, { useState } from 'react'
 

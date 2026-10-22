@@ -30,7 +30,7 @@ export type RecoveredCuration = {
 }
 
 const PRIVATE_CONTENT =
-  /https?:\/\/|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:gh[pousr]_|github_pat_|sk-(?:live-|test-)?|xox[baprs]-|AKIA)[A-Za-z0-9_-]{8,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._~+\/-]{8,}/i
+  /https?:\/\/|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b(?:gh[pousr]_|github_pat_|sk-(?:live-|test-)?|xox[baprs]-|AKIA)[A-Za-z0-9_-]{8,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._~+/-]{8,}/i
 
 export function curateRecoveredChange(args: RecoveredCaseSource): RecoveredCuration {
   const path = relative(args.projectDirectory, args.change.path).split('\\').join('/')

@@ -7,7 +7,7 @@ const TYPE_NAME = /[A-Z][A-Za-z0-9_']*/
 const CHARACTER_LITERAL = /'(?:\\[^\n]|[^\\'\n])'/
 const PRIMED_NAME = /[a-z_][A-Za-z0-9_']*/
 const SYMBOL_OPERATORS = '!#$%&*+./<=>?@\\^|-~:'
-const DASH_LED_OPERATOR = /-{2,}[!#$%&*+.\/<=>?@\\^|~:][-!#$%&*+.\/<=>?@\\^|~:]*/
+const DASH_LED_OPERATOR = /-{2,}[!#$%&*+./<=>?@\\^|~:][-!#$%&*+./<=>?@\\^|~:]*/
 
 export const haskell: LanguageSpec = {
   filetype: 'haskell',

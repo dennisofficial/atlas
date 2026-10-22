@@ -1,4 +1,4 @@
-import type { CallId, EExecutionLocation, ThreadId, Event } from '@dltech/atlas-core'
+import type { CallId, ThreadId, Event } from '@dltech/atlas-core'
 import type { ChannelSignal, DeltaChannel, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
 
 import { durableOpLog } from '../composition/durable-op-log'

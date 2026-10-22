@@ -1,7 +1,6 @@
 import { createCliRenderer, type CliRenderer } from '@opentui/core'
 import { createRoot, type Root } from '@opentui/react'
 import { writeFileSync } from 'node:fs'
-import React from 'react'
 
 import { ESettingId } from '@dltech/atlas-core'
 

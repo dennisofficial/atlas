@@ -1,14 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { EForkMode, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { EForkMode, toThreadId, } from '@dltech/atlas-core'
 
 import { JsonlTurnLedger, sumSessionSpend } from '../src/ledger/jsonl'
 import { JsonlEventLog } from '../src/store/sessions/event-log'
 import {
   readMetaSync,
   readSessionMetaSync,
-  sessionMetaSchema,
   threadMetaSchema,
 } from '../src/store/sessions/meta'
 import {

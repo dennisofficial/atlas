@@ -1,9 +1,8 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { EventLogPort, EWebSearchBackend } from '@dltech/atlas-core'
+import { EWebSearchBackend } from '@dltech/atlas-core'
 import { createHarnessContainer } from './src/container/create-harness-container'
-import { portToken } from './src/container/injection'
 import {
   HookChainToken,
   WebSearchBackendToken,

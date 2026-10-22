@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import type { Renderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React, { act, useState } from 'react'
+import { act, useState } from 'react'
 
 import type { ToolCall } from '../../../../store'
 import { applyTranscriptCovered } from '../../../covered-store'

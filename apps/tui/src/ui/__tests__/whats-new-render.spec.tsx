@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { WhatsNew, type WhatsNewState } from '../components/whats-new'
 import { frameOf } from './transcript-fixture'

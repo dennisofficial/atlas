@@ -1,4 +1,4 @@
-import type { TextChunk } from '@opentui/core'
+
 import { describe, expect, test } from 'vitest'
 
 import { beaconHeat, shimmerCrest, WORKING_SHIMMER } from '../shimmer'

@@ -1,5 +1,4 @@
 import {
-  authorityOf,
   EAccountOrigin,
   EAuthKind,
   EAuthProvider,
@@ -13,7 +12,6 @@ import type { CloudSession } from '../../cloud/cloud-session'
 import { OAuthConnectionsClient } from '../../cloud/oauth-connections-client'
 import { memoryAccountStore } from '../account-store'
 import { CloudManagedCredentialPort } from '../cloud-managed-credential-port'
-import { CredentialError } from '../credential-error'
 import { fakeOauthApi, type FakeApi } from './oauth-api-fake'
 
 export const NOW = '2026-10-05T12:00:00.000Z'

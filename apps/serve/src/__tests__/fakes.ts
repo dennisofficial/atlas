@@ -5,7 +5,6 @@ import {
   type Event,
   type EventDraft,
   type EventId,
-  type IdPort,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'

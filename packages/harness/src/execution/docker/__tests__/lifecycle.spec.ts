@@ -14,7 +14,6 @@ import {
   BashActivityHook,
   ReclaimWorktreeSandboxHook,
   removeSandbox,
-  removeSandboxesAtWorktree,
   startIdleStop,
   stopSandbox,
   sweepSandboxes,

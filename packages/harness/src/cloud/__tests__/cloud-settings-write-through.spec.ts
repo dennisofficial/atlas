@@ -23,7 +23,7 @@ import { encodeSettingValue } from '../sync-settings'
 
 const URL = 'http://cloud.test'
 
-let nowMs = 0
+const nowMs = 0
 const clock: ClockPort = { now: () => new Date(nowMs).toISOString() }
 
 type ApiFake = {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ETurnStatus } from '../../../loop/turn-outcome'
-import { fakeRunners, finished, openSupervisor, type OpenedSupervisor } from './fixtures'
+import { finished, openSupervisor, type OpenedSupervisor } from './fixtures'
 
 let opened: OpenedSupervisor | undefined
 

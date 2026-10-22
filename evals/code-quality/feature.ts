@@ -10,7 +10,7 @@ import {
 import type { DatasetAggregate, DatasetReducerRow, EvalFeature } from '../src/feature'
 import type { EvaluatorGrade } from '../src/feature'
 import { gradeCurrentConcern, gradeEvidenceIds, gradeExactTuple, gradeImpact } from './grading'
-import { runCodeQualityTask, type CodeQualityInput, type CodeQualityOutput } from './task'
+import { type CodeQualityInput, type CodeQualityOutput } from './task'
 import { ESrpExpectationKind, srpExpectedSchema, type SrpExpected } from './expected'
 
 export const CODE_QUALITY_FEATURE_ID = 'code-quality/single-responsibility'

@@ -1,7 +1,6 @@
 import {
   EQualitySkipReason,
   toThreadId,
-  AgentFileSystemPort,
   type CapturedFileChange,
   type QualityCoverageDiagnostic,
   type ThreadId,

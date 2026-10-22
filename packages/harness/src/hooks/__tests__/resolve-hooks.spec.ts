@@ -16,8 +16,6 @@ import {
   HOOK_CONTEXT_KEY,
   OnChunkHook,
   toThreadId,
-  toCallId,
-  toRunId,
   ToolDefinition,
   type Assembled,
   type BeforeTool,
@@ -32,9 +30,6 @@ import {
   portToken,
   type DependencyContainer,
 } from '../../container/injection'
-import { WorkspaceRoot } from '../../container/tokens'
-import { HookedToolDispatcher } from '../../tools/dispatch'
-import { InMemoryToolRegistry } from '../../tools/registry'
 import { resolveHookChain } from '../resolve-hooks'
 
 const SESSION_DIRECTORY = '/workspace'

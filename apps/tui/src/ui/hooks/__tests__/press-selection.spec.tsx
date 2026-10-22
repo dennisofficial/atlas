@@ -1,7 +1,7 @@
 import { useRenderer, useSelectionHandler } from '@opentui/react'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { teardown } from '../../markdown/__tests__/harness'
 import { selectedText } from '../../selection/selected-text'

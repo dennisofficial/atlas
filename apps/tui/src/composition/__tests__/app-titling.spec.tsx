@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 import { EImageDelivery } from '@dltech/atlas-core'
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'

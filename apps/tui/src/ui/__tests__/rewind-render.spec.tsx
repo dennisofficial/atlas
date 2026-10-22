@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { HEADING, Rewind } from '../components/rewind'
 import { cellsOf } from '../hint-layout'

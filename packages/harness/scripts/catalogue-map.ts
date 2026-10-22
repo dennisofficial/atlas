@@ -6,7 +6,6 @@ import {
   readsHighResolution,
   tally,
   type ProviderMapping,
-  type ProviderReport,
 } from './catalogue-report'
 import { deriveEffort, EEffortShape } from './catalogue-effort'
 import type { ModelsDevModel, ModelsDevProvider } from './models-dev'

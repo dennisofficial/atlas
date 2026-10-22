@@ -14,14 +14,10 @@ import {
   EventLogPort,
   IdPort,
   LogPort,
-  ModelPort,
   QualityReviewPort,
   TelemetryPort,
   rangeValueOf,
   type EventDraft,
-  type NoticePort,
-  type SaidImage,
-  type SettingsResolution,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -33,7 +29,7 @@ import { subAgentPrompt } from '../agents/registry/child-prompt'
 import type { ChildRunnerDeps } from '../agents/registry/child-runner'
 import { isTeammateType } from '../agents/types'
 import { ChildRunnerDepsToken } from '../container/create-harness-container'
-import { registeredPortToken, type DependencyContainer } from '../container/injection'
+import { registeredPortToken, } from '../container/injection'
 import { ToolRegistry } from '../tools/registry'
 import { DeltaChannelToken, HookChainToken, SessionRegistryToken } from '../container/tokens'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
@@ -47,10 +43,6 @@ import type { TurnSetup } from './turn-setup'
 import { TitlingTurnRunner } from './titling-turn-runner'
 import { TldrTurnRunner } from '../loop/tldr-turn-runner'
 import type { TurnRunner } from '../loop/turn-runner.port'
-import type { PendingQueues } from '../pending'
-import { userSaidDraft } from '../pending'
-import type { PromptRegistry } from '../prompt/registry'
-import type { SleepPrevention } from '../power/sleep-prevention'
 import type { ClockJumpDetector } from '../loop/retrying-step'
 import type { WakeSignal } from '../wake/wake-signals'
 import { ServiceRegistryPort } from '../services/service-registry'

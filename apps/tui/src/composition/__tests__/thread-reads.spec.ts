@@ -15,7 +15,6 @@ import {
   retainNewest,
   retainOldest,
   THREAD_RETENTION_EVENTS,
-  THREAD_WINDOW_EVENTS,
 } from '../thread-reads'
 import { EThreadRows } from '../use-thread-view'
 

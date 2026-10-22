@@ -14,7 +14,7 @@ import {
   adoptTransferredChildren,
 } from '../adopt-transferred-children'
 import { TEAMMATE_AGENT_TYPE } from '../../types'
-import { finished, settled, type OpenedSupervisor } from './fixtures'
+import { finished, type OpenedSupervisor } from './fixtures'
 import { append, endingFor, openChild, openFamily, snapshotOf } from './transferred-fixture'
 
 const opened: OpenedSupervisor[] = []

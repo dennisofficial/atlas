@@ -20,7 +20,7 @@ export const scheme: LanguageSpec = {
       group: 'number',
     }),
   ],
-  identifier: /[A-Za-z_!$%&*\/:<=>?^~+-][A-Za-z0-9_!$%&*\/:<=>?^~+.-]*/,
+  identifier: /[A-Za-z_!$%&*/:<=>?^~+-][A-Za-z0-9_!$%&*/:<=>?^~+.-]*/,
   operators: '',
   words: {
     keyword: [

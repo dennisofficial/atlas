@@ -2,14 +2,14 @@ import { EAgentStatus, toRunId, toThreadId } from '@dltech/atlas-core'
 import { EKilledBy } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { frameSettled, frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { SIDEBAR_WIDTH } from '../../ui/theme'
 import { App } from '../app'
 import { until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { fakeAgentSnapshot } from './fake-agents'
 
 await grammarsReady()

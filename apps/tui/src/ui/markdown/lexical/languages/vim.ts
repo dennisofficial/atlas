@@ -2,7 +2,7 @@ import { doubleQuoted, lineComment, pattern, singleQuoted } from '../rules'
 import type { LanguageSpec } from '../spec'
 
 const VISUAL_RANGE = /'[<>],'[<>]/
-const REGISTER = /@(?:[-"+*.:%#=~_\/0-9]|[A-Za-z](?![A-Za-z0-9_#]))/
+const REGISTER = /@(?:[-"+*.:%#=~_/0-9]|[A-Za-z](?![A-Za-z0-9_#]))/
 const SCOPED_VARIABLE = /[abglstvw]:[A-Za-z0-9_#]+/
 const OPTION = /&(?:[lg]:)?[A-Za-z_][A-Za-z0-9_]*/
 const KEYCODE = /<[A-Za-z0-9_-]+>/

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { toThreadId, type ThreadId } from '@dltech/atlas-core'
+import { toThreadId, } from '@dltech/atlas-core'
 
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 import type { VercelSandboxConfig } from '@dltech/atlas-wire'

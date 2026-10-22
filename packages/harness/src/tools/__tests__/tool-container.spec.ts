@@ -20,7 +20,6 @@ import {
   WorkspaceRoot,
 } from '../../container/tokens'
 import { BashTool } from '../builtin/bash'
-import { GlobTool } from '../builtin/glob'
 import { GrepTool } from '../builtin/grep'
 import { ToolRegistry } from '../registry'
 import { ThreadStorePort } from '../../store/thread-store'

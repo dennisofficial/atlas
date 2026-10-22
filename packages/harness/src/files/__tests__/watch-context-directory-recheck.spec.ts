@@ -3,7 +3,6 @@ import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { watchContextDirectory, type Schedule, type WatchPath } from '../watch-context-directory'
-import type { ContextSignature } from '../context-signature'
 import {
   changed,
   cleanupHomes,

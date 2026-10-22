@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import React from 'react'
 
 import { type LogEntry, SINK_NOTICE_TEXT_LIMIT } from '@dltech/atlas-core'
 import { JsonlLog, registryFor, SystemClock } from '@dltech/atlas-harness'
-import { NoticeStack } from '../../ui/components/notice-stack'
 import { currentNotices, dismissNotice, tickNotices } from '../../ui/notice-store'
-import { frameOf } from '../../ui/__tests__/transcript-fixture'
 import { installOutputRedirect } from '../output-redirect'
 
 function captureWarnings(): { log: JsonlLog; entries: LogEntry[] } {

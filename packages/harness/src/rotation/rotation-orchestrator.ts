@@ -116,7 +116,6 @@ export class LocalRotation extends RotationPort {
       try {
         listener(stage)
       } catch {
-        continue
       }
     }
   }

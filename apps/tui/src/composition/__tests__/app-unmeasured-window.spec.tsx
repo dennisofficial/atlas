@@ -1,7 +1,6 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
-import React from 'react'
 
 import { UNMEASURED_CONTEXT } from '../../ui/footer-layout'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'

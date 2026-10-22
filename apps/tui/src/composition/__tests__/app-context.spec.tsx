@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
-import React, { act } from 'react'
+import { act } from 'react'
 import { contextDirectory, sessionDirectory } from '@dltech/atlas-harness'
 
 import { grammarsReady, teardown } from '../../ui/markdown/__tests__/harness'

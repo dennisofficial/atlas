@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorityOf, EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
+import { authorityOf, EAuthProvider } from '@dltech/atlas-core'
 
 import { seed, session, setup } from './cloud-managed-fixture'
 import { settledSecret } from './cloud-managed-fixture'

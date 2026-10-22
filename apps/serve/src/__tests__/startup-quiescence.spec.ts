@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
 import { toThreadId } from '@dltech/atlas-core'
 
 import { createServeWorkspaceSession } from '../serve-workspace-session'

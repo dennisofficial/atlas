@@ -8,7 +8,6 @@ import {
   sketch,
   subverbOf,
   worktreeTarget,
-  type CommandView,
 } from './view'
 
 const rebaseControlFlags = ['--abort', '--continue', '--skip', '--quit', '--edit-todo']

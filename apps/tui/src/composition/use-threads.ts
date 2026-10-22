@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { projectOf, toThreadId } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 import type { CloudSandboxes, ThreadStorePort, ThreadSummary } from '@dltech/atlas-harness'
 
 import {

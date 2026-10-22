@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   ATLAS_SETTINGS,
-  ESettingId,
   toCallId,
   toRunId,
   toThreadId,

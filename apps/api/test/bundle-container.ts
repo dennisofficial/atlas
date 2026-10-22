@@ -154,7 +154,6 @@ export function removeBundleResources({ names }: { names: BundleNames }): void {
     try {
       docker(args)
     } catch {
-      continue
     }
   }
 }

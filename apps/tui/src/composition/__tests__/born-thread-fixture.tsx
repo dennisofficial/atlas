@@ -7,7 +7,6 @@ import { ESettingId } from '@dltech/atlas-core'
 import { CloudClient } from '@dltech/atlas-harness'
 import { EShipBehavior, type Project } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
