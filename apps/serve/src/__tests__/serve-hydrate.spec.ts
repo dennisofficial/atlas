@@ -67,7 +67,7 @@ describe('hydrateServeHistory', () => {
 
     const result = await hydrate({ home, rows: [userSaid(1, 'first'), userSaid(2, 'second')] })
 
-    expect(result).toEqual({ imported: 2, skipped: 0, head: 2 })
+    expect(result).toEqual({ imported: 2, skipped: 0, head: 2, remoteHead: 2 })
     const events = await scratchTranscriptStore({ prefix: 'read', home }).log.read({ threadId })
     expect(events.map((event) => [event.seq, event.type])).toEqual([
       [1, 'user-said'],
@@ -86,7 +86,7 @@ describe('hydrateServeHistory', () => {
       rows: [bootStep(1), bootStep(2), userSaid(3, 'real'), unreadable],
     })
 
-    expect(result).toEqual({ imported: 1, skipped: 3, head: 4 })
+    expect(result).toEqual({ imported: 1, skipped: 3, head: 4, remoteHead: 4 })
     const events = await scratchTranscriptStore({ prefix: 'read', home }).log.read({ threadId })
     expect(events.map((event) => event.seq)).toEqual([3])
   })
@@ -123,7 +123,7 @@ describe('hydrateServeHistory', () => {
       rows: [userSaid(1, 'one'), userSaid(2, 'two'), userSaid(3, 'three')],
     })
 
-    expect(result).toEqual({ imported: 1, skipped: 0, head: 3 })
+    expect(result).toEqual({ imported: 1, skipped: 0, head: 3, remoteHead: 3 })
     const events = await scratchTranscriptStore({ prefix: 'read', home }).log.read({ threadId })
     expect(events.map((event) => event.seq)).toEqual([1, 2, 3])
   })
@@ -131,7 +131,12 @@ describe('hydrateServeHistory', () => {
   it('imports nothing and leaves no log when Postgres holds nothing', async () => {
     const home = newHome()
 
-    expect(await hydrate({ home, rows: [] })).toEqual({ imported: 0, skipped: 0, head: 0 })
+    expect(await hydrate({ home, rows: [] })).toEqual({
+      imported: 0,
+      skipped: 0,
+      head: 0,
+      remoteHead: 0,
+    })
   })
 })
 

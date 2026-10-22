@@ -40,6 +40,8 @@ import { createServeWorkspaceSession } from './serve-workspace-session'
 import { createSessionMirrorReader } from './session-mirror'
 import { createSessionMirrorRevision } from './session-mirror-revision'
 
+const noopIdle = (noop: () => void) => ({ note: noop, halt: noop, reset: noop })
+
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
   env: Record<string, string | undefined>
@@ -57,7 +59,7 @@ export async function finishServeBoot(args: {
   const { serveArgs, env, threadId, token, controlPlaneUrl, startedAt, log } = args
   const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
-  const { app, recovery, workspace, fetchFn, clientVersion } = await bootServeApp(args)
+  const { app, recovery, workspace, fetchFn, writeBehind, clientVersion } = await bootServeApp(args)
 
   const admissionClosed = (): boolean => {
     if (recovery.admissionLatched) return true
@@ -68,11 +70,7 @@ export async function finishServeBoot(args: {
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 },
     noop = (): void => undefined
-  let idleStop: { note: () => void; halt: () => void; reset: () => void } = {
-    note: noop,
-    halt: noop,
-    reset: noop,
-  }
+  let idleStop: { note: () => void; halt: () => void; reset: () => void } = noopIdle(noop)
   const note = (): void => idleStop.note()
   const session = createServeWorkspaceSession({
     threadId,
@@ -274,10 +272,12 @@ export async function finishServeBoot(args: {
       detachIntake?.()
       unsubscribeWake?.()
       detachSubscriptions()
+      writeBehind?.detach()
     },
     stopSandbox:
       serveArgs.stopSandbox ??
       providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
+    flushEvents: writeBehind?.flush,
     exit,
   })
 
