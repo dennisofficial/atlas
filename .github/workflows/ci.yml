@@ -153,6 +153,26 @@ jobs:
           path: .cache/incremental-tests
           key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+  api-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: vercel bundle spec
+        run: bun test src/vercel-bundle.integration.spec.ts
+        working-directory: apps/api
+        env:
+          ATLAS_LIVE_DOCKER: '1'
+
   # Single required status for the main ruleset: one name covers every job above, so tightening
   # CI never leaves the ruleset behind. Named `ci` only on pull_request runs — a required check is
   # satisfied by whichever run reports the name first on a sha, and the push run's answers are not
@@ -161,7 +181,7 @@ jobs:
   ci:
     name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
     runs-on: ubuntu-latest
-    needs: [check, test]
+    needs: [check, test, api-bundle]
     if: always()
     steps:
       - name: Fail if any check failed
