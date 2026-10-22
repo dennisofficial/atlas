@@ -16,7 +16,11 @@
       {
         "description": "ensure column \"driveName\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "driveName"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "driveName"
+        ]
       }
     ],
     "execute": [
@@ -29,7 +33,11 @@
       {
         "description": "verify column \"driveName\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "driveName"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "driveName"
+        ]
       }
     ]
   },
@@ -50,7 +58,11 @@
       {
         "description": "ensure column \"workspaceBranch\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceBranch"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceBranch"
+        ]
       }
     ],
     "execute": [
@@ -63,7 +75,11 @@
       {
         "description": "verify column \"workspaceBranch\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceBranch"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceBranch"
+        ]
       }
     ]
   },
@@ -84,7 +100,11 @@
       {
         "description": "ensure column \"workspaceCommit\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceCommit"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceCommit"
+        ]
       }
     ],
     "execute": [
@@ -97,7 +117,11 @@
       {
         "description": "verify column \"workspaceCommit\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceCommit"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceCommit"
+        ]
       }
     ]
   },
@@ -118,7 +142,11 @@
       {
         "description": "ensure column \"workspaceGitEmail\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceGitEmail"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceGitEmail"
+        ]
       }
     ],
     "execute": [
@@ -131,7 +159,11 @@
       {
         "description": "verify column \"workspaceGitEmail\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceGitEmail"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceGitEmail"
+        ]
       }
     ]
   },
@@ -152,7 +184,11 @@
       {
         "description": "ensure column \"workspaceGitName\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceGitName"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceGitName"
+        ]
       }
     ],
     "execute": [
@@ -165,7 +201,11 @@
       {
         "description": "verify column \"workspaceGitName\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceGitName"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceGitName"
+        ]
       }
     ]
   },
@@ -186,7 +226,11 @@
       {
         "description": "ensure column \"workspacePatch\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspacePatch"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspacePatch"
+        ]
       }
     ],
     "execute": [
@@ -199,7 +243,11 @@
       {
         "description": "verify column \"workspacePatch\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspacePatch"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspacePatch"
+        ]
       }
     ]
   },
@@ -220,7 +268,11 @@
       {
         "description": "ensure column \"workspaceProjectDirectory\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceProjectDirectory"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceProjectDirectory"
+        ]
       }
     ],
     "execute": [
@@ -233,7 +285,11 @@
       {
         "description": "verify column \"workspaceProjectDirectory\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "workspaceProjectDirectory"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "workspaceProjectDirectory"
+        ]
       }
     ]
   },
@@ -254,7 +310,9 @@
       {
         "description": "ensure index \"GithubPrState_repoFullName_idx\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"GithubPrState_repoFullName_idx\""]
+        "params": [
+          "\"public\".\"GithubPrState_repoFullName_idx\""
+        ]
       }
     ],
     "execute": [
@@ -268,7 +326,9 @@
       {
         "description": "verify index \"GithubPrState_repoFullName_idx\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"GithubPrState_repoFullName_idx\""]
+        "params": [
+          "\"public\".\"GithubPrState_repoFullName_idx\""
+        ]
       }
     ]
   },
@@ -289,7 +349,11 @@
       {
         "description": "ensure column \"sandboxId\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubSubscription", "sandboxId"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "sandboxId"
+        ]
       }
     ],
     "execute": [
@@ -302,7 +366,11 @@
       {
         "description": "verify column \"sandboxId\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubSubscription", "sandboxId"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "sandboxId"
+        ]
       }
     ]
   },
@@ -323,7 +391,11 @@
       {
         "description": "ensure column \"createdById\" is missing",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "createdById"]
+        "params": [
+          "public",
+          "Project",
+          "createdById"
+        ]
       }
     ],
     "execute": [
@@ -336,12 +408,21 @@
       {
         "description": "verify column \"createdById\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "createdById"]
+        "params": [
+          "public",
+          "Project",
+          "createdById"
+        ]
       },
       {
         "description": "verify column \"createdById\" has type \"text\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Project", "createdById", "text"]
+        "params": [
+          "public",
+          "Project",
+          "createdById",
+          "text"
+        ]
       }
     ]
   },
@@ -362,7 +443,11 @@
       {
         "description": "ensure column \"ownerUserId\" is missing",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "ownerUserId"]
+        "params": [
+          "public",
+          "Project",
+          "ownerUserId"
+        ]
       }
     ],
     "execute": [
@@ -375,12 +460,21 @@
       {
         "description": "verify column \"ownerUserId\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "ownerUserId"]
+        "params": [
+          "public",
+          "Project",
+          "ownerUserId"
+        ]
       },
       {
         "description": "verify column \"ownerUserId\" has type \"text\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Project", "ownerUserId", "text"]
+        "params": [
+          "public",
+          "Project",
+          "ownerUserId",
+          "text"
+        ]
       }
     ]
   },
@@ -422,7 +516,11 @@
       {
         "description": "ensure constraint \"Project_userId_fkey\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Project_userId_fkey", "public", "\"public\".\"Project\""]
+        "params": [
+          "Project_userId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
       }
     ],
     "execute": [
@@ -435,7 +533,11 @@
       {
         "description": "verify constraint \"Project_userId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Project_userId_fkey", "public", "\"public\".\"Project\""]
+        "params": [
+          "Project_userId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
       }
     ]
   },
@@ -456,7 +558,9 @@
       {
         "description": "ensure index \"Project_userId_idx\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Project_userId_idx\""]
+        "params": [
+          "\"public\".\"Project_userId_idx\""
+        ]
       }
     ],
     "execute": [
@@ -470,7 +574,9 @@
       {
         "description": "verify index \"Project_userId_idx\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Project_userId_idx\""]
+        "params": [
+          "\"public\".\"Project_userId_idx\""
+        ]
       }
     ]
   },
@@ -491,7 +597,11 @@
       {
         "description": "ensure column \"userId\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "userId"]
+        "params": [
+          "public",
+          "Project",
+          "userId"
+        ]
       }
     ],
     "execute": [
@@ -504,7 +614,11 @@
       {
         "description": "verify column \"userId\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "userId"]
+        "params": [
+          "public",
+          "Project",
+          "userId"
+        ]
       }
     ]
   },
@@ -525,7 +639,11 @@
       {
         "description": "ensure column \"accessTokenExpiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Account", "accessTokenExpiresAt"]
+        "params": [
+          "public",
+          "Account",
+          "accessTokenExpiresAt"
+        ]
       }
     ],
     "execute": [
@@ -545,7 +663,12 @@
       {
         "description": "verify column \"accessTokenExpiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Account", "accessTokenExpiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Account",
+          "accessTokenExpiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -569,7 +692,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Account", "createdAt"]
+        "params": [
+          "public",
+          "Account",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -589,7 +716,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Account", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Account",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -613,7 +745,11 @@
       {
         "description": "ensure column \"refreshTokenExpiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Account", "refreshTokenExpiresAt"]
+        "params": [
+          "public",
+          "Account",
+          "refreshTokenExpiresAt"
+        ]
       }
     ],
     "execute": [
@@ -633,7 +769,12 @@
       {
         "description": "verify column \"refreshTokenExpiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Account", "refreshTokenExpiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Account",
+          "refreshTokenExpiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -657,7 +798,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Account", "updatedAt"]
+        "params": [
+          "public",
+          "Account",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -677,7 +822,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Account", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Account",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -701,7 +851,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ActiveAccount", "createdAt"]
+        "params": [
+          "public",
+          "ActiveAccount",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -721,7 +875,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ActiveAccount", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ActiveAccount",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -745,7 +904,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ActiveAccount", "updatedAt"]
+        "params": [
+          "public",
+          "ActiveAccount",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -765,7 +928,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ActiveAccount", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ActiveAccount",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -789,7 +957,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "AgentAccount", "createdAt"]
+        "params": [
+          "public",
+          "AgentAccount",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -809,7 +981,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "AgentAccount", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "AgentAccount",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -833,7 +1010,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "AgentAccount", "updatedAt"]
+        "params": [
+          "public",
+          "AgentAccount",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -853,7 +1034,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "AgentAccount", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "AgentAccount",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -877,7 +1063,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "createdAt"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -897,7 +1087,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSandbox", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -921,7 +1116,11 @@
       {
         "description": "ensure column \"lastActivityAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "lastActivityAt"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "lastActivityAt"
+        ]
       }
     ],
     "execute": [
@@ -941,7 +1140,12 @@
       {
         "description": "verify column \"lastActivityAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSandbox", "lastActivityAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "lastActivityAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -965,7 +1169,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "updatedAt"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -985,7 +1193,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSandbox", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1009,7 +1222,11 @@
       {
         "description": "ensure column \"wakeClaim\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "wakeClaim"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "wakeClaim"
+        ]
       }
     ],
     "execute": [
@@ -1029,7 +1246,12 @@
       {
         "description": "verify column \"wakeClaim\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSandbox", "wakeClaim", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "wakeClaim",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1053,7 +1275,11 @@
       {
         "description": "ensure column \"wakeFailedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSandbox", "wakeFailedAt"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "wakeFailedAt"
+        ]
       }
     ],
     "execute": [
@@ -1073,7 +1299,12 @@
       {
         "description": "verify column \"wakeFailedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSandbox", "wakeFailedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSandbox",
+          "wakeFailedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1097,7 +1328,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSetting", "createdAt"]
+        "params": [
+          "public",
+          "CloudSetting",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1117,7 +1352,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSetting", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSetting",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1141,7 +1381,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "CloudSetting", "updatedAt"]
+        "params": [
+          "public",
+          "CloudSetting",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -1161,7 +1405,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "CloudSetting", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "CloudSetting",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1185,7 +1434,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "DeviceCode", "createdAt"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1205,7 +1458,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "DeviceCode", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1229,7 +1487,11 @@
       {
         "description": "ensure column \"expiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "DeviceCode", "expiresAt"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "expiresAt"
+        ]
       }
     ],
     "execute": [
@@ -1249,7 +1511,12 @@
       {
         "description": "verify column \"expiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "DeviceCode", "expiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "expiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1273,7 +1540,11 @@
       {
         "description": "ensure column \"lastPolledAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "DeviceCode", "lastPolledAt"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "lastPolledAt"
+        ]
       }
     ],
     "execute": [
@@ -1293,7 +1564,12 @@
       {
         "description": "verify column \"lastPolledAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "DeviceCode", "lastPolledAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "lastPolledAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1317,7 +1593,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "DeviceCode", "updatedAt"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -1337,7 +1617,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "DeviceCode", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1361,7 +1646,11 @@
       {
         "description": "ensure column \"at\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Event", "at"]
+        "params": [
+          "public",
+          "Event",
+          "at"
+        ]
       }
     ],
     "execute": [
@@ -1381,7 +1670,12 @@
       {
         "description": "verify column \"at\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Event", "at", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Event",
+          "at",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1405,7 +1699,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "createdAt"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1425,7 +1723,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1449,7 +1752,11 @@
       {
         "description": "ensure column \"suspendedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "suspendedAt"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "suspendedAt"
+        ]
       }
     ],
     "execute": [
@@ -1469,7 +1776,12 @@
       {
         "description": "verify column \"suspendedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "suspendedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "suspendedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1493,7 +1805,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "updatedAt"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -1513,7 +1829,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubAppInstallation", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubAppInstallation",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1537,7 +1858,11 @@
       {
         "description": "ensure column \"dismissedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubAppNoticeDismissal", "dismissedAt"]
+        "params": [
+          "public",
+          "GithubAppNoticeDismissal",
+          "dismissedAt"
+        ]
       }
     ],
     "execute": [
@@ -1586,7 +1911,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubConnection", "createdAt"]
+        "params": [
+          "public",
+          "GithubConnection",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1606,7 +1935,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubConnection", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubConnection",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1630,7 +1964,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubConnection", "updatedAt"]
+        "params": [
+          "public",
+          "GithubConnection",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -1650,7 +1988,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubConnection", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubConnection",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1674,7 +2017,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubPrEvent", "createdAt"]
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1694,7 +2041,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubPrEvent", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1718,7 +2070,11 @@
       {
         "description": "ensure column \"deliveredAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubPrEvent", "deliveredAt"]
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "deliveredAt"
+        ]
       }
     ],
     "execute": [
@@ -1738,7 +2094,12 @@
       {
         "description": "verify column \"deliveredAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubPrEvent", "deliveredAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubPrEvent",
+          "deliveredAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1762,7 +2123,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubPrState", "updatedAt"]
+        "params": [
+          "public",
+          "GithubPrState",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -1782,7 +2147,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubPrState", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubPrState",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1806,7 +2176,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "createdAt"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1826,7 +2200,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1850,7 +2229,11 @@
       {
         "description": "ensure column \"idleSince\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "idleSince"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "idleSince"
+        ]
       }
     ],
     "execute": [
@@ -1870,7 +2253,12 @@
       {
         "description": "verify column \"idleSince\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "idleSince", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "idleSince",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1894,7 +2282,11 @@
       {
         "description": "ensure column \"sweepLeaseUntil\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "sweepLeaseUntil"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "sweepLeaseUntil"
+        ]
       }
     ],
     "execute": [
@@ -1914,7 +2306,12 @@
       {
         "description": "verify column \"sweepLeaseUntil\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubRepoHook", "sweepLeaseUntil", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubRepoHook",
+          "sweepLeaseUntil",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1938,7 +2335,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubSubscription", "createdAt"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -1958,7 +2359,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubSubscription", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -1982,7 +2388,11 @@
       {
         "description": "ensure column \"expiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubSubscription", "expiresAt"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "expiresAt"
+        ]
       }
     ],
     "execute": [
@@ -2002,7 +2412,12 @@
       {
         "description": "verify column \"expiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubSubscription", "expiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "expiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2026,7 +2441,11 @@
       {
         "description": "ensure column \"liveUntil\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "GithubSubscription", "liveUntil"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "liveUntil"
+        ]
       }
     ],
     "execute": [
@@ -2046,7 +2465,12 @@
       {
         "description": "verify column \"liveUntil\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "GithubSubscription", "liveUntil", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "GithubSubscription",
+          "liveUntil",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2070,7 +2494,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Invitation", "createdAt"]
+        "params": [
+          "public",
+          "Invitation",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2090,7 +2518,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Invitation", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Invitation",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2114,7 +2547,11 @@
       {
         "description": "ensure column \"expiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Invitation", "expiresAt"]
+        "params": [
+          "public",
+          "Invitation",
+          "expiresAt"
+        ]
       }
     ],
     "execute": [
@@ -2134,7 +2571,12 @@
       {
         "description": "verify column \"expiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Invitation", "expiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Invitation",
+          "expiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2158,7 +2600,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "LocalPodLease", "createdAt"]
+        "params": [
+          "public",
+          "LocalPodLease",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2178,7 +2624,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "LocalPodLease", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "LocalPodLease",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2202,7 +2653,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "LocalPodLease", "updatedAt"]
+        "params": [
+          "public",
+          "LocalPodLease",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2222,7 +2677,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "LocalPodLease", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "LocalPodLease",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2246,7 +2706,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "McpServerConfig", "createdAt"]
+        "params": [
+          "public",
+          "McpServerConfig",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2266,7 +2730,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "McpServerConfig", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "McpServerConfig",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2290,7 +2759,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "McpServerConfig", "updatedAt"]
+        "params": [
+          "public",
+          "McpServerConfig",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2310,7 +2783,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "McpServerConfig", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "McpServerConfig",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2334,7 +2812,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Member", "createdAt"]
+        "params": [
+          "public",
+          "Member",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2354,7 +2836,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Member", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Member",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2378,7 +2865,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Memory", "createdAt"]
+        "params": [
+          "public",
+          "Memory",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2398,7 +2889,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Memory", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Memory",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2422,7 +2918,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Memory", "updatedAt"]
+        "params": [
+          "public",
+          "Memory",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2442,7 +2942,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Memory", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Memory",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2466,7 +2971,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "OauthConnection", "createdAt"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2486,7 +2995,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "OauthConnection", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2510,7 +3024,11 @@
       {
         "description": "ensure column \"refreshStartedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "OauthConnection", "refreshStartedAt"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "refreshStartedAt"
+        ]
       }
     ],
     "execute": [
@@ -2530,7 +3048,12 @@
       {
         "description": "verify column \"refreshStartedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "OauthConnection", "refreshStartedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "refreshStartedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2554,7 +3077,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "OauthConnection", "updatedAt"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2574,7 +3101,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "OauthConnection", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "OauthConnection",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2598,7 +3130,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "OauthConnectionSandbox", "createdAt"]
+        "params": [
+          "public",
+          "OauthConnectionSandbox",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2618,7 +3154,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "OauthConnectionSandbox", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "OauthConnectionSandbox",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2642,7 +3183,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Organization", "createdAt"]
+        "params": [
+          "public",
+          "Organization",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2662,7 +3207,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Organization", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Organization",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2686,7 +3236,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "createdAt"]
+        "params": [
+          "public",
+          "Project",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2706,7 +3260,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Project", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Project",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2730,7 +3289,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Project", "updatedAt"]
+        "params": [
+          "public",
+          "Project",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2750,7 +3313,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Project", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Project",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2774,7 +3342,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectMcpServer", "createdAt"]
+        "params": [
+          "public",
+          "ProjectMcpServer",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2794,7 +3366,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectMcpServer", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectMcpServer",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2818,7 +3395,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectMcpServer", "updatedAt"]
+        "params": [
+          "public",
+          "ProjectMcpServer",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2838,7 +3419,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectMcpServer", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectMcpServer",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2862,7 +3448,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectSecret", "createdAt"]
+        "params": [
+          "public",
+          "ProjectSecret",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2882,7 +3472,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectSecret", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectSecret",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2906,7 +3501,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectSecret", "updatedAt"]
+        "params": [
+          "public",
+          "ProjectSecret",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -2926,7 +3525,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectSecret", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectSecret",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2950,7 +3554,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectSetting", "createdAt"]
+        "params": [
+          "public",
+          "ProjectSetting",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -2970,7 +3578,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectSetting", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectSetting",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -2994,7 +3607,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "ProjectSetting", "updatedAt"]
+        "params": [
+          "public",
+          "ProjectSetting",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3014,7 +3631,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "ProjectSetting", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "ProjectSetting",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3038,7 +3660,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "PublishedBundle", "createdAt"]
+        "params": [
+          "public",
+          "PublishedBundle",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3058,7 +3684,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "PublishedBundle", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "PublishedBundle",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3082,7 +3713,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "SecretEntry", "createdAt"]
+        "params": [
+          "public",
+          "SecretEntry",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3102,7 +3737,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "SecretEntry", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "SecretEntry",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3126,7 +3766,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "SecretEntry", "updatedAt"]
+        "params": [
+          "public",
+          "SecretEntry",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3146,7 +3790,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "SecretEntry", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "SecretEntry",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3170,7 +3819,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Session", "createdAt"]
+        "params": [
+          "public",
+          "Session",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3190,7 +3843,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Session", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Session",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3214,7 +3872,11 @@
       {
         "description": "ensure column \"expiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Session", "expiresAt"]
+        "params": [
+          "public",
+          "Session",
+          "expiresAt"
+        ]
       }
     ],
     "execute": [
@@ -3234,7 +3896,12 @@
       {
         "description": "verify column \"expiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Session", "expiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Session",
+          "expiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3258,7 +3925,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Session", "updatedAt"]
+        "params": [
+          "public",
+          "Session",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3278,7 +3949,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Session", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Session",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3302,7 +3978,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "SshSigningKey", "createdAt"]
+        "params": [
+          "public",
+          "SshSigningKey",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3322,7 +4002,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "SshSigningKey", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "SshSigningKey",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3346,7 +4031,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "SshSigningKey", "updatedAt"]
+        "params": [
+          "public",
+          "SshSigningKey",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3366,7 +4055,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "SshSigningKey", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "SshSigningKey",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3390,7 +4084,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Thread", "createdAt"]
+        "params": [
+          "public",
+          "Thread",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3410,7 +4108,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Thread", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Thread",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3434,7 +4137,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Thread", "updatedAt"]
+        "params": [
+          "public",
+          "Thread",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3454,7 +4161,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Thread", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Thread",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3478,7 +4190,11 @@
       {
         "description": "ensure column \"endedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Turn", "endedAt"]
+        "params": [
+          "public",
+          "Turn",
+          "endedAt"
+        ]
       }
     ],
     "execute": [
@@ -3498,7 +4214,12 @@
       {
         "description": "verify column \"endedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Turn", "endedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Turn",
+          "endedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3522,7 +4243,11 @@
       {
         "description": "ensure column \"startedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Turn", "startedAt"]
+        "params": [
+          "public",
+          "Turn",
+          "startedAt"
+        ]
       }
     ],
     "execute": [
@@ -3542,7 +4267,12 @@
       {
         "description": "verify column \"startedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Turn", "startedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Turn",
+          "startedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3566,7 +4296,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "User", "createdAt"]
+        "params": [
+          "public",
+          "User",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3586,7 +4320,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "User", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "User",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3610,7 +4349,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "User", "updatedAt"]
+        "params": [
+          "public",
+          "User",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3630,7 +4373,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "User", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "User",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3654,7 +4402,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "UserFile", "createdAt"]
+        "params": [
+          "public",
+          "UserFile",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3674,7 +4426,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "UserFile", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "UserFile",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3698,7 +4455,11 @@
       {
         "description": "ensure column \"tombstonedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "UserFile", "tombstonedAt"]
+        "params": [
+          "public",
+          "UserFile",
+          "tombstonedAt"
+        ]
       }
     ],
     "execute": [
@@ -3718,7 +4479,12 @@
       {
         "description": "verify column \"tombstonedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "UserFile", "tombstonedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "UserFile",
+          "tombstonedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3742,7 +4508,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "UserFile", "updatedAt"]
+        "params": [
+          "public",
+          "UserFile",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3762,7 +4532,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "UserFile", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "UserFile",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3786,7 +4561,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Verification", "createdAt"]
+        "params": [
+          "public",
+          "Verification",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3806,7 +4585,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Verification", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Verification",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3830,7 +4614,11 @@
       {
         "description": "ensure column \"expiresAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Verification", "expiresAt"]
+        "params": [
+          "public",
+          "Verification",
+          "expiresAt"
+        ]
       }
     ],
     "execute": [
@@ -3850,7 +4638,12 @@
       {
         "description": "verify column \"expiresAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Verification", "expiresAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Verification",
+          "expiresAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3874,7 +4667,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "Verification", "updatedAt"]
+        "params": [
+          "public",
+          "Verification",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3894,7 +4691,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "Verification", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "Verification",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3918,7 +4720,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceMcpServer", "createdAt"]
+        "params": [
+          "public",
+          "WorkspaceMcpServer",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -3938,7 +4744,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceMcpServer", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceMcpServer",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -3962,7 +4773,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceMcpServer", "updatedAt"]
+        "params": [
+          "public",
+          "WorkspaceMcpServer",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -3982,7 +4797,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceMcpServer", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceMcpServer",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -4006,7 +4826,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceSecret", "createdAt"]
+        "params": [
+          "public",
+          "WorkspaceSecret",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -4026,7 +4850,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceSecret", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceSecret",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -4050,7 +4879,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceSecret", "updatedAt"]
+        "params": [
+          "public",
+          "WorkspaceSecret",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -4070,7 +4903,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceSecret", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceSecret",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -4094,7 +4932,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceSetting", "createdAt"]
+        "params": [
+          "public",
+          "WorkspaceSetting",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -4114,7 +4956,12 @@
       {
         "description": "verify column \"createdAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceSetting", "createdAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceSetting",
+          "createdAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -4138,7 +4985,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceSetting", "updatedAt"]
+        "params": [
+          "public",
+          "WorkspaceSetting",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -4158,7 +5009,12 @@
       {
         "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
-        "params": ["public", "WorkspaceSetting", "updatedAt", "timestamp(3) with time zone"]
+        "params": [
+          "public",
+          "WorkspaceSetting",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
       }
     ],
     "meta": {
@@ -4182,7 +5038,11 @@
       {
         "description": "ensure column \"createdAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceVercelCredential", "createdAt"]
+        "params": [
+          "public",
+          "WorkspaceVercelCredential",
+          "createdAt"
+        ]
       }
     ],
     "execute": [
@@ -4231,7 +5091,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "WorkspaceVercelCredential", "updatedAt"]
+        "params": [
+          "public",
+          "WorkspaceVercelCredential",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [
@@ -4364,7 +5228,11 @@
       {
         "description": "ensure constraint \"CloudSandbox_tokenHash_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["CloudSandbox_tokenHash_key", "public", "\"public\".\"CloudSandbox\""]
+        "params": [
+          "CloudSandbox_tokenHash_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
       }
     ],
     "execute": [
@@ -4404,7 +5272,11 @@
       {
         "description": "ensure constraint \"DeviceCode_deviceCode_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["DeviceCode_deviceCode_key", "public", "\"public\".\"DeviceCode\""]
+        "params": [
+          "DeviceCode_deviceCode_key",
+          "public",
+          "\"public\".\"DeviceCode\""
+        ]
       }
     ],
     "execute": [
@@ -4444,7 +5316,11 @@
       {
         "description": "ensure constraint \"DeviceCode_userCode_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["DeviceCode_userCode_key", "public", "\"public\".\"DeviceCode\""]
+        "params": [
+          "DeviceCode_userCode_key",
+          "public",
+          "\"public\".\"DeviceCode\""
+        ]
       }
     ],
     "execute": [
@@ -4484,7 +5360,11 @@
       {
         "description": "ensure constraint \"Member_organizationId_userId_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Member_organizationId_userId_key", "public", "\"public\".\"Member\""]
+        "params": [
+          "Member_organizationId_userId_key",
+          "public",
+          "\"public\".\"Member\""
+        ]
       }
     ],
     "execute": [
@@ -4524,7 +5404,11 @@
       {
         "description": "ensure constraint \"Project_exactly_one_owner_ad5ba0b8\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Project_exactly_one_owner_ad5ba0b8", "public", "\"public\".\"Project\""]
+        "params": [
+          "Project_exactly_one_owner_ad5ba0b8",
+          "public",
+          "\"public\".\"Project\""
+        ]
       }
     ],
     "execute": [
@@ -4537,7 +5421,12 @@
       {
         "description": "verify check constraint \"Project_exactly_one_owner_ad5ba0b8\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
-        "params": ["Project_exactly_one_owner_ad5ba0b8", "public", "\"public\".\"Project\"", "c"]
+        "params": [
+          "Project_exactly_one_owner_ad5ba0b8",
+          "public",
+          "\"public\".\"Project\"",
+          "c"
+        ]
       }
     ]
   },
@@ -4558,7 +5447,9 @@
       {
         "description": "ensure index \"Account_userId_idx_a489d58a\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Account_userId_idx_a489d58a\""]
+        "params": [
+          "\"public\".\"Account_userId_idx_a489d58a\""
+        ]
       }
     ],
     "execute": [
@@ -4600,7 +5491,9 @@
       {
         "description": "ensure index \"ActiveAccount_accountId_idx_cbfb3085\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"ActiveAccount_accountId_idx_cbfb3085\""]
+        "params": [
+          "\"public\".\"ActiveAccount_accountId_idx_cbfb3085\""
+        ]
       }
     ],
     "execute": [
@@ -4642,7 +5535,9 @@
       {
         "description": "ensure index \"GithubRepoHook_createdBy_idx_ba0f792f\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"GithubRepoHook_createdBy_idx_ba0f792f\""]
+        "params": [
+          "\"public\".\"GithubRepoHook_createdBy_idx_ba0f792f\""
+        ]
       }
     ],
     "execute": [
@@ -4684,7 +5579,9 @@
       {
         "description": "ensure index \"Invitation_inviterId_idx_c2d8c6d6\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Invitation_inviterId_idx_c2d8c6d6\""]
+        "params": [
+          "\"public\".\"Invitation_inviterId_idx_c2d8c6d6\""
+        ]
       }
     ],
     "execute": [
@@ -4726,7 +5623,9 @@
       {
         "description": "ensure index \"Invitation_organizationId_idx_2e17ef41\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Invitation_organizationId_idx_2e17ef41\""]
+        "params": [
+          "\"public\".\"Invitation_organizationId_idx_2e17ef41\""
+        ]
       }
     ],
     "execute": [
@@ -4768,7 +5667,9 @@
       {
         "description": "ensure index \"Member_userId_idx_a489d58a\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Member_userId_idx_a489d58a\""]
+        "params": [
+          "\"public\".\"Member_userId_idx_a489d58a\""
+        ]
       }
     ],
     "execute": [
@@ -4810,7 +5711,9 @@
       {
         "description": "ensure index \"Project_createdById_idx_8bf640ed\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Project_createdById_idx_8bf640ed\""]
+        "params": [
+          "\"public\".\"Project_createdById_idx_8bf640ed\""
+        ]
       }
     ],
     "execute": [
@@ -4852,7 +5755,9 @@
       {
         "description": "ensure index \"Project_ownerUserId_idx_f93ae154\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Project_ownerUserId_idx_f93ae154\""]
+        "params": [
+          "\"public\".\"Project_ownerUserId_idx_f93ae154\""
+        ]
       }
     ],
     "execute": [
@@ -4894,7 +5799,9 @@
       {
         "description": "ensure index \"Session_userId_idx_a489d58a\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Session_userId_idx_a489d58a\""]
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
       }
     ],
     "execute": [
@@ -4936,7 +5843,9 @@
       {
         "description": "ensure index \"Verification_identifier_idx_79a0dbb3\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Verification_identifier_idx_79a0dbb3\""]
+        "params": [
+          "\"public\".\"Verification_identifier_idx_79a0dbb3\""
+        ]
       }
     ],
     "execute": [
@@ -4978,7 +5887,9 @@
       {
         "description": "ensure index \"WorkspaceSecret_updatedById_idx_d0517c24\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceSecret_updatedById_idx_d0517c24\""]
+        "params": [
+          "\"public\".\"WorkspaceSecret_updatedById_idx_d0517c24\""
+        ]
       }
     ],
     "execute": [
@@ -5020,7 +5931,9 @@
       {
         "description": "ensure index \"WorkspaceVercelCredential_updatedById_idx_d0517c24\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceVercelCredential_updatedById_idx_d0517c24\""]
+        "params": [
+          "\"public\".\"WorkspaceVercelCredential_updatedById_idx_d0517c24\""
+        ]
       }
     ],
     "execute": [
@@ -5230,7 +6143,11 @@
       {
         "description": "ensure FK \"ActiveAccount_accountId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["ActiveAccount_accountId_fkey", "public", "\"public\".\"ActiveAccount\""]
+        "params": [
+          "ActiveAccount_accountId_fkey",
+          "public",
+          "\"public\".\"ActiveAccount\""
+        ]
       }
     ],
     "execute": [
@@ -5274,7 +6191,11 @@
       {
         "description": "ensure FK \"ActiveAccount_userId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["ActiveAccount_userId_fkey", "public", "\"public\".\"ActiveAccount\""]
+        "params": [
+          "ActiveAccount_userId_fkey",
+          "public",
+          "\"public\".\"ActiveAccount\""
+        ]
       }
     ],
     "execute": [
@@ -5366,7 +6287,11 @@
       {
         "description": "ensure FK \"GithubPrEvent_userId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["GithubPrEvent_userId_fkey", "public", "\"public\".\"GithubPrEvent\""]
+        "params": [
+          "GithubPrEvent_userId_fkey",
+          "public",
+          "\"public\".\"GithubPrEvent\""
+        ]
       }
     ],
     "execute": [
@@ -5410,7 +6335,11 @@
       {
         "description": "ensure FK \"GithubRepoHook_createdBy_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["GithubRepoHook_createdBy_fkey", "public", "\"public\".\"GithubRepoHook\""]
+        "params": [
+          "GithubRepoHook_createdBy_fkey",
+          "public",
+          "\"public\".\"GithubRepoHook\""
+        ]
       }
     ],
     "execute": [
@@ -5454,7 +6383,11 @@
       {
         "description": "ensure FK \"GithubSubscription_userId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["GithubSubscription_userId_fkey", "public", "\"public\".\"GithubSubscription\""]
+        "params": [
+          "GithubSubscription_userId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
       }
     ],
     "execute": [
@@ -5498,7 +6431,11 @@
       {
         "description": "ensure FK \"Project_createdById_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Project_createdById_fkey", "public", "\"public\".\"Project\""]
+        "params": [
+          "Project_createdById_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
       }
     ],
     "execute": [
@@ -5542,7 +6479,11 @@
       {
         "description": "ensure FK \"Project_ownerUserId_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Project_ownerUserId_fkey", "public", "\"public\".\"Project\""]
+        "params": [
+          "Project_ownerUserId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
       }
     ],
     "execute": [
@@ -5586,7 +6527,11 @@
       {
         "description": "ensure FK \"WorkspaceSecret_updatedById_fkey\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["WorkspaceSecret_updatedById_fkey", "public", "\"public\".\"WorkspaceSecret\""]
+        "params": [
+          "WorkspaceSecret_updatedById_fkey",
+          "public",
+          "\"public\".\"WorkspaceSecret\""
+        ]
       }
     ],
     "execute": [

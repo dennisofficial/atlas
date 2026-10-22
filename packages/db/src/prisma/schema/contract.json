@@ -276,8 +276,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -380,8 +384,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["accountId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "accountId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "AgentAccount",
@@ -392,8 +400,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -534,8 +546,12 @@
               "activePointers": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["accountId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "accountId"
+                  ]
                 },
                 "to": {
                   "model": "ActiveAccount",
@@ -546,8 +562,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -787,8 +807,12 @@
               "githubSubscriptions": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["threadId"],
-                  "targetFields": ["threadId"]
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
                 },
                 "to": {
                   "model": "GithubSubscription",
@@ -798,8 +822,12 @@
               "oauthConnections": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["sandboxId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sandboxId"
+                  ]
                 },
                 "to": {
                   "model": "OauthConnectionSandbox",
@@ -810,8 +838,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["threadId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -822,8 +854,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1011,8 +1047,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1165,8 +1205,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["threadId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -1345,8 +1389,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1433,8 +1481,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1540,8 +1592,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1797,8 +1853,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["createdBy"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "createdBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -1924,8 +1984,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["threadId"],
-                  "targetFields": ["threadId"]
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
                 },
                 "to": {
                   "model": "CloudSandbox",
@@ -1936,8 +2000,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2052,8 +2120,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["inviterId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "inviterId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2064,8 +2136,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -2160,8 +2236,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2240,8 +2320,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -2252,8 +2336,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2374,8 +2462,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2516,8 +2608,12 @@
               "sandboxes": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["connectionId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "connectionId"
+                  ]
                 },
                 "to": {
                   "model": "OauthConnectionSandbox",
@@ -2528,8 +2624,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2609,8 +2709,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["connectionId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "connectionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "OauthConnection",
@@ -2621,8 +2725,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["sandboxId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "sandboxId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "CloudSandbox",
@@ -2698,8 +2806,12 @@
               "invitations": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "Invitation",
@@ -2709,8 +2821,12 @@
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceMcpServer",
@@ -2720,8 +2836,12 @@
               "members": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "Member",
@@ -2731,8 +2851,12 @@
               "projects": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -2742,8 +2866,12 @@
               "secrets": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceSecret",
@@ -2753,8 +2881,12 @@
               "settings": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceSetting",
@@ -2765,8 +2897,12 @@
                 "cardinality": "1:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["organizationId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceVercelCredential",
@@ -2911,8 +3047,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["createdById"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2922,8 +3062,12 @@
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["projectId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
                 },
                 "to": {
                   "model": "ProjectMcpServer",
@@ -2934,8 +3078,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -2946,8 +3094,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["ownerUserId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "ownerUserId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -2957,8 +3109,12 @@
               "secrets": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["projectId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
                 },
                 "to": {
                   "model": "ProjectSecret",
@@ -2968,8 +3124,12 @@
               "settings": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["projectId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
                 },
                 "to": {
                   "model": "ProjectSetting",
@@ -2979,8 +3139,12 @@
               "threads": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["projectId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -3093,8 +3257,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["projectId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -3190,8 +3358,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["projectId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -3283,8 +3455,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["projectId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -3391,8 +3567,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -3514,8 +3694,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -3634,8 +3818,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -3810,8 +3998,12 @@
                 "cardinality": "1:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["threadId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
                 },
                 "to": {
                   "model": "CloudSandbox",
@@ -3821,8 +4013,12 @@
               "events": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["threadId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
                 },
                 "to": {
                   "model": "Event",
@@ -3832,8 +4028,12 @@
               "forks": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["parentThreadId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "parentThreadId"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -3844,8 +4044,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["parentThreadId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "parentThreadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -3856,8 +4060,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["projectId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -3867,8 +4075,12 @@
               "spawned": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["spawnerThreadId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "spawnerThreadId"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -3879,8 +4091,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["spawnerThreadId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "spawnerThreadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -3890,8 +4106,12 @@
               "turns": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["threadId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
                 },
                 "to": {
                   "model": "Turn",
@@ -3902,8 +4122,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -4081,8 +4305,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["threadId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -4201,8 +4429,12 @@
               "accounts": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "Account",
@@ -4212,8 +4444,12 @@
               "activeAccounts": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "ActiveAccount",
@@ -4223,8 +4459,12 @@
               "agentAccounts": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "AgentAccount",
@@ -4234,8 +4474,12 @@
               "cloudSandboxes": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "CloudSandbox",
@@ -4245,8 +4489,12 @@
               "createdProjects": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["createdById"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdById"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -4256,8 +4504,12 @@
               "deviceCodes": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "DeviceCode",
@@ -4268,8 +4520,12 @@
                 "cardinality": "1:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "GithubConnection",
@@ -4279,8 +4535,12 @@
               "githubNoticeDismissals": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "GithubAppNoticeDismissal",
@@ -4290,8 +4550,12 @@
               "githubPrEvents": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "GithubPrEvent",
@@ -4301,8 +4565,12 @@
               "githubRepoHooks": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["createdBy"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdBy"
+                  ]
                 },
                 "to": {
                   "model": "GithubRepoHook",
@@ -4312,8 +4580,12 @@
               "githubSubscriptions": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "GithubSubscription",
@@ -4323,8 +4595,12 @@
               "invitations": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["inviterId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "inviterId"
+                  ]
                 },
                 "to": {
                   "model": "Invitation",
@@ -4334,8 +4610,12 @@
               "localPodLeases": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "LocalPodLease",
@@ -4345,8 +4625,12 @@
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "UserMcpServer",
@@ -4356,8 +4640,12 @@
               "members": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "Member",
@@ -4367,8 +4655,12 @@
               "memories": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "Memory",
@@ -4378,8 +4670,12 @@
               "oauthConnections": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "OauthConnection",
@@ -4389,8 +4685,12 @@
               "ownedProjects": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["ownerUserId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "ownerUserId"
+                  ]
                 },
                 "to": {
                   "model": "Project",
@@ -4400,8 +4700,12 @@
               "publishedBundles": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "PublishedBundle",
@@ -4411,8 +4715,12 @@
               "secrets": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "UserSecret",
@@ -4422,8 +4730,12 @@
               "sessions": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "Session",
@@ -4433,8 +4745,12 @@
               "settings": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "UserSetting",
@@ -4445,8 +4761,12 @@
                 "cardinality": "1:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "SshSigningKey",
@@ -4456,8 +4776,12 @@
               "threads": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "Thread",
@@ -4467,8 +4791,12 @@
               "updatedVercelCredentials": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["updatedById"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceVercelCredential",
@@ -4478,8 +4806,12 @@
               "updatedWorkspaceSecrets": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["updatedById"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
                 },
                 "to": {
                   "model": "WorkspaceSecret",
@@ -4489,8 +4821,12 @@
               "userFiles": {
                 "cardinality": "1:N",
                 "on": {
-                  "localFields": ["id"],
-                  "targetFields": ["userId"]
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
                 },
                 "to": {
                   "model": "UserFile",
@@ -4613,8 +4949,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -4715,8 +5055,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -4812,8 +5156,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -4905,8 +5253,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["userId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -5075,8 +5427,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -5179,8 +5535,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -5191,8 +5551,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["updatedById"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -5287,8 +5651,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -5377,8 +5745,12 @@
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
-                  "localFields": ["organizationId"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "Organization",
@@ -5389,8 +5761,12 @@
                 "cardinality": "N:1",
                 "nullable": true,
                 "on": {
-                  "localFields": ["updatedById"],
-                  "targetFields": ["id"]
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
                 },
                 "to": {
                   "model": "User",
@@ -5524,12 +5900,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Account"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -5537,14 +5917,18 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "Account_userId_idx_a489d58a",
                   "prefix": "Account_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -5591,12 +5975,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "ActiveAccount"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -5608,12 +5996,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["accountId"],
+                    "columns": [
+                      "accountId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "ActiveAccount"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "AgentAccount"
                   }
@@ -5621,14 +6013,19 @@
               ],
               "indexes": [
                 {
-                  "columns": ["accountId"],
+                  "columns": [
+                    "accountId"
+                  ],
                   "name": "ActiveAccount_accountId_idx_cbfb3085",
                   "prefix": "ActiveAccount_accountId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["userId", "provider"]
+                "columns": [
+                  "userId",
+                  "provider"
+                ]
               },
               "uniques": []
             },
@@ -5727,12 +6124,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "AgentAccount"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -5740,13 +6141,18 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId", "provider"],
+                  "columns": [
+                    "userId",
+                    "provider"
+                  ],
                   "name": "AgentAccount_userId_provider_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -5895,29 +6301,39 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "CloudSandbox"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
                 },
                 {
                   "index": {
-                    "unique": ["threadId"]
+                    "unique": [
+                      "threadId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["threadId"],
+                    "columns": [
+                      "threadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "CloudSandbox"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
@@ -5925,25 +6341,36 @@
               ],
               "indexes": [
                 {
-                  "columns": ["state", "lastActivityAt"],
+                  "columns": [
+                    "state",
+                    "lastActivityAt"
+                  ],
                   "name": "CloudSandbox_state_lastActivityAt_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "CloudSandbox_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["tokenHash"]
+                  "columns": [
+                    "tokenHash"
+                  ]
                 },
                 {
-                  "columns": ["threadId"],
+                  "columns": [
+                    "threadId"
+                  ],
                   "name": "CloudSandbox_threadId_key"
                 }
               ]
@@ -5994,17 +6421,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "key"]
+                    "unique": [
+                      "userId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "CloudSetting"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6012,11 +6446,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "key"],
+                  "columns": [
+                    "userId",
+                    "key"
+                  ],
                   "name": "CloudSetting_userId_key_key"
                 }
               ]
@@ -6109,12 +6548,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "DeviceCode"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6122,14 +6565,20 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["deviceCode"]
+                  "columns": [
+                    "deviceCode"
+                  ]
                 },
                 {
-                  "columns": ["userCode"]
+                  "columns": [
+                    "userCode"
+                  ]
                 }
               ]
             },
@@ -6207,17 +6656,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["threadId", "seq"]
+                    "unique": [
+                      "threadId",
+                      "seq"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["threadId"],
+                    "columns": [
+                      "threadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Event"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
@@ -6225,26 +6681,41 @@
               ],
               "indexes": [
                 {
-                  "columns": ["threadId", "type"],
+                  "columns": [
+                    "threadId",
+                    "type"
+                  ],
                   "name": "Event_threadId_type_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "Event_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["threadId", "contextSlot", "contextKey", "contextDigest"],
+                  "columns": [
+                    "threadId",
+                    "contextSlot",
+                    "contextKey",
+                    "contextDigest"
+                  ],
                   "name": "Event_threadId_contextSlot_contextKey_contextDigest_key"
                 },
                 {
-                  "columns": ["threadId", "seq"],
+                  "columns": [
+                    "threadId",
+                    "seq"
+                  ],
                   "name": "Event_threadId_seq_key"
                 }
               ]
@@ -6306,13 +6777,17 @@
               "foreignKeys": [],
               "indexes": [
                 {
-                  "columns": ["accountLogin"],
+                  "columns": [
+                    "accountLogin"
+                  ],
                   "name": "GithubAppInstallation_accountLogin_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["installationId"]
+                "columns": [
+                  "installationId"
+                ]
               },
               "uniques": []
             },
@@ -6346,12 +6821,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubAppNoticeDismissal"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6359,7 +6838,10 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["userId", "repoFullName"]
+                "columns": [
+                  "userId",
+                  "repoFullName"
+                ]
               },
               "uniques": []
             },
@@ -6414,17 +6896,23 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId"]
+                    "unique": [
+                      "userId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubConnection"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6432,11 +6920,15 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "GithubConnection_userId_key"
                 }
               ]
@@ -6502,12 +6994,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubPrEvent"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6515,18 +7011,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["repoFullName", "prNumber"],
+                  "columns": [
+                    "repoFullName",
+                    "prNumber"
+                  ],
                   "name": "GithubPrEvent_repoFullName_prNumber_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId", "deliveredAt"],
+                  "columns": [
+                    "userId",
+                    "deliveredAt"
+                  ],
                   "name": "GithubPrEvent_userId_deliveredAt_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -6616,7 +7120,10 @@
               "foreignKeys": [],
               "indexes": [],
               "primaryKey": {
-                "columns": ["repoFullName", "prNumber"]
+                "columns": [
+                  "repoFullName",
+                  "prNumber"
+                ]
               },
               "uniques": []
             },
@@ -6684,12 +7191,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["createdBy"],
+                    "columns": [
+                      "createdBy"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubRepoHook"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6697,14 +7208,18 @@
               ],
               "indexes": [
                 {
-                  "columns": ["createdBy"],
+                  "columns": [
+                    "createdBy"
+                  ],
                   "name": "GithubRepoHook_createdBy_idx_ba0f792f",
                   "prefix": "GithubRepoHook_createdBy_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["repoFullName"]
+                "columns": [
+                  "repoFullName"
+                ]
               },
               "uniques": []
             },
@@ -6789,17 +7304,25 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "repoFullName", "branch"]
+                    "unique": [
+                      "userId",
+                      "repoFullName",
+                      "branch"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubSubscription"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6811,12 +7334,16 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["threadId"],
+                    "columns": [
+                      "threadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "GithubSubscription"
                   },
                   "target": {
-                    "columns": ["threadId"],
+                    "columns": [
+                      "threadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "CloudSandbox"
                   }
@@ -6824,37 +7351,55 @@
               ],
               "indexes": [
                 {
-                  "columns": ["expiresAt"],
+                  "columns": [
+                    "expiresAt"
+                  ],
                   "name": "GithubSubscription_expiresAt_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["liveUntil"],
+                  "columns": [
+                    "liveUntil"
+                  ],
                   "name": "GithubSubscription_liveUntil_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["repoFullName", "branch"],
+                  "columns": [
+                    "repoFullName",
+                    "branch"
+                  ],
                   "name": "GithubSubscription_repoFullName_branch_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["repoFullName", "prNumber"],
+                  "columns": [
+                    "repoFullName",
+                    "prNumber"
+                  ],
                   "name": "GithubSubscription_repoFullName_prNumber_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["threadId"],
+                  "columns": [
+                    "threadId"
+                  ],
                   "name": "GithubSubscription_threadId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "repoFullName", "branch"],
+                  "columns": [
+                    "userId",
+                    "repoFullName",
+                    "branch"
+                  ],
                   "name": "GithubSubscription_userId_repoFullName_branch_key"
                 }
               ]
@@ -6920,12 +7465,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Invitation"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -6937,12 +7486,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["inviterId"],
+                    "columns": [
+                      "inviterId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Invitation"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -6950,20 +7503,26 @@
               ],
               "indexes": [
                 {
-                  "columns": ["inviterId"],
+                  "columns": [
+                    "inviterId"
+                  ],
                   "name": "Invitation_inviterId_idx_c2d8c6d6",
                   "prefix": "Invitation_inviterId_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["organizationId"],
+                  "columns": [
+                    "organizationId"
+                  ],
                   "name": "Invitation_organizationId_idx_2e17ef41",
                   "prefix": "Invitation_organizationId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -7018,12 +7577,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "LocalPodLease"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7031,21 +7594,30 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "LocalPodLease_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["tokenHash"],
+                  "columns": [
+                    "tokenHash"
+                  ],
                   "name": "LocalPodLease_tokenHash_key"
                 },
                 {
-                  "columns": ["userId", "threadId"],
+                  "columns": [
+                    "userId",
+                    "threadId"
+                  ],
                   "name": "LocalPodLease_userId_threadId_key"
                 }
               ]
@@ -7096,17 +7668,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "name"]
+                    "unique": [
+                      "userId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "McpServerConfig"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7114,11 +7693,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "name"],
+                  "columns": [
+                    "userId",
+                    "name"
+                  ],
                   "name": "McpServerConfig_userId_name_key"
                 }
               ]
@@ -7161,17 +7745,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["organizationId", "userId"]
+                    "unique": [
+                      "organizationId",
+                      "userId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Member"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -7183,12 +7774,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Member"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7196,18 +7791,25 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "Member_userId_idx_a489d58a",
                   "prefix": "Member_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["organizationId", "userId"],
+                  "columns": [
+                    "organizationId",
+                    "userId"
+                  ],
                   "name": "Member_organizationId_userId_key"
                 }
               ]
@@ -7291,17 +7893,26 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "scope", "project", "name"]
+                    "unique": [
+                      "userId",
+                      "scope",
+                      "project",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Memory"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7309,17 +7920,27 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId", "project"],
+                  "columns": [
+                    "userId",
+                    "project"
+                  ],
                   "name": "Memory_userId_project_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "scope", "project", "name"],
+                  "columns": [
+                    "userId",
+                    "scope",
+                    "project",
+                    "name"
+                  ],
                   "name": "Memory_userId_scope_project_name_key"
                 }
               ]
@@ -7411,12 +8032,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "OauthConnection"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7424,13 +8049,17 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "OauthConnection_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -7464,12 +8093,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["connectionId"],
+                    "columns": [
+                      "connectionId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "OauthConnectionSandbox"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "OauthConnection"
                   }
@@ -7481,12 +8114,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["sandboxId"],
+                    "columns": [
+                      "sandboxId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "OauthConnectionSandbox"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "CloudSandbox"
                   }
@@ -7494,13 +8131,18 @@
               ],
               "indexes": [
                 {
-                  "columns": ["sandboxId"],
+                  "columns": [
+                    "sandboxId"
+                  ],
                   "name": "OauthConnectionSandbox_sandboxId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["connectionId", "sandboxId"]
+                "columns": [
+                  "connectionId",
+                  "sandboxId"
+                ]
               },
               "uniques": []
             },
@@ -7547,11 +8189,15 @@
               "foreignKeys": [],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["slug"],
+                  "columns": [
+                    "slug"
+                  ],
                   "name": "Organization_slug_key"
                 }
               ]
@@ -7670,12 +8316,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["ownerUserId"],
+                    "columns": [
+                      "ownerUserId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7687,12 +8337,16 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["createdById"],
+                    "columns": [
+                      "createdById"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -7704,12 +8358,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -7717,25 +8375,33 @@
               ],
               "indexes": [
                 {
-                  "columns": ["createdById"],
+                  "columns": [
+                    "createdById"
+                  ],
                   "name": "Project_createdById_idx_8bf640ed",
                   "prefix": "Project_createdById_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["organizationId"],
+                  "columns": [
+                    "organizationId"
+                  ],
                   "name": "Project_organizationId_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["ownerUserId"],
+                  "columns": [
+                    "ownerUserId"
+                  ],
                   "name": "Project_ownerUserId_idx_f93ae154",
                   "prefix": "Project_ownerUserId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -7785,17 +8451,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["projectId", "name"]
+                    "unique": [
+                      "projectId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["projectId"],
+                    "columns": [
+                      "projectId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "ProjectMcpServer"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
@@ -7803,11 +8476,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["projectId", "name"],
+                  "columns": [
+                    "projectId",
+                    "name"
+                  ],
                   "name": "ProjectMcpServer_projectId_name_key"
                 }
               ]
@@ -7867,17 +8545,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["projectId", "name"]
+                    "unique": [
+                      "projectId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["projectId"],
+                    "columns": [
+                      "projectId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "ProjectSecret"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
@@ -7885,11 +8570,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["projectId", "name"],
+                  "columns": [
+                    "projectId",
+                    "name"
+                  ],
                   "name": "ProjectSecret_projectId_name_key"
                 }
               ]
@@ -7940,17 +8630,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["projectId", "key"]
+                    "unique": [
+                      "projectId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["projectId"],
+                    "columns": [
+                      "projectId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "ProjectSetting"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
@@ -7958,11 +8655,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["projectId", "key"],
+                  "columns": [
+                    "projectId",
+                    "key"
+                  ],
                   "name": "ProjectSetting_projectId_key_key"
                 }
               ]
@@ -8025,17 +8727,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "version"]
+                    "unique": [
+                      "userId",
+                      "version"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "PublishedBundle"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8043,15 +8752,22 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["pathname"],
+                  "columns": [
+                    "pathname"
+                  ],
                   "name": "PublishedBundle_pathname_key"
                 },
                 {
-                  "columns": ["userId", "version"],
+                  "columns": [
+                    "userId",
+                    "version"
+                  ],
                   "name": "PublishedBundle_userId_version_key"
                 }
               ]
@@ -8111,17 +8827,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "name"]
+                    "unique": [
+                      "userId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "SecretEntry"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8129,11 +8852,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "name"],
+                  "columns": [
+                    "userId",
+                    "name"
+                  ],
                   "name": "SecretEntry_userId_name_key"
                 }
               ]
@@ -8207,12 +8935,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Session"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8220,18 +8952,24 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "Session_userId_idx_a489d58a",
                   "prefix": "Session_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["token"],
+                  "columns": [
+                    "token"
+                  ],
                   "name": "Session_token_key"
                 }
               ]
@@ -8297,17 +9035,23 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId"]
+                    "unique": [
+                      "userId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "SshSigningKey"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8315,11 +9059,15 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "SshSigningKey_userId_key"
                 }
               ]
@@ -8430,12 +9178,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8446,12 +9198,16 @@
                   },
                   "onDelete": "setNull",
                   "source": {
-                    "columns": ["parentThreadId"],
+                    "columns": [
+                      "parentThreadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
@@ -8462,12 +9218,16 @@
                   },
                   "onDelete": "setNull",
                   "source": {
-                    "columns": ["spawnerThreadId"],
+                    "columns": [
+                      "spawnerThreadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
@@ -8479,12 +9239,16 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["projectId"],
+                    "columns": [
+                      "projectId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
@@ -8492,38 +9256,57 @@
               ],
               "indexes": [
                 {
-                  "columns": ["parentThreadId"],
+                  "columns": [
+                    "parentThreadId"
+                  ],
                   "name": "Thread_parentThreadId_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["projectId"],
+                  "columns": [
+                    "projectId"
+                  ],
                   "name": "Thread_projectId_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["spawnerThreadId"],
+                  "columns": [
+                    "spawnerThreadId"
+                  ],
                   "name": "Thread_spawnerThreadId_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId", "repo", "updatedAt"],
+                  "columns": [
+                    "userId",
+                    "repo",
+                    "updatedAt"
+                  ],
                   "name": "Thread_userId_repo_updatedAt_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId", "updatedAt"],
+                  "columns": [
+                    "userId",
+                    "updatedAt"
+                  ],
                   "name": "Thread_userId_updatedAt_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId", "workspace", "updatedAt"],
+                  "columns": [
+                    "userId",
+                    "workspace",
+                    "updatedAt"
+                  ],
                   "name": "Thread_userId_workspace_updatedAt_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -8614,12 +9397,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["threadId"],
+                    "columns": [
+                      "threadId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Turn"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
@@ -8627,18 +9414,25 @@
               ],
               "indexes": [
                 {
-                  "columns": ["threadId", "startedAt"],
+                  "columns": [
+                    "threadId",
+                    "startedAt"
+                  ],
                   "name": "Turn_threadId_startedAt_idx",
                   "unique": false
                 },
                 {
-                  "columns": ["userId"],
+                  "columns": [
+                    "userId"
+                  ],
                   "name": "Turn_userId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["runId"]
+                "columns": [
+                  "runId"
+                ]
               },
               "uniques": []
             },
@@ -8697,11 +9491,15 @@
               "foreignKeys": [],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["email"],
+                  "columns": [
+                    "email"
+                  ],
                   "name": "User_email_key"
                 }
               ]
@@ -8775,17 +9573,25 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["userId", "tree", "path"]
+                    "unique": [
+                      "userId",
+                      "tree",
+                      "path"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["userId"],
+                    "columns": [
+                      "userId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "UserFile"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -8793,17 +9599,27 @@
               ],
               "indexes": [
                 {
-                  "columns": ["userId", "tree", "revision"],
+                  "columns": [
+                    "userId",
+                    "tree",
+                    "revision"
+                  ],
                   "name": "UserFile_userId_tree_revision_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["userId", "tree", "path"],
+                  "columns": [
+                    "userId",
+                    "tree",
+                    "path"
+                  ],
                   "name": "UserFile_userId_tree_path_key"
                 }
               ]
@@ -8857,14 +9673,18 @@
               "foreignKeys": [],
               "indexes": [
                 {
-                  "columns": ["identifier"],
+                  "columns": [
+                    "identifier"
+                  ],
                   "name": "Verification_identifier_idx_79a0dbb3",
                   "prefix": "Verification_identifier_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": []
             },
@@ -8914,17 +9734,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["organizationId", "name"]
+                    "unique": [
+                      "organizationId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceMcpServer"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -8932,11 +9759,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["organizationId", "name"],
+                  "columns": [
+                    "organizationId",
+                    "name"
+                  ],
                   "name": "WorkspaceMcpServer_organizationId_name_key"
                 }
               ]
@@ -9006,29 +9838,40 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["updatedById"],
+                    "columns": [
+                      "updatedById"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceSecret"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
                 },
                 {
                   "index": {
-                    "unique": ["organizationId", "name"]
+                    "unique": [
+                      "organizationId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceSecret"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -9036,18 +9879,25 @@
               ],
               "indexes": [
                 {
-                  "columns": ["updatedById"],
+                  "columns": [
+                    "updatedById"
+                  ],
                   "name": "WorkspaceSecret_updatedById_idx_d0517c24",
                   "prefix": "WorkspaceSecret_updatedById_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["organizationId", "name"],
+                  "columns": [
+                    "organizationId",
+                    "name"
+                  ],
                   "name": "WorkspaceSecret_organizationId_name_key"
                 }
               ]
@@ -9098,17 +9948,24 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "unique": ["organizationId", "key"]
+                    "unique": [
+                      "organizationId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceSetting"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -9116,11 +9973,16 @@
               ],
               "indexes": [],
               "primaryKey": {
-                "columns": ["id"]
+                "columns": [
+                  "id"
+                ]
               },
               "uniques": [
                 {
-                  "columns": ["organizationId", "key"],
+                  "columns": [
+                    "organizationId",
+                    "key"
+                  ],
                   "name": "WorkspaceSetting_organizationId_key_key"
                 }
               ]
@@ -9176,12 +10038,16 @@
                   "onDelete": "setNull",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["updatedById"],
+                    "columns": [
+                      "updatedById"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceVercelCredential"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "User"
                   }
@@ -9193,12 +10059,16 @@
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
-                    "columns": ["organizationId"],
+                    "columns": [
+                      "organizationId"
+                    ],
                     "namespaceId": "public",
                     "tableName": "WorkspaceVercelCredential"
                   },
                   "target": {
-                    "columns": ["id"],
+                    "columns": [
+                      "id"
+                    ],
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
@@ -9206,14 +10076,18 @@
               ],
               "indexes": [
                 {
-                  "columns": ["updatedById"],
+                  "columns": [
+                    "updatedById"
+                  ],
                   "name": "WorkspaceVercelCredential_updatedById_idx_d0517c24",
                   "prefix": "WorkspaceVercelCredential_updatedById_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
-                "columns": ["organizationId"]
+                "columns": [
+                  "organizationId"
+                ]
               },
               "uniques": []
             }

@@ -16,7 +16,11 @@
       {
         "description": "ensure column \"updatedAt\" exists",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
-        "params": ["public", "DeviceCode", "updatedAt"]
+        "params": [
+          "public",
+          "DeviceCode",
+          "updatedAt"
+        ]
       }
     ],
     "execute": [

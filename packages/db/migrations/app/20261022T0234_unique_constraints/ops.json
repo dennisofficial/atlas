@@ -58,7 +58,9 @@
       {
         "description": "ensure index \"CloudSandbox_threadId_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"CloudSandbox_threadId_key\""]
+        "params": [
+          "\"public\".\"CloudSandbox_threadId_key\""
+        ]
       }
     ],
     "execute": [
@@ -72,7 +74,9 @@
       {
         "description": "verify index \"CloudSandbox_threadId_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"CloudSandbox_threadId_key\""]
+        "params": [
+          "\"public\".\"CloudSandbox_threadId_key\""
+        ]
       }
     ]
   },
@@ -93,7 +97,9 @@
       {
         "description": "ensure index \"CloudSetting_userId_key_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"CloudSetting_userId_key_key\""]
+        "params": [
+          "\"public\".\"CloudSetting_userId_key_key\""
+        ]
       }
     ],
     "execute": [
@@ -107,7 +113,9 @@
       {
         "description": "verify index \"CloudSetting_userId_key_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"CloudSetting_userId_key_key\""]
+        "params": [
+          "\"public\".\"CloudSetting_userId_key_key\""
+        ]
       }
     ]
   },
@@ -128,7 +136,9 @@
       {
         "description": "ensure index \"Event_threadId_contextSlot_contextKey_contextDigest_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""]
+        "params": [
+          "\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""
+        ]
       }
     ],
     "execute": [
@@ -142,7 +152,9 @@
       {
         "description": "verify index \"Event_threadId_contextSlot_contextKey_contextDigest_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""]
+        "params": [
+          "\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""
+        ]
       }
     ]
   },
@@ -163,7 +175,9 @@
       {
         "description": "ensure index \"Event_threadId_seq_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Event_threadId_seq_key\""]
+        "params": [
+          "\"public\".\"Event_threadId_seq_key\""
+        ]
       }
     ],
     "execute": [
@@ -177,7 +191,9 @@
       {
         "description": "verify index \"Event_threadId_seq_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Event_threadId_seq_key\""]
+        "params": [
+          "\"public\".\"Event_threadId_seq_key\""
+        ]
       }
     ]
   },
@@ -198,7 +214,9 @@
       {
         "description": "ensure index \"GithubConnection_userId_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"GithubConnection_userId_key\""]
+        "params": [
+          "\"public\".\"GithubConnection_userId_key\""
+        ]
       }
     ],
     "execute": [
@@ -212,7 +230,9 @@
       {
         "description": "verify index \"GithubConnection_userId_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"GithubConnection_userId_key\""]
+        "params": [
+          "\"public\".\"GithubConnection_userId_key\""
+        ]
       }
     ]
   },
@@ -233,7 +253,9 @@
       {
         "description": "ensure index \"GithubSubscription_userId_repoFullName_branch_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""]
+        "params": [
+          "\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""
+        ]
       }
     ],
     "execute": [
@@ -247,7 +269,9 @@
       {
         "description": "verify index \"GithubSubscription_userId_repoFullName_branch_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""]
+        "params": [
+          "\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""
+        ]
       }
     ]
   },
@@ -268,7 +292,9 @@
       {
         "description": "ensure index \"LocalPodLease_tokenHash_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"LocalPodLease_tokenHash_key\""]
+        "params": [
+          "\"public\".\"LocalPodLease_tokenHash_key\""
+        ]
       }
     ],
     "execute": [
@@ -282,7 +308,9 @@
       {
         "description": "verify index \"LocalPodLease_tokenHash_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"LocalPodLease_tokenHash_key\""]
+        "params": [
+          "\"public\".\"LocalPodLease_tokenHash_key\""
+        ]
       }
     ]
   },
@@ -303,7 +331,9 @@
       {
         "description": "ensure index \"LocalPodLease_userId_threadId_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"LocalPodLease_userId_threadId_key\""]
+        "params": [
+          "\"public\".\"LocalPodLease_userId_threadId_key\""
+        ]
       }
     ],
     "execute": [
@@ -317,7 +347,9 @@
       {
         "description": "verify index \"LocalPodLease_userId_threadId_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"LocalPodLease_userId_threadId_key\""]
+        "params": [
+          "\"public\".\"LocalPodLease_userId_threadId_key\""
+        ]
       }
     ]
   },
@@ -338,7 +370,9 @@
       {
         "description": "ensure index \"McpServerConfig_userId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"McpServerConfig_userId_name_key\""]
+        "params": [
+          "\"public\".\"McpServerConfig_userId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -352,7 +386,9 @@
       {
         "description": "verify index \"McpServerConfig_userId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"McpServerConfig_userId_name_key\""]
+        "params": [
+          "\"public\".\"McpServerConfig_userId_name_key\""
+        ]
       }
     ]
   },
@@ -373,7 +409,9 @@
       {
         "description": "ensure index \"Memory_userId_scope_project_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Memory_userId_scope_project_name_key\""]
+        "params": [
+          "\"public\".\"Memory_userId_scope_project_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -387,7 +425,9 @@
       {
         "description": "verify index \"Memory_userId_scope_project_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Memory_userId_scope_project_name_key\""]
+        "params": [
+          "\"public\".\"Memory_userId_scope_project_name_key\""
+        ]
       }
     ]
   },
@@ -408,7 +448,9 @@
       {
         "description": "ensure index \"Organization_slug_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Organization_slug_key\""]
+        "params": [
+          "\"public\".\"Organization_slug_key\""
+        ]
       }
     ],
     "execute": [
@@ -422,7 +464,9 @@
       {
         "description": "verify index \"Organization_slug_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Organization_slug_key\""]
+        "params": [
+          "\"public\".\"Organization_slug_key\""
+        ]
       }
     ]
   },
@@ -443,7 +487,9 @@
       {
         "description": "ensure index \"ProjectMcpServer_projectId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectMcpServer_projectId_name_key\""]
+        "params": [
+          "\"public\".\"ProjectMcpServer_projectId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -457,7 +503,9 @@
       {
         "description": "verify index \"ProjectMcpServer_projectId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectMcpServer_projectId_name_key\""]
+        "params": [
+          "\"public\".\"ProjectMcpServer_projectId_name_key\""
+        ]
       }
     ]
   },
@@ -478,7 +526,9 @@
       {
         "description": "ensure index \"ProjectSecret_projectId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectSecret_projectId_name_key\""]
+        "params": [
+          "\"public\".\"ProjectSecret_projectId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -492,7 +542,9 @@
       {
         "description": "verify index \"ProjectSecret_projectId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectSecret_projectId_name_key\""]
+        "params": [
+          "\"public\".\"ProjectSecret_projectId_name_key\""
+        ]
       }
     ]
   },
@@ -513,7 +565,9 @@
       {
         "description": "ensure index \"ProjectSetting_projectId_key_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectSetting_projectId_key_key\""]
+        "params": [
+          "\"public\".\"ProjectSetting_projectId_key_key\""
+        ]
       }
     ],
     "execute": [
@@ -527,7 +581,9 @@
       {
         "description": "verify index \"ProjectSetting_projectId_key_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"ProjectSetting_projectId_key_key\""]
+        "params": [
+          "\"public\".\"ProjectSetting_projectId_key_key\""
+        ]
       }
     ]
   },
@@ -548,7 +604,9 @@
       {
         "description": "ensure index \"PublishedBundle_pathname_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"PublishedBundle_pathname_key\""]
+        "params": [
+          "\"public\".\"PublishedBundle_pathname_key\""
+        ]
       }
     ],
     "execute": [
@@ -562,7 +620,9 @@
       {
         "description": "verify index \"PublishedBundle_pathname_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"PublishedBundle_pathname_key\""]
+        "params": [
+          "\"public\".\"PublishedBundle_pathname_key\""
+        ]
       }
     ]
   },
@@ -583,7 +643,9 @@
       {
         "description": "ensure index \"PublishedBundle_userId_version_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"PublishedBundle_userId_version_key\""]
+        "params": [
+          "\"public\".\"PublishedBundle_userId_version_key\""
+        ]
       }
     ],
     "execute": [
@@ -597,7 +659,9 @@
       {
         "description": "verify index \"PublishedBundle_userId_version_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"PublishedBundle_userId_version_key\""]
+        "params": [
+          "\"public\".\"PublishedBundle_userId_version_key\""
+        ]
       }
     ]
   },
@@ -618,7 +682,9 @@
       {
         "description": "ensure index \"SecretEntry_userId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"SecretEntry_userId_name_key\""]
+        "params": [
+          "\"public\".\"SecretEntry_userId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -632,7 +698,9 @@
       {
         "description": "verify index \"SecretEntry_userId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"SecretEntry_userId_name_key\""]
+        "params": [
+          "\"public\".\"SecretEntry_userId_name_key\""
+        ]
       }
     ]
   },
@@ -653,7 +721,9 @@
       {
         "description": "ensure index \"Session_token_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"Session_token_key\""]
+        "params": [
+          "\"public\".\"Session_token_key\""
+        ]
       }
     ],
     "execute": [
@@ -667,7 +737,9 @@
       {
         "description": "verify index \"Session_token_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"Session_token_key\""]
+        "params": [
+          "\"public\".\"Session_token_key\""
+        ]
       }
     ]
   },
@@ -688,7 +760,9 @@
       {
         "description": "ensure index \"SshSigningKey_userId_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"SshSigningKey_userId_key\""]
+        "params": [
+          "\"public\".\"SshSigningKey_userId_key\""
+        ]
       }
     ],
     "execute": [
@@ -702,7 +776,9 @@
       {
         "description": "verify index \"SshSigningKey_userId_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"SshSigningKey_userId_key\""]
+        "params": [
+          "\"public\".\"SshSigningKey_userId_key\""
+        ]
       }
     ]
   },
@@ -723,7 +799,9 @@
       {
         "description": "ensure index \"User_email_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"User_email_key\""]
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
       }
     ],
     "execute": [
@@ -737,7 +815,9 @@
       {
         "description": "verify index \"User_email_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"User_email_key\""]
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
       }
     ]
   },
@@ -758,7 +838,9 @@
       {
         "description": "ensure index \"UserFile_userId_tree_path_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"UserFile_userId_tree_path_key\""]
+        "params": [
+          "\"public\".\"UserFile_userId_tree_path_key\""
+        ]
       }
     ],
     "execute": [
@@ -772,7 +854,9 @@
       {
         "description": "verify index \"UserFile_userId_tree_path_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"UserFile_userId_tree_path_key\""]
+        "params": [
+          "\"public\".\"UserFile_userId_tree_path_key\""
+        ]
       }
     ]
   },
@@ -793,7 +877,9 @@
       {
         "description": "ensure index \"WorkspaceMcpServer_organizationId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceMcpServer_organizationId_name_key\""]
+        "params": [
+          "\"public\".\"WorkspaceMcpServer_organizationId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -807,7 +893,9 @@
       {
         "description": "verify index \"WorkspaceMcpServer_organizationId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceMcpServer_organizationId_name_key\""]
+        "params": [
+          "\"public\".\"WorkspaceMcpServer_organizationId_name_key\""
+        ]
       }
     ]
   },
@@ -828,7 +916,9 @@
       {
         "description": "ensure index \"WorkspaceSecret_organizationId_name_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceSecret_organizationId_name_key\""]
+        "params": [
+          "\"public\".\"WorkspaceSecret_organizationId_name_key\""
+        ]
       }
     ],
     "execute": [
@@ -842,7 +932,9 @@
       {
         "description": "verify index \"WorkspaceSecret_organizationId_name_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceSecret_organizationId_name_key\""]
+        "params": [
+          "\"public\".\"WorkspaceSecret_organizationId_name_key\""
+        ]
       }
     ]
   },
@@ -863,7 +955,9 @@
       {
         "description": "ensure index \"WorkspaceSetting_organizationId_key_key\" exists",
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceSetting_organizationId_key_key\""]
+        "params": [
+          "\"public\".\"WorkspaceSetting_organizationId_key_key\""
+        ]
       }
     ],
     "execute": [
@@ -877,7 +971,9 @@
       {
         "description": "verify index \"WorkspaceSetting_organizationId_key_key\" does not exist",
         "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
-        "params": ["\"public\".\"WorkspaceSetting_organizationId_key_key\""]
+        "params": [
+          "\"public\".\"WorkspaceSetting_organizationId_key_key\""
+        ]
       }
     ]
   },
@@ -898,7 +994,11 @@
       {
         "description": "ensure constraint \"CloudSandbox_threadId_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["CloudSandbox_threadId_key", "public", "\"public\".\"CloudSandbox\""]
+        "params": [
+          "CloudSandbox_threadId_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
       }
     ],
     "execute": [
@@ -986,7 +1086,11 @@
       {
         "description": "ensure constraint \"CloudSetting_userId_key_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["CloudSetting_userId_key_key", "public", "\"public\".\"CloudSetting\""]
+        "params": [
+          "CloudSetting_userId_key_key",
+          "public",
+          "\"public\".\"CloudSetting\""
+        ]
       }
     ],
     "execute": [
@@ -1070,7 +1174,11 @@
       {
         "description": "ensure constraint \"Event_threadId_seq_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Event_threadId_seq_key", "public", "\"public\".\"Event\""]
+        "params": [
+          "Event_threadId_seq_key",
+          "public",
+          "\"public\".\"Event\""
+        ]
       }
     ],
     "execute": [
@@ -1110,7 +1218,11 @@
       {
         "description": "ensure constraint \"GithubConnection_userId_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["GithubConnection_userId_key", "public", "\"public\".\"GithubConnection\""]
+        "params": [
+          "GithubConnection_userId_key",
+          "public",
+          "\"public\".\"GithubConnection\""
+        ]
       }
     ],
     "execute": [
@@ -1194,7 +1306,11 @@
       {
         "description": "ensure constraint \"LocalPodLease_tokenHash_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["LocalPodLease_tokenHash_key", "public", "\"public\".\"LocalPodLease\""]
+        "params": [
+          "LocalPodLease_tokenHash_key",
+          "public",
+          "\"public\".\"LocalPodLease\""
+        ]
       }
     ],
     "execute": [
@@ -1234,7 +1350,11 @@
       {
         "description": "ensure constraint \"LocalPodLease_userId_threadId_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["LocalPodLease_userId_threadId_key", "public", "\"public\".\"LocalPodLease\""]
+        "params": [
+          "LocalPodLease_userId_threadId_key",
+          "public",
+          "\"public\".\"LocalPodLease\""
+        ]
       }
     ],
     "execute": [
@@ -1274,7 +1394,11 @@
       {
         "description": "ensure constraint \"McpServerConfig_userId_name_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["McpServerConfig_userId_name_key", "public", "\"public\".\"McpServerConfig\""]
+        "params": [
+          "McpServerConfig_userId_name_key",
+          "public",
+          "\"public\".\"McpServerConfig\""
+        ]
       }
     ],
     "execute": [
@@ -1314,7 +1438,11 @@
       {
         "description": "ensure constraint \"Memory_userId_scope_project_name_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Memory_userId_scope_project_name_key", "public", "\"public\".\"Memory\""]
+        "params": [
+          "Memory_userId_scope_project_name_key",
+          "public",
+          "\"public\".\"Memory\""
+        ]
       }
     ],
     "execute": [
@@ -1354,7 +1482,11 @@
       {
         "description": "ensure constraint \"Organization_slug_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Organization_slug_key", "public", "\"public\".\"Organization\""]
+        "params": [
+          "Organization_slug_key",
+          "public",
+          "\"public\".\"Organization\""
+        ]
       }
     ],
     "execute": [
@@ -1438,7 +1570,11 @@
       {
         "description": "ensure constraint \"ProjectSecret_projectId_name_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["ProjectSecret_projectId_name_key", "public", "\"public\".\"ProjectSecret\""]
+        "params": [
+          "ProjectSecret_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectSecret\""
+        ]
       }
     ],
     "execute": [
@@ -1478,7 +1614,11 @@
       {
         "description": "ensure constraint \"ProjectSetting_projectId_key_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["ProjectSetting_projectId_key_key", "public", "\"public\".\"ProjectSetting\""]
+        "params": [
+          "ProjectSetting_projectId_key_key",
+          "public",
+          "\"public\".\"ProjectSetting\""
+        ]
       }
     ],
     "execute": [
@@ -1518,7 +1658,11 @@
       {
         "description": "ensure constraint \"PublishedBundle_pathname_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["PublishedBundle_pathname_key", "public", "\"public\".\"PublishedBundle\""]
+        "params": [
+          "PublishedBundle_pathname_key",
+          "public",
+          "\"public\".\"PublishedBundle\""
+        ]
       }
     ],
     "execute": [
@@ -1558,7 +1702,11 @@
       {
         "description": "ensure constraint \"PublishedBundle_userId_version_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["PublishedBundle_userId_version_key", "public", "\"public\".\"PublishedBundle\""]
+        "params": [
+          "PublishedBundle_userId_version_key",
+          "public",
+          "\"public\".\"PublishedBundle\""
+        ]
       }
     ],
     "execute": [
@@ -1598,7 +1746,11 @@
       {
         "description": "ensure constraint \"SecretEntry_userId_name_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["SecretEntry_userId_name_key", "public", "\"public\".\"SecretEntry\""]
+        "params": [
+          "SecretEntry_userId_name_key",
+          "public",
+          "\"public\".\"SecretEntry\""
+        ]
       }
     ],
     "execute": [
@@ -1638,7 +1790,11 @@
       {
         "description": "ensure constraint \"Session_token_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["Session_token_key", "public", "\"public\".\"Session\""]
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"Session\""
+        ]
       }
     ],
     "execute": [
@@ -1651,7 +1807,13 @@
       {
         "description": "verify unique constraint \"Session_token_key\" exists on (token)",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
-        "params": ["Session_token_key", "public", "\"public\".\"Session\"", "u", "[\"token\"]"]
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"Session\"",
+          "u",
+          "[\"token\"]"
+        ]
       }
     ]
   },
@@ -1672,7 +1834,11 @@
       {
         "description": "ensure constraint \"SshSigningKey_userId_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["SshSigningKey_userId_key", "public", "\"public\".\"SshSigningKey\""]
+        "params": [
+          "SshSigningKey_userId_key",
+          "public",
+          "\"public\".\"SshSigningKey\""
+        ]
       }
     ],
     "execute": [
@@ -1712,7 +1878,11 @@
       {
         "description": "ensure constraint \"User_email_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["User_email_key", "public", "\"public\".\"User\""]
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\""
+        ]
       }
     ],
     "execute": [
@@ -1725,7 +1895,13 @@
       {
         "description": "verify unique constraint \"User_email_key\" exists on (email)",
         "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
-        "params": ["User_email_key", "public", "\"public\".\"User\"", "u", "[\"email\"]"]
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\"",
+          "u",
+          "[\"email\"]"
+        ]
       }
     ]
   },
@@ -1746,7 +1922,11 @@
       {
         "description": "ensure constraint \"UserFile_userId_tree_path_key\" does not exist",
         "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
-        "params": ["UserFile_userId_tree_path_key", "public", "\"public\".\"UserFile\""]
+        "params": [
+          "UserFile_userId_tree_path_key",
+          "public",
+          "\"public\".\"UserFile\""
+        ]
       }
     ],
     "execute": [
