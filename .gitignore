@@ -89,8 +89,6 @@ apps/serve/sandbox-image/atlas-serve.bake-id
 .next/
 *.tsbuildinfo
 
-.do/live-spec.backup.yaml
-
 .cache/
 
 # vitest-incremental test fixtures, created and removed by its own specs

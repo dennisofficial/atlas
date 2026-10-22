@@ -84,83 +84,34 @@ so no route gets a larger parser. User-layer uploads fit because the harness ski
 
 ## Deploy
 
-DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
-build context; the runtime image is `node:22-slim` plus the `bun` binary — the server runs
-`bun src/main.ts`, while the PRE_DEPLOY migrate job needs node, npm, dotenvx and `packages/db`'s Prisma 8 CLI, which it runs under Bun) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
-job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
-`DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
+Production is the comp-ai Vercel project `atlas-api` (`api.byatlas.io`, root `apps/api`, production
+branch `main`, `vercel.json`) over PlanetScale `atlas/main`. Background jobs run on trigger.dev.
+Nothing else hosts Atlas.
 
-The Dockerfile's runtime stage copies explicit paths (`src`, `envs`, `scripts`, `tsconfig.json`, and
-`packages/db`'s `src`, `migrations`, `prisma.config.ts`) — anything a package script loads by path must be added to that list or it
-exists locally and 404s in the deploy. CI builds this image (`build-api-image` in `ci.yml`), so
-a missing copy fails the PR rather than only at deploy.
+**A merge to main builds a production deployment at once, but `api.byatlas.io` moves only after
+the `migrate-production` Deployment Check passes.** `.github/workflows/release.yml` runs on every
+push to main (no path filter, because Vercel requires the check on every production deployment).
+Its `migrate-production` job runs `bun run db:migrate:deploy` and then `prisma db verify --strict`
+against PlanetScale with `MIGRATE_TIER=production`; Vercel holds the aliasing until that job is
+green, so a failed migration leaves the previous deploy serving and the schema never half-applied.
+The job name is the Deployment Check name, so keep it unique across workflows. `deploy-trigger`
+(see Background jobs) needs `migrate-production` and runs only when the push touched the API's
+build closure. Locally the same migration is `MIGRATE_TIER=production bun run db:migrate:deploy`.
 
-**`.do/app.yaml` is not read on push.** App Platform reads a spec file only when an app is
-created or updated through the API/CLI, so committing a change to it changes nothing on its own
-— the live spec is whatever was last applied. Migrations silently stopped running for exactly
-this reason: the `migrate` job existed in the file and never in the app.
+The migration is the only thing that applies schema in a deployed tier, never the app, which holds
+no DDL rights by design. It connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432;
+`DATABASE_URL` is its PgBouncer on :6432) when the tier supplies one, falling back to
+`DATABASE_URL` (`packages/db/prisma.config.ts`): a migration's session-level lock does not survive
+the pooler, and a killed job once left the lock pinned on a pooled backend so every later run timed
+out acquiring it (P1002). `scripts/migrate-deploy.mjs` retries the deploy three times with a 20 s
+backoff. The verify step sets `DATABASE_URL` to `DIRECT_URL` for the same reason.
 
-The file is a mirror of the live spec, not a wish. It was not, once: it named an app `atlas-api`
-with a service `api` on port 3400, while the live app is `atlas` with `atlas-apps-api` on 8080,
-and it carried neither the `api.byatlas.io` domain nor the alerts. Applying that would have
-renamed both, moved the port and dropped the domain — `apps update --spec` replaces the spec
-rather than merging into it. Take the live spec as the base for any edit and keep the diff to
-what you mean to change.
-
-```
-export DO_APP_ID=<app id>
-bun run do:spec:diff     # live spec vs .do/app.yaml — run this when either changes
-bun run do:spec:apply    # backs the live spec up, then doctl apps update --spec
-```
-
-`apps update --spec` replaces the whole spec rather than merging into it, so read the diff
-before applying: anything the control panel holds and the file does not is dropped. `apply`
-writes the live spec to `.do/live-spec.backup.yaml` (git-ignored) first, which is what you feed
-back to `--spec` to undo.
-
-PRE_DEPLOY jobs are API/CLI-only; the control panel cannot create one, and a spec edited there
-can drop it. Diff before you trust it.
-
-Applying the spec is not proof it works. Confirm the job is both present and running:
-
-```
-doctl apps get "$DO_APP_ID" --format Spec | grep -A2 'kind: PRE_DEPLOY'
-doctl apps list-deployments "$DO_APP_ID" --format ID,Phase,Created | head -3
-doctl apps logs "$DO_APP_ID" migrate --type run --deployment <id>
-```
-
-The migrate logs of a healthy deploy list the migrations `prisma db migrate` applied, or report the
-database already at the contract. A deployment whose `Phase` is `ERROR` with the job
-having exited non-zero is the gate working, not a regression: the previous release is still
-serving and the schema was never half-applied.
-
-**What the job buys.** A PRE_DEPLOY job runs to completion before the new containers start, and
-a non-zero exit cancels the deployment with the previous release still serving. The migrate job
-is the only thing that applies schema in a deployed tier — never the app container, which holds
-no DDL rights by design. Locally the same command is `MIGRATE_TIER=production bun run
-db:migrate:deploy`.
-
-The job connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432; `DATABASE_URL` is its
-PgBouncer on :6432) when the tier supplies one,
-falling back to `DATABASE_URL` (`packages/db/prisma.config.ts`) — a migration's session-level lock does not
-survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
-deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
-three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
-
-`.github/workflows/migrate-production.yml` applies migrations on merges to main that touch
-`packages/db/migrations`, `packages/db/src/prisma` or the workflow itself, through `DIRECT_URL`, and can be
-run by hand with `workflow_dispatch`. While DigitalOcean is live it runs alongside the PRE_DEPLOY
-job, safely: `prisma db migrate` starts at the marker, runs in one transaction, and
-`scripts/migrate-deploy.mjs` retries on contention. After cutover it is the only migration path,
-and the additive-migration and rollback rules below still apply.
-
-**Rollback does not unwind a migration.** App Platform can restore any of the last ten
-successful deployments, and it restores code, configuration and the app spec — never database
-data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no
-rollback subcommand, and the deployment must share the app's region and database configuration. Prisma 8 has no down-migrations either. So every migration must be backward-compatible with
-the release it lands ahead of: add columns with defaults, add tables, never rename or drop in
-the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
-turn a failed deploy into data loss; there is deliberately none.
+**Rollback does not unwind a migration.** Vercel's instant rollback (Deployments → a previous
+production deployment → Promote, or `vercel rollback`) restores code and configuration, never
+database data. Prisma 8 has no down-migrations either. So every migration must be
+backward-compatible with the release still serving while it lands: add columns with defaults, add
+tables, never rename or drop in the same deploy as the code that stops using them. There is
+deliberately no down-DDL, because it would turn a failed deploy into data loss.
 
 The database half of a rollback is PlanetScale's backups. A restore never happens in place: pick
 a backup or a point in time (up to 5 minutes ago) under Backups and restore it to a **new
@@ -170,9 +121,9 @@ schedule), so check that window is wider than the gap between a bad migration la
 someone noticing. https://planetscale.com/docs/postgres/backups/point-in-time-recovery
 
 `GET /v1/health` answers 503 when `prisma_contract.marker` names an older contract in the
-migration graph than the one this build was emitted against (`contractStorageHash`), so drift fails the health check and DO holds the previous release rather than serving
-500s. A database it cannot reach is reported as `unknown` and stays healthy — a cold start is
-not drift.
+migration graph than the one this build was emitted against (`contractStorageHash`), so drift
+shows up on the health check instead of as 500s. A database it cannot reach is reported as
+`unknown` and stays healthy: a cold start is not drift.
 
 ## Vercel bundle
 
@@ -196,8 +147,8 @@ then runs `bun install --production --linker hoisted --frozen-lockfile --os=* --
 function directory. Any other unresolved import fails the build.
 
 `src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
-from a `docker run --read-only` container of the same Bun image the Dockerfile pins
-(`test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
+from a `docker run --read-only` container of the same Bun image Vercel runs
+(`BUN_IMAGE` in `test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
 it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
 host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
 on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
@@ -221,11 +172,8 @@ wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances),
 inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
 5 s debounce and relies on `settle()`.
 
-The comp-ai Vercel project `atlas-api` is git-connected (production branch `main`, root
-`apps/api`, no domain), so every affected merge builds a Vercel production deployment. Its
-`*.vercel.app` URLs sit behind Comp AI's SSO, so smoke-test them with the project's protection
-bypass header. `api.byatlas.io` still points at DigitalOcean until cutover, so the Deploy
-section above is still the live path.
+The Vercel project `atlas-api` sits behind Comp AI's SSO on its `*.vercel.app` URLs, so smoke-test
+those with the project's protection bypass header. `api.byatlas.io` is the production alias.
 
 ## Auth
 
@@ -324,9 +272,9 @@ one exact version; bump all three at once.
   `env:inject`; when either exits, both stop. Dispatched runs execute only while that worker is up.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
   `trigger:dev` runs only the worker.
-- **Deploy is automatic.** `.github/workflows/deploy-trigger.yml` deploys to prod on every merge to
-  main that touches the API's build closure, serialized and never cancelled. The CLI
-  authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
+- **Deploy is automatic.** The `deploy-trigger` job in `.github/workflows/release.yml` deploys to
+  prod after `migrate-production` passes, on every merge to main that touches the API's build
+  closure, serialized and never cancelled. The CLI authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
   the project from `trigger.config.ts`. The job then decrypts the prod `TRIGGER_SECRET_KEY` and runs
   `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db)
   and fails unless the run completes within two minutes. PRs get no deploy dry-run: `trigger deploy
@@ -337,10 +285,9 @@ one exact version; bump all three at once.
   and ioredis bundle; Prisma 8 has no query engine or wasm to keep external, and its
   `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
   the smoke step is what proves the runtime. `src/vercel.ts` must never import `src/trigger/`.
-- **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
-  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
-  keep sweeping while Vercel instances never run timers. A double run (DO timers plus the
-  schedules) is harmless: both sweeps are idempotent.
+- **Timers run only in local dev.** `GithubSweepSchedulerService` owns the 30 s and 60 s
+  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so `bun run dev` keeps
+  sweeping while Vercel instances never run timers. Prod sweeps are trigger.dev schedules.
 
 ## Rules that differ from the rest of the repo
 

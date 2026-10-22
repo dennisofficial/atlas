@@ -1,12 +1,11 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 const READY_TIMEOUT_MS = 60_000
 const POLL_INTERVAL_MS = 500
 const API_CONTAINER_PORT = 3000
 const POSTGRES_IMAGE = 'postgres:17-alpine'
+export const BUN_IMAGE = 'oven/bun:1.4.2'
 const READY_PATTERN = /bundle listening/
 
 export type BundleNames = { network: string; postgres: string; api: string }
@@ -24,13 +23,6 @@ export function bundleNames(): BundleNames {
     postgres: `atlas-bundle-pg-${suffix}`,
     api: `atlas-bundle-api-${suffix}`,
   }
-}
-
-export function bunImage(): string {
-  const dockerfile = readFileSync(join(import.meta.dirname, '..', 'Dockerfile'), 'utf8')
-  const image = /^ARG BUN_IMAGE=(\S+)$/m.exec(dockerfile)?.[1]
-  if (!image) throw new Error('apps/api/Dockerfile declares no BUN_IMAGE arg')
-  return image
 }
 
 function sleep(ms: number): Promise<void> {
@@ -127,7 +119,7 @@ export async function startBundleApi({
     '-p',
     `127.0.0.1:${hostPort}:${API_CONTAINER_PORT}`,
     ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
-    bunImage(),
+    BUN_IMAGE,
     'bun',
     'serve-bundle.ts',
     '/var/task/index.js',

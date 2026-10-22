@@ -21,48 +21,35 @@ const flushMicrotasks = async (): Promise<void> => {
 }
 
 describe('registerGracefulShutdown', () => {
-  it('drains on SIGTERM and only closes after the drain delay', async () => {
+  it('begins the drain on SIGTERM and closes straight after', async () => {
     const { handlers, listen } = capture()
     const order: string[] = []
-    const sleepFn = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          order.push('sleep')
-          resolve()
-        }),
-    )
     registerGracefulShutdown({
       beginDrain: () => order.push('drain'),
       closeApp: async () => {
         order.push('close')
       },
       exitProcess: () => order.push('exit'),
-      sleepFn,
-      drainDelayMs: 1000,
       forceExitMs: 60_000,
       listen,
       writeLog: () => {},
     })
 
     handlers.get('SIGTERM')!()
-    expect(order).toEqual(['drain', 'sleep'])
+    expect(order).toEqual(['drain', 'close'])
     await flushMicrotasks()
-    expect(order).toEqual(['drain', 'sleep', 'close', 'exit'])
-    expect(sleepFn).toHaveBeenCalledWith(1000)
+    expect(order).toEqual(['drain', 'close', 'exit'])
   })
 
   it('closes immediately on SIGINT without draining', async () => {
     const { handlers, listen } = capture()
     const order: string[] = []
-    const sleepFn = vi.fn(() => Promise.resolve())
     registerGracefulShutdown({
       beginDrain: () => order.push('drain'),
       closeApp: async () => {
         order.push('close')
       },
       exitProcess: () => order.push('exit'),
-      sleepFn,
-      drainDelayMs: 1000,
       forceExitMs: 60_000,
       listen,
       writeLog: () => {},
@@ -71,7 +58,7 @@ describe('registerGracefulShutdown', () => {
     handlers.get('SIGINT')!()
     await flushMicrotasks()
     expect(order).toEqual(['close', 'exit'])
-    expect(sleepFn).not.toHaveBeenCalled()
+    expect(order).not.toContain('drain')
   })
 
   it('ignores a second signal while shutdown is underway', async () => {
@@ -83,8 +70,6 @@ describe('registerGracefulShutdown', () => {
       },
       closeApp: async () => {},
       exitProcess: () => {},
-      sleepFn: () => new Promise<void>(() => {}),
-      drainDelayMs: 1000,
       forceExitMs: 60_000,
       listen,
       writeLog: () => {},
@@ -107,7 +92,6 @@ describe('registerGracefulShutdown', () => {
         exitProcess: () => {
           exited = true
         },
-        drainDelayMs: 0,
         forceExitMs: 115_000,
         listen,
         writeLog: () => {},

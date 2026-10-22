@@ -1,0 +1,105 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy-trigger: ${{ steps.diff.outputs.deploy-trigger }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          pattern='^(apps/api/|packages/wire/|packages/db/|package\.json$|bun\.lock$|bunfig\.toml$|tsconfig\.base\.json$|\.github/workflows/release\.yml$)'
+          if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
+            echo "deploy-trigger=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -Eq "$pattern"; then
+            echo "deploy-trigger=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy-trigger=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  migrate-production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - run: bun install --frozen-lockfile --filter '@dltech/atlas-api' --filter '@dltech/atlas-db'
+
+      - run: bun run db:migrate:deploy
+        working-directory: apps/api
+        env:
+          MIGRATE_TIER: production
+          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}
+
+      - name: verify the database matches the contract
+        working-directory: apps/api
+        run: |
+          ./node_modules/.bin/dotenvx run --strict -f "envs/.env.api.$MIGRATE_TIER.enc" -- \
+            sh -c "cd ../../packages/db && DATABASE_URL=\"\${DIRECT_URL:-\$DATABASE_URL}\" bun run --bun prisma db verify --strict"
+        env:
+          MIGRATE_TIER: production
+          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}
+
+  deploy-trigger:
+    needs: [changes, migrate-production]
+    if: needs.changes.outputs.deploy-trigger == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+        working-directory: .
+
+      # The CLI authenticates from TRIGGER_ACCESS_TOKEN (a tr_pat_ personal token) and reads the
+      # project ref from trigger.config.ts; --profile only selects a local login.
+      - name: deploy tasks to prod
+        run: bun run trigger:deploy:ci
+        env:
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
+
+      - name: smoke the deployed worker
+        timeout-minutes: 4
+        run: |
+          key=$(./node_modules/.bin/dotenvx get TRIGGER_SECRET_KEY -f envs/.env.api.production.enc)
+          echo "::add-mask::$key"
+          TRIGGER_SECRET_KEY="$key" bun run trigger:smoke
+        env:
+          DOTENV_PRIVATE_KEY_API_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_API_PRODUCTION }}

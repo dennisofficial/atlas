@@ -22,6 +22,5 @@ as core and harness today.
 
 `apps/api` runs on Node with `module: NodeNext`, where a `.ts` specifier cannot resolve. The
 package therefore compiles with its own `tsconfig.build.json` (NodeNext, `dist/`, declarations)
-and the default export condition points at the build output. `apps/api/Dockerfile` builds this
-package before `nest build api`; for a fresh local checkout run `bun run build --filter
-@dltech/atlas-wire` before the API's typecheck or test.
+and the default export condition points at the build output. For a fresh local checkout run
+`bun run build --filter @dltech/atlas-wire` before the API's typecheck or test.

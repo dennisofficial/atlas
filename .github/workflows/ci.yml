@@ -153,55 +153,6 @@ jobs:
           path: .cache/incremental-tests
           key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  # The api image is the deploy artifact, and its runtime stage copies explicit paths — a
-  # path-loaded asset missing from that list builds fine and only fails at deploy time (#474).
-  build-api-image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v4
-
-      - name: build the api image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: false
-          load: true
-          tags: atlas-api-ci
-          cache-from: type=gha,scope=api-image
-          cache-to: type=gha,mode=max,scope=api-image
-
-      - name: smoke-check the migrate entry
-        run: docker run --rm atlas-api-ci node --check scripts/migrate-deploy.mjs
-
-      - name: check the image carries the migrate job's tools and the runtime
-        run: docker run --rm atlas-api-ci sh -c 'node --version && npm --version && bun --version && npx --no-install dotenvx --version && cd ../../packages/db && bun run --bun prisma --version'
-
-      - name: boot the image and probe it
-        run: |
-          docker run -d --name atlas-api-probe -p 3400:3400 \
-            -e APP_TIER=local \
-            -e PORT=3400 \
-            -e DATABASE_URL=postgresql://atlas:atlas@127.0.0.1:1/atlas \
-            -e SECRET_KEY=test-secret-key-with-at-least-32-characters \
-            -e WEB_ORIGIN=http://localhost:3001 \
-            -e BETTER_AUTH_URL=http://localhost:3400 \
-            -e SECRETS_ENCRYPTION_KEY=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 \
-            -e TRIGGER_SECRET_KEY=tr_dev_test-fixture-not-a-real-key \
-            -e GOOGLE_CLIENT_ID=test-google-client-id.apps.googleusercontent.com \
-            -e GOOGLE_CLIENT_SECRET=test-google-client-secret \
-            -e RESEND_API_KEY=re_test_fixture_not_a_real_key \
-            atlas-api-ci
-          health=$(curl -s -o /dev/null -w '%{http_code}' --retry 30 --retry-delay 2 --retry-connrefused --retry-all-errors http://localhost:3400/v1/health || true)
-          secrets=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3400/v1/secrets || true)
-          if [ "$health" != "200" ] || [ "$secrets" != "401" ]; then
-            echo "::error::/v1/health=$health (want 200), /v1/secrets=$secrets (want 401)"
-            docker logs atlas-api-probe
-            exit 1
-          fi
-
   # Single required status for the main ruleset: one name covers every job above, so tightening
   # CI never leaves the ruleset behind. Named `ci` only on pull_request runs — a required check is
   # satisfied by whichever run reports the name first on a sha, and the push run's answers are not
@@ -210,7 +161,7 @@ jobs:
   ci:
     name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
     runs-on: ubuntu-latest
-    needs: [check, test, build-api-image]
+    needs: [check, test]
     if: always()
     steps:
       - name: Fail if any check failed
