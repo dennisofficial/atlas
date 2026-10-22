@@ -2,7 +2,12 @@ import type { EventDraft } from './body'
 import type { Event } from './envelope'
 import type { CallId, RunId, ThreadId } from './ids'
 import {
-  isShellNotice,
+  ERewindDisposition,
+  isCreatorBound,
+  rewindDisposition,
+  type CreatorBoundEvent,
+} from './rewind-disposition'
+import {
   occurrenceOfNotice,
   recordOf,
   shellOccurrences,
@@ -45,13 +50,6 @@ export type RewindPlan = {
   cuts: readonly RewindCut[]
   reappend: readonly RewoundNotice[]
 }
-
-const isNotice = (event: Event): boolean =>
-  isShellNotice(event) ||
-  event.type === 'service-ended' ||
-  event.type === 'agent-ended' ||
-  event.type === 'location-changed' ||
-  event.type === 'pr-event'
 
 const isServiceStart = (event: Event): boolean =>
   event.type === 'tool-called' && event.name === 'service_start'
@@ -117,19 +115,41 @@ export function rewindPlan({
     }
   }
 
-  const survives = (event: Event): boolean => {
-    if (event.type === 'location-changed' || event.type === 'pr-event') return true
-    if (isShellNotice(event)) {
-      const occurrence = occurrenceOfNotice({ occurrences, notice: event })
-      return occurrence === undefined || occurrence.seq <= toSeq
+  const creatorCut = (event: CreatorBoundEvent): boolean => {
+    switch (event.type) {
+      case 'agent-ended':
+        return cutAgentIds.has(event.agentId)
+      case 'service-ended':
+        return cutServiceIds.has(event.serviceId)
+      case 'background-shell-ended':
+      case 'background-shell-awaiting-input':
+      case 'background-shell-matched':
+      case 'background-shell-still-running': {
+        const occurrence = occurrenceOfNotice({ occurrences, notice: event })
+        return occurrence !== undefined && occurrence.seq > toSeq
+      }
+      default:
+        return assertNever(event)
     }
-    if (event.type === 'service-ended') return !cutServiceIds.has(event.serviceId)
-    if (event.type === 'agent-ended') return !cutAgentIds.has(event.agentId)
-    return false
   }
 
-  const reappend = above.filter((event) => isNotice(event) && survives(event)).map(toNotice)
+  const survives = (event: Event): boolean => {
+    switch (rewindDisposition(event.type)) {
+      case ERewindDisposition.Discard:
+        return false
+      case ERewindDisposition.Keep:
+        return true
+      case ERewindDisposition.KeepUnlessCreatorCut:
+        return isCreatorBound(event) && !creatorCut(event)
+    }
+  }
+
+  const reappend = above.filter(survives).map(toNotice)
 
   cuts.sort((a, b) => a.seq - b.seq)
   return { cuts, reappend }
+}
+
+const assertNever = (value: never): never => {
+  throw new Error(`unhandled creator-bound event: ${JSON.stringify(value)}`)
 }
