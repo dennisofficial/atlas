@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { Suspense, useCallback } from 'react'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -8,7 +8,10 @@ import { fetchAccountData, type AccountData } from '../data/personal/account-dat
 import { updateName } from '../data/personal/auth-session-api'
 import { QueryPage } from '../data/personal/query-boundary'
 import { useSaveAction } from '../data/personal/use-save-action'
+import { useSignInMethodActions } from '../data/personal/use-sign-in-method-actions'
+import { AccountLinkReturn } from '../parts/account-link-return'
 import { AccountProfileCard } from '../parts/account-profile-card'
+import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
 import { AccountWorkspacesCard } from '../parts/account-workspaces-card'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
@@ -34,8 +37,16 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
     },
     [run, reload],
   )
+  const signInActions = useSignInMethodActions({
+    email: data.email,
+    methods: data.signInMethods,
+    reload,
+  })
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
+      <Suspense>
+        <AccountLinkReturn reload={reload} />
+      </Suspense>
       <SettingsSection title="Profile">
         <AccountProfileCard
           profile={{ name: data.name, email: data.email }}
@@ -44,6 +55,9 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
           saving={saving}
           onSave={handleSaveName}
         />
+      </SettingsSection>
+      <SettingsSection title="Sign-in methods" description="How you can sign in to Atlas.">
+        <AccountSignInMethodsCard methods={data.signInMethods} handlers={signInActions} />
       </SettingsSection>
       <SettingsSection title="Workspaces" description="Workspaces you are a member of.">
         <AccountWorkspacesCard workspaces={data.workspaces} />
