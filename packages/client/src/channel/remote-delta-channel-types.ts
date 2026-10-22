@@ -4,13 +4,15 @@ import type {
   PrStateWire,
   RosterWire,
   RuntimeCheckpoint,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-wire/web'
 
-import type { DeltaChannel, Unsubscribe } from '../channel/delta-channel'
-import { EStepEnd } from '../channel/signal'
-import type { TurnOutcome } from '../loop/turn-outcome'
+import type { DeltaChannel, Unsubscribe } from './delta-channel-types'
+import { EStepEnd } from './signal'
+import type { TurnOutcome } from './turn-outcome'
 import type { EClientRequest } from './channel-wire'
 import type { ConnectionView } from './connection-view'
+import type { ScheduleKeepalive } from './keepalive'
+import type { ChannelSocketFactory } from './remote-channel-socket'
 
 export type ChannelConnection = ConnectionView
 
@@ -87,4 +89,30 @@ export type RemoteDeltaChannel = DeltaChannel & {
   /** Sends the far side has not yet acknowledged committing. */
   unackedSendCount(): number
   close(): void
+}
+
+export type RemoteDeltaChannelOptions = {
+  threadId: ThreadId
+  /** Absent means deferred: the view reads Parked and nothing opens until a wake. */
+  url?: string | undefined
+  token?: string | undefined
+  /**
+   * The seq of the newest durable event the client holds for the thread, reported on the Hello so
+   * the serve can vouch the log is current. A Promise holds the wire until the head resolves so the
+   * Hello still leads. Absent means 0.
+   */
+  lastEventSeq?: (() => number | Promise<number>) | undefined
+  socketFactory?: ChannelSocketFactory | undefined
+  scheduleRetry?: ((retry: { delayMs: number; run: () => void }) => void) | undefined
+  scheduleTimeout?: ((timeout: { delayMs: number; run: () => void }) => void) | undefined
+  scheduleKeepalive?: ScheduleKeepalive | undefined
+  backoffMs?: ((args: { attempt: number }) => number) | undefined
+  maxAttempts?: number | undefined
+  requestTimeoutMs?: number | undefined
+  unwrittenRequestTimeoutMs?: number | undefined
+  keepaliveMs?: number | undefined
+  interruptAckTimeoutMs?: number | undefined
+  /** Wakes (or re-attaches to) the sandbox through the control plane; the relaunched serve keeps its own turn. */
+  wakeSandbox?: SandboxWake | undefined
+  onFinished?: (() => void) | undefined
 }

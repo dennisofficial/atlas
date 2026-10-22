@@ -8,9 +8,9 @@ export type StepId = z.infer<typeof stepIdSchema>
 
 export const toStepId = (value: string): StepId => stepIdSchema.parse(value)
 
-export { EStepEnd } from '@dltech/atlas-wire'
+export { EStepEnd } from '@dltech/atlas-wire/web'
 
-import { EStepEnd, type RotationStateWire } from '@dltech/atlas-wire'
+import { EStepEnd, type RotationStateWire } from '@dltech/atlas-wire/web'
 
 export type StepSignal =
   | { type: 'turn-working'; working: boolean }

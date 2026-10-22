@@ -1,8 +1,8 @@
 import type { CallId, RunId } from '@dltech/atlas-core'
 
-export { ETurnStatus } from '@dltech/atlas-wire'
+export { ETurnStatus } from '@dltech/atlas-wire/web'
 
-import { ETurnStatus } from '@dltech/atlas-wire'
+import { ETurnStatus } from '@dltech/atlas-wire/web'
 
 export type TurnOutcome =
   | { status: ETurnStatus.Completed; runId: RunId }

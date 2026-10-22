@@ -4,7 +4,7 @@ import { EAgentStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
 
 import { EClientRequest } from '../channel-wire'
-import { RemoteRequestFailed } from '../remote-channel-upstream'
+import { RemoteRequestFailed } from '@dltech/atlas-client/channel'
 import {
   createRemoteRosterReader,
   EMPTY_ROSTER,

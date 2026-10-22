@@ -7,7 +7,7 @@ import { ETurnStatus } from '../../loop/turn-outcome'
 import { EClientFrame, EServeFrame } from '../channel-wire'
 import { RemoteTurnRunner } from '../remote-turn-runner'
 
-import { readied, THREAD } from './remote-channel-fixture'
+import { readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 describe('pausing the sandbox turn over the session socket', () => {
   it('sends a pause frame, the sibling of interrupt', () => {

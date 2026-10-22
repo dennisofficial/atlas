@@ -5,7 +5,7 @@ import { toRunId } from '@dltech/atlas-core'
 import { ETurnStatus } from '../../loop/turn-outcome'
 import { EClientFrame, EServeFrame } from '../channel-wire'
 import { RemoteTurnRunner } from '../remote-turn-runner'
-import { harness, THREAD } from './remote-channel-fixture'
+import { harness, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 describe('preparing an attachment before an explicit resume check', () => {
   it('wakes a parked sandbox without sending or claiming a turn', async () => {

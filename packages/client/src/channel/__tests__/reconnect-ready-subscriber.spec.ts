@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { ChannelSignal } from '../../channel/signal'
+import type { ChannelSignal } from '../signal'
 import { EServeFrame } from '../channel-wire'
 
 import { readied, recorder, THREAD } from './remote-channel-fixture'

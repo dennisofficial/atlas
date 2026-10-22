@@ -5,7 +5,7 @@ import type { AgentSnapshot } from '../agents/registry/snapshot'
 import type { ServiceSnapshot } from '../services/service-process'
 import type { ShellSnapshot } from '../shells/background-shell'
 import { EClientRequest } from './channel-wire'
-import { RemoteRequestFailed } from './remote-channel-upstream'
+import { RemoteRequestFailed } from '@dltech/atlas-client/channel'
 
 export const EMPTY_ROSTER: RosterWire = { shells: [], agents: [], services: [] }
 

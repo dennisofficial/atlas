@@ -1,8 +1,3 @@
-import { toCallId, toRunId } from '@dltech/atlas-core'
-import { ETurnStatus, type TurnOutcomeWire } from '@dltech/atlas-wire'
-
-import type { TurnOutcome } from '../loop/turn-outcome'
-
 export {
   bearerSubprotocolOf,
   capabilitiesSchema,
@@ -128,12 +123,4 @@ export type {
   WireTurn,
 } from '@dltech/atlas-wire'
 
-export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
-  if (outcome.status === ETurnStatus.Paused) {
-    return { ...outcome, runId: toRunId(outcome.runId), callId: toCallId(outcome.callId) }
-  }
-  if (outcome.status === ETurnStatus.Failed) {
-    return { ...outcome, runId: toRunId(outcome.runId), cause: undefined }
-  }
-  return { ...outcome, runId: toRunId(outcome.runId) }
-}
+export { turnOutcomeFromWire } from '@dltech/atlas-client/channel'

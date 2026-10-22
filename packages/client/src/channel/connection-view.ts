@@ -1,4 +1,4 @@
-import { ERuntimePhase } from '@dltech/atlas-wire'
+import { ERuntimePhase } from '@dltech/atlas-wire/web'
 
 export enum EConnectionView {
   Connected = 'connected',

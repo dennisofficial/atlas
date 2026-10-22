@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ERuntimePhase } from '@dltech/atlas-wire'
+import { ERuntimePhase } from '@dltech/atlas-wire/web'
 
 import { EClientFrame, EClientRequest, EServeFrame } from '../channel-wire'
 import { EConnectionView } from '../connection-view'

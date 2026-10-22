@@ -3,8 +3,8 @@ import { EConnectionView } from '../connection-view'
 
 import { toRunId } from '@dltech/atlas-core'
 
-import { EStepEnd } from '../../channel/signal'
-import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
+import { EStepEnd } from '../signal'
+import { ETurnStatus, type TurnOutcome } from '../turn-outcome'
 import {
   bearerSubprotocolOf,
   CHANNEL_PROTOCOL_VERSION,

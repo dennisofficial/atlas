@@ -7,7 +7,7 @@ import { EClientRequest } from '../channel-wire'
 import { MirroredEventLog } from '../mirrored-event-log'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { harness, readied, THREAD } from './remote-channel-fixture'
+import { harness, readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 const fixtures: StoreFixture[] = []
 
