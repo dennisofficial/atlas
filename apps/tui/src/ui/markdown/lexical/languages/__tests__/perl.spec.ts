@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { expectLexes, expectPlain, groupsIn, textFor } from '../../__tests__/harness'
 import { perl as spec } from '../perl'

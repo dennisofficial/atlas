@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EFinishReason } from '../../stream/chunk'
 import { EAssistantPlaceholder, type EventDraft } from '../body'

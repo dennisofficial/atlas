@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EAgentRestart } from '../../../agents/restart'
 import { agentRestartedBlock } from '../agent-restarted-block'

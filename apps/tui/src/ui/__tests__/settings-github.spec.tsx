@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { DOWNLOAD_LABEL, ECloudAction, SettingsCloud, idleSync } from '../components/settings/cloud'

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 
 import { ATLAS_SETTINGS, EExecutionLocation, toThreadId } from '@dltech/atlas-core'
 import {
@@ -80,7 +80,7 @@ describe('openSession durability', () => {
     expect(typeof own[0]?.stack).toBe('string')
     expect(own[0]?.data).toEqual({ command: 'atlas-spec', cwd: process.cwd() })
     expect(own[0]?.threadId).toBeUndefined()
-  })
+  }, 60_000)
 })
 
 describe('openSession resuming a thread whose meta says cloud', () => {

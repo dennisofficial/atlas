@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, mock, vi } from 'bun:test'
+import { hoisted, stubEnv, unstubAllEnvs } from '@dltech/bun-test-shims'
 
-const waitUntil = vi.hoisted(() => vi.fn())
-vi.mock('@vercel/functions', () => ({ waitUntil }))
+const waitUntil = hoisted(() => vi.fn())
+mock.module('@vercel/functions', () => ({ waitUntil }))
 
 import { BackgroundWork } from '../../_core/ports/background-work'
 import {
@@ -12,18 +13,18 @@ import {
 
 describe('background work providers', () => {
   afterEach(() => {
-    vi.unstubAllEnvs()
+    unstubAllEnvs()
     waitUntil.mockReset()
   })
 
   it('binds the Vercel implementation when VERCEL=1', () => {
-    vi.stubEnv('VERCEL', '1')
+    stubEnv('VERCEL', '1')
 
     expect(backgroundWorkProvider()).toEqual({ provide: BackgroundWork, useClass: VercelBackgroundWork })
   })
 
   it('binds the process implementation elsewhere', () => {
-    vi.stubEnv('VERCEL', '')
+    stubEnv('VERCEL', '')
 
     expect(backgroundWorkProvider()).toEqual({ provide: BackgroundWork, useClass: ProcessBackgroundWork })
   })

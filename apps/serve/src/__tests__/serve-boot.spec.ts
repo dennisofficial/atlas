@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ATLAS_HOME_ENV, EHarnessPlacement, ERunner, toRunId, toThreadId } from '@dltech/atlas-core'
 

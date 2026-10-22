@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { renderInvitationEmail, renderPasswordResetEmail } from './auth-emails'
 
 const URL = 'https://byatlas.io/api/auth/reset-password/tok?callbackURL=%2Freset-password&x=1&y=2'

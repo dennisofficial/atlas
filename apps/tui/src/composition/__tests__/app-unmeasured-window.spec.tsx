@@ -1,6 +1,6 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { UNMEASURED_CONTEXT } from '../../ui/footer-layout'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ATLAS_SETTINGS, ESettingId, SETTING_PAGES } from '../registry'
 import { definitionsOfPage, ESettingPage } from '../definition'

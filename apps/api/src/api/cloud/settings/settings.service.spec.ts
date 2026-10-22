@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import type { PrismaClient } from '../../../generated/prisma/client'
 import { SettingsService } from './settings.service'
 
@@ -15,7 +16,7 @@ interface CloudSettingRow {
 
 type SettingCreate = Omit<CloudSettingRow, 'createdAt' | 'updatedAt'>
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const settings: CloudSettingRow[] = []
 
   const findByKey = (key: { userId: string; key: string }) =>
@@ -56,7 +57,7 @@ const fake = vi.hoisted(() => {
   return { db, settings }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -76,7 +77,7 @@ describe('SettingsService', () => {
     expect(stored?.id).toMatch(/^set_/)
     expect(stored?.value).toBe('img-1')
 
-    expect(await service.list({ userId: USER_A })).toEqual([
+    expect<unknown>(await service.list({ userId: USER_A })).toEqual([
       {
         key: 'sandbox.image',
         value: 'img-1',

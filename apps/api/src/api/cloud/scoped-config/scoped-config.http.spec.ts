@@ -1,11 +1,8 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { encodeSettingValue, EVercelCredentialGap } from '@dltech/atlas-wire/web'
 
-vi.mock('../../../db', async () => {
-  const { sharedWebSettingsDb } = await import('../web-settings.fake-db')
-  return { db: sharedWebSettingsDb.db }
-})
+mock.module('../../../db', () => ({ db: fake.db }))
 
 import request from 'supertest'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'

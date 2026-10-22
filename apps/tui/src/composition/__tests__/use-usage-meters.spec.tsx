@@ -1,7 +1,7 @@
 import { DEFAULT_WARN_PERCENT, EUsageWindow, toAccountId, type AccountUsage } from '@dltech/atlas-core'
 import type { AccountUsageService } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { teardown } from '../../ui/markdown/__tests__/harness'

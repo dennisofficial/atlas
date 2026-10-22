@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { TEAMMATE_AGENT_TYPE } from '../../../agents/types'
 import { agentTypeNamed } from '../../../agents/registry/__tests__/fixtures'

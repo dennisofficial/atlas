@@ -65,16 +65,17 @@ jobs:
         run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
         working-directory: apps/serve
 
-  # Every test suite in one job, made incremental by @dltech/vitest-incremental: a test file runs only
-  # when it has no cached pass for its exact current inputs (modules loaded, files read, env read), so
-  # there is no paths filter and no sharding. Each run saves a new immutable cache keyed by run id;
-  # restore picks the newest for this ref, then main's. GitHub scopes caches by ref, so a PR reads
-  # main's cache but main never reads a PR's — never move this to pull_request_target.
+  # Every test suite in one job, made incremental by bun-test-incremental (a bun:test preload): a spec
+  # runs only when `bun test --changed` selects it from the git diff AND it has no cached pass for its
+  # exact current inputs (fingerprint pass-cache; failed tests are never cached, so they re-run until
+  # green). There is no paths filter and no sharding. Each run saves a new immutable cache keyed by
+  # run id; restore picks the newest for this ref, then main's. GitHub scopes caches by ref, so a PR
+  # reads main's cache but main never reads a PR's — never move this to pull_request_target.
   # tests-nightly.yml runs everything nightly and fails if the cache ever hid a failure.
   test:
     runs-on: ubuntu-latest
     env:
-      VITEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
+      BUN_TEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -101,34 +102,30 @@ jobs:
             incremental-tests-${{ github.ref }}-
             incremental-tests-refs/heads/main-
 
-      - name: test (bun runtime)
-        id: bun-tests
-        run: bun --bun vitest run
+      # Each package's `test` script is `bun test` run from the package, so its bunfig.toml preload
+      # (bun-test.setup.ts + the bun-test-incremental preload + any test-home-setup.ts) applies. A
+      # single `bun test` from the root would skip those preloads and sweep in deprecated/. evals
+      # keeps its vitest script (evalite). The incremental preload is inert unless BUN_TEST_INCREMENTAL
+      # is set, and each package writes one summary JSON to the summary dir.
+      # bun-test-incremental's own suite drives child `bun test` runs, so it must never run
+      # incrementally against itself; it is excluded here and run in its own step below.
+      - name: test
+        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test
         env:
-          VITEST_INCREMENTAL_SUMMARY: ${{ runner.temp }}/summary-bun.json
+          BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
 
-      # api stays on Node: its Prisma driver-adapter specs fail under the Bun runtime.
-      - name: test api (node runtime)
+      # The incremental package's own suite spawns child `bun test` runs, so it runs with
+      # BUN_TEST_INCREMENTAL unset (the child runs set it themselves as the thing under test).
+      - name: test the incremental package itself
         if: always() && steps.restore.outcome == 'success'
-        working-directory: apps/api
-        run: bun run test
+        working-directory: packages/bun-test-incremental
+        run: bun test
         env:
-          VITEST_INCREMENTAL_SUMMARY: ${{ runner.temp }}/summary-api.json
-
-      # The plugin's own suite drives child vitest runs, so it is never incremental; turbo's remote
-      # cache keys it on the package's sources instead.
-      - name: test the incremental plugin itself
-        if: always() && steps.restore.outcome == 'success'
-        run: |
-          if [ -n "$VERCEL_TOKEN" ]; then export TURBO_TOKEN="$VERCEL_TOKEN" TURBO_TEAM=comp-ai; fi
-          bunx turbo run test --filter @dltech/vitest-incremental --output-logs=errors-only
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VITEST_INCREMENTAL: ''
+          BUN_TEST_INCREMENTAL: ''
 
       - name: report
         if: always()
-        run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/summary-*.json
+        run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/summaries/*.json
 
       # Saved even when tests fail: passes stay valid and failures are never stored.
       - name: save incremental test cache

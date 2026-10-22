@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,

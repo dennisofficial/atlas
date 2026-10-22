@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { AccountStorePort, CredentialPort, EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 

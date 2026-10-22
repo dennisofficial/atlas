@@ -1,14 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock, vi } from 'bun:test'
 
-const { queryRaw } = vi.hoisted(() => ({ queryRaw: vi.fn(async () => [{ '?column?': 1 }]) }))
+const queryRaw = vi.fn(async () => [{ '?column?': 1 }])
 
-vi.mock('@trigger.dev/sdk', () => ({
+mock.module('@trigger.dev/sdk', () => ({
   schemaTask: <T>(definition: T): T => definition,
 }))
-vi.mock('../../db', () => ({ db: { $queryRaw: queryRaw } }))
+mock.module('../../db', () => ({ db: { $queryRaw: queryRaw } }))
 
-import { smokeTaskContract } from './smoke.contract'
-import { runSmoke, runSmokeTask, smokeTask } from './smoke.task'
+const { smokeTaskContract } = await import('./smoke.contract')
+const { runSmoke, runSmokeTask, smokeTask } = await import('./smoke.task')
 
 describe('atlas-smoke task', () => {
   it('registers under the contract id with a single attempt', () => {

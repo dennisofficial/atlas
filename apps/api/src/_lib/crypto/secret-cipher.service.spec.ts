@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from './secret-cipher.service'
 

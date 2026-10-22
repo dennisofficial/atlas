@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { parseHookRepoParam, payloadFieldsOf } from './github-pr-payload'
 
 const PULL = {

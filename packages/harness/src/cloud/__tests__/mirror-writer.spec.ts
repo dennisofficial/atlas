@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toEventId, toRunId, toThreadId, type Event, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { stabilisedEntries } from '../stable-entries'
 import { EAuthor, EEntryKind, type TranscriptEntry } from '../transcript-model'

@@ -1,12 +1,11 @@
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { Logger } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import {
   cipher,
@@ -27,6 +26,7 @@ import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE_MS, WAKE_FAILURE_BACKOFF_MS } from './github-sandbox-wake.service'
+import { fakeGithubDb } from '../../../../test/fake-github-db.js'
 
 const row = () => {
   const held = fake.cloudSandboxes[0]
@@ -41,7 +41,8 @@ describe('GithubSandboxWakeService', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    vi.useRealTimers()
+    unstubAllGlobals()
   })
 
   it('resumes a parked sandbox with its stored token and leaves the token columns alone', async () => {
@@ -186,7 +187,7 @@ describe('GithubSandboxWakeService', () => {
 
     for (let i = 0; i < 6; i += 1) {
       wake.notifyEvent(PR_EVENT)
-      await vi.advanceTimersByTimeAsync(1_000)
+      await advanceTimersByTimeAsync(1_000)
     }
     await flushDebounce()
 
@@ -223,7 +224,7 @@ describe('GithubSandboxWakeService', () => {
     const second = fakeBoot()
 
     serviceWith({ boot: first.boot }).notifyEvent(PR_EVENT)
-    await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+    await advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
     expect(first.calls).toHaveLength(1)
     expect(row().wakeClaim).toEqual(expect.any(String))
     expect(sandboxStateOf(row())).toBe(ESandboxState.Resuming)
@@ -266,7 +267,7 @@ describe('GithubSandboxWakeService', () => {
 
   it('boots a release pin with no release artifact without any HEAD-check, leaving the launcher to decide', async () => {
     const releaseCheck = releaseArtifactCheck(false)
-    vi.stubGlobal('fetch', releaseCheck)
+    stubGlobal('fetch', releaseCheck)
     seedSubscription()
     seedParkedSandbox({ serveVersion: '9.9.9' })
     const { boot, calls } = fakeBoot()
@@ -282,7 +283,7 @@ describe('GithubSandboxWakeService', () => {
 
   it('boots the pinned version exactly while GitHub is unreachable', async () => {
     const offline = vi.fn(async () => Promise.reject(new Error('offline')))
-    vi.stubGlobal('fetch', offline)
+    stubGlobal('fetch', offline)
     seedSubscription()
     seedParkedSandbox({ serveVersion: '1.92.6' })
     const { boot, calls } = fakeBoot()
@@ -329,7 +330,7 @@ describe('GithubSandboxWakeService', () => {
       const wake = serviceWith({ boot })
 
       wake.notifyEvent(PR_EVENT)
-      await vi.advanceTimersByTimeAsync(1)
+      await advanceTimersByTimeAsync(1)
       expect(calls).toHaveLength(0)
 
       await wake.settle()
@@ -364,14 +365,14 @@ describe('GithubSandboxWakeService', () => {
       const wake = serviceWith({ boot })
 
       wake.notifyEvent(PR_EVENT)
-      await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+      await advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
       expect(calls).toHaveLength(1)
 
       let settled = false
       const settling = wake.settle().then(() => {
         settled = true
       })
-      await vi.advanceTimersByTimeAsync(0)
+      await advanceTimersByTimeAsync(0)
       expect(settled).toBe(false)
 
       gate.release()

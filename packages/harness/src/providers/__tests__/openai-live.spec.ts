@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'bun:test'
 import { generateText, stepCountIs, streamText, tool, type ModelMessage } from 'ai'
 import { z } from 'zod'
 

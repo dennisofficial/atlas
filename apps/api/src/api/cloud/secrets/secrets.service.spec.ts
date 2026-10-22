@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -19,7 +20,7 @@ interface SecretEntryRow {
 
 type SecretCreate = Omit<SecretEntryRow, 'createdAt' | 'updatedAt'>
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const secrets: SecretEntryRow[] = []
 
   const findByKey = (key: { userId: string; name: string }) =>
@@ -60,7 +61,7 @@ const fake = vi.hoisted(() => {
   return { db, secrets }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -82,7 +83,7 @@ describe('SecretsService', () => {
     expect(stored?.id).toMatch(/^sec_/)
     expect(stored?.sealedValue).not.toContain('sk-search-1')
 
-    expect(await service.list({ userId: USER_A })).toEqual([
+    expect<unknown>(await service.list({ userId: USER_A })).toEqual([
       {
         name: 'web.searchKey',
         value: 'sk-search-1',

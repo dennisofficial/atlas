@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { rgbToHex } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import React, { act } from 'react'

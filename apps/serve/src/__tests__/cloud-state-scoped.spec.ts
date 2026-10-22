@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin, ESettingId } from '@dltech/atlas-core'
 import { encodeSettingValue, FileMcpSource } from '@dltech/atlas-harness'

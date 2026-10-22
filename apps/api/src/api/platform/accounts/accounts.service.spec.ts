@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -34,7 +35,7 @@ interface ActiveAccountRow {
   updatedAt: Date
 }
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const accounts: AgentAccountRow[] = []
   const actives: ActiveAccountRow[] = []
 
@@ -119,7 +120,7 @@ const fake = vi.hoisted(() => {
   return { db, accounts, actives }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'

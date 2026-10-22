@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor, EDecision, type EventDraft } from '../body'
 import type { Event } from '../envelope'

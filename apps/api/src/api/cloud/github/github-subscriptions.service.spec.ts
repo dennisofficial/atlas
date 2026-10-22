@@ -1,11 +1,9 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import { fakeGithubDb, seedCloudSandbox, type FakeSubscriptionRow } from '../../../../test/fake-github-db'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
@@ -55,13 +53,13 @@ function serviceWith(args: {
     shouldRecommend: args.shouldRecommend ?? (async () => false),
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
+  stubGlobal('fetch', args.fetchImpl ?? okFetch)
   return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
 describe('GithubSubscriptionsService', () => {
   beforeEach(() => fake.reset())
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "bun run db:generate && tsc --noEmit",
-    "test": "bun run db:generate && vitest run",
+    "test": "bun run db:generate && bun test",
     "build": "bun run db:generate && bun ./build.ts",
     "dev": "bun run env:inject -- concurrently --kill-others --kill-signal SIGKILL --names api,trigger \"bun --watch src/main.ts\" \"trigger dev --profile atlas\"",
     "dev:no-trigger": "bun run env:inject -- bun --watch src/main.ts",
@@ -54,9 +54,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@dltech/vitest-incremental": "workspace:*",
+    "@dltech/bun-test-shims": "workspace:*",
     "@nestjs/testing": "^12.2.0",
-    "@swc/core": "^1.13.5",
     "@trigger.dev/build": "4.7.4",
     "@types/bun": "latest",
     "@types/express": "^5.0.3",
@@ -67,9 +66,6 @@
     "prisma": "7.9.1",
     "supertest": "^7.1.4",
     "trigger.dev": "4.7.4",
-    "typescript": "6.0.3",
-    "unplugin-swc": "^1.5.7",
-    "vite": "^7.0.0",
-    "vitest": "4.0.1"
+    "typescript": "6.0.3"
   }
 }

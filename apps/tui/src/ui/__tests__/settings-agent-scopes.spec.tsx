@@ -6,7 +6,7 @@ import {
   ESettingPage,
   resolveSettings,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { glyph } from '../theme'
 import {

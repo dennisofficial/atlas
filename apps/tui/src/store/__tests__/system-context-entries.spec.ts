@@ -1,5 +1,5 @@
 import { EContextSlot, toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { durableEntries } from '../durable-entries'
 import { EEntryKind, type SystemContextEntry, type SystemNoticeEntry } from '../transcript-model'

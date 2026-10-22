@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test } from 'bun:test'
 import type { Renderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import React, { act, useState } from 'react'

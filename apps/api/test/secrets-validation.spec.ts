@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
@@ -10,7 +10,7 @@ import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-s
 import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 
-vi.mock('../src/db', () => ({ db: {} }))
+mock.module('../src/db', () => ({ db: {} }))
 
 describe('SecretsController validation (in-process)', () => {
   let app: INestApplication

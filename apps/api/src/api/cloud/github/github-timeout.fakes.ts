@@ -1,6 +1,6 @@
-import { vi } from 'vitest'
+import { vi } from 'bun:test'
 
-// Node drives AbortSignal.timeout from an internal timer that vitest's fake timers cannot
+// Node drives AbortSignal.timeout from an internal timer that fake timers cannot
 // advance, so specs swap in a signal driven by the (fakeable) global setTimeout.
 export const stubAbortSignalTimeout = (): { requestedMs: number[] } => {
   const requestedMs: number[] = []

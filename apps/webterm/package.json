@@ -8,11 +8,9 @@
     "dev": "bun src/server.ts",
     "ttyd": "bun src/ttyd.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun --bun vitest run"
+    "test": "bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "vitest": "4.0.1",
-    "@dltech/vitest-incremental": "workspace:*"
+    "@types/bun": "latest"
   }
 }

@@ -8,7 +8,7 @@ import {
   SkillRegistryPort,
   ToolRegistry,
 } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { bindSkillRegistry, SkillRegistryNotBound } from '../skills-binding'
 import { fakeSkill, fakeSkillRegistry } from './fakes'

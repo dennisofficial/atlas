@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ESignInContext, safeNextPath, signInContextOf, withNext } from '../auth-redirect'
 import { workspaceSlug } from '../workspace-slug'

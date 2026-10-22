@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'

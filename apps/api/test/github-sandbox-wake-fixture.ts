@@ -1,5 +1,6 @@
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
-import { vi } from 'vitest'
+import { vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from './fake-timers'
 
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'
@@ -147,6 +148,6 @@ export const failingBoot = (): SandboxWakeBoot => ({
 })
 
 export async function flushDebounce(): Promise<void> {
-  await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
-  await vi.advanceTimersByTimeAsync(0)
+  await advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+  await advanceTimersByTimeAsync(0)
 }

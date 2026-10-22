@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
 import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
 import { SandboxesController } from './platform/sandboxes/sandboxes.controller'

@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import React, { act } from 'react'
 
 const copies: string[] = []

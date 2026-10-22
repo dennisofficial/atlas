@@ -1,6 +1,5 @@
 import { fileURLToPath } from 'node:url'
 
-import { incrementalTests } from '@dltech/vitest-incremental'
 import type { PluginOption } from 'vite'
 import { defineProject } from 'vitest/config'
 
@@ -20,7 +19,6 @@ export function atlasProject(params: {
 }) {
   return defineProject({
     plugins: [
-      incrementalTests({ globalInputs: ['tsconfig.base.json', ...(params.globalInputs ?? [])] }),
       bunBuiltins(),
       bunFileImports(),
       absoluteMockPaths(),

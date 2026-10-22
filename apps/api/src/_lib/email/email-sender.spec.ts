@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
 
 const send = vi.fn()
 const constructed = vi.fn()
 
-vi.mock('resend', () => ({
+mock.module('resend', () => ({
   Resend: class {
     emails = { send }
     constructor(apiKey: string) {
@@ -12,7 +12,7 @@ vi.mock('resend', () => ({
   },
 }))
 
-import { createEmailSender, EmailError } from './email-sender'
+const { createEmailSender, EmailError } = await import('./email-sender')
 
 describe('createEmailSender', () => {
   beforeEach(() => {

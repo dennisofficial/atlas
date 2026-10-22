@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { contextTreeRows, sortContextEntries, toggleContextClosed, type ContextTreeLevels } from '../context-tree-model'
 
 const levels: ContextTreeLevels = new Map([

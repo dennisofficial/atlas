@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun --bun vitest run",
+    "test": "bun test --timeout 30000",
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
     "generate:claude-code-version": "bun scripts/generate-claude-code-version.ts",
     "generate:codex-version": "bun scripts/generate-codex-version.ts",
@@ -35,9 +35,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@dltech/bun-test-shims": "workspace:*",
     "@types/bun": "latest",
-    "@types/turndown": "^5.0.6",
-    "vitest": "4.0.1",
-    "@dltech/vitest-incremental": "workspace:*"
+    "@types/turndown": "^5.0.6"
   }
 }

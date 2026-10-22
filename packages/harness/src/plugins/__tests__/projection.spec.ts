@@ -1,5 +1,5 @@
 import type { Event } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { defineProjection, publishProjections, type ContributedProjection } from '../projection'
 

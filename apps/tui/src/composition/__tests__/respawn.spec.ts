@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EBuildKind } from '../../build/info'
 import { performRespawn, respawnArgv, wiresSelfRestart, type RespawnPorts } from '../respawn'

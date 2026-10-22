@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ATLAS_TELEMETRY_ENV, ATLAS_TESTING_ENV, telemetryEnabled } from '../../index'
 

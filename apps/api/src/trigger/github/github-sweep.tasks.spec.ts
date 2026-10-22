@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock } from 'bun:test'
 
-vi.mock('@trigger.dev/sdk', () => ({
+mock.module('@trigger.dev/sdk', () => ({
   schedules: { task: <T>(definition: T): T => definition },
 }))
 
-import { githubHookSweepTask } from './github-hook-sweep.task'
-import { githubPollSweepTask } from './github-poll-sweep.task'
+const { githubHookSweepTask } = await import('./github-hook-sweep.task')
+const { githubPollSweepTask } = await import('./github-poll-sweep.task')
 
 describe('github sweep tasks', () => {
   it('registers the poll sweep every minute with three attempts', () => {

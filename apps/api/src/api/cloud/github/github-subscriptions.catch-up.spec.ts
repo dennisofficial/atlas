@@ -1,10 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
@@ -48,13 +46,13 @@ function serviceWith(args: {
     shouldRecommend: async () => false,
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  vi.stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
+  stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
   return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
 describe('GithubSubscriptionsService branch catch-up', () => {
   beforeEach(() => fake.reset())
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it.each([
     { mergedState: 'merged', mergeable: false },

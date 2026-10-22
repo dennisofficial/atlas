@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ETurnStatus } from '../../../loop/turn-outcome'
 import { fakeRunners, finished, openSupervisor, type OpenedSupervisor } from './fixtures'

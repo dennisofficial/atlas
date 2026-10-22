@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch } from '../dispatch'
 import { ECommandTiming } from '../local-command'

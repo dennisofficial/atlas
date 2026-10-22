@@ -1,5 +1,5 @@
 import { Glob } from 'bun'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { join } from 'node:path'
 
 const SRC = join(import.meta.dirname, '..', '..', '..')

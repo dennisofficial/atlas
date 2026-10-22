@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { CompiledPrompt } from '../../prompt/compiled'
 import { assemble } from '../assemble'

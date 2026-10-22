@@ -1,6 +1,6 @@
 import type { Sandbox } from '@vercel/sandbox'
 import type { ServeInstaller, ServeLauncher, VercelSdk } from '@dltech/atlas-wire'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 
 import {
   ResumeTokenMissingError,

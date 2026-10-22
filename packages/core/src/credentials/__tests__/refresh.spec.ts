@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EAuthKind, type AccountSecret } from '../account'
 import { DEFAULT_REFRESH_SKEW_MS, ERefresh, isExpired, refreshDecision } from '../refresh'

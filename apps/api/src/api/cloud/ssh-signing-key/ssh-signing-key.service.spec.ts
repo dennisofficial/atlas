@@ -4,13 +4,10 @@ import {
   GITHUB_NOT_CONNECTED_CODE,
   SSH_SIGNING_SCOPE_MISSING_CODE,
 } from '@dltech/atlas-wire'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { sharedSigningKeyDb } = await import('../../../../test/fake-signing-key-db.js')
-  return { db: sharedSigningKeyDb.db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: sharedSigningKeyDb.db as unknown as PrismaClient }))
 
 import { response } from './ssh-signing-key.fakes'
 import {
@@ -25,6 +22,7 @@ import {
   resetWorld,
 } from './ssh-signing-key.service-support'
 import type { SshSigningKeyService } from './ssh-signing-key.service'
+import { sharedSigningKeyDb } from '../../../../test/fake-signing-key-db.js'
 
 describe('SshSigningKeyService', () => {
   let service: SshSigningKeyService

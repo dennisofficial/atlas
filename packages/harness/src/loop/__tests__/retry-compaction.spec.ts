@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { APICallError } from '@ai-sdk/provider'
 import {
   defaultPipeline, EMPTY_PROMPT, ECompactionAnchor, EFinishReason, EImageTier,

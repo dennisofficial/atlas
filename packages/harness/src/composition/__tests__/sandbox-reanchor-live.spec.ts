@@ -2,7 +2,7 @@ import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'bun:test'
 
 import { ATLAS_SETTINGS, EExecutionLocation, ProcessPort, toThreadId } from '@dltech/atlas-core'
 import { createHarnessContainer, createSettingsService, DockerEngine, MemorySettingsStore } from '@dltech/atlas-harness'

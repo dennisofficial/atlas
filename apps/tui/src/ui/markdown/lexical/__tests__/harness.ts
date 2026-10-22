@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { expect } from 'bun:test'
 
 import { createScanner } from '../scanner'
 import type { LanguageSpec, LexHighlight } from '../spec'
