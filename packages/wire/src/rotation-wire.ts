@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { threadIdWireSchema } from './request-wire.js'
+import { threadIdWireSchema } from './request-wire'
 
 export enum EWireRotationPhase {
   Settling = 'settling',
