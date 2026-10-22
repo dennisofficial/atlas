@@ -8,7 +8,7 @@ model UserMcpServer {
   userId     String
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "McpServerConfig_userId_name_key")
 
-  @@index([userId, name], map: "McpServerConfig_userId_name_key", unique: true)
+  @@unique([userId, name], map: "McpServerConfig_userId_name_key")
 
   @@map("McpServerConfig")
 }

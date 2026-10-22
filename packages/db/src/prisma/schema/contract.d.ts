@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'64cb0885c524619aabe36260368c3940d543a21b3ee63b53c73aea62f33a6d4b'>;
+  StorageHashBase<'2508d2fce685f5a105af81d479e0cb974044a107acbca7a90bbbc3c051f8e2be'>;
 export type ExecutionHash =
   ExecutionHashBase<'9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf'>;
 export type ProfileHash =
@@ -1387,17 +1387,18 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [{ readonly columns: readonly ['tokenHash'] }];
+              uniques: readonly [
+                { readonly columns: readonly ['tokenHash'] },
+                {
+                  readonly columns: readonly ['threadId'];
+                  readonly name: 'CloudSandbox_threadId_key';
+                },
+              ];
               indexes: readonly [
                 {
                   readonly name: 'CloudSandbox_state_lastActivityAt_idx';
                   readonly columns: readonly ['state', 'lastActivityAt'];
                   readonly unique: false;
-                },
-                {
-                  readonly name: 'CloudSandbox_threadId_key';
-                  readonly columns: readonly ['threadId'];
-                  readonly unique: true;
                 },
                 {
                   readonly name: 'CloudSandbox_userId_idx';
@@ -1475,14 +1476,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'CloudSetting_userId_key_key';
                   readonly columns: readonly ['userId', 'key'];
-                  readonly unique: true;
+                  readonly name: 'CloudSetting_userId_key_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -1682,23 +1682,22 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'Event_threadId_contextSlot_contextKey_contextDigest_key';
                   readonly columns: readonly [
                     'threadId',
                     'contextSlot',
                     'contextKey',
                     'contextDigest',
                   ];
-                  readonly unique: true;
+                  readonly name: 'Event_threadId_contextSlot_contextKey_contextDigest_key';
                 },
                 {
-                  readonly name: 'Event_threadId_seq_key';
                   readonly columns: readonly ['threadId', 'seq'];
-                  readonly unique: true;
+                  readonly name: 'Event_threadId_seq_key';
                 },
+              ];
+              indexes: readonly [
                 {
                   readonly name: 'Event_threadId_type_idx';
                   readonly columns: readonly ['threadId', 'type'];
@@ -1875,14 +1874,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'GithubConnection_userId_key';
                   readonly columns: readonly ['userId'];
-                  readonly unique: true;
+                  readonly name: 'GithubConnection_userId_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -2237,7 +2235,12 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['userId', 'repoFullName', 'branch'];
+                  readonly name: 'GithubSubscription_userId_repoFullName_branch_key';
+                },
+              ];
               indexes: readonly [
                 {
                   readonly name: 'GithubSubscription_expiresAt_idx';
@@ -2263,11 +2266,6 @@ type ContractBase = Omit<
                   readonly name: 'GithubSubscription_threadId_idx';
                   readonly columns: readonly ['threadId'];
                   readonly unique: false;
-                },
-                {
-                  readonly name: 'GithubSubscription_userId_repoFullName_branch_key';
-                  readonly columns: readonly ['userId', 'repoFullName', 'branch'];
-                  readonly unique: true;
                 },
               ];
               foreignKeys: readonly [
@@ -2437,22 +2435,21 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'LocalPodLease_tokenHash_key';
                   readonly columns: readonly ['tokenHash'];
-                  readonly unique: true;
+                  readonly name: 'LocalPodLease_tokenHash_key';
                 },
+                {
+                  readonly columns: readonly ['userId', 'threadId'];
+                  readonly name: 'LocalPodLease_userId_threadId_key';
+                },
+              ];
+              indexes: readonly [
                 {
                   readonly name: 'LocalPodLease_userId_idx';
                   readonly columns: readonly ['userId'];
                   readonly unique: false;
-                },
-                {
-                  readonly name: 'LocalPodLease_userId_threadId_key';
-                  readonly columns: readonly ['userId', 'threadId'];
-                  readonly unique: true;
                 },
               ];
               foreignKeys: readonly [
@@ -2513,14 +2510,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'McpServerConfig_userId_name_key';
                   readonly columns: readonly ['userId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'McpServerConfig_userId_name_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -2694,17 +2690,17 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['userId', 'scope', 'project', 'name'];
+                  readonly name: 'Memory_userId_scope_project_name_key';
+                },
+              ];
               indexes: readonly [
                 {
                   readonly name: 'Memory_userId_project_idx';
                   readonly columns: readonly ['userId', 'project'];
                   readonly unique: false;
-                },
-                {
-                  readonly name: 'Memory_userId_scope_project_name_key';
-                  readonly columns: readonly ['userId', 'scope', 'project', 'name'];
-                  readonly unique: true;
                 },
               ];
               foreignKeys: readonly [
@@ -2928,14 +2924,10 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'Organization_slug_key';
-                  readonly columns: readonly ['slug'];
-                  readonly unique: true;
-                },
+              uniques: readonly [
+                { readonly columns: readonly ['slug']; readonly name: 'Organization_slug_key' },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [];
             };
             readonly Project: {
@@ -3147,14 +3139,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'ProjectMcpServer_projectId_name_key';
                   readonly columns: readonly ['projectId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'ProjectMcpServer_projectId_name_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -3223,14 +3214,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'ProjectSecret_projectId_name_key';
                   readonly columns: readonly ['projectId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'ProjectSecret_projectId_name_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -3289,14 +3279,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'ProjectSetting_projectId_key_key';
                   readonly columns: readonly ['projectId', 'key'];
-                  readonly unique: true;
+                  readonly name: 'ProjectSetting_projectId_key_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -3372,19 +3361,17 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'PublishedBundle_pathname_key';
                   readonly columns: readonly ['pathname'];
-                  readonly unique: true;
+                  readonly name: 'PublishedBundle_pathname_key';
                 },
                 {
-                  readonly name: 'PublishedBundle_userId_version_key';
                   readonly columns: readonly ['userId', 'version'];
-                  readonly unique: true;
+                  readonly name: 'PublishedBundle_userId_version_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -3453,14 +3440,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'SecretEntry_userId_name_key';
                   readonly columns: readonly ['userId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'SecretEntry_userId_name_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -3538,13 +3524,10 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [
+                { readonly columns: readonly ['token']; readonly name: 'Session_token_key' },
+              ];
               indexes: readonly [
-                {
-                  readonly name: 'Session_token_key';
-                  readonly columns: readonly ['token'];
-                  readonly unique: true;
-                },
                 {
                   readonly name: 'Session_userId_idx_a489d58a';
                   readonly prefix: 'Session_userId_idx';
@@ -3628,14 +3611,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'SshSigningKey_userId_key';
                   readonly columns: readonly ['userId'];
-                  readonly unique: true;
+                  readonly name: 'SshSigningKey_userId_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -4018,14 +4000,10 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'User_email_key';
-                  readonly columns: readonly ['email'];
-                  readonly unique: true;
-                },
+              uniques: readonly [
+                { readonly columns: readonly ['email']; readonly name: 'User_email_key' },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [];
             };
             readonly UserFile: {
@@ -4096,13 +4074,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'UserFile_userId_tree_path_key';
                   readonly columns: readonly ['userId', 'tree', 'path'];
-                  readonly unique: true;
+                  readonly name: 'UserFile_userId_tree_path_key';
                 },
+              ];
+              indexes: readonly [
                 {
                   readonly name: 'UserFile_userId_tree_revision_idx';
                   readonly columns: readonly ['userId', 'tree', 'revision'];
@@ -4222,14 +4200,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'WorkspaceMcpServer_organizationId_name_key';
                   readonly columns: readonly ['organizationId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'WorkspaceMcpServer_organizationId_name_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -4304,13 +4281,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'WorkspaceSecret_organizationId_name_key';
                   readonly columns: readonly ['organizationId', 'name'];
-                  readonly unique: true;
+                  readonly name: 'WorkspaceSecret_organizationId_name_key';
                 },
+              ];
+              indexes: readonly [
                 {
                   readonly name: 'WorkspaceSecret_updatedById_idx_d0517c24';
                   readonly prefix: 'WorkspaceSecret_updatedById_idx';
@@ -4388,14 +4365,13 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
+              uniques: readonly [
                 {
-                  readonly name: 'WorkspaceSetting_organizationId_key_key';
                   readonly columns: readonly ['organizationId', 'key'];
-                  readonly unique: true;
+                  readonly name: 'WorkspaceSetting_organizationId_key_key';
                 },
               ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {

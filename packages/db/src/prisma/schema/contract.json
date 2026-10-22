@@ -6317,7 +6317,9 @@
                 },
                 {
                   "index": {
-                    "name": "CloudSandbox_threadId_key"
+                    "unique": [
+                      "threadId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -6348,13 +6350,6 @@
                 },
                 {
                   "columns": [
-                    "threadId"
-                  ],
-                  "name": "CloudSandbox_threadId_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
                     "userId"
                   ],
                   "name": "CloudSandbox_userId_idx",
@@ -6371,6 +6366,12 @@
                   "columns": [
                     "tokenHash"
                   ]
+                },
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "CloudSandbox_threadId_key"
                 }
               ]
             },
@@ -6420,7 +6421,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "CloudSetting_userId_key_key"
+                    "unique": [
+                      "userId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -6440,22 +6444,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId",
-                    "key"
-                  ],
-                  "name": "CloudSetting_userId_key_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "key"
+                  ],
+                  "name": "CloudSetting_userId_key_key"
+                }
+              ]
             },
             "DeviceCode": {
               "columns": {
@@ -6649,7 +6652,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Event_threadId_seq_key"
+                    "unique": [
+                      "threadId",
+                      "seq"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -6673,24 +6679,6 @@
                 {
                   "columns": [
                     "threadId",
-                    "contextSlot",
-                    "contextKey",
-                    "contextDigest"
-                  ],
-                  "name": "Event_threadId_contextSlot_contextKey_contextDigest_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
-                    "threadId",
-                    "seq"
-                  ],
-                  "name": "Event_threadId_seq_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
-                    "threadId",
                     "type"
                   ],
                   "name": "Event_threadId_type_idx",
@@ -6709,7 +6697,24 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "threadId",
+                    "contextSlot",
+                    "contextKey",
+                    "contextDigest"
+                  ],
+                  "name": "Event_threadId_contextSlot_contextKey_contextDigest_key"
+                },
+                {
+                  "columns": [
+                    "threadId",
+                    "seq"
+                  ],
+                  "name": "Event_threadId_seq_key"
+                }
+              ]
             },
             "GithubAppInstallation": {
               "columns": {
@@ -6887,7 +6892,9 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "GithubConnection_userId_key"
+                    "unique": [
+                      "userId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -6907,21 +6914,20 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId"
-                  ],
-                  "name": "GithubConnection_userId_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "GithubConnection_userId_key"
+                }
+              ]
             },
             "GithubPrEvent": {
               "columns": {
@@ -7294,7 +7300,11 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "GithubSubscription_userId_repoFullName_branch_key"
+                    "unique": [
+                      "userId",
+                      "repoFullName",
+                      "branch"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -7372,15 +7382,6 @@
                   ],
                   "name": "GithubSubscription_threadId_idx",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "repoFullName",
-                    "branch"
-                  ],
-                  "name": "GithubSubscription_userId_repoFullName_branch_key",
-                  "unique": true
                 }
               ],
               "primaryKey": {
@@ -7388,7 +7389,16 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "repoFullName",
+                    "branch"
+                  ],
+                  "name": "GithubSubscription_userId_repoFullName_branch_key"
+                }
+              ]
             },
             "Invitation": {
               "columns": {
@@ -7581,25 +7591,10 @@
               "indexes": [
                 {
                   "columns": [
-                    "tokenHash"
-                  ],
-                  "name": "LocalPodLease_tokenHash_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
                     "userId"
                   ],
                   "name": "LocalPodLease_userId_idx",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "threadId"
-                  ],
-                  "name": "LocalPodLease_userId_threadId_key",
-                  "unique": true
                 }
               ],
               "primaryKey": {
@@ -7607,7 +7602,21 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "tokenHash"
+                  ],
+                  "name": "LocalPodLease_tokenHash_key"
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "threadId"
+                  ],
+                  "name": "LocalPodLease_userId_threadId_key"
+                }
+              ]
             },
             "McpServerConfig": {
               "columns": {
@@ -7655,7 +7664,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "McpServerConfig_userId_name_key"
+                    "unique": [
+                      "userId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -7675,22 +7687,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId",
-                    "name"
-                  ],
-                  "name": "McpServerConfig_userId_name_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "name"
+                  ],
+                  "name": "McpServerConfig_userId_name_key"
+                }
+              ]
             },
             "Member": {
               "columns": {
@@ -7878,7 +7889,12 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Memory_userId_scope_project_name_key"
+                    "unique": [
+                      "userId",
+                      "scope",
+                      "project",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -7906,16 +7922,6 @@
                   ],
                   "name": "Memory_userId_project_idx",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "scope",
-                    "project",
-                    "name"
-                  ],
-                  "name": "Memory_userId_scope_project_name_key",
-                  "unique": true
                 }
               ],
               "primaryKey": {
@@ -7923,7 +7929,17 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "scope",
+                    "project",
+                    "name"
+                  ],
+                  "name": "Memory_userId_scope_project_name_key"
+                }
+              ]
             },
             "OauthConnection": {
               "columns": {
@@ -8167,21 +8183,20 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [
-                {
-                  "columns": [
-                    "slug"
-                  ],
-                  "name": "Organization_slug_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "slug"
+                  ],
+                  "name": "Organization_slug_key"
+                }
+              ]
             },
             "Project": {
               "checks": [
@@ -8432,7 +8447,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "ProjectMcpServer_projectId_name_key"
+                    "unique": [
+                      "projectId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -8452,22 +8470,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "projectId",
-                    "name"
-                  ],
-                  "name": "ProjectMcpServer_projectId_name_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "projectId",
+                    "name"
+                  ],
+                  "name": "ProjectMcpServer_projectId_name_key"
+                }
+              ]
             },
             "ProjectSecret": {
               "columns": {
@@ -8524,7 +8541,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "ProjectSecret_projectId_name_key"
+                    "unique": [
+                      "projectId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -8544,22 +8564,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "projectId",
-                    "name"
-                  ],
-                  "name": "ProjectSecret_projectId_name_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "projectId",
+                    "name"
+                  ],
+                  "name": "ProjectSecret_projectId_name_key"
+                }
+              ]
             },
             "ProjectSetting": {
               "columns": {
@@ -8607,7 +8626,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "ProjectSetting_projectId_key_key"
+                    "unique": [
+                      "projectId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -8627,22 +8649,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "projectId",
-                    "key"
-                  ],
-                  "name": "ProjectSetting_projectId_key_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "projectId",
+                    "key"
+                  ],
+                  "name": "ProjectSetting_projectId_key_key"
+                }
+              ]
             },
             "PublishedBundle": {
               "columns": {
@@ -8702,7 +8723,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "PublishedBundle_userId_version_key"
+                    "unique": [
+                      "userId",
+                      "version"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -8722,29 +8746,27 @@
                   }
                 }
               ],
-              "indexes": [
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
                 {
                   "columns": [
                     "pathname"
                   ],
-                  "name": "PublishedBundle_pathname_key",
-                  "unique": true
+                  "name": "PublishedBundle_pathname_key"
                 },
                 {
                   "columns": [
                     "userId",
                     "version"
                   ],
-                  "name": "PublishedBundle_userId_version_key",
-                  "unique": true
+                  "name": "PublishedBundle_userId_version_key"
                 }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": []
+              ]
             },
             "SecretEntry": {
               "columns": {
@@ -8801,7 +8823,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "SecretEntry_userId_name_key"
+                    "unique": [
+                      "userId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -8821,22 +8846,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId",
-                    "name"
-                  ],
-                  "name": "SecretEntry_userId_name_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "name"
+                  ],
+                  "name": "SecretEntry_userId_name_key"
+                }
+              ]
             },
             "Session": {
               "columns": {
@@ -8925,13 +8949,6 @@
               "indexes": [
                 {
                   "columns": [
-                    "token"
-                  ],
-                  "name": "Session_token_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
                     "userId"
                   ],
                   "name": "Session_userId_idx_a489d58a",
@@ -8944,7 +8961,14 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "token"
+                  ],
+                  "name": "Session_token_key"
+                }
+              ]
             },
             "SshSigningKey": {
               "columns": {
@@ -9007,7 +9031,9 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "SshSigningKey_userId_key"
+                    "unique": [
+                      "userId"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9027,21 +9053,20 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId"
-                  ],
-                  "name": "SshSigningKey_userId_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "SshSigningKey_userId_key"
+                }
+              ]
             },
             "Thread": {
               "columns": {
@@ -9460,21 +9485,20 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [
-                {
-                  "columns": [
-                    "email"
-                  ],
-                  "name": "User_email_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "email"
+                  ],
+                  "name": "User_email_key"
+                }
+              ]
             },
             "UserFile": {
               "columns": {
@@ -9545,7 +9569,11 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "UserFile_userId_tree_path_key"
+                    "unique": [
+                      "userId",
+                      "tree",
+                      "path"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9570,15 +9598,6 @@
                   "columns": [
                     "userId",
                     "tree",
-                    "path"
-                  ],
-                  "name": "UserFile_userId_tree_path_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "tree",
                     "revision"
                   ],
                   "name": "UserFile_userId_tree_revision_idx",
@@ -9590,7 +9609,16 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "tree",
+                    "path"
+                  ],
+                  "name": "UserFile_userId_tree_path_key"
+                }
+              ]
             },
             "Verification": {
               "columns": {
@@ -9702,7 +9730,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "WorkspaceMcpServer_organizationId_name_key"
+                    "unique": [
+                      "organizationId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9722,22 +9753,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "name"
-                  ],
-                  "name": "WorkspaceMcpServer_organizationId_name_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "name"
+                  ],
+                  "name": "WorkspaceMcpServer_organizationId_name_key"
+                }
+              ]
             },
             "WorkspaceSecret": {
               "columns": {
@@ -9820,7 +9850,10 @@
                 },
                 {
                   "index": {
-                    "name": "WorkspaceSecret_organizationId_name_key"
+                    "unique": [
+                      "organizationId",
+                      "name"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9843,14 +9876,6 @@
               "indexes": [
                 {
                   "columns": [
-                    "organizationId",
-                    "name"
-                  ],
-                  "name": "WorkspaceSecret_organizationId_name_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
                     "updatedById"
                   ],
                   "name": "WorkspaceSecret_updatedById_idx_d0517c24",
@@ -9863,7 +9888,15 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "name"
+                  ],
+                  "name": "WorkspaceSecret_organizationId_name_key"
+                }
+              ]
             },
             "WorkspaceSetting": {
               "columns": {
@@ -9911,7 +9944,10 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "WorkspaceSetting_organizationId_key_key"
+                    "unique": [
+                      "organizationId",
+                      "key"
+                    ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9931,22 +9967,21 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "key"
-                  ],
-                  "name": "WorkspaceSetting_organizationId_key_key",
-                  "unique": true
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "key"
+                  ],
+                  "name": "WorkspaceSetting_organizationId_key_key"
+                }
+              ]
             },
             "WorkspaceVercelCredential": {
               "columns": {
@@ -10058,7 +10093,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "64cb0885c524619aabe36260368c3940d543a21b3ee63b53c73aea62f33a6d4b"
+    "storageHash": "2508d2fce685f5a105af81d479e0cb974044a107acbca7a90bbbc3c051f8e2be"
   },
   "execution": {
     "executionHash": "9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf",

@@ -28,7 +28,7 @@ model CloudSandbox {
   user                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   thread                    Thread                   @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([threadId], map: "CloudSandbox_threadId_key", unique: true)
+  @@unique([threadId], map: "CloudSandbox_threadId_key")
   @@index([userId], map: "CloudSandbox_userId_idx")
   @@unique([tokenHash])
   @@index([state, lastActivityAt], map: "CloudSandbox_state_lastActivityAt_idx")

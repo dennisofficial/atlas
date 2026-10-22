@@ -8,5 +8,5 @@ model WorkspaceMcpServer {
   updatedAt      TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "WorkspaceMcpServer_organizationId_name_key")
 
-  @@index([organizationId, name], map: "WorkspaceMcpServer_organizationId_name_key", unique: true)
+  @@unique([organizationId, name], map: "WorkspaceMcpServer_organizationId_name_key")
 }

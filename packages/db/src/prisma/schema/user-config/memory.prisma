@@ -13,6 +13,6 @@ model Memory {
   updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Memory_userId_scope_project_name_key")
 
-  @@index([userId, scope, project, name], map: "Memory_userId_scope_project_name_key", unique: true)
+  @@unique([userId, scope, project, name], map: "Memory_userId_scope_project_name_key")
   @@index([userId, project], map: "Memory_userId_project_idx")
 }

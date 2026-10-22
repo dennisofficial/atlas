@@ -14,5 +14,5 @@ model Organization {
   settings         WorkspaceSetting[]
   vercelCredential WorkspaceVercelCredential?
 
-  @@index([slug], map: "Organization_slug_key", unique: true)
+  @@unique([slug], map: "Organization_slug_key")
 }

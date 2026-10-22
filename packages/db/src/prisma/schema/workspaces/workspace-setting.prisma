@@ -8,5 +8,5 @@ model WorkspaceSetting {
   updatedAt      TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "WorkspaceSetting_organizationId_key_key")
 
-  @@index([organizationId, key], map: "WorkspaceSetting_organizationId_key_key", unique: true)
+  @@unique([organizationId, key], map: "WorkspaceSetting_organizationId_key_key")
 }

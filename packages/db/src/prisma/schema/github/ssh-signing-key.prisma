@@ -11,5 +11,5 @@ model SshSigningKey {
   updatedAt        TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([userId], map: "SshSigningKey_userId_key", unique: true)
+  @@unique([userId], map: "SshSigningKey_userId_key")
 }

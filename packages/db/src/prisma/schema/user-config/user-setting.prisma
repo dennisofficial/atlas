@@ -8,7 +8,7 @@ model UserSetting {
   userId    String
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "CloudSetting_userId_key_key")
 
-  @@index([userId, key], map: "CloudSetting_userId_key_key", unique: true)
+  @@unique([userId, key], map: "CloudSetting_userId_key_key")
 
   @@map("CloudSetting")
 }

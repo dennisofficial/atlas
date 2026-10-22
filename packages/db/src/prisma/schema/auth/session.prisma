@@ -11,5 +11,5 @@ model Session {
   userId               String
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([token], map: "Session_token_key", unique: true)
+  @@unique([token], map: "Session_token_key")
 }

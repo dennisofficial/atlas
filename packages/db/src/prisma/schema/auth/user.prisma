@@ -35,5 +35,5 @@ model User {
   threads                  Thread[]
   userFiles                UserFile[]
 
-  @@index([email], map: "User_email_key", unique: true)
+  @@unique([email], map: "User_email_key")
 }

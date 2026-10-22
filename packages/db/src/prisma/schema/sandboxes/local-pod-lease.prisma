@@ -8,7 +8,7 @@ model LocalPodLease {
   updatedAt TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([userId, threadId], map: "LocalPodLease_userId_threadId_key", unique: true)
-  @@index([tokenHash], map: "LocalPodLease_tokenHash_key", unique: true)
+  @@unique([userId, threadId], map: "LocalPodLease_userId_threadId_key")
+  @@unique([tokenHash], map: "LocalPodLease_tokenHash_key")
   @@index([userId], map: "LocalPodLease_userId_idx")
 }

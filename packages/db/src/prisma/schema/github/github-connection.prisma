@@ -9,5 +9,5 @@ model GithubConnection {
   userId      String
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([userId], map: "GithubConnection_userId_key", unique: true)
+  @@unique([userId], map: "GithubConnection_userId_key")
 }

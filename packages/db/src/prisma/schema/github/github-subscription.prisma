@@ -13,7 +13,7 @@ model GithubSubscription {
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubSubscription_userId_repoFullName_branch_key")
   sandbox      CloudSandbox?        @relation(fields: [threadId], references: [threadId], onDelete: SetNull, onUpdate: Cascade)
 
-  @@index([userId, repoFullName, branch], map: "GithubSubscription_userId_repoFullName_branch_key", unique: true)
+  @@unique([userId, repoFullName, branch], map: "GithubSubscription_userId_repoFullName_branch_key")
   @@index([repoFullName, prNumber], map: "GithubSubscription_repoFullName_prNumber_idx")
   @@index([repoFullName, branch], map: "GithubSubscription_repoFullName_branch_idx")
   @@index([expiresAt], map: "GithubSubscription_expiresAt_idx")

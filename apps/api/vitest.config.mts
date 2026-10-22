@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
-    incrementalTests({ globalInputs: ['apps/api/prisma/**/*.prisma'] }),
+    incrementalTests({ globalInputs: ['packages/db/src/prisma/schema/**/*.prisma', 'packages/db/migrations/**/ops.json'] }),
     swc.vite({
       jsc: {
         parser: { syntax: 'typescript', decorators: true },
@@ -18,6 +18,14 @@ export default defineConfig({
       {
         find: /^@dltech\/atlas-wire\/web$/,
         replacement: new URL('../../packages/wire/src/web/index.ts', import.meta.url).pathname,
+      },
+      {
+        find: /^@dltech\/atlas-db\/testing$/,
+        replacement: new URL('../../packages/db/src/testing/index.ts', import.meta.url).pathname,
+      },
+      {
+        find: /^@dltech\/atlas-db$/,
+        replacement: new URL('../../packages/db/src/index.ts', import.meta.url).pathname,
       },
       {
         find: /^@dltech\/atlas-wire$/,
