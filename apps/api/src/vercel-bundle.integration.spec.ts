@@ -16,7 +16,7 @@ import {
 } from '../test/bundle-container'
 
 const API_ROOT = join(import.meta.dirname, '..')
-const PRISMA = join(API_ROOT, 'node_modules', '.bin', 'prisma')
+const DB_PACKAGE = join(API_ROOT, '..', '..', 'packages', 'db')
 const WEBHOOK_SECRET = 'bundle-spec-github-app-webhook-secret'
 const SESSION_TOKEN = `bundle-spec-${randomBytes(16).toString('hex')}`
 const SETUP_TIMEOUT_MS = 240_000
@@ -27,13 +27,15 @@ function sh({
   file,
   args,
   env,
+  cwd = API_ROOT,
 }: {
   file: string
   args: string[]
   env?: NodeJS.ProcessEnv
+  cwd?: string
 }): string {
   return execFileSync(file, args, {
-    cwd: API_ROOT,
+    cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     env: env ?? process.env,
@@ -95,8 +97,9 @@ describeLive('vercel bundle (built output served from a read-only container)', (
 
     const databaseUrl = `postgresql://atlas:atlas@127.0.0.1:${dbPort}/atlas`
     sh({
-      file: PRISMA,
-      args: ['migrate', 'deploy'],
+      file: 'bun',
+      args: ['run', '--bun', 'prisma', 'db', 'migrate'],
+      cwd: DB_PACKAGE,
       env: minimalEnv({ DATABASE_URL: databaseUrl, DIRECT_URL: databaseUrl }),
     })
     const seed = `

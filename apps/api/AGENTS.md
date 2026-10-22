@@ -163,8 +163,10 @@ it, so a package the bundle left out fails the spec instead of resolving from `n
 host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
 on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
 a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
-HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` (CI sets it) and is skipped otherwise. Run it
-after adding any module or dependency: it is what catches an import the bundle misses.
+HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` and is skipped otherwise; the `api-bundle` job
+in `.github/workflows/ci.yml` sets it for this spec alone, and the `test` job leaves it off. It
+migrates the throwaway database with `packages/db`'s Prisma 8 CLI (`bun run --bun prisma db migrate`),
+the way `scripts/migrate-deploy.mjs` does. Run it after adding any module or dependency: it is what catches an import the bundle misses.
 
 Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
 write kills the process instead of throwing a catchable resolve error. The function ships no
