@@ -96,6 +96,9 @@ export async function startBundleApi({
     BETTER_AUTH_URL: baseUrl,
     SECRETS_ENCRYPTION_KEY: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
     TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
+    GOOGLE_CLIENT_ID: 'test-google-client-id.apps.googleusercontent.com',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+    RESEND_API_KEY: 're_test_fixture_not_a_real_key',
     ...extraEnv,
   }
   docker([

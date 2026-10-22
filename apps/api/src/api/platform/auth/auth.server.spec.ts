@@ -9,4 +9,16 @@ describe('auth server', () => {
     expect(typeof auth.api.deviceApprove).toBe('function')
     expect(typeof auth.api.getSession).toBe('function')
   })
+
+  it('sends Google back to the web origin, where the proxied auth cookies live', () => {
+    expect(auth.options.socialProviders?.google?.redirectURI).toBe(
+      'http://localhost:3001/api/auth/callback/google',
+    )
+  })
+
+  it('delivers password reset and invitation emails', () => {
+    expect(typeof auth.options.emailAndPassword?.sendResetPassword).toBe('function')
+    expect(auth.options.emailAndPassword?.revokeSessionsOnPasswordReset).toBe(true)
+    expect(auth.options.plugins.some((plugin) => plugin.id === 'organization')).toBe(true)
+  })
 })
