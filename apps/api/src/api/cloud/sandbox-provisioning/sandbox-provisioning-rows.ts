@@ -15,7 +15,7 @@ export const SANDBOX_BUSY_MESSAGE = 'The sandbox is busy. Try again in a moment.
 
 export type RowWriter = Pick<Tx, 'orm'>
 
-export type RowClaim = { token: string; wakeClaim: Date; name: string }
+export type RowClaim = { token: string; wakeClaim: Date; name: string; sandboxId: string }
 
 export const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
   row.wakeFailedAt !== null &&
@@ -51,9 +51,10 @@ export async function claimRow(args: {
   const wakeClaim = new Date()
   const name = args.existing?.name ?? sandboxNameFor({ threadId: args.thread.id })
   if (args.existing === null) {
+    const sandboxId = `sbx_${randomUUID()}`
     try {
       await writer.orm.public.CloudSandbox.create({
-        id: `sbx_${randomUUID()}`,
+        id: sandboxId,
         threadId: args.thread.id,
         userId: args.thread.userId,
         sandboxId: '',
@@ -72,7 +73,7 @@ export async function claimRow(args: {
       if (violatedConstraint(failure) === THREAD_UNIQUE) return null
       throw failure
     }
-    return { token, wakeClaim, name }
+    return { token, wakeClaim, name, sandboxId }
   }
   const claimed = await writer.orm.public.CloudSandbox.where({
     threadId: args.thread.id,
@@ -84,7 +85,7 @@ export async function claimRow(args: {
     state: ESandboxState.Resuming,
     updatedAt: wakeClaim,
   })
-  return claimed === 0 ? null : { token, wakeClaim, name }
+  return claimed === 0 ? null : { token, wakeClaim, name, sandboxId: args.existing.id }
 }
 
 export async function markRunning(args: {

@@ -219,6 +219,8 @@ export async function finishServeBoot(args: {
     resumable,
     admissionLatched: admissionClosed(),
     driver,
+    app,
+    threadId,
     log,
   })
   const exit = serveArgs.exit ?? process.exit

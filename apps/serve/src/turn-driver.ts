@@ -29,6 +29,8 @@ export type ServeTurnDriver = {
   resume: () => void
   running: () => boolean
   busy: () => boolean
+  outcome: () => TurnOutcome | null
+  failure: () => Error | null
   outcomePending: () => boolean
   settled: () => Promise<void>
   attach: (shared: MessageIntake) => () => void
@@ -315,6 +317,8 @@ export function createTurnDriver(
     },
     running: () => turning !== null,
     busy: () => turning !== null || committing !== null || history.held(),
+    outcome: () => lastOutcome,
+    failure: () => turnFailure,
     outcomePending: () => outcomePending || (relocationSettling !== null && !relocationConfirmed),
     settled: () =>
       Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(
