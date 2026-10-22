@@ -82,7 +82,17 @@ afterAll(async () => {
   await Promise.all(made.map((path) => rm(path, { recursive: true, force: true })))
 })
 
-describe('claiming a worktree so two sessions cannot share it', () => {
+const liveHolder = async ({ root, tree }: { root: string; tree: string }) => {
+  const other = Bun.spawn(['sleep', '30'], { stdout: 'ignore', stderr: 'ignore' })
+  const reason = worktreeLockToken({
+    label: 'thread br_other',
+    identity: { pid: other.pid, start: await startTimeOf({ pid: other.pid }) },
+  })
+  await lockWorktree({ cwd: root, path: tree, reason })
+  return { other, reason }
+}
+
+describe('claiming a worktree so it cannot be deleted under a session', () => {
   it('locks a worktree it creates, naming this process in the reason', async () => {
     const root = await repo()
     const { enter } = toolsFor(root)
@@ -113,31 +123,37 @@ describe('claiming a worktree so two sessions cannot share it', () => {
     )
   })
 
-  it('refuses a worktree another live process holds, and takes it once that process dies', async () => {
+  it('shares a worktree another live session holds as a guest, leaving its lock in place', async () => {
     const root = await repo()
     const tree = await byHand({ root, name: 'taken', branch: 'theirs' })
+    const { other, reason } = await liveHolder({ root, tree })
 
-    const other = Bun.spawn(['sleep', '30'], { stdout: 'ignore', stderr: 'ignore' })
-    await lockWorktree({
-      cwd: root,
-      path: tree,
-      reason: worktreeLockToken({
-        label: 'thread br_other',
-        identity: { pid: other.pid, start: await startTimeOf({ pid: other.pid }) },
-      }),
-    })
+    try {
+      const { enter } = toolsFor(root)
+      const shared = await enter.invoke(
+        invocation({ input: { path: tree }, projectDirectory: root }),
+      )
 
-    const { enter } = toolsFor(root)
-    const refused = await enter.invoke(
-      invocation({ input: { path: tree }, projectDirectory: root }),
-    )
+      expect(shared.ok).toBe(true)
+      if (!shared.ok) return
+      expect(enteredWorktreeOf(shared.output)?.path).toBe(tree)
+      expect(shared.modelText).toContain(`pid ${other.pid}`)
+      expect(shared.modelText).toContain('guest')
+      expect((await lockOf({ root, path: tree })).reason).toBe(reason)
+    } finally {
+      other.kill()
+      await other.exited
+    }
+  })
 
-    expect(refused.ok).toBe(false)
-    expect(reasonOf(refused)).toContain('another Atlas session is working in it')
-
+  it('takes the lock of a worktree once the session that held it dies', async () => {
+    const root = await repo()
+    const tree = await byHand({ root, name: 'freed', branch: 'theirs' })
+    const { other } = await liveHolder({ root, tree })
     other.kill()
     await other.exited
 
+    const { enter } = toolsFor(root)
     const taken = await enter.invoke(invocation({ input: { path: tree }, projectDirectory: root }))
 
     expect(taken.ok).toBe(true)
@@ -231,6 +247,57 @@ describe('giving the worktree back', () => {
 
     expect(outcome.ok).toBe(true)
     expect((await lockOf({ root, path: tree })).isLocked).toBe(false)
+  })
+
+  it('keeps the holder lock and the worktree on disk when a guest leaves, even asked to remove it', async () => {
+    const root = await repo()
+    const tree = await byHand({ root, name: 'visited', branch: 'theirs' })
+    const { other, reason } = await liveHolder({ root, tree })
+
+    try {
+      const { enter, exit } = toolsFor(root)
+      await enter.invoke(invocation({ input: { path: tree }, projectDirectory: root }))
+
+      const outcome = await exit.invoke(
+        invocation({
+          input: { action: EWorktreeExit.Remove, discardChanges: true },
+          projectDirectory: tree,
+          activeWorktree: { path: tree, branch: 'theirs', base: undefined, adopted: true },
+        }),
+      )
+
+      expect(outcome.ok).toBe(true)
+      expect(await Bun.file(join(tree, 'README.md')).exists()).toBe(true)
+      expect((await lockOf({ root, path: tree })).reason).toBe(reason)
+    } finally {
+      other.kill()
+      await other.exited
+    }
+  })
+
+  it('cannot delete a worktree another live session holds, even forcing past its changes', async () => {
+    const root = await repo()
+    const tree = await byHand({ root, name: 'guarded', branch: 'theirs' })
+    const { other, reason } = await liveHolder({ root, tree })
+
+    try {
+      const { exit } = toolsFor(root)
+      const outcome = await exit.invoke(
+        invocation({
+          input: { action: EWorktreeExit.Remove, discardChanges: true },
+          projectDirectory: tree,
+          activeWorktree: { path: tree, branch: 'theirs', base: undefined, adopted: false },
+        }),
+      )
+
+      expect(outcome.ok).toBe(false)
+      expect(reasonOf(outcome)).toContain('locked')
+      expect(await Bun.file(join(tree, 'README.md')).exists()).toBe(true)
+      expect((await lockOf({ root, path: tree })).reason).toBe(reason)
+    } finally {
+      other.kill()
+      await other.exited
+    }
   })
 
   it('drops its own lock when switching straight to another worktree', async () => {

@@ -17,12 +17,7 @@ import {
   EDefaultBranchSource,
   fetchOrigin,
 } from '../../workspace/worktrees'
-import {
-  claimWorktree,
-  EWorktreeClaim,
-  releaseWorktree,
-  type WorktreeClaim,
-} from '../../workspace/worktree-lock'
+import { claimWorktree, releaseWorktree, type WorktreeClaim } from '../../workspace/worktree-lock'
 import { adoptWorktree, type AdoptedWorktree } from './worktree-adopt'
 import {
   hideWorktreeHome,
@@ -127,12 +122,6 @@ export class EnterWorktreeTool extends SchemaTool<typeof inputSchema> {
         path: adopted.path,
         label: `thread ${threadId}`,
       })
-      if (claimed.claim === EWorktreeClaim.Held) {
-        return {
-          ok: false,
-          reason: `the worktree at ${adopted.path} is not free: ${claimed.note}. Tell the developer, and let them pick a different worktree or wait for that session to leave.`,
-        }
-      }
 
       await this.leave({ cwd: view.root, path: projectDirectory, homeDirectory })
       return this.adopted({ adopted, claim: claimed })
