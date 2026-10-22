@@ -274,7 +274,7 @@ a tier does not supply it), then `dotenvx set` to fill values in place. Typed ac
 
 Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run db:seed`,
 `bun run dev`. An existing local database migrated by Prisma 7 first needs a one-off
-`bun run env:inject -- bun run --cwd ../../packages/db prisma db sign` (see `packages/db/AGENTS.md`).
+`bun run env:inject -- bun run --cwd ../../packages/db prisma db sign 20261022T0209_baseline --no-advance-ref` (see `packages/db/AGENTS.md`).
 Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they run via
 `db:migrate:deploy` with `MIGRATE_TIER` set, never from the app container.
 

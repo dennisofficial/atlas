@@ -58,9 +58,12 @@ Prisma 8 packages live under `migrations/app/<ts>_<slug>/` (`migration.ts`, `mig
 
 The Prisma 7 SQL history was not replayed. A database migrated by Prisma 7 adopts the contract
 with `prisma db sign`, a one-off, human-gated step that writes only `prisma_contract.marker`.
-The `_prisma_migrations` table left behind is inert. Against production, sign with
-`--no-advance-ref` so the committed `db` ref does not move. The baseline package
-(`20261022T0209_baseline`) never runs on a signed database; `db migrate` starts at the marker.
+The `_prisma_migrations` table left behind is inert. Sign the **baseline** contract, not the current
+one: `bunx prisma db sign 20261022T0209_baseline --no-advance-ref`. A bare `db sign` signs the emitted
+(latest) contract, which an old-history database does not satisfy, so it refuses and writes nothing.
+`--no-advance-ref` keeps the committed `db` ref where it is. Then `bunx prisma db migrate` applies
+every package past the baseline and `bunx prisma db verify --strict` exits 0. The baseline package
+never runs on a signed database; `db migrate` starts at the marker.
 
 ### Deploy
 
