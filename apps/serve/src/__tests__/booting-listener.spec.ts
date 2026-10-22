@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EServeFrame } from '@dltech/atlas-harness'
 import { EServeEvent, EWorkspaceState, startServe, type ServeHandle } from '../index'

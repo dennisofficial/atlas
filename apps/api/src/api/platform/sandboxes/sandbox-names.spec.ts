@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { sandboxNameFor } from './sandbox-names'
 
 const THREAD = 'brn_thread_1'

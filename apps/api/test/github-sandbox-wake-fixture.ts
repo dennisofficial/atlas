@@ -1,6 +1,6 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
-import { vi } from 'vitest'
+import { vi } from 'bun:test'
 
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'

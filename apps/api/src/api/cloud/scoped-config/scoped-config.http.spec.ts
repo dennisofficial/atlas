@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { encodeSettingValue, EVercelCredentialGap } from '@dltech/atlas-wire/web'
 
 import request from 'supertest'

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+import { afterEach, describe, expect, it, type Mock, vi } from 'bun:test'
 import { generateText, stepCountIs } from 'ai'
 
 import { recordingFetch } from './recording-fetch'
@@ -12,7 +12,7 @@ import {
 
 describe('openai multi-step reasoning through the real SDK', () => {
   const warnings: string[] = []
-  let warnSpy: MockInstance<typeof console.warn>
+  let warnSpy: Mock<typeof console.warn>
 
   afterEach(() => {
     warnSpy?.mockRestore()

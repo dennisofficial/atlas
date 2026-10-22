@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { ERuntimePhase, admissionClosedFor, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { EClientFrame, EClientRequest, EServeFrame, encodeFrame, toSendId, type ClientFrame } from '@dltech/atlas-harness'

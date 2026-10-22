@@ -2,7 +2,7 @@ import { ServiceUnavailableException } from '@nestjs/common'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'

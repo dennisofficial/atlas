@@ -1,6 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedTurnRow, seedUsers, USER_A } from '../../../../test/session-seed'
 import { TurnsService } from './turns.service'
 

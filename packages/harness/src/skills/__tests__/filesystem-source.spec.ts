@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { ECommandGroup, ECommandKind, ESkillWarning } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { FilesystemSkillSource } from '../filesystem-source'
 import { ESkillOrigin, type DiscoveredSkill } from '../skill'

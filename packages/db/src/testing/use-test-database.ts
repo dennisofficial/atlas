@@ -1,22 +1,16 @@
-import { afterAll, beforeAll, beforeEach } from 'vitest'
-import { closeSharedDb } from '../client'
-import { createTestDatabase, type TestDatabase } from './test-database'
+import { beforeAll, beforeEach } from 'bun:test'
+import { db, type Db, sharedPool } from '../client'
+import type { Pool } from '../pool'
+import { ensureTestDatabase, truncateAll } from './test-database'
+
+export type TestDatabase = { url: string; pool: Pool; db: Db }
 
 export function useTestDatabase(): () => TestDatabase {
-  let current: TestDatabase | undefined
-  beforeAll(async () => {
-    current = await createTestDatabase()
-    process.env.DATABASE_URL = current.url
-  })
-  beforeEach(async () => {
-    await current?.truncate()
-  })
-  afterAll(async () => {
-    await closeSharedDb()
-    await current?.drop()
-  })
+  beforeAll(ensureTestDatabase)
+  beforeEach(truncateAll)
   return () => {
-    if (current === undefined) throw new Error('useTestDatabase() is read inside a test, after beforeAll')
-    return current
+    const url = process.env.DATABASE_URL
+    if (url === undefined) throw new Error('DATABASE_URL is unset')
+    return { url, pool: sharedPool(), db }
   }
 }

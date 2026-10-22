@@ -1,6 +1,6 @@
 import contract from '@dltech/atlas-db/contract.json'
 import { getAuthTables } from 'better-auth/db'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { auth } from './auth.server'
 
 type ContractColumn = { dataType: string; nullable: boolean; default?: unknown }

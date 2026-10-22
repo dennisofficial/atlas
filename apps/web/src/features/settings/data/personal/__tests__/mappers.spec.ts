@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EEffortLevel, EMemoryScope, EMemoryType, EMcpTransportKind, ESecretKind as EWireSecretKind } from '@dltech/atlas-wire/web'
 

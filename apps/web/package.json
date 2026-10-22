@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "bun --bun vitest run"
+    "test": "bun test"
   },
   "dependencies": {
     "@dltech/atlas-ui": "workspace:*",
@@ -29,9 +29,7 @@
     "typescript": "6.0.3",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
-    "vitest": "4.0.1",
-    "@dltech/vitest-incremental": "workspace:*"
+    "eslint-config-next": "16.3.5"
   },
   "packageManager": "bun@1.4.2",
   "ignoreScripts": [

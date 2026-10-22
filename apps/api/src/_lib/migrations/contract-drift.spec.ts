@@ -1,5 +1,5 @@
 import { contractStorageHash } from '@dltech/atlas-db'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { contractDrift, EContractDrift, shippedMigrationGraph } from './contract-drift'
 
 const GRAPH = ['h0', 'h1', 'h2']

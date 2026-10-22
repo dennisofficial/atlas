@@ -8,7 +8,7 @@ import {
   toThreadId,
   type ToolOutcome,
 } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ESkillInstallLayer } from '../../../skills/install-writer'
 import { SkillInstallTool } from '../skill-install'

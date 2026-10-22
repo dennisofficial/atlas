@@ -1,7 +1,7 @@
 import { API_PROVISIONED_ENV, BOOT_RUN_ID, ESandboxProvisionState, SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
   CREDENTIALS,

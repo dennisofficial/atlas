@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EConsultation, JudgePort, type Consultation } from '@dltech/atlas-core'
 

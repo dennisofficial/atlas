@@ -9,8 +9,8 @@ import {
 import { HttpAdapterHost } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import type { MockInstance } from 'vitest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MockInstance } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { GithubUserReadFailed } from './cloud/github/github-user-reads'
 import { GlobalExceptionFilter } from './global-exception.filter'
 

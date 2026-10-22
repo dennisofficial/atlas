@@ -1,5 +1,5 @@
 import { ATLAS_SETTINGS, ESettingId, ESettingsLayer, textValueOf } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { MemorySecretsStore } from '../../secrets/memory-store'
 import { MemorySettingsStore } from '../memory-store'

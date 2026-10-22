@@ -1,6 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { seedRepoHook } from '../../../../test/github-seed'
 import { inconsistentStore, isUniqueViolation } from './unique-violation'
 

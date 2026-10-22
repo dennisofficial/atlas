@@ -40,12 +40,13 @@ remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
 
 ## Runtime and tests
 
-This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with **vitest**, not
-`bun test`. Bun runs Nest's constructor `@Inject(...)` decorators under this package's tsconfig;
-`test/bun-runtime.spec.ts` spawns the real app under `bun` and fails if one is dropped. vitest
-needs `unplugin-swc` with `legacyDecorator` + `decoratorMetadata` to emit decorator metadata (see
-`vitest.config.mts`), and aliases `@dltech/atlas-wire` to its source because vite does not honor
-wire's `bun` export condition.
+This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with `bun test`.
+Bun runs Nest's constructor `@Inject(...)` decorators under this package's tsconfig;
+`test/bun-runtime.spec.ts` spawns the real app under `bun` and fails if one is dropped. `bunfig.toml`
+preloads the shared root `bun-test.setup.ts` and `test.setup.ts` (env). Specs mock `../../../db`
+with a synchronous `mock.module` factory over a statically imported fake — an `async` factory that
+dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTimersByTimeAsync` and
+`waitFor` live in `test/fake-timers.ts`; the other vitest-only helpers come from `@dltech/bun-test-shims`.
 
 ## Layout
 
@@ -343,7 +344,7 @@ one exact version; bump all three at once.
 
 ## Rules that differ from the rest of the repo
 
-- vitest specs are colocated `*.spec.ts`. Specs that need data run against real Postgres through
+- `bun:test` specs are colocated `*.spec.ts`. Specs that need data run against real Postgres through
   `useTestDatabase()` from `@dltech/atlas-db/testing` (a local lane on :55441, a service container in
   CI), never an in-memory fake. `db` is a lazy proxy, so importing it never connects.
 - Everything else from the root CLAUDE.md still applies: 300-line files, no `as any`, no

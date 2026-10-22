@@ -2,7 +2,7 @@ import { ConflictException, ForbiddenException } from '@nestjs/common'
 import { SSH_SIGNING_SCOPE_MISSING_CODE } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { response } from './ssh-signing-key.fakes'
 import {
   GITHUB_API,

@@ -6,7 +6,7 @@ import {
   type EventDraft,
   type SaidImage,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { NAMING_ATTACHMENT_CHARACTER_LIMIT, namingImagesOf, namingTextOf } from '../naming-text'
 

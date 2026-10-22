@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { ensureUsers, seedRepoHook } from '../../../../test/github-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'

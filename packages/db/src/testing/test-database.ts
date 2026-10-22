@@ -1,7 +1,6 @@
-import { randomBytes } from 'node:crypto'
 import pg from 'pg'
-import { createDb, type Db } from '../client'
-import { createPool, type Pool } from '../pool'
+import { sharedPool } from '../client'
+import { runDatabaseName, runPidOf } from './database-url'
 import { databaseUrl, laneUrl, quoteIdent } from './lane'
 import { applyMigrations, migrationSetHash } from './migrations'
 
@@ -25,9 +24,18 @@ async function withLaneLock<T>(work: (client: pg.Client) => Promise<T>): Promise
   }
 }
 
-async function databaseExists({ client, name }: { client: pg.Client; name: string }): Promise<boolean> {
-  const found = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])
-  return found.rowCount === 1
+async function databaseNames(client: pg.Client): Promise<string[]> {
+  const found = await client.query<{ datname: string }>("SELECT datname FROM pg_database WHERE datname LIKE 'atlas_test_%'")
+  return found.rows.map((row) => row.datname)
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function buildTemplate({ client, name }: { client: pg.Client; name: string }): Promise<void> {
@@ -45,39 +53,39 @@ async function buildTemplate({ client, name }: { client: pg.Client; name: string
   await client.query(`ALTER DATABASE ${quoteIdent(name)} IS_TEMPLATE true`)
 }
 
-export type TestDatabase = {
-  url: string
-  pool: Pool
-  db: Db
-  truncate: () => Promise<void>
-  drop: () => Promise<void>
-}
-
-export async function createTestDatabase(): Promise<TestDatabase> {
+async function createRunDatabase(): Promise<void> {
   const template = `atlas_test_tpl_${migrationSetHash()}`
-  const name = `atlas_test_f${process.pid}_${randomBytes(4).toString('hex')}`
+  const name = runDatabaseName()
   await withLaneLock(async (client) => {
-    if (!(await databaseExists({ client, name: template }))) await buildTemplate({ client, name: template })
+    const existing = await databaseNames(client)
+    for (const stale of existing) {
+      const pid = runPidOf(stale)
+      if (pid !== undefined && pid !== process.pid && !processAlive(pid)) {
+        await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(stale)} WITH (FORCE)`)
+      }
+    }
+    if (!existing.includes(template)) await buildTemplate({ client, name: template })
+    await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(name)} WITH (FORCE)`)
     await client.query(`CREATE DATABASE ${quoteIdent(name)} TEMPLATE ${quoteIdent(template)}`)
   })
-  const url = databaseUrl({ lane: laneUrl(), name })
-  const pool = createPool(url)
+}
+
+let ready: Promise<void> | undefined
+
+export function ensureTestDatabase(): Promise<void> {
+  const expected = databaseUrl({ lane: laneUrl(), name: runDatabaseName() })
+  if (process.env.DATABASE_URL !== expected) {
+    throw new Error('DATABASE_URL is not the run test database; preload @dltech/atlas-db/testing/env first')
+  }
+  ready ??= createRunDatabase()
+  return ready
+}
+
+export async function truncateAll(): Promise<void> {
+  const pool = sharedPool()
   const tables = await pool.query<{ tablename: string }>(
     "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
   )
-  const tableList = tables.rows.map((row) => `"public".${quoteIdent(row.tablename)}`).join(', ')
-  return {
-    url,
-    pool,
-    db: createDb(pool),
-    truncate: async () => {
-      await pool.query(`TRUNCATE ${tableList} CASCADE`)
-    },
-    drop: async () => {
-      await pool.end()
-      await withLaneLock(async (client) => {
-        await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(name)} WITH (FORCE)`)
-      })
-    },
-  }
+  const list = tables.rows.map((row) => `"public".${quoteIdent(row.tablename)}`).join(', ')
+  if (list.length > 0) await pool.query(`TRUNCATE ${list} CASCADE`)
 }

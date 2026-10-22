@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { assertLocalTarget } from '../seed/cli'
 import { SEED_IDS, seed } from '../seed/seed'
 import { useTestDatabase } from '../testing'

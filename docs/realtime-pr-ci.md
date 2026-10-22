@@ -369,6 +369,6 @@ state instead.
 4. **TUI:** `/resume` and tile render from the projection; signed-out path untouched.
 5. **Cleanup:** delete the app module, old models, old env keys (separate PR, after 1–4 are live).
 
-Testing: API slices are vitest unit specs (no DB in CI) plus handler-level specs with a fake
+Testing: API slices are `bun test` unit specs (no DB in CI) plus handler-level specs with a fake
 Prisma; harness slices are `bun test` with a fake SSE transport; the SSE client itself gets a
 local-server spec (the repo's established pattern for network ports).

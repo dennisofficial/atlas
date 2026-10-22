@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '../testing'
 import { modelOfTable, rowFor, tableOrder, timestampColumns } from './row-factory'
 

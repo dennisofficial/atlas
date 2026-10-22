@@ -1,6 +1,6 @@
 import { toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import React, { useRef } from 'react'
 
 import { RemoteTurnRunner, type TurnOutcome } from '@dltech/atlas-harness'

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { EExecutionLocation, toRunId, type EventDraft } from '@dltech/atlas-core'
 import { EConnectionView, ECloudSandboxState } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'

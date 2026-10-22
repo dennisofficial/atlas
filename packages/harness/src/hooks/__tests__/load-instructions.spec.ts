@@ -14,7 +14,7 @@ import {
   type ThreadId,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { InMemoryFileReadState } from '../../files/read-state'

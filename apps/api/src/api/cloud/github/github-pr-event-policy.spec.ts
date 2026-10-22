@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { ensureUser, seedUserSetting } from '../../../../test/github-seed'
 import {
   decodeSettingScalar,

@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { SettingsService } from './settings.service'

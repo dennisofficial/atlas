@@ -6,7 +6,7 @@ import {
   type EventDraft,
   type ModelPort,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { createDeltaChannel } from '../../channel/delta-channel'
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'

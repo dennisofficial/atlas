@@ -8,6 +8,7 @@ import { createAwakeClock } from './awake-clock'
 import type { Conversation, ConversationArgs } from './conversation-types'
 import type { OpenedConversation } from './open-conversation'
 import { useRevokeGrant } from './revoke-grant'
+import { endedOnQuestion } from './title-state'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 import { useCompaction } from './use-compaction'
 import { useConversationRotation } from './use-conversation-rotation'
@@ -219,14 +220,13 @@ export function useConversation(args: ConversationArgs): Conversation {
     opened,
     name,
     started,
-    working,
-    needsOperator: operatorInput.state !== null,
     events,
     logSummary,
     pendingMove,
     holdMove,
     refresh,
   })
+  const questionAsked = useMemo(() => endedOnQuestion(events), [events])
   const readEvents = useCallback(
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
@@ -278,6 +278,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     contextTokens: used,
     pending: rows,
     operatorInput,
+    endedOnQuestion: questionAsked,
     handleSend,
     handleQueueSettled,
     refresh,

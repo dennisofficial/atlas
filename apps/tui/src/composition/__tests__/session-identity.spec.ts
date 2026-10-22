@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EOpenMode } from '../config'
 import { launchLine, launchTitle, sessionIdentityLine } from '../session-identity'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudClient, CloudError } from '../cloud-client'

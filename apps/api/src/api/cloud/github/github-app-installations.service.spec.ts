@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubAppInstallationWebhookPayload } from './github-webhook.types'
 

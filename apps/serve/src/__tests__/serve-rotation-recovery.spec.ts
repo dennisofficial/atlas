@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
   EClientFrame, EServeFrame, ETurnStatus,

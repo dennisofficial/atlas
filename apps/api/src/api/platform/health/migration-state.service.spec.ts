@@ -1,6 +1,6 @@
 import { contractStorageHash, sharedPool } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EMigrationState, MigrationStateService } from './migration-state.service'
 
 describe('MigrationStateService against Postgres', () => {

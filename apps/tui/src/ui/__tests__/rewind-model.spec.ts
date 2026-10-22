@@ -7,7 +7,7 @@ import {
   type Event,
   type EventDraft,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   chooseVerb,

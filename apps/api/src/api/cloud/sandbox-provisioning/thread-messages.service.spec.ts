@@ -1,7 +1,7 @@
 import { EThreadMessageState } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { fakeBoot, messagesWith, sandboxRows, seedThread, serviceWith } from './sandbox-provisioning.fixture'
 import { NOT_RUNNING_MESSAGE, SEND_PENDING_MESSAGE } from './thread-messages.service'
 

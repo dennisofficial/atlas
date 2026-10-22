@@ -1,7 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { seedOrganization, useTestDatabase } from '@dltech/atlas-db/testing'
 import { NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedUsers } from '../../../../test/session-seed'
 import { projectReachableBy, threadProjectColumn } from './thread-project'
 

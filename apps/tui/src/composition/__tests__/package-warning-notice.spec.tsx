@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import React from 'react'
 
 import { type LogEntry, SINK_NOTICE_TEXT_LIMIT } from '@dltech/atlas-core'

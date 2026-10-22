@@ -1,6 +1,6 @@
 import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
 import type { RecoveredAgents, UnloggedChild } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   hasLostChildren,

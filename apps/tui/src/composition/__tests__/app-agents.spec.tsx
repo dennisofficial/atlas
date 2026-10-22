@@ -10,7 +10,7 @@ import {
   type RecoveredAgents,
 } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { HEADING } from '../../ui/components/exit-guard'

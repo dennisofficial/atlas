@@ -3,7 +3,7 @@ import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/c
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'

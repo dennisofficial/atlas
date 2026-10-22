@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { hydrateEnvFromTierFile } from '../src/api/hydrate-env'
 
 const DOTENVX = join(import.meta.dirname, '..', 'node_modules', '.bin', 'dotenvx')
@@ -10,16 +10,14 @@ const DOTENVX = join(import.meta.dirname, '..', 'node_modules', '.bin', 'dotenvx
 let fixtureDir: string
 let privateKey: string
 
-const SAVED_PRIVATE_KEYS = Object.fromEntries(
-  Object.entries(process.env).filter(([key]) => key.startsWith('DOTENV_PRIVATE_KEY')),
-)
+const SAVED_ENV = { ...process.env }
 
 beforeAll(() => {
   fixtureDir = mkdtempSync(join(tmpdir(), 'atlas-hydrate-'))
   const envs = join(fixtureDir, 'envs')
   mkdirSync(envs)
   const childEnv = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !key.startsWith('DOTENV_PRIVATE_KEY')),
+    Object.entries(process.env).filter(([key]) => !key.startsWith('DOTENV_')),
   )
   execFileSync(
     DOTENVX,
@@ -34,11 +32,9 @@ beforeAll(() => {
 
 afterEach(() => {
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith('DOTENV_PRIVATE_KEY')) delete process.env[key]
+    if (!(key in SAVED_ENV)) delete process.env[key]
   }
-  Object.assign(process.env, SAVED_PRIVATE_KEYS)
-  delete process.env.HYDRATION_PROBE
-  delete process.env.APP_TIER
+  Object.assign(process.env, SAVED_ENV)
 })
 
 describe('hydrateEnvFromTierFile', () => {

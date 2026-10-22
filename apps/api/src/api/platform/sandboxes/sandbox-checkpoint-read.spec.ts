@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { asJson } from '../../../../test/session-seed'
 import {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { applyTranscriptCovered, transcriptCovered } from '../../ui/covered-store'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { appWith, landed, onSettings, opened } from './app-settings-fixture'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { ECloudSandboxState, type WireSandboxListEntry } from '@dltech/atlas-harness'

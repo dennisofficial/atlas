@@ -1,7 +1,7 @@
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { Logger } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   cipher,
   failingBoot,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ATLAS_SETTINGS, EHarnessPlacement, ESettingId, EToolEnvironment, SecretsPort } from '@dltech/atlas-core'
 

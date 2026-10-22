@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { UnauthorizedException } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { seedRepoHook } from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubHookController } from './github-hook.controller'

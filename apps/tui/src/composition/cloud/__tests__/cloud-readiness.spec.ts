@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { ThreadIdentity } from '../../thread-reads'
 import { cloudReadinessOf } from '../cloud-readiness'

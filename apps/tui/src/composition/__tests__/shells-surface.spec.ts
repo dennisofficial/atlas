@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EFooterItemReach, footerItemCells } from '../../ui/footer-item'
 import { theme } from '../../ui/theme'

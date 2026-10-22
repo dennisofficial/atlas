@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { activeFindings, applyAssessments, findingId, foldQualityFindings } from '../ledger'
 import { EQualityFindingState, EQualityReviewStatus, EQualityTransition, type QualityFinding } from '../policy'

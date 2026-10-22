@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { expectLexes, expectPlain, textFor } from '../../__tests__/harness'
 import { vhdl as spec } from '../vhdl'

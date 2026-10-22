@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { UserFilesService } from './user-files.service'

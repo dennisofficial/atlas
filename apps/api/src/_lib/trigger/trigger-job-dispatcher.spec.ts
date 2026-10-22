@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, mock, vi } from 'bun:test'
 import { z } from 'zod'
 import type { Task, TaskContract } from '../../_core/ports/job-dispatcher'
 import { JobDispatchError } from '../../_core/ports/job-dispatcher'
@@ -6,7 +6,7 @@ import { JobDispatchError } from '../../_core/ports/job-dispatcher'
 const trigger = vi.fn()
 const constructed: unknown[] = []
 
-vi.mock('@trigger.dev/sdk', () => ({
+mock.module('@trigger.dev/sdk', () => ({
   TriggerClient: class {
     readonly tasks = { trigger }
     constructor(config: unknown) {
@@ -15,7 +15,7 @@ vi.mock('@trigger.dev/sdk', () => ({
   },
 }))
 
-import { TriggerJobDispatcher } from './trigger-job-dispatcher'
+const { TriggerJobDispatcher } = await import('./trigger-job-dispatcher')
 
 type EchoTask = Task<'echo', { message: string }, { echoed: string }>
 

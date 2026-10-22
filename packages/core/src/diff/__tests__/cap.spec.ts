@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { capHunks } from '../cap'
 import { EDiffLine, type DiffHunk, type DiffLine } from '../hunk'

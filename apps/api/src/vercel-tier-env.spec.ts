@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { injectEncryptedTierEnv } from './vercel-tier-env'
 
 const DOTENVX = join(import.meta.dirname, '..', 'node_modules', '.bin', 'dotenvx')

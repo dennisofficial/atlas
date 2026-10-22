@@ -26,7 +26,6 @@
     "vitest": "4.0.1",
     "vite": "6.4.1",
     "typescript": "6.0.3",
-    "zod": "^4.4.3",
-    "@dltech/vitest-incremental": "workspace:*"
+    "zod": "^4.4.3"
   }
 }

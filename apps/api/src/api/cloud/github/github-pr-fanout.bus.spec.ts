@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { EPrFrameKind, type PrFrame } from './github-pr-fanout.frame'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -75,7 +76,7 @@ describe('GithubPrFanoutService over a bus', () => {
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 3 } })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(bus.published).toHaveLength(2)
     expect(bus.published[0]).toMatchObject({ kind: EPrFrameKind.State, userIds: ['usr_a'] })
@@ -88,7 +89,7 @@ describe('GithubPrFanoutService over a bus', () => {
     fanout.pushEvent({ userIds: ['usr_a'], event: EVENT, ackId: 'row_1' })
     fanout.pushEvent({ userIds: ['usr_a'], event: { ...EVENT, id: 'evt_2' }, ackId: 'row_2' })
     fanout.pushEvent({ userIds: ['usr_a'], event: { ...EVENT, id: 'evt_3' }, ackId: 'row_3' })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(bus.published.map((frame) => frame.kind)).toEqual([
       EPrFrameKind.Event,
@@ -167,7 +168,7 @@ describe('GithubPrFanoutService over a bus', () => {
 
     fanout.push({ userIds: ['usr_a'], state: STATE })
     for (const frame of bus.published) bus.receive({ raw: JSON.stringify(frame) })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(bus.published).toHaveLength(1)
     expect(received).toHaveLength(1)
@@ -193,7 +194,7 @@ describe('GithubPrFanoutService over a bus', () => {
     bus.failPublish = true
 
     expect(() => fanout.push({ userIds: ['usr_a'], state: STATE })).not.toThrow()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(bus.published).toHaveLength(0)
   })
