@@ -50,8 +50,5 @@
       "@vitest/runner": "4.0.1",
       "@vitest/utils": "4.0.1"
     }
-  },
-  "trustedDependencies": [
-    "lefthook"
-  ]
+  }
 }
