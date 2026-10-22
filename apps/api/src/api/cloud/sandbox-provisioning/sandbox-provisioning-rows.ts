@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { db, violatedConstraint, type Row, type Tx } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { parkedOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
+import { parkedOf, wakeableOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { mintSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
@@ -10,9 +10,22 @@ import { SANDBOX_REGION } from '../../platform/sandboxes/vercel-sandbox.client'
 
 const THREAD_UNIQUE = 'CloudSandbox_threadId_key'
 
+export const NOT_RUNNING_MESSAGE = "The sandbox isn't running. Start it first."
+export const SANDBOX_BUSY_MESSAGE = 'The sandbox is busy. Try again in a moment.'
+
 export type RowWriter = Pick<Tx, 'orm'>
 
 export type RowClaim = { token: string; wakeClaim: Date; name: string }
+
+export const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
+  row.wakeFailedAt !== null &&
+  (row.wakeClaim === null || row.wakeFailedAt.getTime() >= row.wakeClaim.getTime())
+
+export const relaunchableOf = (row: Row<'CloudSandbox'> | null): boolean =>
+  row === null || wakeableOf(row) || failedAfterClaim(row)
+
+export const appendableOf = (row: Row<'CloudSandbox'> | null): boolean =>
+  relaunchableOf(row) || (row !== null && standingStateOf(row) === ESandboxProvisionState.Booting)
 
 export function standingStateOf(row: Row<'CloudSandbox'>): ESandboxProvisionState | undefined {
   if (row.state === ESandboxState.Running && row.serveUrl && !parkedOf(row)) {

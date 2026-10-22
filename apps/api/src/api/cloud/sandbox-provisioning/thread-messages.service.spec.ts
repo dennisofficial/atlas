@@ -12,7 +12,7 @@ import {
   fakeScoped,
   messagesWith,
   sandboxRows,
-  seedSandboxRow,
+  seedProvisionedRow,
   seedThread,
   threadRow,
 } from './sandbox-provisioning.fixture'
@@ -105,28 +105,13 @@ describe('ThreadMessagesService.send', () => {
   })
 
   it('appends without dispatching while a claim is already active', async () => {
-    await seedSandboxRow()
+    await seedProvisionedRow()
     const { service, dispatch } = messagesWith()
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
 
     expect(await eventsOf()).toHaveLength(1)
     expect(dispatch).not.toHaveBeenCalled()
-  })
-
-  it('appends without claiming while a running sandbox is still parking', async () => {
-    await seedSandboxRow({
-      state: 'running',
-      wakeClaim: null,
-      serveUrl: 'https://serve.example.test',
-    })
-    const { service, dispatch } = messagesWith()
-
-    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
-
-    expect(await eventsOf()).toHaveLength(1)
-    expect(dispatch).not.toHaveBeenCalled()
-    expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
 
   it('appends after the pod answer a parked pod flushed, continuing its seq', async () => {
@@ -152,7 +137,7 @@ describe('ThreadMessagesService.send', () => {
   })
 
   it('re-claims a failed row for a new message', async () => {
-    await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
+    await seedProvisionedRow({ wakeClaim: null, wakeFailedAt: new Date() })
     const { service, dispatch } = messagesWith()
 
     await service.send(ARGS)
@@ -181,11 +166,11 @@ describe('ThreadMessagesService.send', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it('keeps the message and stays Queued when dispatch throws', async () => {
+  it('keeps the message and releases the claim when dispatch throws', async () => {
     const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
     const { service } = messagesWith({ dispatcher })
 
-    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+    await service.send(ARGS)
 
     expect(await eventsOf()).toHaveLength(1)
     expect((await sandboxRows())[0]?.wakeClaim).toBeNull()

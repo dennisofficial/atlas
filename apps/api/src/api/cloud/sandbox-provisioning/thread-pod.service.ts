@@ -1,12 +1,11 @@
 import { ConflictException, Injectable } from '@nestjs/common'
 import {
-  EBootStep,
-  mintChannelTicket,
   EBootStepState,
   ESandboxProvisionState,
   EPodState,
   type PodConnectReply,
   type PodStatus,
+  mintChannelTicket,
   type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
@@ -14,11 +13,7 @@ import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoin
 import { parkedOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
-import { standingStateOf } from './sandbox-provisioning-rows'
-
-const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
-  row.wakeFailedAt !== null &&
-  (row.wakeClaim === null || row.wakeFailedAt.getTime() >= row.wakeClaim.getTime())
+import { failedAfterClaim, standingStateOf } from './sandbox-provisioning-rows'
 
 function stateOf(args: { row: Row<'CloudSandbox'> | null; steps: RecordedBootStep[] }): EPodState {
   const { row, steps } = args

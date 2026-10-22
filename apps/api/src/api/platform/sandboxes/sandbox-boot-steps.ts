@@ -21,6 +21,16 @@ export async function recordBootSteps(args: {
   }
 }
 
+export async function hasBootSteps(args: {
+  reader?: Writer | undefined
+  threadId: string
+}): Promise<boolean> {
+  const step = await (args.reader ?? db).orm.public.SandboxBootStep.first({
+    threadId: args.threadId,
+  })
+  return step !== null
+}
+
 const isStep = (value: string): value is EBootStep =>
   (Object.values(EBootStep) as string[]).includes(value)
 const isGap = (value: string): value is EVercelCredentialGap =>

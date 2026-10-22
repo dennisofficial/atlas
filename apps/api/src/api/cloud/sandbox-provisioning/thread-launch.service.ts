@@ -15,7 +15,12 @@ import { toThreadDto } from '../../platform/sessions/rows'
 import { threadProjectColumn } from '../../platform/sessions/thread-project'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { findFirstMessageThread, lockFirstMessage, userSaidDraftOf } from './first-message'
-import { notConfiguredReplyOf, PodLaunchService } from './pod-launch.service'
+import {
+  DISPATCH_FAILED_MESSAGE,
+  dispatchFailedReply,
+  notConfiguredReplyOf,
+  PodLaunchService,
+} from './pod-launch.service'
 import { readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { standingStateOf, type RowClaim } from './sandbox-provisioning-rows'
 
@@ -64,7 +69,8 @@ export class ThreadLaunchService extends ThreadLauncher {
     const thread = toThreadDto(row)
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
-    if (claim !== null) await this.pod.dispatch({ threadId, claim })
+    const dispatched = claim === null || (await this.pod.dispatch({ threadId, claim }))
+    if (!dispatched) return { thread, provision: dispatchFailedReply }
     return { thread, provision: { state: ESandboxProvisionState.Booting } }
   }
 
@@ -73,9 +79,14 @@ export class ThreadLaunchService extends ThreadLauncher {
     const standing = row === null ? undefined : standingStateOf(row)
     if (standing !== undefined) return { state: standing }
     const last = (await readBootSteps({ threadId })).at(-1)
-    if (last?.state === EBootStepState.Error) {
-      return { state: ESandboxProvisionState.NotConfigured, error: last.error ?? '' }
+    if (last?.state !== EBootStepState.Error) return { state: ESandboxProvisionState.Booting }
+    if (last.gap !== undefined) {
+      return {
+        state: ESandboxProvisionState.NotConfigured,
+        error: last.error ?? '',
+        gap: last.gap,
+      }
     }
-    return { state: ESandboxProvisionState.Booting }
+    return { ...dispatchFailedReply, error: last.error ?? DISPATCH_FAILED_MESSAGE }
   }
 }
