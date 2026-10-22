@@ -8,7 +8,7 @@ const conflictAt = (seq: number): ConflictException =>
   new ConflictException({
     code: POD_EVENT_CONFLICT_CODE,
     seq,
-    message: `the thread already holds a different event at seq ${seq}, or the flush skips ahead of its head`,
+    message: `seq ${seq} conflicts: the thread holds a different event there, the batch is not strictly increasing, or the seq sits below the head with no stored row`,
   })
 
 const sameContent = (row: Row<'Event'>, event: PodEvent): boolean =>
@@ -36,16 +36,17 @@ export function applyPodEvents(args: {
     const bySeq = new Map(stored.map((row) => [row.seq, row]))
 
     const fresh: PodEvent[] = []
-    let next = thread.head + 1
+    let previous = 0
     for (const event of events) {
+      if (event.seq <= previous) throw conflictAt(event.seq)
+      previous = event.seq
       const existing = bySeq.get(event.seq)
       if (existing !== undefined) {
         if (!sameContent(existing, event)) throw conflictAt(event.seq)
         continue
       }
-      if (event.seq !== next) throw conflictAt(event.seq)
+      if (event.seq <= thread.head) throw conflictAt(event.seq)
       fresh.push(event)
-      next += 1
     }
 
     if (fresh.length === 0) return { head: thread.head }
@@ -66,7 +67,7 @@ export function applyPodEvents(args: {
         userId: thread.userId,
       })),
     )
-    const head = next - 1
+    const head = Math.max(thread.head, previous)
     await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
     return { head }
   })
