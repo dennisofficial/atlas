@@ -138,6 +138,7 @@ describe('SandboxProvisioningService (retry)', () => {
     expect(await row()).toMatchObject({ wakeClaim: null })
     expect((await row()).wakeFailedAt).not.toBeNull()
     expect(await bootSteps()).toMatchObject([
+      { step: 'provision', state: 'running' },
       { step: 'provision', state: 'error', error: DISPATCH_FAILED_MESSAGE },
     ])
     expect(await db.orm.public.Event.all()).toHaveLength(0)

@@ -37,8 +37,17 @@ const seedThreadWithProject = async (
     userId: 'user-a',
     ...(projectId === null ? {} : { projectId }),
   })
-  if (Object.keys(extra).length > 0) {
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update(extra)
+  if (extra.organizationId !== undefined) {
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({
+      organizationId: extra.organizationId,
+    })
+  }
+  if (extra.apiProvisioned === true) {
+    await db.orm.public.SandboxBootStep.create({
+      threadId: 'thr-1',
+      step: 'provision',
+      state: 'running',
+    })
   }
 }
 
@@ -95,8 +104,8 @@ describe('ThreadSandboxCredentialsService', () => {
     })
   })
 
-  it('sends a no-project cloud thread to the owner resolver, never the env account', async () => {
-    await seedThreadWithProject(null, { executionLocation: 'cloud' })
+  it('sends an API-provisioned no-project thread to the owner resolver, never the env account', async () => {
+    await seedThreadWithProject(null, { apiProvisioned: true })
     const { scoped, vercelCredentials } = scopedReturning(async () => ({
       token: 'user-token',
       teamId: 'user-team',
@@ -114,8 +123,8 @@ describe('ThreadSandboxCredentialsService', () => {
     })
   })
 
-  it('lets a missing owner credential on a no-project cloud thread propagate', async () => {
-    await seedThreadWithProject(null, { executionLocation: 'cloud' })
+  it('lets a missing owner credential on an API-provisioned no-project thread propagate', async () => {
+    await seedThreadWithProject(null, { apiProvisioned: true })
     const { scoped } = scopedReturning(async () => {
       throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
     })

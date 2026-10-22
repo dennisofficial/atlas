@@ -141,6 +141,7 @@ describe('ThreadLaunchService', () => {
     expect(claimed?.wakeClaim).toBeNull()
     expect(claimed?.wakeFailedAt).not.toBeNull()
     expect(await bootSteps(reply.thread.id)).toMatchObject([
+      { step: 'provision', state: 'running' },
       { step: 'provision', state: 'error', error: DISPATCH_FAILED_MESSAGE },
     ])
   })

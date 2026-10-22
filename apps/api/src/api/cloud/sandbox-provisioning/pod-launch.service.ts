@@ -68,7 +68,25 @@ export class PodLaunchService {
     thread: Row<'Thread'>
     existing: Row<'CloudSandbox'> | null
   }): Promise<RowClaim | null> {
-    return claimRow({ ...args, cipher: this.cipher })
+    const { writer, ...rest } = args
+    if (writer === undefined)
+      return db.transaction((tx) => this.claimWithin({ ...rest, writer: tx }))
+    return this.claimWithin({ ...rest, writer })
+  }
+
+  private async claimWithin(args: {
+    writer: RowWriter
+    thread: Row<'Thread'>
+    existing: Row<'CloudSandbox'> | null
+  }): Promise<RowClaim | null> {
+    const claim = await claimRow({ ...args, cipher: this.cipher })
+    if (claim === null) return null
+    await recordBootSteps({
+      writer: args.writer,
+      threadId: args.thread.id,
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Running }],
+    })
+    return claim
   }
 
   async dispatch(args: { threadId: string; claim: RowClaim }): Promise<boolean> {
