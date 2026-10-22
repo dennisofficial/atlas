@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { podLaunchWith } from './sandbox-provisioning.fixture'
-import { ThreadPodService } from './thread-pod.service'
+import { podServiceOver, realEndpoints } from './thread-pod.fixture'
 
 const { Provision, Serve, Clone, Agent } = EBootStep
 const { Running, Done, Error: Failed } = EBootStepState
@@ -20,7 +20,7 @@ const record = (...steps: [EBootStep, EBootStepState, string?][]) =>
     })),
   })
 
-const status = () => new ThreadPodService().status({ userId: 'usr-1', threadId: 'thr-1' })
+const status = () => podServiceOver(realEndpoints()).status({ userId: 'usr-1', threadId: 'thr-1' })
 const shape = async () => {
   const pod = await status()
   return { state: pod.state, steps: pod.steps.map(({ step, state }) => [step, state]) }
@@ -182,7 +182,7 @@ describe('ThreadPodService', () => {
 
   it('answers 404 for a thread someone else owns and for one that does not exist', async () => {
     await record([Provision, Failed, 'x'])
-    const other = new ThreadPodService()
+    const other = podServiceOver(realEndpoints())
 
     await expect(other.status({ userId: 'usr-2', threadId: 'thr-1' })).rejects.toMatchObject({
       status: 404,

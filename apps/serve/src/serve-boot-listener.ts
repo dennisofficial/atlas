@@ -85,6 +85,7 @@ export function listenWhileBooting(args: {
   const { server, handshake } = startSessionServer({
     port: args.port,
     token: args.token,
+    threadId: args.threadId,
     handlers: () => installed?.handlers,
     drain: () => installed?.drain,
     health: () =>
