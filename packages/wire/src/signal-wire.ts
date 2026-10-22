@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { rotationStateWireSchema } from './rotation-wire.js'
+import { rotationStateWireSchema } from './rotation-wire'
 
 export enum EFinishReason {
   Stop = 'stop',

@@ -6,7 +6,7 @@ import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
 import { EClientFrame, EServeFrame } from '../channel-wire'
 import { RemoteTurnRunner, SERVE_DEFAULT_REPLAY_WINDOW_OUTCOMES } from '../remote-turn-runner'
 
-import { harness, readied, THREAD } from './remote-channel-fixture'
+import { harness, readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 const completed = (runId: string): TurnOutcome => ({
   status: ETurnStatus.Completed,

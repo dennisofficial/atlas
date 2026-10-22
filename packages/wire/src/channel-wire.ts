@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
-import { capabilitiesSchema } from './capabilities.js'
-import { prStatesWireSchema } from './pr-state-wire.js'
-import { rosterWireSchema } from './roster-wire.js'
-import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire.js'
-import { runtimeCheckpointSchema } from './runtime-checkpoint.js'
-import { channelSignalSchema } from './signal-wire.js'
+import { capabilitiesSchema } from './capabilities'
+import { prStatesWireSchema } from './pr-state-wire'
+import { rosterWireSchema } from './roster-wire'
+import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire'
+import { runtimeCheckpointSchema } from './runtime-checkpoint'
+import { channelSignalSchema } from './signal-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 

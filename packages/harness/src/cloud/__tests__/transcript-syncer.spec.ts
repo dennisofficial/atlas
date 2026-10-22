@@ -13,10 +13,10 @@ import { EServeFrame } from '@dltech/atlas-wire'
 
 import { EClientRequest } from '../channel-wire'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
-import { RemoteRequestLost } from '../remote-channel-upstream'
+import { RemoteRequestLost } from '@dltech/atlas-client/channel'
 import { TranscriptSyncer } from '../transcript-syncer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { readied, THREAD } from './remote-channel-fixture'
+import { readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 const fixtures: StoreFixture[] = []
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ERuntimePhase } from '@dltech/atlas-wire'
+import { ERuntimePhase } from '@dltech/atlas-wire/web'
 
 import {
   connectionViewOf,

@@ -1,51 +1,11 @@
-import { z } from 'zod'
-
-import type { CallId, Chunk, ERetryReason, EventRef } from '@dltech/atlas-core'
-
-export const stepIdSchema = z.string().min(1).brand<'StepId'>()
-
-export type StepId = z.infer<typeof stepIdSchema>
-
-export const toStepId = (value: string): StepId => stepIdSchema.parse(value)
-
-export { EStepEnd } from '@dltech/atlas-wire'
-
-import { EStepEnd, type RotationStateWire } from '@dltech/atlas-wire'
-
-export type StepSignal =
-  | { type: 'turn-working'; working: boolean }
-  | { type: 'step-started'; stepId: StepId }
-  | { type: 'chunk'; stepId: StepId; chunk: Chunk }
-  | { type: 'step-ended'; stepId: StepId; end: EStepEnd; supersededBy: EventRef | null }
-  | { type: 'tool-output'; callId: CallId; text: string }
-
-export type RetryWaitingSignal = {
-  type: 'retry-waiting'
-  attempt: number
-  maxAttempts: number
-  delayMs: number
-  reason: ERetryReason
-}
-
-export type TurnWorkingSignal = { type: 'turn-working'; working: boolean }
-
-type PendingEntrySignal = { id: string; text: string; via?: string | undefined; reserved: boolean }
-
-export type OperatorInputRequest = {
-  requestId: string
-  description: string
-  url?: string | undefined
-  path: string
-}
-
-export type ChannelSignal =
-  | StepSignal
-  | TurnWorkingSignal
-  | { type: 'events-appended' }
-  | { type: 'context-changed' }
-  | { type: 'session-files-changed'; revision: number }
-  | RetryWaitingSignal
-  | { type: 'retry-cleared' }
-  | { type: 'pending-changed'; entries: PendingEntrySignal[] }
-  | { type: 'operator-input'; request: OperatorInputRequest | null }
-  | { type: 'rotation-changed'; rotation: RotationStateWire }
+export {
+  EStepEnd,
+  stepIdSchema,
+  toStepId,
+  type ChannelSignal,
+  type OperatorInputRequest,
+  type RetryWaitingSignal,
+  type StepId,
+  type StepSignal,
+  type TurnWorkingSignal,
+} from '@dltech/atlas-client/channel'

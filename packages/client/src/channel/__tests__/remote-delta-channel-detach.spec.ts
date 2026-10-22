@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { EConnectionView } from '../connection-view'
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire/web'
 
 import { EClientFrame, EServeFrame } from '../channel-wire'
 

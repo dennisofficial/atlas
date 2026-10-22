@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { agentSnapshotWireSchema } from './roster-wire.js'
-import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire.js'
+import { agentSnapshotWireSchema } from './roster-wire'
+import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire'
 
 export const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
 

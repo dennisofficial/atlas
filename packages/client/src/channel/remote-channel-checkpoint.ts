@@ -1,7 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire/web'
 
-import type { Unsubscribe } from '../channel/delta-channel'
+import type { Unsubscribe } from './delta-channel-types'
 import { registryOf } from './remote-channel-registry'
 
 export type CheckpointHolder = {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EPullRequestStateWire, type PrStateWire } from '@dltech/atlas-wire'
 
 import { EClientRequest } from '../channel-wire'
-import { RemoteRequestFailed, RemoteRequestLost } from '../remote-channel-upstream'
+import { RemoteRequestFailed, RemoteRequestLost } from '@dltech/atlas-client/channel'
 import { createRemotePrStateReader, EMPTY_PR_STATES } from '../remote-pr-states'
 
 const prState: PrStateWire = {

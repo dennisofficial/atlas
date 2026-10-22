@@ -13,7 +13,7 @@ import {
 } from '../channel-wire'
 import { RemoteTurnDetached, RemoteTurnRunner } from '../remote-turn-runner'
 
-import { harness, OTHER_THREAD, THREAD } from './remote-channel-fixture'
+import { harness, OTHER_THREAD, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 const completed = (runId: string): TurnOutcome => ({
   status: ETurnStatus.Completed,

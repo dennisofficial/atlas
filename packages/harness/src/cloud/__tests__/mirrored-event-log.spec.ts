@@ -15,7 +15,7 @@ import { MirroredEventLog } from '../mirrored-event-log'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
 import type { MirrorLocalLog } from '../transcript-syncer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
-import { OTHER_THREAD, readied, THREAD } from './remote-channel-fixture'
+import { OTHER_THREAD, readied, THREAD } from '@dltech/atlas-client/channel-fixture'
 
 const fixtures: StoreFixture[] = []
 

@@ -1,6 +1,6 @@
-import { ERuntimePhase } from '@dltech/atlas-wire'
+import { ERuntimePhase } from '@dltech/atlas-wire/web'
 
-import type { Unsubscribe } from '../channel/delta-channel'
+import type { Unsubscribe } from './delta-channel-types'
 import {
   connectionViewOf,
   sameConnectionView,

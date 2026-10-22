@@ -1,5 +1,5 @@
-import { retainReplayable, type InFlightSlots } from '../channel/in-flight'
-import type { ChannelSignal, StepId, StepSignal } from '../channel/signal'
+import { retainReplayable, type InFlightSlots } from './in-flight'
+import type { ChannelSignal, StepId, StepSignal } from './signal'
 
 export const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
 

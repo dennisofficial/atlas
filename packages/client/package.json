@@ -1,0 +1,23 @@
+{
+  "name": "@dltech/atlas-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./channel": "./src/channel/index.ts",
+    "./channel-fixture": "./src/channel/__tests__/remote-channel-fixture.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,7 +1,7 @@
 import { prStatesWireSchema, type PrStateWire } from '@dltech/atlas-wire'
 
 import { EClientRequest } from './channel-wire'
-import { RemoteRequestFailed, RemoteRequestLost } from './remote-channel-upstream'
+import { RemoteRequestFailed, RemoteRequestLost } from '@dltech/atlas-client/channel'
 
 export const EMPTY_PR_STATES: readonly PrStateWire[] = Object.freeze([])
 

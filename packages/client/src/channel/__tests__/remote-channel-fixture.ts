@@ -1,7 +1,11 @@
 import { toThreadId } from '@dltech/atlas-core'
-import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import {
+  ERuntimePhase,
+  runtimeCheckpointSchema,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire/web'
 
-import { toStepId, type ChannelSignal } from '../../channel/signal'
+import { toStepId, type ChannelSignal } from '../signal'
 import {
   decodeClientFrame,
   encodeFrame,

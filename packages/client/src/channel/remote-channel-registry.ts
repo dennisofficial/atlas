@@ -1,4 +1,4 @@
-import type { Unsubscribe } from '../channel/delta-channel'
+import type { Unsubscribe } from './delta-channel-types'
 
 export type Registry<T> = {
   add(listener: (value: T) => void): Unsubscribe

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { EStepEnd } from '../../channel/signal'
+import { EStepEnd } from '../signal'
 import { EClientRequest, EServeFrame } from '../channel-wire'
 import { LONG_REQUEST_TIMEOUT_MS, requestTimeoutFor } from '../request-timeout'
 import { readied, THREAD, STEP } from './remote-channel-fixture'

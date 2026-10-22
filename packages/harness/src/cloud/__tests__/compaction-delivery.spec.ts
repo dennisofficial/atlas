@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EClientFrame, EClientRequest, EServeFrame } from '../channel-wire'
-import { RemoteRequestLost } from '../remote-channel-upstream'
-import { readied } from './remote-channel-fixture'
+import { RemoteRequestLost } from '@dltech/atlas-client/channel'
+import { readied } from '@dltech/atlas-client/channel-fixture'
 
 for (const op of [
   EClientRequest.CompactHistory,
