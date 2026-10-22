@@ -1,0 +1,124 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!deprecated",
+      "!packages/harness/skills",
+      "!**/*.generated.ts",
+      "!**/*.generated",
+      "!packages/harness/src/models/generated",
+      "!packages/harness/src/models/generated-*.ts",
+      "!packages/ui/src/styles/theme.css",
+      "!**/.next",
+      "!**/next-env.d.ts",
+      "!**/storybook-static"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "useLiteralKeys": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off",
+        "noVoidTypeReturn": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useImportType": "off",
+        "useLiteralEnumMembers": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "noControlCharactersInRegex": "off",
+        "noRedeclare": "off",
+        "noShadowRestrictedNames": "off",
+        "noTemplateCurlyInString": "off",
+        "noThenProperty": "off",
+        "noUndeclaredEnvVars": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/components/**"],
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["apps/tui/**"],
+      "linter": {
+        "rules": {
+          "a11y": "off"
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off"
+          },
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**", "!**/__tests__/**", "!**/*.spec.*", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noFocusedTests": "off"
+          }
+        }
+      }
+    }
+  ]
+}
