@@ -67,6 +67,11 @@ export class ClaimSandboxDto {
   gitToken?: string
 
   @IsOptional()
+  @IsString()
+  @MinLength(1)
+  driveName?: string | null
+
+  @IsOptional()
   @IsBoolean()
   contextPending?: boolean
 }
