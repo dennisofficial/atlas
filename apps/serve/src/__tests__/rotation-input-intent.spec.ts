@@ -34,6 +34,8 @@ it('carries owed and pending continuation obligations into the seal, even when s
     sandboxSessionId: 'source',
     owed: { parent: false, children: [owedChild] },
     driver: {
+      outcome: () => null,
+      failure: () => null,
       beginRelocation: async () => undefined,
       relocationResumable: () => false,
       busy: () => false,

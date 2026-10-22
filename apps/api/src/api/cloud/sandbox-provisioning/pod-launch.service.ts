@@ -17,6 +17,7 @@ import {
   podProvisionTaskContract,
   type PodProvisionPayload,
 } from './pod-provision.contract'
+import { assignCreatorConnections } from './pod-oauth-assign'
 import { claimRow, markFailed, type RowClaim, type RowWriter } from './sandbox-provisioning-rows'
 
 export const DISPATCH_FAILED_MESSAGE = "Couldn't start the sandbox. Retry."
@@ -86,6 +87,11 @@ export class PodLaunchService {
   }): Promise<RowClaim | null> {
     const claim = await claimRow({ ...args, cipher: this.cipher })
     if (claim === null) return null
+    await assignCreatorConnections({
+      writer: args.writer,
+      thread: args.thread,
+      sandboxId: claim.sandboxId,
+    })
     await recordBootSteps({
       writer: args.writer,
       threadId: args.thread.id,
