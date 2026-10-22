@@ -1,0 +1,15 @@
+// use prisma-8
+model Session {
+  id                   String               @id
+  expiresAt            TimestamptzJsDate(3)
+  token                String
+  createdAt            TimestamptzJsDate(3) @default(now())
+  updatedAt            TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  ipAddress            String?
+  userAgent            String?
+  activeOrganizationId String?
+  userId               String
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([token], map: "Session_token_key")
+}

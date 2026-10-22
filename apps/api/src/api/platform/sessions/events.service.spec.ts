@@ -1,16 +1,20 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import {
+  eventsOf,
+  seedEventRow,
+  seedThreadRow,
+  seedUsers,
+  threadById,
+  USER_A,
+  USER_B,
+} from '../../../../test/session-seed'
 import type { EventDraftDto } from './sessions.dto'
-
-import { fakeSessionDb } from '../../../../test/fake-session-db.js'
-
-mock.module('../../../db', () => ({ db: fakeSessionDb().db as unknown as PrismaClient }))
-
 import { EventsService } from './events.service'
 
-const USER_A = 'user-a'
-const USER_B = 'user-b'
+const allEvents = () => db.orm.public.Event.all()
 
 const draft = (type: string, body: Record<string, unknown> = {}): EventDraftDto => ({
   type,
@@ -26,11 +30,11 @@ const contextDraft = (slot: string, key: string, digest: string): EventDraftDto 
 })
 
 describe('EventsService', () => {
-  const fake = fakeSessionDb()
+  useTestDatabase()
   let service: EventsService
 
-  beforeEach(() => {
-    fake.reset()
+  beforeEach(async () => {
+    await seedUsers(USER_A, USER_B)
     service = new EventsService()
   })
 
@@ -43,7 +47,7 @@ describe('EventsService', () => {
 
     expect(events.map((event) => event.seq)).toEqual([1, 2])
     expect(events[0]?.id).toMatch(/^evt_/)
-    expect(fake.threads[0]).toMatchObject({ id: 'brn_one', userId: USER_A, head: 2 })
+    expect(await threadById('brn_one')).toMatchObject({ id: 'brn_one', userId: USER_A, head: 2 })
   })
 
   it('append refuses a thread owned by another user', async () => {
@@ -60,7 +64,7 @@ describe('EventsService', () => {
         draft: { runId: 'run_2', drafts: [draft('user-said')] },
       }),
     ).rejects.toBeInstanceOf(ForbiddenException)
-    expect(fake.events).toHaveLength(1)
+    expect(await allEvents()).toHaveLength(1)
   })
 
   it('a repeated context-loaded draft resolves to the stored event instead of duplicating it', async () => {
@@ -79,7 +83,7 @@ describe('EventsService', () => {
       },
     })
 
-    expect(fake.events).toHaveLength(2)
+    expect(await allEvents()).toHaveLength(2)
     expect(second[1]).toEqual(first[0])
     expect((await service.head({ userId: USER_A, threadId: 'brn_one' })).head).toBe(2)
   })
@@ -94,64 +98,25 @@ describe('EventsService', () => {
       },
     })
 
-    expect(fake.events).toHaveLength(1)
+    expect(await allEvents()).toHaveLength(1)
     expect(events[0]?.id).toBe(events[1]?.id)
   })
 
   it('read folds a reference fork parent prefix; readOwn does not', async () => {
-    fake.threads.push({
-      id: 'brn_parent',
-      title: null,
-      head: 3,
-      createdAt: '2026-09-15T00:00:00.000Z',
-      updatedAt: '2026-09-15T00:00:00.000Z',
-      parentThreadId: null,
-      forkSeq: null,
-      forkMode: null,
-      spawnerThreadId: null,
-      agentType: null,
-      workspace: null,
-      repo: null,
-      modelRef: null,
-      modelEffort: null,
-      executionLocation: null,
-      userId: USER_A,
-    })
-    fake.threads.push({
+    await seedThreadRow({ id: 'brn_parent', head: 3 })
+    await seedThreadRow({
       id: 'brn_child',
-      title: null,
       head: 3,
-      createdAt: '2026-09-15T00:01:00.000Z',
-      updatedAt: '2026-09-15T00:01:00.000Z',
+      createdAt: new Date('2026-09-15T00:01:00.000Z'),
+      updatedAt: new Date('2026-09-15T00:01:00.000Z'),
       parentThreadId: 'brn_parent',
       forkSeq: 2,
       forkMode: 'reference',
-      spawnerThreadId: null,
-      agentType: null,
-      workspace: null,
-      repo: null,
-      modelRef: null,
-      modelEffort: null,
-      executionLocation: null,
-      userId: USER_A,
     })
-    const parentEvent = (seq: number) => ({
-      id: `evt_p${seq}`,
-      threadId: 'brn_parent',
-      seq,
-      runId: 'run_p',
-      parentRunId: null,
-      depth: 0,
-      at: '2026-09-15T00:00:00.000Z',
-      type: 'user-said',
-      body: '{}',
-      contextSlot: null,
-      contextKey: null,
-      contextDigest: null,
-      userId: USER_A,
-    })
-    fake.events.push(parentEvent(1), parentEvent(2), parentEvent(3))
-    fake.events.push({ ...parentEvent(3), id: 'evt_c3', threadId: 'brn_child' })
+    for (const seq of [1, 2, 3]) {
+      await seedEventRow({ id: `evt_p${seq}`, threadId: 'brn_parent', seq, runId: 'run_p' })
+    }
+    await seedEventRow({ id: 'evt_c3', threadId: 'brn_child', seq: 3, runId: 'run_p' })
 
     const composed = await service.read({ userId: USER_A, threadId: 'brn_child' })
     expect(composed.map((event) => event.id)).toEqual(['evt_p1', 'evt_p2', 'evt_c3'])
@@ -193,7 +158,7 @@ describe('EventsService', () => {
         threadId: 'brn_one',
         draft: { runId: 'run_1', drafts: [draft('user-said'), draft('assistant-said')] },
       })
-      const oldIds = fake.events.map((event) => event.id)
+      const oldIds = (await eventsOf('brn_one')).map((event) => event.id)
 
       const replaced = await service.replace({
         userId: USER_A,
@@ -206,9 +171,10 @@ describe('EventsService', () => {
 
       expect(replaced.map((event) => event.seq)).toEqual([1, 2, 3])
       expect(replaced.every((event) => event.runId === 'run_2')).toBe(true)
-      expect(fake.events).toHaveLength(3)
-      expect(fake.events.map((event) => event.id)).not.toEqual(expect.arrayContaining(oldIds))
-      expect(fake.threads[0]).toMatchObject({ id: 'brn_one', head: 3 })
+      const stored = await eventsOf('brn_one')
+      expect(stored).toHaveLength(3)
+      expect(stored.map((event) => event.id)).not.toEqual(expect.arrayContaining(oldIds))
+      expect(await threadById('brn_one')).toMatchObject({ id: 'brn_one', head: 3 })
     })
 
     it('does not dedup identical context drafts the way append does', async () => {
@@ -223,11 +189,11 @@ describe('EventsService', () => {
         threadId: 'brn_one',
         draft: {
           runId: 'run_1',
-          drafts: [contextDraft('file', 'a', 'd'), contextDraft('file', 'a', 'd')],
+          drafts: [contextDraft('file', 'a', 'd'), contextDraft('file', 'b', 'd')],
         },
       })
 
-      expect(fake.events).toHaveLength(2)
+      expect(await allEvents()).toHaveLength(2)
       expect(replaced[0]?.id).not.toBe(replaced[1]?.id)
       expect(replaced.map((event) => event.seq)).toEqual([1, 2])
     })
@@ -246,7 +212,7 @@ describe('EventsService', () => {
           draft: { runId: 'run_2', drafts: [draft('user-said')] },
         }),
       ).rejects.toBeInstanceOf(ForbiddenException)
-      expect(fake.events).toHaveLength(1)
+      expect(await allEvents()).toHaveLength(1)
     })
 
     it('404s on a missing thread rather than creating one', async () => {
@@ -257,7 +223,7 @@ describe('EventsService', () => {
           draft: { runId: 'run_1', drafts: [draft('user-said')] },
         }),
       ).rejects.toBeInstanceOf(NotFoundException)
-      expect(fake.threads).toHaveLength(0)
+      expect(await db.orm.public.Thread.all()).toHaveLength(0)
     })
 
     it('empties the log and zeroes head when given no drafts', async () => {
@@ -274,8 +240,8 @@ describe('EventsService', () => {
       })
 
       expect(replaced).toEqual([])
-      expect(fake.events).toHaveLength(0)
-      expect(fake.threads[0]).toMatchObject({ id: 'brn_one', head: 0 })
+      expect(await allEvents()).toHaveLength(0)
+      expect(await threadById('brn_one')).toMatchObject({ id: 'brn_one', head: 0 })
     })
   })
 })

@@ -1,10 +1,8 @@
 import { UnauthorizedException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fakeSessionDb().db as unknown as PrismaClient }))
-
-import { fakeSessionDb, type FakeCloudSandboxRow } from '../../../../test/fake-session-db.js'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { seedSandboxRow, seedUsers } from '../../../../test/session-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { hashSessionToken } from './sandbox-tokens'
@@ -12,25 +10,24 @@ import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
 
-const sessions = fakeSessionDb()
-
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
 } as unknown as EnvService)
 
 describe('SandboxesService.verifyTokenPrincipal', () => {
+  useTestDatabase()
   let service: SandboxesService
 
-  beforeEach(() => {
-    sessions.reset()
+  beforeEach(async () => {
+    await seedUsers('user-a', 'user-b')
     service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
-    sessions.cloudSandboxes.push({
+    await seedSandboxRow({
       id: 'sbx_1',
       userId: 'user-a',
       threadId: 'brn_sandbox',
       tokenHash: hashSessionToken('sandbox-token'),
-    } as unknown as FakeCloudSandboxRow)
-    sessions.podLeaseRows.push({
+    })
+    await db.orm.public.LocalPodLease.create({
       id: 'lease_1',
       userId: 'user-b',
       threadId: 'brn_pod',
@@ -59,7 +56,7 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
   })
 
   it('refuses a token held by both tables, whoever owns each row', async () => {
-    sessions.podLeaseRows.push({
+    await db.orm.public.LocalPodLease.create({
       id: 'lease_2',
       userId: 'user-b',
       threadId: 'brn_pod_2',

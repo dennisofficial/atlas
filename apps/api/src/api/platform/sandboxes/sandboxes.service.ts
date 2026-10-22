@@ -1,6 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
-import { db } from '../../../db'
-import type { CloudSandboxModel } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
@@ -15,7 +14,6 @@ import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
 
-const nowIso = (): string => new Date().toISOString()
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
@@ -80,7 +78,7 @@ export class SandboxesService {
       name: row.name,
       region: SANDBOX_REGION,
       state: ESandboxState.Resuming,
-      lastActivityAt: nowIso(),
+      lastActivityAt: new Date().toISOString(),
       contextPending: row.contextPending,
       token: minted.token,
     }
@@ -104,15 +102,14 @@ export class SandboxesService {
   }
 
   async list(args: { userId: string }): Promise<SandboxListEntryDto[]> {
-    const rows = await db.cloudSandbox.findMany({
-      where: { userId: args.userId },
-      orderBy: { lastActivityAt: 'desc' },
-    })
+    const rows = await db.orm.public.CloudSandbox.where({ userId: args.userId })
+      .orderBy((sandbox) => sandbox.lastActivityAt.desc())
+      .all()
     return rows.map((row) => ({
       threadId: row.threadId,
       name: row.name,
       state: sandboxStateOf(row),
-      lastActivityAt: row.lastActivityAt,
+      lastActivityAt: row.lastActivityAt.toISOString(),
     }))
   }
 
@@ -132,14 +129,13 @@ export class SandboxesService {
    */
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
     await ownedSandbox(args)
-    await db.cloudSandbox.delete({ where: { threadId: args.threadId } })
+    await db.orm.public.CloudSandbox.where({ threadId: args.threadId }).delete()
   }
 
   async verifySessionToken(args: { threadId: string; token: string }): Promise<{ userId: string }> {
-    const row = await db.cloudSandbox.findUnique({
-      where: { threadId: args.threadId },
-      select: { tokenHash: true, userId: true },
-    })
+    const row = await db.orm.public.CloudSandbox.where({ threadId: args.threadId })
+      .select('tokenHash', 'userId')
+      .first()
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
@@ -149,14 +145,8 @@ export class SandboxesService {
   async verifyTokenPrincipal(args: { token: string }): Promise<TokenPrincipal> {
     const tokenHash = hashSessionToken(args.token)
     const [sandbox, pod] = await Promise.all([
-      db.cloudSandbox.findFirst({
-        where: { tokenHash },
-        select: { id: true, threadId: true, userId: true },
-      }),
-      db.localPodLease.findUnique({
-        where: { tokenHash },
-        select: { threadId: true, userId: true },
-      }),
+      db.orm.public.CloudSandbox.where({ tokenHash }).select('id', 'threadId', 'userId').first(),
+      db.orm.public.LocalPodLease.where({ tokenHash }).select('threadId', 'userId').first(),
     ])
     if (sandbox !== null && pod === null) return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
     if (pod !== null && sandbox === null) return { kind: ETokenPrincipalKind.Pod, ...pod }
@@ -170,10 +160,12 @@ export class SandboxesService {
    */
   async assertThreadInFamily(args: { sandboxThreadId: string; threadId: string }): Promise<void> {
     if (args.threadId === args.sandboxThreadId) return
-    const child = await db.thread.findFirst({
-      where: { id: args.threadId, spawnerThreadId: args.sandboxThreadId },
-      select: { id: true },
+    const child = await db.orm.public.Thread.where({
+      id: args.threadId,
+      spawnerThreadId: args.sandboxThreadId,
     })
+      .select('id')
+      .first()
     if (child === null) {
       throw new UnauthorizedException(
         'the sandbox token reaches only its own thread and its sub-agents',
@@ -182,20 +174,20 @@ export class SandboxesService {
   }
 
   async park(args: {
-    row: Pick<CloudSandboxModel, 'threadId' | 'name'>
+    row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>
     reason: string
   }): Promise<void> {
     await this.notifyParked(args)
     await this.vercel.stop({ threadId: args.row.threadId, name: args.row.name })
-    await db.cloudSandbox.update({
-      where: { threadId: args.row.threadId },
-      data: { state: ESandboxState.Parked, updatedAt: nowIso() },
+    await db.orm.public.CloudSandbox.where({ threadId: args.row.threadId }).update({
+      state: ESandboxState.Parked,
+      updatedAt: new Date(),
     })
   }
 
   /** Best-effort: a sandbox that cannot be reached must still stop, so every failure is swallowed. */
   private async notifyParked(args: {
-    row: Pick<CloudSandboxModel, 'threadId' | 'name'>
+    row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>
     reason: string
   }): Promise<void> {
     try {

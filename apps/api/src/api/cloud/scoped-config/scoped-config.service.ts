@@ -8,7 +8,7 @@ import {
   VERCEL_PROJECT_ID_SETTING,
 } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { WorkspaceVercelService } from '../workspaces/workspace-vercel.service'
 import { VercelNotConfiguredError } from './scoped-config.errors'
@@ -51,9 +51,8 @@ export class ScopedConfigService {
   }
 
   async vercelCredentials(args: { projectId: string }): Promise<VercelProvisioningCredentials> {
-    const project = await db.project.findUnique({
-      where: { id: args.projectId },
-      select: { id: true, organizationId: true },
+    const project = await db.orm.public.Project.select('id', 'organizationId').first({
+      id: args.projectId,
     })
     if (project === null) throw new NotFoundException('project not found')
     if (project.organizationId === null) {
@@ -62,8 +61,9 @@ export class ScopedConfigService {
     const credential = await this.vercel.openToken({ organizationId: project.organizationId })
     if (credential === null)
       throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
-    const setting = await db.projectSetting.findUnique({
-      where: { projectId_key: { projectId: project.id, key: VERCEL_PROJECT_ID_SETTING } },
+    const setting = await db.orm.public.ProjectSetting.first({
+      projectId: project.id,
+      key: VERCEL_PROJECT_ID_SETTING,
     })
     const projectId = setting === null ? '' : String(decodeSettingValue(setting.value)).trim()
     if (projectId.length === 0) throw new VercelNotConfiguredError(EVercelCredentialGap.ProjectId)
@@ -71,17 +71,20 @@ export class ScopedConfigService {
   }
 
   async accessibleProject(args: { userId: string; projectId: string }): Promise<ProjectLink> {
-    const project = await db.project.findUnique({
-      where: { id: args.projectId },
-      select: { id: true, userId: true, organizationId: true },
-    })
+    const project = await db.orm.public.Project.select('id', 'ownerUserId', 'organizationId').first(
+      {
+        id: args.projectId,
+      },
+    )
     if (project === null) throw new NotFoundException('project not found')
-    if (project.userId === args.userId) return project
+    if (project.ownerUserId === args.userId)
+      return { id: project.id, organizationId: project.organizationId }
     if (project.organizationId === null) throw new NotFoundException('project not found')
-    const member = await db.member.findFirst({
-      where: { organizationId: project.organizationId, userId: args.userId },
+    const member = await db.orm.public.Member.first({
+      organizationId: project.organizationId,
+      userId: args.userId,
     })
     if (member === null) throw new NotFoundException('project not found')
-    return project
+    return { id: project.id, organizationId: project.organizationId }
   }
 }

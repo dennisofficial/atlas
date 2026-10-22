@@ -1,23 +1,19 @@
 import { randomUUID } from 'node:crypto'
-import type { CloudSandboxModel, ThreadModel } from '../../../db'
-import { db } from '../../../db'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { db, type Db, type Row, type Tx } from '@dltech/atlas-db'
 import { sandboxNameFor } from './sandbox-names'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
 import { workspaceColumnsOf, type WorkspaceColumns } from './workspace-spec'
 
 export async function registerSandboxRow(args: {
-  thread: ThreadModel
+  thread: Row<'Thread'>
   tokenHash: string
   sealedToken: string
   serveUrl: string
   serveVersion?: string | null | undefined
-}): Promise<Pick<CloudSandboxModel, 'name' | 'serveUrl'>> {
-  const at = new Date().toISOString()
-  return db.cloudSandbox.upsert({
-    where: { threadId: args.thread.id },
-    select: { name: true, serveUrl: true },
+}): Promise<Pick<Row<'CloudSandbox'>, 'name' | 'serveUrl'>> {
+  const at = new Date()
+  return db.orm.public.CloudSandbox.select('name', 'serveUrl').upsert({
     create: {
       id: `sbx_${randomUUID()}`,
       threadId: args.thread.id,
@@ -45,32 +41,31 @@ export async function registerSandboxRow(args: {
       serveUrl: args.serveUrl,
       ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
     },
+    conflictOn: { threadId: args.thread.id },
   })
 }
 
 export async function stampRegistrationMetadata(args: {
-  thread: ThreadModel
+  thread: Row<'Thread'>
   metadata: { title?: string; repo?: string; model?: string } | undefined
 }): Promise<void> {
   const metadata = args.metadata
-  await db.thread.update({
-    where: { id: args.thread.id },
-    select: { id: true },
-    data: {
+  await db.orm.public.Thread.where({ id: args.thread.id })
+    .select('id')
+    .update({
       executionLocation: 'cloud',
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
       ...(metadata?.title === undefined || args.thread.title !== null
         ? {}
         : { title: metadata.title }),
       ...(metadata?.repo === undefined ? {} : { repo: metadata.repo }),
       ...(metadata?.model === undefined ? {} : { modelRef: metadata.model }),
-    },
-  })
+    })
 }
 
 /** The columns provisioning reads back; the blob columns written by the upsert never return. */
 export type ClaimedSandbox = Pick<
-  CloudSandboxModel,
+  Row<'CloudSandbox'>,
   'threadId' | 'name' | 'pinnedModel' | 'contextPending' | 'serveUrl'
 >
 
@@ -81,8 +76,8 @@ export type ClaimUpdate = Partial<WorkspaceColumns> & {
   contextPending?: boolean
   pinnedModel?: string | null
   serveUrl?: string | null
-  lastActivityAt: string
-  updatedAt: string
+  lastActivityAt: Date
+  updatedAt: Date
 }
 
 export function rotationOf(args: {
@@ -93,7 +88,7 @@ export function rotationOf(args: {
   contextPending?: boolean | undefined
   pinnedModel?: string | undefined
   serveUrl?: string | undefined
-  at: string
+  at: Date
 }): ClaimUpdate {
   const rotation: ClaimUpdate = {
     lastActivityAt: args.at,
@@ -113,9 +108,8 @@ export function rotationOf(args: {
  * unchanged values back would just be a no-op read-modify-write on every attach.
  */
 export function claimSandboxRow(args: {
-  thread: ThreadModel
-  /** A transaction client when the claim commits inside a caller's transaction. */
-  writer?: Pick<PrismaClient, 'cloudSandbox'> | undefined
+  thread: Row<'Thread'>
+  writer?: Pick<Db, 'orm'> | Tx | undefined
   tokenHash: string
   sealedToken: string
   rotated: boolean
@@ -125,17 +119,16 @@ export function claimSandboxRow(args: {
   pinnedModel?: string | undefined
   serveUrl?: string | undefined
 }): Promise<ClaimedSandbox> {
-  const at = new Date().toISOString()
+  const at = new Date()
   const columns: WorkspaceColumns = workspaceColumnsOf(undefined)
-  return (args.writer ?? db).cloudSandbox.upsert({
-    where: { threadId: args.thread.id },
-    select: {
-      threadId: true,
-      name: true,
-      pinnedModel: true,
-      contextPending: true,
-      serveUrl: true,
-    },
+  return (args.writer ?? db).orm.public.CloudSandbox.select(
+    'threadId',
+    'name',
+    'pinnedModel',
+    'contextPending',
+    'serveUrl',
+  ).upsert({
+    conflictOn: { threadId: args.thread.id },
     create: {
       id: `sbx_${randomUUID()}`,
       threadId: args.thread.id,

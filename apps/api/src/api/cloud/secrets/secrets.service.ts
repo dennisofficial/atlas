@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { SecretDetail } from '@dltech/atlas-wire/web'
 import type { ESecretKind } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { SecretEntryModel } from '../../../db'
-import { db } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { kindOf, openSecretValue } from './sealed-secret'
 import type { SecretDto } from './secrets.types'
@@ -23,18 +22,16 @@ export class SecretsService {
   constructor(private readonly cipher: SecretCipherService) {}
 
   async list(args: { userId: string }): Promise<SecretDto[]> {
-    const rows = await db.secretEntry.findMany({
-      where: { userId: args.userId },
-      orderBy: { name: 'asc' },
-    })
+    const rows = await db.orm.public.UserSecret.where({ userId: args.userId })
+      .orderBy((row) => row.name.asc())
+      .all()
     return rows.map((row) => this.toSecretDto(row))
   }
 
   async listDetails(args: { userId: string }): Promise<SecretDetail[]> {
-    const rows = await db.secretEntry.findMany({
-      where: { userId: args.userId },
-      orderBy: { name: 'asc' },
-    })
+    const rows = await db.orm.public.UserSecret.where({ userId: args.userId })
+      .orderBy((row) => row.name.asc())
+      .all()
     return rows.map((row) => ({
       name: row.name,
       kind: kindOf(row.kind),
@@ -52,8 +49,8 @@ export class SecretsService {
   }): Promise<void> {
     assertValidName(args.name)
     const sealedValue = this.cipher.encrypt(JSON.stringify(args.value))
-    await db.secretEntry.upsert({
-      where: { userId_name: { userId: args.userId, name: args.name } },
+    await db.orm.public.UserSecret.upsert({
+      conflictOn: { userId: args.userId, name: args.name },
       create: {
         id: `sec_${randomUUID()}`,
         name: args.name,
@@ -67,12 +64,10 @@ export class SecretsService {
 
   async remove(args: { userId: string; name: string }): Promise<void> {
     assertValidName(args.name)
-    await db.secretEntry.deleteMany({
-      where: { userId: args.userId, name: args.name },
-    })
+    await db.orm.public.UserSecret.where({ userId: args.userId, name: args.name }).deleteAndCount()
   }
 
-  private toSecretDto(row: SecretEntryModel): SecretDto {
+  private toSecretDto(row: Row<'UserSecret'>): SecretDto {
     return {
       name: row.name,
       value: JSON.parse(this.cipher.decrypt(row.sealedValue)) as string,

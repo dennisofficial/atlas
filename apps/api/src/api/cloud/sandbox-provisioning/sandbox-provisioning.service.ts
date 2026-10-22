@@ -11,8 +11,7 @@ import {
   type SandboxProvisionReply,
   type VercelCredentials,
 } from '@dltech/atlas-wire'
-import { db } from '../../../db'
-import type { ThreadModel } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -41,7 +40,7 @@ export const NO_PROJECT_MESSAGE =
 const DEFAULT_CLOUD_URL = 'https://api.byatlas.io'
 
 type BootTarget = {
-  thread: ThreadModel
+  thread: Row<'Thread'>
   projectId: string
   credentials: VercelCredentials
   claim: RowClaim
@@ -76,10 +75,10 @@ export class SandboxProvisioningService {
     const projectId = await this.resolveProject({ thread, requested: args.projectId })
     if (projectId === undefined) return this.notConfigured({ reporter, error: NO_PROJECT_MESSAGE })
     if (thread.executionLocation === null) {
-      await db.thread.update({ where: { id: thread.id }, data: { executionLocation: 'cloud' } })
+      await db.orm.public.Thread.where({ id: thread.id }).update({ executionLocation: 'cloud' })
     }
 
-    const existing = await db.cloudSandbox.findUnique({ where: { threadId: thread.id } })
+    const existing = await db.orm.public.CloudSandbox.first({ threadId: thread.id })
     const standing = existing === null ? undefined : standingStateOf(existing)
     if (standing !== undefined) return { state: standing }
 
@@ -93,15 +92,15 @@ export class SandboxProvisioningService {
   }
 
   private async resolveProject(args: {
-    thread: ThreadModel
+    thread: Row<'Thread'>
     requested: string | undefined
   }): Promise<string | undefined> {
     if (args.thread.projectId !== null) return args.thread.projectId
     if (args.requested === undefined) return undefined
     await this.scoped.accessibleProject({ userId: args.thread.userId, projectId: args.requested })
-    await db.thread.update({
-      where: { id: args.thread.id },
-      data: { projectId: args.requested, executionLocation: 'cloud' },
+    await db.orm.public.Thread.where({ id: args.thread.id }).update({
+      projectId: args.requested,
+      executionLocation: 'cloud',
     })
     return args.requested
   }
@@ -130,11 +129,11 @@ export class SandboxProvisioningService {
     return { state: ESandboxProvisionState.NotConfigured, error: args.error }
   }
 
-  private reporterOf(thread: ThreadModel): BootReporter {
+  private reporterOf(thread: Row<'Thread'>): BootReporter {
     return createBootReporter({
       log: (line) => this.logger.warn(line),
       sink: async (events) => {
-        await db.$transaction((tx) =>
+        await db.transaction((tx) =>
           appendWithin({
             tx,
             threadId: thread.id,

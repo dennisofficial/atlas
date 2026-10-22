@@ -2,21 +2,19 @@ import type { INestApplication } from '@nestjs/common'
 import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { GithubService } from '../github/github.service'
-import { resetProjectRows } from './projects.fakes'
+import { seedSessionUsers } from '../web-settings.fake-db'
 import { ProjectWorkspaceController } from './project-workspace.controller'
 import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
-import { fakeProjectDb } from './projects.fakes'
-
-mock.module('../../../db', () => ({ db: fakeProjectDb() }))
 
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 const POD_TOKENS: Record<string, { threadId: string; userId: string }> = {
@@ -39,6 +37,7 @@ const BODY = {
 }
 
 describe('projects HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
 
   const http = () => request(app.getHttpServer())
@@ -49,7 +48,7 @@ describe('projects HTTP surface', () => {
   }
 
   beforeEach(async () => {
-    resetProjectRows()
+    await seedSessionUsers()
     const module = await Test.createTestingModule({
       controllers: [ProjectsController, ProjectWorkspaceController],
       providers: [

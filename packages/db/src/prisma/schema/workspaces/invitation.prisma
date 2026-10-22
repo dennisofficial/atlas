@@ -1,0 +1,13 @@
+// use prisma-8
+model Invitation {
+  id             String               @id
+  email          String
+  role           String?
+  status         String
+  expiresAt      TimestamptzJsDate(3)
+  createdAt      TimestamptzJsDate(3) @default(now())
+  organizationId String
+  inviterId      String
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  inviter        User                 @relation(fields: [inviterId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}

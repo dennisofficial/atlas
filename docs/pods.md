@@ -58,7 +58,7 @@ hidden, not deleted (`apps/tui/src/composition/cloud/cloud-listing.ts`).
 ### Project resolution
 
 A pod's workspace comes from a **Project**, a cloud record of a GitHub repo, a base branch and
-additional repos (`Project` in `apps/api/prisma/schema.prisma`)
+additional repos (`Project` in `packages/db/src/prisma/schema/projects/project.prisma`)
 ([0010](decisions/0010-projects-resolved-from-origin.md)). At birth the TUI reads the launch
 directory's `origin` remote and matches it to one of the user's Projects
 (`apps/tui/src/composition/cloud/use-project-resolution.ts`, `packages/harness/src/cloud/project-match.ts`):

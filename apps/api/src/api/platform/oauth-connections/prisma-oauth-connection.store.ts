@@ -1,21 +1,7 @@
+import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
-import { db } from '../../../db'
 import { EConnectionStatus, OauthConnectionStore } from './oauth-connections.types'
 import type { AttemptFence, ConnectionRow } from './oauth-connections.types'
-
-const CONNECTION_SELECT = {
-  id: true,
-  userId: true,
-  provider: true,
-  status: true,
-  sealedTokens: true,
-  authorizationId: true,
-  generation: true,
-  refreshAttempt: true,
-  refreshStartedAt: true,
-} as const
-
-const UNIQUE_VIOLATION = 'P2002'
 
 const fenceWhere = (fence: AttemptFence) => ({
   id: fence.id,
@@ -34,16 +20,26 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     sealedTokens: string
   }): Promise<boolean> {
     try {
-      await db.oauthConnection.create({ data: { ...row, authorizationId: row.id } })
+      await db.orm.public.OauthConnection.create({ ...row, authorizationId: row.id })
       return true
     } catch (error) {
-      if ((error as { code?: unknown }).code === UNIQUE_VIOLATION) return false
+      if (isUniqueViolation(error)) return false
       throw error
     }
   }
 
   find(args: { id: string }): Promise<ConnectionRow | null> {
-    return db.oauthConnection.findUnique({ where: { id: args.id }, select: CONNECTION_SELECT })
+    return db.orm.public.OauthConnection.select(
+      'id',
+      'userId',
+      'provider',
+      'status',
+      'sealedTokens',
+      'authorizationId',
+      'generation',
+      'refreshAttempt',
+      'refreshStartedAt',
+    ).first({ id: args.id })
   }
 
   async reauthorize(args: {
@@ -53,21 +49,21 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     previousAuthorizationId: string
     sealedTokens: string
   }): Promise<boolean> {
-    const { count } = await db.oauthConnection.updateMany({
-      where: {
-        id: args.id,
-        userId: args.userId,
-        authorizationId: args.previousAuthorizationId,
-      },
-      data: {
-        sealedTokens: args.sealedTokens,
-        authorizationId: args.authorizationId,
-        status: EConnectionStatus.Active,
-        generation: { increment: 1 },
-        ...CLEARED_ATTEMPT,
-      },
-    })
-    return count === 1
+    const statement = db.raw.sql`UPDATE "OauthConnection"
+      SET "sealedTokens" = ${args.sealedTokens},
+          "authorizationId" = ${args.authorizationId},
+          "status" = ${EConnectionStatus.Active},
+          "generation" = "generation" + 1,
+          "refreshAttempt" = NULL,
+          "refreshStartedAt" = NULL,
+          "updatedAt" = now()
+      WHERE "id" = ${args.id}
+        AND "userId" = ${args.userId}
+        AND "authorizationId" = ${args.previousAuthorizationId}`
+      .affectedCount()
+      .build()
+    const { affectedRows } = await db.execute(statement)
+    return affectedRows === 1
   }
 
   async claim(args: {
@@ -77,73 +73,70 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     attemptId: string
     startedAt: Date
   }): Promise<boolean> {
-    const { count } = await db.oauthConnection.updateMany({
-      where: {
-        id: args.id,
-        userId: args.userId,
-        generation: args.generation,
-        refreshAttempt: null,
-        status: EConnectionStatus.Active,
-      },
-      data: { refreshAttempt: args.attemptId, refreshStartedAt: args.startedAt },
-    })
+    const count = await db.orm.public.OauthConnection.where({
+      id: args.id,
+      userId: args.userId,
+      generation: args.generation,
+      refreshAttempt: null,
+      status: EConnectionStatus.Active,
+    }).updateAndCount({ refreshAttempt: args.attemptId, refreshStartedAt: args.startedAt })
     return count === 1
   }
 
   async complete(args: AttemptFence & { sealedTokens: string }): Promise<boolean> {
-    const { count } = await db.oauthConnection.updateMany({
-      where: fenceWhere(args),
-      data: {
-        sealedTokens: args.sealedTokens,
-        generation: { increment: 1 },
-        ...CLEARED_ATTEMPT,
-      },
-    })
-    return count === 1
+    const statement = db.raw.sql`UPDATE "OauthConnection"
+      SET "sealedTokens" = ${args.sealedTokens},
+          "generation" = "generation" + 1,
+          "refreshAttempt" = NULL,
+          "refreshStartedAt" = NULL,
+          "updatedAt" = now()
+      WHERE "id" = ${args.id}
+        AND "generation" = ${args.generation}
+        AND "refreshAttempt" = ${args.attemptId}`
+      .affectedCount()
+      .build()
+    const { affectedRows } = await db.execute(statement)
+    return affectedRows === 1
   }
 
   async release(args: AttemptFence): Promise<boolean> {
-    const { count } = await db.oauthConnection.updateMany({
-      where: fenceWhere(args),
-      data: CLEARED_ATTEMPT,
-    })
+    const count = await db.orm.public.OauthConnection.where(fenceWhere(args)).updateAndCount(
+      CLEARED_ATTEMPT,
+    )
     return count === 1
   }
 
   async reject(args: AttemptFence): Promise<boolean> {
-    const { count } = await db.oauthConnection.updateMany({
-      where: fenceWhere(args),
-      data: { status: EConnectionStatus.Expired, ...CLEARED_ATTEMPT },
+    const count = await db.orm.public.OauthConnection.where(fenceWhere(args)).updateAndCount({
+      status: EConnectionStatus.Expired,
+      ...CLEARED_ATTEMPT,
     })
     return count === 1
   }
 
   async ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null> {
-    const row = await db.cloudSandbox.findFirst({
-      where: { threadId: args.threadId, userId: args.userId },
-      select: { id: true },
+    const row = await db.orm.public.CloudSandbox.select('id').first({
+      threadId: args.threadId,
+      userId: args.userId,
     })
     return row?.id ?? null
   }
 
   async assign(args: { connectionId: string; sandboxId: string }): Promise<void> {
-    await db.oauthConnectionSandbox.upsert({
-      where: { connectionId_sandboxId: args },
+    await db.orm.public.OauthConnectionSandbox.upsert({
       create: args,
       update: {},
+      conflictOn: args,
     })
   }
 
   async isAssigned(args: { connectionId: string; sandboxId: string }): Promise<boolean> {
-    const row = await db.oauthConnectionSandbox.findUnique({
-      where: { connectionId_sandboxId: args },
-      select: { connectionId: true },
-    })
+    const row = await db.orm.public.OauthConnectionSandbox.select('connectionId').first(args)
     return row !== null
   }
 
   async remove(args: { id: string; userId: string }): Promise<boolean> {
-    const { count } = await db.oauthConnection.deleteMany({ where: args })
+    const count = await db.orm.public.OauthConnection.where(args).deleteAndCount()
     return count === 1
   }
 }

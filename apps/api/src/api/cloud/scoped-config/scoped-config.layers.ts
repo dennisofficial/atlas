@@ -1,6 +1,6 @@
 import type { ScopedMcpServer, ScopedSecret, ScopeLayer } from '@dltech/atlas-wire/web'
 import { mcpUpsertSchema } from '@dltech/atlas-wire/web'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openMcpServer } from '../mcp-servers/mcp-sealed'
 import { kindOf, openSecretValue } from '../secrets/sealed-secret'
@@ -56,9 +56,9 @@ export const loadUserLayer = async (args: {
 }): Promise<ScopeLayer> => {
   const where = { userId: args.userId }
   const [settings, secrets, mcpServers] = await Promise.all([
-    db.cloudSetting.findMany({ where }),
-    db.secretEntry.findMany({ where }),
-    db.mcpServerConfig.findMany({ where }),
+    db.orm.public.UserSetting.where(where).all(),
+    db.orm.public.UserSecret.where(where).all(),
+    db.orm.public.UserMcpServer.where(where).all(),
   ])
   return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
 }
@@ -69,9 +69,9 @@ export const loadWorkspaceLayer = async (args: {
 }): Promise<ScopeLayer> => {
   const where = { organizationId: args.organizationId }
   const [settings, secrets, mcpServers] = await Promise.all([
-    db.workspaceSetting.findMany({ where }),
-    db.workspaceSecret.findMany({ where }),
-    db.workspaceMcpServer.findMany({ where }),
+    db.orm.public.WorkspaceSetting.where(where).all(),
+    db.orm.public.WorkspaceSecret.where(where).all(),
+    db.orm.public.WorkspaceMcpServer.where(where).all(),
   ])
   return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
 }
@@ -82,9 +82,9 @@ export const loadProjectLayer = async (args: {
 }): Promise<ScopeLayer> => {
   const where = { projectId: args.projectId }
   const [settings, secrets, mcpServers] = await Promise.all([
-    db.projectSetting.findMany({ where }),
-    db.projectSecret.findMany({ where }),
-    db.projectMcpServer.findMany({ where }),
+    db.orm.public.ProjectSetting.where(where).all(),
+    db.orm.public.ProjectSecret.where(where).all(),
+    db.orm.public.ProjectMcpServer.where(where).all(),
   ])
   return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
 }

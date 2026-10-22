@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
-import { SANDBOX_LIFECYCLE_SELECT, sandboxStateOf } from './sandbox-lifecycle'
+import { SANDBOX_LIFECYCLE_COLUMNS, sandboxStateOf } from './sandbox-lifecycle'
 import { ESandboxState, type SandboxStatusDto } from './sandboxes.types'
 import {
   SandboxMissingError,
@@ -27,10 +27,12 @@ export class SandboxEndpointService {
     userId: string
     threadId: string
   }): Promise<{ token: string; url: string } | null> {
-    const row = await db.cloudSandbox.findFirst({
-      where: { threadId: args.threadId, userId: args.userId },
-      select: { ...SANDBOX_LIFECYCLE_SELECT, name: true, sealedToken: true, serveUrl: true },
+    const row = await db.orm.public.CloudSandbox.where({
+      threadId: args.threadId,
+      userId: args.userId,
     })
+      .select(...SANDBOX_LIFECYCLE_COLUMNS, 'name', 'sealedToken', 'serveUrl')
+      .first()
     if (row === null || row.sealedToken === null) return null
     if (row.serveUrl !== null) {
       if (sandboxStateOf(row) !== ESandboxState.Running) return null

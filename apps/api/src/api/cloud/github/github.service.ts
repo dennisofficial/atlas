@@ -6,7 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { GithubPollOutcome } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
@@ -58,8 +58,8 @@ export class GithubService {
     }
     const { login } = await this.client.verifyToken({ accessToken: outcome.accessToken })
     const sealedToken = this.cipher.encrypt(outcome.accessToken)
-    await db.githubConnection.upsert({
-      where: { userId: args.userId },
+    await db.orm.public.GithubConnection.upsert({
+      conflictOn: { userId: args.userId },
       create: {
         id: `gh_${randomUUID()}`,
         login,
@@ -73,7 +73,7 @@ export class GithubService {
   }
 
   async read(args: { userId: string }): Promise<GithubConnectionDto> {
-    const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
+    const row = await db.orm.public.GithubConnection.first({ userId: args.userId })
     if (row === null) return { connected: false }
     return {
       connected: true,
@@ -90,19 +90,19 @@ export class GithubService {
   }
 
   async findToken(args: { userId: string }): Promise<string | undefined> {
-    const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
+    const row = await db.orm.public.GithubConnection.first({ userId: args.userId })
     if (row === null) return undefined
     return this.cipher.decrypt(row.sealedToken)
   }
 
   async findCredentials(args: { userId: string }): Promise<GithubCredentials | undefined> {
-    const row = await db.githubConnection.findUnique({ where: { userId: args.userId } })
+    const row = await db.orm.public.GithubConnection.first({ userId: args.userId })
     if (row === null) return undefined
     return { token: this.cipher.decrypt(row.sealedToken), scopes: row.scopes }
   }
 
   async disconnect(args: { userId: string }): Promise<void> {
-    await db.githubConnection.deleteMany({ where: { userId: args.userId } })
+    await db.orm.public.GithubConnection.where({ userId: args.userId }).deleteAndCount()
   }
 
   private clientId(): string {

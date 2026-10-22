@@ -2,6 +2,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { migrationGraphHashes } from '@dltech/atlas-db/migrations'
 import { lockedRuntimePackages } from './build-runtime-packages'
 
 const TIER_FILE = '.env.api.production.enc'
@@ -50,13 +51,6 @@ async function writeJson({
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
-function shippedMigrationNames(): string[] {
-  return readdirSync(join(import.meta.dirname, 'prisma', 'migrations'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
-}
-
 export async function buildVercelOutput({ outDir }: { outDir: string }): Promise<void> {
   const functionDir = join(outDir, 'functions', 'index.func')
 
@@ -71,7 +65,7 @@ export async function buildVercelOutput({ outDir }: { outDir: string }): Promise
     format: 'esm',
     sourcemap: 'linked',
     external: [...OPTIONAL_IMPORTS, ...RUNTIME_PACKAGES],
-    define: { __ATLAS_SHIPPED_MIGRATIONS__: JSON.stringify(shippedMigrationNames()) },
+    define: { __ATLAS_MIGRATION_GRAPH__: JSON.stringify(migrationGraphHashes()) },
   })
 
   if (!result.success) {

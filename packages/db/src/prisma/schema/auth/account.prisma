@@ -1,0 +1,17 @@
+// use prisma-8
+model Account {
+  id                    String                @id
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  TimestamptzJsDate(3)?
+  refreshTokenExpiresAt TimestamptzJsDate(3)?
+  scope                 String?
+  password              String?
+  createdAt             TimestamptzJsDate(3)  @default(now())
+  updatedAt             TimestamptzJsDate(3)  @onCreate(now()) @onUpdate(now())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}

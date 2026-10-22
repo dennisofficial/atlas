@@ -1,12 +1,12 @@
-import type { EventModel, ThreadModel, TurnModel } from '../../../db'
+import type { Row } from '@dltech/atlas-db'
 import type { EventDto, ThreadDto, TurnDto } from './sessions.types'
 
-export function toThreadDto(row: ThreadModel): ThreadDto {
+export function toThreadDto(row: Row<'Thread'>): ThreadDto {
   return {
     id: row.id,
     head: row.head,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     workspace: row.workspace,
     repo: row.repo,
     ...(row.title === null ? {} : { title: row.title }),
@@ -24,14 +24,14 @@ export function toThreadDto(row: ThreadModel): ThreadDto {
   }
 }
 
-export function toEventDto(row: EventModel): EventDto {
+export function toEventDto(row: Row<'Event'>): EventDto {
   return {
     id: row.id,
     threadId: row.threadId,
     seq: row.seq,
     runId: row.runId,
     depth: row.depth,
-    at: row.at,
+    at: row.at.toISOString(),
     type: row.type,
     body: row.body,
     ...(row.parentRunId === null ? {} : { parentRunId: row.parentRunId }),
@@ -41,7 +41,7 @@ export function toEventDto(row: EventModel): EventDto {
   }
 }
 
-export function toTurnDto(row: TurnModel): TurnDto {
+export function toTurnDto(row: Row<'Turn'>): TurnDto {
   return {
     runId: row.runId,
     threadId: row.threadId,
@@ -53,8 +53,8 @@ export function toTurnDto(row: TurnModel): TurnDto {
     outputTokens: row.outputTokens,
     cacheReadTokens: row.cacheReadTokens,
     cacheWriteTokens: row.cacheWriteTokens,
-    startedAt: row.startedAt,
-    endedAt: row.endedAt,
+    startedAt: row.startedAt.toISOString(),
+    endedAt: row.endedAt.toISOString(),
     durationMs: row.durationMs,
   }
 }

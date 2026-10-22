@@ -1,69 +1,14 @@
 import { BadRequestException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import { hoisted } from '@dltech/bun-test-shims'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import type { TransportDto, UpsertMcpServerDto } from './mcp-servers.dto'
 import { McpServersService } from './mcp-servers.service'
 import { EMcpTransportKind } from './mcp-servers.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-
-interface McpServerRow {
-  id: string
-  name: string
-  sealedSpec: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-type McpServerCreate = Omit<McpServerRow, 'createdAt' | 'updatedAt'>
-
-const fake = hoisted(() => {
-  const servers: McpServerRow[] = []
-
-  const db = {
-    mcpServerConfig: {
-      findMany: async (args: { where: { userId: string } }) =>
-        servers
-          .filter((row) => row.userId === args.where.userId)
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      upsert: async (args: {
-        where: { userId_name: { userId: string; name: string } }
-        create: McpServerCreate
-        update: { sealedSpec: string }
-      }) => {
-        const existing = servers.find(
-          (row) =>
-            row.userId === args.where.userId_name.userId &&
-            row.name === args.where.userId_name.name,
-        )
-        if (existing) {
-          existing.sealedSpec = args.update.sealedSpec
-          existing.updatedAt = new Date()
-          return existing
-        }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
-        servers.push(row)
-        return row
-      },
-      deleteMany: async (args: { where: { userId: string; name: string } }) => {
-        const kept = servers.filter(
-          (row) => !(row.userId === args.where.userId && row.name === args.where.name),
-        )
-        const count = servers.length - kept.length
-        servers.splice(0, servers.length, ...kept)
-        return { count }
-      },
-    },
-  }
-
-  return { db, servers }
-})
-
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -82,10 +27,12 @@ function httpTransport(extra?: Partial<TransportDto>): TransportDto {
 }
 
 describe('McpServersService', () => {
+  const database = useTestDatabase()
+  const servers = () => db.orm.public.UserMcpServer.where((row) => row.id.neq('')).all()
   let service: McpServersService
 
-  beforeEach(() => {
-    fake.servers.length = 0
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new McpServersService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
     )
@@ -94,7 +41,7 @@ describe('McpServersService', () => {
   it('put seals the spec and list returns it opened', async () => {
     await service.put({ userId: USER_A, name: 'fs', spec: { transport: stdioTransport() } })
 
-    const stored = fake.servers[0]
+    const stored = (await servers())[0]
     expect(stored?.id).toMatch(/^mcp_/)
     expect(stored?.sealedSpec).not.toContain('some-server')
 
@@ -130,7 +77,7 @@ describe('McpServersService', () => {
     await expect(service.put({ userId: USER_A, name: 'empty', spec: {} })).rejects.toBeInstanceOf(
       BadRequestException,
     )
-    expect(fake.servers).toHaveLength(0)
+    expect(await servers()).toHaveLength(0)
   })
 
   it('rejects a stdio transport without a command and an http transport with a bad url', async () => {
@@ -178,7 +125,7 @@ describe('McpServersService', () => {
       BadRequestException,
     )
     await service.put({ userId: USER_A, name: 'ok_Name-9', spec: { transport: stdioTransport() } })
-    expect(fake.servers).toHaveLength(1)
+    expect(await servers()).toHaveLength(1)
   })
 
   it('strips keys the harness spec would reject', async () => {
@@ -199,12 +146,13 @@ describe('McpServersService', () => {
 
   it('put upserts an existing name', async () => {
     await service.put({ userId: USER_A, name: 'fs', spec: { transport: stdioTransport() } })
-    const sealedBefore = fake.servers[0]?.sealedSpec
+    const sealedBefore = (await servers())[0]?.sealedSpec
 
     await service.put({ userId: USER_A, name: 'fs', spec: { disabled: true } })
 
-    expect(fake.servers).toHaveLength(1)
-    expect(fake.servers[0]?.sealedSpec).not.toBe(sealedBefore)
+    const rows = await servers()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.sealedSpec).not.toBe(sealedBefore)
     const listed = await service.list({ userId: USER_A })
     expect(listed[0]).toMatchObject({ name: 'fs', disabled: true })
     expect(listed[0]).not.toHaveProperty('transport')
@@ -219,7 +167,7 @@ describe('McpServersService', () => {
     await service.remove({ userId: USER_A, name: 'fs' })
     await service.remove({ userId: USER_A, name: 'never-existed' })
 
-    expect(fake.servers).toHaveLength(1)
+    expect(await servers()).toHaveLength(1)
     expect((await service.list({ userId: USER_B }))[0]?.transport).toMatchObject({
       kind: 'http',
     })

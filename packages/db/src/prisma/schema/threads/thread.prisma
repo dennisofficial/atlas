@@ -1,0 +1,36 @@
+// use prisma-8
+model Thread {
+  id                String               @id
+  title             String?
+  head              Int                  @default(0)
+  createdAt         TimestamptzJsDate(3)
+  updatedAt         TimestamptzJsDate(3)
+  parentThreadId    String?
+  forkSeq           Int?
+  forkMode          String?
+  spawnerThreadId   String?
+  agentType         String?
+  workspace         String?
+  repo              String?
+  modelRef          String?
+  modelEffort       String?
+  executionLocation String?
+  projectId         String?
+  userId            String
+  cloudSandbox      CloudSandbox?
+  events            Event[]
+  turns             Turn[]
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Thread_userId_updatedAt_idx")
+  parent            Thread?              @relation(name: "Thread_parent", fields: [parentThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  spawner           Thread?              @relation(name: "Thread_spawner", fields: [spawnerThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  project           Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  forks             Thread[]             @relation(name: "Thread_parent")
+  spawned           Thread[]             @relation(name: "Thread_spawner")
+
+  @@index([userId, updatedAt], map: "Thread_userId_updatedAt_idx")
+  @@index([projectId], map: "Thread_projectId_idx")
+  @@index([parentThreadId], map: "Thread_parentThreadId_idx")
+  @@index([spawnerThreadId], map: "Thread_spawnerThreadId_idx")
+  @@index([userId, workspace, updatedAt], map: "Thread_userId_workspace_updatedAt_idx")
+  @@index([userId, repo, updatedAt], map: "Thread_userId_repo_updatedAt_idx")
+}

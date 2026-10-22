@@ -38,7 +38,8 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-wire`         | `zod`, `@vercel/sandbox` | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (drive lifecycle, serve install/launch, mount retries) shared by harness and the API. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
 | `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
-| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire` only | Atlas Cloud backend (NestJS + better-auth + Prisma/Neon). |
+| `@dltech/atlas-db` (`packages/db`) | `@prisma/orm-postgres`, `pg` | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps. |
+| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire`, `@dltech/atlas-db` | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres). |
 | `web` (`apps/web`) | nothing in-repo | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.

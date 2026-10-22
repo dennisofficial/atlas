@@ -1,60 +1,15 @@
 import { BadGatewayException, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import { hoisted } from '@dltech/bun-test-shims'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { connectionRows, ensureUsers } from '../../../../test/github-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { PrismaClient } from '../../../generated/prisma/client'
 import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubService } from './github.service'
 import { EGithubPollStatus } from './github.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-
-interface GithubConnectionRow {
-  id: string
-  login: string
-  scopes: string
-  sealedToken: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-const fake = hoisted(() => {
-  const connections: GithubConnectionRow[] = []
-
-  const db = {
-    githubConnection: {
-      findUnique: async (args: { where: { userId: string } }) =>
-        connections.find((row) => row.userId === args.where.userId) ?? null,
-      upsert: async (args: {
-        where: { userId: string }
-        create: Omit<GithubConnectionRow, 'createdAt' | 'updatedAt'>
-        update: { login: string; scopes: string; sealedToken: string }
-      }) => {
-        const existing = connections.find((row) => row.userId === args.where.userId)
-        if (existing) {
-          Object.assign(existing, args.update, { updatedAt: new Date() })
-          return existing
-        }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
-        connections.push(row)
-        return row
-      },
-      deleteMany: async (args: { where: { userId: string } }) => {
-        const kept = connections.filter((row) => row.userId !== args.where.userId)
-        const count = connections.length - kept.length
-        connections.splice(0, connections.length, ...kept)
-        return { count }
-      },
-    },
-  }
-
-  return { db, connections }
-})
-
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -69,6 +24,7 @@ function jsonResponse(body: unknown, status = 200): GithubHttpResponse {
 }
 
 describe('GithubService', () => {
+  useTestDatabase()
   const calls: { url: string; request: GithubHttpRequest }[] = []
   let fetchImpl: FetchFn
   let service: GithubService
@@ -78,8 +34,8 @@ describe('GithubService', () => {
     return fetchImpl(url, request)
   }
 
-  beforeEach(() => {
-    fake.connections.length = 0
+  beforeEach(async () => {
+    await ensureUsers('user-a', 'user-b')
     calls.length = 0
     fetchImpl = async () => {
       throw new Error('unexpected fetch')
@@ -149,7 +105,7 @@ describe('GithubService', () => {
     await expect<unknown>(
       service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' }),
     ).resolves.toEqual({ status })
-    expect(fake.connections).toHaveLength(0)
+    expect(await connectionRows()).toHaveLength(0)
   })
 
   it('poll answers BadGateway on an unrecognized error', async () => {
@@ -182,7 +138,7 @@ describe('GithubService', () => {
     const verification = calls.find((call) => call.url === 'https://api.github.com/user')
     expect(verification?.request.headers.Authorization).toBe('Bearer gho_raw-token')
 
-    const row = fake.connections[0]
+    const row = (await connectionRows())[0]
     expect(row?.userId).toBe(USER_A)
     expect(row?.login).toBe('octocat')
     expect(row?.scopes).toBe('repo read:org admin:repo_hook admin:ssh_signing_key')
@@ -206,7 +162,7 @@ describe('GithubService', () => {
     await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
     await service.pollConnect({ userId: USER_A, deviceCode: 'dc-2' })
 
-    expect(fake.connections).toHaveLength(1)
+    expect(await connectionRows()).toHaveLength(1)
   })
 
   it('scopes the connection to the owning user', async () => {

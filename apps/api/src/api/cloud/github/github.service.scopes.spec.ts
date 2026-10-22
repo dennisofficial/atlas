@@ -1,53 +1,14 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import { hoisted } from '@dltech/bun-test-shims'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { connectionRows, ensureUsers, seedConnection } from '../../../../test/github-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { PrismaClient } from '../../../generated/prisma/client'
 import type { FetchFn, GithubHttpResponse } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubService } from './github.service'
 import { EGithubPollStatus } from './github.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-
-interface GithubConnectionRow {
-  id: string
-  login: string
-  scopes: string
-  sealedToken: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-const fake = hoisted(() => {
-  const connections: GithubConnectionRow[] = []
-
-  const db = {
-    githubConnection: {
-      findUnique: async (args: { where: { userId: string } }) =>
-        connections.find((row) => row.userId === args.where.userId) ?? null,
-      upsert: async (args: {
-        where: { userId: string }
-        create: Omit<GithubConnectionRow, 'createdAt' | 'updatedAt'>
-        update: { login: string; scopes: string; sealedToken: string }
-      }) => {
-        const existing = connections.find((row) => row.userId === args.where.userId)
-        if (existing) {
-          Object.assign(existing, args.update, { updatedAt: new Date() })
-          return existing
-        }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
-        connections.push(row)
-        return row
-      },
-    },
-  }
-
-  return { db, connections }
-})
-
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 
@@ -60,6 +21,7 @@ function jsonResponse(body: unknown, status = 200): GithubHttpResponse {
 }
 
 describe('GithubService scopes', () => {
+  useTestDatabase()
   const calls: string[] = []
   let fetchImpl: FetchFn
   let service: GithubService
@@ -69,8 +31,8 @@ describe('GithubService scopes', () => {
     return fetchImpl(url, request)
   }
 
-  beforeEach(() => {
-    fake.connections.length = 0
+  beforeEach(async () => {
+    await ensureUsers('user-a', 'user-b')
     calls.length = 0
     fetchImpl = async () => {
       throw new Error('unexpected fetch')
@@ -91,7 +53,7 @@ describe('GithubService scopes', () => {
       status: EGithubPollStatus.MissingScopes,
       missing: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
     })
-    expect(fake.connections).toHaveLength(0)
+    expect(await connectionRows()).toHaveLength(0)
     expect(calls.includes('https://api.github.com/user')).toBe(false)
   })
 
@@ -104,7 +66,7 @@ describe('GithubService scopes', () => {
       status: EGithubPollStatus.MissingScopes,
       missing: ['admin:repo_hook', 'admin:ssh_signing_key'],
     })
-    expect(fake.connections).toHaveLength(0)
+    expect(await connectionRows()).toHaveLength(0)
   })
 
   it('poll connects a grant carrying the signing scope', async () => {
@@ -123,7 +85,7 @@ describe('GithubService scopes', () => {
       login: 'octocat',
       scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
     })
-    expect(fake.connections[0]?.scopes).toBe(granted)
+    expect((await connectionRows())[0]?.scopes).toBe(granted)
   })
 
   it('poll refuses a grant holding only write:ssh_signing_key', async () => {
@@ -143,13 +105,11 @@ describe('GithubService scopes', () => {
 
   it('a stored connection with the old scope string still serves readToken', async () => {
     const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
-    fake.connections.push({
+    await seedConnection({
       id: 'gh_old',
       login: 'octocat',
       scopes: 'repo read:org admin:repo_hook',
       sealedToken: cipher.encrypt('gho_old-token'),
-      createdAt: new Date(),
-      updatedAt: new Date(),
       userId: USER_A,
     })
 
@@ -178,6 +138,8 @@ describe('GithubService scopes', () => {
       login: 'octocat',
       scopes: ['admin:repo_hook', 'admin:ssh_signing_key', 'read:org', 'repo'],
     })
-    expect(fake.connections[0]?.scopes).toBe('admin:repo_hook,admin:ssh_signing_key,read:org,repo')
+    expect((await connectionRows())[0]?.scopes).toBe(
+      'admin:repo_hook,admin:ssh_signing_key,read:org,repo',
+    )
   })
 })

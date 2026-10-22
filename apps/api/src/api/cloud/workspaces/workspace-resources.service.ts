@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ESecretKind, WorkspaceSecret } from '@dltech/atlas-wire/web'
 import { Injectable } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
 import type { UpsertMcpServerDto } from '../mcp-servers/mcp-servers.dto'
@@ -20,17 +20,15 @@ export class WorkspaceResourcesService {
 
   async listSecrets(args: Scope): Promise<WorkspaceSecret[]> {
     await this.access.require({ ...args, write: false })
-    const rows = await db.workspaceSecret.findMany({
-      where: { organizationId: args.organizationId },
-      orderBy: { name: 'asc' },
-    })
+    const rows = await db.orm.public.WorkspaceSecret.where({ organizationId: args.organizationId })
+      .orderBy((row) => row.name.asc())
+      .all()
     const updaterIds = [
       ...new Set(rows.flatMap((row) => (row.updatedById ? [row.updatedById] : []))),
     ]
-    const users = await db.user.findMany({
-      where: { id: { in: updaterIds } },
-      select: { id: true, name: true },
-    })
+    const users = await db.orm.public.User.select('id', 'name')
+      .where((user) => user.id.in(updaterIds))
+      .all()
     const nameById = new Map(users.map((user) => [user.id, user.name]))
     return rows.map((row) => {
       const updaterName = row.updatedById ? nameById.get(row.updatedById) : undefined
@@ -55,10 +53,8 @@ export class WorkspaceResourcesService {
     await this.access.require({ ...args, write: true })
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })
     const kind = args.kind === undefined ? {} : { kind: args.kind }
-    await db.workspaceSecret.upsert({
-      where: {
-        organizationId_name: { organizationId: args.organizationId, name: args.name },
-      },
+    await db.orm.public.WorkspaceSecret.upsert({
+      conflictOn: { organizationId: args.organizationId, name: args.name },
       create: {
         id: `wsec_${randomUUID()}`,
         organizationId: args.organizationId,
@@ -74,17 +70,19 @@ export class WorkspaceResourcesService {
   async removeSecret(args: Scope & { name: string }): Promise<void> {
     assertEnvName(args.name)
     await this.access.require({ ...args, write: true })
-    await db.workspaceSecret.deleteMany({
-      where: { organizationId: args.organizationId, name: args.name },
-    })
+    await db.orm.public.WorkspaceSecret.where({
+      organizationId: args.organizationId,
+      name: args.name,
+    }).deleteAndCount()
   }
 
   async listMcpServers(args: Scope): Promise<McpServerDto[]> {
     await this.access.require({ ...args, write: false })
-    const rows = await db.workspaceMcpServer.findMany({
-      where: { organizationId: args.organizationId },
-      orderBy: { name: 'asc' },
+    const rows = await db.orm.public.WorkspaceMcpServer.where({
+      organizationId: args.organizationId,
     })
+      .orderBy((row) => row.name.asc())
+      .all()
     return rows.map((row) =>
       openMcpServer({ cipher: this.cipher, sealedSpec: row.sealedSpec, updatedAt: row.updatedAt }),
     )
@@ -93,10 +91,8 @@ export class WorkspaceResourcesService {
   async putMcpServer(args: Scope & { name: string; spec: UpsertMcpServerDto }): Promise<void> {
     await this.access.require({ ...args, write: true })
     const sealedSpec = sealMcpSpec({ cipher: this.cipher, name: args.name, spec: args.spec })
-    await db.workspaceMcpServer.upsert({
-      where: {
-        organizationId_name: { organizationId: args.organizationId, name: args.name },
-      },
+    await db.orm.public.WorkspaceMcpServer.upsert({
+      conflictOn: { organizationId: args.organizationId, name: args.name },
       create: {
         id: `wmcp_${randomUUID()}`,
         organizationId: args.organizationId,
@@ -110,8 +106,9 @@ export class WorkspaceResourcesService {
   async removeMcpServer(args: Scope & { name: string }): Promise<void> {
     assertMcpServerName(args.name)
     await this.access.require({ ...args, write: true })
-    await db.workspaceMcpServer.deleteMany({
-      where: { organizationId: args.organizationId, name: args.name },
-    })
+    await db.orm.public.WorkspaceMcpServer.where({
+      organizationId: args.organizationId,
+      name: args.name,
+    }).deleteAndCount()
   }
 }

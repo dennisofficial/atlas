@@ -4,7 +4,7 @@ import type {
 } from '@dltech/atlas-wire/web'
 import { workspaceVercelCredentialUpsertSchema } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { WorkspaceAccessService } from './workspace-access.service'
@@ -22,8 +22,8 @@ export class WorkspaceVercelService {
 
   async read(args: Scope): Promise<WorkspaceVercelCredential> {
     await this.access.require({ ...args, write: false })
-    const row = await db.workspaceVercelCredential.findUnique({
-      where: { organizationId: args.organizationId },
+    const row = await db.orm.public.WorkspaceVercelCredential.first({
+      organizationId: args.organizationId,
     })
     if (row === null) return UNCONFIGURED
     return { configured: true, teamId: row.teamId, updatedAt: row.updatedAt.toISOString() }
@@ -44,16 +44,16 @@ export class WorkspaceVercelService {
 
   async remove(args: Scope): Promise<void> {
     await this.access.require({ ...args, write: true })
-    await db.workspaceVercelCredential.deleteMany({
-      where: { organizationId: args.organizationId },
-    })
+    await db.orm.public.WorkspaceVercelCredential.where({
+      organizationId: args.organizationId,
+    }).deleteAndCount()
   }
 
   async openToken(args: {
     organizationId: string
   }): Promise<{ token: string; teamId: string } | null> {
-    const row = await db.workspaceVercelCredential.findUnique({
-      where: { organizationId: args.organizationId },
+    const row = await db.orm.public.WorkspaceVercelCredential.first({
+      organizationId: args.organizationId,
     })
     if (row === null) return null
     return {
@@ -65,16 +65,15 @@ export class WorkspaceVercelService {
   private async upsert(args: Scope & { input: WorkspaceVercelCredentialUpsert }): Promise<void> {
     const { organizationId, userId, input } = args
     if (input.token === undefined) {
-      const { count } = await db.workspaceVercelCredential.updateMany({
-        where: { organizationId },
-        data: { teamId: input.teamId, updatedById: userId },
-      })
+      const count = await db.orm.public.WorkspaceVercelCredential.where({
+        organizationId,
+      }).updateAndCount({ teamId: input.teamId, updatedById: userId })
       if (count === 0) throw new BadRequestException('a token is required the first time')
       return
     }
     const sealedToken = sealSecretValue({ cipher: this.cipher, value: input.token })
-    await db.workspaceVercelCredential.upsert({
-      where: { organizationId },
+    await db.orm.public.WorkspaceVercelCredential.upsert({
+      conflictOn: { organizationId },
       create: { organizationId, sealedToken, teamId: input.teamId, updatedById: userId },
       update: { sealedToken, teamId: input.teamId, updatedById: userId },
     })

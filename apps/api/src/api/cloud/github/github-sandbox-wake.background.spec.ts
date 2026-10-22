@@ -1,50 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
-import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
-import type { PrismaClient } from '../../../generated/prisma/client'
-import { fakeGithubDb } from '../../../../test/fake-github-db.js'
-
-mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
-
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
-  fake,
   fakeBoot,
   flushDebounce,
+  readSandbox,
   PR_EVENT,
   RecordingBackgroundWork,
   seedParkedSandbox,
   seedSubscription,
   serviceWith,
 } from '../../../../test/github-sandbox-wake-fixture'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService background work', () => {
+  useTestDatabase()
+
   beforeEach(() => {
-    fake.reset()
     vi.useFakeTimers()
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   it('hands the lookup to keepAlive, and with no debounce the boot has run once that promise settles', async () => {
-    seedSubscription()
-    seedParkedSandbox()
+    await seedParkedSandbox()
+    await seedSubscription()
     const { boot, calls } = fakeBoot()
     const background = new RecordingBackgroundWork()
     const wake = serviceWith({ boot, background, debounceMs: 0 })
+    const timersBefore = vi.getTimerCount()
 
     wake.notifyEvent(PR_EVENT)
     expect(background.kept).toHaveLength(1)
     await background.kept[0]
 
     expect(calls).toHaveLength(1)
-    expect(vi.getTimerCount()).toBe(0)
-    expect(fake.cloudSandboxes[0]?.state).toBe('running')
+    expect(vi.getTimerCount()).toBeLessThanOrEqual(timersBefore)
+    expect((await readSandbox()).state).toBe('running')
   })
 
   it('also hands the boot itself to keepAlive when there is no debounce', async () => {
-    seedSubscription()
-    seedParkedSandbox()
+    await seedParkedSandbox()
+    await seedSubscription()
     const { boot } = fakeBoot()
     const background = new RecordingBackgroundWork()
 
@@ -55,8 +49,8 @@ describe('GithubSandboxWakeService background work', () => {
   })
 
   it('keeps a lookup alive until a held boot finishes when there is no debounce', async () => {
-    seedSubscription()
-    seedParkedSandbox()
+    await seedParkedSandbox()
+    await seedSubscription()
     let release: () => void = () => undefined
     const held = new Promise<void>((resolve) => {
       release = resolve
@@ -78,8 +72,8 @@ describe('GithubSandboxWakeService background work', () => {
   })
 
   it('with the normal debounce the lookup is kept alive and the boot waits for the timer', async () => {
-    seedSubscription()
-    seedParkedSandbox()
+    await seedParkedSandbox()
+    await seedSubscription()
     const { boot, calls } = fakeBoot()
     const background = new RecordingBackgroundWork()
     const wake = serviceWith({ boot, background })

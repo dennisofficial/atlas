@@ -1,69 +1,70 @@
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
-import { Prisma } from '../../../generated/prisma/client'
+import { seedRepoHook } from '../../../../test/github-seed'
 import { inconsistentStore, isUniqueViolation } from './unique-violation'
 
-const p2002 = (target: readonly string[]): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-    code: 'P2002',
-    clientVersion: Prisma.prismaVersion.client,
-    meta: { target: [...target] },
-  })
+const SUBSCRIPTION_UNIQUE = 'GithubSubscription_userId_repoFullName_branch_key'
 
-const p2002DriverAdapter = (fields: readonly string[]): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-    code: 'P2002',
-    clientVersion: Prisma.prismaVersion.client,
-    meta: {
-      driverAdapterError: {
-        name: 'DriverAdapterError',
-        cause: { kind: 'UniqueConstraintViolation', constraint: { fields: [...fields] } },
-      },
-    },
+const violationOf = async (work: () => Promise<unknown>): Promise<unknown> => {
+  try {
+    await work()
+  } catch (failure) {
+    return failure
+  }
+  throw new Error('expected a unique violation')
+}
+
+const sqlError = (args: { sqlState: string; constraint?: string }): Error =>
+  Object.assign(new Error('failed'), {
+    sqlState: args.sqlState,
+    cause: { constraint: args.constraint },
   })
 
 describe('isUniqueViolation', () => {
-  it('matches a P2002 on exactly the expected target', () => {
-    expect(isUniqueViolation(p2002(['surface', 'deliveryId']), ['surface', 'deliveryId'])).toBe(
-      true,
-    )
+  useTestDatabase()
+
+  it('matches a real violation on exactly the expected constraint', async () => {
+    await db.orm.public.User.create({ id: 'usr_1', name: 'usr_1', email: 'usr_1@test.local' })
+    const row = {
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+      branch: '#42',
+      expiresAt: new Date(),
+      liveUntil: new Date(),
+    }
+    await db.orm.public.GithubSubscription.create(row)
+
+    const failure = await violationOf(() => db.orm.public.GithubSubscription.create(row))
+
+    expect(isUniqueViolation({ error: failure, constraint: SUBSCRIPTION_UNIQUE })).toBe(true)
   })
 
-  it('reads the driver-adapter constraint shape, unquoting camelCase columns', () => {
+  it('rejects a real violation on a different constraint, so unrelated violations surface raw', async () => {
+    await seedRepoHook()
+
+    const failure = await violationOf(() => seedRepoHook())
+
+    expect(isUniqueViolation({ error: failure, constraint: SUBSCRIPTION_UNIQUE })).toBe(false)
+    expect(isUniqueViolation({ error: failure, constraint: 'GithubRepoHook_pkey' })).toBe(true)
+  })
+
+  it('rejects other sql states and non-database errors', () => {
     expect(
-      isUniqueViolation(p2002DriverAdapter(['surface', '"deliveryId"']), ['surface', 'deliveryId']),
-    ).toBe(true)
+      isUniqueViolation({
+        error: sqlError({ sqlState: '23503', constraint: SUBSCRIPTION_UNIQUE }),
+        constraint: SUBSCRIPTION_UNIQUE,
+      }),
+    ).toBe(false)
+    expect(isUniqueViolation({ error: new Error('nope'), constraint: 'id' })).toBe(false)
+    expect(isUniqueViolation({ error: 'P2002', constraint: 'id' })).toBe(false)
   })
 
-  it('rejects a driver-adapter violation on a different constraint', () => {
-    expect(isUniqueViolation(p2002DriverAdapter(['id']), ['surface', 'deliveryId'])).toBe(false)
-  })
-
-  it('is insensitive to target order', () => {
-    expect(isUniqueViolation(p2002(['deliveryId', 'surface']), ['surface', 'deliveryId'])).toBe(
-      true,
+  it('rejects a unique violation that names no constraint rather than guessing', () => {
+    expect(isUniqueViolation({ error: sqlError({ sqlState: '23505' }), constraint: 'id' })).toBe(
+      false,
     )
-  })
-
-  it('rejects a P2002 on a different constraint, so unrelated violations surface raw', () => {
-    expect(isUniqueViolation(p2002(['id']), ['surface', 'deliveryId'])).toBe(false)
-  })
-
-  it('rejects other Prisma codes and non-Prisma errors', () => {
-    const other = new Prisma.PrismaClientKnownRequestError('gone', {
-      code: 'P2025',
-      clientVersion: Prisma.prismaVersion.client,
-    })
-    expect(isUniqueViolation(other, ['id'])).toBe(false)
-    expect(isUniqueViolation(new Error('nope'), ['id'])).toBe(false)
-    expect(isUniqueViolation('P2002', ['id'])).toBe(false)
-  })
-
-  it('rejects a P2002 without meta rather than guessing', () => {
-    const bare = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-      code: 'P2002',
-      clientVersion: Prisma.prismaVersion.client,
-    })
-    expect(isUniqueViolation(bare, ['surface'])).toBe(false)
   })
 })
 

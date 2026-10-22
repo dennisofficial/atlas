@@ -4,6 +4,7 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -242,12 +243,10 @@ export class RecordTurnDto {
   @Min(0)
   cacheWriteTokens!: number
 
-  @IsString()
-  @IsNotEmpty()
+  @IsISO8601()
   startedAt!: string
 
-  @IsString()
-  @IsNotEmpty()
+  @IsISO8601()
   endedAt!: string
 
   @IsInt()

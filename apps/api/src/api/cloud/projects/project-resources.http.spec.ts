@@ -1,12 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-
-mock.module('../../../db', () => ({ db: fake.db }))
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import request from 'supertest'
 import { GithubService } from '../github/github.service'
 import { as, buildSessionApp } from '../session-test-app'
-import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../web-settings.fake-db'
 import { ProjectResourcesController } from './project-resources.controller'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
@@ -22,6 +22,7 @@ const BODY = {
 }
 
 describe('project resources HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
   const http = () => request(app.getHttpServer())
 
@@ -31,7 +32,7 @@ describe('project resources HTTP surface', () => {
   }
 
   beforeEach(async () => {
-    fake.reset()
+    await seedSessionUsers()
     app = await buildSessionApp({
       controllers: [ProjectsController, ProjectResourcesController],
       providers: [
@@ -121,7 +122,9 @@ describe('project resources HTTP surface', () => {
     expect(listed.body.secrets).toEqual([
       expect.objectContaining({ name: 'DATABASE_URL', kind: 'env', value: 'postgres://x' }),
     ])
-    expect(fake.tables.projectSecret.rows[0]?.sealedValue).not.toContain('postgres://x')
+    expect(
+      (await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue,
+    ).not.toContain('postgres://x')
 
     await http().delete(`/v1/projects/${id}/secrets/DATABASE_URL`).set(as('session-a')).expect(204)
     const after = await http().get(`/v1/projects/${id}/secrets`).set(as('session-a')).expect(200)
@@ -174,8 +177,10 @@ describe('project resources HTTP surface', () => {
       .expect(404)
     await http().delete(`/v1/projects/${id}/mcp-servers/x`).set(as_b).expect(404)
     await http().get(`/v1/projects/missing/sandbox`).set(as('session-a')).expect(404)
-    expect(fake.tables.projectSecret.rows).toHaveLength(0)
-    expect(fake.tables.projectMcpServer.rows).toHaveLength(0)
+    expect(await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all()).toHaveLength(0)
+    expect(await db.orm.public.ProjectMcpServer.where((row) => row.id.neq('')).all()).toHaveLength(
+      0,
+    )
   })
 
   it('requires a session', async () => {

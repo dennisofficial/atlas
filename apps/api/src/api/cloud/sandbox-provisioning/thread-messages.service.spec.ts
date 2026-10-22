@@ -1,16 +1,11 @@
 import { EThreadMessageState } from '@dltech/atlas-wire'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
-import { provisioningFakeDb } from '../../../../test/sandbox-provisioning-fake-db'
-
-mock.module('../../../db', () => ({
-  db: provisioningFakeDb().db as unknown as PrismaClient,
-}))
-
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import {
-  fake,
   fakeBoot,
   messagesWith,
+  sandboxRows,
   seedThread,
   serviceWith,
 } from './sandbox-provisioning.fixture'
@@ -18,32 +13,41 @@ import { NOT_RUNNING_MESSAGE, SEND_PENDING_MESSAGE } from './thread-messages.ser
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
-const NOW = () => new Date().toISOString()
 
-function seedRow(partial: { wakeClaim?: string | null; pendingSend?: unknown } = {}): void {
-  fake.sandboxes.push({
+type PendingSend = { sendId: string; text: string }
+
+async function seedRow(
+  partial: { wakeClaim?: Date | null; pendingSend?: PendingSend } = {},
+): Promise<void> {
+  const at = new Date()
+  await db.orm.public.CloudSandbox.create({
     id: 'sbx-1',
     threadId: 'thr-1',
     userId: 'usr-1',
+    sandboxId: '',
     name: 'atlas-thread-1',
+    region: 'iad1',
     state: 'resuming',
-    serveUrl: null,
+    lastActivityAt: at,
     tokenHash: 'hash',
     sealedToken: 'sealed',
-    wakeClaim: partial.wakeClaim === undefined ? NOW() : partial.wakeClaim,
-    wakeFailedAt: null,
-    pendingSend: partial.pendingSend ?? null,
-    runtimeCheckpoint: null,
-    runtimeCheckpointRevision: null,
+    wakeClaim: partial.wakeClaim === undefined ? at : partial.wakeClaim,
+    createdAt: at,
+    updatedAt: at,
+    ...(partial.pendingSend === undefined ? {} : { pendingSend: partial.pendingSend }),
   })
 }
 
-const stored = () => fake.sandboxes[0]?.pendingSend
+const stored = async () => (await sandboxRows())[0]?.pendingSend
+
+const replacePending = (pendingSend: PendingSend) =>
+  db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({ pendingSend })
 
 describe('ThreadMessagesService', () => {
-  beforeEach(() => {
-    fake.reset()
-    seedThread()
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await seedThread()
   })
 
   it('delivers at once when the sandbox is running', async () => {
@@ -72,27 +76,27 @@ describe('ThreadMessagesService', () => {
   })
 
   it('queues and persists the send while the sandbox boots', async () => {
-    seedRow()
+    await seedRow()
     const { service, serve } = messagesWith({})
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
-    expect(stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
+    expect(await stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
     expect(serve).not.toHaveBeenCalled()
   })
 
   it('accepts a repeat of the same pending sendId', async () => {
-    seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
+    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
     const { service } = messagesWith({})
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
   })
 
   it('refuses a different send while one is pending', async () => {
-    seedRow({ pendingSend: { sendId: 'snd-0', text: 'earlier' } })
+    await seedRow({ pendingSend: { sendId: 'snd-0', text: 'earlier' } })
     const { service } = messagesWith({})
 
     await expect(service.send(ARGS)).rejects.toThrow(SEND_PENDING_MESSAGE)
-    expect(stored()).toEqual({ sendId: 'snd-0', text: 'earlier' })
+    expect(await stored()).toEqual({ sendId: 'snd-0', text: 'earlier' })
   })
 
   it('refuses when no sandbox was started', async () => {
@@ -107,7 +111,7 @@ describe('ThreadMessagesService', () => {
     const { boot } = fakeBoot({ held: new Promise<void>((resolve) => (release = resolve)) })
     const service = serviceWith({ boot, messages: messages.service })
     await service.provision({ userId: 'usr-1', threadId: 'thr-1' })
-    fake.sandboxes[0]!.pendingSend = { sendId: 'snd-1', text: 'hello' }
+    await replacePending({ sendId: 'snd-1', text: 'hello' })
     release()
     await service.settle()
 
@@ -117,26 +121,26 @@ describe('ThreadMessagesService', () => {
       sendId: 'snd-1',
       text: 'hello',
     })
-    expect(stored()).toBeNull()
+    expect(await stored()).toBeNull()
   })
 
   it('leaves the pending send in place when the drain delivery fails', async () => {
-    seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
+    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
     const { service } = messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') })
 
     await expect(service.drain({ threadId: 'thr-1' })).resolves.toBeUndefined()
-    expect(stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
+    expect(await stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
   })
 
   it('keeps a newer pending send that replaced the one just delivered', async () => {
-    seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
+    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
     const { service, serve } = messagesWith({ endpoint: ENDPOINT })
     serve.mockImplementationOnce(async () => {
-      fake.sandboxes[0]!.pendingSend = { sendId: 'snd-2', text: 'newer' }
+      await replacePending({ sendId: 'snd-2', text: 'newer' })
     })
 
     await service.drain({ threadId: 'thr-1' })
 
-    expect(stored()).toEqual({ sendId: 'snd-2', text: 'newer' })
+    expect(await stored()).toEqual({ sendId: 'snd-2', text: 'newer' })
   })
 })

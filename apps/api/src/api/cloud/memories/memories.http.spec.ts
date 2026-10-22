@@ -9,18 +9,17 @@ import {
 } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { MEMORY_STALE_REVISION_CODE } from '@dltech/atlas-wire'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
-import { sharedMemoryDb as fake } from './memories.fake-db'
+import { seedSessionUsers } from '../web-settings.fake-db'
 import { MemoriesController } from './memories.controller'
 import { MemoriesService } from './memories.service'
 
@@ -59,6 +58,7 @@ const NOTE = {
 }
 
 describe('memories HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
 
   const http = () => request(app.getHttpServer())
@@ -67,7 +67,7 @@ describe('memories HTTP surface', () => {
     http().get('/v1/memories/entry').query({ scope: 'global', name: NOTE.name }).set(as(token))
 
   beforeEach(async () => {
-    fake.reset()
+    await seedSessionUsers()
     const module = await Test.createTestingModule({
       controllers: [MemoriesController, ProbeController],
       providers: [
@@ -271,7 +271,7 @@ describe('memories HTTP surface', () => {
       .set(as('session-a'))
       .send({ ...NOTE, scope: 'project', project: null })
       .expect(400)
-    expect(fake.rows).toHaveLength(0)
+    expect(await db.orm.public.Memory.where((row) => row.id.neq('')).all()).toHaveLength(0)
   })
 
   it('delete answers 204 then 404', async () => {

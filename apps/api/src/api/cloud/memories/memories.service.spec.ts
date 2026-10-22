@@ -4,7 +4,9 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   EMemoryScope,
   EMemoryType,
@@ -12,11 +14,8 @@ import {
   MEMORY_EDIT_NO_MATCH_CODE,
   MEMORY_STALE_REVISION_CODE,
 } from '@dltech/atlas-wire'
-import type { PrismaClient } from '../../../generated/prisma/client'
 
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
-
-import { sharedMemoryDb as fake } from './memories.fake-db'
+import type { Pool } from '@dltech/atlas-db'
 import { MemoriesService } from './memories.service'
 
 const USER_A = 'user-a'
@@ -32,11 +31,28 @@ const globalNote = ({ name, body = 'fact. **Why:** x' }: { name: string; body?: 
   body,
 })
 
+const rowsOf = () =>
+  db.orm.public.Memory.where((row) => row.id.neq(''))
+    .orderBy((row) => row.createdAt.asc())
+    .all()
+
+const waitForBlockedWriter = async (pool: Pool): Promise<void> => {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const waiting = await pool.query(
+      "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE 'UPDATE \"Memory\"%'",
+    )
+    if (waiting.rowCount === 1) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error('the guarded update never blocked on the row lock')
+}
+
 describe('MemoriesService', () => {
+  const database = useTestDatabase()
   let service: MemoriesService
 
-  beforeEach(() => {
-    fake.reset()
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new MemoriesService()
   })
 
@@ -46,7 +62,7 @@ describe('MemoriesService', () => {
     const third = await service.put(globalNote({ name: 'deflate', body: 'newer body' }))
 
     expect([created.revision, rewritten.revision, third.revision]).toEqual([1, 2, 3])
-    expect(fake.rows).toHaveLength(1)
+    expect(await rowsOf()).toHaveLength(1)
     expect(created).toMatchObject({
       scope: 'global',
       project: null,
@@ -99,12 +115,11 @@ describe('MemoriesService', () => {
 
   it('edit that loses the race at updateMany is a stale 409 naming the real current revision', async () => {
     await service.put(globalNote({ name: 'deflate', body: 'alpha' }))
-    fake.interleaveBeforeUpdateMany(() => {
-      void service.put(globalNote({ name: 'deflate', body: 'alpha one' }))
-      void service.put(globalNote({ name: 'deflate', body: 'alpha two' }))
-    })
+    const writer = await database().pool.connect()
+    await writer.query('BEGIN')
+    await writer.query('SELECT 1 FROM "Memory" WHERE name = $1 FOR UPDATE', ['deflate'])
 
-    const failure = await service
+    const editing = service
       .edit({
         userId: USER_A,
         scope: EMemoryScope.Global,
@@ -114,13 +129,21 @@ describe('MemoriesService', () => {
         revision: 1,
       })
       .catch((error: unknown) => error)
+    await waitForBlockedWriter(database().pool)
+    await writer.query(
+      `UPDATE "Memory" SET body = 'alpha two', revision = revision + 2 WHERE name = $1`,
+      ['deflate'],
+    )
+    await writer.query('COMMIT')
+    writer.release()
+    const failure = await editing
 
     expect(failure).toBeInstanceOf(ConflictException)
     expect((failure as ConflictException).getResponse()).toMatchObject({
       code: MEMORY_STALE_REVISION_CODE,
       message: expect.stringContaining('revision 3'),
     })
-    expect(fake.rows[0]?.body).toBe('alpha two')
+    expect((await rowsOf())[0]?.body).toBe('alpha two')
   })
 
   it('treats overlapping matches as ambiguous', async () => {
@@ -140,7 +163,7 @@ describe('MemoriesService', () => {
     expect((failure as UnprocessableEntityException).getResponse()).toMatchObject({
       code: MEMORY_EDIT_AMBIGUOUS_CODE,
     })
-    expect(fake.rows[0]?.body).toBe('aaa')
+    expect((await rowsOf())[0]?.body).toBe('aaa')
   })
 
   it('edit with no match is a 422 memory-edit-no-match', async () => {
@@ -181,8 +204,8 @@ describe('MemoriesService', () => {
     expect((failure as UnprocessableEntityException).getResponse()).toMatchObject({
       code: MEMORY_EDIT_AMBIGUOUS_CODE,
     })
-    expect(fake.rows[0]?.body).toBe('ab ab')
-    expect(fake.rows[0]?.revision).toBe(1)
+    expect((await rowsOf())[0]?.body).toBe('ab ab')
+    expect((await rowsOf())[0]?.revision).toBe(1)
   })
 
   it('edit and remove of a missing memory are 404', async () => {
@@ -206,7 +229,7 @@ describe('MemoriesService', () => {
 
     await service.remove({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })
 
-    expect(fake.rows).toHaveLength(0)
+    expect(await rowsOf()).toHaveLength(0)
     await expect(
       service.remove({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' }),
     ).rejects.toBeInstanceOf(NotFoundException)
@@ -225,6 +248,7 @@ describe('MemoriesService', () => {
       project: 'acme/gadgets',
     })
     await service.put(globalNote({ name: 'newest' }))
+    await stampInOrder(['older', 'widget-fact', 'other-fact', 'newest'])
 
     expect(
       (await service.list({ userId: USER_A, project: PROJECT })).map((row) => row.name),
@@ -276,7 +300,7 @@ describe('MemoriesService', () => {
     await expect(
       service.remove({ userId: USER_B, scope: EMemoryScope.Global, name: 'shared' }),
     ).resolves.toBeUndefined()
-    expect(fake.rows.filter((row) => row.userId === USER_A)).toHaveLength(3)
+    expect((await rowsOf()).filter((row) => row.userId === USER_A)).toHaveLength(3)
   })
 
   it('rejects a project scope without a project and a global scope with one', async () => {
@@ -286,6 +310,15 @@ describe('MemoriesService', () => {
     await expect(
       service.put({ ...globalNote({ name: 'x' }), project: PROJECT }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    expect(fake.rows).toHaveLength(0)
+    expect(await rowsOf()).toHaveLength(0)
   })
 })
+
+async function stampInOrder(names: string[]): Promise<void> {
+  const base = Date.parse('2026-10-01T00:00:00.000Z')
+  for (const [index, name] of names.entries()) {
+    await db.orm.public.Memory.where({ name }).updateAndCount({
+      updatedAt: new Date(base + index * 1_000),
+    })
+  }
+}

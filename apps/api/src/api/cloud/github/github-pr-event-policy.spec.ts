@@ -1,28 +1,12 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { describe, expect, it } from 'bun:test'
+import { ensureUser, seedUserSetting } from '../../../../test/github-seed'
 import {
   decodeSettingScalar,
   verdictTimingByUser,
   verdictTimingOf,
   VERDICT_TIMING_SETTING_KEY,
 } from './github-pr-event-policy'
-
-const fake = fakeGithubDb()
-
-function seedSetting(args: { userId: string; key: string; value: string }): void {
-  fake.cloudSettings.push({
-    id: `set-${args.userId}-${args.key}`,
-    userId: args.userId,
-    key: args.key,
-    value: args.value,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
-}
 
 describe('decodeSettingScalar', () => {
   it('unwraps the harness upload envelope', () => {
@@ -54,12 +38,10 @@ describe('verdictTimingOf', () => {
 })
 
 describe('verdictTimingByUser', () => {
-  beforeEach(() => {
-    fake.reset()
-  })
-
+  useTestDatabase()
   it('resolves each user independently with one batched read', async () => {
-    seedSetting({
+    await ensureUser('usr-b')
+    await seedUserSetting({
       userId: 'usr-a',
       key: VERDICT_TIMING_SETTING_KEY,
       value: 'atlas-setting:v1:"settled"',
@@ -72,7 +54,11 @@ describe('verdictTimingByUser', () => {
   })
 
   it('ignores settings rows under other keys', async () => {
-    seedSetting({ userId: 'usr-a', key: 'sandbox.image', value: 'atlas-setting:v1:"img"' })
+    await seedUserSetting({
+      userId: 'usr-a',
+      key: 'sandbox.image',
+      value: 'atlas-setting:v1:"img"',
+    })
 
     const resolved = await verdictTimingByUser({ userIds: ['usr-a'] })
 

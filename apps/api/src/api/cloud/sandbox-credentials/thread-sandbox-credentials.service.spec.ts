@@ -1,22 +1,13 @@
 import { ServiceUnavailableException } from '@nestjs/common'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
-import { hoisted } from '@dltech/bun-test-shims'
-
-const threads = hoisted(() => ({ rows: new Map<string, { projectId: string | null }>() }))
-
-mock.module('../../../db', () => ({
-  db: {
-    thread: {
-      findUnique: async (args: { where: { id: string } }) =>
-        threads.rows.get(args.where.id) ?? null,
-    },
-  },
-}))
+import { db } from '@dltech/atlas-db'
+import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
+import { seedProject, seedSessionUsers } from '../web-settings.fake-db'
 import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.service'
 
 const envWith = (values: Record<string, string>): EnvService =>
@@ -35,13 +26,25 @@ const scopedReturning = (
   return { scoped: { vercelCredentials } as unknown as ScopedConfigService, vercelCredentials }
 }
 
+const seedThreadWithProject = async (projectId: string | null): Promise<void> => {
+  if (projectId !== null) await seedProject({ id: projectId, ownerUserId: 'user-a' })
+  await seedThread({
+    db,
+    id: 'thr-1',
+    userId: 'user-a',
+    ...(projectId === null ? {} : { projectId }),
+  })
+}
+
 describe('ThreadSandboxCredentialsService', () => {
-  beforeEach(() => {
-    threads.rows.clear()
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await seedSessionUsers()
   })
 
   it('answers the workspace credential for a thread that belongs to a project', async () => {
-    threads.rows.set('thr-1', { projectId: 'proj-1' })
+    await seedThreadWithProject('proj-1')
     const { scoped, vercelCredentials } = scopedReturning(async () => ({
       token: 'ws-token',
       teamId: 'ws-team',
@@ -65,7 +68,7 @@ describe('ThreadSandboxCredentialsService', () => {
   })
 
   it('lets a missing workspace credential propagate instead of falling back to the env account', async () => {
-    threads.rows.set('thr-1', { projectId: 'proj-1' })
+    await seedThreadWithProject('proj-1')
     const { scoped } = scopedReturning(async () => {
       throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
     })
@@ -78,7 +81,7 @@ describe('ThreadSandboxCredentialsService', () => {
   })
 
   it('falls back to the env credential for a legacy thread with no project', async () => {
-    threads.rows.set('thr-1', { projectId: null })
+    await seedThreadWithProject(null)
     const { scoped, vercelCredentials } = scopedReturning(async () => {
       throw new Error('must not be called')
     })
@@ -115,7 +118,7 @@ describe('ThreadSandboxCredentialsService', () => {
   })
 
   it('answers 503 when a legacy thread finds no env credential', async () => {
-    threads.rows.set('thr-1', { projectId: null })
+    await seedThreadWithProject(null)
     const { scoped } = scopedReturning(async () => {
       throw new Error('must not be called')
     })

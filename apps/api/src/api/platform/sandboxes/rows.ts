@@ -1,6 +1,6 @@
-import type { CloudSandboxModel } from '../../../db'
+import type { Row } from '@dltech/atlas-db'
 import {
-  SANDBOX_LIFECYCLE_SELECT,
+  SANDBOX_LIFECYCLE_COLUMNS,
   sandboxStateOf,
   type SandboxLifecycleColumns,
 } from './sandbox-lifecycle'
@@ -12,19 +12,19 @@ import type { SandboxStatusDto } from './sandboxes.types'
  * read once burned 4.5GB of database transfer in two days (2026-09-21).
  */
 export type SandboxStatusColumns = SandboxLifecycleColumns &
-  Pick<CloudSandboxModel, 'name' | 'region' | 'lastActivityAt' | 'contextPending' | 'serveUrl'>
+  Pick<Row<'CloudSandbox'>, 'name' | 'region' | 'lastActivityAt' | 'contextPending' | 'serveUrl'>
 
-export const SANDBOX_STATUS_SELECT = {
-  ...SANDBOX_LIFECYCLE_SELECT,
-  name: true,
-  region: true,
-  lastActivityAt: true,
-  contextPending: true,
-  serveUrl: true,
-} as const
+export const SANDBOX_STATUS_COLUMNS = [
+  ...SANDBOX_LIFECYCLE_COLUMNS,
+  'name',
+  'region',
+  'lastActivityAt',
+  'contextPending',
+  'serveUrl',
+] as const
 
 /** The identity columns a token check needs; the row's blob columns never ride along. */
-export type SandboxPrincipal = Pick<CloudSandboxModel, 'id' | 'threadId' | 'userId'>
+export type SandboxPrincipal = Pick<Row<'CloudSandbox'>, 'id' | 'threadId' | 'userId'>
 
 export function toSandboxDto(row: SandboxStatusColumns): SandboxStatusDto {
   return {
@@ -32,7 +32,7 @@ export function toSandboxDto(row: SandboxStatusColumns): SandboxStatusDto {
     name: row.name,
     region: row.region,
     state: sandboxStateOf(row),
-    lastActivityAt: row.lastActivityAt,
+    lastActivityAt: row.lastActivityAt.toISOString(),
     contextPending: row.contextPending,
   }
 }

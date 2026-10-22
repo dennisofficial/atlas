@@ -9,12 +9,13 @@ import {
 } from './sandbox-lifecycle'
 import { ESandboxState } from './sandboxes.types'
 
-const isoAgo = (ms: number): string => new Date(Date.now() - ms).toISOString()
+const dateAgo = (ms: number): Date => new Date(Date.now() - ms)
+const isoAgo = (ms: number): string => dateAgo(ms).toISOString()
 
 const lifecycleRow = (args: {
   phase?: ERuntimePhase
   state?: string
-  wakeClaim?: string | null
+  wakeClaim?: Date | null
   reportedAt?: string
 }): SandboxLifecycleColumns => {
   if (args.phase === undefined) {
@@ -71,14 +72,14 @@ describe('sandboxStateOf', () => {
   })
 
   it('reads a parked row under a live wake claim as resuming', () => {
-    const claimed = lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: isoAgo(1_000) })
+    const claimed = lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: dateAgo(1_000) })
     expect(sandboxStateOf(claimed)).toBe(ESandboxState.Resuming)
   })
 
   it('lets a record reported after the claim supersede it', () => {
     const superseded = lifecycleRow({
       phase: ERuntimePhase.Parked,
-      wakeClaim: isoAgo(5_000),
+      wakeClaim: dateAgo(5_000),
       reportedAt: isoAgo(1_000),
     })
     expect(sandboxStateOf(superseded)).toBe(ESandboxState.Parked)
@@ -87,7 +88,7 @@ describe('sandboxStateOf', () => {
   it('expires a claim whose waker died mid-wake', () => {
     const stale = lifecycleRow({
       phase: ERuntimePhase.Parked,
-      wakeClaim: isoAgo(WAKE_CLAIM_TTL_MS + 1_000),
+      wakeClaim: dateAgo(WAKE_CLAIM_TTL_MS + 1_000),
     })
     expect(sandboxStateOf(stale)).toBe(ESandboxState.Parked)
   })
@@ -99,7 +100,7 @@ describe('wakeableOf', () => {
     expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parking }))).toBe(false)
     expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Serving }))).toBe(false)
     expect(
-      wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: isoAgo(1_000) })),
+      wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: dateAgo(1_000) })),
     ).toBe(false)
     expect(wakeableOf(lifecycleRow({ state: 'parked' }))).toBe(true)
   })

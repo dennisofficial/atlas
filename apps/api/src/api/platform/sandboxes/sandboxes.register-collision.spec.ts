@@ -1,17 +1,14 @@
 import { ConflictException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fakeSessionDb().db as unknown as PrismaClient }))
-
-import { fakeSessionDb } from '../../../../test/fake-session-db.js'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { seedUsers } from '../../../../test/session-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
 
-const fake = fakeSessionDb()
 const TOKEN = 'b'.repeat(64)
 const SERVE_URL = 'https://atlas-3000-abc.vercel.run'
 
@@ -20,12 +17,13 @@ const cipher = new SecretCipherService({
 } as unknown as EnvService)
 
 describe('registering a client token that a pod lease already holds', () => {
+  useTestDatabase()
   let service: SandboxesService
 
-  beforeEach(() => {
-    fake.reset()
+  beforeEach(async () => {
+    await seedUsers('user-a', 'user-b')
     service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
-    fake.podLeaseRows.push({
+    await db.orm.public.LocalPodLease.create({
       id: 'lease_1',
       userId: 'user-b',
       threadId: 'brn_pod',
@@ -40,8 +38,8 @@ describe('registering a client token that a pod lease already holds', () => {
         service.claim({ userId, threadId: 'brn_new', clientToken: TOKEN, serveUrl: SERVE_URL }),
       ).rejects.toBeInstanceOf(ConflictException)
 
-      expect(fake.cloudSandboxes).toHaveLength(0)
-      expect(fake.threads).toHaveLength(0)
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
+      expect(await db.orm.public.Thread.all()).toHaveLength(0)
     },
   )
 })

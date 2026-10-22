@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
@@ -28,7 +28,6 @@ export class GithubSubscriptionsService {
     prNumber?: number
     branch?: string
     threadId?: string
-    sandboxId?: string
   }): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
     await this.access.require({ userId: args.userId, owner, repo })
@@ -60,14 +59,7 @@ export class GithubSubscriptionsService {
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId, expiresAt })
 
-    const subscription = await db.githubSubscription.upsert({
-      where: {
-        userId_repoFullName_branch: {
-          userId: args.userId,
-          repoFullName: args.repoFullName,
-          branch,
-        },
-      },
+    const subscription = await db.orm.public.GithubSubscription.upsert({
       create: {
         userId: args.userId,
         repoFullName: args.repoFullName,
@@ -77,7 +69,6 @@ export class GithubSubscriptionsService {
         expiresAt,
         liveUntil,
         threadId,
-        sandboxId: args.sandboxId ?? null,
       },
       update: {
         prNumber,
@@ -85,12 +76,11 @@ export class GithubSubscriptionsService {
         expiresAt,
         liveUntil,
         threadId,
-        sandboxId: args.sandboxId ?? null,
       },
+      conflictOn: { userId: args.userId, repoFullName: args.repoFullName, branch },
     })
-    await db.githubRepoHook.updateMany({
-      where: { repoFullName: args.repoFullName },
-      data: { idleSince: null },
+    await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).updateAndCount({
+      idleSince: null,
     })
 
     const state = await this.pullOnSubscribe({
@@ -124,11 +114,12 @@ export class GithubSubscriptionsService {
   }
 
   async unsubscribe(args: { userId: string; subscriptionId: string }): Promise<void> {
-    const held = await db.githubSubscription.findUnique({ where: { id: args.subscriptionId } })
-    const removed = await db.githubSubscription.deleteMany({
-      where: { id: args.subscriptionId, userId: args.userId },
-    })
-    if (removed.count === 0) {
+    const held = await db.orm.public.GithubSubscription.where({ id: args.subscriptionId }).first()
+    const removed = await db.orm.public.GithubSubscription.where({
+      id: args.subscriptionId,
+      userId: args.userId,
+    }).deleteAndCount()
+    if (removed === 0) {
       throw new NotFoundException('no such subscription')
     }
     if (held !== null) {
@@ -140,38 +131,31 @@ export class GithubSubscriptionsService {
     userId: string
     subscriptionId: string
     threadId?: string
-    sandboxId?: string
   }): Promise<{ expiresAt: string }> {
-    const subscription = await db.githubSubscription.findUnique({
-      where: { id: args.subscriptionId },
-    })
+    const subscription = await db.orm.public.GithubSubscription.where({
+      id: args.subscriptionId,
+    }).first()
     if (subscription === null || subscription.userId !== args.userId) {
       throw new NotFoundException('no such subscription')
     }
     const threadId = args.threadId ?? subscription.threadId
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId, expiresAt })
-    const updated = await db.githubSubscription.update({
-      where: { id: subscription.id },
-      data: {
-        expiresAt,
-        liveUntil,
-        ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
-        ...(args.sandboxId === undefined ? {} : { sandboxId: args.sandboxId }),
-      },
+    const updated = await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({
+      expiresAt,
+      liveUntil,
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
     })
+    if (updated === null) throw new NotFoundException('no such subscription')
     return { expiresAt: updated.expiresAt.toISOString() }
   }
 
   async liveSubscriptions(args: {
     userId: string
   }): Promise<Array<{ repoFullName: string; prNumber: number | null; branch: string }>> {
-    const rows = await db.githubSubscription.findMany({
-      where: {
-        userId: args.userId,
-        AND: [subscriptionLiveWhere({ now: new Date() })],
-      },
-    })
+    const rows = await db.orm.public.GithubSubscription.where({ userId: args.userId })
+      .where(subscriptionLiveWhere({ now: new Date() }))
+      .all()
     return rows.map((row) => ({
       repoFullName: row.repoFullName,
       prNumber: row.prNumber,
@@ -180,24 +164,17 @@ export class GithubSubscriptionsService {
   }
 
   async currentStates(args: { userId: string }): Promise<GithubPrStateDto[]> {
-    const subscriptions = await db.githubSubscription.findMany({
-      where: {
-        userId: args.userId,
-        prNumber: { not: null },
-        AND: [subscriptionLiveWhere({ now: new Date() })],
-      },
-    })
+    const subscriptions = await db.orm.public.GithubSubscription.where({ userId: args.userId })
+      .where((subscription) => subscription.prNumber.isNotNull())
+      .where(subscriptionLiveWhere({ now: new Date() }))
+      .all()
     const states: GithubPrStateDto[] = []
     for (const subscription of subscriptions) {
       if (subscription.prNumber === null) continue
-      const row = await db.githubPrState.findUnique({
-        where: {
-          repoFullName_prNumber: {
-            repoFullName: subscription.repoFullName,
-            prNumber: subscription.prNumber,
-          },
-        },
-      })
+      const row = await db.orm.public.GithubPrState.where({
+        repoFullName: subscription.repoFullName,
+        prNumber: subscription.prNumber,
+      }).first()
       if (row !== null) states.push(dtoOf(row))
     }
     return states
@@ -223,15 +200,11 @@ export class GithubSubscriptionsService {
     })
     if (found !== null) return found.number
 
-    const held = await db.githubSubscription.findUnique({
-      where: {
-        userId_repoFullName_branch: {
-          userId: args.userId,
-          repoFullName: args.repoFullName,
-          branch: args.branch,
-        },
-      },
-    })
+    const held = await db.orm.public.GithubSubscription.where({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      branch: args.branch,
+    }).first()
     return held?.prNumber ?? null
   }
 
@@ -250,10 +223,8 @@ export class GithubSubscriptionsService {
       repo: args.repo,
       number: args.prNumber,
     })
-    const row = await db.githubPrState.upsert({
-      where: {
-        repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      },
+    const row = await db.orm.public.GithubPrState.upsert({
+      conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
       create: {
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
@@ -269,35 +240,32 @@ export class GithubSubscriptionsService {
     const now = new Date()
     const hooks =
       args.repoFullName === undefined
-        ? await db.githubRepoHook.findMany({ where: { idleSince: null } })
-        : await db.githubRepoHook.findMany({
-            where: { idleSince: null, repoFullName: args.repoFullName },
-          })
+        ? await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
+        : await db.orm.public.GithubRepoHook.where({
+            idleSince: null,
+            repoFullName: args.repoFullName,
+          }).all()
     for (const hook of hooks) {
-      const live = await db.githubSubscription.findMany({
-        where: {
-          repoFullName: hook.repoFullName,
-          AND: [subscriptionLiveWhere({ now })],
-        },
-      })
+      const live = await db.orm.public.GithubSubscription.where({ repoFullName: hook.repoFullName })
+        .where(subscriptionLiveWhere({ now }))
+        .all()
       if (live.length === 0) {
-        await db.githubRepoHook.updateMany({
-          where: { repoFullName: hook.repoFullName, idleSince: null },
-          data: { idleSince: now },
-        })
+        await db.orm.public.GithubRepoHook.where({
+          repoFullName: hook.repoFullName,
+          idleSince: null,
+        }).updateAndCount({ idleSince: now })
       }
     }
   }
 
   private async liveCeiling(args: { threadId: string | null; expiresAt: Date }): Promise<Date> {
     if (args.threadId === null) return args.expiresAt
-    const sandbox = await db.cloudSandbox.findUnique({
-      where: { threadId: args.threadId },
-      select: { lastActivityAt: true },
+    const sandbox = await db.orm.public.CloudSandbox.select('lastActivityAt').first({
+      threadId: args.threadId,
     })
     return liveUntilOf({
       expiresAt: args.expiresAt,
-      sandboxLastActivityAt: sandbox === null ? null : new Date(Date.parse(sandbox.lastActivityAt)),
+      sandboxLastActivityAt: sandbox === null ? null : sandbox.lastActivityAt,
     })
   }
 

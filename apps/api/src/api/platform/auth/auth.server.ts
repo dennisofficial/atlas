@@ -1,8 +1,7 @@
-import { db } from '../../../db'
+import { sharedPool } from '@dltech/atlas-db'
 import { createEmailSender } from '../../../_lib/email/email-sender'
 import { createAuthEmailHooks } from './auth-email-hooks'
 import { betterAuth } from 'better-auth'
-import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'
 
 const secret = process.env.SECRET_KEY
@@ -47,7 +46,12 @@ const googleRedirectUri = `${webOrigin}/api/auth/callback/google`
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3400',
   secret,
-  database: prismaAdapter(db, { provider: 'postgresql' }),
+  database: sharedPool(),
+  advanced: { database: { validateSchema: false } },
+  user: { modelName: 'User' },
+  session: { modelName: 'Session' },
+  account: { modelName: 'Account' },
+  verification: { modelName: 'Verification' },
   emailAndPassword: {
     enabled: true,
     revokeSessionsOnPasswordReset: true,
@@ -62,8 +66,20 @@ export const auth = betterAuth({
   },
   trustedOrigins,
   plugins: [
-    organization({ sendInvitationEmail: emailHooks.sendInvitationEmail }),
+    organization({
+      sendInvitationEmail: emailHooks.sendInvitationEmail,
+      schema: {
+        organization: { modelName: 'Organization' },
+        member: { modelName: 'Member' },
+        invitation: { modelName: 'Invitation' },
+      },
+    }),
     bearer(),
-    deviceAuthorization({ verificationUri: `${webOrigin}/device` }),
+    deviceAuthorization({
+      verificationUri: `${webOrigin}/device`,
+      schema: {
+        deviceCode: { modelName: 'DeviceCode' },
+      },
+    }),
   ],
 })

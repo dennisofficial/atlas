@@ -14,8 +14,7 @@ import {
   type PublishedBundleSummary,
   type PublishedBundleUpload,
 } from '@dltech/atlas-wire'
-import { db } from '../../../db'
-import { isUniqueViolation } from '../github/unique-violation'
+import { db, violatedConstraint } from '@dltech/atlas-db'
 import { BundleBlobStore } from './blob-store'
 import type { CommitBundleDto } from './published-bundles.dto'
 
@@ -27,8 +26,8 @@ interface BundleRow {
   createdAt: Date
 }
 
-const VERSION_COLLISION = ['userId', 'version']
-const PATHNAME_COLLISION = ['pathname']
+const VERSION_COLLISION = 'PublishedBundle_userId_version_key'
+const PATHNAME_COLLISION = 'PublishedBundle_pathname_key'
 
 const prefixOf = (userId: string): string => `bundles/${userId}/`
 
@@ -68,7 +67,7 @@ export class PublishedBundlesService {
     if (!manifest.success) throw new BadRequestException('manifest is invalid')
     const blob = await this.blobs.head({ pathname })
     if (blob === null) throw new BadRequestException('no uploaded bundle at this pathname')
-    if (await db.publishedBundle.findUnique({ where: { pathname } })) throw alreadyCommitted()
+    if (await db.orm.public.PublishedBundle.first({ pathname })) throw alreadyCommitted()
     const data = {
       pathname,
       sha256,
@@ -81,10 +80,9 @@ export class PublishedBundlesService {
   }
 
   async current(args: { userId: string }): Promise<PublishedBundleCurrent> {
-    const row = await db.publishedBundle.findFirst({
-      where: { userId: args.userId },
-      orderBy: { version: 'desc' },
-    })
+    const row = await db.orm.public.PublishedBundle.where({ userId: args.userId })
+      .orderBy((bundle) => bundle.version.desc())
+      .first()
     if (row === null) throw new NotFoundException('no published bundle')
     const { downloadUrl } = await this.blobs.presignDownload({ pathname: row.pathname })
     return { ...summaryOf(row), downloadUrl }
@@ -102,17 +100,17 @@ export class PublishedBundlesService {
     retries: number
   }): Promise<BundleRow> {
     try {
-      return await db.$transaction(async (tx) => {
-        const latest = await tx.publishedBundle.aggregate({
-          where: { userId: args.userId },
-          _max: { version: true },
-        })
-        const version = (latest._max.version ?? 0) + 1
-        return tx.publishedBundle.create({ data: { ...args.data, userId: args.userId, version } })
+      return await db.transaction(async (tx) => {
+        const latest = await tx.orm.public.PublishedBundle.where({ userId: args.userId }).aggregate(
+          (aggregate) => ({ maxVersion: aggregate.max('version') }),
+        )
+        const version = (latest.maxVersion ?? 0) + 1
+        return tx.orm.public.PublishedBundle.create({ ...args.data, userId: args.userId, version })
       })
     } catch (error) {
-      if (isUniqueViolation(error, PATHNAME_COLLISION)) throw alreadyCommitted()
-      if (args.retries > 0 && isUniqueViolation(error, VERSION_COLLISION)) {
+      const constraint = violatedConstraint(error)
+      if (constraint === PATHNAME_COLLISION) throw alreadyCommitted()
+      if (args.retries > 0 && constraint === VERSION_COLLISION) {
         return this.insertNextVersion({ ...args, retries: args.retries - 1 })
       }
       throw error

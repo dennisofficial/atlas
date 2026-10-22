@@ -1,11 +1,11 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-
-mock.module('../../../db', () => ({ db: fake.db }))
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import request from 'supertest'
 import { as, buildSessionApp } from '../session-test-app'
-import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
+import { seedSessionUsers, seedWorkspace } from '../web-settings.fake-db'
 import { WorkspaceAccessService } from './workspace-access.service'
 import { WorkspaceResourcesService } from './workspace-resources.service'
 import { WorkspaceSettingsService } from './workspace-settings.service'
@@ -14,17 +14,22 @@ import { WorkspacesController } from './workspaces.controller'
 
 const ORG = 'org-1'
 const vercel = `/v1/workspaces/${ORG}/vercel`
+const credential = () => db.orm.public.WorkspaceVercelCredential.first({ organizationId: ORG })
 
 describe('workspace vercel credential HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
   const http = () => request(app.getHttpServer())
 
   beforeEach(async () => {
-    fake.reset()
-    fake.tables.member.rows.push(
-      { id: 'm1', organizationId: ORG, userId: 'user-a', role: 'owner' },
-      { id: 'm2', organizationId: ORG, userId: 'user-b', role: 'member' },
-    )
+    await seedSessionUsers()
+    await seedWorkspace({
+      id: ORG,
+      members: [
+        { userId: 'user-a', role: 'owner' },
+        { userId: 'user-b', role: 'member' },
+      ],
+    })
     app = await buildSessionApp({
       controllers: [WorkspacesController],
       providers: [
@@ -47,7 +52,8 @@ describe('workspace vercel credential HTTP surface', () => {
       .set(as('session-a'))
       .send({ token: 'vtok_secret', teamId: 'team_1' })
       .expect(204)
-    expect(fake.tables.workspaceVercelCredential.rows[0]?.sealedToken).not.toContain('vtok_secret')
+    expect(await credential()).toMatchObject({ teamId: 'team_1' })
+    expect((await credential())?.sealedToken).not.toContain('vtok_secret')
 
     const read = await http().get(vercel).set(as('session-b')).expect(200)
     expect(read.body).toMatchObject({ configured: true, teamId: 'team_1' })
@@ -61,12 +67,9 @@ describe('workspace vercel credential HTTP surface', () => {
       .set(as('session-a'))
       .send({ token: 'vtok_1', teamId: 'team_1' })
       .expect(204)
-    const sealed = fake.tables.workspaceVercelCredential.rows[0]?.sealedToken
+    const sealed = (await credential())?.sealedToken
     await http().put(vercel).set(as('session-a')).send({ teamId: 'team_2' }).expect(204)
-    expect(fake.tables.workspaceVercelCredential.rows[0]).toMatchObject({
-      teamId: 'team_2',
-      sealedToken: sealed,
-    })
+    expect(await credential()).toMatchObject({ teamId: 'team_2', sealedToken: sealed })
   })
 
   it('limits writes to owners and admins, and 404s outsiders', async () => {
@@ -80,6 +83,6 @@ describe('workspace vercel credential HTTP surface', () => {
     await http().put(vercel).set(as('session-a')).send({ token: 't' }).expect(400)
     await http().put(vercel).set(as('session-a')).send({ token: 't', teamId: 'team_1' }).expect(204)
     await http().delete(vercel).set(as('session-a')).expect(204)
-    expect(fake.tables.workspaceVercelCredential.rows).toHaveLength(0)
+    expect(await credential()).toBeNull()
   })
 })

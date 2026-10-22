@@ -1,0 +1,35 @@
+// use prisma-8
+model CloudSandbox {
+  id                        String                   @id
+  threadId                  String
+  userId                    String
+  sandboxId                 String
+  name                      String
+  region                    String
+  state                     String
+  lastActivityAt            TimestamptzJsDate(3)
+  tokenHash                 String
+  sealedToken               String?
+  sealedGitToken            String?
+  workspaceRemoteUrl        String?
+  contextPending            Boolean                  @default(true)
+  pinnedModel               String?
+  serveUrl                  String?
+  serveVersion              String?
+  wakeFailedAt              TimestamptzJsDate(3)?
+  wakeClaim                 TimestamptzJsDate(3)?
+  pendingSend               Jsonb?
+  runtimeCheckpoint         Jsonb?
+  runtimeCheckpointRevision Int?
+  createdAt                 TimestamptzJsDate(3)
+  updatedAt                 TimestamptzJsDate(3)
+  githubSubscriptions       GithubSubscription[]
+  oauthConnections          OauthConnectionSandbox[]
+  user                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  thread                    Thread                   @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([threadId], map: "CloudSandbox_threadId_key")
+  @@index([userId], map: "CloudSandbox_userId_idx")
+  @@unique([tokenHash])
+  @@index([state, lastActivityAt], map: "CloudSandbox_state_lastActivityAt_idx")
+}

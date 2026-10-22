@@ -13,6 +13,7 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/tui/package.json ./apps/tui/
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
+COPY packages/db/package.json ./packages/db/
 COPY packages/harness/package.json ./packages/harness/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/wire/package.json ./packages/wire/
@@ -26,27 +27,30 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages/wire/node_modules ./packages/wire/node_modules
+COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY apps/api ./apps/api
 COPY tsconfig.base.json ./tsconfig.base.json
 COPY packages/wire ./packages/wire
-RUN cd apps/api && bun run db:generate
+COPY packages/db ./packages/db
 
 FROM node:22.13.1-slim AS runtime
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
-  && rm -rf /var/lib/apt/lists/*
 COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
-COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=builder /app/apps/api/src ./apps/api/src
 COPY --from=builder /app/packages/wire/src ./packages/wire/src
 COPY --from=builder /app/packages/wire/package.json ./packages/wire/package.json
 COPY --from=builder /app/packages/wire/node_modules ./packages/wire/node_modules
+COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
+COPY --from=builder /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=builder /app/packages/db/prisma.config.ts ./packages/db/prisma.config.ts
+COPY --from=builder /app/packages/db/tsconfig.json ./packages/db/tsconfig.json
+COPY --from=builder /app/packages/db/src ./packages/db/src
+COPY --from=builder /app/packages/db/migrations ./packages/db/migrations
 COPY --from=builder /app/apps/api/envs ./apps/api/envs
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 WORKDIR /app/apps/api

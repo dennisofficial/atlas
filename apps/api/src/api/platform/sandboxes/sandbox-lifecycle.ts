@@ -1,23 +1,23 @@
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import type { CloudSandboxModel } from '../../../db'
+import type { Row } from '@dltech/atlas-db'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import { ESandboxState } from './sandboxes.types'
 
 export const WAKE_CLAIM_TTL_MS = 15 * 60 * 1_000
 
 export type SandboxLifecycleColumns = Pick<
-  CloudSandboxModel,
+  Row<'CloudSandbox'>,
   'threadId' | 'state' | 'runtimeCheckpoint' | 'runtimeCheckpointRevision' | 'wakeClaim'
 >
 
-export const SANDBOX_LIFECYCLE_SELECT = {
-  threadId: true,
-  state: true,
-  runtimeCheckpoint: true,
-  runtimeCheckpointRevision: true,
-  wakeClaim: true,
-} as const
+export const SANDBOX_LIFECYCLE_COLUMNS = [
+  'threadId',
+  'state',
+  'runtimeCheckpoint',
+  'runtimeCheckpointRevision',
+  'wakeClaim',
+] as const
 
 const STATE_OF_PHASE: Readonly<Record<ERuntimePhase, ESandboxState>> = {
   [ERuntimePhase.Serving]: ESandboxState.Running,
@@ -53,7 +53,7 @@ export function mirroredPhaseOf(row: SandboxLifecycleColumns): ERuntimePhase | n
  */
 export function wakeClaimActive(row: SandboxLifecycleColumns): boolean {
   if (!row.wakeClaim) return false
-  const claimedAt = Date.parse(row.wakeClaim)
+  const claimedAt = row.wakeClaim.getTime()
   if (!Number.isFinite(claimedAt) || Date.now() - claimedAt >= WAKE_CLAIM_TTL_MS) return false
   const record = mirroredRecordOf(row)
   return record === null || Date.parse(record.reportedAt) < claimedAt

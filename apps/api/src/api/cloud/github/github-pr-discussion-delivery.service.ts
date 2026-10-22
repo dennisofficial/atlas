@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { db } from '../../../db'
+import { and, db, or } from '@dltech/atlas-db'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
@@ -92,15 +92,17 @@ export class GithubPrDiscussionDeliveryService {
     repoFullName: string
     prNumber: number
   }): Promise<string[]> {
-    const subscribers = await db.githubSubscription.findMany({
-      where: {
-        repoFullName: args.repoFullName,
-        AND: [
-          subscriptionLiveWhere({ now: new Date() }),
-          { OR: [{ prNumber: args.prNumber }, { prNumber: null, branch: { not: '' } }] },
-        ],
-      },
+    const subscribers = await db.orm.public.GithubSubscription.where({
+      repoFullName: args.repoFullName,
     })
+      .where(subscriptionLiveWhere({ now: new Date() }))
+      .where((subscription) =>
+        or(
+          subscription.prNumber.eq(args.prNumber),
+          and(subscription.prNumber.isNull(), subscription.branch.neq('')),
+        ),
+      )
+      .all()
     const branches = subscribers
       .filter((subscriber) => subscriber.prNumber === null)
       .map((subscriber) => subscriber.branch)
@@ -108,10 +110,9 @@ export class GithubPrDiscussionDeliveryService {
       return [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     }
 
-    const head = await db.githubPrState.findUnique({
-      where: {
-        repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      },
+    const head = await db.orm.public.GithubPrState.first({
+      repoFullName: args.repoFullName,
+      prNumber: args.prNumber,
     })
     const matched = subscribers.filter(
       (subscriber) =>

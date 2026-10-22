@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { db } from '../../../db'
-import type { Prisma } from '../../../generated/prisma/client'
-import { nextEventId, nextRunId, nextThreadId, nowIso } from './append'
+import { db, or, type Tx } from '@dltech/atlas-db'
+import { nextEventId, nextRunId, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { toThreadDto } from './rows'
+import { advanceHead } from './thread-head'
 import type {
   CompactThreadDto,
   ForkThreadDto,
@@ -19,8 +19,6 @@ const SURVIVES_SUMMARY = [
   'pull-request-linked',
 ]
 
-type Tx = Prisma.TransactionClient
-
 async function dropRewoundChildren(args: {
   tx: Tx
   userId: string
@@ -28,26 +26,29 @@ async function dropRewoundChildren(args: {
 }): Promise<void> {
   if (args.agentIds.length === 0) return
 
-  const referenced = await args.tx.thread.findMany({
-    where: {
-      id: { in: [...args.agentIds] },
-      userId: args.userId,
-      OR: [{ forks: { some: {} } }, { spawned: { some: {} } }],
-    },
-    select: { id: true },
-  })
+  const referenced = await args.tx.orm.public.Thread.where((thread) =>
+    thread.id.in([...args.agentIds]),
+  )
+    .where({ userId: args.userId })
+    .where((thread) => or(thread.forks.some(), thread.spawned.some()))
+    .select('id')
+    .all()
   const referencedIds = new Set(referenced.map((row) => row.id))
 
   if (referencedIds.size > 0) {
-    await args.tx.thread.updateMany({
-      where: { id: { in: [...referencedIds] } },
-      data: { spawnerThreadId: null, agentType: null },
+    await args.tx.orm.public.Thread.where((thread) =>
+      thread.id.in([...referencedIds]),
+    ).updateAndCount({
+      spawnerThreadId: null,
+      agentType: null,
     })
   }
 
   const removable = args.agentIds.filter((agentId) => !referencedIds.has(agentId))
   if (removable.length > 0) {
-    await args.tx.thread.deleteMany({ where: { id: { in: removable }, userId: args.userId } })
+    await args.tx.orm.public.Thread.where((thread) => thread.id.in(removable))
+      .where({ userId: args.userId })
+      .deleteAndCount()
   }
 }
 
@@ -55,15 +56,15 @@ async function dropRewoundChildren(args: {
 export class ThreadsHistoryService {
   async rewind(args: { userId: string; threadId: string; draft: RewindThreadDto }): Promise<void> {
     await requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
-    const at = nowIso()
-    await db.$transaction(async (tx) => {
-      await tx.event.deleteMany({
-        where: { threadId: args.threadId, userId: args.userId, seq: { gt: args.draft.toSeq } },
-      })
+    const at = new Date()
+    await db.transaction(async (tx) => {
+      await tx.orm.public.Event.where({ threadId: args.threadId, userId: args.userId })
+        .where((event) => event.seq.gt(args.draft.toSeq))
+        .deleteAndCount()
       await dropRewoundChildren({ tx, userId: args.userId, agentIds: args.draft.cutAgents ?? [] })
-      await tx.thread.update({
-        where: { id: args.threadId },
-        data: { head: args.draft.toSeq, updatedAt: at },
+      await tx.orm.public.Thread.where({ id: args.threadId }).update({
+        head: args.draft.toSeq,
+        updatedAt: at,
       })
     })
   }
@@ -96,41 +97,38 @@ export class ThreadsHistoryService {
       )
     }
 
-    const at = nowIso()
+    const at = new Date()
     const into = nextThreadId()
-    const row = await db.$transaction(async (tx) => {
-      const created = await tx.thread.create({
-        data: {
-          id: into,
-          userId: args.userId,
-          head: args.draft.seq,
-          createdAt: at,
-          updatedAt: at,
-          parentThreadId: args.threadId,
-          forkSeq: args.draft.seq,
-          forkMode: args.draft.mode,
-          workspace: source.workspace,
-          repo: source.repo,
-          modelRef: source.modelRef,
-          modelEffort: source.modelEffort,
-          executionLocation: source.executionLocation,
-          ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
-        },
+    const row = await db.transaction(async (tx) => {
+      const created = await tx.orm.public.Thread.create({
+        id: into,
+        userId: args.userId,
+        head: args.draft.seq,
+        createdAt: at,
+        updatedAt: at,
+        parentThreadId: args.threadId,
+        forkSeq: args.draft.seq,
+        forkMode: args.draft.mode,
+        workspace: source.workspace,
+        repo: source.repo,
+        modelRef: source.modelRef,
+        modelEffort: source.modelEffort,
+        executionLocation: source.executionLocation,
+        ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
       })
 
       if (args.draft.mode === 'copy') {
-        const rows = await tx.event.findMany({
-          where: { threadId: args.threadId, userId: args.userId, seq: { lte: args.draft.seq } },
-          orderBy: { seq: 'asc' },
+        const rows = await tx.orm.public.Event.where({
+          threadId: args.threadId,
+          userId: args.userId,
         })
+          .where((event) => event.seq.lte(args.draft.seq))
+          .orderBy((event) => event.seq.asc())
+          .all()
         if (rows.length > 0) {
-          await tx.event.createMany({
-            data: rows.map(({ id: _id, ...row }) => ({
-              ...row,
-              id: nextEventId(),
-              threadId: into,
-            })),
-          })
+          await tx.orm.public.Event.createAndCount(
+            rows.map((row) => ({ ...row, id: nextEventId(), threadId: into })),
+          )
         }
       }
 
@@ -147,21 +145,22 @@ export class ThreadsHistoryService {
     cutAgents: readonly string[]
   }): Promise<{ replaced: number }> {
     await requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
-    const at = nowIso()
+    const at = new Date()
 
-    return db.$transaction(async (tx) => {
-      const covered = {
-        threadId: args.threadId,
-        userId: args.userId,
-        seq: { gte: args.draft.fromSeq, lte: args.draft.throughSeq },
-        type: { notIn: [...SURVIVES_SUMMARY] },
-      }
+    return db.transaction(async (tx) => {
+      const covered = tx.orm.public.Event.where({ threadId: args.threadId, userId: args.userId })
+        .where((event) => event.seq.gte(args.draft.fromSeq))
+        .where((event) => event.seq.lte(args.draft.throughSeq))
+        .where((event) => event.type.notIn(SURVIVES_SUMMARY))
       const vacated = (
-        await tx.event.findMany({ where: covered, select: { seq: true }, orderBy: { seq: 'asc' } })
+        await covered
+          .select('seq')
+          .orderBy((event) => event.seq.asc())
+          .all()
       ).map((row) => row.seq)
       const replaced = vacated.length
       if (args.discardRows) {
-        await tx.event.deleteMany({ where: covered })
+        await covered.deleteAndCount()
         await dropRewoundChildren({ tx, userId: args.userId, agentIds: args.cutAgents })
       }
 
@@ -172,39 +171,32 @@ export class ThreadsHistoryService {
         : undefined
       let seq = standIn
       if (seq === undefined) {
-        const thread = await tx.thread.update({
-          where: { id: args.threadId },
-          data: { head: { increment: 1 }, updatedAt: at },
-          select: { head: true },
-        })
-        seq = thread.head
+        seq = await advanceHead({ tx, threadId: args.threadId, by: 1, at })
       }
 
-      await tx.event.create({
-        data: {
-          id: nextEventId(),
-          threadId: args.threadId,
-          seq,
-          runId: nextRunId(),
-          parentRunId: null,
-          depth: 0,
-          at,
+      await tx.orm.public.Event.create({
+        id: nextEventId(),
+        threadId: args.threadId,
+        seq,
+        runId: nextRunId(),
+        parentRunId: null,
+        depth: 0,
+        at,
+        type: 'history-compacted',
+        body: JSON.stringify({
           type: 'history-compacted',
-          body: JSON.stringify({
-            type: 'history-compacted',
-            anchor: args.draft.anchor,
-            fromSeq: args.draft.fromSeq,
-            throughSeq: args.draft.throughSeq,
-            summary: args.draft.summary,
-            replaced,
-          }),
-          contextSlot: null,
-          contextKey: null,
-          contextDigest: null,
-          userId: args.userId,
-        },
+          anchor: args.draft.anchor,
+          fromSeq: args.draft.fromSeq,
+          throughSeq: args.draft.throughSeq,
+          summary: args.draft.summary,
+          replaced,
+        }),
+        contextSlot: null,
+        contextKey: null,
+        contextDigest: null,
+        userId: args.userId,
       })
-      await tx.thread.update({ where: { id: args.threadId }, data: { updatedAt: at } })
+      await tx.orm.public.Thread.where({ id: args.threadId }).update({ updatedAt: at })
 
       return { replaced }
     })

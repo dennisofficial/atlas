@@ -1,0 +1,22 @@
+// use prisma-8
+model Event {
+  id            String               @id
+  threadId      String
+  seq           Int
+  runId         String
+  parentRunId   String?
+  depth         Int
+  at            TimestamptzJsDate(3)
+  type          String
+  body          String
+  contextSlot   String?
+  contextKey    String?
+  contextDigest String?
+  userId        String
+  thread        Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Event_threadId_seq_key")
+
+  @@unique([threadId, seq], map: "Event_threadId_seq_key")
+  @@unique([threadId, contextSlot, contextKey, contextDigest], map: "Event_threadId_contextSlot_contextKey_contextDigest_key")
+  @@index([threadId, type], map: "Event_threadId_type_idx")
+  @@index([userId], map: "Event_userId_idx")
+}

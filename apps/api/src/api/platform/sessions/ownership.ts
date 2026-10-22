@@ -1,17 +1,16 @@
 import { NotFoundException } from '@nestjs/common'
-import type { ThreadModel } from '../../../db'
-import type { Prisma, PrismaClient } from '../../../generated/prisma/client'
-
-type Reader = Pick<PrismaClient, 'thread'> | Prisma.TransactionClient
+import type { Row } from '@dltech/atlas-db'
+import type { SessionReader } from './fork-chain'
 
 export async function ownedThread(args: {
-  reader: Reader
+  reader: SessionReader
   userId: string
   threadId: string
-}): Promise<ThreadModel> {
-  const row = await args.reader.thread.findFirst({
-    where: { id: args.threadId, userId: args.userId },
-  })
+}): Promise<Row<'Thread'>> {
+  const row = await args.reader.orm.public.Thread.where({
+    id: args.threadId,
+    userId: args.userId,
+  }).first()
   if (row === null) throw new NotFoundException('thread not found')
   return row
 }

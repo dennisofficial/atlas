@@ -1,10 +1,9 @@
+import { db, type Row } from '@dltech/atlas-db'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { vi } from 'bun:test'
-import { advanceTimersByTimeAsync } from './fake-timers'
 
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'
-import { ProcessBackgroundWork } from '../src/_lib/background-work/background-work.providers'
 import {
   SandboxCredentials,
   type ThreadSandboxCredentials,
@@ -16,9 +15,8 @@ import {
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
-import { fakeGithubDb, seedCloudSandbox, type FakeCloudSandboxRow } from './fake-github-db'
-
-export const fake = fakeGithubDb()
+import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
+import { advanceTimersByTimeAsync } from './fake-timers'
 
 export const SECRETS_KEY = 'a'.repeat(64)
 
@@ -29,23 +27,20 @@ export const cipher = new SecretCipherService({
 export const releaseArtifactCheck = (ok: boolean) =>
   vi.fn(async () => new Response(null, { status: ok ? 200 : 404 })) as unknown as typeof fetch
 
-export const pastIso = (ms: number): string => new Date(Date.now() - ms).toISOString()
+export const pastDate = (ms: number): Date => new Date(Date.now() - ms)
 
 export const PR_EVENT = { userId: 'usr-1', repoFullName: 'compai/app', prNumber: 42 } as const
 
-export function seedSubscription(args: { threadId?: string | null } = {}): void {
-  fake.subscriptions.push({
-    id: `sub-${fake.subscriptions.length + 1}`,
+export const STORED_HASH = 'stored-hash'
+
+export async function seedSubscription(args: { threadId?: string | null } = {}): Promise<void> {
+  const threadId = args.threadId === undefined ? 'thr-1' : args.threadId
+  await seedSubscriptionRow({
     userId: 'usr-1',
-    repoFullName: 'compai/app',
-    prNumber: 42,
-    branch: '',
-    pollBacked: false,
-    expiresAt: new Date(Date.now() - 60_000),
-    liveUntil: new Date(Date.now() - 60_000),
-    threadId: args.threadId === undefined ? 'thr-1' : args.threadId,
-    sandboxId: null,
-    createdAt: new Date(),
+    branch: `#42-${threadId ?? 'none'}`,
+    expiresAt: pastDate(60_000),
+    liveUntil: pastDate(60_000),
+    threadId,
   })
 }
 
@@ -60,31 +55,52 @@ export function mirroredRecord(args: {
     runtimeId: 'runtime-1',
     sandboxSessionId: 'ses-1',
     revision: args.revision ?? 4,
-    reportedAt: args.reportedAt ?? pastIso(120_000),
+    reportedAt: args.reportedAt ?? pastDate(120_000).toISOString(),
     transcript: { head: 3, count: 3, digest: 'c'.repeat(64) },
     phase: args.phase,
   } as RuntimeCheckpoint
 }
 
-export function seedParkedSandbox(partial: Partial<FakeCloudSandboxRow> = {}): void {
-  const record = mirroredRecord({
-    threadId: partial.threadId ?? 'thr-1',
-    phase: ERuntimePhase.Parked,
-  })
-  seedCloudSandbox({
-    id: `sbx-${partial.threadId ?? 'thr-1'}`,
-    threadId: 'thr-1',
+export async function seedParkedSandbox(
+  partial: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & {
+    runtimeCheckpoint?: unknown
+  } = {},
+): Promise<void> {
+  const threadId = partial.threadId ?? 'thr-1'
+  const record = mirroredRecord({ threadId, phase: ERuntimePhase.Parked })
+  await seedCloudSandbox({
+    id: `sbx-${threadId}`,
     userId: 'usr-1',
     sandboxId: 'vsbx-1',
     name: 'atlas-sandbox-abc',
     region: 'iad1',
     state: 'parked',
-    lastActivityAt: pastIso(60_000),
-    tokenHash: 'stored-hash',
+    lastActivityAt: pastDate(60_000),
+    tokenHash: STORED_HASH,
     sealedToken: cipher.encrypt('stored-token'),
     runtimeCheckpoint: record,
     runtimeCheckpointRevision: record.revision,
     ...partial,
+    threadId,
+  })
+}
+
+export const readSandbox = async (): Promise<Row<'CloudSandbox'>> => {
+  const held = await db.orm.public.CloudSandbox.first()
+  if (held === null) throw new Error('no seeded sandbox row')
+  return held
+}
+
+export async function patchSandbox(
+  patch: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & { runtimeCheckpoint?: unknown },
+): Promise<void> {
+  const { runtimeCheckpoint, ...columns } = patch
+  const held = await readSandbox()
+  await db.orm.public.CloudSandbox.where({ threadId: held.threadId }).update({
+    ...columns,
+    ...(runtimeCheckpoint === undefined
+      ? {}
+      : { runtimeCheckpoint: JSON.parse(JSON.stringify(runtimeCheckpoint)) }),
   })
 }
 
@@ -94,7 +110,13 @@ export class RecordingBackgroundWork extends BackgroundWork {
   keepAlive(work: Promise<unknown>): void {
     this.kept.push(work)
   }
+
+  async drain(): Promise<void> {
+    for (let index = 0; index < this.kept.length; index += 1) await this.kept[index]
+  }
 }
+
+let current: RecordingBackgroundWork = new RecordingBackgroundWork()
 
 export function serviceWith(args: {
   boot: SandboxWakeBoot
@@ -118,12 +140,14 @@ export function serviceWith(args: {
         ATLAS_CLOUD_URL: 'https://api.byatlas.io',
       })[key],
   } as unknown as EnvService
+  const background = args.background ?? new RecordingBackgroundWork()
+  if (background instanceof RecordingBackgroundWork) current = background
   return new GithubSandboxWakeService(
     env,
     cipher,
     credentials,
     args.boot,
-    args.background ?? new ProcessBackgroundWork(),
+    background,
     args.debounceMs ?? WAKE_DEBOUNCE_MS,
   )
 }
@@ -131,13 +155,20 @@ export function serviceWith(args: {
 export function fakeBoot(options: { created?: boolean; held?: Promise<void> } = {}): {
   boot: SandboxWakeBoot
   calls: WakeBootArgs[]
+  entered: Promise<void>
 } {
   const calls: WakeBootArgs[] = []
+  let markEntered: () => void = () => undefined
+  const entered = new Promise<void>((resolve) => {
+    markEntered = resolve
+  })
   return {
     calls,
+    entered,
     boot: {
       boot: async (bootArgs: WakeBootArgs) => {
         calls.push(bootArgs)
+        markEntered()
         await options.held
         const created = options.created ?? false
         if (created) await bootArgs.onFreshSandbox()
@@ -153,7 +184,16 @@ export const failingBoot = (): SandboxWakeBoot => ({
   },
 })
 
-export async function flushDebounce(): Promise<void> {
+export async function settleLookups(): Promise<void> {
+  await Promise.all(current.kept)
+}
+
+export async function advanceDebounce(): Promise<void> {
+  await settleLookups()
   await advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
-  await advanceTimersByTimeAsync(0)
+}
+
+export async function flushDebounce(): Promise<void> {
+  await advanceDebounce()
+  await current.drain()
 }

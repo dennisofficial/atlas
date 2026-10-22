@@ -2,16 +2,13 @@ import type { INestApplication } from '@nestjs/common'
 import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
-
-import { sharedSigningKeyDb as fake } from '../../../../test/fake-signing-key-db.js'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
@@ -33,6 +30,7 @@ const bearerOf = (req: { headers: { authorization?: string } }): string =>
   (req.headers.authorization ?? '').replace(/^Bearer /i, '')
 
 describe('ssh signing key HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
   const github = createFakeGithub()
@@ -41,10 +39,11 @@ describe('ssh signing key HTTP surface', () => {
   const as = (token: string) => ({ authorization: `Bearer ${token}` })
 
   beforeEach(async () => {
-    fake.reset()
     github.reset()
     for (const userId of ['user-a', 'user-b', 'user-c']) {
-      fake.connections.push({
+      await seedUser({ db, id: userId })
+      await db.orm.public.GithubConnection.create({
+        id: `ghc_${userId}`,
         userId,
         login: 'octocat',
         scopes: 'repo read:org admin:repo_hook admin:ssh_signing_key',
@@ -136,7 +135,7 @@ describe('ssh signing key HTTP surface', () => {
     await http().post('/v1/ssh-signing-key').set(pod).send(body).expect(401)
     await http().post('/v1/ssh-signing-key/rotate').set(pod).send(body).expect(401)
     await http().delete('/v1/ssh-signing-key').set(pod).expect(401)
-    expect(fake.keys).toHaveLength(1)
+    expect(await db.orm.public.SshSigningKey.all()).toHaveLength(1)
   })
 
   it('serves status, rotate and revoke to the owning session', async () => {

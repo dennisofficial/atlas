@@ -5,18 +5,14 @@ import { describe, expect, it } from 'bun:test'
 type Layer = 'platform' | 'cloud'
 
 const LAYERS: readonly Layer[] = ['platform', 'cloud']
-const INFRA_DIRS = ['_core', '_lib', '_module', 'db']
+const INFRA_DIRS = ['_core', '_lib', '_module']
 
 const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
   platform: ['cloud'],
   cloud: [],
 }
 
-// @dltech/atlas-wire is the one in-repo dependency the API is allowed: the seam-hardening
-// decision (2026-09-25) put the websocket channel contract and the REST wire schemas there so
-// every consumer shares it instead of hand-restating the protocol. Any other @dltech/* import
-// still fails.
-const ALLOWED_EXTERNAL = /^@dltech\/(?:atlas-wire|bun-test-shims)(?:\/|$)/
+const ALLOWED_EXTERNAL = /^@dltech\/(?:atlas-wire|atlas-db|bun-test-shims)(?:\/|$)/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
@@ -179,11 +175,11 @@ describe('api layer architecture', () => {
     ).toEqual([])
   })
 
-  it('imports no in-repo package other than @dltech/atlas-wire', () => {
+  it('imports no in-repo package other than @dltech/atlas-wire and @dltech/atlas-db', () => {
     expect(
       collectInRepoViolations(),
       'the API depends on nothing in-repo except the shared wire contract; ' +
-        'a new in-repo import belongs in @dltech/atlas-wire or not at all',
+        'a new in-repo import belongs in @dltech/atlas-wire, @dltech/atlas-db or not at all',
     ).toEqual([])
   })
 })

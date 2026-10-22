@@ -1,0 +1,29 @@
+// use prisma-8
+model Project {
+  id              String               @id @onCreate(cuid(2))
+  name            String
+  repo            String?
+  baseBranch      String?
+  additionalRepos Jsonb                @default(json`[]`)
+  description     String               @default("")
+  shipBehavior    String               @default("open-pr")
+  sandboxVcpus    Int?
+  setupScript     String               @default("")
+  organizationId  String?
+  ownerUserId     String?
+  createdById     String?
+  createdAt       TimestamptzJsDate(3) @default(now())
+  updatedAt       TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  mcpServers      ProjectMcpServer[]
+  secrets         ProjectSecret[]
+  settings        ProjectSetting[]
+  threads         Thread[]
+  owner           User?                @relation(name: "Project_owner", fields: [ownerUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy       User?                @relation(name: "Project_createdBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([ownerUserId])
+  @@index([createdById])
+  @@check(expression: sql`(("ownerUserId" IS NULL) <> ("organizationId" IS NULL))`, name: "Project_exactly_one_owner")
+  @@index([organizationId], map: "Project_organizationId_idx")
+}

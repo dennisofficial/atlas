@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 
 export const THREAD_PROJECT_NOT_FOUND = 'project not found'
 
@@ -7,17 +7,18 @@ export const projectReachableBy = async (args: {
   userId: string
   projectId: string
 }): Promise<boolean> => {
-  const project = await db.project.findUnique({
-    where: { id: args.projectId },
-    select: { userId: true, organizationId: true },
-  })
+  const project = await db.orm.public.Project.where({ id: args.projectId })
+    .select('ownerUserId', 'organizationId')
+    .first()
   if (project === null) return false
-  if (project.userId === args.userId) return true
+  if (project.ownerUserId === args.userId) return true
   if (project.organizationId === null) return false
-  const member = await db.member.findFirst({
-    where: { organizationId: project.organizationId, userId: args.userId },
-    select: { id: true },
+  const member = await db.orm.public.Member.where({
+    organizationId: project.organizationId,
+    userId: args.userId,
   })
+    .select('id')
+    .first()
   return member !== null
 }
 

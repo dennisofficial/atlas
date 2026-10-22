@@ -5,8 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { db } from '../../../db'
-import { isUniqueViolation } from '../github/unique-violation'
+import { db, isUniqueViolation, violatedConstraint } from '@dltech/atlas-db'
 import {
   USER_FILE_TREES,
   type UserFileDto,
@@ -17,12 +16,7 @@ import {
 const MAX_PATH_LENGTH = 500
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
-const META_SELECT = {
-  path: true,
-  revision: true,
-  contentHash: true,
-  tombstonedAt: true,
-} as const
+const USER_FILE_KEY_CONSTRAINT = 'UserFile_userId_tree_path_key'
 
 type MetaRow = {
   path: string
@@ -97,15 +91,22 @@ export class UserFilesService {
     sinceRevision?: number | undefined
   }): Promise<UserFileDto[]> {
     const tree = assertValidTree(args.tree)
-    const rows = await db.userFile.findMany({
-      where: {
-        userId: args.userId,
-        tree,
-        ...(args.sinceRevision === undefined ? {} : { revision: { gt: args.sinceRevision } }),
-      },
-      select: META_SELECT,
-      orderBy: { revision: 'asc' },
+    const since = args.sinceRevision
+    const files = db.orm.public.UserFile.select(
+      'path',
+      'revision',
+      'contentHash',
+      'tombstonedAt',
+    ).where({
+      userId: args.userId,
+      tree,
     })
+    const rows = await (since === undefined
+      ? files
+      : files.where((file) => file.revision.gt(since))
+    )
+      .orderBy((file) => file.revision.asc())
+      .all()
     return rows.map((row) => toMetaDto(row))
   }
 
@@ -116,10 +117,10 @@ export class UserFilesService {
   }): Promise<UserFileWithContentDto[]> {
     const tree = assertValidTree(args.tree)
     for (const path of args.paths) assertValidPath(path)
-    const rows = await db.userFile.findMany({
-      where: { userId: args.userId, tree, path: { in: args.paths } },
-      orderBy: { path: 'asc' },
-    })
+    const rows = await db.orm.public.UserFile.where({ userId: args.userId, tree })
+      .where((file) => file.path.in(args.paths))
+      .orderBy((file) => file.path.asc())
+      .all()
     return rows.map((row) => toContentDto(row))
   }
 
@@ -137,7 +138,7 @@ export class UserFilesService {
     const contentHash = args.contentHash.toLowerCase()
     const key = { userId: args.userId, tree, path: args.path }
 
-    const existing = await db.userFile.findUnique({ where: { userId_tree_path: key } })
+    const existing = await db.orm.public.UserFile.first(key)
     if (existing === null) {
       if (args.baseRevision !== 0) throw conflictOf({ revision: 0, contentHash: '' })
       await this.createFirstRevision({ key, content, contentHash })
@@ -163,7 +164,7 @@ export class UserFilesService {
     assertValidPath(args.path)
     const key = { userId: args.userId, tree, path: args.path }
 
-    const existing = await db.userFile.findUnique({ where: { userId_tree_path: key } })
+    const existing = await db.orm.public.UserFile.first(key)
     if (existing === null) throw new NotFoundException('no such file')
     await this.replaceRevision({
       key,
@@ -181,11 +182,15 @@ export class UserFilesService {
     contentHash: string
   }): Promise<void> {
     try {
-      await db.userFile.create({
-        data: { ...args.key, revision: 1, contentHash: args.contentHash, content: args.content },
+      await db.orm.public.UserFile.create({
+        ...args.key,
+        revision: 1,
+        contentHash: args.contentHash,
+        content: args.content,
       })
     } catch (failure) {
-      if (!isUniqueViolation(failure, ['userId', 'tree', 'path'])) throw failure
+      if (!isUniqueViolation(failure) || violatedConstraint(failure) !== USER_FILE_KEY_CONSTRAINT)
+        throw failure
       throw await this.currentConflict({ key: args.key })
     }
   }
@@ -204,17 +209,17 @@ export class UserFilesService {
     if (args.currentRevision !== args.baseRevision) {
       throw conflictOf({ revision: args.currentRevision, contentHash: args.currentHash })
     }
-    const { count } = await db.userFile.updateMany({
-      where: { ...args.key, revision: args.baseRevision },
-      data: { ...args.data, revision: args.baseRevision + 1 },
-    })
+    const count = await db.orm.public.UserFile.where({
+      ...args.key,
+      revision: args.baseRevision,
+    }).updateAndCount({ ...args.data, revision: args.baseRevision + 1 })
     if (count === 0) throw await this.currentConflict({ key: args.key })
   }
 
   private async currentConflict(args: {
     key: { userId: string; tree: string; path: string }
   }): Promise<ConflictException> {
-    const current = await db.userFile.findUnique({ where: { userId_tree_path: args.key } })
+    const current = await db.orm.public.UserFile.first(args.key)
     return conflictOf({ revision: current?.revision ?? 0, contentHash: current?.contentHash ?? '' })
   }
 }

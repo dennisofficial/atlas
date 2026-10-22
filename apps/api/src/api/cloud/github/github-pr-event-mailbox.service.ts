@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { db, type GithubPrEventModel } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
@@ -16,8 +16,8 @@ export class GithubPrEventMailboxService {
     private readonly wake: GithubSandboxWakeService,
   ) {
     this.fanout.onEventDelivered(({ ackId }) => {
-      void db.githubPrEvent
-        .updateMany({ where: { id: ackId, deliveredAt: null }, data: { deliveredAt: new Date() } })
+      void db.orm.public.GithubPrEvent.where({ id: ackId, deliveredAt: null })
+        .updateAndCount({ deliveredAt: new Date() })
         .catch(() => undefined)
     })
   }
@@ -30,14 +30,12 @@ export class GithubPrEventMailboxService {
     payload: GithubPrEventPayload
   }): Promise<void> {
     for (const userId of args.userIds) {
-      const row = await db.githubPrEvent.create({
-        data: {
-          userId,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-          kind: args.kind,
-          payload: args.payload,
-        },
+      const row = await db.orm.public.GithubPrEvent.create({
+        userId,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+        kind: args.kind,
+        payload: args.payload,
       })
       this.fanout.pushEvent({
         userIds: [userId],
@@ -57,21 +55,19 @@ export class GithubPrEventMailboxService {
    * rows still null, so a second stream racing the replay does not deliver the same row twice.
    */
   async replayUndelivered(args: { userId: string }): Promise<GithubPrEventDto[]> {
-    const rows = await db.githubPrEvent.findMany({
-      where: { userId: args.userId, deliveredAt: null },
-      orderBy: { createdAt: 'asc' },
-    })
+    const rows = await db.orm.public.GithubPrEvent.where({ userId: args.userId, deliveredAt: null })
+      .orderBy((event) => event.createdAt.asc())
+      .all()
     if (rows.length === 0) return []
 
-    await db.githubPrEvent.updateMany({
-      where: { userId: args.userId, deliveredAt: null, id: { in: rows.map((row) => row.id) } },
-      data: { deliveredAt: new Date() },
-    })
+    await db.orm.public.GithubPrEvent.where({ userId: args.userId, deliveredAt: null })
+      .where((event) => event.id.in(rows.map((row) => row.id)))
+      .updateAndCount({ deliveredAt: new Date() })
     return rows.map(eventDtoOf)
   }
 }
 
-export function eventDtoOf(row: GithubPrEventModel): GithubPrEventDto {
+export function eventDtoOf(row: Row<'GithubPrEvent'>): GithubPrEventDto {
   return {
     id: row.id,
     repoFullName: row.repoFullName,

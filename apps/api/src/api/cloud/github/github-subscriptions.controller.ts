@@ -44,9 +44,7 @@ export class GithubSubscriptionsController {
       repoFullName: body.repoFullName,
       ...(body.prNumber === undefined ? {} : { prNumber: body.prNumber }),
       ...(body.branch === undefined ? {} : { branch: body.branch }),
-      ...(request.sandbox === undefined
-        ? {}
-        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
+      ...(request.sandbox === undefined ? {} : { threadId: request.sandbox.threadId }),
     })
   }
 
@@ -82,9 +80,7 @@ export class GithubSubscriptionsController {
     return this.subscriptions.heartbeat({
       userId: userIdOf(request),
       subscriptionId: id,
-      ...(request.sandbox === undefined
-        ? {}
-        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
+      ...(request.sandbox === undefined ? {} : { threadId: request.sandbox.threadId }),
     })
   }
 }

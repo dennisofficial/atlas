@@ -16,18 +16,14 @@ import { runtimeCheckpointSchema } from '@dltech/atlas-wire'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import { db } from '../../../db'
+import { db, or, type Row } from '@dltech/atlas-db'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { hashSessionToken } from './sandbox-tokens'
 import { userIdOf } from '../sessions/session-user'
 
-const CHECKPOINT_SELECT = {
-  userId: true,
-  runtimeCheckpoint: true,
-  runtimeCheckpointRevision: true,
-} as const
+const CHECKPOINT_COLUMNS = ['userId', 'runtimeCheckpoint', 'runtimeCheckpointRevision'] as const
 
 interface RuntimeCheckpointDto {
   checkpoint: RuntimeCheckpoint | null
@@ -42,10 +38,9 @@ export class SandboxCheckpointController {
     @Req() request: AuthenticatedRequest,
     @Param('threadId') threadId: string,
   ): Promise<RuntimeCheckpointDto> {
-    const row = await db.cloudSandbox.findFirst({
-      where: { threadId, userId: userIdOf(request) },
-      select: CHECKPOINT_SELECT,
-    })
+    const row = await db.orm.public.CloudSandbox.where({ threadId, userId: userIdOf(request) })
+      .select(...CHECKPOINT_COLUMNS)
+      .first()
     if (row === null) throw new NotFoundException('sandbox not found')
     return {
       checkpoint: storedCheckpointOf({
@@ -75,28 +70,27 @@ export class SandboxCheckpointController {
 
     const token = checkpointBearerOf(request)
     if (token === undefined) throw new UnauthorizedException('a sandbox session token is required')
-    const updated = await db.cloudSandbox.updateMany({
-      where: {
-        threadId,
-        userId: sandbox.userId,
-        tokenHash: hashSessionToken(token),
-        OR: [
-          { runtimeCheckpointRevision: null },
-          { runtimeCheckpointRevision: { lt: parsed.data.revision } },
-        ],
-      },
-      data: {
-        runtimeCheckpoint: JSON.parse(JSON.stringify(parsed.data)) as object,
-        runtimeCheckpointRevision: parsed.data.revision,
-        updatedAt: new Date().toISOString(),
-      },
+    const revision = parsed.data.revision
+    const updated = await db.orm.public.CloudSandbox.where({
+      threadId,
+      userId: sandbox.userId,
+      tokenHash: hashSessionToken(token),
     })
-    if (updated.count === 1) return { checkpoint: parsed.data }
+      .where((row) =>
+        or(row.runtimeCheckpointRevision.isNull(), row.runtimeCheckpointRevision.lt(revision)),
+      )
+      .updateAndCount({
+        runtimeCheckpoint: JSON.parse(
+          JSON.stringify(parsed.data),
+        ) as Row<'CloudSandbox'>['runtimeCheckpoint'],
+        runtimeCheckpointRevision: revision,
+        updatedAt: new Date(),
+      })
+    if (updated === 1) return { checkpoint: parsed.data }
 
-    const stored = await db.cloudSandbox.findFirst({
-      where: { threadId, userId: sandbox.userId },
-      select: CHECKPOINT_SELECT,
-    })
+    const stored = await db.orm.public.CloudSandbox.where({ threadId, userId: sandbox.userId })
+      .select(...CHECKPOINT_COLUMNS)
+      .first()
     if (stored === null) throw new NotFoundException('sandbox not found')
     return {
       checkpoint: storedCheckpointOf({

@@ -1,0 +1,15 @@
+// use prisma-8
+model SshSigningKey {
+  id               String               @id @onCreate(cuid(2))
+  userId           String
+  publicKey        String
+  sealedPrivateKey String
+  githubKeyId      BigInt
+  userName         String
+  userEmail        String
+  createdAt        TimestamptzJsDate(3) @default(now())
+  updatedAt        TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId], map: "SshSigningKey_userId_key")
+}

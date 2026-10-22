@@ -1,10 +1,11 @@
 import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
+import { seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { provisioningFakeDb } from '../../../../test/sandbox-provisioning-fake-db'
 import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
 import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
@@ -12,28 +13,36 @@ import { SandboxProvisioningService } from './sandbox-provisioning.service'
 import type { ServeSendArgs } from './serve-send'
 import { ThreadMessagesService } from './thread-messages.service'
 
-export const fake = provisioningFakeDb()
-
 export const CREDENTIALS = { token: 'ws-token', teamId: 'team-ws', projectId: 'vcl-proj' }
 
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? 'b'.repeat(64) : undefined),
 } as unknown as EnvService)
 
-export function seedThread(
+export async function seedThread(
   partial: { projectId?: string | null; modelRef?: string | null } = {},
-): void {
-  fake.threads.push({
+): Promise<void> {
+  await seedUser({ db, id: 'usr-1' })
+  for (const id of ['prj-1', 'prj-9']) {
+    await db.orm.public.Project.create({ id, name: id, ownerUserId: 'usr-1', createdById: 'usr-1' })
+  }
+  const projectId = partial.projectId === undefined ? 'prj-1' : partial.projectId
+  await seedThreadRow({
+    db,
     id: 'thr-1',
     userId: 'usr-1',
-    head: 0,
-    createdAt: '2026-10-21T00:00:00.000Z',
-    updatedAt: '2026-10-21T00:00:00.000Z',
-    modelRef: partial.modelRef ?? null,
-    executionLocation: null,
-    projectId: partial.projectId === undefined ? 'prj-1' : partial.projectId,
+    ...(projectId === null ? {} : { projectId }),
   })
+  if (partial.modelRef !== undefined && partial.modelRef !== null) {
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ modelRef: partial.modelRef })
+  }
 }
+
+export const sandboxRows = () => db.orm.public.CloudSandbox.all()
+
+export const threadRow = () => db.orm.public.Thread.first({ id: 'thr-1' })
+
+export const bootEvents = () => db.orm.public.Event.where({ type: 'sandbox-boot-step' }).all()
 
 export function fakeBoot(options: { held?: Promise<void>; failWith?: Error } = {}): {
   boot: SandboxWakeBoot

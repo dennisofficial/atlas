@@ -1,0 +1,2084 @@
+[
+  {
+    "id": "dropConstraint.GithubSubscription.GithubSubscription_threadId_fkey",
+    "label": "Drop constraint \"GithubSubscription_threadId_fkey\" on \"GithubSubscription\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GithubSubscription_threadId_fkey",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_threadId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"GithubSubscription_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" DROP CONSTRAINT \"GithubSubscription_threadId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"GithubSubscription_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.CloudSandbox.CloudSandbox_threadId_key",
+    "label": "Drop index \"CloudSandbox_threadId_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CloudSandbox_threadId_key",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CloudSandbox_threadId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CloudSandbox_threadId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"CloudSandbox_threadId_key\"",
+        "sql": "DROP INDEX \"public\".\"CloudSandbox_threadId_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CloudSandbox_threadId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CloudSandbox_threadId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.CloudSetting.CloudSetting_userId_key_key",
+    "label": "Drop index \"CloudSetting_userId_key_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CloudSetting_userId_key_key",
+        "table": "CloudSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CloudSetting_userId_key_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CloudSetting_userId_key_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"CloudSetting_userId_key_key\"",
+        "sql": "DROP INDEX \"public\".\"CloudSetting_userId_key_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CloudSetting_userId_key_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CloudSetting_userId_key_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Event.Event_threadId_contextSlot_contextKey_contextDigest_key",
+    "label": "Drop index \"Event_threadId_contextSlot_contextKey_contextDigest_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_threadId_contextSlot_contextKey_contextDigest_key",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_threadId_contextSlot_contextKey_contextDigest_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Event_threadId_contextSlot_contextKey_contextDigest_key\"",
+        "sql": "DROP INDEX \"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_threadId_contextSlot_contextKey_contextDigest_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_threadId_contextSlot_contextKey_contextDigest_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Event.Event_threadId_seq_key",
+    "label": "Drop index \"Event_threadId_seq_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_threadId_seq_key",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_threadId_seq_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_threadId_seq_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Event_threadId_seq_key\"",
+        "sql": "DROP INDEX \"public\".\"Event_threadId_seq_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_threadId_seq_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_threadId_seq_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubConnection.GithubConnection_userId_key",
+    "label": "Drop index \"GithubConnection_userId_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubConnection_userId_key",
+        "table": "GithubConnection"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubConnection_userId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubConnection_userId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubConnection_userId_key\"",
+        "sql": "DROP INDEX \"public\".\"GithubConnection_userId_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubConnection_userId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubConnection_userId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubSubscription.GithubSubscription_userId_repoFullName_branch_key",
+    "label": "Drop index \"GithubSubscription_userId_repoFullName_branch_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubSubscription_userId_repoFullName_branch_key",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubSubscription_userId_repoFullName_branch_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubSubscription_userId_repoFullName_branch_key\"",
+        "sql": "DROP INDEX \"public\".\"GithubSubscription_userId_repoFullName_branch_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubSubscription_userId_repoFullName_branch_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubSubscription_userId_repoFullName_branch_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.LocalPodLease.LocalPodLease_tokenHash_key",
+    "label": "Drop index \"LocalPodLease_tokenHash_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "LocalPodLease_tokenHash_key",
+        "table": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"LocalPodLease_tokenHash_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodLease_tokenHash_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"LocalPodLease_tokenHash_key\"",
+        "sql": "DROP INDEX \"public\".\"LocalPodLease_tokenHash_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"LocalPodLease_tokenHash_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodLease_tokenHash_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.LocalPodLease.LocalPodLease_userId_threadId_key",
+    "label": "Drop index \"LocalPodLease_userId_threadId_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "LocalPodLease_userId_threadId_key",
+        "table": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"LocalPodLease_userId_threadId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodLease_userId_threadId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"LocalPodLease_userId_threadId_key\"",
+        "sql": "DROP INDEX \"public\".\"LocalPodLease_userId_threadId_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"LocalPodLease_userId_threadId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodLease_userId_threadId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.McpServerConfig.McpServerConfig_userId_name_key",
+    "label": "Drop index \"McpServerConfig_userId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "McpServerConfig_userId_name_key",
+        "table": "McpServerConfig"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"McpServerConfig_userId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServerConfig_userId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"McpServerConfig_userId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"McpServerConfig_userId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"McpServerConfig_userId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"McpServerConfig_userId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Memory.Memory_userId_scope_project_name_key",
+    "label": "Drop index \"Memory_userId_scope_project_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Memory_userId_scope_project_name_key",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Memory_userId_scope_project_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Memory_userId_scope_project_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Memory_userId_scope_project_name_key\"",
+        "sql": "DROP INDEX \"public\".\"Memory_userId_scope_project_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Memory_userId_scope_project_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Memory_userId_scope_project_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Organization.Organization_slug_key",
+    "label": "Drop index \"Organization_slug_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Organization_slug_key",
+        "table": "Organization"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Organization_slug_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Organization_slug_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Organization_slug_key\"",
+        "sql": "DROP INDEX \"public\".\"Organization_slug_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Organization_slug_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Organization_slug_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.ProjectMcpServer.ProjectMcpServer_projectId_name_key",
+    "label": "Drop index \"ProjectMcpServer_projectId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectMcpServer_projectId_name_key",
+        "table": "ProjectMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectMcpServer_projectId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectMcpServer_projectId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"ProjectMcpServer_projectId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"ProjectMcpServer_projectId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectMcpServer_projectId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectMcpServer_projectId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.ProjectSecret.ProjectSecret_projectId_name_key",
+    "label": "Drop index \"ProjectSecret_projectId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectSecret_projectId_name_key",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectSecret_projectId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSecret_projectId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"ProjectSecret_projectId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"ProjectSecret_projectId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectSecret_projectId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSecret_projectId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.ProjectSetting.ProjectSetting_projectId_key_key",
+    "label": "Drop index \"ProjectSetting_projectId_key_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectSetting_projectId_key_key",
+        "table": "ProjectSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectSetting_projectId_key_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSetting_projectId_key_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"ProjectSetting_projectId_key_key\"",
+        "sql": "DROP INDEX \"public\".\"ProjectSetting_projectId_key_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectSetting_projectId_key_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSetting_projectId_key_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.PublishedBundle.PublishedBundle_pathname_key",
+    "label": "Drop index \"PublishedBundle_pathname_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PublishedBundle_pathname_key",
+        "table": "PublishedBundle"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PublishedBundle_pathname_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PublishedBundle_pathname_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"PublishedBundle_pathname_key\"",
+        "sql": "DROP INDEX \"public\".\"PublishedBundle_pathname_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PublishedBundle_pathname_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PublishedBundle_pathname_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.PublishedBundle.PublishedBundle_userId_version_key",
+    "label": "Drop index \"PublishedBundle_userId_version_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PublishedBundle_userId_version_key",
+        "table": "PublishedBundle"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PublishedBundle_userId_version_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PublishedBundle_userId_version_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"PublishedBundle_userId_version_key\"",
+        "sql": "DROP INDEX \"public\".\"PublishedBundle_userId_version_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PublishedBundle_userId_version_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PublishedBundle_userId_version_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.SecretEntry.SecretEntry_userId_name_key",
+    "label": "Drop index \"SecretEntry_userId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SecretEntry_userId_name_key",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SecretEntry_userId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SecretEntry_userId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"SecretEntry_userId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"SecretEntry_userId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SecretEntry_userId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SecretEntry_userId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Session.Session_token_key",
+    "label": "Drop index \"Session_token_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_token_key",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_token_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_token_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Session_token_key\"",
+        "sql": "DROP INDEX \"public\".\"Session_token_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_token_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_token_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.SshSigningKey.SshSigningKey_userId_key",
+    "label": "Drop index \"SshSigningKey_userId_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SshSigningKey_userId_key",
+        "table": "SshSigningKey"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SshSigningKey_userId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SshSigningKey_userId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"SshSigningKey_userId_key\"",
+        "sql": "DROP INDEX \"public\".\"SshSigningKey_userId_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SshSigningKey_userId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SshSigningKey_userId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.User.User_email_key",
+    "label": "Drop index \"User_email_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "User_email_key",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"User_email_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"User_email_key\"",
+        "sql": "DROP INDEX \"public\".\"User_email_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"User_email_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.UserFile.UserFile_userId_tree_path_key",
+    "label": "Drop index \"UserFile_userId_tree_path_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "UserFile_userId_tree_path_key",
+        "table": "UserFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"UserFile_userId_tree_path_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserFile_userId_tree_path_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"UserFile_userId_tree_path_key\"",
+        "sql": "DROP INDEX \"public\".\"UserFile_userId_tree_path_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"UserFile_userId_tree_path_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserFile_userId_tree_path_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.WorkspaceMcpServer.WorkspaceMcpServer_organizationId_name_key",
+    "label": "Drop index \"WorkspaceMcpServer_organizationId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "WorkspaceMcpServer_organizationId_name_key",
+        "table": "WorkspaceMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"WorkspaceMcpServer_organizationId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceMcpServer_organizationId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"WorkspaceMcpServer_organizationId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"WorkspaceMcpServer_organizationId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"WorkspaceMcpServer_organizationId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceMcpServer_organizationId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.WorkspaceSecret.WorkspaceSecret_organizationId_name_key",
+    "label": "Drop index \"WorkspaceSecret_organizationId_name_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "WorkspaceSecret_organizationId_name_key",
+        "table": "WorkspaceSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"WorkspaceSecret_organizationId_name_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSecret_organizationId_name_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"WorkspaceSecret_organizationId_name_key\"",
+        "sql": "DROP INDEX \"public\".\"WorkspaceSecret_organizationId_name_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"WorkspaceSecret_organizationId_name_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSecret_organizationId_name_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.WorkspaceSetting.WorkspaceSetting_organizationId_key_key",
+    "label": "Drop index \"WorkspaceSetting_organizationId_key_key\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "WorkspaceSetting_organizationId_key_key",
+        "table": "WorkspaceSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"WorkspaceSetting_organizationId_key_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSetting_organizationId_key_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"WorkspaceSetting_organizationId_key_key\"",
+        "sql": "DROP INDEX \"public\".\"WorkspaceSetting_organizationId_key_key\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"WorkspaceSetting_organizationId_key_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSetting_organizationId_key_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CloudSandbox.CloudSandbox_threadId_key",
+    "label": "Add unique constraint on \"CloudSandbox\" (threadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CloudSandbox_threadId_key",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CloudSandbox_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CloudSandbox_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ADD CONSTRAINT \"CloudSandbox_threadId_key\" UNIQUE (\"threadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"CloudSandbox_threadId_key\" exists on (threadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_key",
+          "public",
+          "\"public\".\"CloudSandbox\"",
+          "u",
+          "[\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GithubSubscription.GithubSubscription_threadId_fkey",
+    "label": "Add foreign key \"GithubSubscription_threadId_fkey\" on \"GithubSubscription\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GithubSubscription_threadId_fkey",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GithubSubscription_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GithubSubscription_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\"\nADD CONSTRAINT \"GithubSubscription_threadId_fkey\"\nFOREIGN KEY (\"threadId\")\nREFERENCES \"public\".\"CloudSandbox\" (\"threadId\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GithubSubscription_threadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\"",
+          "f",
+          "[\"threadId\"]",
+          "\"public\".\"CloudSandbox\"",
+          "[\"threadId\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CloudSetting.CloudSetting_userId_key_key",
+    "label": "Add unique constraint on \"CloudSetting\" (userId, key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CloudSetting_userId_key_key",
+        "table": "CloudSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CloudSetting_userId_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSetting_userId_key_key",
+          "public",
+          "\"public\".\"CloudSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CloudSetting_userId_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSetting\" ADD CONSTRAINT \"CloudSetting_userId_key_key\" UNIQUE (\"userId\", \"key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"CloudSetting_userId_key_key\" exists on (userId, key)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "CloudSetting_userId_key_key",
+          "public",
+          "\"public\".\"CloudSetting\"",
+          "u",
+          "[\"userId\",\"key\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Event.Event_threadId_contextSlot_contextKey_contextDigest_key",
+    "label": "Add unique constraint on \"Event\" (threadId, contextSlot, contextKey, contextDigest)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Event_threadId_contextSlot_contextKey_contextDigest_key",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Event_threadId_contextSlot_contextKey_contextDigest_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Event_threadId_contextSlot_contextKey_contextDigest_key",
+          "public",
+          "\"public\".\"Event\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Event_threadId_contextSlot_contextKey_contextDigest_key\"",
+        "sql": "ALTER TABLE \"public\".\"Event\" ADD CONSTRAINT \"Event_threadId_contextSlot_contextKey_contextDigest_key\" UNIQUE (\"threadId\", \"contextSlot\", \"contextKey\", \"contextDigest\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Event_threadId_contextSlot_contextKey_contextDigest_key\" exists on (threadId, contextSlot, contextKey, contextDigest)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Event_threadId_contextSlot_contextKey_contextDigest_key",
+          "public",
+          "\"public\".\"Event\"",
+          "u",
+          "[\"threadId\",\"contextSlot\",\"contextKey\",\"contextDigest\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Event.Event_threadId_seq_key",
+    "label": "Add unique constraint on \"Event\" (threadId, seq)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Event_threadId_seq_key",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Event_threadId_seq_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Event_threadId_seq_key",
+          "public",
+          "\"public\".\"Event\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Event_threadId_seq_key\"",
+        "sql": "ALTER TABLE \"public\".\"Event\" ADD CONSTRAINT \"Event_threadId_seq_key\" UNIQUE (\"threadId\", \"seq\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Event_threadId_seq_key\" exists on (threadId, seq)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Event_threadId_seq_key",
+          "public",
+          "\"public\".\"Event\"",
+          "u",
+          "[\"threadId\",\"seq\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GithubConnection.GithubConnection_userId_key",
+    "label": "Add unique constraint on \"GithubConnection\" (userId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubConnection_userId_key",
+        "table": "GithubConnection"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubConnection_userId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubConnection_userId_key",
+          "public",
+          "\"public\".\"GithubConnection\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GithubConnection_userId_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubConnection\" ADD CONSTRAINT \"GithubConnection_userId_key\" UNIQUE (\"userId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GithubConnection_userId_key\" exists on (userId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GithubConnection_userId_key",
+          "public",
+          "\"public\".\"GithubConnection\"",
+          "u",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GithubSubscription.GithubSubscription_userId_repoFullName_branch_key",
+    "label": "Add unique constraint on \"GithubSubscription\" (userId, repoFullName, branch)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubSubscription_userId_repoFullName_branch_key",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_userId_repoFullName_branch_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_key",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GithubSubscription_userId_repoFullName_branch_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ADD CONSTRAINT \"GithubSubscription_userId_repoFullName_branch_key\" UNIQUE (\"userId\", \"repoFullName\", \"branch\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GithubSubscription_userId_repoFullName_branch_key\" exists on (userId, repoFullName, branch)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GithubSubscription_userId_repoFullName_branch_key",
+          "public",
+          "\"public\".\"GithubSubscription\"",
+          "u",
+          "[\"userId\",\"repoFullName\",\"branch\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.LocalPodLease.LocalPodLease_tokenHash_key",
+    "label": "Add unique constraint on \"LocalPodLease\" (tokenHash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "LocalPodLease_tokenHash_key",
+        "table": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"LocalPodLease_tokenHash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "LocalPodLease_tokenHash_key",
+          "public",
+          "\"public\".\"LocalPodLease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"LocalPodLease_tokenHash_key\"",
+        "sql": "ALTER TABLE \"public\".\"LocalPodLease\" ADD CONSTRAINT \"LocalPodLease_tokenHash_key\" UNIQUE (\"tokenHash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"LocalPodLease_tokenHash_key\" exists on (tokenHash)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "LocalPodLease_tokenHash_key",
+          "public",
+          "\"public\".\"LocalPodLease\"",
+          "u",
+          "[\"tokenHash\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.LocalPodLease.LocalPodLease_userId_threadId_key",
+    "label": "Add unique constraint on \"LocalPodLease\" (userId, threadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "LocalPodLease_userId_threadId_key",
+        "table": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"LocalPodLease_userId_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "LocalPodLease_userId_threadId_key",
+          "public",
+          "\"public\".\"LocalPodLease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"LocalPodLease_userId_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"LocalPodLease\" ADD CONSTRAINT \"LocalPodLease_userId_threadId_key\" UNIQUE (\"userId\", \"threadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"LocalPodLease_userId_threadId_key\" exists on (userId, threadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "LocalPodLease_userId_threadId_key",
+          "public",
+          "\"public\".\"LocalPodLease\"",
+          "u",
+          "[\"userId\",\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.McpServerConfig.McpServerConfig_userId_name_key",
+    "label": "Add unique constraint on \"McpServerConfig\" (userId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "McpServerConfig_userId_name_key",
+        "table": "McpServerConfig"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServerConfig_userId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServerConfig_userId_name_key",
+          "public",
+          "\"public\".\"McpServerConfig\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"McpServerConfig_userId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"McpServerConfig\" ADD CONSTRAINT \"McpServerConfig_userId_name_key\" UNIQUE (\"userId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"McpServerConfig_userId_name_key\" exists on (userId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "McpServerConfig_userId_name_key",
+          "public",
+          "\"public\".\"McpServerConfig\"",
+          "u",
+          "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Memory.Memory_userId_scope_project_name_key",
+    "label": "Add unique constraint on \"Memory\" (userId, scope, project, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Memory_userId_scope_project_name_key",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Memory_userId_scope_project_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_project_name_key",
+          "public",
+          "\"public\".\"Memory\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Memory_userId_scope_project_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Memory\" ADD CONSTRAINT \"Memory_userId_scope_project_name_key\" UNIQUE (\"userId\", \"scope\", \"project\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Memory_userId_scope_project_name_key\" exists on (userId, scope, project, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_project_name_key",
+          "public",
+          "\"public\".\"Memory\"",
+          "u",
+          "[\"userId\",\"scope\",\"project\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Organization.Organization_slug_key",
+    "label": "Add unique constraint on \"Organization\" (slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Organization_slug_key",
+        "table": "Organization"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Organization_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Organization_slug_key",
+          "public",
+          "\"public\".\"Organization\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Organization_slug_key\"",
+        "sql": "ALTER TABLE \"public\".\"Organization\" ADD CONSTRAINT \"Organization_slug_key\" UNIQUE (\"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Organization_slug_key\" exists on (slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Organization_slug_key",
+          "public",
+          "\"public\".\"Organization\"",
+          "u",
+          "[\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectMcpServer.ProjectMcpServer_projectId_name_key",
+    "label": "Add unique constraint on \"ProjectMcpServer\" (projectId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectMcpServer_projectId_name_key",
+        "table": "ProjectMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectMcpServer_projectId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectMcpServer_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectMcpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectMcpServer_projectId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectMcpServer\" ADD CONSTRAINT \"ProjectMcpServer_projectId_name_key\" UNIQUE (\"projectId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectMcpServer_projectId_name_key\" exists on (projectId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectMcpServer_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectMcpServer\"",
+          "u",
+          "[\"projectId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectSecret.ProjectSecret_projectId_name_key",
+    "label": "Add unique constraint on \"ProjectSecret\" (projectId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectSecret_projectId_name_key",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectSecret_projectId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectSecret_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectSecret_projectId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\" ADD CONSTRAINT \"ProjectSecret_projectId_name_key\" UNIQUE (\"projectId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectSecret_projectId_name_key\" exists on (projectId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectSecret_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectSecret\"",
+          "u",
+          "[\"projectId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectSetting.ProjectSetting_projectId_key_key",
+    "label": "Add unique constraint on \"ProjectSetting\" (projectId, key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectSetting_projectId_key_key",
+        "table": "ProjectSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectSetting_projectId_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectSetting_projectId_key_key",
+          "public",
+          "\"public\".\"ProjectSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectSetting_projectId_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSetting\" ADD CONSTRAINT \"ProjectSetting_projectId_key_key\" UNIQUE (\"projectId\", \"key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectSetting_projectId_key_key\" exists on (projectId, key)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectSetting_projectId_key_key",
+          "public",
+          "\"public\".\"ProjectSetting\"",
+          "u",
+          "[\"projectId\",\"key\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.PublishedBundle.PublishedBundle_pathname_key",
+    "label": "Add unique constraint on \"PublishedBundle\" (pathname)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PublishedBundle_pathname_key",
+        "table": "PublishedBundle"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PublishedBundle_pathname_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PublishedBundle_pathname_key",
+          "public",
+          "\"public\".\"PublishedBundle\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"PublishedBundle_pathname_key\"",
+        "sql": "ALTER TABLE \"public\".\"PublishedBundle\" ADD CONSTRAINT \"PublishedBundle_pathname_key\" UNIQUE (\"pathname\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"PublishedBundle_pathname_key\" exists on (pathname)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "PublishedBundle_pathname_key",
+          "public",
+          "\"public\".\"PublishedBundle\"",
+          "u",
+          "[\"pathname\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.PublishedBundle.PublishedBundle_userId_version_key",
+    "label": "Add unique constraint on \"PublishedBundle\" (userId, version)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PublishedBundle_userId_version_key",
+        "table": "PublishedBundle"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PublishedBundle_userId_version_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PublishedBundle_userId_version_key",
+          "public",
+          "\"public\".\"PublishedBundle\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"PublishedBundle_userId_version_key\"",
+        "sql": "ALTER TABLE \"public\".\"PublishedBundle\" ADD CONSTRAINT \"PublishedBundle_userId_version_key\" UNIQUE (\"userId\", \"version\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"PublishedBundle_userId_version_key\" exists on (userId, version)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "PublishedBundle_userId_version_key",
+          "public",
+          "\"public\".\"PublishedBundle\"",
+          "u",
+          "[\"userId\",\"version\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.SecretEntry.SecretEntry_userId_name_key",
+    "label": "Add unique constraint on \"SecretEntry\" (userId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "SecretEntry_userId_name_key",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"SecretEntry_userId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SecretEntry_userId_name_key",
+          "public",
+          "\"public\".\"SecretEntry\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"SecretEntry_userId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\" ADD CONSTRAINT \"SecretEntry_userId_name_key\" UNIQUE (\"userId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"SecretEntry_userId_name_key\" exists on (userId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "SecretEntry_userId_name_key",
+          "public",
+          "\"public\".\"SecretEntry\"",
+          "u",
+          "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Session.Session_token_key",
+    "label": "Add unique constraint on \"Session\" (token)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Session_token_key",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Session_token_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Session_token_key\"",
+        "sql": "ALTER TABLE \"public\".\"Session\" ADD CONSTRAINT \"Session_token_key\" UNIQUE (\"token\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Session_token_key\" exists on (token)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"Session\"",
+          "u",
+          "[\"token\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.SshSigningKey.SshSigningKey_userId_key",
+    "label": "Add unique constraint on \"SshSigningKey\" (userId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "SshSigningKey_userId_key",
+        "table": "SshSigningKey"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"SshSigningKey_userId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SshSigningKey_userId_key",
+          "public",
+          "\"public\".\"SshSigningKey\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"SshSigningKey_userId_key\"",
+        "sql": "ALTER TABLE \"public\".\"SshSigningKey\" ADD CONSTRAINT \"SshSigningKey_userId_key\" UNIQUE (\"userId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"SshSigningKey_userId_key\" exists on (userId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "SshSigningKey_userId_key",
+          "public",
+          "\"public\".\"SshSigningKey\"",
+          "u",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.User.User_email_key",
+    "label": "Add unique constraint on \"User\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "User_email_key",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"User_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"User_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD CONSTRAINT \"User_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"User_email_key\" exists on (email)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\"",
+          "u",
+          "[\"email\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.UserFile.UserFile_userId_tree_path_key",
+    "label": "Add unique constraint on \"UserFile\" (userId, tree, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "UserFile_userId_tree_path_key",
+        "table": "UserFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserFile_userId_tree_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFile_userId_tree_path_key",
+          "public",
+          "\"public\".\"UserFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"UserFile_userId_tree_path_key\"",
+        "sql": "ALTER TABLE \"public\".\"UserFile\" ADD CONSTRAINT \"UserFile_userId_tree_path_key\" UNIQUE (\"userId\", \"tree\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"UserFile_userId_tree_path_key\" exists on (userId, tree, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "UserFile_userId_tree_path_key",
+          "public",
+          "\"public\".\"UserFile\"",
+          "u",
+          "[\"userId\",\"tree\",\"path\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.WorkspaceMcpServer.WorkspaceMcpServer_organizationId_name_key",
+    "label": "Add unique constraint on \"WorkspaceMcpServer\" (organizationId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "WorkspaceMcpServer_organizationId_name_key",
+        "table": "WorkspaceMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"WorkspaceMcpServer_organizationId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "WorkspaceMcpServer_organizationId_name_key",
+          "public",
+          "\"public\".\"WorkspaceMcpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"WorkspaceMcpServer_organizationId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"WorkspaceMcpServer\" ADD CONSTRAINT \"WorkspaceMcpServer_organizationId_name_key\" UNIQUE (\"organizationId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"WorkspaceMcpServer_organizationId_name_key\" exists on (organizationId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "WorkspaceMcpServer_organizationId_name_key",
+          "public",
+          "\"public\".\"WorkspaceMcpServer\"",
+          "u",
+          "[\"organizationId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.WorkspaceSecret.WorkspaceSecret_organizationId_name_key",
+    "label": "Add unique constraint on \"WorkspaceSecret\" (organizationId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "WorkspaceSecret_organizationId_name_key",
+        "table": "WorkspaceSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"WorkspaceSecret_organizationId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "WorkspaceSecret_organizationId_name_key",
+          "public",
+          "\"public\".\"WorkspaceSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"WorkspaceSecret_organizationId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"WorkspaceSecret\" ADD CONSTRAINT \"WorkspaceSecret_organizationId_name_key\" UNIQUE (\"organizationId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"WorkspaceSecret_organizationId_name_key\" exists on (organizationId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "WorkspaceSecret_organizationId_name_key",
+          "public",
+          "\"public\".\"WorkspaceSecret\"",
+          "u",
+          "[\"organizationId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.WorkspaceSetting.WorkspaceSetting_organizationId_key_key",
+    "label": "Add unique constraint on \"WorkspaceSetting\" (organizationId, key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "WorkspaceSetting_organizationId_key_key",
+        "table": "WorkspaceSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"WorkspaceSetting_organizationId_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "WorkspaceSetting_organizationId_key_key",
+          "public",
+          "\"public\".\"WorkspaceSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"WorkspaceSetting_organizationId_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"WorkspaceSetting\" ADD CONSTRAINT \"WorkspaceSetting_organizationId_key_key\" UNIQUE (\"organizationId\", \"key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"WorkspaceSetting_organizationId_key_key\" exists on (organizationId, key)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "WorkspaceSetting_organizationId_key_key",
+          "public",
+          "\"public\".\"WorkspaceSetting\"",
+          "u",
+          "[\"organizationId\",\"key\"]"
+        ]
+      }
+    ]
+  }
+]

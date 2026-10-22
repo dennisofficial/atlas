@@ -1,5 +1,8 @@
 import { spawn } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
+import { dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+const DB_PACKAGE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'db')
 
 const DEFAULT_ATTEMPTS = 3
 const DEFAULT_BACKOFF_MS = 20_000
@@ -16,7 +19,7 @@ export async function migrateDeployWithRetry({
     if (exitCode === 0) return 0
     if (attempt < attempts) {
       log(
-        `prisma migrate deploy exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`,
+        `prisma db migrate exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`,
       )
       await sleep(backoffMs)
     }
@@ -24,9 +27,12 @@ export async function migrateDeployWithRetry({
   return 1
 }
 
-function runPrismaMigrateDeploy() {
+function runPrismaDbMigrate() {
   return new Promise((resolve) => {
-    const child = spawn('prisma', ['migrate', 'deploy'], { stdio: 'inherit' })
+    const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate'], {
+      cwd: DB_PACKAGE,
+      stdio: 'inherit',
+    })
     child.on('error', () => resolve(1))
     child.on('close', (code) => resolve(code ?? 1))
   })
@@ -37,7 +43,7 @@ const isMain =
 if (isMain) {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   process.exitCode = await migrateDeployWithRetry({
-    run: runPrismaMigrateDeploy,
+    run: runPrismaDbMigrate,
     sleep,
     log: console.error,
   })

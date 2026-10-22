@@ -3,8 +3,7 @@ import { randomBytes } from 'node:crypto'
 
 import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
-import { db } from '../../../db'
-import { Prisma } from '../../../generated/prisma/client'
+import { db, type Row } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
@@ -15,7 +14,6 @@ import {
 } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
-import type { CloudSandboxModel } from '../../../db'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
@@ -33,8 +31,8 @@ type WakeTarget = {
   threadId: string
   sandbox: SandboxLifecycleColumns & {
     name: string
-    lastActivityAt: string
-    wakeFailedAt: string | null
+    lastActivityAt: Date
+    wakeFailedAt: Date | null
   }
 }
 
@@ -112,17 +110,16 @@ export class GithubSandboxWakeService {
     repoFullName: string
     prNumber: number
   }): Promise<void> {
-    const subscriptions = await db.githubSubscription.findMany({
-      where: {
-        userId: args.userId,
-        repoFullName: args.repoFullName,
-        prNumber: args.prNumber,
-        threadId: { not: null },
-      },
-      include: { sandbox: true },
+    const subscriptions = await db.orm.public.GithubSubscription.where({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      prNumber: args.prNumber,
     })
-    const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS).toISOString()
-    const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS).toISOString()
+      .where((subscription) => subscription.threadId.isNotNull())
+      .include('sandbox')
+      .all()
+    const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
+    const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS)
     const targets = subscriptions
       .filter(
         (subscription): subscription is typeof subscription & { threadId: string } =>
@@ -136,8 +133,9 @@ export class GithubSandboxWakeService {
       .filter(
         (target) =>
           wakeableOf(target.sandbox) &&
-          target.sandbox.lastActivityAt > wakeCutoff &&
-          (target.sandbox.wakeFailedAt === null || target.sandbox.wakeFailedAt < backoffCutoff),
+          target.sandbox.lastActivityAt.getTime() > wakeCutoff.getTime() &&
+          (target.sandbox.wakeFailedAt === null ||
+            target.sandbox.wakeFailedAt.getTime() < backoffCutoff.getTime()),
       )
     const seen = new Set<string>()
     const immediateBoots: Promise<void>[] = []
@@ -177,22 +175,19 @@ export class GithubSandboxWakeService {
   }
 
   private async claimAndBoot(args: { threadId: string }): Promise<void> {
-    const row = await db.cloudSandbox.findUnique({ where: { threadId: args.threadId } })
+    const row = await db.orm.public.CloudSandbox.first({ threadId: args.threadId })
     if (row === null || !wakeableOf(row)) {
       this.logger.log(`wake of thread ${args.threadId} skipped — the row is no longer parked`)
       return
     }
-    const wakeClaim = new Date().toISOString()
-    const claimed = await db.cloudSandbox.updateMany({
-      where: {
-        threadId: args.threadId,
-        wakeClaim: row.wakeClaim,
-        runtimeCheckpointRevision: row.runtimeCheckpointRevision,
-        state: row.state,
-      },
-      data: { wakeClaim, updatedAt: wakeClaim },
-    })
-    if (claimed.count === 0) {
+    const wakeClaim = new Date()
+    const claimed = await db.orm.public.CloudSandbox.where({
+      threadId: args.threadId,
+      wakeClaim: row.wakeClaim,
+      runtimeCheckpointRevision: row.runtimeCheckpointRevision,
+      state: row.state,
+    }).updateAndCount({ wakeClaim, updatedAt: wakeClaim })
+    if (claimed === 0) {
       this.logger.log(
         `wake of thread ${args.threadId} lost its claim — the row moved underneath it`,
       )
@@ -206,7 +201,7 @@ export class GithubSandboxWakeService {
     }
   }
 
-  private async bootClaimed(args: { row: CloudSandboxModel }): Promise<void> {
+  private async bootClaimed(args: { row: Row<'CloudSandbox'> }): Promise<void> {
     const { row } = args
     const freshToken = randomBytes(32).toString('hex')
     const { workspaceOwned, ...credentials } = await this.credentials.forThread({
@@ -226,16 +221,13 @@ export class GithubSandboxWakeService {
       resumeToken: this.unsealedToken(row),
       onFreshSandbox: () => this.adoptFreshSandbox({ threadId: row.threadId, token: freshToken }),
     })
-    const at = new Date().toISOString()
-    await db.cloudSandbox.update({
-      where: { threadId: row.threadId },
-      data: {
-        state: ESandboxState.Running,
-        serveUrl,
-        wakeFailedAt: null,
-        lastActivityAt: at,
-        updatedAt: at,
-      },
+    const at = new Date()
+    await db.orm.public.CloudSandbox.where({ threadId: row.threadId }).update({
+      state: ESandboxState.Running,
+      serveUrl,
+      wakeFailedAt: null,
+      lastActivityAt: at,
+      updatedAt: at,
     })
     this.logger.log(
       `woke sandbox ${row.name} for thread ${row.threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
@@ -244,19 +236,18 @@ export class GithubSandboxWakeService {
 
   /** The prior sandbox's lifecycle record died with it; the fresh serve mirrors from revision 1. */
   private async adoptFreshSandbox(args: { threadId: string; token: string }): Promise<void> {
-    await db.cloudSandbox.update({
-      where: { threadId: args.threadId },
-      data: {
-        tokenHash: hashSessionToken(args.token),
-        sealedToken: this.cipher.encrypt(args.token),
-        runtimeCheckpoint: Prisma.DbNull,
-        runtimeCheckpointRevision: null,
-        updatedAt: new Date().toISOString(),
-      },
+    await db.orm.public.CloudSandbox.where({ threadId: args.threadId }).update({
+      tokenHash: hashSessionToken(args.token),
+      sealedToken: this.cipher.encrypt(args.token),
+      runtimeCheckpoint: null,
+      runtimeCheckpointRevision: null,
+      updatedAt: new Date(),
     })
   }
 
-  private unsealedToken(row: Pick<CloudSandboxModel, 'name' | 'sealedToken'>): string | undefined {
+  private unsealedToken(
+    row: Pick<Row<'CloudSandbox'>, 'name' | 'sealedToken'>,
+  ): string | undefined {
     if (row.sealedToken === null) return undefined
     try {
       return this.cipher.decrypt(row.sealedToken)
@@ -268,11 +259,11 @@ export class GithubSandboxWakeService {
     }
   }
 
-  private async releaseClaim(args: { threadId: string; wakeClaim: string }): Promise<void> {
-    const at = new Date().toISOString()
-    await db.cloudSandbox.updateMany({
-      where: { threadId: args.threadId, wakeClaim: args.wakeClaim },
-      data: { wakeClaim: null, wakeFailedAt: at, updatedAt: at },
-    })
+  private async releaseClaim(args: { threadId: string; wakeClaim: Date }): Promise<void> {
+    const at = new Date()
+    await db.orm.public.CloudSandbox.where({
+      threadId: args.threadId,
+      wakeClaim: args.wakeClaim,
+    }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
   }
 }

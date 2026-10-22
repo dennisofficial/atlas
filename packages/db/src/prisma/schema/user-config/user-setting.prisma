@@ -1,0 +1,14 @@
+// use prisma-8
+model UserSetting {
+  id        String               @id
+  key       String
+  value     String
+  createdAt TimestamptzJsDate(3) @default(now())
+  updatedAt TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "CloudSetting_userId_key_key")
+
+  @@unique([userId, key], map: "CloudSetting_userId_key_key")
+
+  @@map("CloudSetting")
+}

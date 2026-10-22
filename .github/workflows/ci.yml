@@ -79,6 +79,21 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUN_TEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
+      ATLAS_TEST_DATABASE_URL: postgresql://atlas:atlas@localhost:55441/atlas_test
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_test
+        ports:
+          - 55441:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v7
 
@@ -162,7 +177,7 @@ jobs:
         run: docker run --rm atlas-api-ci node --check scripts/migrate-deploy.mjs
 
       - name: check the image carries the migrate job's tools and the runtime
-        run: docker run --rm atlas-api-ci sh -c 'node --version && npm --version && bun --version && npx --no-install dotenvx --version && npx --no-install prisma --version'
+        run: docker run --rm atlas-api-ci sh -c 'node --version && npm --version && bun --version && npx --no-install dotenvx --version && cd ../../packages/db && bun run --bun prisma --version'
 
       - name: boot the image and probe it
         run: |

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { registerSandboxRow, stampRegistrationMetadata } from './sandbox-claim'
 import { findOrCreateClaimThread } from './sandbox-thread'
@@ -7,8 +7,6 @@ import { hashSessionToken } from './sandbox-tokens'
 import { assertClientTokenShape, assertPublicServeUrl } from './serve-url'
 import { ESandboxState, type SandboxAttachmentDto } from './sandboxes.types'
 import { SANDBOX_REGION } from './vercel-sandbox.client'
-
-const nowIso = (): string => new Date().toISOString()
 
 export type RegisterSandboxArgs = {
   userId: string
@@ -27,7 +25,7 @@ export async function registerSandbox(
   if (args.serveUrl === undefined) throw new BadRequestException('serveUrl is required')
   assertPublicServeUrl(args.serveUrl)
   const tokenHash = hashSessionToken(args.clientToken)
-  const lease = await db.localPodLease.findUnique({ where: { tokenHash }, select: { id: true } })
+  const lease = await db.orm.public.LocalPodLease.where({ tokenHash }).select('id').first()
   if (lease !== null)
     throw new ConflictException('this token is already in use by another credential')
   const thread = await findOrCreateClaimThread({
@@ -48,7 +46,7 @@ export async function registerSandbox(
     name: row.name,
     region: SANDBOX_REGION,
     state: ESandboxState.Running,
-    lastActivityAt: nowIso(),
+    lastActivityAt: new Date().toISOString(),
     contextPending: false,
     token: args.clientToken,
     url: args.serveUrl,

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { db, type GithubPrStateModel } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import {
   dtoOf,
   liveUntilOf,
@@ -38,25 +38,21 @@ export class GithubPollSweeperService {
 
     await this.refreshLiveUntil({ now })
 
-    const repos = await db.githubRepoHook.findMany({ where: { idleSince: null } })
+    const repos = await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
     for (const hook of repos) {
-      const live = await db.githubSubscription.findMany({
-        where: {
-          repoFullName: hook.repoFullName,
-          AND: [subscriptionLiveWhere({ now })],
-        },
-      })
+      const live = await db.orm.public.GithubSubscription.where({ repoFullName: hook.repoFullName })
+        .where(subscriptionLiveWhere({ now }))
+        .all()
       if (live.length === 0) {
-        await db.githubRepoHook.updateMany({
-          where: { repoFullName: hook.repoFullName, idleSince: null },
-          data: { idleSince: now },
-        })
+        await db.orm.public.GithubRepoHook.where({
+          repoFullName: hook.repoFullName,
+          idleSince: null,
+        }).updateAndCount({ idleSince: now })
       }
     }
-
-    const pollBacked = await db.githubSubscription.findMany({
-      where: { pollBacked: true, AND: [subscriptionLiveWhere({ now })] },
-    })
+    const pollBacked = await db.orm.public.GithubSubscription.where({ pollBacked: true })
+      .where(subscriptionLiveWhere({ now }))
+      .all()
     for (const subscription of pollBacked) {
       const prNumber = await this.resolvePrNumber({
         subscriptionId: subscription.id,
@@ -73,22 +69,15 @@ export class GithubPollSweeperService {
       })
     }
 
-    const hookBacked = await db.githubSubscription.findMany({
-      where: {
-        pollBacked: false,
-        prNumber: { not: null },
-        AND: [subscriptionLiveWhere({ now })],
-      },
-    })
+    const hookBacked = await db.orm.public.GithubSubscription.where({ pollBacked: false })
+      .where((subscription) => subscription.prNumber.isNotNull())
+      .where(subscriptionLiveWhere({ now }))
+      .all()
     for (const subscription of hookBacked) {
       if (subscription.prNumber === null) continue
-      const state = await db.githubPrState.findUnique({
-        where: {
-          repoFullName_prNumber: {
-            repoFullName: subscription.repoFullName,
-            prNumber: subscription.prNumber,
-          },
-        },
+      const state = await db.orm.public.GithubPrState.first({
+        repoFullName: subscription.repoFullName,
+        prNumber: subscription.prNumber,
       })
       if (state !== null && now.getTime() - state.updatedAt.getTime() < REANCHOR_AFTER_MS) {
         continue
@@ -107,21 +96,19 @@ export class GithubPollSweeperService {
    * heartbeats. Rows whose liveUntil already covers the same ceiling are untouched.
    */
   private async refreshLiveUntil(args: { now: Date }): Promise<void> {
-    const linked = await db.githubSubscription.findMany({
-      where: { threadId: { not: null } },
-      include: { sandbox: true },
-    })
+    const linked = await db.orm.public.GithubSubscription.where((subscription) =>
+      subscription.threadId.isNotNull(),
+    )
+      .include('sandbox')
+      .all()
     for (const subscription of linked) {
       if (subscription.sandbox === null) continue
       const liveUntil = liveUntilOf({
         expiresAt: subscription.expiresAt,
-        sandboxLastActivityAt: new Date(Date.parse(subscription.sandbox.lastActivityAt)),
+        sandboxLastActivityAt: subscription.sandbox.lastActivityAt,
       })
       if (liveUntil.getTime() <= subscription.liveUntil.getTime()) continue
-      await db.githubSubscription.update({
-        where: { id: subscription.id },
-        data: { liveUntil },
-      })
+      await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
     }
   }
 
@@ -150,9 +137,8 @@ export class GithubPollSweeperService {
     }
     if (found === null) return null
 
-    await db.githubSubscription.update({
-      where: { id: args.subscriptionId },
-      data: { prNumber: found.number },
+    await db.orm.public.GithubSubscription.where({ id: args.subscriptionId }).update({
+      prNumber: found.number,
     })
     return found.number
   }
@@ -169,7 +155,7 @@ export class GithubPollSweeperService {
     let pushed: {
       state: GithubPrStateDto
       routing: GithubBranchRouting
-      row: GithubPrStateModel
+      row: Row<'GithubPrState'>
       prior: PrTransitionSnapshot | null
     }
     try {
@@ -180,16 +166,13 @@ export class GithubPollSweeperService {
         number: args.prNumber,
       })
       const prior = snapshotOf(
-        await db.githubPrState.findUnique({
-          where: {
-            repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-          },
+        await db.orm.public.GithubPrState.first({
+          repoFullName: args.repoFullName,
+          prNumber: args.prNumber,
         }),
       )
-      const row = await db.githubPrState.upsert({
-        where: {
-          repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-        },
+      const row = await db.orm.public.GithubPrState.upsert({
+        conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
         create: {
           repoFullName: args.repoFullName,
           prNumber: args.prNumber,
@@ -212,13 +195,13 @@ export class GithubPollSweeperService {
       throw failure
     }
 
-    const subscribers = await db.githubSubscription.findMany({
-      where: subscriberWhereOf({
+    const subscribers = await db.orm.public.GithubSubscription.where(
+      subscriberWhereOf({
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
         routing: pushed.routing,
       }),
-    })
+    ).all()
     if (subscribers.length === 0) return
 
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]

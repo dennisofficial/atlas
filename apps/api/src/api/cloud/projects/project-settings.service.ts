@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { PROJECT_SETTING_REGISTRY, validateProjectSetting } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { SettingDto } from '../settings/settings.types'
 import { ProjectsService } from './projects.service'
 
@@ -33,10 +33,9 @@ export class ProjectSettingsService {
 
   async list(args: Scope): Promise<SettingDto[]> {
     await this.projects.read(args)
-    const rows = await db.projectSetting.findMany({
-      where: { projectId: args.projectId },
-      orderBy: { key: 'asc' },
-    })
+    const rows = await db.orm.public.ProjectSetting.where({ projectId: args.projectId })
+      .orderBy((row) => row.key.asc())
+      .all()
     return rows.map((row) => ({
       key: row.key,
       value: row.value,
@@ -48,16 +47,18 @@ export class ProjectSettingsService {
     const entries = assertPatch(args.values)
     await this.projects.read(args)
     const { projectId } = args
-    await db.$transaction(
-      entries.map(([key, value]) =>
-        value === null
-          ? db.projectSetting.deleteMany({ where: { projectId, key } })
-          : db.projectSetting.upsert({
-              where: { projectId_key: { projectId, key } },
-              create: { id: `pset_${randomUUID()}`, projectId, key, value },
-              update: { value },
-            }),
-      ),
-    )
+    await db.transaction(async (tx) => {
+      for (const [key, value] of entries) {
+        if (value === null) {
+          await tx.orm.public.ProjectSetting.where({ projectId, key }).deleteAndCount()
+          continue
+        }
+        await tx.orm.public.ProjectSetting.upsert({
+          create: { id: `pset_${randomUUID()}`, projectId, key, value },
+          update: { value },
+          conflictOn: { projectId, key },
+        })
+      }
+    })
   }
 }

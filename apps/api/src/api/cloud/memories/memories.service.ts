@@ -15,8 +15,7 @@ import {
   memorySummarySchema,
 } from '@dltech/atlas-wire'
 import type { EMemoryType, MemoryEntry, MemorySummary } from '@dltech/atlas-wire'
-import type { MemoryModel } from '../../../db'
-import { db } from '../../../db'
+import { db, isUniqueViolation, type Row, type Tx } from '@dltech/atlas-db'
 
 interface MemoryKey {
   userId: string
@@ -43,18 +42,34 @@ function storedKeyOf(args: MemoryKey): StoredKey {
   return { userId: args.userId, scope: args.scope, project: args.project ?? '', name: args.name }
 }
 
-function uniqueKeyOf(key: StoredKey) {
-  return {
-    userId_scope_project_name: {
-      userId: key.userId,
-      scope: key.scope,
-      project: key.project,
-      name: key.name,
-    },
-  }
-}
+const bumpRevisionStatement = (args: { key: StoredKey; fields: MemoryFields }) =>
+  db.raw
+    .sql`UPDATE "Memory" SET description = ${args.fields.description}, type = ${args.fields.type}, body = ${args.fields.body}, revision = revision + 1, "updatedAt" = now() WHERE "userId" = ${args.key.userId} AND scope = ${args.key.scope} AND project = ${args.key.project} AND name = ${args.key.name} RETURNING id`
+    .returnsRow({ id: 'pg/text@1' })
+    .build()
 
-function toSummary(row: MemoryModel): MemorySummary {
+const guardedBodyStatement = (args: {
+  id: string
+  userId: string
+  revision: number
+  body: string
+}) =>
+  db.raw
+    .sql`UPDATE "Memory" SET body = ${args.body}, revision = revision + 1, "updatedAt" = now() WHERE id = ${args.id} AND "userId" = ${args.userId} AND revision = ${args.revision} RETURNING id`
+    .returnsRow({ id: 'pg/text@1' })
+    .build()
+
+const firstOf = ({ tx, key }: { tx: Tx | typeof db; key: StoredKey }) =>
+  tx.orm.public.Memory.first({
+    userId: key.userId,
+    scope: key.scope,
+    project: key.project,
+    name: key.name,
+  })
+
+type MemoryFields = { description: string; type: string; body: string }
+
+function toSummary(row: Row<'Memory'>): MemorySummary {
   return memorySummarySchema.parse({
     scope: row.scope,
     project: row.project === '' ? null : row.project,
@@ -66,7 +81,7 @@ function toSummary(row: MemoryModel): MemorySummary {
   })
 }
 
-function toEntry(row: MemoryModel): MemoryEntry {
+function toEntry(row: Row<'Memory'>): MemoryEntry {
   return memoryEntrySchema.parse({ ...toSummary(row), body: row.body })
 }
 
@@ -93,26 +108,23 @@ function staleRevision(args: { expected: number; current: number }): ConflictExc
 @Injectable()
 export class MemoriesService {
   async list(args: { userId: string; project?: string | undefined }): Promise<MemorySummary[]> {
-    const rows = await db.memory.findMany({
-      where: {
-        userId: args.userId,
-        project: { in: args.project === undefined ? [''] : ['', args.project] },
-      },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const projects = args.project === undefined ? [''] : ['', args.project]
+    const rows = await db.orm.public.Memory.where({ userId: args.userId })
+      .where((memory) => memory.project.in(projects))
+      .orderBy((memory) => memory.updatedAt.desc())
+      .all()
     return rows.map((row) => toSummary(row))
   }
 
   async listAll(args: { userId: string }): Promise<MemorySummary[]> {
-    const rows = await db.memory.findMany({
-      where: { userId: args.userId },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const rows = await db.orm.public.Memory.where({ userId: args.userId })
+      .orderBy((memory) => memory.updatedAt.desc())
+      .all()
     return rows.map((row) => toSummary(row))
   }
 
   async get(args: MemoryKey): Promise<MemoryEntry> {
-    const row = await db.memory.findUnique({ where: uniqueKeyOf(storedKeyOf(args)) })
+    const row = await firstOf({ tx: db, key: storedKeyOf(args) })
     if (row === null) throw new NotFoundException('no such memory')
     return toEntry(row)
   }
@@ -122,20 +134,35 @@ export class MemoriesService {
   ): Promise<MemorySummary> {
     const key = storedKeyOf(args)
     const fields = { description: args.description, type: args.type, body: args.body }
-    const row = await db.memory.upsert({
-      where: uniqueKeyOf(key),
-      create: { ...key, ...fields },
-      update: { ...fields, revision: { increment: 1 } },
-    })
+    const row = await this.bumpOrCreate({ key, fields, retries: 1 })
     return toSummary(row)
+  }
+
+  private async bumpOrCreate(args: {
+    key: StoredKey
+    fields: MemoryFields
+    retries: number
+  }): Promise<Row<'Memory'>> {
+    const bumped = await db.query(bumpRevisionStatement(args))
+    if (bumped.length === 0) {
+      try {
+        return await db.orm.public.Memory.create({ ...args.key, ...args.fields })
+      } catch (error) {
+        if (args.retries === 0 || !isUniqueViolation(error)) throw error
+        return this.bumpOrCreate({ ...args, retries: args.retries - 1 })
+      }
+    }
+    const row = await firstOf({ tx: db, key: args.key })
+    if (row === null) return this.bumpOrCreate({ ...args, retries: args.retries })
+    return row
   }
 
   async edit(
     args: MemoryKey & { old: string; replacement: string; revision: number },
   ): Promise<MemorySummary> {
     const key = storedKeyOf(args)
-    return db.$transaction(async (tx) => {
-      const row = await tx.memory.findUnique({ where: uniqueKeyOf(key) })
+    return db.transaction(async (tx) => {
+      const row = await firstOf({ tx, key })
       if (row === null) throw new NotFoundException('no such memory')
       if (row.revision !== args.revision) {
         throw staleRevision({ expected: args.revision, current: row.revision })
@@ -159,20 +186,25 @@ export class MemoriesService {
           `a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`,
         )
       }
-      const updated = await tx.memory.updateMany({
-        where: { id: row.id, userId: key.userId, revision: row.revision },
-        data: { body, revision: { increment: 1 } },
-      })
-      const fresh = await tx.memory.findUnique({ where: uniqueKeyOf(key) })
+      const updated = await tx.query(
+        guardedBodyStatement({ id: row.id, userId: key.userId, revision: row.revision, body }),
+      )
+      const fresh = await firstOf({ tx, key })
       if (fresh === null) throw new NotFoundException('no such memory')
-      if (updated.count === 0)
+      if (updated.length === 0)
         throw staleRevision({ expected: args.revision, current: fresh.revision })
       return toSummary(fresh)
     })
   }
 
   async remove(args: MemoryKey): Promise<void> {
-    const { count } = await db.memory.deleteMany({ where: storedKeyOf(args) })
+    const key = storedKeyOf(args)
+    const count = await db.orm.public.Memory.where({
+      userId: key.userId,
+      scope: key.scope,
+      project: key.project,
+      name: key.name,
+    }).deleteAndCount()
     if (count === 0) throw new NotFoundException('no such memory')
   }
 }

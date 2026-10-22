@@ -1,13 +1,13 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
-
-mock.module('../../../db', () => ({ db: fake.db }))
 
 import request from 'supertest'
 import { GithubService } from '../github/github.service'
 import { as, buildSessionApp } from '../session-test-app'
-import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
+import { seedSessionUsers, seedWorkspace } from '../web-settings.fake-db'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 import { ProjectResourcesController } from './project-resources.controller'
 import { ProjectResourcesService } from './project-resources.service'
@@ -23,17 +23,13 @@ const BODY = {
 }
 
 describe('project settings and workspace link HTTP surface', () => {
+  useTestDatabase()
   let app: INestApplication
   const http = () => request(app.getHttpServer())
 
   beforeEach(async () => {
-    fake.reset()
-    fake.tables.member.rows.push({
-      id: 'm1',
-      organizationId: 'org-1',
-      userId: 'user-a',
-      role: 'member',
-    })
+    await seedSessionUsers()
+    await seedWorkspace({ id: 'org-1', members: [{ userId: 'user-a', role: 'member' }] })
     app = await buildSessionApp({
       controllers: [ProjectsController, ProjectResourcesController],
       providers: [
@@ -118,7 +114,7 @@ describe('project settings and workspace link HTTP surface', () => {
       .set(as('session-a'))
       .send({ values: { 'model.effort': null } })
       .expect(204)
-    expect(fake.tables.projectSetting.rows).toHaveLength(1)
+    expect(await db.orm.public.ProjectSetting.where((row) => row.id.neq('')).all()).toHaveLength(1)
   })
 
   it('404s another user on project settings', async () => {

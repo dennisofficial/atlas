@@ -1,17 +1,12 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { ensureUsers, repoHookRows, seedRepoHook } from '../../../../test/github-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubHookLifecycleService, HOOK_EVENTS } from './github-hook-lifecycle.service'
 import type { CreateHookResult, GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
-
-const fake = fakeGithubDb()
 
 const CIPHER = {
   encrypt: (plain: string) => `sealed:${plain}`,
@@ -76,23 +71,14 @@ function serviceWith(args: {
   }
 }
 
-function seedHook(overrides: Partial<(typeof fake.repoHooks)[number]> = {}): void {
-  fake.repoHooks.push({
-    repoFullName: 'compai/app',
-    hookId: 101n,
-    secret: 'sealed:secret',
-    createdBy: 'usr-creator',
-    status: 'active',
-    idleSince: null,
-    sweepLeaseUntil: null,
-    createdAt: new Date(),
-    ...overrides,
-  })
-}
+const seedHook = (overrides: Parameters<typeof seedRepoHook>[0] = {}) => seedRepoHook(overrides)
 
 describe('GithubHookLifecycleService', () => {
-  beforeEach(() => fake.reset())
+  useTestDatabase()
 
+  beforeEach(async () => {
+    await ensureUsers('usr_1', 'usr_2', 'usr-creator')
+  })
   it('creates the hook as the subscribing user on the first subscription for a repo', async () => {
     const { service, created } = serviceWith({ tokens: { usr_1: 'ghu_1' } })
 
@@ -100,19 +86,19 @@ describe('GithubHookLifecycleService', () => {
 
     expect(result).toBe('created')
     expect(created).toEqual(['app'])
-    expect(fake.repoHooks).toHaveLength(1)
-    expect(fake.repoHooks[0]).toMatchObject({
+    expect(await repoHookRows()).toHaveLength(1)
+    expect((await repoHookRows())[0]).toMatchObject({
       repoFullName: 'compai/app',
       hookId: 555n,
       createdBy: 'usr_1',
       status: 'active',
     })
-    expect(fake.repoHooks[0]?.secret.startsWith('sealed:')).toBe(true)
+    expect((await repoHookRows())[0]?.secret.startsWith('sealed:')).toBe(true)
   })
 
   it('reuses the existing hook row on later subscribes when github still has it', async () => {
     const { service, created, verified } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
@@ -126,13 +112,13 @@ describe('GithubHookLifecycleService', () => {
       tokens: { usr_2: 'ghu_2' },
       getHook: async () => 'missing',
     })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
     expect(result).toBe('created')
     expect(created).toEqual(['app'])
-    expect(fake.repoHooks[0]).toMatchObject({
+    expect((await repoHookRows())[0]).toMatchObject({
       hookId: 555n,
       createdBy: 'usr_2',
       status: 'active',
@@ -144,7 +130,7 @@ describe('GithubHookLifecycleService', () => {
       tokens: { usr_2: 'ghu_2' },
       getHookEvents: async () => ['pull_request', 'check_suite', 'check_run', 'push'],
     })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
@@ -158,7 +144,7 @@ describe('GithubHookLifecycleService', () => {
       tokens: { usr_2: 'ghu_2' },
       getHookEvents: async () => [...HOOK_EVENTS],
     })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
@@ -171,7 +157,7 @@ describe('GithubHookLifecycleService', () => {
       tokens: { usr_2: 'ghu_2' },
       getHook: async () => 'unauthorized',
     })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
@@ -186,7 +172,7 @@ describe('GithubHookLifecycleService', () => {
         throw new Error('github is down')
       },
     })
-    seedHook()
+    await seedHook()
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
@@ -196,7 +182,7 @@ describe('GithubHookLifecycleService', () => {
 
   it('memoizes the verify for a few minutes instead of hammering github on every resubscribe', async () => {
     const { service, verified } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
-    seedHook()
+    await seedHook()
 
     await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
     await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
@@ -213,7 +199,7 @@ describe('GithubHookLifecycleService', () => {
     const result = await service.ensureHook({ userId: 'usr_1', repoFullName: 'compai/app' })
 
     expect(result).toBe('existing')
-    expect(fake.repoHooks[0]?.hookId).toBe(777n)
+    expect((await repoHookRows())[0]?.hookId).toBe(777n)
   })
 
   it('reports poll-backed when github forbids hook creation', async () => {
@@ -225,20 +211,17 @@ describe('GithubHookLifecycleService', () => {
     const result = await service.ensureHook({ userId: 'usr_1', repoFullName: 'compai/app' })
 
     expect(result).toBe('poll-backed')
-    expect(fake.repoHooks).toHaveLength(0)
+    expect(await repoHookRows()).toHaveLength(0)
   })
 
   it('tolerates a concurrent creator who won the row', async () => {
     const { service } = serviceWith({
       tokens: { usr_1: 'ghu_1' },
-      createHook: async () => ({ outcome: 'created', hookId: 555 }),
+      createHook: async () => {
+        await seedHook()
+        return { outcome: 'created', hookId: 555 }
+      },
     })
-    const { uniqueViolation } = await import('../../../../test/fake-db-support.js')
-    fake.db.githubRepoHook.create = (async () => {
-      seedHook()
-      throw uniqueViolation(['repoFullName'])
-    }) as unknown as typeof fake.db.githubRepoHook.create
-
     const result = await service.ensureHook({ userId: 'usr_1', repoFullName: 'compai/app' })
 
     expect(result).toBe('existing')
@@ -246,12 +229,12 @@ describe('GithubHookLifecycleService', () => {
 
   it('recreates an orphaned hook with the new subscriber as creator', async () => {
     const { service } = serviceWith({ tokens: { usr_2: 'ghu_2' } })
-    seedHook({ status: 'orphaned' })
+    await seedHook({ status: 'orphaned' })
 
     const result = await service.ensureHook({ userId: 'usr_2', repoFullName: 'compai/app' })
 
     expect(result).toBe('created')
-    expect(fake.repoHooks[0]).toMatchObject({
+    expect((await repoHookRows())[0]).toMatchObject({
       hookId: 555n,
       createdBy: 'usr_2',
       status: 'active',
@@ -261,37 +244,37 @@ describe('GithubHookLifecycleService', () => {
 
   it('the sweeper deletes a hook idle for over 24 hours, claimed by lease', async () => {
     const { service, deleted } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({ idleSince: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
+    await seedHook({ idleSince: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
 
     await service.handleSweep()
 
     expect(deleted).toHaveLength(1)
-    expect(fake.repoHooks).toHaveLength(0)
+    expect(await repoHookRows()).toHaveLength(0)
   })
 
   it('the sweeper leaves a hook alone while it still has life', async () => {
     const { service, deleted } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({ idleSince: new Date(Date.now() - 1 * 60 * 60 * 1_000) })
+    await seedHook({ idleSince: new Date(Date.now() - 1 * 60 * 60 * 1_000) })
 
     await service.handleSweep()
 
     expect(deleted).toHaveLength(0)
-    expect(fake.repoHooks).toHaveLength(1)
+    expect(await repoHookRows()).toHaveLength(1)
   })
 
   it('the sweeper marks the hook orphaned when the creator token is dead', async () => {
     const { service, deleted } = serviceWith({ tokens: {} })
-    seedHook({ idleSince: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
+    await seedHook({ idleSince: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
 
     await service.handleSweep()
 
     expect(deleted).toHaveLength(0)
-    expect(fake.repoHooks[0]?.status).toBe('orphaned')
+    expect((await repoHookRows())[0]?.status).toBe('orphaned')
   })
 
   it('a second sweeper cannot claim a hook already leased', async () => {
     const { service, deleted } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({
+    await seedHook({
       idleSince: new Date(Date.now() - 25 * 60 * 60 * 1_000),
       sweepLeaseUntil: new Date(Date.now() + 60_000),
     })
@@ -299,6 +282,6 @@ describe('GithubHookLifecycleService', () => {
     await service.handleSweep()
 
     expect(deleted).toHaveLength(0)
-    expect(fake.repoHooks[0]?.status).toBe('active')
+    expect((await repoHookRows())[0]?.status).toBe('active')
   })
 })
