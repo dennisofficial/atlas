@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common'
+import { ForbiddenException, type INestApplication } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
@@ -169,6 +169,34 @@ describe('GET /v1/sandboxes/self/config', () => {
       await expect(scoped().vercelCredentials({ thread: workspaceThread })).rejects.toMatchObject(
         gapOf(EVercelCredentialGap.WorkspaceCredential),
       )
+    })
+
+    it('refuses a removed member the workspace credential with a 403', async () => {
+      const removed = { userId: 'user-b', organizationId: ORG }
+      const failure = scoped().vercelCredentials({ thread: removed })
+      await expect(failure).rejects.toBeInstanceOf(ForbiddenException)
+      await expect(failure).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('checks membership before reading the workspace credential', async () => {
+      await db.orm.public.WorkspaceVercelCredential.where({ organizationId: ORG }).deleteAndCount()
+      const failure = scoped().vercelCredentials({
+        thread: { userId: 'user-b', organizationId: ORG },
+      })
+      await expect(failure).rejects.toBeInstanceOf(ForbiddenException)
+    })
+
+    it('hands a non-owner member the workspace credential', async () => {
+      await db.orm.public.Member.create({
+        id: 'mem-b',
+        organizationId: ORG,
+        userId: 'user-b',
+        role: 'member',
+        createdAt: new Date(),
+      })
+      expect(
+        await scoped().vercelCredentials({ thread: { userId: 'user-b', organizationId: ORG } }),
+      ).toMatchObject({ token: 'vtok_workspace' })
     })
 
     it('hands a personal thread the creator credential, with or without a personal project', async () => {

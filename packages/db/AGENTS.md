@@ -52,6 +52,9 @@ Prisma 8 packages live under `migrations/app/<ts>_<slug>/` (`migration.ts`, `mig
   before the DDL that needs them. A guard is a precheck that holds only when the data is clean, so
   a dirty database fails the whole migration with `MIGRATION.PRECHECK_FAILED` and nothing changes.
 - On Postgres a `db migrate` run is one transaction.
+- A data-only migration (same `from` and `to` hash) is an edge a bare `db migrate` treats as
+  already applied. Give its `rawSql` an `invariantId`, add that id to `refs/db.json`'s
+  `invariants`, and migrate with `--to db` (every script here does), so the run takes the edge.
 - Never plan against, reset or `db update` a production database.
 
 ### Adopting an existing database
@@ -68,7 +71,7 @@ never runs on a signed database; `db migrate` starts at the marker.
 ### Deploy
 
 The `migrate-production` job in `.github/workflows/release.yml` (through `apps/api`'s
-`scripts/migrate-deploy.mjs`) runs `bun run --bun prisma db migrate` from this directory, retried
+`scripts/migrate-deploy.mjs`) runs `bun run --bun prisma db migrate --to db` from this directory, retried
 three times. The connection is `DIRECT_URL ?? DATABASE_URL`
 (`prisma.config.ts`), because poolers break the migration lock. The Prisma 8 CLI wants Node
 ≥22.18 and `.nvmrc` pins 22.13, so it always runs under Bun. `GET /v1/health` compares

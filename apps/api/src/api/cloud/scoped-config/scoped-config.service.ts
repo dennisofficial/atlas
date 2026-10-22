@@ -5,7 +5,7 @@ import {
   podFacingConfig,
   resolveScopedConfig,
 } from '@dltech/atlas-wire/web'
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../secrets/sealed-secret'
@@ -50,6 +50,7 @@ export class ScopedConfigService {
   async vercelCredentials(args: { thread: ThreadOwner }): Promise<VercelProvisioningCredentials> {
     const { organizationId, userId } = args.thread
     if (organizationId === null) return this.userCredential({ userId })
+    await this.requireMember({ organizationId, userId })
     const row = await db.orm.public.WorkspaceVercelCredential.first({ organizationId })
     if (row === null) throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
     const projectId = row.vercelProjectId?.trim() ?? ''
@@ -57,6 +58,12 @@ export class ScopedConfigService {
       throw new VercelNotConfiguredError(EVercelCredentialGap.CredentialProjectId)
     }
     return { token: this.open(row.sealedToken), teamId: row.teamId, projectId }
+  }
+
+  private async requireMember(args: { organizationId: string; userId: string }): Promise<void> {
+    const member = await db.orm.public.Member.first(args)
+    if (member === null)
+      throw new ForbiddenException('You are no longer a member of this workspace.')
   }
 
   private async userCredential(args: { userId: string }): Promise<VercelProvisioningCredentials> {

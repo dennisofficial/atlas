@@ -18,6 +18,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { eventsOf, seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { lockThread } from '../sessions/thread-head'
 import { SandboxSelfController } from './sandbox-self.controller'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { SandboxesService } from './sandboxes.service'
@@ -197,6 +198,57 @@ describe('SandboxSelfController', () => {
         ['thr-1', 'clone', 'error', 'no network'],
         ['thr-1', 'clone', 'running', null],
       ])
+    })
+  })
+
+  describe('boot steps under the thread lock', () => {
+    const agentRunning = { steps: [{ step: EBootStep.Agent, state: EBootStepState.Running }] }
+
+    it('waits for a transaction holding the thread lock, then records', async () => {
+      let release: () => void = () => undefined
+      const released = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      let holding: () => void = () => undefined
+      const held = new Promise<void>((resolve) => {
+        holding = resolve
+      })
+      const holder = db.transaction(async (tx) => {
+        await lockThread({ tx, threadId: 'thr-1' })
+        holding()
+        await released
+      })
+      await held
+
+      let status: number | undefined
+      const posting = request(app.getHttpServer())
+        .post(SANDBOX_SELF_BOOT_STEPS_PATH)
+        .set(as(SANDBOX_TOKEN))
+        .send(agentRunning)
+        .then((reply) => {
+          status = reply.status
+        })
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      expect(status).toBeUndefined()
+      expect(await db.orm.public.SandboxBootStep.all()).toEqual([])
+
+      release()
+      await holder
+      await posting
+      expect(status).toBe(204)
+      expect(await db.orm.public.SandboxBootStep.all()).toHaveLength(1)
+    })
+
+    it('answers 404 and records nothing when the thread row is gone', async () => {
+      await db.orm.public.Thread.where({ id: 'thr-1' }).delete()
+
+      const reply = await request(app.getHttpServer())
+        .post(SANDBOX_SELF_BOOT_STEPS_PATH)
+        .set(as(SANDBOX_TOKEN))
+        .send(agentRunning)
+
+      expect(reply.status).toBe(404)
+      expect(await db.orm.public.SandboxBootStep.all()).toEqual([])
     })
   })
 

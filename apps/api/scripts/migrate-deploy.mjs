@@ -29,7 +29,7 @@ export async function migrateDeployWithRetry({
 
 function runPrismaDbMigrate() {
   return new Promise((resolve) => {
-    const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate'], {
+    const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate', '--to', 'db'], {
       cwd: DB_PACKAGE,
       stdio: 'inherit',
     })

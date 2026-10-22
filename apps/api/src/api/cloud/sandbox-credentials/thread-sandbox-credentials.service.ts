@@ -27,7 +27,7 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
     const credentials = await this.scoped.vercelCredentials({
       thread: { userId: thread.userId, organizationId: thread.organizationId },
     })
-    return { ...credentials, workspaceOwned: true }
+    return { ...credentials, ownerCredential: true }
   }
 
   private async apiProvisioned(threadId: string): Promise<boolean> {
@@ -44,6 +44,6 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
         'Atlas Cloud sandboxes are not configured on this deployment',
       )
     }
-    return { token, teamId, projectId, workspaceOwned: false }
+    return { token, teamId, projectId, ownerCredential: false }
   }
 }

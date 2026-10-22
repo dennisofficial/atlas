@@ -204,12 +204,12 @@ export class GithubSandboxWakeService {
   private async bootClaimed(args: { row: Row<'CloudSandbox'> }): Promise<void> {
     const { row } = args
     const freshToken = randomBytes(32).toString('hex')
-    const { workspaceOwned, ...credentials } = await this.credentials.forThread({
+    const { ownerCredential, ...credentials } = await this.credentials.forThread({
       threadId: row.threadId,
     })
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials,
-      ...(workspaceOwned
+      ...(ownerCredential
         ? { injectVercelCredentials: false, environment: { [API_PROVISIONED_ENV]: '1' } }
         : {}),
       name: row.name,
