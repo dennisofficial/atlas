@@ -110,7 +110,10 @@ export class ProjectsService {
   }
 
   async remove(args: { userId: string; projectId: string }): Promise<void> {
-    await this.editable(args)
+    const row = await this.editable(args)
+    if (row.organizationId !== null) {
+      await this.access.require({ userId: args.userId, organizationId: row.organizationId, write: true })
+    }
     await db.orm.public.Project.where({ id: args.projectId }).delete()
   }
 

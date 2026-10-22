@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
@@ -217,10 +217,33 @@ describe('ProjectsService', () => {
       expect(await projectRows()).toHaveLength(1)
     })
 
-    it('lets a co-member remove a workspace project', async () => {
+    it('refuses a plain member removing a workspace project and keeps it', async () => {
+      const created = await service.create({ userId: USER_A, input: workspaceInput() })
+
+      await expect(service.remove({ userId: USER_B, projectId: created.id })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      )
+
+      expect(await projectRows()).toHaveLength(1)
+    })
+
+    it('lets a workspace admin remove a workspace project another member created', async () => {
+      await db.orm.public.Member.where({ organizationId: ORG, userId: USER_B }).updateAndCount({ role: 'admin' })
       const created = await service.create({ userId: USER_A, input: workspaceInput() })
 
       await service.remove({ userId: USER_B, projectId: created.id })
+
+      expect(await projectRows()).toHaveLength(0)
+    })
+
+    it('keeps a personal project removable by its owner alone, even for a workspace admin', async () => {
+      await db.orm.public.Member.where({ organizationId: ORG, userId: USER_B }).updateAndCount({ role: 'admin' })
+      const created = await service.create({ userId: USER_A, input: input({ additionalRepos: [] }) })
+
+      await expect(service.remove({ userId: USER_B, projectId: created.id })).rejects.toBeInstanceOf(
+        NotFoundException,
+      )
+      await service.remove({ userId: USER_A, projectId: created.id })
 
       expect(await projectRows()).toHaveLength(0)
     })
