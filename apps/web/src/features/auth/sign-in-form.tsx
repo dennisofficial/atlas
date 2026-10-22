@@ -8,6 +8,7 @@ import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
 import { AuthApiError, signIn } from '@/lib/auth-api'
 import { ESignInContext, safeNextPath, signInContextOf, withNext } from '@/lib/auth-redirect'
+import { signInErrorMessage } from '@/lib/sign-in-error'
 
 import {
   AuthFooterText,
@@ -20,8 +21,6 @@ import {
 import { AuthField } from './auth-field'
 import { AuthBanner, AuthHeading } from './auth-heading'
 import { useGoogleSignIn } from './use-google-sign-in'
-
-const GOOGLE_FAILED = "Google sign-in didn't complete. Try again, or use your email."
 
 function ContextBanner({ context }: { context: ESignInContext }) {
   if (context === ESignInContext.Device) {
@@ -37,7 +36,7 @@ export function SignInForm() {
   const searchParams = useSearchParams()
   const next = safeNextPath(searchParams.get('next'))
   const context = signInContextOf(next)
-  const redirectFailed = searchParams.get('error') !== null
+  const redirectError = signInErrorMessage(searchParams.getAll('error'))
   const google = useGoogleSignIn(next)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -59,7 +58,7 @@ export function SignInForm() {
     }
   }
 
-  const googleError = google.error ?? (redirectFailed ? GOOGLE_FAILED : null)
+  const googleError = google.error ?? redirectError
 
   return (
     <div className="flex flex-col gap-6">
