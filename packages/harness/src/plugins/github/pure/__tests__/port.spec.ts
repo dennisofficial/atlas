@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EChecksState, EPullRequestState, NO_CHECKS, type PullRequest } from '../pull-request'
 import { EPullRequestLookup, samePullRequestReading, type PullRequestReading } from '../port'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { ModelUsage } from '../../stream/chunk'
 import { addUsage, contextTokens, NOTHING_BILLED } from '../usage'

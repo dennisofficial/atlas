@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, type ThreadId } from '@dltech/atlas-core'
 
 import { ETurnStatus } from '../../../loop/turn-outcome'

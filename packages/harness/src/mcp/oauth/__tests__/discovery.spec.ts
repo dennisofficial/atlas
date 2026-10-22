@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { discoverProtectedResourceMetadata, parseWwwAuthenticate, selectScope } from '../discovery'
 import { EOAuthFailure } from '../oauth-error'

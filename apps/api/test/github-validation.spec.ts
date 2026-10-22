@@ -2,7 +2,7 @@ import type { ExecutionContext, INestApplication } from '@nestjs/common'
 import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
@@ -12,7 +12,7 @@ import type { FetchFn } from '../src/api/cloud/github/github-device-client'
 import { GithubController } from '../src/api/cloud/github/github.controller'
 import { GithubService } from '../src/api/cloud/github/github.service'
 
-vi.mock('../src/db', () => ({ db: {} }))
+mock.module('../src/db', () => ({ db: {} }))
 
 describe('GithubController validation (in-process)', () => {
   let app: INestApplication

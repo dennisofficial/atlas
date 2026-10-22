@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { DEFAULT_RETRY_POLICY, ERetryReason, toEventId, type Assembled } from '@dltech/atlas-core'
 

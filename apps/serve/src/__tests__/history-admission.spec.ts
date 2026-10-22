@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { MessageIntake } from '@dltech/atlas-harness'
 

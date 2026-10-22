@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ECommandEffect } from '../local-command'
 import { dispatchSubmission, EDispatch, type Dispatch } from '../dispatch'

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { Prisma, type PrismaClient } from '../../../generated/prisma/client'
 import { UserFilesService } from './user-files.service'
 
@@ -20,7 +21,7 @@ type FindManyArgs = {
   where: { userId: string; tree: string; revision?: { gt: number }; path?: { in: string[] } }
 }
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const rows: UserFileRow[] = []
   const findManyCalls: unknown[] = []
   const state = { createFailure: undefined as unknown }
@@ -63,7 +64,7 @@ const fake = vi.hoisted(() => {
   return { db, rows, findManyCalls, state }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'

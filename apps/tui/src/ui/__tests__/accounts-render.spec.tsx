@@ -8,7 +8,8 @@ import {
   type Account,
 } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { accountMeterSpans } from '../account-meters'
 import {

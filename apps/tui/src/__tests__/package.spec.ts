@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { CORE_PACKAGE_NAME } from '@dltech/atlas-core'
 import { HARNESS_PACKAGE_NAME } from '@dltech/atlas-harness'

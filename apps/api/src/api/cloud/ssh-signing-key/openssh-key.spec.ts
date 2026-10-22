@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { publicKeyLineOf } from './openssh-key'
 import { generateKey } from './ssh-key.fixtures'
 

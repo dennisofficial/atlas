@@ -1,6 +1,6 @@
 import type { LanguageModelV4StreamPart, LanguageModelV4StreamResult } from '@ai-sdk/provider'
 import { MockLanguageModelV4 } from 'ai/test'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { createFallbackModel } from '../fallback-model'
 import { createNotifyingModel } from '../notifying-model'
 

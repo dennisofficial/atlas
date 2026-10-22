@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, it } from 'bun:test'
 
 describe.skip('/container cloud preflight', () => {
   // slice 08: the preflight refusal guards the lift /container cloud used to drive. The birth path

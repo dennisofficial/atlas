@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
 import { createHeartbeatLoop } from '../sse-heartbeat-loop'

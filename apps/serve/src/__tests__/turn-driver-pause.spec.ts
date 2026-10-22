@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 

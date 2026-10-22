@@ -1,12 +1,9 @@
 import { NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
-  return { db: fakeSessionDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeSessionDb().db as unknown as PrismaClient }))
 
 import {
   checkpoint,
@@ -20,6 +17,7 @@ import {
 } from '../../../../test/sandbox-checkpoint-fixture'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
+import { fakeSessionDb } from '../../../../test/fake-session-db.js'
 
 beforeEach(() => {
   fake.reset()

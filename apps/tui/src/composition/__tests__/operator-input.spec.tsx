@@ -1,7 +1,8 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { EClientRequest, type OperatorInputAnswerOutcome } from '@dltech/atlas-harness'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 
+import { frameWhen } from '../../ui/__tests__/waiting'
 import { operatorEditorText } from '../../ui/operator-input-text'
 import { INPUT_REQUEST, MULTILINE, deliveryGate, mountInput } from './operator-input-fixture'
 
@@ -155,7 +156,12 @@ describe('native operator input', () => {
       })
       expect(mounted.control().editor.current?.plainText).toBe(operatorEditorText(MULTILINE))
       expect(mounted.control().editor.current?.focused).toBe(true)
-      expect(mounted.setup.captureCharFrame()).toContain('local transport lost')
+      const frame = await frameWhen({
+        setup: mounted.setup,
+        holds: (shown) => shown.includes('local transport lost'),
+        describe: 'the failure line',
+      })
+      expect(frame).toContain('local transport lost')
       await mounted.input.typeText('!')
       send(mounted)
       await mounted.flush()

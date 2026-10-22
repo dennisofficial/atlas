@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import React, { useState } from 'react'
 
 import { letTimersRun } from '../../__tests__/ticking'

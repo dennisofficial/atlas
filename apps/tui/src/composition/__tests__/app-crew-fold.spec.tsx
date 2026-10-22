@@ -9,8 +9,8 @@ import {
   type RepositoryCheckout,
 } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
-import { act } from 'react'
+import { describe, expect, it } from 'bun:test'
+import React, { act } from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'

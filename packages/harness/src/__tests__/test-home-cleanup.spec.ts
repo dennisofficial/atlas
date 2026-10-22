@@ -10,14 +10,14 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 const PRELOAD = join(import.meta.dirname, 'test-home-setup.ts')
 
 const PROBE_SPEC = `
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 
 const log = process.env.PROBE_LOG as string
 let lastHome = ''

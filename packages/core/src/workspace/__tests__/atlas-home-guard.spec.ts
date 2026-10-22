@@ -1,7 +1,7 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 
 import { ATLAS_ALLOW_REAL_HOME_ENV, ATLAS_TESTING_ENV, atlasHomeFrom } from '../atlas-home'
 

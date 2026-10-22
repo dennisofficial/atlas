@@ -5,7 +5,7 @@ import {
   resolveSettings,
   type SettingValue,
 } from '@dltech/atlas-core'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { accentHex } from '../accents'
 import { appearanceOf, applyAppearance, SHIPPED_ACCENT } from '../appearance'

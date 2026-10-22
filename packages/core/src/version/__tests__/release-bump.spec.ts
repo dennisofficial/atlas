@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ECommitKind, classifyCommitSubject, nextReleaseVersion } from '../release-bump'
 import { formatSemver, parseSemver, type Semver } from '../semver'

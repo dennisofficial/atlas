@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { OauthConnectionsService } from '../src/api/platform/oauth-connections/oauth-connections.service'
@@ -129,7 +130,7 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     })
     await new Promise<void>((resolve) => issuerServer.listen(0, '127.0.0.1', resolve))
     const { port } = issuerServer.address() as { port: number }
-    vi.stubGlobal('fetch', (input: string, init: RequestInit) =>
+    stubGlobal('fetch', (input: string, init: RequestInit) =>
       realFetch(`http://127.0.0.1:${port}${new URL(input).pathname}`, init),
     )
   }, 30_000)
@@ -139,7 +140,7 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
   })
 
   afterAll(async () => {
-    vi.unstubAllGlobals()
+    unstubAllGlobals()
     try {
       await new Promise((resolve) => issuerServer?.close(resolve))
       await verificationDb?.user.deleteMany({ where: { id: { in: [ownerId, foreignId] } } })

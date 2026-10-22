@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { DecisionAnswer } from '../../../ports/decision.port'
 import { EQualityImpact, EQualityReviewStatus, EQualityTransition } from '../../policy'

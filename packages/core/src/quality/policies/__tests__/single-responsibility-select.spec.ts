@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EQualityScopeKind, type QualityScope } from '../../change'
 import { scopeFixture } from '../../__tests__/fixtures'

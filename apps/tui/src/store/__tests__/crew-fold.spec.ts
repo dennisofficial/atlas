@@ -1,5 +1,5 @@
 import { EAgentStatus } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { foldCrew } from '../crew-fold'
 import { ECrewStanding } from '../crew-retirement'

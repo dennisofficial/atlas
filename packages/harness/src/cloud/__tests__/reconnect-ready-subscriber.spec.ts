@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { ChannelSignal } from '../../channel/signal'
 import { EServeFrame } from '../channel-wire'

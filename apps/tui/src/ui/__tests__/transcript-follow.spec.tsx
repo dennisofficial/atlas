@@ -1,7 +1,7 @@
-import { parseColor, type CapturedFrame, type CapturedSpan } from '@opentui/core'
+import { parseColor, type CapturedFrame, type CapturedSpan, type RGBA } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
-import { act } from 'react'
+import { describe, expect, it } from 'bun:test'
+import React, { act } from 'react'
 
 import { grammarsReady, settle, teardown } from '../markdown/__tests__/harness'
 import { theme } from '../theme'

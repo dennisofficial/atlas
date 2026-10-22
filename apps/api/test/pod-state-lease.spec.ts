@@ -2,7 +2,8 @@ import type { INestApplication } from '@nestjs/common'
 import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
@@ -32,7 +33,7 @@ type ActiveRow = Owned & { provider: string; accountId: string }
 type SettingRow = Owned & { key: string; value: string; updatedAt: Date }
 type SecretRow = Owned & { name: string; sealedValue: string; updatedAt: Date }
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const tables = {
     accounts: [] as AccountRow[],
     actives: [] as ActiveRow[],
@@ -69,7 +70,7 @@ const fake = vi.hoisted(() => {
   return { db, tables }
 })
 
-vi.mock('../src/db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../src/db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 import { SettingsController } from '../src/api/cloud/settings/settings.controller'
 import { SettingsService } from '../src/api/cloud/settings/settings.service'

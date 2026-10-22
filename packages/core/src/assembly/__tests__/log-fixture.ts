@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { expect } from 'bun:test'
 
 import type { EventDraft } from '../../events/body'
 import type { Event, EventEnvelope } from '../../events/envelope'

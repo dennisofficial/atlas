@@ -1,5 +1,5 @@
 import type { StyledText } from '@opentui/core'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 
 import {
   FRESH_TITLE_CELLS,

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 import { buildHarness, EClientRequest, scriptedModel } from '@dltech/atlas-harness'
 

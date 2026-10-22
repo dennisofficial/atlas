@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { toCallId, toEventId } from '../../../events/ids'
 import { EKilledBy, EShellStatus } from '../../../shells/status'

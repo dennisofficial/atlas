@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ECallState } from '../../tool-runs'
 import { measureOfSentence, segmentsOf, sentenceOf } from '../aggregate'

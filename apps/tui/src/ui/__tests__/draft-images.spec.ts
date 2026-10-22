@@ -1,5 +1,5 @@
 import { EImageDelivery } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { ClipboardImage } from '../clipboard-image'
 import type { LiveToken } from '../composer-tokens'

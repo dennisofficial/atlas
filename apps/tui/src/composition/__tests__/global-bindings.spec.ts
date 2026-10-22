@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EKeyGroup, EKeyLayer, pressHandled, type KeyPress } from '../../ui/keys'
 import { globalBindings, type GlobalHandlers } from '../global-bindings'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { EMemoryScope, EMemoryType, type MemorySummary } from '@dltech/atlas-wire'

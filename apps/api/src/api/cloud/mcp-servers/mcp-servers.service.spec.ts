@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -20,7 +21,7 @@ interface McpServerRow {
 
 type McpServerCreate = Omit<McpServerRow, 'createdAt' | 'updatedAt'>
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const servers: McpServerRow[] = []
 
   const db = {
@@ -62,7 +63,7 @@ const fake = vi.hoisted(() => {
   return { db, servers }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -98,7 +99,7 @@ describe('McpServersService', () => {
     expect(stored?.sealedSpec).not.toContain('some-server')
 
     const listed = await service.list({ userId: USER_A })
-    expect(listed).toEqual([
+    expect<unknown>(listed).toEqual([
       {
         name: 'fs',
         transport: { kind: 'stdio', command: 'npx', args: ['-y', 'some-server'] },
@@ -110,7 +111,7 @@ describe('McpServersService', () => {
   it('accepts an http transport with headers', async () => {
     await service.put({ userId: USER_A, name: 'remote', spec: { transport: httpTransport() } })
 
-    expect((await service.list({ userId: USER_A }))[0]?.transport).toEqual({
+    expect<unknown>((await service.list({ userId: USER_A }))[0]?.transport).toEqual({
       kind: 'http',
       url: 'https://mcp.example.com/sse',
       headers: { authorization: 'Bearer token' },
@@ -188,7 +189,7 @@ describe('McpServersService', () => {
     })
 
     const listed = await service.list({ userId: USER_A })
-    expect(listed[0]?.transport).toEqual({
+    expect<unknown>(listed[0]?.transport).toEqual({
       kind: 'stdio',
       command: 'npx',
       args: ['-y', 'some-server'],

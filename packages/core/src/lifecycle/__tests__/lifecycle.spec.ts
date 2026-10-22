@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { Event, EventEnvelope } from '../../events/envelope'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { toThreadId, toCallId } from '../../events/ids'
 import { EBeforeToolDecision } from '../../policy/before-tool'

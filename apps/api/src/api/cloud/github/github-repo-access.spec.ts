@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { RepoAccessChecker } from './github-repo-access'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
@@ -13,14 +15,14 @@ describe('RepoAccessChecker outbound timeout', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
-    vi.unstubAllGlobals()
+    unstubAllGlobals()
   })
 
   const checker = () => new RepoAccessChecker(async () => 'token')
   const args = { userId: 'u', owner: 'o', repo: 'r' }
 
   it('rejects with a TimeoutError after 8s when github never answers', async () => {
-    vi.stubGlobal('fetch', vi.fn(hangingFetch))
+    stubGlobal('fetch', vi.fn(hangingFetch))
     const settled = checker()
       .require(args)
       .then(
@@ -28,7 +30,7 @@ describe('RepoAccessChecker outbound timeout', () => {
         (failure: unknown) => failure,
       )
 
-    await vi.advanceTimersByTimeAsync(8_000)
+    await advanceTimersByTimeAsync(8_000)
 
     const outcome = await settled
     expect(outcome).toBeInstanceOf(DOMException)
@@ -37,13 +39,13 @@ describe('RepoAccessChecker outbound timeout', () => {
   })
 
   it('does not cache the timed-out check, so the next call asks github again', async () => {
-    vi.stubGlobal('fetch', vi.fn(hangingFetch))
+    stubGlobal('fetch', vi.fn(hangingFetch))
     const subject = checker()
     const first = subject.require(args).catch(() => undefined)
-    await vi.advanceTimersByTimeAsync(8_000)
+    await advanceTimersByTimeAsync(8_000)
     await first
 
-    vi.stubGlobal(
+    stubGlobal(
       'fetch',
       vi.fn(async () => new Response('{}', { status: 200 })),
     )
@@ -52,7 +54,7 @@ describe('RepoAccessChecker outbound timeout', () => {
 
   it('sends an abort signal with the request', async () => {
     const answered = vi.fn(async () => new Response('{}', { status: 200 }))
-    vi.stubGlobal('fetch', answered)
+    stubGlobal('fetch', answered)
     await checker().require(args)
     const init = (answered.mock.calls[0] as unknown as [string, RequestInit])[1]
     expect(init.signal).toBeInstanceOf(AbortSignal)

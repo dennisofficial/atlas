@@ -1,12 +1,12 @@
 import 'reflect-metadata'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 const SAVED_VERCEL = process.env.VERCEL
+let freshLoads = 0
 
 afterEach(() => {
   if (SAVED_VERCEL === undefined) delete process.env.VERCEL
   else process.env.VERCEL = SAVED_VERCEL
-  vi.resetModules()
 })
 
 async function loadRealtimeModuleProviders(args: {
@@ -14,8 +14,8 @@ async function loadRealtimeModuleProviders(args: {
 }): Promise<unknown[]> {
   if (args.vercel === undefined) delete process.env.VERCEL
   else process.env.VERCEL = args.vercel
-  vi.resetModules()
-  const { GithubRealtimeModule } = await import('./github-realtime.module')
+  freshLoads += 1
+  const { GithubRealtimeModule } = await import(`./github-realtime.module.ts?fresh=${freshLoads}`)
   return Reflect.getMetadata('providers', GithubRealtimeModule) as unknown[]
 }
 

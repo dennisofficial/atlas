@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EDefinitionOrigin } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import type { AgentType } from '../agent-type'
 import { BUILT_IN_AGENT_TYPES } from '../built-ins'

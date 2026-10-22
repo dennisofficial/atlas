@@ -1,5 +1,5 @@
 import { ESettingId, type SecretPrompt, type TextPrompt } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { theme } from '../theme'
 import {
   CUSTOM_DECISIONS,

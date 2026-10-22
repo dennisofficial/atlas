@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { decideReleaseNotes, releaseNotesHeading, releaseRowsInRange } from '../release-range'
 

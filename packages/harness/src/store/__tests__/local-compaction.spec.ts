@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ECompactionAnchor, toRunId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { EContextSlot } from '@dltech/atlas-core'
 import { FileBrowser, MAX_MENTION_BYTES } from '@dltech/atlas-harness'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { mentionedFileDrafts, workspaceFileLoader } from '../mentioned-files'
 

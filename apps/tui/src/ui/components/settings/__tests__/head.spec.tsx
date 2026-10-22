@@ -1,6 +1,7 @@
 import { ESettingPage, SETTING_PAGES } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { SettingsHead } from '../head'
 

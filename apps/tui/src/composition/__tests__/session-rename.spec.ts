@@ -7,7 +7,7 @@ import {
   type EventBody,
 } from '@dltech/atlas-core'
 import { sessionDigest } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 const THREAD = toThreadId('thread')
 

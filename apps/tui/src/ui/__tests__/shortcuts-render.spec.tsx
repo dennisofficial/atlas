@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { Shortcuts } from '../components/shortcuts'
 import { cellsOf } from '../hint-layout'

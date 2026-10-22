@@ -1,6 +1,7 @@
 import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../markdown/__tests__/harness'
 import { ThinkingBlock } from '../components/blocks/thinking-block'

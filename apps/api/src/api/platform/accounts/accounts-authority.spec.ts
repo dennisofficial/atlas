@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { AccountsService } from './accounts.service'
 import { EAccountOrigin, EAuthKind, EAuthProvider } from './accounts.types'
 
-const state = vi.hoisted(() => ({ sealedSecret: '' }))
+const state = hoisted(() => ({ sealedSecret: '' }))
 const row = () => ({
   id: 'acc-backup',
   userId: 'user-owner',
@@ -23,7 +24,7 @@ const row = () => ({
   updatedAt: new Date('2026-10-05T12:00:00Z'),
 })
 
-vi.mock('../../../db', () => ({
+mock.module('../../../db', () => ({
   db: {
     agentAccount: {
       create: async (args: { data: { sealedSecret: string } }) => {

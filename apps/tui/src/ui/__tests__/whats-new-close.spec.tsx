@@ -1,7 +1,7 @@
 import { parseColor, TextRenderable, type Renderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
-import { act } from 'react'
+import { describe, expect, it } from 'bun:test'
+import React, { act } from 'react'
 
 import { WhatsNew, type WhatsNewState } from '../components/whats-new'
 import { grammarsReady, teardown } from '../markdown/__tests__/harness'

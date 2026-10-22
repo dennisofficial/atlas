@@ -1,5 +1,5 @@
 import { toThreadId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { createPendingQueues } from '../pending-queues'
 

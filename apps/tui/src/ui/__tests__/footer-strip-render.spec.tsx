@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { act } from 'react'

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { act, useState } from 'react'
+import { describe, expect, it } from 'bun:test'
+import React, { act, useState } from 'react'
 import { testRender } from '@opentui/react/test-utils'
 import type { DirectoryEntry } from '@dltech/atlas-core'
 import type { ContextFolderStateStore } from '@dltech/atlas-harness'

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EServiceStatus, EShellStatus, toRunId, toThreadId } from '@dltech/atlas-core'
 import { type RosterWire } from '@dltech/atlas-wire'

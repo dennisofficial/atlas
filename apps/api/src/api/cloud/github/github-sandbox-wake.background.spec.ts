@@ -1,10 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import type { PrismaClient } from '../../../generated/prisma/client'
+import { fakeGithubDb } from '../../../../test/fake-github-db.js'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import {
   fake,
@@ -21,6 +20,10 @@ describe('GithubSandboxWakeService background work', () => {
   beforeEach(() => {
     fake.reset()
     vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('hands the lookup to keepAlive, and with no debounce the boot has run once that promise settles', async () => {
@@ -66,7 +69,7 @@ describe('GithubSandboxWakeService background work', () => {
     void background.kept[0]?.then(() => {
       lookupDone = true
     })
-    await vi.advanceTimersByTimeAsync(10)
+    await advanceTimersByTimeAsync(10)
     expect(lookupDone).toBe(false)
 
     release()

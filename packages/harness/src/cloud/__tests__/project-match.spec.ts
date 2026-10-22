@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EShipBehavior, type Project } from '@dltech/atlas-wire/web'
 
 import { githubRepoOfOrigin, matchProject } from '../project-match'

@@ -1,6 +1,6 @@
 import { toCallId, toRunId } from '@dltech/atlas-core'
 import { ETurnStatus } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { open, until, THREAD, THINKING } from './app-fixture'

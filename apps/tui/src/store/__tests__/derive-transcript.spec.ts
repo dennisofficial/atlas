@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EAssistantPlaceholder } from '@dltech/atlas-core'
 import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-harness'

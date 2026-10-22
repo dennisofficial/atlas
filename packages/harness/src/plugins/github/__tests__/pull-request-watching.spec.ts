@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { checkoutKey, EPullRequestLookup, NO_PULL_REQUEST_READING, POLL_SETTLED_MS } from '../pure'
 

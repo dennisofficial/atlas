@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { toRunId, type Event } from '@dltech/atlas-core'
 import { ETurnStatus } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'

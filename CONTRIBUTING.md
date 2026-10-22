@@ -14,7 +14,7 @@ contributions are welcome.
 All root scripts are turbo tasks:
 
 - `bun run typecheck` — `tsc --noEmit` across the workspace.
-- `bun run test` — every package's vitest suite (`VITEST_INCREMENTAL=1 bun run test` reruns only
+- `bun run test` — every package's `bun test` suite (`BUN_TEST_INCREMENTAL=1 bun run test` reruns only
   what changed). Point `ATLAS_HOME` at a scratch directory and keep
   `NODE_ENV=development`:
   `ATLAS_HOME=$PWD/.atlas-home NODE_ENV=development bun run test`.
@@ -42,7 +42,7 @@ the package.
 ## Making a change
 
 1. Branch from `origin/main` as `<you>/<slug>`.
-2. Every new feature includes tests — vitest, specs in a sibling `__tests__/` directory.
+2. Every new feature includes tests — `bun:test`, specs in a sibling `__tests__/` directory.
 3. Conventional commits: `<type>(<scope>): <description>`, imperative, lowercase. The PR title
    is the release decision — `feat` cuts a minor, `fix` a patch — so reserve `feat` for new
    capabilities, not tweaks. No `Co-Authored-By` or generated-with trailers.

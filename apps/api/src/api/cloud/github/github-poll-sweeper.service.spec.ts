@@ -1,10 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -92,6 +90,10 @@ describe('GithubPollSweeperService', () => {
     vi.useRealTimers()
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('polls a live poll-backed subscription as its user and pushes the diff', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
@@ -102,7 +104,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -196,7 +198,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -283,7 +285,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(findOpenPrForBranch).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -341,7 +343,7 @@ describe('GithubPollSweeperService', () => {
     const pushes = vi.spyOn(fanout, 'push')
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(pushes).toHaveBeenCalled()
     expect([...pushes.mock.calls[0]![0].userIds].sort()).toEqual(['usr_1', 'usr_2'])

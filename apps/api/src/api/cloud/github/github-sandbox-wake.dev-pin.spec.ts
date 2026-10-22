@@ -1,10 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import {
   fake,
@@ -19,6 +17,7 @@ import {
 import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { DevServeInstallRefusedError } from './github-sandbox-wake-installer'
+import { fakeGithubDb } from '../../../../test/fake-github-db.js'
 
 const DEV_PIN = 'dev-0123456789ab'
 
@@ -35,12 +34,13 @@ describe('GithubSandboxWakeService with a dev serve pin', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    vi.useRealTimers()
+    unstubAllGlobals()
   })
 
   it('boots the dev pin exactly, with no release lookup', async () => {
     const releaseCheck = releaseArtifactCheck(false)
-    vi.stubGlobal('fetch', releaseCheck)
+    stubGlobal('fetch', releaseCheck)
     seedSubscription()
     seedParkedSandbox({ serveVersion: DEV_PIN })
     const { boot, calls } = fakeBoot()

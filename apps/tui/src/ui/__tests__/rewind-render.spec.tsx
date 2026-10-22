@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { HEADING, Rewind } from '../components/rewind'
 import { cellsOf } from '../hint-layout'

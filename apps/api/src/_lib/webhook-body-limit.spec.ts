@@ -1,6 +1,6 @@
 import express from 'express'
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './webhook-body-limit'
 
 const appWithParser = (limit: string) => {

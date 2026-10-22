@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'

@@ -1,5 +1,5 @@
 import { EClientFrame, EServeFrame } from '@dltech/atlas-wire'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { deliverToServe, type ServeSocketHandlers } from './serve-send'
 
 const DELIVERY = {

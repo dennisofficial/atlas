@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '../../shells/status'
 import { agentEnding, attributedStop, EAgentStatus } from '../status'

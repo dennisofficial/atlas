@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common'
 import { UnauthorizedException } from '@nestjs/common'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import type { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { activeQuery, commandCandidates, resolveSubmission } from '../resolve'
 import { ECommandGroup, ECommandKind, type CommandSpec } from '../spec'

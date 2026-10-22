@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import type { ModelMessage } from 'ai'
 
 import type { AssistantMessage, Message, ToolMessage, UserMessage } from '@dltech/atlas-core'

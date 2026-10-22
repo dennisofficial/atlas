@@ -1,7 +1,7 @@
 import { ECompactionAnchor, toRunId, toThreadId } from '@dltech/atlas-core'
 import { CompactionPort, ECompaction, ECompactScope, type Compaction } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { teardown } from '../../ui/markdown/__tests__/harness'

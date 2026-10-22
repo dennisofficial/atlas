@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { GithubSubscriptionsController } from './github-subscriptions.controller'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'

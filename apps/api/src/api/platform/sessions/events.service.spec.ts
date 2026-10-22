@@ -1,14 +1,12 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 import type { EventDraftDto } from './sessions.dto'
 
-vi.mock('../../../db', async () => {
-  const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
-  return { db: fakeSessionDb().db as unknown as PrismaClient }
-})
-
 import { fakeSessionDb } from '../../../../test/fake-session-db.js'
+
+mock.module('../../../db', () => ({ db: fakeSessionDb().db as unknown as PrismaClient }))
+
 import { EventsService } from './events.service'
 
 const USER_A = 'user-a'

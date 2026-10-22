@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EToolEffect, PLAN_TOOL_NAME, toThreadId } from '@dltech/atlas-core'
 

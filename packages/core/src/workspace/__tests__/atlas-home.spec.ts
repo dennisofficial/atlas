@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { atlasHomeFrom, ATLAS_HOME_ENV } from '../atlas-home'
 

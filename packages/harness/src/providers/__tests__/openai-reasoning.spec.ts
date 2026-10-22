@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+import { afterEach, describe, expect, it, type Mock, vi } from 'bun:test'
 
 import { recordingFetch } from './recording-fetch'
 import { streamedResponse } from './responses-stream-fixtures'
@@ -13,7 +13,7 @@ import {
 
 describe('openai history reasoning compatibility', () => {
   const warnings: string[] = []
-  let warnSpy: MockInstance<typeof console.warn>
+  let warnSpy: Mock<typeof console.warn>
 
   afterEach(() => {
     warnSpy?.mockRestore()

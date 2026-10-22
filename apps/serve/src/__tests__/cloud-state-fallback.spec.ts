@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EAuthProvider, ESettingId } from '@dltech/atlas-core'
 import { encodeSettingValue } from '@dltech/atlas-harness'

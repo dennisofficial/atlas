@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { DynamicToolSource, EToolEffect, type ToolDefinition } from '@dltech/atlas-core'

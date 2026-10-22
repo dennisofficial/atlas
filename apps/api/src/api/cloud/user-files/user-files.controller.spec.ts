@@ -1,5 +1,5 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import { SANDBOX_REACHABLE_KEY } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'

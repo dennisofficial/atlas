@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EPrEventKind } from '@dltech/atlas-core'
 
 import { createPrEventDedupe, type PrEventCandidate } from '../pr-event-dedupe'

@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import type { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 
-const sdk = vi.hoisted(() => ({
+const sdk = hoisted(() => ({
   getParams: [] as Record<string, unknown>[],
   stopped: [] as string[],
   updates: [] as Record<string, unknown>[],
@@ -12,7 +13,7 @@ const sdk = vi.hoisted(() => ({
   runCommandFailure: null as Error | null,
 }))
 
-vi.mock('@vercel/sandbox', () => {
+mock.module('@vercel/sandbox', () => {
   class APIError<ErrorData = unknown> extends Error {
     json: ErrorData | undefined
     constructor(

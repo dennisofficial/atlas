@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it } from 'bun:test'
 
 import { randomUUID } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
@@ -66,7 +66,7 @@ cat > dependency/package.json <<'JSON'
 JSON
 printf 'export const value = 42\\n' > dependency/index.js
 cat > acceptance.spec.ts <<'TEST'
-import { expect, test } from 'vitest'
+import { expect, test } from 'bun:test'
 import { value } from 'acceptance-value'
 test('installed dependency is executable', () => expect(value).toBe(42))
 TEST

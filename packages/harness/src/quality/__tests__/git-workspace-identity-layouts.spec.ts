@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 

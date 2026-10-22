@@ -1,15 +1,13 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
 import type { GithubService } from '../github/github.service'
 import type { SaveProjectDto } from './projects.dto'
 import { projectRows, resetProjectRows } from './projects.fakes'
 import { ProjectsService } from './projects.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
+import { fakeProjectDb } from './projects.fakes'
 
-vi.mock('../../../db', async () => {
-  const { fakeProjectDb } = await import('./projects.fakes')
-  return { db: fakeProjectDb() }
-})
+mock.module('../../../db', () => ({ db: fakeProjectDb() }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'

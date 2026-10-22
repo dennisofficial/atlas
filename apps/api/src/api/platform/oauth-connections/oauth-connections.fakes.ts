@@ -141,7 +141,7 @@ export class FakeClock implements OauthClock {
     this.current += ms
     this.sleeps += 1
     this.onSleep()
-    await new Promise((resolve) => setImmediate(resolve))
+    await Promise.resolve()
   }
 }
 

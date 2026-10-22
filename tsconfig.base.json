@@ -14,6 +14,5 @@
     "noEmit": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
-  },
-  "files": ["vitest-setup/matchers.d.ts"]
+  }
 }

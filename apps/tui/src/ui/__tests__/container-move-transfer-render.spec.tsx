@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, beforeEach } from 'vitest'
+import { afterEach, beforeEach } from 'bun:test'
 
 import { ATLAS_HOME_ENV } from '@dltech/atlas-core'
 

@@ -1,5 +1,6 @@
 import { ServiceUnavailableException, type MessageEvent } from '@nestjs/common'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
+import { waitFor } from '../../../../test/fake-timers'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -69,7 +70,7 @@ describe('GithubPrStreamController', () => {
     const subscription = controller
       .handleStream(requestFor('usr_1'))
       .subscribe({ next: (frame) => frames.push(frame) })
-    await vi.waitFor(() => expect(frames).toHaveLength(1))
+    await waitFor(() => expect(frames).toHaveLength(1))
     fanout.push({ userIds: ['usr_1'], state: { ...STATE, checksPassed: 4 } })
     subscription.unsubscribe()
 
@@ -119,7 +120,7 @@ describe('GithubPrStreamController', () => {
     fanout.push({ userIds: ['usr_1'], state: STATE })
     subscription.unsubscribe()
 
-    await vi.waitFor(() => expect(frames).toHaveLength(1))
+    await waitFor(() => expect(frames).toHaveLength(1))
     expect(frames[0]).toEqual({ type: EPrRealtimeEvent.PrState, data: STATE })
   })
 
@@ -142,7 +143,7 @@ describe('GithubPrStreamController', () => {
     const subscription = controller
       .handleStream(requestFor('usr_1'))
       .subscribe({ next: (frame) => frames.push(frame) })
-    await vi.waitFor(() => expect(frames).toHaveLength(2))
+    await waitFor(() => expect(frames).toHaveLength(2))
     subscription.unsubscribe()
 
     expect(frames[0]).toEqual({ type: EPrRealtimeEvent.PrState, data: STATE })
@@ -190,7 +191,7 @@ describe('GithubPrStreamController', () => {
     fanout.push({ userIds: ['usr_1'], state: STATE })
     subscription.unsubscribe()
 
-    await vi.waitFor(() => expect(frames).toHaveLength(1))
+    await waitFor(() => expect(frames).toHaveLength(1))
     expect(frames[0]).toEqual({ type: EPrRealtimeEvent.PrState, data: STATE })
   })
 })

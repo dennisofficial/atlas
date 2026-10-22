@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { SSH_SIGNING_SCOPE_NOTICE } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'

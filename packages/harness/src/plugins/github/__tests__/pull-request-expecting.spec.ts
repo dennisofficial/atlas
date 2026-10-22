@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EChecksState, POLL_FLOOR_MS, POLL_RUNNING_MS } from '../pure'
 

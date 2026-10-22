@@ -1,5 +1,5 @@
 import { parseColor, type TextChunk } from '@opentui/core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { chunksByLine, fitDiffChunks, highlightRows, wrapDiffChunks } from '../highlight-rows'
 import { grammarsReady } from './harness'

@@ -1,5 +1,6 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { theme } from '../../../theme'
 import { grammarsReady, teardown } from '../../__tests__/harness'

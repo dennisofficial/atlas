@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { agentEnding, EAgentStatus, EKilledBy, type EventOfType } from '@dltech/atlas-core'
 

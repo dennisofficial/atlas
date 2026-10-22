@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import {
   OauthRateLimitedError,
   OauthRejectedError,
@@ -14,7 +15,7 @@ const respond = (status: number, body: unknown) =>
 const jwt = (claims: object) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`
 
 describe('HttpOauthIssuer', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it('posts the Anthropic refresh grant and requires a replacement refresh token', async () => {
     const fetchMock = respond(200, {
@@ -23,7 +24,7 @@ describe('HttpOauthIssuer', () => {
       expires_in: 3600,
       scope: 'user:inference user:profile',
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubGlobal('fetch', fetchMock)
 
     const issued = await new HttpOauthIssuer().refresh({
       provider: EOauthProvider.Anthropic,
@@ -45,7 +46,7 @@ describe('HttpOauthIssuer', () => {
       scopes: ['user:inference', 'user:profile'],
     })
 
-    vi.stubGlobal('fetch', respond(200, { access_token: 'a', expires_in: 60 }))
+    stubGlobal('fetch', respond(200, { access_token: 'a', expires_in: 60 }))
     await expect(
       new HttpOauthIssuer().refresh({
         provider: EOauthProvider.Anthropic,
@@ -61,7 +62,7 @@ describe('HttpOauthIssuer', () => {
       access_token: jwt({ exp }),
       id_token: jwt({ 'https://api.openai.com/auth': { chatgpt_account_id: 'acct-1' } }),
     })
-    vi.stubGlobal('fetch', fetchMock)
+    stubGlobal('fetch', fetchMock)
 
     const issued = await new HttpOauthIssuer().refresh({
       provider: EOauthProvider.OpenAI,
@@ -85,13 +86,13 @@ describe('HttpOauthIssuer', () => {
         nowMs: NOW,
       })
 
-    vi.stubGlobal('fetch', respond(400, { error: 'invalid_grant' }))
+    stubGlobal('fetch', respond(400, { error: 'invalid_grant' }))
     await expect(attempt()).rejects.toBeInstanceOf(OauthRejectedError)
-    vi.stubGlobal('fetch', respond(429, {}))
+    stubGlobal('fetch', respond(429, {}))
     await expect(attempt()).rejects.toBeInstanceOf(OauthRateLimitedError)
-    vi.stubGlobal('fetch', respond(503, {}))
+    stubGlobal('fetch', respond(503, {}))
     await expect(attempt()).rejects.not.toBeInstanceOf(OauthRejectedError)
-    vi.stubGlobal(
+    stubGlobal(
       'fetch',
       vi.fn(async () => {
         throw new Error('socket hang up')

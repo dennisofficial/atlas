@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { bearerSubprotocolOf, CHANNEL_SUBPROTOCOL, EServeFrame } from '../channel-wire'
 import { EConnectionView } from '../connection-view'

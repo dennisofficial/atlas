@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import {
   EMemoryScope,
   EMemoryType,
@@ -14,10 +14,7 @@ import {
 } from '@dltech/atlas-wire'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { sharedMemoryDb } = await import('./memories.fake-db')
-  return { db: sharedMemoryDb.db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 import { sharedMemoryDb as fake } from './memories.fake-db'
 import { MemoriesService } from './memories.service'

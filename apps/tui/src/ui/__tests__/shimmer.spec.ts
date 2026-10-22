@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { beaconHeat, shimmerCrest, shimmerCycleMs, shimmerHeat, WORKING_SHIMMER } from '../shimmer'
 import { mixHex } from '../colour'

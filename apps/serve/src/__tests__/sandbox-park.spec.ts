@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { POD_NAME_ENV } from '@dltech/atlas-harness'
 import { toThreadId } from '@dltech/atlas-core'

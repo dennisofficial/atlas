@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EKilledBy, EShellStatus, EServiceStatus } from '@dltech/atlas-core'
 import { EClientFrame, EServeFrame, toSendId } from '@dltech/atlas-harness'
 

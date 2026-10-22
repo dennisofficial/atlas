@@ -61,7 +61,8 @@ export function ContextSection(props: ContextSectionProps): React.ReactNode {
     <box flexDirection="column" flexShrink={0}>
       <box backgroundColor={theme.panelBg}>
         <text fg={theme.meta}>
-          CONTEXT <span fg={theme.hint}>{props.rows.length}</span>
+          {'CONTEXT  '}
+          <span fg={theme.hint}>{props.rows.length}</span>
         </text>
       </box>
       {props.rows.length === 0 ? (

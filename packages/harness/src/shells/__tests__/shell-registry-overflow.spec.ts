@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EShellStatus } from '@dltech/atlas-core'
 import {

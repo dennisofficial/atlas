@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '../../shells/status'
 import { EServiceStatus, serviceEnding, serviceFailed } from '../status'

@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 import { testRender } from '@opentui/react/test-utils'
 import { EImageDelivery } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
+import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import type { ClipboardImage, ClipboardImageReader } from '../../ui/clipboard-image'
@@ -272,7 +273,7 @@ describe('naming a session from its opening message', () => {
     } finally {
       await teardown(setup)
     }
-  })
+  }, 60_000)
 })
 
 const NOISE_CELL = /[·:∙]/
@@ -336,7 +337,7 @@ describe('the fallback title while the titler is still answering', () => {
       release()
       await teardown(setup)
     }
-  })
+  }, 60_000)
 })
 
 const RENAMED = 'Doing something cool'

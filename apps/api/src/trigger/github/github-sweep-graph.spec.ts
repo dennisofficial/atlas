@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
 import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
 import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'

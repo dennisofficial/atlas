@@ -1,10 +1,11 @@
 import { ServiceUnavailableException } from '@nestjs/common'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 
-const threads = vi.hoisted(() => ({ rows: new Map<string, { projectId: string | null }>() }))
+const threads = hoisted(() => ({ rows: new Map<string, { projectId: string | null }>() }))
 
-vi.mock('../../../db', () => ({
+mock.module('../../../db', () => ({
   db: {
     thread: {
       findUnique: async (args: { where: { id: string } }) =>

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
 import { EShellStatus, ESandboxState, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'

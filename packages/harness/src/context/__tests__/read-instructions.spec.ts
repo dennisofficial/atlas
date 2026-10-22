@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EContextSlot, EInstructionFamily } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { readInstructionFiles, readNestedInstructionFiles } from '../read-instructions'
 

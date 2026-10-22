@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, mock } from 'bun:test'
 import React from 'react'
 
 import { toCallId } from '@dltech/atlas-core'
@@ -9,10 +9,11 @@ import { ECallState, type ToolCall, type ToolRun } from '../../../../store'
 
 type DetailProps = React.ComponentProps<typeof ToolDetailModule.ToolDetail>
 
-const detailRenders = vi.hoisted(() => new Map<string, number>())
+const detailRenders = new Map<string, number>()
 
-vi.mock('../tool-detail', async () => {
-  const actual = await vi.importActual<typeof ToolDetailModule>('../tool-detail')
+const actual: typeof ToolDetailModule = { ...(await import('../tool-detail')) }
+
+mock.module('../tool-detail', () => {
   const RealToolDetail = actual.ToolDetail
   const CountedDetail = (props: DetailProps): React.ReactNode => {
     detailRenders.set(props.call.callId, (detailRenders.get(props.call.callId) ?? 0) + 1)

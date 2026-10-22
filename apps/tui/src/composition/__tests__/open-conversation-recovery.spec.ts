@@ -1,5 +1,5 @@
 import { toEventId, toRunId, toThreadId, type Event, type ThreadId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { LostShell, ShellRegistryPort } from '@dltech/atlas-harness'
 

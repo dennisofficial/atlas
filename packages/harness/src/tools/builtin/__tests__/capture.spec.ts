@@ -9,7 +9,7 @@ import {
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { LocalFileSystemPort } from '../../../execution/local-filesystem'
 import { EditTool } from '../edit'

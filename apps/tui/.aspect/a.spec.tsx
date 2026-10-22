@@ -1,4 +1,4 @@
-import { test } from 'vitest'
+import { test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 
 const PATH = `${process.env.HOME}/atlas-images/radial-sky.png` // 1600x1600 square

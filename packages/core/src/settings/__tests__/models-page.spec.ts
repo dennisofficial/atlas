@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin } from '../../discovery/origin'
 import { agentTypeModelDefinitions, agentTypeSettingId } from '../agent-type-rows'

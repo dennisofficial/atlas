@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { GITHUB_NOT_CONNECTED_CODE, SSH_SIGNING_SCOPE_MISSING_CODE } from '@dltech/atlas-wire'
 
 import { SigningKeyClient } from '../signing-key-client'

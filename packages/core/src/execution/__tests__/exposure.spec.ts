@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EXPOSURE_HOST_SUFFIX, exposurePortFromHost, exposureUrlFor } from '../exposure'
 

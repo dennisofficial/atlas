@@ -1,7 +1,7 @@
 import type { LanguageModelV4GenerateResult } from '@ai-sdk/provider'
 import type { SaidImage } from '@dltech/atlas-core'
 import { MockLanguageModelV4 } from 'ai/test'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { sanitizedTitle, titleFor } from '../titler'
 

@@ -1,5 +1,5 @@
 import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
-import { vi } from 'vitest'
+import { vi } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'

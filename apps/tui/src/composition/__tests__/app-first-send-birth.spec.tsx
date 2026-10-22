@@ -1,5 +1,5 @@
 import { ERunner, ESettingId } from '@dltech/atlas-core'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'

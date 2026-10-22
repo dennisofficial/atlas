@@ -1,6 +1,6 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { pngSize } from '../limits'
 import {

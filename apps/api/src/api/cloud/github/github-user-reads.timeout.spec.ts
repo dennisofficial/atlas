@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { GithubUserReads } from './github-user-reads'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
@@ -11,14 +13,14 @@ describe('GithubUserReads outbound timeouts', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     ;({ requestedMs } = stubAbortSignalTimeout())
-    vi.stubGlobal('fetch', vi.fn(hangingFetch))
+    stubGlobal('fetch', vi.fn(hangingFetch))
     reads = new GithubUserReads()
   })
 
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
-    vi.unstubAllGlobals()
+    unstubAllGlobals()
   })
 
   const calls: Record<string, () => Promise<unknown>> = {
@@ -37,7 +39,7 @@ describe('GithubUserReads outbound timeouts', () => {
       (failure: unknown) => failure,
     )
 
-    await vi.advanceTimersByTimeAsync(8_000)
+    await advanceTimersByTimeAsync(8_000)
 
     const outcome = await settled
     expect(outcome).toBeInstanceOf(DOMException)
@@ -49,18 +51,18 @@ describe('GithubUserReads outbound timeouts', () => {
     const outcome = vi.fn()
     void reads.getHook({ ...target, hookId: 1 }).catch(outcome)
 
-    await vi.advanceTimersByTimeAsync(7_999)
+    await advanceTimersByTimeAsync(7_999)
     expect(outcome).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(1)
-    expect(outcome).toHaveBeenCalledOnce()
+    await advanceTimersByTimeAsync(1)
+    expect(outcome).toHaveBeenCalledTimes(1)
   })
 
   it('requests the 8s timeout on every outbound call, including the hook lookup', async () => {
     const answered = vi.fn(
       async () => new Response(JSON.stringify({ id: 1, events: [] }), { status: 200 }),
     )
-    vi.stubGlobal('fetch', answered)
+    stubGlobal('fetch', answered)
 
     await reads.getHook({ ...target, hookId: 1 })
     await reads.deleteHook({ ...target, hookId: 1 })

@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EImageDelivery, toRunId } from '@dltech/atlas-core'
 import { EConnectionView, ETurnStatus } from '@dltech/atlas-harness'

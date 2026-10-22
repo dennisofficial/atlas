@@ -1,5 +1,5 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { SANDBOX_REACHABLE_KEY } from '../../../_core/decorators/sandbox-reachable.decorator'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { GithubPrStreamController } from './github-pr-stream.controller'

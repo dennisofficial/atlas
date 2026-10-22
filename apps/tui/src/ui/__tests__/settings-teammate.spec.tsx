@@ -5,7 +5,7 @@ import {
   agentTypeSettingId,
   ESettingsLayer,
 } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { glyph } from '../theme'
 import { NARROW, WIDE, page, rowsOf, rowWith } from './settings-render-fixture'

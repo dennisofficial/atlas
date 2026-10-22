@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 
 import type { ChannelWatch } from '../rig-observer'
 import { type ParkWaitContext, waitForPark } from '../rig-park-wait'

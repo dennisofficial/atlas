@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ELifecycleState, lifecycleOf } from '../../lifecycle/lifecycle'
 import type { Event } from '../../events/envelope'

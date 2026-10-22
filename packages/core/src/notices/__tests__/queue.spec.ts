@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ENoticePosition, ENoticeTone, type Notice, type NoticeDraft } from '../notice'
 import { clearNotice, expireNotices, nextExpiryAtMs, postNotice } from '../queue'
