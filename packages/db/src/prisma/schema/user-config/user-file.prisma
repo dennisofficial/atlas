@@ -1,0 +1,18 @@
+// use prisma-8
+
+model UserFile {
+  id           String              @id @onCreate(cuid(2))
+  userId       String
+  tree         String
+  path         String
+  revision     Int
+  contentHash  String
+  content      Bytes?
+  tombstonedAt TimestampString(3)?
+  createdAt    TimestampString(3)  @default(now())
+  updatedAt    TimestampString(3)  @onCreate(now()) @onUpdate(now())
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "UserFile_userId_tree_path_key")
+
+  @@index([userId, tree, path], map: "UserFile_userId_tree_path_key", unique: true)
+  @@index([userId, tree, revision], map: "UserFile_userId_tree_revision_idx")
+}

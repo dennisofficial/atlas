@@ -1,0 +1,12 @@
+// use prisma-8
+
+model OauthConnectionSandbox {
+  connectionId String
+  sandboxId    String
+  createdAt    TimestampString(3) @default(now())
+  connection   OauthConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: false)
+  sandbox      CloudSandbox       @relation(fields: [sandboxId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([connectionId, sandboxId])
+  @@index([sandboxId], map: "OauthConnectionSandbox_sandboxId_idx")
+}

@@ -1,0 +1,13 @@
+// use prisma-8
+
+model GithubAppInstallation {
+  installationId BigInt              @id
+  accountLogin   String
+  accountType    String
+  repos          String?[]?
+  suspendedAt    TimestampString(3)?
+  createdAt      TimestampString(3)  @default(now())
+  updatedAt      TimestampString(3)  @onCreate(now()) @onUpdate(now())
+
+  @@index([accountLogin], map: "GithubAppInstallation_accountLogin_idx")
+}

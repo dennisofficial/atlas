@@ -1,0 +1,13 @@
+// use prisma-8
+
+model McpServerConfig {
+  id         String             @id
+  name       String
+  sealedSpec String
+  createdAt  TimestampString(3) @default(now())
+  updatedAt  TimestampString(3) @onCreate(now()) @onUpdate(now())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "McpServerConfig_userId_name_key")
+
+  @@index([userId, name], map: "McpServerConfig_userId_name_key", unique: true)
+}

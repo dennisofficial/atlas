@@ -1,0 +1,21 @@
+// use prisma-8
+
+model AgentAccount {
+  id            String             @id
+  provider      String
+  kind          String
+  origin        String
+  label         String
+  status        String
+  email         String?
+  subscription  String?
+  importedFrom  String?
+  sealedSecret  String
+  secretVersion Int                @default(0)
+  createdAt     TimestampString(3) @default(now())
+  updatedAt     TimestampString(3) @onCreate(now()) @onUpdate(now())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "AgentAccount_userId_provider_idx")
+
+  @@index([userId, provider], map: "AgentAccount_userId_provider_idx")
+}

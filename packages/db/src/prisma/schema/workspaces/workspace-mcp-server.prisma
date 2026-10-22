@@ -1,0 +1,13 @@
+// use prisma-8
+
+model WorkspaceMcpServer {
+  id             String             @id
+  organizationId String
+  name           String
+  sealedSpec     String
+  createdAt      TimestampString(3) @default(now())
+  updatedAt      TimestampString(3) @onCreate(now()) @onUpdate(now())
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "WorkspaceMcpServer_organizationId_name_key")
+
+  @@index([organizationId, name], map: "WorkspaceMcpServer_organizationId_name_key", unique: true)
+}

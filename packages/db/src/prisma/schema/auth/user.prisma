@@ -1,0 +1,32 @@
+// use prisma-8
+
+model User {
+  id               String             @id
+  name             String
+  email            String
+  emailVerified    Boolean            @default(false)
+  image            String?
+  createdAt        TimestampString(3) @default(now())
+  updatedAt        TimestampString(3) @onCreate(now()) @onUpdate(now())
+  accounts         Account[]
+  agentAccounts    AgentAccount[]
+  cloudSandboxes   CloudSandbox[]
+  cloudSettings    CloudSetting[]
+  deviceCodes      DeviceCode[]
+  githubConnection GithubConnection?
+  invitations      Invitation[]
+  localPodLeases   LocalPodLease[]
+  mcpServers       McpServerConfig[]
+  members          Member[]
+  memories         Memory[]
+  oauthConnections OauthConnection[]
+  projects         Project[]
+  publishedBundles PublishedBundle[]
+  secretEntries    SecretEntry[]
+  sessions         Session[]
+  sshSigningKey    SshSigningKey?
+  threads          Thread[]
+  userFiles        UserFile[]
+
+  @@index([email], map: "User_email_key", unique: true)
+}

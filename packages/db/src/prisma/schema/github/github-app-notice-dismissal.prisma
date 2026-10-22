@@ -1,0 +1,9 @@
+// use prisma-8
+
+model GithubAppNoticeDismissal {
+  userId       String
+  repoFullName String
+  dismissedAt  TimestampString(3) @default(now())
+
+  @@id([userId, repoFullName])
+}

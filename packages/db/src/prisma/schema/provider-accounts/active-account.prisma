@@ -1,0 +1,11 @@
+// use prisma-8
+
+model ActiveAccount {
+  userId    String
+  provider  String
+  accountId String
+  createdAt TimestampString(3) @default(now())
+  updatedAt TimestampString(3) @onCreate(now()) @onUpdate(now())
+
+  @@id([userId, provider])
+}

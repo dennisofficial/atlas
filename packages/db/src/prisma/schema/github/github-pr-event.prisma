@@ -1,0 +1,15 @@
+// use prisma-8
+
+model GithubPrEvent {
+  id           String              @id @onCreate(cuid(2))
+  userId       String
+  repoFullName String
+  prNumber     Int
+  kind         String
+  payload      Jsonb
+  deliveredAt  TimestampString(3)?
+  createdAt    TimestampString(3)  @default(now())
+
+  @@index([userId, deliveredAt], map: "GithubPrEvent_userId_deliveredAt_idx")
+  @@index([repoFullName, prNumber], map: "GithubPrEvent_repoFullName_prNumber_idx")
+}

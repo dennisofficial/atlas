@@ -1,0 +1,13 @@
+// use prisma-8
+
+model ProjectSetting {
+  id        String             @id
+  projectId String
+  key       String
+  value     String
+  createdAt TimestampString(3) @default(now())
+  updatedAt TimestampString(3) @onCreate(now()) @onUpdate(now())
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ProjectSetting_projectId_key_key")
+
+  @@index([projectId, key], map: "ProjectSetting_projectId_key_key", unique: true)
+}

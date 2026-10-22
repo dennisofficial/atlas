@@ -1,0 +1,17 @@
+// use prisma-8
+
+model DeviceCode {
+  id              String              @id
+  deviceCode      String
+  userCode        String
+  expiresAt       TimestampString(3)
+  status          String
+  lastPolledAt    TimestampString(3)?
+  pollingInterval Int?
+  clientId        String?
+  scope           String?
+  createdAt       TimestampString(3)  @default(now())
+  updatedAt       TimestampString(3)  @onCreate(now()) @onUpdate(now())
+  userId          String?
+  user            User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: false)
+}

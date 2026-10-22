@@ -1,0 +1,19 @@
+// use prisma-8
+
+model Organization {
+  id               String                     @id
+  name             String
+  slug             String
+  logo             String?
+  metadata         String?
+  createdAt        TimestampString(3)         @default(now())
+  invitations      Invitation[]
+  mcpServers       WorkspaceMcpServer[]
+  members          Member[]
+  projects         Project[]
+  secrets          WorkspaceSecret[]
+  settings         WorkspaceSetting[]
+  vercelCredential WorkspaceVercelCredential?
+
+  @@index([slug], map: "Organization_slug_key", unique: true)
+}

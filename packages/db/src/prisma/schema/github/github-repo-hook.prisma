@@ -1,0 +1,12 @@
+// use prisma-8
+
+model GithubRepoHook {
+  repoFullName    String              @id
+  hookId          BigInt
+  secret          String
+  createdBy       String
+  status          String
+  idleSince       TimestampString(3)?
+  sweepLeaseUntil TimestampString(3)?
+  createdAt       TimestampString(3)  @default(now())
+}

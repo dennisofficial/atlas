@@ -1,0 +1,19 @@
+// use prisma-8
+
+model OauthConnection {
+  id               String                   @id
+  provider         String
+  status           String                   @default("active")
+  sealedTokens     String
+  authorizationId  String
+  generation       Int                      @default(0)
+  refreshAttempt   String?
+  refreshStartedAt TimestampString(3)?
+  createdAt        TimestampString(3)       @default(now())
+  updatedAt        TimestampString(3)       @onCreate(now()) @onUpdate(now())
+  userId           String
+  sandboxes        OauthConnectionSandbox[]
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId], map: "OauthConnection_userId_idx")
+}

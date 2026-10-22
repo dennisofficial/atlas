@@ -1,0 +1,10 @@
+// use prisma-8
+
+model Verification {
+  id         String             @id
+  identifier String
+  value      String
+  expiresAt  TimestampString(3)
+  createdAt  TimestampString(3) @default(now())
+  updatedAt  TimestampString(3) @onCreate(now()) @onUpdate(now())
+}
