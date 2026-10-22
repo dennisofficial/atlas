@@ -308,6 +308,7 @@
   },
   "trustedDependencies": [
     "sharp",
+    "lefthook",
     "unrs-resolver",
   ],
   "overrides": {

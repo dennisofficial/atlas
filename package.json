@@ -22,7 +22,9 @@
     "proto:links": "bun apps/tui/prototype/link-affordances.tsx",
     "test": "turbo run test",
     "build": "turbo run build",
-    "eval": "bun run --cwd evals eval:run"
+    "eval": "bun run --cwd evals eval:run",
+    "lint": "biome ci .",
+    "format": "biome check --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.2",
@@ -47,5 +49,8 @@
       "@vitest/runner": "4.0.1",
       "@vitest/utils": "4.0.1"
     }
-  }
+  },
+  "trustedDependencies": [
+    "lefthook"
+  ]
 }
