@@ -55,6 +55,9 @@ export enum EServeEvent {
   Hydrated = 'serve.hydrated',
   HydrateFailed = 'serve.hydrate-failed',
   ResumeRefused = 'serve.resume-refused',
+  EventsFlushed = 'serve.events-flushed',
+  EventFlushConflict = 'serve.event-flush-conflict',
+  EventFlushFailed = 'serve.event-flush-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

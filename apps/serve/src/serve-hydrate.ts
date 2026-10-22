@@ -16,7 +16,7 @@ import { BOOT_STEP_EVENT_TYPE, isApiProvisioned } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
 
-export type HydrateResult = { imported: number; skipped: number; head: number }
+export type HydrateResult = { imported: number; skipped: number; head: number; remoteHead: number }
 
 const coreEventOf = (wire: WireEvent): Event | null => {
   if (wire.type === BOOT_STEP_EVENT_TYPE) return null
@@ -44,6 +44,7 @@ export async function hydrateServeHistory(args: {
   const events = past.flatMap((row) => coreEventOf(row) ?? [])
   const skipped = past.length - events.length
   const head = past.at(-1)?.seq ?? localHead
+  const remoteHead = wire.reduce((highest, row) => Math.max(highest, row.seq), 0)
 
   if (events.length > 0) {
     const writer = args.writer ?? mirrorWriter({ home: () => atlasHome })
@@ -59,7 +60,7 @@ export async function hydrateServeHistory(args: {
   }
 
   log({ event: EServeEvent.Hydrated, localHead, imported: events.length, skipped, head })
-  return { imported: events.length, skipped, head }
+  return { imported: events.length, skipped, head, remoteHead }
 }
 
 export async function hydrateWhenApiProvisioned(args: {
@@ -71,10 +72,10 @@ export async function hydrateWhenApiProvisioned(args: {
   clientVersion: string
   fetchFn: typeof fetch
   log: ServeLog
-}): Promise<void> {
-  if (!isApiProvisioned(args.env)) return
+}): Promise<HydrateResult | undefined> {
+  if (!isApiProvisioned(args.env)) return undefined
   try {
-    await hydrateServeHistory({
+    return await hydrateServeHistory({
       atlasHome: args.atlasHome,
       threadId: args.threadId,
       log: args.log,

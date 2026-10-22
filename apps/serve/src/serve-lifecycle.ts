@@ -29,6 +29,7 @@ export function createServeLifecycle(args: {
   drainDeadlineMs: number
   detach: () => void
   stopSandbox: () => Promise<void>
+  flushEvents?: (() => Promise<boolean>) | undefined
   exit: (code: number) => void
 }): {
   close: (args: { reason: string }) => Promise<void>
@@ -125,6 +126,11 @@ export function createServeLifecycle(args: {
       // The parked marker is the transcript tail the dim rule checks, so publish it explicitly.
       if (parked !== undefined)
         args.app.channel.publisherFor({ threadId: args.threadId }).eventsAppended()
+      if (args.flushEvents !== undefined && !(await args.flushEvents())) {
+        args.log({ event: EServeEvent.ParkRefused, threadId: args.threadId, reason: 'unflushed' })
+        await reopenAdmission()
+        return
+      }
       await args.checkpoint.finalizePark()
       finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })

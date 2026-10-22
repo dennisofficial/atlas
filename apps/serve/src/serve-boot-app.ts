@@ -7,6 +7,7 @@ import { bootServeFiles } from './serve-boot'
 import { bootReporterFor } from './serve-boot-reporter'
 import { composeBootApp } from './serve-compose-boot'
 import { hydrateWhenApiProvisioned } from './serve-hydrate'
+import { bindServeWriteBehind } from './serve-write-behind'
 import type { LoggingNoticePort, ServeLog } from './serve-log'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
 
@@ -45,10 +46,11 @@ export async function bootServeApp(args: {
     reporter,
     ...remote,
   })
+  let hydrated: { remoteHead: number } | undefined
   const app = await reporter.track({
     step: EBootStep.Agent,
     work: async () => {
-      await hydrateWhenApiProvisioned({ env, atlasHome, threadId, log, ...remote })
+      hydrated = await hydrateWhenApiProvisioned({ env, atlasHome, threadId, log, ...remote })
       return composeBootApp({
         compose: serveArgs.compose,
         model: serveArgs.model,
@@ -65,5 +67,13 @@ export async function bootServeApp(args: {
       })
     },
   })
-  return { app, recovery, workspace, fetchFn, clientVersion }
+  const writeBehind = bindServeWriteBehind({
+    env,
+    app,
+    threadId,
+    durableHead: hydrated?.remoteHead ?? 0,
+    remote,
+    log,
+  })
+  return { app, recovery, workspace, fetchFn, clientVersion, writeBehind }
 }
