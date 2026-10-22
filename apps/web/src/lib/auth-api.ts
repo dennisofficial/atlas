@@ -34,10 +34,10 @@ export function formatUserCode(raw: string | null): string {
 
 type SessionBody = { user?: unknown } | null
 
-const readBody = async (response: Response): Promise<Record<string, unknown>> =>
+export const readBody = async (response: Response): Promise<Record<string, unknown>> =>
   (await response.json().catch(() => ({}))) as Record<string, unknown>
 
-const failWith = async (response: Response, fallback: string): Promise<never> => {
+export const failWith = async (response: Response, fallback: string): Promise<never> => {
   const body = await readBody(response)
   const message =
     typeof body.message === 'string'
@@ -150,7 +150,7 @@ export async function sessionUser(): Promise<SessionUser | null> {
   return { name, email, image: typeof user.image === 'string' ? user.image : null }
 }
 
-const postJson = async (args: { path: string; body: unknown }): Promise<Response> => {
+export const postJson = async (args: { path: string; body: unknown }): Promise<Response> => {
   try {
     return await fetch(args.path, {
       method: 'POST',

@@ -46,3 +46,12 @@ export const INTEGRATIONS: Integration[] = [
     ],
   },
 ]
+
+export type SignInMethods = {
+  google: boolean
+  password: boolean
+}
+
+export const SIGN_IN_METHODS_BOTH: SignInMethods = { google: true, password: true }
+export const SIGN_IN_METHODS_GOOGLE_ONLY: SignInMethods = { google: true, password: false }
+export const SIGN_IN_METHODS_PASSWORD_ONLY: SignInMethods = { google: false, password: true }
