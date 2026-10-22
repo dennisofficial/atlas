@@ -1,13 +1,12 @@
 import { Suspense } from 'react'
 
-import { SignInForm } from './sign-in-form'
+import { PageSpinner } from '@/features/auth/page-spinner'
+import { SignInForm } from '@/features/auth/sign-in-form'
 
-export default function SignInPage() {
+export default function Page() {
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
-        <SignInForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PageSpinner label="Loading…" />}>
+      <SignInForm />
+    </Suspense>
   )
 }

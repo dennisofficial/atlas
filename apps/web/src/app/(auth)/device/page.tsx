@@ -1,13 +1,12 @@
 import { Suspense } from 'react'
 
-import { DeviceAuthorizer } from './device-authorizer'
+import { PageSpinner } from '@/features/auth/page-spinner'
+import { DeviceAuthorizer } from '@/features/auth/device-authorizer'
 
-export default function DevicePage() {
+export default function Page() {
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
-        <DeviceAuthorizer />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PageSpinner label="Loading…" />}>
+      <DeviceAuthorizer />
+    </Suspense>
   )
 }
