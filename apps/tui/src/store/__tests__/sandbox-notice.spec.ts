@@ -3,10 +3,10 @@ import { describe, expect, it } from 'bun:test'
 import { createDeltaChannel, ESandboxState } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../conversation-store'
-import { deriveTranscript } from '../derive-transcript'
+import { deriveTranscript, EEntryKind } from '@dltech/atlas-client/transcript'
 import type { SidebarContainer } from '../sidebar-model'
-import { EEntryKind } from '../transcript-model'
-import { fixtureThreadId } from './fixture'
+import { transcriptSandboxOf } from '../transcript-sandbox'
+import { fixtureThreadId } from '@dltech/atlas-client/transcript-fixture'
 
 const STARTING: SidebarContainer = {
   state: ESandboxState.Starting,
@@ -20,7 +20,11 @@ const noticesOf = (model: ReturnType<typeof deriveTranscript>) =>
 
 describe('the transient sandbox line in the transcript', () => {
   it('narrates a starting container on an otherwise empty transcript', () => {
-    const model = deriveTranscript({ events: [], signals: [], sandbox: STARTING })
+    const model = deriveTranscript({
+      events: [],
+      signals: [],
+      sandbox: transcriptSandboxOf(STARTING),
+    })
 
     expect(model.isEmpty).toBe(false)
     const notice = noticesOf(model).at(-1)
@@ -37,7 +41,11 @@ describe('the transient sandbox line in the transcript', () => {
       reason: 'No such image: atlas-dev-no-such-image:latest',
     }
 
-    const model = deriveTranscript({ events: [], signals: [], sandbox: failed })
+    const model = deriveTranscript({
+      events: [],
+      signals: [],
+      sandbox: transcriptSandboxOf(failed),
+    })
 
     const notice = noticesOf(model).at(-1)
     expect(notice?.text).toContain('the container failed to start')
@@ -51,7 +59,11 @@ describe('the transient sandbox line in the transcript', () => {
     ]
 
     for (const sandbox of quiet) {
-      const model = deriveTranscript({ events: [], signals: [], sandbox })
+      const model = deriveTranscript({
+        events: [],
+        signals: [],
+        sandbox: transcriptSandboxOf(sandbox),
+      })
       expect(noticesOf(model)).toEqual([])
       expect(model.isEmpty).toBe(true)
     }

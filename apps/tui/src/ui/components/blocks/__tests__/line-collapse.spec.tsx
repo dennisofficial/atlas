@@ -7,7 +7,7 @@ import React from 'react'
 import { toCallId } from '@dltech/atlas-core'
 
 import { ECallState, type ToolCall } from '../../../../store'
-import { EDetail } from '../../../../store/tools'
+import { EDetail } from '@dltech/atlas-client/transcript'
 import { frameSettled } from '../../../__tests__/waiting'
 import { grammarsReady, teardown } from '../../../markdown/__tests__/harness'
 import { styledLines } from '../../../markdown/__tests__/streamed-corpus'

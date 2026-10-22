@@ -2,7 +2,7 @@ import type { AgentSnapshot, ThreadSummary } from '@dltech/atlas-harness'
 import { useEffect, useMemo, useState } from 'react'
 
 import { subagentLabel } from '../store/subagent-row'
-import { EThinkingVisibility } from '../store/thinking-fold'
+import { EThinkingVisibility } from '@dltech/atlas-client/transcript'
 import type { SidebarModel } from '../store/sidebar-model'
 import type { AtlasApp } from './compose'
 import { EThreadRows, useThreadView } from './use-thread-view'

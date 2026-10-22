@@ -2,10 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EReportKind, toThreadId, type Event } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import {
+  durableEntries,
+  EEntryKind,
+  type AgentEndedEntry,
+  type AgentReportedEntry,
+} from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type AgentEndedEntry, type AgentReportedEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const teammate = toThreadId('thread-teammate')
 

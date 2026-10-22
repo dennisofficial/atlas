@@ -7,16 +7,18 @@ import {
   type ServiceSnapshot,
 } from '@dltech/atlas-harness'
 
-import { agentEndedLine, agentEndingFailed } from './agent-ended-line'
-import type { PendingEntry } from '@dltech/atlas-harness'
-import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import {
+  agentEndedLine,
+  agentEndingFailed,
+  serviceEndedLine,
+  serviceEndingFailed,
   shellAwaitingInputLine,
   shellEndedLine,
   shellEndingFailed,
   shellMatchedNoticeLine,
-} from './shell-ended-line'
-import { EEntryKind } from './transcript-model'
+  EEntryKind,
+} from '@dltech/atlas-client/transcript'
+import type { PendingEntry } from '@dltech/atlas-harness'
 
 export enum EPendingKind {
   Operator = 'operator',

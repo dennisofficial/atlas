@@ -6,9 +6,11 @@ import {
   type Event,
   type EventRef,
 } from '@dltech/atlas-core'
-import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-harness'
+import { EStepEnd, type StepId, type StepSignal } from '../channel'
 
 import type { LiveToolCall } from './tool-runs'
+
+export type Clock = () => Date
 
 export type StepBlock = { id: string; kind: EBlockKind; text: string }
 
@@ -57,7 +59,12 @@ function blockFor(args: { step: ArrivingStep; kind: EBlockKind; id: string }): S
   return created
 }
 
-function openedCall(args: { step: ArrivingStep; callId: CallId; name: string }): ArrivingCall {
+function openedCall(args: {
+  step: ArrivingStep
+  callId: CallId
+  name: string
+  now: Clock | undefined
+}): ArrivingCall {
   const existing = args.step.calls.find((call) => call.callId === args.callId)
   if (existing !== undefined) return existing
 
@@ -65,7 +72,7 @@ function openedCall(args: { step: ArrivingStep; callId: CallId; name: string }):
     callId: args.callId,
     name: args.name,
     input: undefined,
-    at: new Date().toISOString(),
+    at: args.now?.().toISOString() ?? null,
     precededByBlocks: args.step.blocks.length,
     arriving: null,
   }
@@ -73,8 +80,8 @@ function openedCall(args: { step: ArrivingStep; callId: CallId; name: string }):
   return opened
 }
 
-export function absorbChunk(args: { step: ArrivingStep; chunk: Chunk }) {
-  const { step, chunk } = args
+export function absorbChunk(args: { step: ArrivingStep; chunk: Chunk; now?: Clock | undefined }) {
+  const { step, chunk, now } = args
 
   switch (chunk.type) {
     case 'error':
@@ -95,7 +102,7 @@ export function absorbChunk(args: { step: ArrivingStep; chunk: Chunk }) {
       blockFor({ step, kind: EBlockKind.Reasoning, id: chunk.id }).text += chunk.text
       return
     case 'tool-input-start':
-      openedCall({ step, callId: chunk.callId, name: chunk.name })
+      openedCall({ step, callId: chunk.callId, name: chunk.name, now })
       return
     case 'tool-input-delta': {
       const call = step.calls.find((open) => open.callId === chunk.callId)
@@ -104,7 +111,7 @@ export function absorbChunk(args: { step: ArrivingStep; chunk: Chunk }) {
       return
     }
     case 'tool-call': {
-      const call = openedCall({ step, callId: chunk.callId, name: chunk.name })
+      const call = openedCall({ step, callId: chunk.callId, name: chunk.name, now })
       call.input = chunk.input
       call.arriving = null
       return
@@ -191,7 +198,13 @@ export function prunedSignals(args: {
   return kept.length === args.signals.length ? args.signals : kept
 }
 
-export function stepsOfSignals(signals: readonly StepSignal[]): InFlightStep[] {
+export const stepsOfSignals = (signals: readonly StepSignal[]): InFlightStep[] =>
+  stepsOfSignalsAt({ signals, now: undefined })
+
+export function stepsOfSignalsAt(args: {
+  signals: readonly StepSignal[]
+  now: Clock | undefined
+}): InFlightStep[] {
   const ordered: ArrivingStep[] = []
   const byId = new Map<StepId, ArrivingStep>()
 
@@ -205,12 +218,12 @@ export function stepsOfSignals(signals: readonly StepSignal[]): InFlightStep[] {
     return created
   }
 
-  for (const signal of signals) {
+  for (const signal of args.signals) {
     if (!stepKeyed(signal)) continue
 
     const step = stepFor(signal.stepId)
 
-    if (signal.type === 'chunk') absorbChunk({ step, chunk: signal.chunk })
+    if (signal.type === 'chunk') absorbChunk({ step, chunk: signal.chunk, now: args.now })
 
     if (signal.type === 'step-ended') {
       step.end = signal.end

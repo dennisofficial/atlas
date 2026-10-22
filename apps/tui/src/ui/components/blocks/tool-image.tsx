@@ -2,7 +2,7 @@ import { useRenderer, useTerminalDimensions } from '@opentui/react'
 import React from 'react'
 
 import type { ToolCall } from '../../../store'
-import { imageOf, imageSummary } from '../../../store/tools'
+import { imageOf, imageSummary } from '@dltech/atlas-client/transcript'
 import { useTranscriptCovered } from '../../covered-store'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { imageRows } from '../../image-rows-store'

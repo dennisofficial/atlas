@@ -28,8 +28,10 @@ mock.module('../components/entry-view', () => {
 
 const { EEntryKind, createConversationStore, deriveTranscript } = await import('../../store')
 const { createDeltaChannel } = await import('@dltech/atlas-harness')
-const { fixtureThreadId } = await import('../../store/__tests__/fixture')
-const { called, callId, clocked, result, said } = await import('../../store/__tests__/tool-fixture')
+const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
+const { called, callId, clocked, result, said } = await import(
+  '@dltech/atlas-client/transcript-tool-fixture'
+)
 const { moreKey } = await import('../components/blocks/tool-run-expansion')
 const { Transcript } = await import('../components/transcript')
 const { grammarsReady, teardown } = await import('../markdown/__tests__/harness')

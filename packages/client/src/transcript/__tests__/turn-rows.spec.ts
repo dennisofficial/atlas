@@ -1,5 +1,6 @@
 import { ECompactionAnchor, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
-import { ETurnStatus, type TurnSpend } from '@dltech/atlas-harness'
+import { ETurnStatus } from '../../channel'
+import type { TurnSpend } from '../turn-spend'
 import { describe, expect, it } from 'bun:test'
 
 import { durableEntries } from '../durable-entries'

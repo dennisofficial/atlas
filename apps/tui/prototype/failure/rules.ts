@@ -9,8 +9,8 @@ import {
   str,
   type Classification,
   type Read,
-} from '../../src/store/tools'
-import { CWD } from '../../src/store/tools/__tests__/fixture'
+} from '@dltech/atlas-client/transcript'
+import { CWD } from '@dltech/atlas-client/transcript-tools-fixture'
 
 const STAGES = /&&|\|\||\||;/
 

@@ -31,6 +31,7 @@ export {
   reasonOf,
   records,
   num,
+  plural,
   hostOf,
   relativise,
   strings,

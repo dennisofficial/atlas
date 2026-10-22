@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Event } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import {
+  durableEntries,
+  EEntryKind,
+  type BackgroundShellStillRunningEntry,
+} from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type BackgroundShellStillRunningEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const shellStillRunning = (over: Record<string, unknown> = {}) => ({
   type: 'background-shell-still-running' as const,

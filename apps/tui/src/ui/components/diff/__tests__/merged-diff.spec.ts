@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EDiffLine } from '@dltech/atlas-core'
 
-import { aCall, CWD } from '../../../../store/tools/__tests__/fixture'
+import { aCall, CWD } from '@dltech/atlas-client/transcript-tools-fixture'
 import { mergedDiffOf } from '../merged-diff'
 
 const PATCH_ONE = `--- a/src/a.ts

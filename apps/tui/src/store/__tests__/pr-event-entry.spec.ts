@@ -8,11 +8,14 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import {
+  durableEntries,
+  transcriptNotice,
+  EEntryKind,
+  type PrEventEntry,
+} from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { transcriptNotice } from '../notice-barriers'
-import { EEntryKind, type PrEventEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 type PrEventDraft = Extract<EventDraft, { type: 'pr-event' }>
 

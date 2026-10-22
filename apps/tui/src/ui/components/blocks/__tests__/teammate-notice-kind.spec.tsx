@@ -2,9 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 
-import { durableEntries } from '../../../../store/durable-entries'
-import { EEntryKind } from '../../../../store/transcript-model'
-import { log } from '../../../../store/__tests__/fixture'
+import { durableEntries, EEntryKind } from '@dltech/atlas-client/transcript'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 import { EntryView } from '../../entry-view'
 
 const CHILD = toThreadId('teammate')

@@ -17,7 +17,7 @@ import {
   type SubagentReadout,
 } from '../subagent-row'
 import { IDLE_TURN } from '../../ui/turn-clock'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const PARENT = toThreadId('thr_parent')
 

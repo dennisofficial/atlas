@@ -11,7 +11,7 @@ import {
   subagentWentWrong,
   type SidebarSubagent,
 } from '../../../store/subagent-row'
-import { plural } from '../../../store/tools/reading'
+import { plural } from '@dltech/atlas-client/transcript'
 import { contextUsageTone } from '../../context-bar'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { usePress } from '../../hooks/use-press'

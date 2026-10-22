@@ -10,7 +10,7 @@ import {
   stepKeyed,
   type ArrivingStep,
   type InFlightStep,
-} from './in-flight-steps'
+} from '@dltech/atlas-client/transcript'
 import type { TailRun } from './reveal'
 
 export type StepTracker = {
@@ -57,7 +57,7 @@ export function createStepTracker(): StepTracker {
 
       const step = stepFor(signal.stepId)
 
-      if (signal.type === 'chunk') absorbChunk({ step, chunk: signal.chunk })
+      if (signal.type === 'chunk') absorbChunk({ step, chunk: signal.chunk, now: () => new Date() })
 
       if (signal.type === 'step-ended') {
         step.end = signal.end

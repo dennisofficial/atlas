@@ -17,7 +17,7 @@ import { grammarsReady, teardown } from '../markdown/__tests__/harness'
 import { letTimersRun } from './ticking'
 import { frameShowing } from './waiting'
 import { deriveTranscript } from '../../store'
-import { called, clocked, result, said } from '../../store/__tests__/tool-fixture'
+import { called, clocked, result, said } from '@dltech/atlas-client/transcript-tool-fixture'
 import { glyph } from '../theme'
 import {
   FAILED_SILENTLY,

@@ -7,7 +7,7 @@
 
 import React, { useMemo } from 'react'
 
-import { diffStatOf, type Read } from '../../../store/tools'
+import { diffStatOf, type Read } from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { tailOfPath } from '../../paths'
 import { markPaint, type EMark } from '../../tool-marks'

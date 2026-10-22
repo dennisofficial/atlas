@@ -2,7 +2,7 @@
 // happen not to contain as well as the ones they do.
 
 import type { ToolCall } from '../../src/store'
-import { aCall, aShell, CWD } from '../../src/store/tools/__tests__/fixture'
+import { aCall, aShell, CWD } from '@dltech/atlas-client/transcript-tools-fixture'
 
 export type Case = { name: string; calls: readonly ToolCall[] }
 

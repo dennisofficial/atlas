@@ -2,7 +2,7 @@ import { EReportKind } from '@dltech/atlas-core'
 import React from 'react'
 
 import { EEntryKind, type TranscriptEntry } from '../../store'
-import { agentReportNeedsAttention } from '../../store/agent-ended-line'
+import { agentReportNeedsAttention } from '@dltech/atlas-client/transcript'
 import { theme } from '../theme'
 import type { EMark } from '../tool-marks'
 import { AssistantBlock } from './blocks/assistant-block'

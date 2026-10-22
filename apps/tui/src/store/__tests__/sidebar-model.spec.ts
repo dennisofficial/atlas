@@ -14,7 +14,7 @@ import { describe, expect, it } from 'bun:test'
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { ESidebarPlace } from '../../ui/sidebar-section'
 import { deriveSidebar, IDLE_SIDEBAR, withSections } from '../sidebar-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const CALL_ONE = toCallId('call-1')
 

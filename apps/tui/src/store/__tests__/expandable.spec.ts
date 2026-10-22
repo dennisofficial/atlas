@@ -3,8 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { toCallId } from '@dltech/atlas-core'
 
 import { newestExpandableKey } from '../expandable'
-import { ECallState, type ToolCall, type ToolRun } from '../tool-runs'
-import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from '../transcript-model'
+import {
+  ECallState,
+  type ToolCall,
+  type ToolRun,
+  EAuthor,
+  EEntryKind,
+  toolsRanEntry,
+  type TranscriptEntry,
+} from '@dltech/atlas-client/transcript'
 
 const thought = (args: {
   key: string

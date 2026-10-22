@@ -13,7 +13,7 @@
 import React, { useMemo } from 'react'
 
 import type { ToolCall } from '../../../store'
-import { detailOf, inputOf, str } from '../../../store/tools'
+import { detailOf, inputOf, str } from '@dltech/atlas-client/transcript'
 import { stripAnsi } from '../../ansi'
 import { wrapDiffChunks } from '../../markdown/highlight-rows'
 import { tailOfPath } from '../../paths'

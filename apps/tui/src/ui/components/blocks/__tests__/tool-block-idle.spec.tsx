@@ -3,7 +3,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import React from 'react'
 
 import type { ToolCall } from '../../../../store'
-import { EDetail } from '../../../../store/tools'
+import { EDetail } from '@dltech/atlas-client/transcript'
 import { grammarsReady, teardown } from '../../../markdown/__tests__/harness'
 import { NOT_EXPANDABLE } from '../more-toggle'
 import { ToolDetail } from '../tool-detail'

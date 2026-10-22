@@ -1,4 +1,4 @@
-import type { TranscriptEntry } from './transcript-model'
+import type { TranscriptEntry } from '@dltech/atlas-client/transcript'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null

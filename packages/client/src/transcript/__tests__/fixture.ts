@@ -9,9 +9,10 @@ import {
   type EventEnvelope,
   type EventRef,
 } from '@dltech/atlas-core'
-import { EStepEnd, toStepId, type StepId, type StepSignal } from '@dltech/atlas-harness'
+import { EStepEnd, toStepId, type StepId, type StepSignal } from '../../channel'
 
-import { EEntryKind, type TranscriptEntry, type TranscriptModel } from '../transcript-model'
+import { EEntryKind, type TranscriptEntry } from '../transcript-model'
+import type { TranscriptModel } from '../transcript-snapshot'
 
 export const fixtureThreadId = toThreadId('thread-fixture')
 

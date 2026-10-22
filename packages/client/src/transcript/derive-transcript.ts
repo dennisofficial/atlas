@@ -1,9 +1,16 @@
 import { EBlockKind, type CallId, type Event } from '@dltech/atlas-core'
-import { ESandboxState, EStepEnd, type StepSignal, type TurnSpend } from '@dltech/atlas-harness'
+import { EStepEnd, type StepSignal } from '../channel'
 
 import { durableEntries } from './durable-entries'
-import { liveSteps, runKey, stepsOfSignals, type InFlightStep } from './in-flight-steps'
-import { revealedText, type RevealGate } from './reveal'
+import {
+  liveSteps,
+  runKey,
+  stepsOfSignalsAt,
+  type Clock,
+  type InFlightStep,
+} from './in-flight-steps'
+import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
+import { revealedText, type RevealGate } from './reveal-gate'
 import { modelEntries } from './model-entries'
 import { liveToolRuns, type LiveToolRun } from './tool-runs'
 import {
@@ -12,17 +19,9 @@ import {
   toolsAboveThoughts,
   type EThinkingVisibility,
 } from './thinking-fold'
-import type { SidebarContainer } from './sidebar-model'
-import {
-  EAuthor,
-  EEntryKind,
-  EMPTY_TRANSCRIPT,
-  toolsRanEntry,
-  type SandboxNoticeEntry,
-  type StepFailure,
-  type TranscriptEntry,
-  type TranscriptModel,
-} from './transcript-model'
+import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
+import { EMPTY_TRANSCRIPT, type StepFailure, type TranscriptModel } from './transcript-snapshot'
+import type { TurnSpend } from './turn-spend'
 
 const failureOf = (steps: readonly InFlightStep[]): StepFailure | null => {
   const failed = steps.filter((step) => step.end === EStepEnd.Failed).at(-1)
@@ -103,38 +102,6 @@ function withLiveOutputs(
 
 const NO_OUTPUTS: ReadonlyMap<CallId, string> = new Map()
 
-const SANDBOX_NOTICE_KEY = 'sandbox-notice'
-
-function sandboxNoticeOf(sandbox: SidebarContainer | null): SandboxNoticeEntry[] {
-  if (sandbox === null) return []
-
-  const shared = {
-    kind: EEntryKind.SandboxNotice,
-    author: EAuthor.Model,
-    key: SANDBOX_NOTICE_KEY,
-  } as const
-
-  if (sandbox.state === ESandboxState.Starting) {
-    return [
-      {
-        ...shared,
-        text: `starting the container — ${sandbox.label} can take minutes to pull the first time`,
-        failed: false,
-      },
-    ]
-  }
-  if (sandbox.state === ESandboxState.Failed) {
-    return [
-      {
-        ...shared,
-        text: `the container failed to start: ${sandbox.reason ?? 'the daemon gave no reason'}`,
-        failed: true,
-      },
-    ]
-  }
-  return []
-}
-
 export function assembleTranscript(args: {
   durable: readonly TranscriptEntry[]
   live: readonly InFlightStep[]
@@ -142,7 +109,7 @@ export function assembleTranscript(args: {
   thinking?: EThinkingVisibility
   pendingTldr?: { anchorSeq: number; text: string } | null | undefined
   tldrStatus?: boolean | undefined
-  sandbox?: SidebarContainer | null | undefined
+  sandbox?: TranscriptSandbox | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
   working?: boolean | undefined
 }): TranscriptModel {
@@ -185,12 +152,16 @@ export function deriveTranscript(args: {
   thinking?: EThinkingVisibility
   pendingTldr?: { anchorSeq: number; text: string } | null | undefined
   tldrStatus?: boolean | undefined
-  sandbox?: SidebarContainer | null | undefined
+  sandbox?: TranscriptSandbox | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
+  now?: Clock | undefined
 }): TranscriptModel {
   return assembleTranscript({
     durable: durableEntries({ events: args.events, turns: args.turns }),
-    live: liveSteps({ steps: stepsOfSignals(args.signals), events: args.events }),
+    live: liveSteps({
+      steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
+      events: args.events,
+    }),
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
     ...(args.thinking === undefined ? {} : { thinking: args.thinking }),
     ...(args.pendingTldr === undefined ? {} : { pendingTldr: args.pendingTldr }),

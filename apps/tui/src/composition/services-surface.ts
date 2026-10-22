@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
-import { plural } from '../store/tools/reading'
+import { plural } from '@dltech/atlas-client/transcript'
 import { chipItem, EFooterItemReach, type FooterItem } from '../ui/footer-item'
 import { SERVICE_BLUE, theme } from '../ui/theme'
 import type { ServicesControl } from './use-services'

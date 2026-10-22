@@ -4,7 +4,7 @@ import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
 import { IDLE_TURN } from '../../ui/turn-clock'
-import { fixtureThreadId, log } from './fixture'
+import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
 const conversation = log([
   { type: 'user-said', text: 'why is this slow' },

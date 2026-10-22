@@ -23,7 +23,7 @@ import {
   sentenceOf,
   type Read,
   type Segment,
-} from '../../../store/tools'
+} from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { useHighWater } from '../../hooks/use-high-water'
 import { tailOfPath } from '../../paths'

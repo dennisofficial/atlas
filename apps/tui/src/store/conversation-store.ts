@@ -3,11 +3,19 @@ import type { ChannelSignal, DeltaChannel, TurnSpend, Unsubscribe } from '@dltec
 
 import { durableOpLog } from '../composition/durable-op-log'
 import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
-import { assembleTranscript } from './derive-transcript'
-import { durableEntries } from './durable-entries'
+import {
+  assembleTranscript,
+  durableEntries,
+  SHIPPED_THINKING,
+  type EThinkingVisibility,
+  type RevealGate,
+  type StepFailure,
+  type TranscriptEntry,
+  type TranscriptModel,
+} from '@dltech/atlas-client/transcript'
 import type { LogAccumulator, ToolEffects } from './log-accumulator'
 import { createLogWindow, sameLogSummary, type LogSummary } from './log-window'
-import { advancedGate, attachedGate, FRAME_MS, gateIsDraining, type RevealGate } from './reveal'
+import { advancedGate, attachedGate, FRAME_MS, gateIsDraining } from './reveal'
 import {
   sameSidebar,
   sidebarFoldFrom,
@@ -15,14 +23,13 @@ import {
   type SidebarContainer,
   type SidebarModel,
 } from './sidebar-model'
+import { transcriptSandboxOf } from './transcript-sandbox'
 import { watchSandbox, type SandboxStatusSource } from './sandbox-source'
 import { pendingTldrOf, subscribeTldrFeed } from '../ui/tldr-feed-store'
 import { sameEvents, sameTurns } from './same-log'
 import type { ModelPriceLookup } from './sidebar-spend'
 import { stabilisedEntries } from './stable-entries'
 import { createStepTracker } from './step-tracker'
-import { SHIPPED_THINKING, type EThinkingVisibility } from './thinking-fold'
-import type { StepFailure, TranscriptEntry, TranscriptModel } from './transcript-model'
 import { IDLE_PROGRESS, turnObserved, type TurnProgress } from './turn-progress'
 
 export type ConversationStore = {
@@ -127,7 +134,7 @@ export function createConversationStore(args: {
     thinking,
     pendingTldr,
     tldrStatus,
-    sandbox,
+    sandbox: transcriptSandboxOf(sandbox),
   })
   let sidebar = sidebarNow()
 
@@ -188,7 +195,7 @@ export function createConversationStore(args: {
         thinking,
         pendingTldr,
         tldrStatus,
-        sandbox,
+        sandbox: transcriptSandboxOf(sandbox),
         outputs: tails,
         working: channelWorking,
       }),

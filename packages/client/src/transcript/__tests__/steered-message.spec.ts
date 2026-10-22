@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { deriveTranscript } from '../derive-transcript'
-import { EEntryKind, type TranscriptModel } from '../transcript-model'
+import { EEntryKind } from '../transcript-model'
+import type { TranscriptModel } from '../transcript-snapshot'
 import { fromTheOperator, log } from './fixture'
 import { called, denied, result } from './tool-fixture'
 

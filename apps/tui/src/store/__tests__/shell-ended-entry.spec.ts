@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy, EShellStatus, type Event } from '@dltech/atlas-core'
 
-import { durableEntries } from '../durable-entries'
+import {
+  durableEntries,
+  EEntryKind,
+  type BackgroundShellEndedEntry,
+} from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
-import { EEntryKind, type BackgroundShellEndedEntry } from '../transcript-model'
-import { log } from './fixture'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const shellEnded = (over: Record<string, unknown> = {}) => ({
   type: 'background-shell-ended' as const,

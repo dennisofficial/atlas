@@ -19,7 +19,13 @@
 import React, { useMemo } from 'react'
 
 import { ECallState, type ToolCall } from '../../../store'
-import { dictatedContentOf, inputOf, outputOf, relativise, str } from '../../../store/tools'
+import {
+  dictatedContentOf,
+  inputOf,
+  outputOf,
+  relativise,
+  str,
+} from '@dltech/atlas-client/transcript'
 import { theme } from '../../theme'
 import { Panel, PANEL_INSET, PANEL_PAD } from '../panel'
 import { MoreToggle, NOT_EXPANDABLE, shownOf, type Expander } from './more-toggle'

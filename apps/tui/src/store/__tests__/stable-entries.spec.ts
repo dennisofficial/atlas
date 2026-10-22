@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { stabilisedEntries } from '../stable-entries'
-import { EAuthor, EEntryKind, type TranscriptEntry } from '../transcript-model'
+import { EAuthor, EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
 
 const said = (args: { key: string; text: string }): TranscriptEntry => ({
   kind: EEntryKind.OperatorSaid,

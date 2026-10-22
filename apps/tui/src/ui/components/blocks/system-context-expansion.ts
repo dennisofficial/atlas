@@ -1,4 +1,4 @@
-import type { SystemContextEntry } from '../../../store/transcript-model'
+import type { SystemContextEntry } from '@dltech/atlas-client/transcript'
 
 export const injectionKey = (id: string): string => `injection:${id}`
 
