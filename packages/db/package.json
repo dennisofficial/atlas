@@ -14,17 +14,21 @@
     "db:plan": "prisma migration plan",
     "db:migrate": "prisma db migrate --advance-ref db",
     "db:verify": "prisma db verify",
-    "db:seed": "bun src/seed/cli.ts"
+    "db:seed": "bun src/seed/cli.ts",
+    "db:test:up": "docker compose up -d --wait test-postgres",
+    "test": "bun --bun vitest run"
   },
   "dependencies": {
     "@prisma/orm-postgres": "8.0.0-rc.19",
-    "pg": "^8.16.3"
+    "pg": "8.22.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^26.3.0",
-    "@types/pg": "^8.15.5",
+    "@types/pg": "8.20.4",
     "prisma": "8.0.0-rc.24",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.0.1",
+    "@dltech/vitest-incremental": "workspace:*"
   }
 }
