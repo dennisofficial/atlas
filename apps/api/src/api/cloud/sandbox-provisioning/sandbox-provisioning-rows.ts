@@ -97,10 +97,17 @@ export async function markFailed(args: {
   writer?: RowWriter | undefined
   threadId: string
   wakeClaim: Date
-}): Promise<void> {
+}): Promise<number> {
   const at = new Date()
-  await (args.writer ?? db).orm.public.CloudSandbox.where({
+  return (args.writer ?? db).orm.public.CloudSandbox.where({
     threadId: args.threadId,
     wakeClaim: args.wakeClaim,
   }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
+}
+
+export async function claimHeld(args: { threadId: string; wakeClaim: Date }): Promise<boolean> {
+  const row = await db.orm.public.CloudSandbox.where({ threadId: args.threadId })
+    .select('wakeClaim')
+    .first()
+  return row?.wakeClaim?.getTime() === args.wakeClaim.getTime()
 }

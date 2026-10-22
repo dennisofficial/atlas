@@ -4,7 +4,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
-import { runPodProvision } from './pod-provision-run'
+import { PROVISION_TIMEOUT_MESSAGE, failPodProvision, runPodProvision } from './pod-provision-run'
 import {
   CREDENTIALS,
   bootSteps,
@@ -184,5 +184,81 @@ describe('runPodProvision', () => {
 
     expect(output).toEqual({ outcome: 'superseded' })
     expect((await sandboxRows())[0]?.state).toBe('resuming')
+  })
+
+  it('writes no error step and reports superseded when the claim moved before the boot failed', async () => {
+    await seedThread()
+    await seedSandboxRow()
+    const payload = await payloadOf()
+    const boot = {
+      boot: async () => {
+        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+          wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
+        })
+        throw new Error('vercel is down')
+      },
+    }
+
+    const output = await runPodProvision({ payload, deps: runDepsWith({ boot }) })
+
+    expect(output).toEqual({ outcome: 'superseded' })
+    expect(await bootSteps()).toEqual([])
+    const [row] = await sandboxRows()
+    expect(row?.wakeFailedAt).toBeNull()
+    expect(row?.wakeClaim).not.toBeNull()
+  })
+
+  it('drops steps the boot reports after the claim moved', async () => {
+    await seedThread()
+    await seedSandboxRow()
+    const payload = await payloadOf()
+    const boot = {
+      boot: async (args: Parameters<ReturnType<typeof fakeBoot>['boot']['boot']>[0]) => {
+        await args.reporter?.report({ step: 'provision', state: 'running' } as never)
+        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+          wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
+        })
+        await args.reporter?.report({ step: 'clone', state: 'running' } as never)
+        return { serveUrl: 'https://serve.example.test', created: true }
+      },
+    }
+
+    await runPodProvision({ payload, deps: runDepsWith({ boot }) })
+
+    expect(await bootSteps()).toMatchObject([{ step: 'provision', state: 'running' }])
+  })
+})
+
+describe('failPodProvision', () => {
+  useTestDatabase()
+
+  it('releases the claim and records a Provision error step', async () => {
+    await seedThread()
+    await seedSandboxRow()
+
+    await failPodProvision({ payload: await payloadOf() })
+
+    const [row] = await sandboxRows()
+    expect(row?.wakeClaim).toBeNull()
+    expect(row?.wakeFailedAt).not.toBeNull()
+    expect(await bootSteps()).toMatchObject([
+      { step: 'provision', state: 'error', error: PROVISION_TIMEOUT_MESSAGE },
+    ])
+  })
+
+  it('does nothing when the claim was superseded', async () => {
+    await seedThread()
+    await seedSandboxRow()
+    const payload = await payloadOf()
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+      wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
+    })
+
+    await failPodProvision({ payload })
+
+    const [row] = await sandboxRows()
+    expect(row?.wakeFailedAt).toBeNull()
+    expect(row?.wakeClaim).not.toBeNull()
+    expect(await bootSteps()).toEqual([])
   })
 })

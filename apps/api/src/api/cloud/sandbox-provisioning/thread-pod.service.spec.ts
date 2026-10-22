@@ -1,8 +1,10 @@
 import { EBootStep, EBootStepState, EPodState } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { podLaunchWith } from './sandbox-provisioning.fixture'
 import { ThreadPodService } from './thread-pod.service'
 
 const { Provision, Serve, Clone, Agent } = EBootStep
@@ -133,6 +135,24 @@ describe('ThreadPodService', () => {
       [Provision, Done],
       [Serve, Running],
     ])
+  })
+
+  it('shows only the new attempt right after a re-claim of a failed pod', async () => {
+    await record([Provision, Running], [Provision, Failed, 'old failure'])
+    await seedSandboxRow({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      state: 'resuming',
+      wakeClaim: null,
+      wakeFailedAt: new Date(),
+    })
+    const existing = await db.orm.public.CloudSandbox.first({ threadId: 'thr-1' })
+    const thread = await db.orm.public.Thread.where({ id: 'thr-1' }).all().firstOrThrow()
+
+    const claim = await podLaunchWith().pod.claim({ thread, existing })
+
+    expect(claim).not.toBeNull()
+    expect(await shape()).toEqual({ state: EPodState.Booting, steps: [[Provision, Running]] })
   })
 
   it('falls back to the last Provision step of any state when none is Running', async () => {

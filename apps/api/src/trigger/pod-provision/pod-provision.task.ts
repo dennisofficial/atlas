@@ -1,5 +1,8 @@
 import { schemaTask } from '@trigger.dev/sdk'
-import { runPodProvision } from '../../api/cloud/sandbox-provisioning/pod-provision-run'
+import {
+  failPodProvision,
+  runPodProvision,
+} from '../../api/cloud/sandbox-provisioning/pod-provision-run'
 import {
   POD_PROVISION_TASK_ID,
   podProvisionPayloadSchema,
@@ -21,4 +24,5 @@ export const podProvisionTask = schemaTask({
   retry: { maxAttempts: 1 },
   maxDuration: 300,
   run: runPodProvisionTask,
+  onFailure: ({ payload }) => failPodProvision({ payload }),
 }) satisfies PodProvisionTask
