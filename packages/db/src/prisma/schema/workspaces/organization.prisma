@@ -12,6 +12,7 @@ model Organization {
   projects         Project[]
   secrets          WorkspaceSecret[]
   settings         WorkspaceSetting[]
+  threads          Thread[]
   vercelCredential WorkspaceVercelCredential?
 
   @@unique([slug], map: "Organization_slug_key")

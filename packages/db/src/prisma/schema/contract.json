@@ -112,6 +112,10 @@
       "model": "PublishedBundle",
       "namespace": "public"
     },
+    "SandboxBootStep": {
+      "model": "SandboxBootStep",
+      "namespace": "public"
+    },
     "SecretEntry": {
       "model": "UserSecret",
       "namespace": "public"
@@ -138,6 +142,10 @@
     },
     "UserFile": {
       "model": "UserFile",
+      "namespace": "public"
+    },
+    "UserVercelCredential": {
+      "model": "UserVercelCredential",
       "namespace": "public"
     },
     "Verification": {
@@ -2893,6 +2901,21 @@
                   "namespace": "public"
                 }
               },
+              "threads": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
               "vercelCredential": {
                 "cardinality": "1:1",
                 "nullable": true,
@@ -3614,6 +3637,97 @@
               "table": "PublishedBundle"
             }
           },
+          "SandboxBootStep": {
+            "fields": {
+              "at": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "error": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "state": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "step": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "thread": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "at": {
+                  "column": "at"
+                },
+                "error": {
+                  "column": "error"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "state": {
+                  "column": "state"
+                },
+                "step": {
+                  "column": "step"
+                },
+                "threadId": {
+                  "column": "threadId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "SandboxBootStep"
+            }
+          },
           "Session": {
             "fields": {
               "activeOrganizationId": {
@@ -3933,6 +4047,13 @@
                   "kind": "scalar"
                 }
               },
+              "organizationId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "parentThreadId": {
                 "nullable": true,
                 "type": {
@@ -3994,6 +4115,21 @@
               }
             },
             "relations": {
+              "bootSteps": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
+                },
+                "to": {
+                  "model": "SandboxBootStep",
+                  "namespace": "public"
+                }
+              },
               "cloudSandbox": {
                 "cardinality": "1:1",
                 "nullable": true,
@@ -4037,6 +4173,22 @@
                 },
                 "to": {
                   "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
                   "namespace": "public"
                 }
               },
@@ -4163,6 +4315,9 @@
                 },
                 "modelRef": {
                   "column": "modelRef"
+                },
+                "organizationId": {
+                  "column": "organizationId"
                 },
                 "parentThreadId": {
                   "column": "parentThreadId"
@@ -4832,6 +4987,22 @@
                   "model": "UserFile",
                   "namespace": "public"
                 }
+              },
+              "vercelCredential": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "UserVercelCredential",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -5291,6 +5462,100 @@
               "table": "CloudSetting"
             }
           },
+          "UserVercelCredential": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "sealedToken": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "teamId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "vercelProjectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "sealedToken": {
+                  "column": "sealedToken"
+                },
+                "teamId": {
+                  "column": "teamId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                },
+                "vercelProjectId": {
+                  "column": "vercelProjectId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "UserVercelCredential"
+            }
+          },
           "Verification": {
             "fields": {
               "createdAt": {
@@ -5738,6 +6003,13 @@
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
+              },
+              "vercelProjectId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
@@ -5793,6 +6065,9 @@
                 },
                 "updatedById": {
                   "column": "updatedById"
+                },
+                "vercelProjectId": {
+                  "column": "vercelProjectId"
                 }
               },
               "namespaceId": "public",
@@ -8772,6 +9047,86 @@
                 }
               ]
             },
+            "SandboxBootStep": {
+              "columns": {
+                "at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "error": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "state": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "step": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "SandboxBootStep_threadId_at_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "threadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "SandboxBootStep"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "threadId",
+                    "at"
+                  ],
+                  "name": "SandboxBootStep_threadId_at_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "SecretEntry": {
               "columns": {
                 "createdAt": {
@@ -9126,6 +9481,11 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "parentThreadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -9252,9 +9612,37 @@
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
+                },
+                {
+                  "index": {
+                    "name": "Thread_organizationId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "Thread_organizationId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "parentThreadId"
@@ -9623,6 +10011,80 @@
                   "name": "UserFile_userId_tree_path_key"
                 }
               ]
+            },
+            "UserVercelCredential": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "sealedToken": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "teamId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "vercelProjectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "primaryKey": true
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UserVercelCredential"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "userId"
+                ]
+              },
+              "uniques": []
             },
             "Verification": {
               "columns": {
@@ -10028,6 +10490,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "vercelProjectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -10097,10 +10564,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "48f388327b7b2ead307be46883590187c4129a53bb4c9912a089979c3a7e0c46"
+    "storageHash": "652eda18865caeb7c4d12898fc475837af9bfedf38aed15cb3f1041db4729364"
   },
   "execution": {
-    "executionHash": "9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf",
+    "executionHash": "df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec",
     "mutations": {
       "defaults": [
         {
@@ -10396,6 +10863,17 @@
         },
         {
           "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "SandboxBootStep",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
             "id": "timestampNow",
             "kind": "generator"
           },
@@ -10487,6 +10965,21 @@
           },
           "ref": {
             "entry": "UserFile",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "UserVercelCredential",
             "field": "updatedAt",
             "namespace": "public"
           }
