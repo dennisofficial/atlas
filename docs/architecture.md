@@ -1195,7 +1195,7 @@ reported clean and was deleted with its commits. The ref the branch was cut from
 creation, which is exactly what `worktree-entered.base` recorded and had no way to reach the exit
 until the fold carried it there.
 
-**Two sessions cannot work the same worktree.** Entering claims it with `git worktree lock`, whose
+**The worktree lock protects against deletion, not against sharing.** Entering claims it with `git worktree lock`, whose
 reason is a legible ownership token — `atlas thread <id> (pid <n> start <t>)`. The start time is
 load-bearing: a pid alone is reusable, so a recycled pid would read as a live owner forever. It is
 read from `ps`, falling back to `/proc` so a sandbox image without `ps` (or a Cloud sandbox, where
@@ -1204,12 +1204,16 @@ it back is a four-way verdict rather than a flag check, and only the pure part l
 (`worktreeLockHolder`) with the process probing in `harness`, because "is that pid alive" is I/O and
 "what does this reason mean" is not.
 
-A lock this session already holds is ours. A lock naming a live process refuses the entry outright.
+A lock this session already holds is ours. A lock naming a live process is left in place and the
+session enters as a guest: several sessions may work one worktree in parallel, and the reply tells
+the model another session is there so it commits only its own files and pulls before pushing.
 A lock naming a process that is gone, or whose start time no longer matches, is stale and gets
 cleared and retaken. Anything that does not parse as an Atlas token is a person's own
 `git worktree lock`, which is left exactly where it is while the session works in the worktree as a
-guest — the same as when the registry cannot be read at all. Refusing to enter is reserved for the
-one case where another agent is actually there.
+guest — the same as when the registry cannot be read at all. A guest never unlocks what it did not
+lock, so the holder's protection outlives the guest's exit, and `exit_worktree remove` fails on a
+worktree another live session holds because git will not remove a locked worktree without a second
+`--force`.
 
 Leaving releases the lock, and so does switching straight to another worktree, so the one being left
 does not stay wedged. A thread whose ending is recorded hands back any worktree it claimed of its

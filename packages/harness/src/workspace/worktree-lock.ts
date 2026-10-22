@@ -81,7 +81,7 @@ export async function claimWorktree(args: {
       existing.reason === undefined ? undefined : parseWorktreeLockToken(existing.reason)
     return {
       claim: EWorktreeClaim.Held,
-      note: `another Atlas session is working in it (${existing.reason ?? 'no reason recorded'})`,
+      note: `Another running Atlas session (pid ${other?.pid ?? 'unknown'}) is also working in it and keeps the lock that protects it from deletion, so this session shares it as a guest. That session may have changes in progress here: commit only the files you changed, and pull before you push.`,
       heldBy: other?.pid,
     }
   }

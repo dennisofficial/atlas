@@ -4,6 +4,7 @@ import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { frameSettled, frameShowing } from '../../ui/__tests__/waiting'
 import { App } from '../app'
 import { fakeApp, fakeSkill, scriptedModelPort, type FakeApp } from './fake-app'
 
@@ -209,12 +210,11 @@ describe('a skill the author kept off the slash menu', () => {
 
     try {
       await setup.mockInput.typeText('/pir')
-      await landed(setup)
-      expect(setup.captureCharFrame()).toContain('answer in pirate dialect')
+      await frameShowing({ setup, text: 'answer in pirate dialect' })
 
       await setup.mockInput.typeText('\u007f\u007f\u007fled')
-      await landed(setup)
-      expect(setup.captureCharFrame()).not.toContain('reconcile the ledger')
+      await frameShowing({ setup, text: '/led' })
+      expect(await frameSettled({ setup })).not.toContain('reconcile the ledger')
     } finally {
       await teardown(setup)
     }
