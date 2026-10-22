@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'2508d2fce685f5a105af81d479e0cb974044a107acbca7a90bbbc3c051f8e2be'>;
+  StorageHashBase<'48f388327b7b2ead307be46883590187c4129a53bb4c9912a089979c3a7e0c46'>;
 export type ExecutionHash =
   ExecutionHashBase<'9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf'>;
 export type ProfileHash =
@@ -1562,6 +1562,7 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
