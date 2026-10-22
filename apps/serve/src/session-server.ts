@@ -1,6 +1,7 @@
 import type { Server } from 'bun'
 
 import { CHANNEL_SUBPROTOCOL, tokenFromSubprotocols } from '@dltech/atlas-harness'
+import { channelTicketValid } from '@dltech/atlas-wire'
 
 import type { ServeDrain } from './serve-drain'
 import type { SessionHandlers, SessionSocket, SocketState } from './socket-session'
@@ -54,6 +55,7 @@ export type SessionServerHandshake = {
 export function startSessionServer(args: {
   port: number
   token: string
+  threadId: string
   handlers: () => SessionHandlers | undefined
   drain: () => ServeDrain | undefined
   health: () => unknown
@@ -134,9 +136,17 @@ export function startSessionServer(args: {
       if (!offered.includes(CHANNEL_SUBPROTOCOL)) {
         return new Response(`expected the ${CHANNEL_SUBPROTOCOL} subprotocol`, { status: 400 })
       }
-      if (!tokenMatches({ expected: token, offered: tokenFromSubprotocols(offered) })) {
-        return unauthorized()
-      }
+      const credential = tokenFromSubprotocols(offered)
+      const admitted =
+        tokenMatches({ expected: token, offered: credential }) ||
+        (credential !== null &&
+          channelTicketValid({
+            serveToken: token,
+            threadId: args.threadId,
+            ticket: credential,
+            nowMs: Date.now(),
+          }))
+      if (!admitted) return unauthorized()
       if (bootFailure !== null) return booting()
 
       const upgraded = server.upgrade(request, {
