@@ -1,0 +1,189 @@
+import {
+  createRemoteDeltaChannel,
+  EClientRequest,
+  EConnectionView,
+  type RemoteDeltaChannel,
+  type RemoteDeltaChannelOptions,
+  type SandboxAttachment,
+} from '@dltech/atlas-client/channel'
+import { toThreadId } from '@dltech/atlas-core'
+import { readEventsReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
+
+import { appendEvents, headOf, keepThrough } from './live-events'
+import { IDLE_LIVE_THREAD, type LiveSend, type LiveThreadState } from './live-thread-view'
+import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
+
+export type LiveChannelOptions = Pick<
+  RemoteDeltaChannelOptions,
+  'scheduleRetry' | 'scheduleTimeout' | 'scheduleKeepalive' | 'socketFactory' | 'backoffMs'
+>
+
+export const MAX_REMINTS = 4
+const REMINT_BASE_MS = 500
+const REMINT_CEILING_MS = 30_000
+
+export const remintDelayMs = (attempt: number): number =>
+  attempt === 0 ? 0 : Math.min(REMINT_CEILING_MS, REMINT_BASE_MS * 2 ** (attempt - 1))
+
+export type LiveThreadControllerArgs = {
+  threadId: string
+  mint: () => Promise<PodConnectResult>
+  readSeed: () => Promise<WireEvent[]>
+  onChange: (state: LiveThreadState) => void
+  channelOptions?: LiveChannelOptions
+  scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
+}
+
+export function createLiveThreadController(args: LiveThreadControllerArgs) {
+  const threadId = toThreadId(args.threadId)
+  let state: LiveThreadState = IDLE_LIVE_THREAD
+  let channel: RemoteDeltaChannel | null = null
+  let stopped = false
+  let fellBack = false
+  let everConnected = false
+  let podGone = false
+  let reminted = 0
+  let reading = false
+  let readAgain = false
+  const releases: (() => void)[] = []
+
+  const update = (change: Partial<LiveThreadState>) => {
+    if (stopped) return
+    state = { ...state, ...change }
+    args.onChange(state)
+  }
+
+  const release = () => {
+    for (const undo of releases.splice(0)) undo()
+  }
+
+  const fallBack = () => {
+    if (stopped || fellBack) return
+    fellBack = true
+    release()
+    channel?.close()
+    update({ live: false, working: false })
+  }
+
+  const attachmentOf = async (): Promise<SandboxAttachment> => {
+    const minted = await args.mint()
+    if (minted.outcome === EPodConnectOutcome.NotRunning) {
+      podGone = true
+      throw new Error('the pod is not running')
+    }
+    return { url: minted.ticket.url, token: minted.ticket.token }
+  }
+
+  const readFromHead = async (live: RemoteDeltaChannel) => {
+    if (reading) {
+      readAgain = true
+      return
+    }
+    reading = true
+    try {
+      do {
+        readAgain = false
+        const reply = await live.request({
+          op: EClientRequest.ReadEvents,
+          params: { threadId: args.threadId, fromSeq: headOf(state.events) + 1, own: true },
+        })
+        if (stopped || fellBack) return
+        const { events } = readEventsReplySchema.parse(reply)
+        update({ events: appendEvents({ current: state.events, incoming: events }) })
+      } while (readAgain)
+    } catch {
+      fallBack()
+    } finally {
+      reading = false
+    }
+  }
+
+  const handleSignal = (live: RemoteDeltaChannel) => (signal: { type: string }) => {
+    if (signal.type === 'events-appended') void readFromHead(live)
+    if (signal.type === 'turn-working' && 'working' in signal) {
+      update({ working: signal.working === true })
+    }
+  }
+
+  const scheduleReconnect =
+    args.scheduleReconnect ?? (({ delayMs, run }) => void setTimeout(run, delayMs))
+
+  const handleDisconnected = (live: RemoteDeltaChannel) => {
+    if (podGone || !everConnected || reminted >= MAX_REMINTS) return fallBack()
+    const delayMs = remintDelayMs(reminted)
+    reminted += 1
+    scheduleReconnect({
+      delayMs,
+      run: () => {
+        if (!stopped && !fellBack) live.reconnect()
+      },
+    })
+  }
+
+  const handleConnection = (live: RemoteDeltaChannel) => {
+    const { state: view } = live.connection()
+    if (view === EConnectionView.Connected) {
+      everConnected = true
+      reminted = 0
+      update({ live: true })
+      return
+    }
+    if (view === EConnectionView.Parked) return fallBack()
+    if (view === EConnectionView.Disconnected) handleDisconnected(live)
+  }
+
+  const open = (first: SandboxAttachment, seed: WireEvent[]) => {
+    update({ events: seed })
+    const live = createRemoteDeltaChannel({
+      ...args.channelOptions,
+      threadId,
+      url: first.url,
+      token: first.token,
+      lastEventSeq: () => headOf(state.events),
+      wakeSandbox: attachmentOf,
+      maxAttempts: 0,
+    })
+    channel = live
+    releases.push(
+      live.subscribe({ threadId, listener: handleSignal(live) }),
+      live.onConnection(() => handleConnection(live)),
+      live.onError(() => {
+        if (!everConnected) fallBack()
+      }),
+      live.onReload(({ sinceEventSeq }) => {
+        update({ events: keepThrough({ events: state.events, seq: sinceEventSeq }) })
+        void readFromHead(live)
+      }),
+    )
+  }
+
+  const start = async () => {
+    try {
+      const seed = await args.readSeed()
+      if (stopped) return
+      const minted = await args.mint()
+      if (stopped) return
+      if (minted.outcome === EPodConnectOutcome.NotRunning) return fallBack()
+      open({ url: minted.ticket.url, token: minted.ticket.token }, seed)
+    } catch {
+      fallBack()
+    }
+  }
+
+  const send: LiveSend = ({ text, requestId }) => {
+    if (stopped || fellBack || channel === null) return false
+    if (channel.connection().state !== EConnectionView.Connected) return false
+    channel.send({ text, requestId })
+    return true
+  }
+
+  return {
+    start: () => void start(),
+    send,
+    stop: () => {
+      stopped = true
+      release()
+      channel?.close()
+    },
+  }
+}

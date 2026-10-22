@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EThreadMessageState } from '@dltech/atlas-wire/web'
 
-import { sendMessage } from '../send-message'
+import { deliverMessage, sendMessage } from '../send-message'
 
 let calls: { url: string; body: unknown }[]
 const realFetch = globalThis.fetch
@@ -32,5 +32,27 @@ describe('sendMessage', () => {
     expect(calls).toEqual([
       { url: '/v1/threads/t%201/messages', body: { sendId: 's1', text: 'hi' } },
     ])
+  })
+})
+
+describe('deliverMessage', () => {
+  it('sends over the live socket with the sendId as requestId and skips HTTP', async () => {
+    const sent: { text: string; requestId: string }[] = []
+    await deliverMessage({
+      threadId: 't1',
+      text: 'hi',
+      sendId: 's1',
+      liveSend: (message) => {
+        sent.push(message)
+        return true
+      },
+    })
+    expect(sent).toEqual([{ text: 'hi', requestId: 's1' }])
+    expect(calls).toEqual([])
+  })
+
+  it('posts over HTTP when the socket cannot take the send', async () => {
+    await deliverMessage({ threadId: 't1', text: 'hi', sendId: 's1', liveSend: () => false })
+    expect(calls).toEqual([{ url: '/v1/threads/t1/messages', body: { sendId: 's1', text: 'hi' } }])
   })
 })

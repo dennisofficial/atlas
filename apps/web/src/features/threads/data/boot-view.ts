@@ -117,3 +117,6 @@ export function shouldPollPod(args: { pod: PodStatus | null; awaitingRun: boolea
   if (pod.state === EPodState.None) return args.awaitingRun
   return !isPodSettled(pod)
 }
+
+export const isPodLiveEligible = (pod: PodStatus | null): boolean =>
+  pod !== null && pod.state === EPodState.Running && isPodSettled(pod)

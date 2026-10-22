@@ -5,6 +5,8 @@ import { Fragment, type ReactNode } from 'react'
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
+import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 
 import type { BootView } from './data/boot-view'
 import { ETranscriptKind, type TranscriptItem } from './data/transcript'
@@ -19,10 +21,12 @@ function Said({ item }: { item: TranscriptItem }) {
 export function ThreadTranscript({
   items,
   boot,
+  working,
   onRetryBoot,
 }: {
   items: readonly TranscriptItem[]
   boot: BootView | null
+  working: boolean
   onRetryBoot: () => void
 }) {
   const firstUser = items.findIndex((item) => item.kind === ETranscriptKind.User)
@@ -44,6 +48,18 @@ export function ThreadTranscript({
           {index + 1 === bootAt ? bootNode : null}
         </Fragment>
       ))}
+      {working ? (
+        <ChatItem id="working">
+          <Trace>
+            <TraceLine status="running">
+              <TraceIcon>
+                <Spinner />
+              </TraceIcon>
+              <TraceTitle>Working…</TraceTitle>
+            </TraceLine>
+          </Trace>
+        </ChatItem>
+      ) : null}
     </Chat>
   )
 }
