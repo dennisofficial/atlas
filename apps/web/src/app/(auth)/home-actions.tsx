@@ -12,7 +12,10 @@ export function HomeActions() {
   if (user !== null) {
     return (
       <div className="flex flex-col gap-2">
-        <Button size="lg" nativeButton={false} render={<Link href="/settings" />}>
+        <Button size="lg" nativeButton={false} render={<Link href="/threads/new" />}>
+          New thread
+        </Button>
+        <Button variant="outline" size="lg" nativeButton={false} render={<Link href="/settings" />}>
           Open settings
         </Button>
       </div>

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { ELineFault, lineFaultsOf } from '../scripts/env-tier-lines'
 
 const TIERS = ['local', 'production'] as const
 const RECOGNIZED_PLACEHOLDERS =
@@ -48,14 +49,18 @@ describe('env tier alignment', () => {
     }
   })
 
-  it('encrypts every supplied value in every tier', () => {
+  it('holds only comments, blanks and encrypted assignments in every tier', () => {
     for (const tier of TIERS) {
-      for (const entry of parseTier(tier)) {
-        if (entry.commented) continue
-        if (entry.key === 'APP_TIER' || entry.key === 'PORT') continue
-        if (entry.key.startsWith('DOTENV_PUBLIC_KEY')) continue
-        expect(entry.value, `${tier}:${entry.key}`).toMatch(/^encrypted:/)
-      }
+      const path = join(import.meta.dirname, '..', 'envs', `.env.api.${tier}.enc`)
+      expect(lineFaultsOf(readFileSync(path, 'utf8')), tier).toEqual([])
     }
+  })
+
+  it('flags an unquoted multi-line value and a plaintext assignment', () => {
+    const text = ['# note', 'A=encrypted:abc', 'B=plain', 'MIIEpgIBAAKCAQEA/x+y', ''].join('\n')
+    expect(lineFaultsOf(text)).toEqual([
+      { line: 3, fault: ELineFault.Unencrypted, key: 'B' },
+      { line: 4, fault: ELineFault.Unrecognized },
+    ])
   })
 })

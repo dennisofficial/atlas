@@ -32,6 +32,7 @@ export type ProvisioningSandboxRow = {
   sealedToken: string | null
   wakeClaim: string | null
   wakeFailedAt: string | null
+  pendingSend: unknown
   runtimeCheckpoint: unknown
   runtimeCheckpointRevision: number | null
 } & Where
@@ -88,6 +89,7 @@ export function createProvisioningFakeDb() {
         serveUrl: args.data.serveUrl ?? null,
         wakeFailedAt: args.data.wakeFailedAt ?? null,
         wakeClaim: args.data.wakeClaim ?? null,
+        pendingSend: args.data.pendingSend ?? null,
         runtimeCheckpoint: args.data.runtimeCheckpoint ?? null,
         runtimeCheckpointRevision: args.data.runtimeCheckpointRevision ?? null,
       }

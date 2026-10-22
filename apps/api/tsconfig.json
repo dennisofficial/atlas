@@ -24,6 +24,8 @@
     "build.ts",
     "trigger.config.ts",
     "trigger-tier-extension.ts",
-    "scripts/trigger-smoke.ts"
+    "scripts/trigger-smoke.ts",
+    "scripts/env-tier-lines.ts",
+    "scripts/check-env-tiers.ts"
   ]
 }

@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+root=$(git rev-parse --show-toplevel)
+"$root/node_modules/.bin/dotenvx" ext precommit
+bun "$root/apps/api/scripts/check-env-tiers.ts"

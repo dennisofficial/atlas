@@ -143,6 +143,7 @@ model CloudSandbox {
   serveVersion   String?
   wakeFailedAt   String?
   wakeClaim      String?
+  pendingSend    Json?
   runtimeCheckpoint Json?
   runtimeCheckpointRevision Int?
   createdAt      String
