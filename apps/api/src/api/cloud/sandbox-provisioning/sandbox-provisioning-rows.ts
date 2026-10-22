@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { db, violatedConstraint, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
+import { parkedOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { mintSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
@@ -13,7 +13,9 @@ const THREAD_UNIQUE = 'CloudSandbox_threadId_key'
 export type RowClaim = { token: string; wakeClaim: Date; name: string }
 
 export function standingStateOf(row: Row<'CloudSandbox'>): ESandboxProvisionState | undefined {
-  if (row.state === ESandboxState.Running && row.serveUrl) return ESandboxProvisionState.Running
+  if (row.state === ESandboxState.Running && row.serveUrl && !parkedOf(row)) {
+    return ESandboxProvisionState.Running
+  }
   const failedAfterClaim =
     row.wakeFailedAt !== null &&
     row.wakeClaim !== null &&

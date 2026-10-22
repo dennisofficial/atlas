@@ -5,8 +5,10 @@ import {
   SANDBOX_HOME_PATH,
 } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
+import { asJson } from '../../../../test/session-seed'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
   CREDENTIALS,
@@ -60,6 +62,30 @@ describe('SandboxProvisioningService', () => {
     })
     expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Running })
     expect(calls).toHaveLength(1)
+  })
+
+  it('re-boots a sandbox whose serve has mirrored a parked record', async () => {
+    await seedThread()
+    const { boot, calls } = fakeBoot()
+    const service = serviceWith({ boot })
+    await service.provision(ARGS)
+    await service.settle()
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+      runtimeCheckpoint: asJson({
+        phase: 'parked',
+        revision: 1,
+        threadId: 'thr-1',
+        runtimeId: 'rt-1',
+        sandboxSessionId: 'sbx-session-1',
+        reportedAt: new Date(Date.now() + 1_000).toISOString(),
+        transcript: { head: 4, count: 4, digest: 'a'.repeat(64) },
+      }),
+      runtimeCheckpointRevision: 1,
+    })
+
+    expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Booting })
+    await service.settle()
+    expect(calls).toHaveLength(2)
   })
 
   it('answers Booting while a recent claim is in flight', async () => {
