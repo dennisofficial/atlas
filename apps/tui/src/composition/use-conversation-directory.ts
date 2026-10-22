@@ -2,19 +2,11 @@ import type { Event, ThreadId } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import type { LogSummary } from '../store/log-window'
-import {
-  IDLE_TITLE_GLYPH,
-  NEEDS_OPERATOR_TITLE_GLYPH,
-  WORKING_TITLE_FRAME_MS,
-  workingTitleFrame,
-} from '../ui/glyphs'
-import { subscribeTicker } from '../ui/hooks/use-shimmer-clock'
 import type { CommandEffect } from './commands/local-command'
 import type { AtlasApp } from './compose'
 import type { ConversationWorkspace } from './conversation-types'
 import { changeDirectory, type DirectoryMove } from './directory-move'
 import type { OpenedConversation } from './open-conversation'
-import { terminalTitleSequence } from './terminal-title'
 
 export function usePendingMove(): {
   pendingMove: DirectoryMove | null
@@ -38,8 +30,6 @@ export function useConversationDirectory(args: {
   opened: OpenedConversation
   name: string | null
   started: boolean
-  working: boolean
-  needsOperator: boolean
   events: readonly Event[]
   logSummary: LogSummary
   pendingMove: DirectoryMove | null
@@ -55,8 +45,6 @@ export function useConversationDirectory(args: {
     opened,
     name,
     started,
-    working,
-    needsOperator,
     events,
     logSummary,
     pendingMove,
@@ -103,22 +91,6 @@ export function useConversationDirectory(args: {
       directory: workspace.projectDirectory,
     })
   }, [app, name, started, threadId, workspace.projectDirectory])
-
-  useEffect(() => {
-    const writeTitle = (glyph: string): void => {
-      process.stdout.write(
-        terminalTitleSequence({ name, directory: workspace.projectDirectory, glyph }),
-      )
-    }
-    if (!working) {
-      writeTitle(needsOperator ? NEEDS_OPERATOR_TITLE_GLYPH : IDLE_TITLE_GLYPH)
-      return
-    }
-    return subscribeTicker({
-      intervalMs: WORKING_TITLE_FRAME_MS,
-      onTick: (now) => writeTitle(workingTitleFrame(now)),
-    })
-  }, [name, working, needsOperator, workspace.projectDirectory])
 
   return { workspace, handleChangeDirectory }
 }

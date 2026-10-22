@@ -95,6 +95,7 @@ export type Conversation = {
   repo: string | null
   pending: readonly PendingRow[]
   operatorInput: OperatorInputControl
+  endedOnQuestion: boolean
   readEvents: () => Promise<readonly Event[]>
   loadOlderHistory: () => Promise<void>
   hasOlderHistory: boolean

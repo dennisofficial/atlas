@@ -9,6 +9,7 @@ import { useAgents } from './use-agents'
 import type { Conversation } from './use-conversation'
 import type { ShellsControl } from './use-shells'
 import type { SwitcherViewed } from './use-switcher'
+import { useTabTitle } from './use-tab-title'
 import { useBackgroundWait } from './use-workspace-layout'
 import { useViewedAgent } from './use-workspace-models'
 
@@ -38,6 +39,7 @@ export function useWorkspaceAgents(args: {
     shells: shells.everywhere,
   })
   const { background, waitingSince } = useBackgroundWait({ agents, shells })
+  useTabTitle({ conversation, background })
 
   return { agentView, viewed, agents, background, waitingSince }
 }
