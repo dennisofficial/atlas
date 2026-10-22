@@ -1,7 +1,7 @@
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, spyOn, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import { DISPATCH_FAILED_MESSAGE, PodLaunchService } from './pod-launch.service'
@@ -144,6 +144,44 @@ describe('ThreadLaunchService', () => {
       { step: 'provision', state: 'running' },
       { step: 'provision', state: 'error', error: DISPATCH_FAILED_MESSAGE },
     ])
+  })
+
+  it('returns the existing thread for a retried sendId without creating or dispatching again', async () => {
+    await seedBase()
+    const { service, dispatch } = launchWith()
+
+    const first = await create(service)
+    const retry = await create(service)
+
+    expect(retry.thread.id).toBe(first.thread.id)
+    expect(retry.provision).toEqual({ state: ESandboxProvisionState.Booting })
+    expect(await threads()).toHaveLength(1)
+    expect(await eventsOf(first.thread.id)).toHaveLength(1)
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates one thread when two retries of the same sendId race', async () => {
+    await seedBase()
+    const { service, dispatch } = launchWith()
+
+    const [a, b] = await Promise.all([create(service), create(service)])
+
+    expect(a.thread.id).toBe(b.thread.id)
+    expect(await threads()).toHaveLength(1)
+    expect(await sandboxRows()).toHaveLength(1)
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not reuse another user's thread for the same sendId", async () => {
+    await seedBase()
+    await seedUser({ db, id: 'usr-2' })
+    const { service } = launchWith()
+
+    const mine = await create(service)
+    const theirs = await service.launch({ userId: 'usr-2', draft: {}, firstMessage: FIRST })
+
+    expect(theirs.thread.id).not.toBe(mine.thread.id)
+    expect(await threads()).toHaveLength(2)
   })
 
   it('refuses a project the user cannot reach and creates nothing', async () => {
