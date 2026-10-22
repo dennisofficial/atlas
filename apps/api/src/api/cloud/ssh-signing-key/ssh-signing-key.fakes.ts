@@ -14,7 +14,7 @@ export function response(args: { status: number; body?: unknown }): GithubHttpRe
   }
 }
 
-export type GithubRoute = (call: GithubCall) => GithubHttpResponse | undefined
+export type GithubRoute = (call: GithubCall) => GithubHttpResponse | undefined | Promise<GithubHttpResponse | undefined>
 
 export function createFakeGithub() {
   const calls: GithubCall[] = []
@@ -22,7 +22,7 @@ export function createFakeGithub() {
   const registered = new Map<number, string>()
   let nextId = 100
 
-  const defaults: GithubRoute = (call) => {
+  const defaults = (call: GithubCall): GithubHttpResponse | undefined => {
     const path = call.url.replace('https://api.github.com', '')
     if (call.method === 'GET' && path === '/user') {
       return response({ status: 200, body: { id: 4242, login: 'octocat' } })
@@ -48,7 +48,7 @@ export function createFakeGithub() {
     }
     calls.push(call)
     for (const route of overrides) {
-      const answered = route(call)
+      const answered = await route(call)
       if (answered !== undefined) return answered
     }
     const answered = defaults(call)

@@ -11,7 +11,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { VercelSandboxClient } from './vercel-sandbox.client'
@@ -46,10 +46,9 @@ export class SandboxSelfController {
 
   private async identityOf(request: SandboxAuthenticatedRequest): Promise<SandboxIdentity> {
     if (request.sandbox === undefined) throw new UnauthorizedException('a sandbox session token is required')
-    const row = await db.cloudSandbox.findUnique({
-      where: { threadId: request.sandbox.threadId },
-      select: { threadId: true, name: true },
-    })
+    const row = await db.orm.public.CloudSandbox.where({ threadId: request.sandbox.threadId })
+      .select('threadId', 'name')
+      .first()
     if (row === null) throw new NotFoundException('sandbox not found')
     return row
   }

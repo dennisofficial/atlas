@@ -1,18 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { OauthConnectionsService } from '../src/api/platform/oauth-connections/oauth-connections.service'
 import { EOauthProvider, OauthClock } from '../src/api/platform/oauth-connections/oauth-connections.types'
 import { HttpOauthIssuer } from '../src/api/platform/oauth-connections/oauth-issuer'
 import { PrismaOauthConnectionStore } from '../src/api/platform/oauth-connections/prisma-oauth-connection.store'
-import { db } from '../src/db'
-import { PrismaClient } from '../src/generated/prisma/client'
 
-const DISPOSABLE_DATABASE_URL = 'postgresql://postgres@127.0.0.1:55438/atlas_oauth_test'
-const describeLive = process.env.ATLAS_LIVE_OAUTH_DB === '1' ? describe : describe.skip
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const HOUR = 3_600_000
 const ISSUER_DELAY_MS = 300
@@ -23,7 +20,7 @@ class OffsetClock implements OauthClock {
   sleep(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)) }
 }
 
-describeLive('oauth connection authority over real PostgreSQL and a fake HTTP issuer', () => {
+describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer', () => {
   const runId = randomUUID()
   const ownerId = `oauth-owner-${runId}`
   const foreignId = `oauth-foreign-${runId}`
@@ -32,12 +29,14 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
   const instances = [0, 1].map(() =>
     new OauthConnectionsService(new PrismaOauthConnectionStore(), cipher, new HttpOauthIssuer(), clock))
-  let verificationDb: PrismaClient
+  const database = useTestDatabase()
+  const connectionRow = (id: string) => db.orm.public.OauthConnection.first({ id })
+  const assignmentCount = async (where: { connectionId: string } | { sandboxId: string }) =>
+    (await db.orm.public.OauthConnectionSandbox.where(where).all()).length
   let issuerServer: Server
   let currentRefreshToken = ''
   let exchanges: string[] = []
   let failure: 'none' | 'invalid_grant' | 'drop' = 'none'
-  let previousDatabaseUrl: string | undefined
 
   const grant = (refreshToken: string) => ({
     accessToken: 'access-0', refreshToken, expiresAt: new Date(clock.now() + HOUR).toISOString(),
@@ -61,18 +60,11 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     return id
   }
 
-  beforeAll(async () => {
-    const url = new URL(DISPOSABLE_DATABASE_URL)
-    if (url.hostname !== '127.0.0.1' || url.port !== '55438' || url.pathname !== '/atlas_oauth_test') {
-      throw new Error('Live OAuth tests require the local disposable atlas_oauth_test database')
-    }
-    previousDatabaseUrl = process.env.DATABASE_URL
-    process.env.DATABASE_URL = DISPOSABLE_DATABASE_URL
-    verificationDb = new PrismaClient({ adapter: new PrismaPg({ connectionString: DISPOSABLE_DATABASE_URL }) })
-    await verificationDb.user.createMany({ data: [ownerId, foreignId].map((id) => ({
-      id, name: id, email: `${id}@oauth.invalid`,
-    })) })
+  beforeEach(async () => {
+    for (const id of [ownerId, foreignId]) await seedUser({ db: database().db, id })
+  })
 
+  beforeAll(async () => {
     issuerServer = createServer((req, res) => {
       let raw = ''
       req.on('data', (chunk) => { raw += String(chunk) })
@@ -95,22 +87,15 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     })
     await new Promise<void>((resolve) => issuerServer.listen(0, '127.0.0.1', resolve))
     const { port } = issuerServer.address() as { port: number }
-    vi.stubGlobal('fetch', (input: string, init: RequestInit) =>
-      realFetch(`http://127.0.0.1:${port}${new URL(input).pathname}`, init))
+    globalThis.fetch = ((input: string, init: RequestInit) =>
+      realFetch(`http://127.0.0.1:${port}${new URL(input).pathname}`, init)) as typeof fetch
   }, 30_000)
 
   afterEach(() => { clock.offsetMs = 0 })
 
   afterAll(async () => {
-    vi.unstubAllGlobals()
-    try {
-      await new Promise((resolve) => issuerServer?.close(resolve))
-      await verificationDb?.user.deleteMany({ where: { id: { in: [ownerId, foreignId] } } })
-    } finally {
-      await Promise.all([verificationDb?.$disconnect(), db.$disconnect()])
-      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL
-      else process.env.DATABASE_URL = previousDatabaseUrl
-    }
+    globalThis.fetch = realFetch
+    await new Promise((resolve) => issuerServer?.close(resolve))
   })
 
   it('performs exactly one provider exchange for concurrent callers on two instances', async () => {
@@ -119,9 +104,9 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
 
     expect(exchanges).toEqual([`refresh-${id}-0`])
     expect(new Set(results.map((dto) => dto.accessToken)).size).toBe(1)
-    const row = await verificationDb.oauthConnection.findUniqueOrThrow({ where: { id } })
+    const row = await connectionRow(id)
     expect(row).toMatchObject({ generation: 1, refreshAttempt: null, refreshStartedAt: null })
-    expect(row.sealedTokens).not.toContain(`refresh-${id}`)
+    expect(row?.sealedTokens).not.toContain(`refresh-${id}`)
   })
 
   it('never rolls a replayed upload back over a rotated successor', async () => {
@@ -148,7 +133,7 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     await expect(reauthorize('auth-2', id)).resolves.toMatchObject({ authorizationId: 'auth-2' })
     await expect(inFlight).resolves.toMatchObject({ accessToken: 'access-auth-2', authorizationId: 'auth-2' })
 
-    const row = await verificationDb.oauthConnection.findUniqueOrThrow({ where: { id } })
+    const row = await connectionRow(id)
     expect(row).toMatchObject({ authorizationId: 'auth-2', status: 'active', refreshAttempt: null })
     await expect(reauthorize('auth-2', id)).resolves.toMatchObject({ authorizationId: 'auth-2' })
     await expect(reauthorize('auth-3', id)).rejects.toMatchObject({ status: 409 })
@@ -160,8 +145,8 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     await expect(issue(id)).rejects.toMatchObject({ status: 503 })
     failure = 'none'
 
-    const row = await verificationDb.oauthConnection.findUniqueOrThrow({ where: { id } })
-    expect(row.refreshAttempt).not.toBeNull()
+    const row = await connectionRow(id)
+    expect(row?.refreshAttempt).not.toBeNull()
     clock.offsetMs += 60_000
     await expect(issue(id, 1)).rejects.toMatchObject({ status: 409 })
     expect(exchanges).toHaveLength(1)
@@ -171,7 +156,7 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     const id = await startNewConnection()
     failure = 'invalid_grant'
     await expect(issue(id)).rejects.toMatchObject({ status: 409 })
-    const row = await verificationDb.oauthConnection.findUniqueOrThrow({ where: { id } })
+    const row = await connectionRow(id)
     expect(row).toMatchObject({ status: 'expired', refreshAttempt: null })
     await expect(issue(id, 1)).rejects.toMatchObject({ status: 409 })
     expect(exchanges).toHaveLength(1)
@@ -179,14 +164,14 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
 
   it('scopes sandbox issuance to assignments and cascades on sandbox and connection removal', async () => {
     const id = await startNewConnection()
-    const at = '2026-10-01T00:00:00.000Z'
+    const at = new Date('2026-10-01T00:00:00.000Z')
     const sandboxes = [`sbx-${randomUUID()}`, `sbx-${randomUUID()}`]
     for (const sandboxId of sandboxes) {
-      await verificationDb.thread.create({ data: { id: `thr-${sandboxId}`, userId: ownerId, createdAt: at, updatedAt: at } })
-      await verificationDb.cloudSandbox.create({ data: {
+      await seedThread({ db, id: `thr-${sandboxId}`, userId: ownerId })
+      await db.orm.public.CloudSandbox.create({
         id: sandboxId, threadId: `thr-${sandboxId}`, userId: ownerId, sandboxId: `p-${sandboxId}`, name: sandboxId,
         region: 'iad1', state: 'running', tokenHash: sandboxId, lastActivityAt: at, createdAt: at, updatedAt: at,
-      } })
+      })
     }
     const [assigned, other] = sandboxes as [string, string]
     await expect(issue(id, 0, assigned)).rejects.toMatchObject({ status: 404 })
@@ -194,12 +179,12 @@ describeLive('oauth connection authority over real PostgreSQL and a fake HTTP is
     await instances[1]!.assignSandbox({ userId: ownerId, connectionId: id, threadId: `thr-${assigned}` })
     await expect(issue(id, 1, assigned)).resolves.toMatchObject({ generation: 1 })
     await expect(issue(id, 1, other)).rejects.toMatchObject({ status: 404 })
-    expect(await verificationDb.oauthConnectionSandbox.count({ where: { connectionId: id } })).toBe(1)
+    expect(await assignmentCount({ connectionId: id })).toBe(1)
 
-    await verificationDb.cloudSandbox.delete({ where: { id: assigned } })
-    expect(await verificationDb.oauthConnectionSandbox.count({ where: { connectionId: id } })).toBe(0)
+    await db.orm.public.CloudSandbox.where({ id: assigned }).delete()
+    expect(await assignmentCount({ connectionId: id })).toBe(0)
     await instances[0]!.assignSandbox({ userId: ownerId, connectionId: id, threadId: `thr-${other}` })
     await instances[0]!.remove({ userId: ownerId, connectionId: id })
-    expect(await verificationDb.oauthConnectionSandbox.count({ where: { sandboxId: other } })).toBe(0)
+    expect(await assignmentCount({ sandboxId: other })).toBe(0)
   })
 })

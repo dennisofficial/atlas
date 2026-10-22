@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import type { AgentAccountModel } from '../../../db'
-import { db } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { CreateAccountDto, OauthAuthorityDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
 import type {
@@ -14,7 +13,7 @@ import type {
 } from './accounts.types'
 import { EAccountStatus, EAuthKind } from './accounts.types'
 
-function toAccountDto(row: AgentAccountModel): AccountDto {
+function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
   return {
     id: row.id,
     provider: row.provider,
@@ -80,19 +79,17 @@ export class AccountsService {
   constructor(private readonly cipher: SecretCipherService) {}
 
   async list(args: { userId: string }): Promise<AccountDto[]> {
-    const rows = await db.agentAccount.findMany({
-      where: { userId: args.userId },
-      orderBy: { createdAt: 'asc' },
-    })
+    const rows = await db.orm.public.AgentAccount.where({ userId: args.userId })
+      .orderBy((account) => account.createdAt.asc())
+      .all()
     return rows.map(toAccountDto)
   }
 
   async lease(args: { userId: string }): Promise<AccountLeaseDto> {
-    const rows = await db.agentAccount.findMany({
-      where: { userId: args.userId },
-      orderBy: { createdAt: 'asc' },
-    })
-    const pointers = await db.activeAccount.findMany({ where: { userId: args.userId } })
+    const rows = await db.orm.public.AgentAccount.where({ userId: args.userId })
+      .orderBy((account) => account.createdAt.asc())
+      .all()
+    const pointers = await db.orm.public.ActiveAccount.where({ userId: args.userId }).all()
     return {
       accounts: rows.map((row) => ({
         ...toAccountDto(row),
@@ -112,28 +109,32 @@ export class AccountsService {
 
   async add(args: { userId: string; draft: CreateAccountDto }): Promise<AccountDto> {
     const secret = toAccountSecret(args.draft.secret)
-    const row = await db.agentAccount.create({
-      data: {
-        id: `acc_${randomUUID()}`,
-        provider: args.draft.provider,
-        kind: secret.kind,
-        origin: args.draft.origin,
-        label: args.draft.label,
-        status: EAccountStatus.Active,
-        email: args.draft.email ?? null,
-        subscription: args.draft.subscription ?? null,
-        importedFrom: args.draft.importedFrom ?? null,
-        sealedSecret: this.sealSecret(secret),
-        userId: args.userId,
-      },
+    const at = new Date()
+    const row = await db.orm.public.AgentAccount.create({
+      id: `acc_${randomUUID()}`,
+      provider: args.draft.provider,
+      kind: secret.kind,
+      origin: args.draft.origin,
+      label: args.draft.label,
+      status: EAccountStatus.Active,
+      email: args.draft.email ?? null,
+      subscription: args.draft.subscription ?? null,
+      importedFrom: args.draft.importedFrom ?? null,
+      sealedSecret: this.sealSecret(secret),
+      userId: args.userId,
+      createdAt: at,
+      updatedAt: at,
     })
 
-    const pointer = await db.activeAccount.findUnique({
-      where: { userId_provider: { userId: args.userId, provider: row.provider } },
+    const pointer = await db.orm.public.ActiveAccount.first({
+      userId: args.userId,
+      provider: row.provider,
     })
     if (pointer === null) {
-      await db.activeAccount.create({
-        data: { userId: args.userId, provider: row.provider, accountId: row.id },
+      await db.orm.public.ActiveAccount.create({
+        userId: args.userId,
+        provider: row.provider,
+        accountId: row.id,
       })
     }
 
@@ -147,49 +148,47 @@ export class AccountsService {
   }): Promise<void> {
     await this.ownedRow(args)
     const secret = toAccountSecret(args.secret)
-    await db.agentAccount.update({
-      where: { id: args.accountId },
-      data: {
-        sealedSecret: this.sealSecret(secret),
-        kind: secret.kind,
-        status: EAccountStatus.Active,
-        secretVersion: { increment: 1 },
-      },
-    })
+    const statement = db.raw.sql`UPDATE "AgentAccount"
+      SET "sealedSecret" = ${this.sealSecret(secret)},
+          "kind" = ${secret.kind},
+          "status" = ${EAccountStatus.Active},
+          "secretVersion" = "secretVersion" + 1,
+          "updatedAt" = now()
+      WHERE "id" = ${args.accountId}`
+      .affectedCount()
+      .build()
+    await db.execute(statement)
   }
 
   async setStatus(args: { userId: string; accountId: string; status: SetStatusDto }): Promise<void> {
     await this.ownedRow(args)
-    await db.agentAccount.update({
-      where: { id: args.accountId },
-      data: { status: args.status.status },
+    await db.orm.public.AgentAccount.where({ id: args.accountId }).update({
+      status: args.status.status,
     })
   }
 
   async remove(args: { userId: string; accountId: string }): Promise<void> {
     await this.ownedRow(args)
-    await db.agentAccount.delete({ where: { id: args.accountId } })
-    await db.activeAccount.deleteMany({
-      where: { userId: args.userId, accountId: args.accountId },
-    })
+    await db.orm.public.AgentAccount.where({ id: args.accountId }).delete()
   }
 
   async setActive(args: { userId: string; draft: SetActiveDto }): Promise<void> {
     await this.ownedRow({ userId: args.userId, accountId: args.draft.accountId })
-    await db.activeAccount.upsert({
-      where: { userId_provider: { userId: args.userId, provider: args.draft.provider } },
+    await db.orm.public.ActiveAccount.upsert({
       create: {
         userId: args.userId,
         provider: args.draft.provider,
         accountId: args.draft.accountId,
       },
       update: { accountId: args.draft.accountId },
+      conflictOn: { userId: args.userId, provider: args.draft.provider },
     })
   }
 
   async activeFor(args: { userId: string; provider: string }): Promise<ActiveAccountDto> {
-    const pointer = await db.activeAccount.findUnique({
-      where: { userId_provider: { userId: args.userId, provider: args.provider } },
+    const pointer = await db.orm.public.ActiveAccount.first({
+      userId: args.userId,
+      provider: args.provider,
     })
     return { accountId: pointer?.accountId ?? null }
   }
@@ -197,9 +196,10 @@ export class AccountsService {
   private async ownedRow(args: {
     userId: string
     accountId: string
-  }): Promise<AgentAccountModel> {
-    const row = await db.agentAccount.findFirst({
-      where: { id: args.accountId, userId: args.userId },
+  }): Promise<Row<'AgentAccount'>> {
+    const row = await db.orm.public.AgentAccount.first({
+      id: args.accountId,
+      userId: args.userId,
     })
     if (row === null) throw new NotFoundException('account not found')
     return row

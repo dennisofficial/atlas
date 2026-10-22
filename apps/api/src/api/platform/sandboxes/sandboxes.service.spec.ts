@@ -4,76 +4,34 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
-  return { db: fakeSessionDb().db as unknown as PrismaClient }
-})
-
 import {
-  fakeSessionDb,
-  type FakeCloudSandboxRow,
-  type FakeThreadRow,
-} from '../../../../test/fake-session-db.js'
+  sandboxByThread,
+  seedSandboxRow,
+  seedThreadRow,
+  seedUsers,
+  threadById,
+  USER_A,
+  USER_B,
+} from '../../../../test/session-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError, type VercelSandboxClient } from './vercel-sandbox.client'
 
-const USER_A = 'user-a'
-const USER_B = 'user-b'
 const THREAD = 'brn_thread_1'
 
-const fake = fakeSessionDb()
-
-const threadRow = (partial: Partial<FakeThreadRow> & { id: string }): FakeThreadRow => ({
-  title: null,
-  head: 0,
-  createdAt: '2026-09-16T00:00:00.000Z',
-  updatedAt: '2026-09-16T00:00:00.000Z',
-  parentThreadId: null,
-  forkSeq: null,
-  forkMode: null,
-  spawnerThreadId: null,
-  agentType: null,
-  workspace: '/repo',
-  repo: '/repo',
-  modelRef: null,
-  modelEffort: null,
-  executionLocation: 'cloud',
-  userId: USER_A,
-  ...partial,
-})
-
-const sandboxRow = (
-  partial: Partial<FakeCloudSandboxRow> & { threadId: string },
-): FakeCloudSandboxRow => ({
-  id: `sbx_${partial.threadId}`,
-  userId: USER_A,
-  sandboxId: 'ses_old',
-  name: `atlas-thread-${partial.threadId}`,
-  region: 'iad1',
-  state: ESandboxState.Running,
-  lastActivityAt: '2026-09-16T00:00:00.000Z',
-  tokenHash: 'hash',
-  workspaceRemoteUrl: null,
-  workspaceBranch: null,
-  workspaceCommit: null,
-  workspacePatch: null,
-  contextPending: true,
-  workspaceProjectDirectory: null,
-  sealedToken: null,
-  sealedGitToken: null,
-  driveName: null,
-  pinnedModel: null,
-  serveUrl: null,
-  createdAt: '2026-09-16T00:00:00.000Z',
-  updatedAt: '2026-09-16T00:00:00.000Z',
-  ...partial,
-})
+const sandboxRow = (partial: Parameters<typeof seedSandboxRow>[0]) =>
+  seedSandboxRow({
+    sandboxId: 'ses_old',
+    state: ESandboxState.Running,
+    lastActivityAt: new Date('2026-09-16T00:00:00.000Z'),
+    tokenHash: `hash_${partial.threadId}`,
+    ...partial,
+  })
 
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
@@ -89,11 +47,12 @@ const stubClient = () => ({
 
 describe('SandboxesService', () => {
   let client: ReturnType<typeof stubClient>
+  useTestDatabase()
   let service: SandboxesService
 
-  beforeEach(() => {
-    fake.reset()
-    fake.threads.push(threadRow({ id: THREAD }))
+  beforeEach(async () => {
+    await seedUsers(USER_A, USER_B)
+    await seedThreadRow({ id: THREAD, workspace: '/repo', repo: '/repo', executionLocation: 'cloud' })
     client = stubClient()
     service = new SandboxesService(
       client as unknown as VercelSandboxClient,
@@ -110,7 +69,7 @@ describe('SandboxesService', () => {
     expect(client.inspect).not.toHaveBeenCalled()
     expect(client.stop).not.toHaveBeenCalled()
 
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const row = await sandboxByThread(THREAD)
     expect(row).toBeDefined()
     expect(row?.tokenHash).toBe(createHash('sha256').update(attachment.token).digest('hex'))
     expect(cipher.decrypt(row?.sealedToken ?? '')).toBe(attachment.token)
@@ -121,7 +80,7 @@ describe('SandboxesService', () => {
     const second = await service.claim({ userId: USER_A, threadId: THREAD, gitToken: 'gho_second' })
 
     expect(second.token).not.toBe(first.token)
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const row = await sandboxByThread(THREAD)
     expect(cipher.decrypt(row?.sealedGitToken ?? '')).toBe('gho_second')
   })
 
@@ -129,20 +88,18 @@ describe('SandboxesService', () => {
     await service.claim({ userId: USER_A, threadId: THREAD, gitToken: 'gho_kept' })
     await service.claim({ userId: USER_A, threadId: THREAD })
 
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const row = await sandboxByThread(THREAD)
     expect(cipher.decrypt(row?.sealedGitToken ?? '')).toBe('gho_kept')
   })
 
   it('list answers only the caller’s sandboxes, most recently active first', async () => {
-    fake.cloudSandboxes.push(
-      sandboxRow({ threadId: 'brn_old', lastActivityAt: '2026-09-01T00:00:00.000Z' }),
-      sandboxRow({ threadId: THREAD, lastActivityAt: '2026-09-16T00:00:00.000Z' }),
-      sandboxRow({
-        threadId: 'brn_other_user',
-        userId: USER_B,
-        lastActivityAt: '2026-09-20T00:00:00.000Z',
-      }),
-    )
+    await sandboxRow({ threadId: 'brn_old', lastActivityAt: new Date('2026-09-01T00:00:00.000Z') })
+    await sandboxRow({ threadId: THREAD, lastActivityAt: new Date('2026-09-16T00:00:00.000Z') })
+    await sandboxRow({
+      threadId: 'brn_other_user',
+      userId: USER_B,
+      lastActivityAt: new Date('2026-09-20T00:00:00.000Z'),
+    })
 
     const listed = await service.list({ userId: USER_A })
 
@@ -150,7 +107,7 @@ describe('SandboxesService', () => {
   })
 
   it('reports the live state for the sidebar', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     client.inspect.mockResolvedValue({
       state: ESandboxState.Running,
       url: 'https://atlas-3000.vercel.run',
@@ -163,7 +120,7 @@ describe('SandboxesService', () => {
   })
 
   it('answers the stored state without a url when the sandbox is gone from Vercel', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, state: ESandboxState.Parked }))
+    await sandboxRow({ threadId: THREAD, state: ESandboxState.Parked })
     client.inspect.mockRejectedValue(new SandboxMissingError('atlas-thread-brn_thread_1'))
 
     const status = await service.status({ userId: USER_A, threadId: THREAD })
@@ -191,15 +148,15 @@ describe('SandboxesService', () => {
 
     await service.stop({ userId: USER_A, threadId: THREAD })
 
-    const claimed = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const claimed = await sandboxByThread(THREAD)
     expect(client.stop).toHaveBeenCalledWith({ threadId: THREAD, name: claimed?.name })
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const row = await sandboxByThread(THREAD)
     expect(row?.state).toBe(ESandboxState.Parked)
     expect(row?.sealedToken).not.toBeNull()
   })
 
   it('notifies the sandbox before stopping it, with the operator-stop reason', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, name: 'atlas-thread-named' }))
+    await sandboxRow({ threadId: THREAD, name: 'atlas-thread-named' })
 
     await service.stop({ userId: USER_A, threadId: THREAD })
 
@@ -211,36 +168,36 @@ describe('SandboxesService', () => {
   })
 
   it('still stops the sandbox when the in-sandbox notify fails', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     client.notifyParked.mockRejectedValue(new Error('sandbox unreachable'))
 
     await service.stop({ userId: USER_A, threadId: THREAD })
 
     expect(client.stop).toHaveBeenCalled()
-    const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+    const row = await sandboxByThread(THREAD)
     expect(row?.state).toBe(ESandboxState.Parked)
   })
 
   it('destroy deletes only the row; the harness owns the vercel side now', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
 
     await service.destroy({ userId: USER_A, threadId: THREAD })
 
-    expect(fake.cloudSandboxes).toHaveLength(0)
+    expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
     expect(client.stop).not.toHaveBeenCalled()
   })
 
   it('answers 404 destroying a sandbox owned by another user, leaving it in place', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, userId: USER_A }))
+    await sandboxRow({ threadId: THREAD, userId: USER_A })
 
     await expect(service.destroy({ userId: USER_B, threadId: THREAD })).rejects.toBeInstanceOf(
       NotFoundException,
     )
-    expect(fake.cloudSandboxes).toHaveLength(1)
+    expect(await db.orm.public.CloudSandbox.all()).toHaveLength(1)
   })
 
   it('lets the sandbox token reach its own thread and its sub-agents, nothing else', async () => {
-    fake.threads.push(threadRow({ id: 'brn_child', spawnerThreadId: THREAD }))
+    await seedThreadRow({ id: 'brn_child', spawnerThreadId: THREAD })
 
     await expect(
       service.assertThreadInFamily({ sandboxThreadId: THREAD, threadId: THREAD }),
@@ -270,7 +227,7 @@ describe('SandboxesService', () => {
       expect(registered.state).toBe(ESandboxState.Running)
       expect(client.inspect).not.toHaveBeenCalled()
 
-      const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+      const row = await sandboxByThread(THREAD)
       expect(row?.tokenHash).toBe(createHash('sha256').update(CLIENT_TOKEN).digest('hex'))
       expect(cipher.decrypt(row?.sealedToken ?? '')).toBe(CLIENT_TOKEN)
       expect(row?.serveUrl).toBe(SERVE_URL)
@@ -287,7 +244,7 @@ describe('SandboxesService', () => {
         serveUrl: SERVE_URL,
         serveVersion: '1.42.0',
       })
-      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.42.0')
+      expect((await sandboxByThread(THREAD))?.serveVersion).toBe('1.42.0')
 
       await service.claim({
         userId: USER_A,
@@ -295,7 +252,7 @@ describe('SandboxesService', () => {
         clientToken: CLIENT_TOKEN,
         serveUrl: SERVE_URL,
       })
-      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.42.0')
+      expect((await sandboxByThread(THREAD))?.serveVersion).toBe('1.42.0')
 
       await service.claim({
         userId: USER_A,
@@ -304,7 +261,7 @@ describe('SandboxesService', () => {
         serveUrl: SERVE_URL,
         serveVersion: '1.43.0',
       })
-      expect(fake.cloudSandboxes.find((r) => r.threadId === THREAD)?.serveVersion).toBe('1.43.0')
+      expect((await sandboxByThread(THREAD))?.serveVersion).toBe('1.43.0')
     })
 
     it('marks the thread as cloud-executing and records the metadata it carried', async () => {
@@ -316,7 +273,7 @@ describe('SandboxesService', () => {
         metadata: { title: 'fix the flake', repo: 'compai/atlas', model: 'claude-opus-4-6' },
       })
 
-      const thread = fake.threads.find((t) => t.id === THREAD)
+      const thread = await threadById(THREAD)
       expect(thread?.executionLocation).toBe('cloud')
       expect(thread?.title).toBe('fix the flake')
       expect(thread?.repo).toBe('compai/atlas')
@@ -324,7 +281,7 @@ describe('SandboxesService', () => {
     })
 
     it('refuses a claim for a thread owned by another user, writing nothing', async () => {
-      fake.threads.push(threadRow({ id: 'brn_theirs', userId: USER_B }))
+      await seedThreadRow({ id: 'brn_theirs', userId: USER_B })
 
       await expect(
         service.claim({
@@ -334,21 +291,21 @@ describe('SandboxesService', () => {
           serveUrl: SERVE_URL,
         }),
       ).rejects.toBeInstanceOf(NotFoundException)
-      expect(fake.cloudSandboxes).toHaveLength(0)
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
     })
 
     it('rejects a token that is not 32 bytes hex-encoded', async () => {
       await expect(
         service.claim({ userId: USER_A, threadId: THREAD, clientToken: 'tok_short', serveUrl: SERVE_URL }),
       ).rejects.toBeInstanceOf(BadRequestException)
-      expect(fake.cloudSandboxes).toHaveLength(0)
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
     })
 
     it('requires a serve URL on the register path, refusing before any write', async () => {
       await expect(
         service.claim({ userId: USER_A, threadId: THREAD, clientToken: CLIENT_TOKEN }),
       ).rejects.toBeInstanceOf(BadRequestException)
-      expect(fake.cloudSandboxes).toHaveLength(0)
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
     })
 
     it('rejects a serve URL that is not a Vercel sandbox https endpoint', async () => {
@@ -372,7 +329,7 @@ describe('SandboxesService', () => {
           service.claim({ userId: USER_A, threadId: THREAD, clientToken: CLIENT_TOKEN, serveUrl }),
         ).rejects.toBeInstanceOf(BadRequestException)
       }
-      expect(fake.cloudSandboxes).toHaveLength(0)
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
     })
 
     it("re-registration keeps the client's token rather than rotating it", async () => {
@@ -391,7 +348,7 @@ describe('SandboxesService', () => {
 
       expect(moved.token).toBe(first.token)
       expect(moved.url).toBe('https://atlas-3001-def.vercel.run')
-      const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
+      const row = await sandboxByThread(THREAD)
       expect(row?.serveUrl).toBe('https://atlas-3001-def.vercel.run')
       expect(cipher.decrypt(row?.sealedToken ?? '')).toBe(CLIENT_TOKEN)
     })
@@ -461,8 +418,7 @@ describe('SandboxesService', () => {
         clientToken: CLIENT_TOKEN,
         serveUrl: SERVE_URL,
       })
-      const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-      if (row !== undefined) row.state = ESandboxState.Parked
+      await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({ state: ESandboxState.Parked })
 
       const status = await service.status({ userId: USER_A, threadId: THREAD })
 
@@ -478,8 +434,7 @@ describe('SandboxesService', () => {
         clientToken: CLIENT_TOKEN,
         serveUrl: SERVE_URL,
       })
-      const row = fake.cloudSandboxes.find((r) => r.threadId === THREAD)
-      if (row !== undefined) row.state = ESandboxState.Parked
+      await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({ state: ESandboxState.Parked })
 
       expect(await service.runningEndpoint({ userId: USER_A, threadId: THREAD })).toBeNull()
       expect(client.inspect).not.toHaveBeenCalled()

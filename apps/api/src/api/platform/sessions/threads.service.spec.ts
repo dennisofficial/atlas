@@ -1,24 +1,16 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
-  return { db: fakeSessionDb().db as unknown as PrismaClient }
-})
-
-import { fakeSessionDb } from '../../../../test/fake-session-db.js'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { eventsOf, seedEventRow, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
 import { ThreadsService } from './threads.service'
 
-const USER_A = 'user-a'
-const USER_B = 'user-b'
-
 describe('ThreadsService', () => {
-  const fake = fakeSessionDb()
+  useTestDatabase()
   let service: ThreadsService
 
-  beforeEach(() => {
-    fake.reset()
+  beforeEach(async () => {
+    await seedUsers(USER_A, USER_B)
     service = new ThreadsService()
   })
 
@@ -100,9 +92,7 @@ describe('ThreadsService', () => {
 
     expect(replayed.thread.head).toBe(3)
     expect(replayed.events.map((event) => event.seq)).toEqual([1, 2, 3])
-    expect(
-      fake.events.filter((row) => row.threadId === 'brn_lifted').map((row) => row.seq),
-    ).toEqual([1, 2, 3])
+    expect((await eventsOf('brn_lifted')).map((row) => row.seq)).toEqual([1, 2, 3])
   })
 
   it('re-opening takes the columns the transfer declares', async () => {
@@ -197,29 +187,19 @@ describe('ThreadsService', () => {
     await service.create({ userId: USER_A, draft: { workspace: '/other', title: 'two' } })
     await service.create({ userId: USER_B, draft: { workspace: '/repo', title: 'three' } })
 
-    fake.events.push({
+    await seedEventRow({
       id: 'evt_w1',
       threadId: one.id,
       seq: 1,
-      runId: 'run_1',
-      parentRunId: null,
-      depth: 0,
-      at: '2026-09-15T00:00:00.000Z',
+      at: new Date('2026-09-15T00:00:00.000Z'),
       type: 'worktree-entered',
       body: JSON.stringify({ path: '/repo/.atlas/worktrees/one', branch: 'dennis/one' }),
-      contextSlot: null,
-      contextKey: null,
-      contextDigest: null,
-      userId: USER_A,
     })
-    fake.events.push({
+    await seedEventRow({
       id: 'evt_p1',
       threadId: one.id,
       seq: 2,
-      runId: 'run_1',
-      parentRunId: null,
-      depth: 0,
-      at: '2026-09-15T00:00:01.000Z',
+      at: new Date('2026-09-15T00:00:01.000Z'),
       type: 'pull-request-linked',
       body: JSON.stringify({
         number: 421,
@@ -227,10 +207,6 @@ describe('ThreadsService', () => {
         repo: 'x/y',
         branch: 'dennis/one',
       }),
-      contextSlot: null,
-      contextKey: null,
-      contextDigest: null,
-      userId: USER_A,
     })
 
     const listed = await service.list({ userId: USER_A, project: '/repo' })
@@ -244,13 +220,13 @@ describe('ThreadsService', () => {
   })
 
   it('mostRecent answers the freshest thread in the project', async () => {
-    await service.create({ userId: USER_A, draft: { workspace: '/repo', title: 'old' } })
+    const old = await service.create({ userId: USER_A, draft: { workspace: '/repo', title: 'old' } })
     const fresh = await service.create({
       userId: USER_A,
       draft: { workspace: '/repo', title: 'fresh' },
     })
-    fake.threads[0]!.updatedAt = '2026-09-14T00:00:00.000Z'
-    fake.threads[1]!.updatedAt = '2026-09-15T00:00:00.000Z'
+    await db.orm.public.Thread.where({ id: old.id }).update({ updatedAt: new Date('2026-09-14T00:00:00.000Z') })
+    await db.orm.public.Thread.where({ id: fresh.id }).update({ updatedAt: new Date('2026-09-15T00:00:00.000Z') })
 
     const recent = await service.mostRecent({ userId: USER_A, project: '/repo' })
     expect(recent?.id).toBe(fresh.id)

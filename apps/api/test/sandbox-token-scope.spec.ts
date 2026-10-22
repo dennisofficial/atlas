@@ -13,8 +13,6 @@ import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 
-vi.mock('../src/db', () => ({ db: {} }))
-
 const SANDBOX_TOKEN = 'sandbox-token'
 const USER_SESSION = 'user-session-token'
 

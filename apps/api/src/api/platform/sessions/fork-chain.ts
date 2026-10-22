@@ -1,9 +1,9 @@
 import { BadRequestException } from '@nestjs/common'
-import type { Prisma, PrismaClient } from '../../../generated/prisma/client'
+import type { Db, Tx } from '@dltech/atlas-db'
 
 export const REFERENCE_CHAIN_LIMIT = 8
 
-export type SessionReader = Pick<PrismaClient, 'thread' | 'event'> | Prisma.TransactionClient
+export type SessionReader = Pick<Db, 'orm'> | Tx
 
 export type Segment = { threadId: string; upTo: number | undefined }
 
@@ -37,10 +37,9 @@ async function inheritedPrefixOf(args: {
   reader: SessionReader
   threadId: string
 }): Promise<{ threadId: string; forkSeq: number } | undefined> {
-  const link = await args.reader.thread.findUnique({
-    where: { id: args.threadId },
-    select: { parentThreadId: true, forkSeq: true, forkMode: true },
-  })
+  const link = await args.reader.orm.public.Thread.where({ id: args.threadId })
+    .select('parentThreadId', 'forkSeq', 'forkMode')
+    .first()
   if (link === null) return undefined
   if (link.forkMode !== 'reference') return undefined
   if (link.parentThreadId === null || link.forkSeq === null) return undefined

@@ -3,20 +3,15 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { ERuntimePhase } from '@dltech/atlas-wire'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeSessionDb } = await import('../../../../test/fake-session-db.js')
-  return { db: fakeSessionDb().db as unknown as PrismaClient }
-})
-
 import {
   checkpoint,
-  fake,
   sandboxRequest,
   sandboxRow,
+  seedCheckpointOwners,
   storedInRow,
   validCheckpoint,
   storedRow,
@@ -25,23 +20,22 @@ import {
 import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
 import { mintSessionToken } from './sandbox-tokens'
 
-beforeEach(() => {
-  fake.reset()
-})
-
 describe('SandboxCheckpointController reports', () => {
+  useTestDatabase()
+  beforeEach(seedCheckpointOwners)
+
   it('stores the first checkpoint a sandbox reports', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint())
 
     expect(result).toEqual({ checkpoint: checkpoint() })
-    expect(storedInRow()).toEqual(checkpoint())
+    expect(await storedInRow()).toEqual(checkpoint())
   })
 
   it('rejects a body that is not a checkpoint', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -50,7 +44,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('rejects a checkpoint carrying fields the contract does not know', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -62,7 +56,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('rejects a revision beyond the integer column that stores it', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -75,7 +69,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('rejects a checkpoint naming a thread other than the route and token', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -88,7 +82,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('rejects a report when the token and route disagree about the thread', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD }))
+    await sandboxRow({ threadId: THREAD })
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -109,19 +103,19 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('replaces a stored checkpoint only with a strictly newer revision', async () => {
-    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    await storedRow(checkpoint({ revision: 3 }))
     const controller = new SandboxCheckpointController()
     const newer = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
 
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, newer)
 
     expect(result).toEqual({ checkpoint: newer })
-    expect(storedInRow()).toEqual(newer)
+    expect(await storedInRow()).toEqual(newer)
   })
 
   it('keeps the stored park when a delayed older revision arrives', async () => {
     const parked = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
-    fake.cloudSandboxes.push(storedRow(parked))
+    await storedRow(parked)
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(
@@ -131,12 +125,12 @@ describe('SandboxCheckpointController reports', () => {
     )
 
     expect(result).toEqual({ checkpoint: parked })
-    expect(storedInRow()).toEqual(parked)
+    expect(await storedInRow()).toEqual(parked)
   })
 
   it('never rewrites on an equal revision, even when the phase matches', async () => {
     const stored = checkpoint({ revision: 3 })
-    fake.cloudSandboxes.push(storedRow(stored))
+    await storedRow(stored)
     const controller = new SandboxCheckpointController()
     const duplicate = checkpoint({
       revision: 3,
@@ -148,12 +142,12 @@ describe('SandboxCheckpointController reports', () => {
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, duplicate)
 
     expect(result).toEqual({ checkpoint: stored })
-    expect(storedInRow()).toEqual(stored)
+    expect(await storedInRow()).toEqual(stored)
   })
 
   it('never lets an equal-revision running report rewrite a finalized park', async () => {
     const parked = checkpoint({ revision: 3, phase: ERuntimePhase.Parked })
-    fake.cloudSandboxes.push(storedRow(parked))
+    await storedRow(parked)
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(
@@ -163,13 +157,13 @@ describe('SandboxCheckpointController reports', () => {
     )
 
     expect(result).toEqual({ checkpoint: parked })
-    expect(storedInRow()).toEqual(parked)
+    expect(await storedInRow()).toEqual(parked)
   })
 
   it('never writes when the session token rotated mid-request', async () => {
     const stored = checkpoint({ revision: 3 })
     const rotated = mintSessionToken()
-    fake.cloudSandboxes.push(storedRow(stored, { tokenHash: rotated.tokenHash }))
+    await storedRow(stored, { tokenHash: rotated.tokenHash })
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(
@@ -179,23 +173,21 @@ describe('SandboxCheckpointController reports', () => {
     )
 
     expect(result).toEqual({ checkpoint: stored })
-    expect(storedInRow()).toEqual(stored)
+    expect(await storedInRow()).toEqual(stored)
   })
 
   it('treats a revision-less stored payload as empty, so reporting recovers', async () => {
-    fake.cloudSandboxes.push(
-      sandboxRow({ threadId: THREAD, runtimeCheckpoint: { garbage: true } }),
-    )
+    await sandboxRow({ threadId: THREAD, runtimeCheckpoint: { garbage: true } })
     const controller = new SandboxCheckpointController()
 
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint())
 
     expect(result).toEqual({ checkpoint: checkpoint() })
-    expect(storedInRow()).toEqual(checkpoint())
+    expect(await storedInRow()).toEqual(checkpoint())
   })
 
   it('leaves the sandbox state column alone: reports are metadata, not lifecycle', async () => {
-    fake.cloudSandboxes.push(sandboxRow({ threadId: THREAD, state: 'running' }))
+    await sandboxRow({ threadId: THREAD, state: 'running' })
     const controller = new SandboxCheckpointController()
 
     await controller.handlePutCheckpoint(
@@ -204,11 +196,11 @@ describe('SandboxCheckpointController reports', () => {
       checkpoint({ phase: ERuntimePhase.Parked }),
     )
 
-    expect(fake.cloudSandboxes[0]?.state).toBe('running')
+    expect((await db.orm.public.CloudSandbox.first())?.state).toBe('running')
   })
 
   it('round-trips an updating checkpoint carrying its rotation receipt through the fence', async () => {
-    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    await storedRow(checkpoint({ revision: 3 }))
     const controller = new SandboxCheckpointController()
     const base = {
       threadId: THREAD,
@@ -233,11 +225,11 @@ describe('SandboxCheckpointController reports', () => {
     const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, updating)
 
     expect(result).toEqual({ checkpoint: updating })
-    expect(storedInRow()).toEqual(updating)
+    expect(await storedInRow()).toEqual(updating)
   })
 
   it('rejects an updating checkpoint without its receipt', async () => {
-    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    await storedRow(checkpoint({ revision: 3 }))
     const controller = new SandboxCheckpointController()
 
     await expect(
@@ -249,7 +241,7 @@ describe('SandboxCheckpointController reports', () => {
   })
 
   it('rejects a checkpoint still carrying a retired phase value', async () => {
-    fake.cloudSandboxes.push(storedRow(checkpoint({ revision: 3 })))
+    await storedRow(checkpoint({ revision: 3 }))
     const controller = new SandboxCheckpointController()
 
     await expect(

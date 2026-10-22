@@ -1,6 +1,6 @@
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common'
-import { db } from '../../../db'
-import { appendWithin, nextThreadId, nowIso } from './append'
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { db, or } from '@dltech/atlas-db'
+import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { threadPullRequests, threadWorktree } from './places'
 import { toEventDto, toThreadDto } from './rows'
@@ -19,21 +19,19 @@ const THREAD_LISTING_LIMIT = 50
 @Injectable()
 export class ThreadsService {
   async create(args: { userId: string; draft: CreateThreadDto }): Promise<ThreadDto> {
-    const at = nowIso()
-    const row = await db.thread.create({
-      data: {
-        id: nextThreadId(),
-        userId: args.userId,
-        createdAt: at,
-        updatedAt: at,
-        ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
-        ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
-        ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
-        ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
-        ...(args.draft.agent === undefined
-          ? {}
-          : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
-      },
+    const at = new Date()
+    const row = await db.orm.public.Thread.create({
+      id: nextThreadId(),
+      userId: args.userId,
+      createdAt: at,
+      updatedAt: at,
+      ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
+      ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
+      ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
+      ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
+      ...(args.draft.agent === undefined
+        ? {}
+        : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
     })
     return toThreadDto(row)
   }
@@ -43,28 +41,26 @@ export class ThreadsService {
     draft: OpenThreadDto
   }): Promise<{ thread: ThreadDto; events: EventDto[] }> {
     const threadId = args.draft.threadId ?? nextThreadId()
-    const existing = await db.thread.findUnique({ where: { id: threadId }, select: { id: true } })
+    const existing = await db.orm.public.Thread.where({ id: threadId }).select('id').first()
     if (existing !== null) return this.reopen({ userId: args.userId, draft: args.draft, threadId })
 
-    return db.$transaction(async (tx) => {
-      const at = nowIso()
-      await tx.thread.create({
-        data: {
-          id: threadId,
-          userId: args.userId,
-          createdAt: at,
-          updatedAt: at,
-          ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
-          ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
-          ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
-          ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
-          ...(args.draft.executionLocation === undefined
-            ? {}
-            : { executionLocation: args.draft.executionLocation }),
-          ...(args.draft.agent === undefined
-            ? {}
-            : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
-        },
+    return db.transaction(async (tx) => {
+      const at = new Date()
+      await tx.orm.public.Thread.create({
+        id: threadId,
+        userId: args.userId,
+        createdAt: at,
+        updatedAt: at,
+        ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
+        ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
+        ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
+        ...(await threadProjectColumn({ userId: args.userId, projectId: args.draft.projectId })),
+        ...(args.draft.executionLocation === undefined
+          ? {}
+          : { executionLocation: args.draft.executionLocation }),
+        ...(args.draft.agent === undefined
+          ? {}
+          : { spawnerThreadId: args.draft.agent.spawnedBy, agentType: args.draft.agent.type }),
       })
       const events = await appendWithin({
         tx,
@@ -73,7 +69,7 @@ export class ThreadsService {
         runId: args.draft.runId,
         drafts: args.draft.drafts,
       })
-      const row = await tx.thread.findUniqueOrThrow({ where: { id: threadId } })
+      const row = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
       return { thread: toThreadDto(row), events }
     })
   }
@@ -88,8 +84,8 @@ export class ThreadsService {
     draft: OpenThreadDto
     threadId: string
   }): Promise<{ thread: ThreadDto; events: EventDto[] }> {
-    return db.$transaction(async (tx) => {
-      const row = await tx.thread.findUniqueOrThrow({ where: { id: args.threadId } })
+    return db.transaction(async (tx) => {
+      const row = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
       if (row.userId !== args.userId) throw new ForbiddenException('thread belongs to another user')
 
       const storedCount = row.head
@@ -99,10 +95,12 @@ export class ThreadsService {
         )
       }
       if (storedCount > 0) {
-        const boundary = await tx.event.findFirst({
-          where: { threadId: args.threadId, seq: storedCount },
-          select: { type: true, body: true },
+        const boundary = await tx.orm.public.Event.where({
+          threadId: args.threadId,
+          seq: storedCount,
         })
+          .select('type', 'body')
+          .first()
         const replayed = args.draft.drafts[storedCount - 1]
         if (
           boundary === null ||
@@ -125,23 +123,20 @@ export class ThreadsService {
         })
       }
 
-      const updated = await tx.thread.update({
-        where: { id: args.threadId },
-        data: {
-          updatedAt: nowIso(),
-          ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
-          ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
-          ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
-          ...(args.draft.executionLocation === undefined
-            ? {}
-            : { executionLocation: args.draft.executionLocation }),
-        },
+      const updated = await tx.orm.public.Thread.where({ id: args.threadId }).update({
+        updatedAt: new Date(),
+        ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
+        ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
+        ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
+        ...(args.draft.executionLocation === undefined
+          ? {}
+          : { executionLocation: args.draft.executionLocation }),
       })
+      if (updated === null) throw new NotFoundException('thread not found')
 
-      const events = await tx.event.findMany({
-        where: { threadId: args.threadId },
-        orderBy: { seq: 'asc' },
-      })
+      const events = await tx.orm.public.Event.where({ threadId: args.threadId })
+        .orderBy((event) => event.seq.asc())
+        .all()
       return { thread: toThreadDto(updated), events: events.map(toEventDto) }
     })
   }
@@ -152,21 +147,20 @@ export class ThreadsService {
 
   async spawned(args: { userId: string; threadId: string }): Promise<ThreadDto[]> {
     await this.ownedThread(args)
-    const rows = await db.thread.findMany({
-      where: { spawnerThreadId: args.threadId, userId: args.userId },
-      orderBy: { createdAt: 'asc' },
+    const rows = await db.orm.public.Thread.where({
+      spawnerThreadId: args.threadId,
+      userId: args.userId,
     })
+      .orderBy((thread) => thread.createdAt.asc())
+      .all()
     return rows.map(toThreadDto)
   }
 
   async mostRecent(args: { userId: string; project: string }): Promise<ThreadDto | null> {
-    const row = await db.thread.findFirst({
-      where: {
-        userId: args.userId,
-        OR: [{ repo: args.project }, { workspace: args.project }],
-      },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const row = await db.orm.public.Thread.where({ userId: args.userId })
+      .where((thread) => or(thread.repo.eq(args.project), thread.workspace.eq(args.project)))
+      .orderBy((thread) => thread.updatedAt.desc())
+      .first()
     return row === null ? null : toThreadDto(row)
   }
 
@@ -175,14 +169,11 @@ export class ThreadsService {
     project: string
     limit?: number | undefined
   }): Promise<ThreadDto[]> {
-    const rows = await db.thread.findMany({
-      where: {
-        userId: args.userId,
-        OR: [{ repo: args.project }, { workspace: args.project }],
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: args.limit ?? THREAD_LISTING_LIMIT,
-    })
+    const rows = await db.orm.public.Thread.where({ userId: args.userId })
+      .where((thread) => or(thread.repo.eq(args.project), thread.workspace.eq(args.project)))
+      .orderBy((thread) => thread.updatedAt.desc())
+      .limit(args.limit ?? THREAD_LISTING_LIMIT)
+      .all()
     return Promise.all(
       rows.map(async (row) => {
         const [worktree, pullRequests] = await Promise.all([
@@ -200,7 +191,7 @@ export class ThreadsService {
 
   async rename(args: { userId: string; threadId: string; draft: RenameThreadDto }): Promise<void> {
     await this.ownedThread(args)
-    await db.thread.update({ where: { id: args.threadId }, data: { title: args.draft.title } })
+    await db.orm.public.Thread.where({ id: args.threadId }).update({ title: args.draft.title })
   }
 
   async chooseModel(args: {
@@ -209,17 +200,17 @@ export class ThreadsService {
     draft: ChooseModelDto
   }): Promise<void> {
     await this.ownedThread(args)
-    await db.thread.update({
-      where: { id: args.threadId },
-      data: { modelRef: args.draft.ref, modelEffort: args.draft.effort },
+    await db.orm.public.Thread.where({ id: args.threadId }).update({
+      modelRef: args.draft.ref,
+      modelEffort: args.draft.effort,
     })
   }
 
   async adopt(args: { userId: string; threadId: string; draft: AdoptThreadDto }): Promise<void> {
     await this.ownedThread(args)
-    await db.thread.update({
-      where: { id: args.threadId },
-      data: { workspace: args.draft.workspace, repo: args.draft.repo },
+    await db.orm.public.Thread.where({ id: args.threadId }).update({
+      workspace: args.draft.workspace,
+      repo: args.draft.repo,
     })
   }
 

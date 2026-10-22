@@ -4,21 +4,17 @@ import {
   GITHUB_NOT_CONNECTED_CODE,
   SSH_SIGNING_SCOPE_MISSING_CODE,
 } from '@dltech/atlas-wire'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { sharedSigningKeyDb } = await import('../../../../test/fake-signing-key-db.js')
-  return { db: sharedSigningKeyDb.db as unknown as PrismaClient }
-})
-
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { response } from './ssh-signing-key.fakes'
 import {
   OLD_SCOPES,
   USER,
   cipher,
   connect,
-  fake,
+  disconnect,
+  keys,
+  raceNextCreate,
   github,
   keyA,
   keyB,
@@ -27,18 +23,19 @@ import {
 import type { SshSigningKeyService } from './ssh-signing-key.service'
 
 describe('SshSigningKeyService', () => {
+  useTestDatabase()
   let service: SshSigningKeyService
 
-  beforeEach(() => {
-    service = resetWorld()
+  beforeEach(async () => {
+    service = await resetWorld()
   })
 
   it('stores the private half sealed and leases back the identical pem', async () => {
     const status = await service.register({ userId: USER, privateKey: keyA.privateKey })
 
     expect(status).toMatchObject({ state: ESshSigningKeyState.Registered, publicKey: keyA.publicLine })
-    expect(fake.keys[0]?.sealedPrivateKey).not.toContain('OPENSSH')
-    expect(fake.keys[0]).toMatchObject({
+    expect((await keys())[0]?.sealedPrivateKey).not.toContain('OPENSSH')
+    expect((await keys())[0]).toMatchObject({
       githubKeyId: 101n,
       userName: 'octocat',
       userEmail: '4242+octocat@users.noreply.github.com',
@@ -71,7 +68,7 @@ describe('SshSigningKeyService', () => {
   })
 
   it('asks the user to connect github first', async () => {
-    fake.connections.length = 0
+    await disconnect()
 
     const failure = await service.register({ userId: USER, privateKey: keyA.privateKey }).catch((e: unknown) => e)
 
@@ -81,15 +78,15 @@ describe('SshSigningKeyService', () => {
   })
 
   it('answers the scope code for an old-scope connection without calling github', async () => {
-    fake.connections.length = 0
-    connect(OLD_SCOPES)
+    await disconnect()
+    await connect({ scopes: OLD_SCOPES })
 
     const failure = await service.register({ userId: USER, privateKey: keyA.privateKey }).catch((e: unknown) => e)
 
     expect(failure).toBeInstanceOf(ForbiddenException)
     expect((failure as ForbiddenException).getResponse()).toMatchObject({ code: SSH_SIGNING_SCOPE_MISSING_CODE })
     expect(github.calls).toHaveLength(0)
-    expect(fake.keys).toHaveLength(0)
+    expect(await keys()).toHaveLength(0)
   })
 
   it('maps a github scope refusal to the scope code', async () => {
@@ -98,7 +95,7 @@ describe('SshSigningKeyService', () => {
     await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toBeInstanceOf(
       ForbiddenException,
     )
-    expect(fake.keys).toHaveLength(0)
+    expect(await keys()).toHaveLength(0)
   })
 
   it('adopts the existing key id when github answers 422', async () => {
@@ -118,11 +115,11 @@ describe('SshSigningKeyService', () => {
 
     await service.register({ userId: USER, privateKey: keyA.privateKey })
 
-    expect(fake.keys[0]?.githubKeyId).toBe(9n)
+    expect((await keys())[0]?.githubKeyId).toBe(9n)
   })
 
   it('removes the just-registered key when a concurrent registration wins the row', async () => {
-    fake.raceNextCreate()
+    raceNextCreate()
 
     await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toBeInstanceOf(
       ConflictException,
@@ -143,8 +140,8 @@ describe('SshSigningKeyService', () => {
       'POST /user/ssh_signing_keys',
       'DELETE /user/ssh_signing_keys/101',
     ])
-    expect(fake.keys[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
-    expect(cipher.decrypt(fake.keys[0]?.sealedPrivateKey ?? '')).toBe(keyB.privateKey)
+    expect((await keys())[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
+    expect(cipher.decrypt((await keys())[0]?.sealedPrivateKey ?? '')).toBe(keyB.privateKey)
     expect(github.registered.has(101)).toBe(false)
   })
 
@@ -160,7 +157,7 @@ describe('SshSigningKeyService', () => {
 
     await service.revoke({ userId: USER })
 
-    expect(fake.keys).toHaveLength(0)
+    expect(await keys()).toHaveLength(0)
     expect(github.calls.at(-1)?.method).toBe('DELETE')
   })
 
@@ -170,7 +167,7 @@ describe('SshSigningKeyService', () => {
     await service.revoke({ userId: USER })
     await service.revoke({ userId: USER })
 
-    expect(fake.keys).toHaveLength(0)
+    expect(await keys()).toHaveLength(0)
     expect(github.registered.size).toBe(0)
   })
 

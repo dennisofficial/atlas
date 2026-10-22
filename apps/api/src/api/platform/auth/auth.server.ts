@@ -1,6 +1,5 @@
-import { db } from '../../../db'
+import { sharedPool } from '@dltech/atlas-db'
 import { betterAuth } from 'better-auth'
-import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'
 
 const secret = process.env.SECRET_KEY
@@ -18,12 +17,28 @@ const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3001'
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3400',
   secret,
-  database: prismaAdapter(db, { provider: 'postgresql' }),
+  database: sharedPool(),
+  advanced: { database: { validateSchema: false } },
+  user: { modelName: 'User' },
+  session: { modelName: 'Session' },
+  account: { modelName: 'Account' },
+  verification: { modelName: 'Verification' },
   emailAndPassword: { enabled: true },
   trustedOrigins,
   plugins: [
-    organization(),
+    organization({
+      schema: {
+        organization: { modelName: 'Organization' },
+        member: { modelName: 'Member' },
+        invitation: { modelName: 'Invitation' },
+      },
+    }),
     bearer(),
-    deviceAuthorization({ verificationUri: `${webOrigin}/device` }),
+    deviceAuthorization({
+      verificationUri: `${webOrigin}/device`,
+      schema: {
+        deviceCode: { modelName: 'DeviceCode' },
+      },
+    }),
   ],
 })

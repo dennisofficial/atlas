@@ -1,8 +1,6 @@
 import { NotFoundException } from '@nestjs/common'
 
-import type { ThreadModel } from '../../../db'
-import type { PrismaClient } from '../../../generated/prisma/client'
-import { nowIso } from '../sessions/append'
+import type { Db, Row, Tx } from '@dltech/atlas-db'
 
 /**
  * A lift claims the sandbox before the thread has ever been opened on the control plane — the
@@ -12,25 +10,23 @@ import { nowIso } from '../sessions/append'
  * already belongs to another user is still a 404, the same as ownership would answer.
  */
 export async function findOrCreateClaimThread(args: {
-  db: PrismaClient
+  db: Pick<Db, 'orm'> | Tx
   userId: string
   threadId: string
   workspace?: string | undefined
-}): Promise<ThreadModel> {
-  const existing = await args.db.thread.findUnique({ where: { id: args.threadId } })
+}): Promise<Row<'Thread'>> {
+  const existing = await args.db.orm.public.Thread.where({ id: args.threadId }).first()
   if (existing !== null) {
     if (existing.userId !== args.userId) throw new NotFoundException('thread not found')
     return existing
   }
 
-  const at = nowIso()
-  return args.db.thread.create({
-    data: {
-      id: args.threadId,
-      userId: args.userId,
-      createdAt: at,
-      updatedAt: at,
-      ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-    },
+  const at = new Date()
+  return args.db.orm.public.Thread.create({
+    id: args.threadId,
+    userId: args.userId,
+    createdAt: at,
+    updatedAt: at,
+    ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
   })
 }

@@ -1,125 +1,15 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { PrismaClient } from '../../../generated/prisma/client'
 import type { CreateAccountDto, SecretDto } from './accounts.dto'
 import { AccountsService } from './accounts.service'
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from './accounts.types'
 
 const HEX_KEY =
   'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-
-interface AgentAccountRow {
-  id: string
-  provider: string
-  kind: string
-  origin: string
-  label: string
-  status: string
-  email: string | null
-  subscription: string | null
-  importedFrom: string | null
-  sealedSecret: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-interface ActiveAccountRow {
-  userId: string
-  provider: string
-  accountId: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-const fake = vi.hoisted(() => {
-  const accounts: AgentAccountRow[] = []
-  const actives: ActiveAccountRow[] = []
-
-  const db = {
-    agentAccount: {
-      findMany: async (args: { where: { userId: string } }) =>
-        accounts.filter((row) => row.userId === args.where.userId),
-      findFirst: async (args: { where: { id: string; userId: string } }) =>
-        accounts.find(
-          (row) => row.id === args.where.id && row.userId === args.where.userId,
-        ) ?? null,
-      create: async (args: { data: Omit<AgentAccountRow, 'createdAt' | 'updatedAt'> }) => {
-        const timestamp = new Date()
-        const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
-        accounts.push(row)
-        return row
-      },
-      update: async (args: {
-        where: { id: string }
-        data: Partial<Pick<AgentAccountRow, 'sealedSecret' | 'kind' | 'status'>>
-      }) => {
-        const row = accounts.find((candidate) => candidate.id === args.where.id)
-        if (!row) throw new Error('record not found')
-        Object.assign(row, args.data, { updatedAt: new Date() })
-        return row
-      },
-      delete: async (args: { where: { id: string } }) => {
-        const row = accounts.find((candidate) => candidate.id === args.where.id)
-        if (!row) throw new Error('record not found')
-        accounts.splice(accounts.indexOf(row), 1)
-        return row
-      },
-    },
-    activeAccount: {
-      findUnique: async (args: {
-        where: { userId_provider: { userId: string; provider: string } }
-      }) =>
-        actives.find(
-          (row) =>
-            row.userId === args.where.userId_provider.userId &&
-            row.provider === args.where.userId_provider.provider,
-        ) ?? null,
-      create: async (args: {
-        data: Omit<ActiveAccountRow, 'createdAt' | 'updatedAt'>
-      }) => {
-        const timestamp = new Date()
-        const row = { ...args.data, createdAt: timestamp, updatedAt: timestamp }
-        actives.push(row)
-        return row
-      },
-      upsert: async (args: {
-        where: { userId_provider: { userId: string; provider: string } }
-        create: Omit<ActiveAccountRow, 'createdAt' | 'updatedAt'>
-        update: { accountId: string }
-      }) => {
-        const existing = actives.find(
-          (row) =>
-            row.userId === args.where.userId_provider.userId &&
-            row.provider === args.where.userId_provider.provider,
-        )
-        if (existing) {
-          existing.accountId = args.update.accountId
-          existing.updatedAt = new Date()
-          return existing
-        }
-        const timestamp = new Date()
-        const row = { ...args.create, createdAt: timestamp, updatedAt: timestamp }
-        actives.push(row)
-        return row
-      },
-      deleteMany: async (args: { where: { userId: string; accountId: string } }) => {
-        const kept = actives.filter(
-          (row) => !(row.userId === args.where.userId && row.accountId === args.where.accountId),
-        )
-        const count = actives.length - kept.length
-        actives.splice(0, actives.length, ...kept)
-        return { count }
-      },
-    },
-  }
-
-  return { db, accounts, actives }
-})
-
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -145,11 +35,13 @@ function draftOf(secret: SecretDto): CreateAccountDto {
 }
 
 describe('AccountsService', () => {
+  const database = useTestDatabase()
+  const accounts = () => db.orm.public.AgentAccount.where((row) => row.id.neq('')).all()
+  const actives = () => db.orm.public.ActiveAccount.where((row) => row.userId.neq('')).all()
   let service: AccountsService
 
-  beforeEach(() => {
-    fake.accounts.length = 0
-    fake.actives.length = 0
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new AccountsService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
     )
@@ -170,8 +62,9 @@ describe('AccountsService', () => {
     const first = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
     const second = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-2')) })
 
-    expect(fake.actives).toHaveLength(1)
-    expect(fake.actives[0]?.accountId).toBe(first.id)
+    const pointers = await actives()
+    expect(pointers).toHaveLength(1)
+    expect(pointers[0]?.accountId).toBe(first.id)
     expect((await service.activeFor({ userId: USER_A, provider: 'anthropic' })).accountId).not.toBe(
       second.id,
     )
@@ -207,7 +100,7 @@ describe('AccountsService', () => {
       accountId: account.id,
       status: { status: EAccountStatus.Expired },
     })
-    const sealedBefore = fake.accounts[0]?.sealedSecret
+    const sealedBefore = (await accounts())[0]?.sealedSecret
 
     await service.replaceSecret({
       userId: USER_A,
@@ -219,8 +112,10 @@ describe('AccountsService', () => {
     expect(stored.status).toBe(EAccountStatus.Active)
     expect(stored.kind).toBe(EAuthKind.ApiKey)
     expect(stored.secret).toEqual({ kind: EAuthKind.ApiKey, apiKey: 'sk-ant-new' })
-    expect(fake.accounts[0]?.sealedSecret).not.toBe(sealedBefore)
-    expect(fake.accounts[0]?.sealedSecret).not.toContain('sk-ant-new')
+    const [after] = await accounts()
+    expect(after?.sealedSecret).not.toBe(sealedBefore)
+    expect(after?.sealedSecret).not.toContain('sk-ant-new')
+    expect(after?.secretVersion).toBe(1)
   })
 
   it('remove deletes the row and clears the active pointer', async () => {
@@ -240,7 +135,7 @@ describe('AccountsService', () => {
     await expect(
       service.remove({ userId: USER_B, accountId: account.id }),
     ).rejects.toBeInstanceOf(NotFoundException)
-    expect(fake.accounts).toHaveLength(1)
+    expect(await accounts()).toHaveLength(1)
   })
 
   it('setActive upserts the per-provider pointer', async () => {
@@ -252,11 +147,12 @@ describe('AccountsService', () => {
       draft: { provider: EAuthProvider.Anthropic, accountId: second.id },
     })
 
-    expect(fake.actives).toHaveLength(1)
+    const pointers = await actives()
+    expect(pointers).toHaveLength(1)
     expect(await service.activeFor({ userId: USER_A, provider: 'anthropic' })).toEqual({
       accountId: second.id,
     })
-    expect(fake.actives[0]?.accountId).not.toBe(first.id)
+    expect(pointers[0]?.accountId).not.toBe(first.id)
   })
 
   it('setActive rejects accounts owned by another user', async () => {
@@ -283,6 +179,6 @@ describe('AccountsService', () => {
     await expect(
       service.add({ userId: USER_A, draft: draftOf({ kind: EAuthKind.ApiKey }) }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    expect(fake.accounts).toHaveLength(0)
+    expect(await accounts()).toHaveLength(0)
   })
 })

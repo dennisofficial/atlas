@@ -1,19 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { ForbiddenException } from '@nestjs/common'
-import type { EventModel } from '../../../db'
-import type { Prisma } from '../../../generated/prisma/client'
+import type { Row, Tx } from '@dltech/atlas-db'
 import type { EventDraftDto } from './sessions.dto'
 import type { EventDto } from './sessions.types'
 import { toEventDto } from './rows'
 import { planSegments, type SessionReader } from './fork-chain'
+import { advanceHead } from './thread-head'
 
 export const nextEventId = (): string => `evt_${randomUUID()}`
 export const nextThreadId = (): string => `brn_${randomUUID()}`
 export const nextRunId = (): string => `run_${randomUUID()}`
-
-export const nowIso = (): string => new Date().toISOString()
-
-type Tx = Prisma.TransactionClient
 
 type Identity = { slot: string; key: string; digest: string }
 
@@ -30,33 +26,30 @@ const identityOf = (draft: EventDraftDto): Identity | undefined => {
 // injection of byte-identical instructions. Same slot, same digest is the same context.
 const identityKeyOf = (identity: Identity): string => `${identity.slot} ${identity.digest}`
 
-const sameIdentity = (row: EventModel, identity: Identity): boolean =>
+const sameIdentity = (row: Row<'Event'>, identity: Identity): boolean =>
   row.contextSlot === identity.slot && row.contextDigest === identity.digest
 
 async function claimThread(args: {
   tx: Tx
   threadId: string
   userId: string
-  at: string
+  at: Date
 }): Promise<void> {
-  const existing = await args.tx.thread.findUnique({
-    where: { id: args.threadId },
-    select: { userId: true },
-  })
+  const existing = await args.tx.orm.public.Thread.where({ id: args.threadId })
+    .select('userId')
+    .first()
   if (existing !== null) {
     if (existing.userId !== args.userId) {
       throw new ForbiddenException('thread belongs to another user')
     }
     return
   }
-  await args.tx.thread.create({
-    data: {
-      id: args.threadId,
-      userId: args.userId,
-      head: 0,
-      createdAt: args.at,
-      updatedAt: args.at,
-    },
+  await args.tx.orm.public.Thread.create({
+    id: args.threadId,
+    userId: args.userId,
+    head: 0,
+    createdAt: args.at,
+    updatedAt: args.at,
   })
 }
 
@@ -76,15 +69,15 @@ async function loadReusable(args: {
   const segments = await planSegments({ reader: args.tx, threadId: args.threadId })
   const reusable = new Map<string, EventDto>()
   for (const segment of segments) {
-    const rows = await args.tx.event.findMany({
-      where: {
-        threadId: segment.threadId,
-        userId: args.userId,
-        type: 'context-loaded',
-        ...(segment.upTo === undefined ? {} : { seq: { lte: segment.upTo } }),
-      },
-      orderBy: { seq: 'asc' },
+    const upTo = segment.upTo
+    const scoped = args.tx.orm.public.Event.where({
+      threadId: segment.threadId,
+      userId: args.userId,
+      type: 'context-loaded',
     })
+    const rows = await (upTo === undefined ? scoped : scoped.where((event) => event.seq.lte(upTo)))
+      .orderBy((event) => event.seq.asc())
+      .all()
     for (const row of rows) {
       const identity = wanted.find((one) => sameIdentity(row, one))
       if (identity === undefined) continue
@@ -155,7 +148,7 @@ export async function appendWithin(args: {
 }): Promise<EventDto[]> {
   if (args.drafts.length === 0) return []
 
-  const at = nowIso()
+  const at = new Date()
   await claimThread({ tx: args.tx, threadId: args.threadId, userId: args.userId, at })
 
   const reusable = await loadReusable({
@@ -167,12 +160,13 @@ export async function appendWithin(args: {
   const plan = planAppend({ drafts: args.drafts, reusable })
   if (plan.fresh.length === 0) return plan.resolve([])
 
-  const thread = await args.tx.thread.update({
-    where: { id: args.threadId },
-    data: { head: { increment: plan.fresh.length }, updatedAt: at },
-    select: { head: true },
+  const head = await advanceHead({
+    tx: args.tx,
+    threadId: args.threadId,
+    by: plan.fresh.length,
+    at,
   })
-  const firstSeq = thread.head - plan.fresh.length + 1
+  const firstSeq = head - plan.fresh.length + 1
 
   const rows = plan.fresh.map((draft, index) => ({
     id: nextEventId(),
@@ -189,7 +183,7 @@ export async function appendWithin(args: {
     contextDigest: draft.contextDigest ?? null,
     userId: args.userId,
   }))
-  await args.tx.event.createMany({ data: rows })
+  await args.tx.orm.public.Event.createAndCount(rows)
 
   return plan.resolve(rows.map(toEventDto))
 }
@@ -200,16 +194,16 @@ export async function readOwnRows(args: {
   userId: string
   upTo?: number | undefined
   type?: string | undefined
-}): Promise<EventModel[]> {
-  return args.reader.event.findMany({
-    where: {
-      threadId: args.threadId,
-      userId: args.userId,
-      ...(args.upTo === undefined ? {} : { seq: { lte: args.upTo } }),
-      ...(args.type === undefined ? {} : { type: args.type }),
-    },
-    orderBy: { seq: 'asc' },
+}): Promise<Row<'Event'>[]> {
+  const { upTo, type } = args
+  const scoped = args.reader.orm.public.Event.where({
+    threadId: args.threadId,
+    userId: args.userId,
+    ...(type === undefined ? {} : { type }),
   })
+  return (upTo === undefined ? scoped : scoped.where((event) => event.seq.lte(upTo)))
+    .orderBy((event) => event.seq.asc())
+    .all()
 }
 
 export async function readComposedRows(args: {
@@ -218,14 +212,14 @@ export async function readComposedRows(args: {
   userId: string
   upTo?: number | undefined
   type?: string | undefined
-}): Promise<EventModel[]> {
+}): Promise<Row<'Event'>[]> {
   const segments = await planSegments({
     reader: args.reader,
     threadId: args.threadId,
     upTo: args.upTo,
   })
 
-  const composed: EventModel[] = []
+  const composed: Row<'Event'>[] = []
   for (const segment of segments) {
     composed.push(
       ...(await readOwnRows({

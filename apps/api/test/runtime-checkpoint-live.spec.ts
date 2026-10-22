@@ -2,50 +2,35 @@ import { randomUUID } from 'node:crypto'
 import type { ExecutionContext, INestApplication } from '@nestjs/common'
 import { UnauthorizedException, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { PrismaPg } from '@prisma/adapter-pg'
 import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { SandboxCheckpointController } from '../src/api/platform/sandboxes/sandbox-checkpoint.controller'
 import { SandboxTokenGuard, type SandboxAuthenticatedRequest } from '../src/api/platform/sandboxes/sandbox-token.guard'
 import { hashSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
-import { db } from '../src/db'
-import { PrismaClient } from '../src/generated/prisma/client'
 
-const DISPOSABLE_DATABASE_URL = 'postgresql://postgres@127.0.0.1:55437/atlas_checkpoint_test'
-const describeLive = process.env.ATLAS_LIVE_CHECKPOINT_DB === '1' ? describe : describe.skip
-
-function validateDisposableDatabase(connectionString: string): void {
-  const url = new URL(connectionString)
-  if (
-    url.protocol !== 'postgresql:' || url.hostname !== '127.0.0.1' ||
-    url.port !== '55437' || url.username !== 'postgres' || url.password !== '' ||
-    !/^\/atlas_checkpoint_test(?:_[a-z0-9_]+)?$/.test(url.pathname)
-  ) throw new Error('Live checkpoint tests require the local disposable atlas_checkpoint_test database')
-}
-
-describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
+describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
+  useTestDatabase()
   const runId = randomUUID()
   const ownerId = `checkpoint-owner-${runId}`
   const foreignId = `checkpoint-foreign-${runId}`
   const token = `synthetic-checkpoint-token-${runId}`
-  const sandboxIds: string[] = []
-  const threadIds: string[] = []
   let app: INestApplication | undefined
-  let verificationDb: PrismaClient | undefined
   let fixture: { threadId: string; sandboxId: string }
-  let previousDatabaseUrl: string | undefined
 
   function http() {
     if (app === undefined) throw new Error('Nest test app is not initialized')
     return request(app.getHttpServer())
   }
 
-  function database(): PrismaClient {
-    if (verificationDb === undefined) throw new Error('Verification database is not initialized')
-    return verificationDb
+  const storedSandbox = async () => {
+    const row = await db.orm.public.CloudSandbox.where({ id: fixture.sandboxId }).first()
+    if (row === null) throw new Error('fixture sandbox is missing')
+    return row
   }
 
   function checkpoint(args: {
@@ -74,25 +59,15 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   }
 
   async function expectPersisted(expected: RuntimeCheckpoint): Promise<void> {
-    const row = await database().cloudSandbox.findUniqueOrThrow({ where: { id: fixture.sandboxId } })
+    const row = await storedSandbox()
     expect(row.runtimeCheckpointRevision).toBe(expected.revision)
     expect(row.runtimeCheckpoint).toEqual(expected)
     expect(row.state).toBe('running')
     expect(row.sandboxId).toBe(`provider-${fixture.sandboxId}`)
-    expect(row.lastActivityAt).toBe('2026-10-01T00:00:00.000Z')
+    expect(row.lastActivityAt).toEqual(new Date('2026-10-01T00:00:00.000Z'))
   }
 
   beforeAll(async () => {
-    validateDisposableDatabase(DISPOSABLE_DATABASE_URL)
-    previousDatabaseUrl = process.env.DATABASE_URL
-    process.env.DATABASE_URL = DISPOSABLE_DATABASE_URL
-    verificationDb = new PrismaClient({ adapter: new PrismaPg({ connectionString: DISPOSABLE_DATABASE_URL }) })
-    const identity = await database().$queryRaw<Array<{ database: string }>>`SELECT current_database() AS database`
-    expect(identity).toEqual([{ database: 'atlas_checkpoint_test' }])
-    await database().user.createMany({ data: [ownerId, foreignId].map(id => ({
-      id, name: id, email: `${id}@checkpoint.invalid`,
-    })) })
-
     const module = await Test.createTestingModule({ controllers: [SandboxCheckpointController] })
       .overrideGuard(SessionAuthGuard).useValue({
         canActivate(context: ExecutionContext): boolean {
@@ -120,32 +95,19 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     const threadId = `brn_checkpoint_${randomUUID()}`
     const sandboxId = `sbx_checkpoint_${randomUUID()}`
     fixture = { threadId, sandboxId }
-    threadIds.push(threadId)
-    sandboxIds.push(sandboxId)
-    const at = '2026-10-01T00:00:00.000Z'
-    await database().thread.create({ data: { id: threadId, userId: ownerId, createdAt: at, updatedAt: at } })
-    await database().cloudSandbox.create({ data: {
+    const at = new Date('2026-10-01T00:00:00.000Z')
+    await seedUser({ db, id: ownerId })
+    await seedUser({ db, id: foreignId })
+    await db.orm.public.Thread.create({ id: threadId, userId: ownerId, createdAt: at, updatedAt: at })
+    await db.orm.public.CloudSandbox.create({
       id: sandboxId, threadId, userId: ownerId, sandboxId: `provider-${sandboxId}`,
       name: sandboxId, region: 'iad1', state: 'running', tokenHash: hashSessionToken(token),
       lastActivityAt: at, createdAt: at, updatedAt: at,
-    } })
+    })
   })
 
   afterAll(async () => {
-    try {
-      await app?.close()
-      if (verificationDb !== undefined) {
-        await verificationDb.cloudSandbox.deleteMany({ where: { id: { in: sandboxIds } } })
-        await verificationDb.thread.deleteMany({ where: { id: { in: threadIds } } })
-        await verificationDb.user.deleteMany({ where: { id: { in: [ownerId, foreignId] } } })
-      }
-    } finally {
-      if (verificationDb !== undefined) {
-        await Promise.all([verificationDb.$disconnect(), db.$disconnect()])
-      }
-      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL
-      else process.env.DATABASE_URL = previousDatabaseUrl
-    }
+    await app?.close()
   })
 
   it('returns null for a missing checkpoint and does not disclose another owner’s row', async () => {
@@ -154,7 +116,7 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     expect(owner.body).toEqual({ checkpoint: null })
     await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
       .set('x-live-user', foreignId).expect(404)
-    const row = await database().cloudSandbox.findUniqueOrThrow({ where: { id: fixture.sandboxId } })
+    const row = await storedSandbox()
     expect(row.runtimeCheckpoint).toBeNull()
     expect(row.runtimeCheckpointRevision).toBeNull()
   })
@@ -166,7 +128,7 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     await expectPersisted(running)
     expect((await put(parked).expect(200)).body).toEqual({ checkpoint: parked })
     await expectPersisted(parked)
-    const stored = await database().cloudSandbox.findUniqueOrThrow({ where: { id: fixture.sandboxId } })
+    const stored = await storedSandbox()
 
     const refused = [running, parked,
       checkpoint({ revision: 2, digest: 'f'.repeat(64) }),
@@ -174,8 +136,8 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     for (const report of refused) {
       expect((await put(report).expect(200)).body).toEqual({ checkpoint: parked })
       await expectPersisted(parked)
-      const unchanged = await database().cloudSandbox.findUniqueOrThrow({ where: { id: fixture.sandboxId } })
-      expect(unchanged.updatedAt).toBe(stored.updatedAt)
+      const unchanged = await storedSandbox()
+      expect(unchanged.updatedAt).toEqual(stored.updatedAt)
     }
     const owner = await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
       .set('x-live-user', ownerId).expect(200)
@@ -207,7 +169,7 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
       { ...valid, unexpected: true },
     ]
     for (const body of invalid) await put(body).expect(400)
-    const row = await database().cloudSandbox.findUniqueOrThrow({ where: { id: fixture.sandboxId } })
+    const row = await storedSandbox()
     expect(row.runtimeCheckpoint).toBeNull()
     expect(row.runtimeCheckpointRevision).toBeNull()
     expect(row.state).toBe('running')
@@ -221,6 +183,6 @@ describeLive('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     await http().put(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
       .send(checkpoint({ revision: 1 })).expect(401)
     expect((await put(checkpoint({ revision: 1 })).expect(200)).body.checkpoint.revision).toBe(1)
-    expect(await database().cloudSandbox.count({ where: { threadId: foreignThread } })).toBe(0)
+    expect(await db.orm.public.CloudSandbox.where({ threadId: foreignThread }).all()).toHaveLength(0)
   })
 })

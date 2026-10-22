@@ -41,10 +41,9 @@ async function referenceLink(args: {
   reader: SessionReader
   threadId: string
 }): Promise<ForkLink> {
-  const link = await args.reader.thread.findUnique({
-    where: { id: args.threadId },
-    select: { parentThreadId: true, forkSeq: true, forkMode: true },
-  })
+  const link = await args.reader.orm.public.Thread.where({ id: args.threadId })
+    .select('parentThreadId', 'forkSeq', 'forkMode')
+    .first()
   if (link === null || link.forkMode !== 'reference') return null
   if (link.parentThreadId === null || link.forkSeq === null) return null
   return { parentThreadId: link.parentThreadId, forkSeq: link.forkSeq }
@@ -59,15 +58,13 @@ export async function threadWorktree(args: {
   let upTo = args.upTo
 
   for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
-    const latest = await args.reader.event.findFirst({
-      where: {
-        threadId,
-        type: { in: [...WORKTREE_EVENT_TYPES] },
-        ...(upTo === undefined ? {} : { seq: { lte: upTo } }),
-      },
-      orderBy: { seq: 'desc' },
-      select: { type: true, body: true },
-    })
+    const scoped = args.reader.orm.public.Event.where((event) => event.type.in(WORKTREE_EVENT_TYPES))
+      .where({ threadId })
+    const bound = upTo
+    const latest = await (bound === undefined ? scoped : scoped.where((event) => event.seq.lte(bound)))
+      .select('type', 'body')
+      .orderBy((event) => event.seq.desc())
+      .first()
     if (latest !== null) {
       return latest.type === 'worktree-entered' ? enteredFrom(latest.body) : null
     }
@@ -91,15 +88,12 @@ export async function threadPullRequests(args: {
   let upTo = args.upTo
 
   for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
-    const rows = await args.reader.event.findMany({
-      where: {
-        threadId,
-        type: PULL_REQUEST_EVENT_TYPE,
-        ...(upTo === undefined ? {} : { seq: { lte: upTo } }),
-      },
-      orderBy: { seq: 'asc' },
-      select: { body: true },
-    })
+    const scoped = args.reader.orm.public.Event.where({ threadId, type: PULL_REQUEST_EVENT_TYPE })
+    const bound = upTo
+    const rows = await (bound === undefined ? scoped : scoped.where((event) => event.seq.lte(bound)))
+      .select('body')
+      .orderBy((event) => event.seq.asc())
+      .all()
     if (rows.length > 0) {
       const byIdentity = new Map<string, LinkedPullRequestDto>()
       for (const row of rows) {

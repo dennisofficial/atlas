@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { db } from '../../../db'
-import { appendWithin, nextEventId, nowIso, readComposedRows, readOwnRows } from './append'
+import { db } from '@dltech/atlas-db'
+import { appendWithin, nextEventId, readComposedRows, readOwnRows } from './append'
 import { ownedThread } from './ownership'
 import { toEventDto } from './rows'
 import type { AppendEventsDto, ReplaceEventsDto } from './sessions.dto'
@@ -13,7 +13,7 @@ export class EventsService {
     threadId: string
     draft: AppendEventsDto
   }): Promise<EventDto[]> {
-    return db.$transaction((tx) =>
+    return db.transaction((tx) =>
       appendWithin({
         tx,
         threadId: args.threadId,
@@ -31,16 +31,16 @@ export class EventsService {
     threadId: string
     draft: ReplaceEventsDto
   }): Promise<EventDto[]> {
-    return db.$transaction(async (tx) => {
-      const thread = await tx.thread.findUnique({ where: { id: args.threadId } })
+    return db.transaction(async (tx) => {
+      const thread = await tx.orm.public.Thread.where({ id: args.threadId }).first()
       if (thread === null) throw new NotFoundException('thread not found')
       if (thread.userId !== args.userId) {
         throw new ForbiddenException('thread belongs to another user')
       }
 
-      await tx.event.deleteMany({ where: { threadId: args.threadId } })
+      await tx.orm.public.Event.where({ threadId: args.threadId }).deleteAndCount()
 
-      const at = nowIso()
+      const at = new Date()
       const rows = args.draft.drafts.map((draft, index) => ({
         id: nextEventId(),
         threadId: args.threadId,
@@ -56,11 +56,11 @@ export class EventsService {
         contextDigest: draft.contextDigest ?? null,
         userId: args.userId,
       }))
-      await tx.event.createMany({ data: rows })
+      await tx.orm.public.Event.createAndCount(rows)
 
-      await tx.thread.update({
-        where: { id: args.threadId },
-        data: { head: rows.length, updatedAt: at },
+      await tx.orm.public.Thread.where({ id: args.threadId }).update({
+        head: rows.length,
+        updatedAt: at,
       })
 
       return rows.map(toEventDto)

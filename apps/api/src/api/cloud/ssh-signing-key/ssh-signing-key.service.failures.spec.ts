@@ -1,19 +1,17 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common'
 import { SSH_SIGNING_SCOPE_MISSING_CODE } from '@dltech/atlas-wire'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { sharedSigningKeyDb } = await import('../../../../test/fake-signing-key-db.js')
-  return { db: sharedSigningKeyDb.db as unknown as PrismaClient }
-})
-
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { response } from './ssh-signing-key.fakes'
 import {
   GITHUB_API,
   USER,
   deletedIds,
-  fake,
+  disconnect,
+  failNext,
+  keys,
+  raceNextCreate,
   github,
   keyA,
   keyB,
@@ -34,10 +32,11 @@ function adoptKey(args: { id: number; key: string }): void {
 }
 
 describe('SshSigningKeyService failure ordering', () => {
+  useTestDatabase()
   let service: SshSigningKeyService
 
-  beforeEach(() => {
-    service = resetWorld()
+  beforeEach(async () => {
+    service = await resetWorld()
   })
 
   describe('register', () => {
@@ -64,12 +63,12 @@ describe('SshSigningKeyService failure ordering', () => {
       expect(rejected?.status === 'rejected' && rejected.reason).toBeInstanceOf(ConflictException)
       expect(deletedIds()).toEqual([])
       expect(github.registered.has(101)).toBe(true)
-      expect(fake.keys).toHaveLength(1)
-      expect(fake.keys[0]?.githubKeyId).toBe(101n)
+      expect(await keys()).toHaveLength(1)
+      expect((await keys())[0]?.githubKeyId).toBe(101n)
     })
 
     it('removes the created key when the row create fails', async () => {
-      fake.failNext('create')
+      await failNext('create')
 
       await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toThrow(
         'injected create failure',
@@ -77,12 +76,12 @@ describe('SshSigningKeyService failure ordering', () => {
 
       expect(deletedIds()).toEqual(['101'])
       expect(github.registered.size).toBe(0)
-      expect(fake.keys).toHaveLength(0)
+      expect(await keys()).toHaveLength(0)
     })
 
     it('does not remove an adopted key when the row create fails', async () => {
       adoptKey({ id: 9, key: keyA.publicLine })
-      fake.failNext('create')
+      await failNext('create')
 
       await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toThrow(
         'injected create failure',
@@ -93,7 +92,7 @@ describe('SshSigningKeyService failure ordering', () => {
 
     it('does not remove an adopted key when a concurrent register wins the row', async () => {
       adoptKey({ id: 9, key: keyA.publicLine })
-      fake.raceNextCreate()
+      raceNextCreate()
 
       await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toBeInstanceOf(
         ConflictException,
@@ -104,7 +103,7 @@ describe('SshSigningKeyService failure ordering', () => {
 
     it('still rethrows the create failure when removing the created key also fails', async () => {
       github.override((call) => (call.method === 'DELETE' ? response({ status: 500 }) : undefined))
-      fake.failNext('create')
+      await failNext('create')
 
       await expect(service.register({ userId: USER, privateKey: keyA.privateKey })).rejects.toThrow(
         'injected create failure',
@@ -129,21 +128,23 @@ describe('SshSigningKeyService failure ordering', () => {
     })
 
     it('removes the new key and keeps the old row and github key when the swap throws', async () => {
-      fake.failNext('updateMany')
+      await failNext('updateMany')
 
       await expect(service.rotate({ userId: USER, privateKey: keyB.privateKey })).rejects.toThrow(
         'injected updateMany failure',
       )
 
-      expect(fake.keys[0]).toMatchObject({ githubKeyId: 101n, publicKey: keyA.publicLine })
+      expect((await keys())[0]).toMatchObject({ githubKeyId: 101n, publicKey: keyA.publicLine })
       expect(deletedIds()).toEqual(['102'])
       expect(github.registered.has(101)).toBe(true)
       expect(github.registered.has(102)).toBe(false)
     })
 
     it('answers 409, removes the new key and leaves the row when it changed concurrently', async () => {
-      github.override((call) => {
-        if (call.method === 'POST' && fake.keys[0] !== undefined) fake.keys[0].githubKeyId = 555n
+      github.override(async (call) => {
+        if (call.method === 'POST') {
+          await db.orm.public.SshSigningKey.where({ userId: USER }).updateAndCount({ githubKeyId: 555n })
+        }
         return undefined
       })
 
@@ -151,13 +152,13 @@ describe('SshSigningKeyService failure ordering', () => {
 
       expect(failure).toBeInstanceOf(ConflictException)
       expect((failure as ConflictException).message).toBe('the signing key changed concurrently; retry')
-      expect(fake.keys[0]).toMatchObject({ githubKeyId: 555n, publicKey: keyA.publicLine })
+      expect((await keys())[0]).toMatchObject({ githubKeyId: 555n, publicKey: keyA.publicLine })
       expect(deletedIds()).toEqual(['102'])
     })
 
     it('does not remove an adopted new key when the swap throws', async () => {
       adoptKey({ id: 9, key: keyB.publicLine })
-      fake.failNext('updateMany')
+      await failNext('updateMany')
 
       await expect(service.rotate({ userId: USER, privateKey: keyB.privateKey })).rejects.toThrow(
         'injected updateMany failure',
@@ -181,7 +182,7 @@ describe('SshSigningKeyService failure ordering', () => {
       const status = await service.rotate({ userId: USER, privateKey: keyB.privateKey })
 
       expect(status).toMatchObject({ publicKey: keyB.publicLine })
-      expect(fake.keys[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
+      expect((await keys())[0]).toMatchObject({ githubKeyId: 102n, publicKey: keyB.publicLine })
       expect(deletedIds()).toEqual(['101'])
     })
 
@@ -191,7 +192,7 @@ describe('SshSigningKeyService failure ordering', () => {
       await service.rotate({ userId: USER, privateKey: keyA.privateKey })
 
       expect(deletedIds()).toEqual([])
-      expect(fake.keys[0]?.githubKeyId).toBe(101n)
+      expect((await keys())[0]?.githubKeyId).toBe(101n)
     })
   })
 
@@ -203,8 +204,8 @@ describe('SshSigningKeyService failure ordering', () => {
 
     it('deletes the row before it calls github', async () => {
       let rowsWhenGithubWasCalled: number | undefined
-      github.override((call) => {
-        if (call.method === 'DELETE') rowsWhenGithubWasCalled = fake.keys.length
+      github.override(async (call) => {
+        if (call.method === 'DELETE') rowsWhenGithubWasCalled = (await keys()).length
         return undefined
       })
 
@@ -219,26 +220,26 @@ describe('SshSigningKeyService failure ordering', () => {
 
       await expect(service.revoke({ userId: USER })).resolves.toBeUndefined()
 
-      expect(fake.keys).toHaveLength(0)
+      expect(await keys()).toHaveLength(0)
       expect(deletedIds()).toEqual(['101'])
     })
 
     it('leaves the github key alone and makes no github call when the row delete fails', async () => {
-      fake.failNext('deleteMany')
+      await failNext('deleteMany')
 
       await expect(service.revoke({ userId: USER })).rejects.toThrow('injected deleteMany failure')
 
-      expect(fake.keys).toHaveLength(1)
+      expect(await keys()).toHaveLength(1)
       expect(github.calls).toHaveLength(0)
       expect(github.registered.has(101)).toBe(true)
     })
 
     it('just deletes the row when github is no longer connected', async () => {
-      fake.connections.length = 0
+      await disconnect()
 
       await service.revoke({ userId: USER })
 
-      expect(fake.keys).toHaveLength(0)
+      expect(await keys()).toHaveLength(0)
       expect(github.calls).toHaveLength(0)
     })
   })

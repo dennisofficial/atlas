@@ -1,21 +1,10 @@
 import { UnauthorizedException, ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-
-const rows = vi.hoisted(() => ({
-  byThread: new Map<string, { threadId: string; name: string }>(),
-}))
-
-vi.mock('../../../db', () => ({
-  db: {
-    cloudSandbox: {
-      findUnique: async (args: { where: { threadId: string } }) =>
-        rows.byThread.get(args.where.threadId) ?? null,
-    },
-  },
-}))
-
+import { seedSandboxRow, seedUsers } from '../../../../test/session-seed'
 import { SandboxSelfController } from './sandbox-self.controller'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { SandboxesService } from './sandboxes.service'
@@ -33,6 +22,7 @@ const vercel = {
 const as = (token: string): { authorization: string } => ({ authorization: `Bearer ${token}` })
 
 describe('SandboxSelfController', () => {
+  useTestDatabase()
   let app: INestApplication
 
   beforeAll(async () => {
@@ -67,9 +57,9 @@ describe('SandboxSelfController', () => {
     await app.close()
   })
 
-  beforeEach(() => {
-    rows.byThread.clear()
-    rows.byThread.set('thr-1', { threadId: 'thr-1', name: 'atlas-thread-1' })
+  beforeEach(async () => {
+    await seedUsers('usr-1')
+    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', name: 'atlas-thread-1' })
     vercel.exposePort.mockClear()
     vercel.stopSession.mockClear()
   })
@@ -117,7 +107,7 @@ describe('SandboxSelfController', () => {
   })
 
   it('answers 404 when the token names a thread with no sandbox row', async () => {
-    rows.byThread.clear()
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).delete()
 
     const reply = await request(app.getHttpServer())
       .post('/v1/sandboxes/self/ports')
