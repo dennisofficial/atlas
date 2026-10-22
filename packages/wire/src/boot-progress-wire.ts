@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire.js'
+
 export enum EBootStep {
   Provision = 'provision',
   Serve = 'serve',
@@ -125,7 +127,7 @@ export const NOOP_BOOT_REPORTER: BootReporter = {
   track: (tracked) => tracked.work(),
 }
 
-/** Serve's sink: appends to the thread's API event stream with the sandbox's own session token. */
+/** Serve's sink: posts boot steps to the API's sandbox-token endpoint, outside the event log. */
 export function serveBootReporter(args: {
   controlPlaneUrl: string
   threadId: string
@@ -134,7 +136,7 @@ export function serveBootReporter(args: {
   fetchFn: typeof fetch
   log?: ((line: string) => void) | undefined
 }): BootReporter {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/threads/${encodeURIComponent(args.threadId)}/events`
+  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}${SANDBOX_SELF_BOOT_STEPS_PATH}`
   return createBootReporter({
     log: args.log,
     sink: async (events) => {
@@ -145,7 +147,7 @@ export function serveBootReporter(args: {
           'content-type': 'application/json',
           'atlas-client-version': args.clientVersion,
         },
-        body: JSON.stringify({ runId: BOOT_RUN_ID, drafts: events.map(bootStepDraftOf) }),
+        body: JSON.stringify(bootStepsPostSchema.parse({ steps: events })),
       })
       if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
     },

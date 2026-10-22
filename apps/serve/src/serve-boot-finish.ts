@@ -30,6 +30,8 @@ import { bootReporterFor } from './serve-boot-reporter'
 import type { BootListener } from './serve-boot-listener'
 import { composeBootApp } from './serve-compose-boot'
 import { bindServeDrain } from './serve-drain-binding'
+import { hydrateWhenApiProvisioned } from './serve-hydrate'
+import { resumeWhenApiProvisioned } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
 import { handlerOptionsOf } from './serve-handler-options'
@@ -89,8 +91,18 @@ export async function finishServeBoot(args: {
 
   const app = await reporter.track({
     step: EBootStep.Agent,
-    work: () =>
-      composeBootApp({
+    work: async () => {
+      await hydrateWhenApiProvisioned({
+        env,
+        atlasHome,
+        threadId,
+        controlPlaneUrl,
+        token,
+        clientVersion,
+        fetchFn,
+        log,
+      })
+      return composeBootApp({
         compose: serveArgs.compose,
         model: serveArgs.model,
         spec,
@@ -103,7 +115,8 @@ export async function finishServeBoot(args: {
         clientVersion,
         env,
         notice,
-      }),
+      })
+    },
   })
 
   const admissionClosed = (): boolean => {
@@ -263,6 +276,13 @@ export async function finishServeBoot(args: {
     })
 
   await recovery.recover({ session, driver })
+  resumeWhenApiProvisioned({
+    env,
+    resumable,
+    admissionLatched: admissionClosed(),
+    driver,
+    log,
+  })
   const exit = serveArgs.exit ?? process.exit
   const drain = bindServeDrain({
     app,
