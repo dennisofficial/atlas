@@ -8,7 +8,7 @@ describe('cloud capabilities', () => {
     expect(CLOUD_CAPABILITIES.workspaceVercelCredential).toBe(
       'workspaceVercelCredentialSchema' in webWire,
     )
-    expect(CLOUD_CAPABILITIES.projectSettings).toBe('PROJECT_SETTING_REGISTRY' in webWire)
+    expect(CLOUD_CAPABILITIES.userVercelCredential).toBe('userVercelCredentialSchema' in webWire)
     expect(CLOUD_CAPABILITIES.projectWorkspace).toBe(
       'organizationId' in webWire.projectSchema.shape,
     )

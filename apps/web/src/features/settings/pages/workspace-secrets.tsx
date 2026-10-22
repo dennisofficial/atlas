@@ -9,7 +9,7 @@ import { pageWrapOf, WorkspaceGate } from '../data/workspace/workspace-gate'
 import { describeAccess } from '../data/workspace/workspace-role'
 import { SettingsSection } from '../settings-layout'
 import { SecretsView } from '../parts/library-secrets-view'
-import { WorkspaceVercelCardSlot } from '../parts/workspace-vercel-card-live'
+import { WorkspaceVercelCardSlot } from '../parts/vercel-credential-card-live'
 
 const TITLE = 'Secrets & Env Vars'
 

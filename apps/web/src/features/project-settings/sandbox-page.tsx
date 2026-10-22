@@ -30,7 +30,6 @@ import {
   SettingsSection,
   UnsavedHint,
 } from './settings-layout'
-import { VercelSection } from './vercel-section'
 
 function SizeCard({ size }: { size: SandboxSize }) {
   const id = `sandbox-size-${size.id}`
@@ -199,7 +198,6 @@ export function SandboxPage() {
               saved={sandbox.setupScript}
               onSave={(setupScript) => handleSave({ setupScript })}
             />
-            <VercelSection projectId={projectId} />
           </>
         )
       }}

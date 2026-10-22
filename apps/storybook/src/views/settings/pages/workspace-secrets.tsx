@@ -5,7 +5,7 @@ import {
   type LibrarySecret,
 } from '../../../fixtures/settings-library'
 import { SecretsView } from '../parts/library-secrets-view'
-import { WorkspaceVercelCard, type VercelCredentialView } from '../parts/workspace-vercel-card'
+import { VercelCredentialCard, type VercelCredentialView } from '../parts/vercel-credential-card'
 import { SettingsSection } from '../settings-layout'
 
 const READ_ONLY_NOTE = 'Only owners and admins can change this.'
@@ -19,7 +19,12 @@ export type WorkspaceVercelState = {
 export const VERCEL_NOT_CONFIGURED: WorkspaceVercelState = { statusLine: 'Not configured' }
 
 export const VERCEL_CONFIGURED: WorkspaceVercelState = {
-  view: { configured: true, teamId: 'team_dltech', updatedAt: '2026-10-21T09:00:00.000Z' },
+  view: {
+    configured: true,
+    teamId: 'team_dltech',
+    vercelProjectId: 'prj_atlas_cloud',
+    updatedAt: '2026-10-21T09:00:00.000Z',
+  },
   statusLine: 'Configured · updated 3h ago',
 }
 
@@ -34,7 +39,7 @@ export function WorkspaceSecretsPage({
 }) {
   const base =
     "Shared values for DL Tech. A member's personal values override these, and project values override both. They don't reach sessions yet."
-  const card = <WorkspaceVercelCard {...vercel} disabled={readOnly || vercel.soon === true} />
+  const card = <VercelCredentialCard {...vercel} disabled={readOnly || vercel.soon === true} />
   const view = (
     <SecretsView
       scope={ELibraryScope.Workspace}

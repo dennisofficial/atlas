@@ -12,23 +12,45 @@ import { LibraryConfirmDialog } from './library-confirm-dialog'
 export type VercelCredentialView = {
   configured: boolean
   teamId: string
+  vercelProjectId: string
   updatedAt: string | null
 }
 
-export type VercelDraft = { teamId: string; token: string }
+export type VercelDraft = { teamId: string; vercelProjectId: string; token: string }
 
-export const VERCEL_DESCRIPTION =
-  "Atlas Cloud creates this workspace's sandboxes in your Vercel team with this token. Each project picks its Vercel project in Project → Sandbox."
+export type VercelCardCopy = {
+  description: string
+  removeDescription: string
+}
+
+export const WORKSPACE_VERCEL_COPY: VercelCardCopy = {
+  description:
+    "Atlas Cloud creates this workspace's sandboxes in this Vercel team and project with this token.",
+  removeDescription: "New sandboxes for this workspace won't start until a token is saved again.",
+}
+
+export const PERSONAL_VERCEL_COPY: VercelCardCopy = {
+  description:
+    'Atlas Cloud creates the sandboxes for your personal projects, and for threads without a project, in this Vercel team and project with this token.',
+  removeDescription:
+    "New sandboxes for your personal projects and threads without a project won't start until a token is saved again.",
+}
 
 const AVAILABLE_SOON = 'Available soon'
-const EMPTY_VIEW: VercelCredentialView = { configured: false, teamId: '', updatedAt: null }
+const EMPTY_VIEW: VercelCredentialView = {
+  configured: false,
+  teamId: '',
+  vercelProjectId: '',
+  updatedAt: null,
+}
 
 const canSave = ({ view, draft }: { view: VercelCredentialView; draft: VercelDraft }): boolean => {
   const teamId = draft.teamId.trim()
+  const vercelProjectId = draft.vercelProjectId.trim()
   const token = draft.token.trim()
-  if (teamId === '') return false
+  if (teamId === '' || vercelProjectId === '') return false
   if (!view.configured && token === '') return false
-  return teamId !== view.teamId || token !== ''
+  return teamId !== view.teamId || vercelProjectId !== view.vercelProjectId || token !== ''
 }
 
 function StatusLine({ configured, text }: { configured: boolean; text: string }) {
@@ -43,22 +65,29 @@ function StatusLine({ configured, text }: { configured: boolean; text: string })
   )
 }
 
-export function WorkspaceVercelCard({
+export function VercelCredentialCard({
+  copy = WORKSPACE_VERCEL_COPY,
   view = EMPTY_VIEW,
   statusLine,
   disabled = false,
   soon = false,
 }: {
+  copy?: VercelCardCopy
   view?: VercelCredentialView
   statusLine?: string
   disabled?: boolean
   soon?: boolean
 }) {
   const teamId = useId()
+  const projectId = useId()
   const tokenId = useId()
   const tokenRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState(view)
-  const [draft, setDraft] = useState<VercelDraft>({ teamId: view.teamId, token: '' })
+  const [draft, setDraft] = useState<VercelDraft>({
+    teamId: view.teamId,
+    vercelProjectId: view.vercelProjectId,
+    token: '',
+  })
   const [replacing, setReplacing] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const tokenLocked = saved.configured && !replacing
@@ -77,14 +106,23 @@ export function WorkspaceVercelCard({
     setReplacing(false)
   }
   const handleSave = () => {
-    setSaved({ configured: true, teamId: draft.teamId.trim(), updatedAt: 'just now' })
-    setDraft({ teamId: draft.teamId.trim(), token: '' })
+    setSaved({
+      configured: true,
+      teamId: draft.teamId.trim(),
+      vercelProjectId: draft.vercelProjectId.trim(),
+      updatedAt: 'just now',
+    })
+    setDraft({
+      teamId: draft.teamId.trim(),
+      vercelProjectId: draft.vercelProjectId.trim(),
+      token: '',
+    })
     setReplacing(false)
   }
   const handleRemove = () => {
     setConfirmOpen(false)
     setSaved(EMPTY_VIEW)
-    setDraft({ teamId: '', token: '' })
+    setDraft({ teamId: '', vercelProjectId: '', token: '' })
     setReplacing(false)
   }
 
@@ -124,7 +162,7 @@ export function WorkspaceVercelCard({
               {soon ? <Badge variant="secondary">{AVAILABLE_SOON}</Badge> : null}
             </>
           }
-          description={VERCEL_DESCRIPTION}
+          description={copy.description}
           control={
             shownStatus === undefined ? null : (
               <StatusLine configured={saved.configured} text={shownStatus} />
@@ -144,6 +182,22 @@ export function WorkspaceVercelCard({
               disabled={disabled}
               value={draft.teamId}
               onChange={(event) => setDraft({ ...draft, teamId: event.target.value })}
+            />
+          }
+        />
+        <SettingsRow
+          title={<label htmlFor={projectId}>Project ID</label>}
+          description="The Vercel project the sandboxes are created in."
+          control={
+            <Input
+              id={projectId}
+              className="w-72 font-mono text-xs md:text-xs"
+              placeholder="prj_…"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={disabled}
+              value={draft.vercelProjectId}
+              onChange={(event) => setDraft({ ...draft, vercelProjectId: event.target.value })}
             />
           }
         />
@@ -184,7 +238,7 @@ export function WorkspaceVercelCard({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Remove the Vercel credential?"
-        description="New sandboxes for this workspace won't start until a token is saved again."
+        description={copy.removeDescription}
         confirmLabel="Remove"
         onConfirm={handleRemove}
       />

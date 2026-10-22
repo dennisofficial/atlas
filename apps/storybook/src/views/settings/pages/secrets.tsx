@@ -1,4 +1,4 @@
-import { Mono } from '../settings-layout'
+import { Mono, SettingsSection } from '../settings-layout'
 import { CURRENT_USER } from '../../../fixtures/settings'
 import {
   ELibraryScope,
@@ -6,8 +6,36 @@ import {
   type LibrarySecret,
 } from '../../../fixtures/settings-library'
 import { SecretsView } from '../parts/library-secrets-view'
+import {
+  PERSONAL_VERCEL_COPY,
+  VercelCredentialCard,
+  type VercelCredentialView,
+} from '../parts/vercel-credential-card'
 
-export function SecretsPage({ initial = PERSONAL_SECRETS }: { initial?: LibrarySecret[] }) {
+export type PersonalVercelState = {
+  view?: VercelCredentialView
+  statusLine?: string
+}
+
+export const PERSONAL_VERCEL_NOT_CONFIGURED: PersonalVercelState = { statusLine: 'Not configured' }
+
+export const PERSONAL_VERCEL_CONFIGURED: PersonalVercelState = {
+  view: {
+    configured: true,
+    teamId: 'team_dennis',
+    vercelProjectId: 'prj_personal_sandboxes',
+    updatedAt: '2026-10-21T09:00:00.000Z',
+  },
+  statusLine: 'Configured · updated 3h ago',
+}
+
+export function SecretsPage({
+  initial = PERSONAL_SECRETS,
+  vercel = PERSONAL_VERCEL_NOT_CONFIGURED,
+}: {
+  initial?: LibrarySecret[]
+  vercel?: PersonalVercelState
+}) {
   return (
     <SecretsView
       scope={ELibraryScope.Personal}
@@ -19,6 +47,14 @@ export function SecretsPage({ initial = PERSONAL_SECRETS }: { initial?: LibraryS
         </>
       }
       sectionDescription="Only visible to you."
+      lead={
+        <SettingsSection
+          title="Sandbox credential"
+          description="Lets Atlas Cloud create sandboxes for your personal projects and for threads without a project."
+        >
+          <VercelCredentialCard copy={PERSONAL_VERCEL_COPY} {...vercel} />
+        </SettingsSection>
+      }
       initial={initial}
       currentMember={{ name: CURRENT_USER.name, initials: CURRENT_USER.initials }}
     />

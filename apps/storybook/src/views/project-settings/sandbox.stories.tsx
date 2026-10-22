@@ -20,11 +20,3 @@ export const Default: Story = {
     </ProjectSettingsShell>
   ),
 }
-
-export const VercelUnavailable: Story = {
-  render: () => (
-    <ProjectSettingsShell active={EProjectSettingsPage.Sandbox}>
-      <SandboxPage vercelEnabled={false} />
-    </ProjectSettingsShell>
-  ),
-}

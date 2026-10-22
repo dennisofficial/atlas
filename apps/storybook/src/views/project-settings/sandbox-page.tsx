@@ -22,7 +22,6 @@ import {
   SettingsSection,
   UnsavedHint,
 } from './settings-layout'
-import { VercelSection } from './vercel-section'
 
 function SizeCard({ size }: { size: SandboxSize }) {
   const id = `sandbox-size-${size.id}`
@@ -152,12 +151,11 @@ function SetupScript() {
   )
 }
 
-export function SandboxPage({ vercelEnabled = true }: { vercelEnabled?: boolean }) {
+export function SandboxPage() {
   return (
     <>
       <SizePicker />
       <SetupScript />
-      <VercelSection enabled={vercelEnabled} />
     </>
   )
 }
