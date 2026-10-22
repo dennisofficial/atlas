@@ -9,44 +9,32 @@ access tokens, never refresh tokens, from that authority. Persistent ownership s
 and outages; a stale local seed is never a fallback refresher. Model requests still go directly
 to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
 
-**The API provisions Atlas Cloud sandboxes, with the thread owner's own Vercel credentials.** A web
-thread is created in one call: `POST /v1/threads` with a `firstMessage` writes the Thread row, its
-first `user-said` Event and the `CloudSandbox` claim in one transaction, then dispatches the
-`pod-provision` trigger.dev task (`src/api/cloud/sandbox-provisioning/`, worker in
-`src/trigger/pod-provision/`). The task re-reads the row, exits if its `wakeClaim` was superseded,
-creates the sandbox and launches serve. `POST /v1/threads/:threadId/sandbox` is Retry: claim and
-dispatch again. Without `firstMessage`, `POST /v1/threads` is unchanged for the TUI.
+**The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
+`POST /v1/threads` with a `firstMessage` writes the Thread, its first `user-said` Event and the
+`CloudSandbox` claim in one transaction, then dispatches the `pod-provision` trigger.dev task
+(`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`), which exits if its
+`wakeClaim` was superseded. `POST /v1/threads/:threadId/sandbox` is Retry. Without `firstMessage`
+the endpoint is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
+rows; a TUI BYO row (none) is never taken over by a web send or Retry.
 
-A thread's owner is fixed at creation: `Thread.organizationId` is the project's workspace, or null
-for a personal or no-project thread. `ScopedConfigService.vercelCredentials` resolves the owner's
-credential — `WorkspaceVercelCredential` for a workspace thread, the creator's
-`UserVercelCredential` otherwise (`GET/PUT/DELETE /v1/me/vercel`) — each carrying token, team and
-Vercel project id. Nothing falls back between owners. A missing piece still creates the thread and
-its message, records a Provision error boot step and answers `not-configured` with the gap, whose
-message names the settings page to fix. Atlas Cloud's own Vercel account never pays for user
-compute: the API env `VERCEL_*` are only the legacy fallback that `SandboxCredentials`
-(`src/_core/ports/sandbox-credentials.ts`) uses to inspect and stop BYO rows the TUI created
-(threads with no project that were not born in the cloud). They are never used to create a sandbox.
+A thread's owner is fixed at creation (`Thread.organizationId`: the project's workspace, or null).
+`ScopedConfigService.vercelCredentials` resolves `WorkspaceVercelCredential` for a workspace thread
+(the creator must still be a member) or the creator's `UserVercelCredential`
+(`/v1/me/vercel`), each with token, team and project id. Nothing falls back between owners. A
+missing piece still creates the thread and message and answers `not-configured` with the gap. The
+API env `VERCEL_*` only inspect and stop TUI BYO rows; they never create a sandbox.
 
-An API-provisioned sandbox carries **no** Vercel credentials in its environment
-(`mountWithRetries({ injectVercelCredentials: false })`), because the agent can read anything in
-the pod and the token belongs to its owner. Its serve sees `ATLAS_API_PROVISIONED=1` and asks the
-API for what used to need the token: `POST /v1/sandboxes/self/ports` to publish a port,
-`POST /v1/sandboxes/self/stop` to park itself. Both take the sandbox session token. The API acts
-with the credential it resolves per thread.
+An API-provisioned sandbox carries **no** Vercel credentials (`injectVercelCredentials: false`).
+Its serve sees `ATLAS_API_PROVISIONED=1` and uses its sandbox token on `/v1/sandboxes/self/*`:
+`ports`, `stop`, `boot-steps` (Agent Running is recorded under the thread lock and must succeed
+before serve hydrates) and `events` (write-behind, idempotent on `(threadId, seq)`). Boot progress
+lives in `SandboxBootStep`, read by the web through `GET /v1/threads/:threadId/pod`. Messages sent
+while the pod is parked, absent or failed are appended as Events and start a pod; serve hydrates
+them at boot. `DELETE /v1/threads/:threadId/messages/:sendId` takes back an unrun last message.
 
-Boot progress lives in `SandboxBootStep`, never in the Event log. The API records Provision and
-Serve; serve posts Clone, Context, Settings and Agent to `POST /v1/sandboxes/self/boot-steps` with
-its sandbox token. The web reads `GET /v1/threads/:threadId/pod` (`{ state, steps }`). At boot,
-serve imports the Postgres events past its local head and resumes a pending `user-said`, so the
-first message is answered even if the browser closed. Messages sent while no pod runs are appended
-as Events (and start a pod); `DELETE /v1/threads/:threadId/messages/:sendId` takes back an unrun
-last message while no pod holds the thread.
-
-The TUI still provisions its own BYO sandboxes with the operator's token and registers them
-through `POST /v1/sandboxes`. That path is unchanged and frozen with the TUI. OAuth-bearing lifts
-assign scoped connection access before serve starts. The API also provides identity, optional
-remote-control rendezvous, thread discovery, backup sync and PR/CI webhooks.
+The TUI still provisions its own BYO sandboxes and registers them through `POST /v1/sandboxes`,
+unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,
+thread discovery, backup sync and PR/CI webhooks.
 
 ## Runtime and tests
 
@@ -163,10 +151,9 @@ it, so a package the bundle left out fails the spec instead of resolving from `n
 host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
 on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
 a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
-HMAC webhook. It runs only with `ATLAS_LIVE_DOCKER=1` and is skipped otherwise; the `api-bundle` job
-in `.github/workflows/ci.yml` sets it for this spec alone, and the `test` job leaves it off. It
-migrates the throwaway database with `packages/db`'s Prisma 8 CLI (`bun run --bun prisma db migrate`),
-the way `scripts/migrate-deploy.mjs` does. Run it after adding any module or dependency: it is what catches an import the bundle misses.
+HMAC webhook. Only the `api-bundle` CI job sets `ATLAS_LIVE_DOCKER=1` for it; elsewhere it is skipped. It
+migrates the throwaway database the way `scripts/migrate-deploy.mjs` does (`db migrate --to db`).
+Run it after adding any module or dependency: it catches an import the bundle misses.
 
 Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
 write kills the process instead of throwing a catchable resolve error. The function ships no

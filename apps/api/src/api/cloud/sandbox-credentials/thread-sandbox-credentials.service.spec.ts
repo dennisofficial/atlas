@@ -78,7 +78,7 @@ describe('ThreadSandboxCredentialsService', () => {
       token: 'ws-token',
       teamId: 'ws-team',
       projectId: 'ws-prj',
-      workspaceOwned: true,
+      ownerCredential: true,
     })
     expect(vercelCredentials).toHaveBeenCalledWith({
       thread: { userId: 'user-a', organizationId: 'org-1' },
@@ -98,7 +98,7 @@ describe('ThreadSandboxCredentialsService', () => {
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
 
-    expect(credentials).toMatchObject({ token: 'user-token', workspaceOwned: true })
+    expect(credentials).toMatchObject({ token: 'user-token', ownerCredential: true })
     expect(vercelCredentials).toHaveBeenCalledWith({
       thread: { userId: 'user-a', organizationId: null },
     })
@@ -117,7 +117,7 @@ describe('ThreadSandboxCredentialsService', () => {
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
 
-    expect(credentials).toMatchObject({ token: 'user-token', workspaceOwned: true })
+    expect(credentials).toMatchObject({ token: 'user-token', ownerCredential: true })
     expect(vercelCredentials).toHaveBeenCalledWith({
       thread: { userId: 'user-a', organizationId: null },
     })
@@ -166,7 +166,7 @@ describe('ThreadSandboxCredentialsService', () => {
       token: 'env-token',
       teamId: 'env-team',
       projectId: 'env-prj',
-      workspaceOwned: false,
+      ownerCredential: false,
     })
     expect(vercelCredentials).not.toHaveBeenCalled()
   })
@@ -183,7 +183,7 @@ describe('ThreadSandboxCredentialsService', () => {
       threadId: 'missing',
     })
 
-    expect(credentials.workspaceOwned).toBe(false)
+    expect(credentials.ownerCredential).toBe(false)
   })
 
   it('answers 503 when a legacy thread finds no env credential', async () => {

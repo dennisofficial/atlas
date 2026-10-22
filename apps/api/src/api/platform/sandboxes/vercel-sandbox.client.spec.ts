@@ -70,7 +70,7 @@ const credentialsPort = (): { port: SandboxCredentials; forThread: ReturnType<ty
     token: 'ws-token',
     teamId: 'team_1',
     projectId: 'prj_1',
-    workspaceOwned: true,
+    ownerCredential: true,
   }))
   return { port: { forThread } as unknown as SandboxCredentials, forThread }
 }

@@ -49,6 +49,7 @@ const userSaid = (seq: number, text: string): WireEvent => ({
 const boot = async (args: {
   env: Record<string, string | undefined>
   eventsReply: () => Response
+  bootStepsReply?: (steps: BootStepEvent[]) => Response
 }) => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-hydrate-boot-'))
   homes.push(home)
@@ -59,8 +60,9 @@ const boot = async (args: {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url === `${controlPlaneUrl}${SANDBOX_SELF_BOOT_STEPS_PATH}`) {
-      steps.push(...bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps)
-      return new Response('{}')
+      const posted = bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps
+      steps.push(...posted)
+      return args.bootStepsReply?.(posted) ?? new Response('{}')
     }
     if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
       eventReads.push(url)
@@ -142,5 +144,61 @@ describe('serve boot hydration and resume', () => {
     expect(run.composed()).toBe(0)
     const agent = run.steps.filter((step) => step.step === EBootStep.Agent)
     expect(agent.map((step) => step.state)).toEqual([EBootStepState.Running, EBootStepState.Error])
+  })
+
+  it('never reads events and rejects when the Agent Running post is refused', async () => {
+    const run = await boot({
+      env: { [API_PROVISIONED_ENV]: '1' },
+      eventsReply: () => Response.json([userSaid(1, 'first message')]),
+      bootStepsReply: (posted) =>
+        posted.some(
+          (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
+        )
+          ? new Response('{"message":"boom"}', { status: 500 })
+          : new Response('{}'),
+    })
+
+    await expect(run.start()).rejects.toThrow('500')
+
+    expect(run.eventReads).toEqual([])
+    expect(run.composed()).toBe(0)
+  })
+
+  it('keeps every other boot step best-effort when the API refuses them', async () => {
+    const run = await boot({
+      env: { [API_PROVISIONED_ENV]: '1' },
+      eventsReply: () => Response.json([]),
+      bootStepsReply: (posted) =>
+        posted.some(
+          (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
+        )
+          ? new Response('{}')
+          : new Response('{"message":"boom"}', { status: 500 }),
+    })
+
+    running.push(await run.start())
+
+    expect(run.eventReads).toHaveLength(1)
+    expect(run.composed()).toBe(1)
+  })
+
+  it('posts Agent Running before it reads events', async () => {
+    const order: string[] = []
+    const run = await boot({
+      env: { [API_PROVISIONED_ENV]: '1' },
+      eventsReply: () => {
+        order.push('events')
+        return Response.json([])
+      },
+      bootStepsReply: (posted) => {
+        for (const step of posted) order.push(`${step.step}:${step.state}`)
+        return new Response('{}')
+      },
+    })
+
+    running.push(await run.start())
+
+    expect(order.indexOf('agent:running')).toBeGreaterThan(-1)
+    expect(order.indexOf('agent:running')).toBeLessThan(order.indexOf('events'))
   })
 })

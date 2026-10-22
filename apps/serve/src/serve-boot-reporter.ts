@@ -4,7 +4,9 @@ import {
   isApiProvisioned,
   NOOP_BOOT_REPORTER,
   serveBootReporter,
+  serveBootSink,
   type BootReporter,
+  type BootStepSink,
 } from '@dltech/atlas-wire'
 
 import { EWorkspaceState, type WorkspaceReadiness } from './materialize-workspace'
@@ -47,6 +49,39 @@ export const trackClone = async (args: {
   } catch (failure) {
     const error = failure instanceof Error ? failure.message : String(failure)
     await reporter.report({ step: EBootStep.Clone, state: EBootStepState.Error, error })
+    throw failure
+  }
+}
+
+export const strictBootSinkFor = (args: {
+  env: Record<string, string | undefined>
+  controlPlaneUrl: string
+  token: string
+  clientVersion: string
+  fetchFn: typeof fetch
+}): BootStepSink | undefined => (isApiProvisioned(args.env) ? serveBootSink(args) : undefined)
+
+export const trackAgentStep = async <T>(args: {
+  reporter: BootReporter
+  strictSink: BootStepSink | undefined
+  work: () => Promise<T>
+}): Promise<T> => {
+  const { reporter, strictSink } = args
+  if (strictSink === undefined) return reporter.track({ step: EBootStep.Agent, work: args.work })
+  try {
+    await strictSink([{ step: EBootStep.Agent, state: EBootStepState.Running }])
+  } catch (failure) {
+    const error = failure instanceof Error ? failure.message : String(failure)
+    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Error, error })
+    throw failure
+  }
+  try {
+    const result = await args.work()
+    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Done })
+    return result
+  } catch (failure) {
+    const error = failure instanceof Error ? failure.message : String(failure)
+    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Error, error })
     throw failure
   }
 }

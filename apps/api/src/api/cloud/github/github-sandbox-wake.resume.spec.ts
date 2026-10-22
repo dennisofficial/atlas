@@ -64,7 +64,7 @@ describe('GithubSandboxWakeService resume', () => {
     await seedSubscription()
     const { boot, calls } = fakeBoot()
 
-    serviceWith({ boot, credentials: { workspaceOwned: true } }).notifyEvent(PR_EVENT)
+    serviceWith({ boot, credentials: { ownerCredential: true } }).notifyEvent(PR_EVENT)
     await flushDebounce()
 
     expect(calls[0]?.credentials).toEqual({
@@ -81,7 +81,7 @@ describe('GithubSandboxWakeService resume', () => {
     await seedSubscription()
     const { boot, calls } = fakeBoot()
 
-    serviceWith({ boot, credentials: { workspaceOwned: false } }).notifyEvent(PR_EVENT)
+    serviceWith({ boot, credentials: { ownerCredential: false } }).notifyEvent(PR_EVENT)
     await flushDebounce()
 
     expect(calls[0]).not.toHaveProperty('injectVercelCredentials')

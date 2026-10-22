@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { SandboxesModule } from '../../platform/sandboxes/sandboxes.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
 import { SandboxProvisioningController } from './sandbox-provisioning.controller'
@@ -11,7 +12,7 @@ import { ThreadPodController } from './thread-pod.controller'
 import { ThreadPodService } from './thread-pod.service'
 
 @Module({
-  imports: [ScopedConfigModule, SessionsModule, ThreadLauncherModule],
+  imports: [ScopedConfigModule, SandboxesModule, SessionsModule, ThreadLauncherModule],
   controllers: [SandboxProvisioningController, ThreadMessagesController, ThreadPodController],
   providers: [
     SandboxProvisioningService,
