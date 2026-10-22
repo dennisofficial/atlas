@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 type Layer = 'platform' | 'cloud'
 
 const LAYERS: readonly Layer[] = ['platform', 'cloud']
-const INFRA_DIRS = ['_core', '_lib', '_module', 'db']
+const INFRA_DIRS = ['_core', '_lib', '_module']
 
 const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
   platform: ['cloud'],
