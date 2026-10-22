@@ -1,21 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  BOOT_STEP_EVENT_TYPE,
-  EBootStep,
-  EBootStepState,
-  type BootStepEvent,
-  type WireEvent,
-} from '@dltech/atlas-wire/web'
+import { BOOT_STEP_EVENT_TYPE, type WireEvent } from '@dltech/atlas-wire/web'
 
-import {
-  bootViewOf,
-  ETranscriptKind,
-  isSendDelivered,
-  threadTitleOf,
-  transcriptOf,
-  withPendingSend,
-} from '../transcript'
+import { coreEventsOf, ETranscriptKind, threadTitleOf, transcriptOf } from '../transcript'
 
 const T0 = Date.parse('2026-10-21T10:00:00.000Z')
 const isoAt = (offsetMs: number) => new Date(T0 + offsetMs).toISOString()
@@ -40,8 +27,8 @@ const said = (seq: number, text: string) =>
   wire({ seq, type: 'user-said', body: { type: 'user-said', text } })
 const answered = (seq: number, parts: unknown[]) =>
   wire({ seq, type: 'assistant-said', body: { type: 'assistant-said', parts } })
-const boot = (seq: number, event: BootStepEvent) =>
-  wire({ seq, type: BOOT_STEP_EVENT_TYPE, body: event })
+const legacyBoot = (seq: number) =>
+  wire({ seq, type: BOOT_STEP_EVENT_TYPE, body: { step: 'provision', state: 'running' } })
 
 describe('transcriptOf', () => {
   it('orders user and agent messages by seq and joins text parts', () => {
@@ -70,21 +57,15 @@ describe('transcriptOf', () => {
   })
 })
 
-describe('pending sends', () => {
-  const pending = { sendId: 's1', text: 'build it' }
-
-  it('appends an optimistic user message until a matching user-said arrives', () => {
-    const items = transcriptOf([])
-    const shown = withPendingSend({ items, pending })
-    expect(shown).toHaveLength(1)
-    expect(shown[0]?.kind).toBe(ETranscriptKind.User)
-    expect(shown[0]?.text).toBe('build it')
+describe('legacy boot events', () => {
+  it('never reach the transcript', () => {
+    const items = transcriptOf([legacyBoot(1), said(2, 'hi'), legacyBoot(3)])
+    expect(items.map((item) => item.text)).toEqual(['hi'])
   })
 
-  it('drops the optimistic message once delivered', () => {
-    const items = transcriptOf([said(1, 'build it ')])
-    expect(isSendDelivered({ items, pending })).toBe(true)
-    expect(withPendingSend({ items, pending })).toBe(items)
+  it('are dropped from the core events', () => {
+    const events = [legacyBoot(1), said(2, 'hi'), legacyBoot(3), answered(4, [])]
+    expect(coreEventsOf(events).map((event) => event.seq)).toEqual([2, 4])
   })
 })
 
@@ -92,84 +73,5 @@ describe('threadTitleOf', () => {
   it('collapses whitespace and caps at 60 characters', () => {
     expect(threadTitleOf('  fix\n the   bug ')).toBe('fix the bug')
     expect(threadTitleOf('x'.repeat(100))).toHaveLength(60)
-  })
-})
-
-describe('bootViewOf', () => {
-  it('is null without boot events', () => {
-    expect(bootViewOf({ events: [said(1, 'hi')], now: T0 })).toBeNull()
-  })
-
-  it('reports running with elapsed time to now', () => {
-    const view = bootViewOf({
-      events: [
-        boot(1, { step: EBootStep.Provision, state: EBootStepState.Running }),
-        boot(2, { step: EBootStep.Provision, state: EBootStepState.Done }),
-        boot(3, { step: EBootStep.Serve, state: EBootStepState.Running, detail: 'installing' }),
-      ],
-      now: T0 + 9000,
-    })
-    expect(view?.state).toBe(EBootStepState.Running)
-    expect(view?.elapsedMs).toBe(8000)
-    expect(view?.steps.map((step) => step.state)).toEqual([
-      EBootStepState.Done,
-      EBootStepState.Running,
-      EBootStepState.Pending,
-      EBootStepState.Pending,
-      EBootStepState.Pending,
-      EBootStepState.Pending,
-    ])
-    expect(view?.steps[1]).toMatchObject({ label: 'Start Atlas', detail: 'installing' })
-  })
-
-  it('reports done with elapsed between first and last boot event', () => {
-    const events = [
-      EBootStep.Provision,
-      EBootStep.Serve,
-      EBootStep.Clone,
-      EBootStep.Context,
-      EBootStep.Settings,
-      EBootStep.Agent,
-    ].flatMap((step, index) => [
-      boot(index * 2 + 1, { step, state: EBootStepState.Running }),
-      boot(index * 2 + 2, { step, state: EBootStepState.Done }),
-    ])
-    const view = bootViewOf({ events, now: T0 + 999_000 })
-    expect(view?.state).toBe(EBootStepState.Done)
-    expect(view?.elapsedMs).toBe(11_000)
-  })
-
-  it('surfaces the provision error text and no elapsed time', () => {
-    const view = bootViewOf({
-      events: [
-        boot(1, { step: EBootStep.Provision, state: EBootStepState.Running }),
-        boot(2, {
-          step: EBootStep.Provision,
-          state: EBootStepState.Error,
-          error: 'No Vercel credential',
-        }),
-      ],
-      now: T0 + 5000,
-    })
-    expect(view?.state).toBe(EBootStepState.Error)
-    expect(view?.error).toBe('No Vercel credential')
-    expect(view?.steps[0]).toMatchObject({
-      state: EBootStepState.Error,
-      detail: 'No Vercel credential',
-    })
-    expect(view?.elapsedMs).toBeUndefined()
-  })
-
-  it('shows only the latest boot attempt after a retry', () => {
-    const view = bootViewOf({
-      events: [
-        boot(1, { step: EBootStep.Provision, state: EBootStepState.Running }),
-        boot(2, { step: EBootStep.Provision, state: EBootStepState.Error, error: 'boom' }),
-        boot(3, { step: EBootStep.Provision, state: EBootStepState.Running }),
-      ],
-      now: T0 + 4000,
-    })
-    expect(view?.state).toBe(EBootStepState.Running)
-    expect(view?.error).toBeUndefined()
   })
 })

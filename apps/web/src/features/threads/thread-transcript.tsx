@@ -6,7 +6,8 @@ import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 
-import { ETranscriptKind, type BootView, type TranscriptItem } from './data/transcript'
+import type { BootView } from './data/boot-view'
+import { ETranscriptKind, type TranscriptItem } from './data/transcript'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 
 function Said({ item }: { item: TranscriptItem }) {
