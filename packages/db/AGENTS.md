@@ -67,10 +67,11 @@ never runs on a signed database; `db migrate` starts at the marker.
 
 ### Deploy
 
-`apps/api`'s PRE_DEPLOY job (`scripts/migrate-deploy.mjs`) runs `bun run --bun prisma db migrate`
-from this directory, retried three times. The connection is `DIRECT_URL ?? DATABASE_URL`
+The `migrate-production` job in `.github/workflows/release.yml` (through `apps/api`'s
+`scripts/migrate-deploy.mjs`) runs `bun run --bun prisma db migrate` from this directory, retried
+three times. The connection is `DIRECT_URL ?? DATABASE_URL`
 (`prisma.config.ts`), because poolers break the migration lock. The Prisma 8 CLI wants Node
-≥22.18 and the image ships 22.13, so it always runs under Bun. `GET /v1/health` compares
+≥22.18 and `.nvmrc` pins 22.13, so it always runs under Bun. `GET /v1/health` compares
 `contractStorageHash` with the marker and answers 503 while the database is behind.
 
 ## Runtime

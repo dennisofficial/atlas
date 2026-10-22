@@ -26,5 +26,5 @@ A preview that always fails is noise, and a staging tier is upkeep a small team 
 
 - A broken API change shows up in production, so the bundle spec and the vitest suite carry the
   weight before merge.
-- Production migrations run from `.github/workflows/migrate-production.yml`. The DigitalOcean app
-  spec (`.do/app.yaml`) still has its own pre-deploy migrate job until the API leaves DigitalOcean.
+- Production migrations run from the `migrate-production` job in `.github/workflows/release.yml`,
+  which gates Vercel promotion as a Deployment Check.
