@@ -7,7 +7,12 @@ const devOrigins = (process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
-  transpilePackages: ['@dltech/atlas-ui', '@dltech/atlas-wire'],
+  transpilePackages: [
+    '@dltech/atlas-client',
+    '@dltech/atlas-core',
+    '@dltech/atlas-ui',
+    '@dltech/atlas-wire',
+  ],
   async rewrites() {
     const configured = process.env.ATLAS_API_ORIGIN
     const apiOrigin =

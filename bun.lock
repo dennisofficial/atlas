@@ -128,6 +128,8 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-ui": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "lucide-react": "^1.59.0",
