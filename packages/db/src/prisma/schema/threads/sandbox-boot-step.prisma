@@ -5,6 +5,7 @@ model SandboxBootStep {
   step     String
   state    String
   error    String?
+  gap      String?
   at       TimestamptzJsDate(3) @default(now())
   thread   Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_threadId_at_idx")
 

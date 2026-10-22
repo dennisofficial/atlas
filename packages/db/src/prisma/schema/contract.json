@@ -3656,6 +3656,13 @@
                   "kind": "scalar"
                 }
               },
+              "gap": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -3710,6 +3717,9 @@
                 },
                 "error": {
                   "column": "error"
+                },
+                "gap": {
+                  "column": "gap"
                 },
                 "id": {
                   "column": "id"
@@ -9066,6 +9076,11 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "gap": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -10564,7 +10579,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "652eda18865caeb7c4d12898fc475837af9bfedf38aed15cb3f1041db4729364"
+    "storageHash": "9f7bf2b0da764a13cf6bcb46cbb59a8905c8d7f20bdb54ef68455d72613703b0"
   },
   "execution": {
     "executionHash": "df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec",

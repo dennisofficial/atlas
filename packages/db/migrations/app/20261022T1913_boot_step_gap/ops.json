@@ -1,0 +1,54 @@
+[
+  {
+    "id": "column.public.SandboxBootStep.gap",
+    "label": "Add column \"gap\" to \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "gap",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"gap\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "gap"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"gap\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" ADD COLUMN \"gap\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"gap\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "gap"
+        ]
+      },
+      {
+        "description": "verify column \"gap\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "gap",
+          "text"
+        ]
+      }
+    ]
+  }
+]

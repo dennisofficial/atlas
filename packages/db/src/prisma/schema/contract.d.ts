@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'652eda18865caeb7c4d12898fc475837af9bfedf38aed15cb3f1041db4729364'>;
+  StorageHashBase<'9f7bf2b0da764a13cf6bcb46cbb59a8905c8d7f20bdb54ef68455d72613703b0'>;
 export type ExecutionHash =
   ExecutionHashBase<'df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec'>;
 export type ProfileHash =
@@ -631,6 +631,7 @@ export namespace Models {
   export type public_SandboxBootStep = {
     at: FieldOutputTypes['public']['SandboxBootStep']['at'];
     error: FieldOutputTypes['public']['SandboxBootStep']['error'];
+    gap: FieldOutputTypes['public']['SandboxBootStep']['gap'];
     id: FieldOutputTypes['public']['SandboxBootStep']['id'];
     state: FieldOutputTypes['public']['SandboxBootStep']['state'];
     step: FieldOutputTypes['public']['SandboxBootStep']['step'];
@@ -3431,6 +3432,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly error: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly gap: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -6957,6 +6964,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly gap: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6994,6 +7005,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly at: { readonly column: 'at' };
                 readonly error: { readonly column: 'error' };
+                readonly gap: { readonly column: 'gap' };
                 readonly id: { readonly column: 'id' };
                 readonly state: { readonly column: 'state' };
                 readonly step: { readonly column: 'step' };
