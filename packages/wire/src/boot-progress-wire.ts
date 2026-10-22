@@ -167,3 +167,13 @@ export type PodStatus = z.infer<typeof podStatusSchema>
 
 export const threadPodPath = (threadId: string): string =>
   `/v1/threads/${encodeURIComponent(threadId)}/pod`
+
+export const podConnectReplySchema = z.object({
+  url: z.string().url(),
+  token: z.string().min(1),
+  expiresAt: z.iso.datetime(),
+})
+export type PodConnectReply = z.infer<typeof podConnectReplySchema>
+
+export const threadPodConnectPath = (threadId: string): string =>
+  `${threadPodPath(threadId)}/connect`
