@@ -139,7 +139,10 @@ describe('ThreadLaunchService', () => {
 
     const reply = await create(service)
 
-    expect(reply.provision.state).toBe(ESandboxProvisionState.Booting)
+    expect(reply.provision).toEqual({
+      state: ESandboxProvisionState.Booting,
+      error: DISPATCH_FAILED_MESSAGE,
+    })
     expect(await threads()).toHaveLength(1)
     expect(await eventsOf(reply.thread.id)).toHaveLength(1)
     const [claimed] = await sandboxRows()
@@ -163,6 +166,36 @@ describe('ThreadLaunchService', () => {
     expect(await threads()).toHaveLength(1)
     expect(await eventsOf(first.thread.id)).toHaveLength(1)
     expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('replays a gapless failed provision as a dispatch failure, not not-configured', async () => {
+    await seedBase()
+    const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
+    const { service } = launchWith({ dispatcher })
+    await create(service)
+
+    const retry = await create(service)
+
+    expect(retry.provision).toEqual({
+      state: ESandboxProvisionState.Booting,
+      error: DISPATCH_FAILED_MESSAGE,
+    })
+  })
+
+  it('replays a credential gap as not-configured with its gap', async () => {
+    await seedBase()
+    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
+    const { service } = launchWith({ scoped })
+    await create(service)
+
+    const retry = await create(service)
+
+    expect(retry.provision).toEqual({
+      state: ESandboxProvisionState.NotConfigured,
+      error: failure.message,
+      gap: EVercelCredentialGap.UserCredential,
+    })
   })
 
   it('creates one thread when two retries of the same sendId race', async () => {

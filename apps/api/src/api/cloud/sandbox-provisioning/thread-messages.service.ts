@@ -13,16 +13,25 @@ import {
   type RecordedBootStep,
   type ThreadMessageReply,
 } from '@dltech/atlas-wire'
-import { db } from '@dltech/atlas-db'
-import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { db, type Row } from '@dltech/atlas-db'
+import {
+  hasBootSteps,
+  latestAttemptOf,
+  readBootSteps,
+} from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { appendWithin, nextRunId } from '../../platform/sessions/append'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { lockThread, retreatHead } from '../../platform/sessions/thread-head'
 import { failureText } from '../github/github-sandbox-wake-boot'
 import { findUserSaid, userSaidDraftOf } from './first-message'
-import { PodLaunchService } from './pod-launch.service'
-import { standingStateOf } from './sandbox-provisioning-rows'
+import { DISPATCH_FAILED_MESSAGE, PodLaunchService } from './pod-launch.service'
+import {
+  appendableOf,
+  NOT_RUNNING_MESSAGE,
+  relaunchableOf,
+  SANDBOX_BUSY_MESSAGE,
+} from './sandbox-provisioning-rows'
 import { SERVE_SEND, type ServeSend } from './serve-send'
 
 const agentStarted = (step: RecordedBootStep): boolean =>
@@ -64,10 +73,12 @@ export class ThreadMessagesService {
       return { state: EThreadMessageState.Delivered }
     }
 
-    await this.appendOnce({ userId, threadId, sendId, text })
-    const existing = await db.orm.public.CloudSandbox.first({ threadId })
-    const standing = existing === null ? undefined : standingStateOf(existing)
-    if (standing === undefined) await this.pod.launch({ thread, existing })
+    const { existing, relaunch } = await this.appendOnce({ userId, threadId, sendId, text })
+    if (!relaunch) return { state: EThreadMessageState.Queued }
+    const { dispatchFailed } = await this.pod.launch({ thread, existing })
+    if (dispatchFailed) {
+      return { state: EThreadMessageState.Queued, error: DISPATCH_FAILED_MESSAGE }
+    }
     return { state: EThreadMessageState.Queued }
   }
 
@@ -95,11 +106,18 @@ export class ThreadMessagesService {
     threadId: string
     sendId: string
     text: string
-  }): Promise<void> {
+  }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean }> {
     const { userId, threadId, sendId, text } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
-      if ((await findUserSaid({ reader: tx, threadId, sendId })) !== null) return
+      const existing = await tx.orm.public.CloudSandbox.first({ threadId })
+      if (existing !== null && !(await hasBootSteps({ reader: tx, threadId }))) {
+        throw new ConflictException(NOT_RUNNING_MESSAGE)
+      }
+      const relaunch = relaunchableOf(existing)
+      const delivered = (await findUserSaid({ reader: tx, threadId, sendId })) !== null
+      if (delivered) return { existing, relaunch }
+      if (!appendableOf(existing)) throw new ConflictException(SANDBOX_BUSY_MESSAGE)
       await appendWithin({
         tx,
         threadId,
@@ -107,6 +125,7 @@ export class ThreadMessagesService {
         runId: nextRunId(),
         drafts: [userSaidDraftOf({ sendId, text })],
       })
+      return { existing, relaunch }
     })
   }
 }

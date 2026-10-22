@@ -1,4 +1,4 @@
-import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, ERuntimePhase } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { seedOrganization, seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
@@ -6,6 +6,7 @@ import type { Sandbox } from '@vercel/sandbox'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { JobDispatch, JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { appendWithin } from '../../platform/sessions/append'
@@ -168,12 +169,23 @@ export function messagesWith(
   return { service, serve, runningEndpoint, dispatch: launched.dispatch }
 }
 
+export type SeededCheckpoint = {
+  threadId: string
+  runtimeId: string
+  sandboxSessionId: string
+  revision: number
+  reportedAt: string
+  transcript: { head: number; count: number; digest: string }
+  phase: ERuntimePhase.Parking | ERuntimePhase.Parked
+}
+
 export async function seedSandboxRow(
   partial: {
     state?: string
     wakeClaim?: Date | null
     wakeFailedAt?: Date | null
     serveUrl?: string | null
+    runtimeCheckpoint?: SeededCheckpoint
   } = {},
 ): Promise<void> {
   const at = new Date()
@@ -191,10 +203,36 @@ export async function seedSandboxRow(
     wakeClaim: partial.wakeClaim === undefined ? at : partial.wakeClaim,
     wakeFailedAt: partial.wakeFailedAt ?? null,
     serveUrl: partial.serveUrl ?? null,
+    ...(partial.runtimeCheckpoint === undefined
+      ? {}
+      : {
+          runtimeCheckpoint: partial.runtimeCheckpoint,
+          runtimeCheckpointRevision: partial.runtimeCheckpoint.revision,
+        }),
     createdAt: at,
     updatedAt: at,
   })
 }
+
+export async function seedProvisionedRow(
+  partial: Parameters<typeof seedSandboxRow>[0] = {},
+): Promise<void> {
+  await seedSandboxRow(partial)
+  await recordBootSteps({
+    threadId: 'thr-1',
+    steps: [{ step: EBootStep.Provision, state: EBootStepState.Running }],
+  })
+}
+
+export const checkpointOf = (phase: SeededCheckpoint['phase']): SeededCheckpoint => ({
+  threadId: 'thr-1',
+  runtimeId: 'runtime-1',
+  sandboxSessionId: 'ses-1',
+  revision: 1,
+  reportedAt: new Date().toISOString(),
+  transcript: { head: 0, count: 0, digest: 'c'.repeat(64) },
+  phase,
+})
 
 export async function appendRaw(args: { type: string; body: string; threadId?: string }) {
   await db.transaction((tx) =>

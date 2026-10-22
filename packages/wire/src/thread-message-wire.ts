@@ -11,7 +11,10 @@ export const threadMessageRequestSchema = z.object({
 })
 export type ThreadMessageRequest = z.infer<typeof threadMessageRequestSchema>
 
-export const threadMessageReplySchema = z.object({ state: z.enum(EThreadMessageState) })
+export const threadMessageReplySchema = z.object({
+  state: z.enum(EThreadMessageState),
+  error: z.string().optional(),
+})
 export type ThreadMessageReply = z.infer<typeof threadMessageReplySchema>
 
 export const threadMessagePath = (threadId: string): string =>

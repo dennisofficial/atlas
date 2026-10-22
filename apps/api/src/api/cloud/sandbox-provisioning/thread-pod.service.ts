@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
 import {
-  EBootStep,
   EBootStepState,
   ESandboxProvisionState,
   EPodState,
@@ -11,11 +10,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { parkedOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
-import { standingStateOf } from './sandbox-provisioning-rows'
-
-const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
-  row.wakeFailedAt !== null &&
-  (row.wakeClaim === null || row.wakeFailedAt.getTime() >= row.wakeClaim.getTime())
+import { failedAfterClaim, standingStateOf } from './sandbox-provisioning-rows'
 
 function stateOf(args: { row: Row<'CloudSandbox'> | null; steps: RecordedBootStep[] }): EPodState {
   const { row, steps } = args

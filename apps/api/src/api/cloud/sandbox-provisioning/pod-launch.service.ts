@@ -21,6 +21,11 @@ import { claimRow, markFailed, type RowClaim, type RowWriter } from './sandbox-p
 
 export const DISPATCH_FAILED_MESSAGE = "Couldn't start the sandbox. Retry."
 
+export const dispatchFailedReply: SandboxProvisionReply = {
+  state: ESandboxProvisionState.Booting,
+  error: DISPATCH_FAILED_MESSAGE,
+}
+
 export type PodLaunchOutcome = { reply: SandboxProvisionReply; dispatchFailed: boolean }
 
 export const notConfiguredReplyOf = (failure: VercelNotConfiguredError): SandboxProvisionReply => ({

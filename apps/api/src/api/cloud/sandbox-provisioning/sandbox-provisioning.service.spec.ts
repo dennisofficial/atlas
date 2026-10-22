@@ -12,11 +12,13 @@ import {
   fakeScoped,
   provisioningWith,
   sandboxRows,
+  seedProvisionedRow,
   seedSandboxRow,
   seedThread,
   threadRow,
 } from './sandbox-provisioning.fixture'
 import { DISPATCH_FAILED_MESSAGE } from './pod-launch.service'
+import { NOT_RUNNING_MESSAGE } from './sandbox-provisioning-rows'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1' } as const
 
@@ -118,7 +120,7 @@ describe('SandboxProvisioningService (retry)', () => {
 
   it('re-claims a failed row with a fresh token and dispatches again', async () => {
     await seedThread()
-    await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
+    await seedProvisionedRow({ wakeClaim: null, wakeFailedAt: new Date() })
     const before = await row()
     const { service, dispatch } = provisioningWith()
 
@@ -148,6 +150,35 @@ describe('SandboxProvisioningService (retry)', () => {
     ])
     expect(await db.orm.public.Event.all()).toHaveLength(0)
   })
+})
+
+describe('SandboxProvisioningService (retry on a TUI-provisioned thread)', () => {
+  useTestDatabase()
+
+  it.each([
+    ['parked', { state: 'parked', wakeClaim: null }],
+    ['failed', { wakeClaim: null, wakeFailedAt: new Date() }],
+  ])(
+    'answers 409 NOT_RUNNING for a %s row with no boot steps, rotating nothing',
+    async (_, partial) => {
+      await seedThread()
+      await seedSandboxRow(partial)
+      const before = await row()
+      const { service, dispatch } = provisioningWith()
+
+      await expect(service.provision(ARGS)).rejects.toMatchObject({
+        status: 409,
+        message: NOT_RUNNING_MESSAGE,
+      })
+
+      const after = await row()
+      expect(after.tokenHash).toBe(before.tokenHash)
+      expect(after.sealedToken).toBe(before.sealedToken)
+      expect(after.wakeClaim?.getTime()).toBe(before.wakeClaim?.getTime())
+      expect(dispatch).not.toHaveBeenCalled()
+      expect(await bootSteps()).toHaveLength(0)
+    },
+  )
 })
 
 const never = (): never => {
