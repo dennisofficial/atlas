@@ -1,10 +1,8 @@
-import { EBootStep } from '@dltech/atlas-wire'
-
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ServeArgs } from './serve-args'
 import { bootServeFiles } from './serve-boot'
-import { bootReporterFor } from './serve-boot-reporter'
+import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot-reporter'
 import { composeBootApp } from './serve-compose-boot'
 import { hydrateWhenApiProvisioned } from './serve-hydrate'
 import { bindServeWriteBehind } from './serve-write-behind'
@@ -47,8 +45,9 @@ export async function bootServeApp(args: {
     ...remote,
   })
   let hydrated: { remoteHead: number } | undefined
-  const app = await reporter.track({
-    step: EBootStep.Agent,
+  const app = await trackAgentStep({
+    reporter,
+    strictSink: strictBootSinkFor({ env, ...remote }),
     work: async () => {
       hydrated = await hydrateWhenApiProvisioned({ env, atlasHome, threadId, log, ...remote })
       return composeBootApp({
