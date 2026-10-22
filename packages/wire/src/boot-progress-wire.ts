@@ -151,3 +151,30 @@ export function serveBootReporter(args: {
     },
   })
 }
+
+export const recordedBootStepSchema = z.object({
+  step: z.enum(EBootStep),
+  state: z.enum(EBootStepState),
+  error: z.string().optional(),
+  at: z.string(),
+})
+export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>
+
+export const bootStepsPostSchema = z.object({ steps: z.array(bootStepEventSchema).min(1).max(50) })
+export type BootStepsPost = z.infer<typeof bootStepsPostSchema>
+
+export enum EPodState {
+  None = 'none',
+  Booting = 'booting',
+  Running = 'running',
+  Failed = 'failed',
+}
+
+export const podStatusSchema = z.object({
+  state: z.enum(EPodState),
+  steps: z.array(recordedBootStepSchema),
+})
+export type PodStatus = z.infer<typeof podStatusSchema>
+
+export const threadPodPath = (threadId: string): string =>
+  `/v1/threads/${encodeURIComponent(threadId)}/pod`

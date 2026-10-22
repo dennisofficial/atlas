@@ -82,7 +82,7 @@ export class SandboxProvisioningService {
     const standing = existing === null ? undefined : standingStateOf(existing)
     if (standing !== undefined) return { state: standing }
 
-    const credentials = await this.credentialsOf({ userId: args.userId, projectId })
+    const credentials = await this.credentialsOf({ thread })
     if (credentials instanceof VercelNotConfiguredError) {
       return this.notConfigured({ reporter, error: credentials.message })
     }
@@ -106,11 +106,10 @@ export class SandboxProvisioningService {
   }
 
   private async credentialsOf(args: {
-    userId: string
-    projectId: string
+    thread: Row<'Thread'>
   }): Promise<VercelCredentials | VercelNotConfiguredError> {
     try {
-      return await this.scoped.vercelCredentials({ projectId: args.projectId })
+      return await this.scoped.vercelCredentials({ thread: args.thread })
     } catch (failure) {
       if (failure instanceof VercelNotConfiguredError) return failure
       throw failure
