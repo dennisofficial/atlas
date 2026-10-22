@@ -1,3 +1,4 @@
+import { listSignInMethods, type SignInMethodIds } from '@/lib/auth-accounts'
 import { listOrganizations, type Organization } from '@/lib/organization-api'
 
 import { fetchGithub, githubLoginOf } from './github-api'
@@ -9,6 +10,7 @@ export type AccountData = {
   email: string
   githubLogin: string | null
   memberSince: string | null
+  signInMethods: SignInMethodIds
   workspaces: Organization[]
 }
 
@@ -16,9 +18,10 @@ export const memberSinceOf = (createdAt: string | undefined): string | null =>
   createdAt === undefined ? null : monthYear(createdAt)
 
 export async function fetchAccountData(): Promise<AccountData> {
-  const [current, github, workspaces] = await Promise.all([
+  const [current, github, signInMethods, workspaces] = await Promise.all([
     fetchCurrentSession(),
     fetchGithub().catch(() => ({ connected: false as const })),
+    listSignInMethods(),
     listOrganizations(),
   ])
   return {
@@ -26,6 +29,7 @@ export async function fetchAccountData(): Promise<AccountData> {
     email: current.user?.email ?? '',
     githubLogin: githubLoginOf(github),
     memberSince: memberSinceOf(current.user?.createdAt),
+    signInMethods,
     workspaces,
   }
 }
