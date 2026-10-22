@@ -10,7 +10,13 @@ export const podProvisionPayloadSchema = z.object({
 
 export type PodProvisionPayload = z.infer<typeof podProvisionPayloadSchema>
 
-export type PodProvisionOutput = { outcome: 'running' | 'failed' | 'superseded' }
+export enum EPodProvisionOutcome {
+  Running = 'running',
+  Failed = 'failed',
+  Superseded = 'superseded',
+}
+
+export type PodProvisionOutput = { outcome: EPodProvisionOutcome }
 
 export type PodProvisionTask = Task<
   typeof POD_PROVISION_TASK_ID,

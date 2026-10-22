@@ -10,7 +10,11 @@ import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.ser
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { failureText, type SandboxWakeBoot } from '../github/github-sandbox-wake-boot'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
-import type { PodProvisionOutput, PodProvisionPayload } from './pod-provision.contract'
+import {
+  EPodProvisionOutcome,
+  type PodProvisionOutput,
+  type PodProvisionPayload,
+} from './pod-provision.contract'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
 
@@ -35,7 +39,7 @@ export async function runPodProvision(args: {
   const row = await db.orm.public.CloudSandbox.first({ threadId })
   if (row === null || row.wakeClaim?.getTime() !== wakeClaim.getTime()) {
     deps.log(`pod-provision for thread ${threadId} was superseded; nothing to do`)
-    return { outcome: 'superseded' }
+    return { outcome: EPodProvisionOutcome.Superseded }
   }
 
   let errorReported = false
@@ -69,15 +73,15 @@ export async function runPodProvision(args: {
       prepare: workspaceSpecWriter({ projectId: thread.projectId, model: thread.modelRef }),
     })
     const marked = await markRunning({ threadId, wakeClaim, serveUrl })
-    if (!marked) return { outcome: 'superseded' }
+    if (!marked) return { outcome: EPodProvisionOutcome.Superseded }
     deps.log(`provisioned sandbox ${row.name} for thread ${threadId} — serve at ${serveUrl}`)
-    return { outcome: 'running' }
+    return { outcome: EPodProvisionOutcome.Running }
   } catch (failure) {
     deps.log(
       `provisioning sandbox ${row.name} for thread ${threadId} failed: ${failureText(failure)}`,
     )
     const matched = await markFailed({ threadId, wakeClaim })
-    if (matched === 0) return { outcome: 'superseded' }
+    if (matched === 0) return { outcome: EPodProvisionOutcome.Superseded }
     if (!errorReported) {
       await recordBootSteps({
         threadId,
@@ -86,7 +90,7 @@ export async function runPodProvision(args: {
         ],
       })
     }
-    return { outcome: 'failed' }
+    return { outcome: EPodProvisionOutcome.Failed }
   }
 }
 

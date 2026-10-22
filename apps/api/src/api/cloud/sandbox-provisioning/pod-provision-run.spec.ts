@@ -4,6 +4,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import { EPodProvisionOutcome } from './pod-provision.contract'
 import { PROVISION_TIMEOUT_MESSAGE, failPodProvision, runPodProvision } from './pod-provision-run'
 import {
   CREDENTIALS,
@@ -36,7 +37,7 @@ describe('runPodProvision', () => {
 
     const output = await runPodProvision({ payload, deps: runDepsWith({ boot }) })
 
-    expect(output).toEqual({ outcome: 'superseded' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Superseded })
     expect(calls).toHaveLength(0)
     expect((await sandboxRows())[0]?.state).toBe('resuming')
   })
@@ -50,7 +51,7 @@ describe('runPodProvision', () => {
       deps: runDepsWith({ boot }),
     })
 
-    expect(output).toEqual({ outcome: 'superseded' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Superseded })
     expect(calls).toHaveLength(0)
   })
 
@@ -65,7 +66,7 @@ describe('runPodProvision', () => {
       deps: runDepsWith({ boot, scoped }),
     })
 
-    expect(output).toEqual({ outcome: 'running' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Running })
     expect((await sandboxRows())[0]).toMatchObject({
       state: 'running',
       serveUrl: 'https://serve.example.test',
@@ -138,7 +139,7 @@ describe('runPodProvision', () => {
       deps: runDepsWith({ boot }),
     })
 
-    expect(output).toEqual({ outcome: 'failed' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Failed })
     const [row] = await sandboxRows()
     expect(row?.wakeClaim).toBeNull()
     expect(row?.wakeFailedAt).not.toBeNull()
@@ -160,7 +161,7 @@ describe('runPodProvision', () => {
       deps: runDepsWith({ boot, scoped }),
     })
 
-    expect(output).toEqual({ outcome: 'failed' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Failed })
     expect(calls).toHaveLength(0)
     expect(await bootSteps()).toMatchObject([
       { step: 'provision', state: 'error', error: failure.message },
@@ -182,7 +183,7 @@ describe('runPodProvision', () => {
 
     const output = await runPodProvision({ payload, deps: runDepsWith({ boot }) })
 
-    expect(output).toEqual({ outcome: 'superseded' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Superseded })
     expect((await sandboxRows())[0]?.state).toBe('resuming')
   })
 
@@ -201,7 +202,7 @@ describe('runPodProvision', () => {
 
     const output = await runPodProvision({ payload, deps: runDepsWith({ boot }) })
 
-    expect(output).toEqual({ outcome: 'superseded' })
+    expect(output).toEqual({ outcome: EPodProvisionOutcome.Superseded })
     expect(await bootSteps()).toEqual([])
     const [row] = await sandboxRows()
     expect(row?.wakeFailedAt).toBeNull()
