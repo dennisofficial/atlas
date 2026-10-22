@@ -20,7 +20,8 @@ import {
 } from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
-import { isStepping } from '../agents/registry/child-state'
+import { LiveWorkSources } from '../agents/registry/live-work-sources'
+import { ownLiveWork } from '../agents/registry/own-live-work'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
@@ -37,9 +38,9 @@ import { registerFileState } from '../files'
 import { registerExecution } from '../execution/register-execution'
 import { registerServices } from '../services/register-services'
 import { ServiceRegistryPort } from '../services/service-registry'
+import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerOperatorInput } from '../operator-input/register-operator-input'
 import { registerShells } from '../shells/register-shells'
-import { EShellStatus } from '../shells/background-shell'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { registerSkills } from '../skills/register-skills'
 import { ThreadStorePort, RandomIds, SystemClock } from '../store'
@@ -71,7 +72,9 @@ import {
 } from './injection'
 import {
   ClientVersionToken,
+  DeltaChannelToken,
   HookChainToken,
+  LiveWorkSourcesToken,
   LanguageModelToken,
   ModelCardSourceToken,
   SessionRegistryToken,
@@ -86,6 +89,11 @@ export const ChildRunnerDepsToken: InjectionToken<ChildRunnerDepsSource> =
 const clientVersionOf = (resolver: DependencyContainer): string =>
   resolver.isRegistered(ClientVersionToken, true) ? resolver.resolve(ClientVersionToken) : 'dev'
 
+const optionalLog = (resolver: DependencyContainer): LogPort | undefined =>
+  resolver.isRegistered(registeredPortToken(LogPort), true)
+    ? resolver.resolve(registeredPortToken(LogPort))
+    : undefined
+
 const embeddedAgentTypes = (): readonly AgentType[] =>
   BUILT_IN_AGENT_TYPES.map((agentType) => ({ ...agentType, origin: EDefinitionOrigin.BuiltIn }))
 
@@ -94,6 +102,10 @@ function registerAgents({ container }: { container: DependencyContainer }): void
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
 
+  container.register(LiveWorkSourcesToken, {
+    useFactory: instanceCachingFactory(() => new LiveWorkSources()),
+  })
+
   container.register(registeredPortToken(ExecutionLocationSinkPort), {
     useClass: NoopExecutionLocationSink,
   })
@@ -101,7 +113,19 @@ function registerAgents({ container }: { container: DependencyContainer }): void
   container.register(registeredPortToken(AgentRegistryPort), {
     useFactory: instanceCachingFactory((resolver) => {
       live = new AgentSupervisor({
-        log: resolver.resolve(registeredPortToken(EventLogPort)),
+        log: withEventsAppendedPublishing({
+          log: resolver.resolve(registeredPortToken(EventLogPort)),
+          channel: () =>
+            container.isRegistered(DeltaChannelToken, true)
+              ? container.resolve(DeltaChannelToken)
+              : undefined,
+          onListenerError: (cause) =>
+            optionalLog(resolver)?.warn({
+              source: 'agents.publication',
+              message: 'a channel listener threw on an events-appended publication',
+              error: cause instanceof Error ? cause.message : String(cause),
+            }),
+        }),
         threads: resolver.resolve(registeredPortToken(ThreadStorePort)),
         ids: resolver.resolve(registeredPortToken(IdPort)),
         clock: resolver.resolve(registeredPortToken(ClockPort)),
@@ -118,13 +142,13 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
           return resolver.resolve(ChildRunnerDepsToken)().intake
         },
-        hasLiveWork: (threadId) => {
-          if (live === undefined) return false
-          const shells = resolver.resolve(registeredPortToken(ShellRegistryPort))
-          if (shells.list({ threadId }).some((shell) => shell.status === EShellStatus.Running))
-            return true
-          return live.someChild(threadId, isStepping)
-        },
+        liveWork: (threadId) =>
+          ownLiveWork({
+            threadId,
+            shells: resolver.resolve(registeredPortToken(ShellRegistryPort)),
+            services: resolver.resolve(registeredPortToken(ServiceRegistryPort)),
+            sources: resolver.resolve(LiveWorkSourcesToken),
+          }),
         inheritOrphanedNotices: ({ from, to }) => {
           resolver.resolve(registeredPortToken(ShellRegistryPort)).reassignNotices({ from, to })
           resolver.resolve(registeredPortToken(ServiceRegistryPort)).reassignNotices({ from, to })
@@ -137,6 +161,9 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           }).catch(() => undefined)
         },
       })
+      const refreshWaiting = () => live?.refreshWaiting()
+      resolver.resolve(registeredPortToken(ShellRegistryPort)).subscribe(refreshWaiting)
+      resolver.resolve(registeredPortToken(ServiceRegistryPort)).subscribe(refreshWaiting)
       return live
     }),
   })

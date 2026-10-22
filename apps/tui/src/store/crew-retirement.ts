@@ -7,6 +7,7 @@ export type CrewMember = {
   deliveredAt: string | null
   lastViewedAt: string | null
   holdingShells?: boolean | undefined
+  waitingOn?: string | undefined
   hasOpenPullRequest?: boolean | undefined
 }
 
@@ -65,6 +66,7 @@ const standingOf = (args: {
   const { member } = args
   if (!IS_TERMINAL[member.status]) return ECrewStanding.Live
   if (member.holdingShells === true) return ECrewStanding.Held
+  if (member.waitingOn !== undefined) return ECrewStanding.Held
   if (member.deliveredAt === null) return ECrewStanding.Held
   if (member.agentId === args.viewing) return ECrewStanding.Held
   if (args.holdingLive.has(member.agentId)) return ECrewStanding.Held

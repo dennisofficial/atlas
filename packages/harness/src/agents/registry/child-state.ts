@@ -177,7 +177,27 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
   }
 }
 
-export function agentEndedDraft(child: ChildState): EventDraft {
+export function withWaitingOn({
+  snapshot,
+  waitingOn,
+}: {
+  snapshot: AgentSnapshot
+  waitingOn: string | undefined
+}): AgentSnapshot {
+  return waitingOn === undefined ? snapshot : { ...snapshot, waitingOn }
+}
+
+export function quietEndedDraft({
+  child,
+  waitingOn,
+}: {
+  child: ChildState
+  waitingOn: string
+}): EventDraft {
+  return { ...agentEndedDraft(child), relayed: false, waitingOn }
+}
+
+export function agentEndedDraft(child: ChildState): EventDraft & { type: 'agent-ended' } {
   return {
     type: 'agent-ended',
     agentId: child.agentId,

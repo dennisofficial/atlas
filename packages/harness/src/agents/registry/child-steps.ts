@@ -13,7 +13,7 @@ import type { TurnRunner } from '../../loop/turn-runner.port'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
-import type { HasLiveWork, InheritOrphanedNotices, IntakeChanged } from './deps'
+import type { InheritOrphanedNotices, IntakeChanged } from './deps'
 import { recordContext, recordProgress, type ChildState, type SteerMessage } from './child-state'
 import { AgentJournal } from './agent-journal'
 import { recordEnding } from './child-endings'
@@ -35,7 +35,7 @@ export class ChildSteps {
   private readonly clock: ClockPort
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
-  private readonly hasLiveWork: HasLiveWork | undefined
+  private readonly waitingOn: (child: ChildState) => string | undefined
   private readonly inheritOrphanedNotices: InheritOrphanedNotices | undefined
   private readonly onEnded: ((threadId: ThreadId) => void) | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
@@ -54,7 +54,7 @@ export class ChildSteps {
     clock: ClockPort
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
-    hasLiveWork?: HasLiveWork | undefined
+    waitingOn?: ((child: ChildState) => string | undefined) | undefined
     inheritOrphanedNotices?: InheritOrphanedNotices | undefined
     onEnded?: ((threadId: ThreadId) => void) | undefined
   }) {
@@ -65,7 +65,7 @@ export class ChildSteps {
     this.clock = args.clock
     this.telemetry = args.telemetry
     this.intake = args.intake
-    this.hasLiveWork = args.hasLiveWork
+    this.waitingOn = args.waitingOn ?? (() => undefined)
     this.inheritOrphanedNotices = args.inheritOrphanedNotices
     this.onEnded = args.onEnded
   }
@@ -203,23 +203,19 @@ export class ChildSteps {
       toolCalls: child.toolCalls,
     })
 
-    const kind = this.endingKind(child)
-    const relay = kind !== undefined
+    const waitingOn = this.waitingOn(child)
+    const relay = waitingOn === undefined
     await recordEnding({
       journal: this.journal,
       notices: this.notices,
       roster: this.roster,
       child,
-      kind,
+      kind: relay ? EAgentNotice.Ending : undefined,
+      waitingOn,
     })
     if (relay) this.onEnded?.(child.agentId)
 
     this.intake?.changed()
-  }
-
-  private endingKind(child: ChildState): EAgentNotice | undefined {
-    if (this.hasLiveWork?.(child.agentId) === true) return undefined
-    return EAgentNotice.Ending
   }
 
   private record({ child, drafts }: { child: ChildState; drafts: readonly EventDraft[] }): void {

@@ -32,7 +32,7 @@ async function open(): Promise<OpenedSupervisor> {
 async function openWithLiveWork(): Promise<OpenedSupervisor> {
   const entry = await openSupervisor({
     agentTypes: [agentTypeNamed({ name: 'explore' }), TEAMMATE],
-    hasLiveWork: () => true,
+    liveWork: () => 'bash "bun test"',
   })
   opened.push(entry)
   return entry

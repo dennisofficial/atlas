@@ -21,6 +21,7 @@ export type SubagentReadout = {
   status: EAgentStatus
   startedAt: string
   endedAt: string | null
+  waitingOn?: string | undefined
 }
 
 export type SidebarSubagent = SubagentReadout & {
@@ -47,6 +48,10 @@ export type SidebarCrewFold = { hidden: number; hiddenFailed: boolean }
 export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentType'>): string =>
   truncateCells({ text: agentDisplayName(snapshot), cells: TITLE_CELLS })
 
+export const isSubagentWaiting = (
+  subagent: Pick<SidebarSubagent, 'status' | 'waitingOn'>,
+): boolean => subagent.waitingOn !== undefined && subagent.status !== EAgentStatus.Running
+
 export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
   subagent.status === EAgentStatus.Running || subagent.status === EAgentStatus.Blocked
 
@@ -56,8 +61,9 @@ export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): bool
  * status so a finished teammate holding a live preview still reads as an agent at work.
  */
 export const isSubagentWorking = (
-  subagent: Pick<SidebarSubagent, 'status' | 'activity'>,
-): boolean => isSubagentAlive(subagent) || subagent.activity !== undefined
+  subagent: Pick<SidebarSubagent, 'status' | 'activity' | 'waitingOn'>,
+): boolean =>
+  isSubagentAlive(subagent) || subagent.activity !== undefined || isSubagentWaiting(subagent)
 
 const SUBAGENT_WENT_WRONG: Record<EAgentStatus, boolean> = {
   [EAgentStatus.Running]: false,
@@ -122,6 +128,8 @@ export function subagentElapsedMs(args: {
   return Math.max(0, (ended ?? args.now) - started)
 }
 
+const WAITING_CELLS = 24
+
 const READOUT_SEPARATOR = ' · '
 
 const stateWord = (subagent: Pick<SubagentReadout, 'status'>): string =>
@@ -141,6 +149,9 @@ const SUBAGENT_READOUT: Record<
 
 export function subagentStateLabel(args: { subagent: SubagentReadout; now: number }): string {
   const { subagent } = args
+  if (isSubagentWaiting(subagent)) {
+    return truncateCells({ text: `waiting on ${subagent.waitingOn}`, cells: WAITING_CELLS })
+  }
   const elapsed = subagentElapsedMs({ subagent, now: args.now })
   const parts = SUBAGENT_READOUT[subagentReading(subagent)]({
     subagent,
@@ -188,10 +199,13 @@ export function crewActivityOf(args: {
 }
 
 export function crewRowReading(
-  subagent: Pick<SidebarSubagent, 'status' | 'activity'>,
+  subagent: Pick<SidebarSubagent, 'status' | 'activity' | 'waitingOn'>,
 ): ESubagentReading {
   const reading = subagentReading(subagent)
-  if (reading === ESubagentReading.Settled && subagent.activity !== undefined) {
+  if (
+    reading === ESubagentReading.Settled &&
+    (subagent.activity !== undefined || isSubagentWaiting(subagent))
+  ) {
     return ESubagentReading.Live
   }
   return reading
@@ -210,6 +224,7 @@ export function subagentRows(args: {
       status: snapshot.status,
       startedAt: snapshot.startedAt,
       endedAt: snapshot.endedAt ?? null,
+      waitingOn: snapshot.waitingOn,
     }
 
     const activity = crewActivityOf({ id: snapshot.agentId, rosters: args.rosters })

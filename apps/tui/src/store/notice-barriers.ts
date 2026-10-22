@@ -1,4 +1,4 @@
-import { EAgentRestart, type Event, type EventOfType } from '@dltech/atlas-core'
+import { EAgentRestart, EReportKind, type Event, type EventOfType } from '@dltech/atlas-core'
 
 export const deliberateAgentRestart = (event: EventOfType<'agent-restarted'>): boolean =>
   event.via !== EAgentRestart.Wake
@@ -11,8 +11,8 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'background-shell-matched' ||
   event.type === 'background-shell-still-running' ||
   event.type === 'service-ended' ||
-  event.type === 'agent-ended' ||
-  event.type === 'agent-reported' ||
+  (event.type === 'agent-ended' && event.relayed !== false) ||
+  (event.type === 'agent-reported' && event.kind !== EReportKind.Progress) ||
   event.type === 'pr-event' ||
   event.type === 'location-changed' ||
   event.type === 'parked' ||

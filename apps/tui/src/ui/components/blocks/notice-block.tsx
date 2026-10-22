@@ -24,6 +24,7 @@ export function NoticeBlock(props: {
   onToggle?: () => void
   pending?: boolean
   quiet?: boolean
+  attention?: boolean
 }): React.ReactNode {
   const inner = Math.max(NARROWEST_BAND, props.width - TRANSCRIPT_INSET)
   const body = props.body?.trimEnd() ?? ''
@@ -44,6 +45,7 @@ export function NoticeBlock(props: {
         affordance={body !== '' && props.expanded !== true && props.pending !== true}
         dimmed={props.pending === true}
         quiet={props.quiet === true}
+        attention={props.attention === true}
       />
       {props.pending === true ? (
         <>
@@ -80,8 +82,15 @@ function HeadingRow(props: {
   affordance: boolean
   dimmed: boolean
   quiet: boolean
+  attention: boolean
 }): React.ReactNode {
-  const mark = props.quiet ? theme.dim : props.failed ? theme.error : theme.ok
+  const mark = props.quiet
+    ? theme.dim
+    : props.failed
+      ? theme.error
+      : props.attention
+        ? theme.warn
+        : theme.ok
   const marker = props.quiet ? glyph.available : glyph.block
   const heading = props.quiet ? theme.hint : theme.meta
 

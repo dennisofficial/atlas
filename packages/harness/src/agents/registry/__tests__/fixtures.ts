@@ -140,12 +140,12 @@ export type OpenedSupervisor = {
 export async function openSupervisor({
   agentTypes = [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'builder' })],
   sink,
-  hasLiveWork,
+  liveWork,
   inheritOrphanedNotices,
 }: {
   agentTypes?: readonly AgentType[]
   sink?: ExecutionLocationSinkPort | undefined
-  hasLiveWork?: ((threadId: ThreadId) => boolean) | undefined
+  liveWork?: ((threadId: ThreadId) => string | undefined) | undefined
   inheritOrphanedNotices?: InheritOrphanedNotices | undefined
 } = {}): Promise<OpenedSupervisor> {
   const temp = createTempHome()
@@ -167,7 +167,7 @@ export async function openSupervisor({
       runners: runners.source,
       launchDirectory: '/launch',
       ...(sink === undefined ? {} : { sink }),
-      ...(hasLiveWork === undefined ? {} : { hasLiveWork }),
+      ...(liveWork === undefined ? {} : { liveWork }),
       ...(inheritOrphanedNotices === undefined ? {} : { inheritOrphanedNotices }),
     }),
     parent: (await harness.threads.create({})).id,

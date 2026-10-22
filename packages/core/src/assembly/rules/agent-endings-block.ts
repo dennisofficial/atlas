@@ -6,6 +6,7 @@ import type { Event, EventOfType } from '../../events/envelope'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
+import { isQuietEnding, quietStatusLine, supersededQuietEndingIds } from './quiet-endings'
 
 const REPORTED_NOTHING = 'It reported nothing.'
 
@@ -56,21 +57,34 @@ function sectionOf(event: Ending): string {
 }
 
 export function agentEndingsText({ endings }: { endings: readonly Ending[] }): string {
-  const roster = `${countedNoun({ count: endings.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
+  const relayed = endings.filter((ending) => !isQuietEnding(ending))
+  const quiet = endings.filter(isQuietEnding)
+
+  if (relayed.length === 0) {
+    const roster = `${countedNoun({ count: quiet.length, noun: 'agent' })} you spawned ${quiet.length === 1 ? 'is' : 'are'} still working. Status update only: nothing ended.`
+    return systemNotice({
+      kind: 'agents-status',
+      content: [roster, ...quiet.map(quietStatusLine)].join('\n\n'),
+    })
+  }
+
+  const roster = `${countedNoun({ count: relayed.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
 
   return systemNotice({
     kind: 'agents-ended',
-    content: [roster, ...endings.map(sectionOf)].join('\n\n'),
+    content: [roster, ...relayed.map(sectionOf), ...quiet.map(quietStatusLine)].join('\n\n'),
   })
 }
 
-/**
- * Quiet teammate endings stay in the record: the log is transparent, so every agent-ended event
- * renders. What a quiet ending does not do is wake the parent or hand it the turn.
- */
 const carriesEnding = (event: Event): event is Ending => event.type === 'agent-ended'
 
-function waves(events: readonly Event[]): readonly (readonly Ending[])[] {
+function waves({
+  events,
+  superseded,
+}: {
+  events: readonly Event[]
+  superseded: ReadonlySet<string>
+}): readonly (readonly Ending[])[] {
   const grouped: Ending[][] = []
   let open: Ending[] | undefined
 
@@ -79,6 +93,8 @@ function waves(events: readonly Event[]): readonly (readonly Ending[])[] {
       open = undefined
       continue
     }
+
+    if (superseded.has(event.id)) continue
 
     if (open === undefined) {
       open = [event]
@@ -155,7 +171,10 @@ export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const grouped = waves(ctx.events)
+      const grouped = waves({
+        events: ctx.events,
+        superseded: supersededQuietEndingIds({ events: ctx.events }),
+      })
       if (grouped.length === 0) return input
 
       const blocks = grouped.flatMap((endings) => blockFor({ endings }))

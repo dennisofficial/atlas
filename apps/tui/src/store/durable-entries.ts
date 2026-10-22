@@ -21,11 +21,13 @@ import { formatElapsed } from '../ui/theme'
 import {
   agentEndedLine,
   agentEndingFailed,
-  agentReportedLine,
+  agentQuietLine,
+  agentReportedKindLine,
   agentRestartedLine,
 } from './agent-ended-line'
 import { deliberateAgentRestart } from './notice-barriers'
 import { modelEntries } from './model-entries'
+import { quietEndingRuns } from './quiet-endings'
 import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -292,6 +294,7 @@ export function durableEntries(args: {
     isHidden: (id) => folded.has(id) || pinnedToCalls.has(id),
     current: currentContext,
   })
+  const quietEndings = quietEndingRuns(events)
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
@@ -454,6 +457,23 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'agent-ended') {
+      if (event.relayed === false) {
+        const latest = quietEndings.get(event.id)
+        if (latest === undefined) return []
+        return [
+          {
+            kind: EEntryKind.AgentEnded,
+            author: EAuthor.Model,
+            key: event.id,
+            text: agentQuietLine(latest),
+            agentId: latest.agentId,
+            report: latest.prose,
+            failed: agentEndingFailed(latest),
+            quiet: true,
+          },
+        ]
+      }
+
       return [
         {
           kind: EEntryKind.AgentEnded,
@@ -473,9 +493,10 @@ export function durableEntries(args: {
           kind: EEntryKind.AgentReported,
           author: EAuthor.Model,
           key: event.id,
-          text: agentReportedLine(event),
+          text: agentReportedKindLine(event),
           agentId: event.agentId,
           report: event.prose,
+          reportKind: event.kind,
         },
       ]
     }

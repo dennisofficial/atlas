@@ -1,6 +1,7 @@
 import type {
   EExecutionLocation,
   ELocationChangeCause,
+  EReportKind,
   ETldrStatus,
   SaidImage,
 } from '@dltech/atlas-core'
@@ -153,6 +154,7 @@ export type AgentEndedEntry = {
   agentId: string
   report: string
   failed: boolean
+  quiet?: boolean | undefined
 }
 
 export type AgentReportedEntry = {
@@ -162,6 +164,7 @@ export type AgentReportedEntry = {
   text: string
   agentId: string
   report: string
+  reportKind?: EReportKind | undefined
 }
 
 export type AgentRestartedEntry = {

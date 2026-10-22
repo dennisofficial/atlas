@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { EReportKind } from '../agents/report'
 import { EAgentRestart } from '../agents/restart'
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
@@ -380,6 +381,8 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
+    relayed: z.boolean().optional(),
+    waitingOn: z.string().optional(),
   }),
   z.object({
     type: z.literal('agent-restarted'),
@@ -394,6 +397,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     agentType: z.string().min(1),
     intent: z.string(),
     prose: z.string(),
+    kind: z.enum(EReportKind).optional(),
   }),
   z.object({
     type: z.literal('history-compacted'),

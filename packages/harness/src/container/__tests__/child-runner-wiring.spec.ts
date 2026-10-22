@@ -299,7 +299,7 @@ describe('live work that decides whether a child ending is queued to its parent'
     expect(await endWithServiceOwnedBy({ owner: 'parent' })).toBe(1)
   }, 30_000)
 
-  it('queues the ending even when the running service belongs to the ending child itself', async () => {
-    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(1)
+  it('records the ending without queueing it while a service of the ending child still runs', async () => {
+    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(0)
   }, 30_000)
 })
