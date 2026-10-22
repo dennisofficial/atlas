@@ -6,8 +6,15 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
-import { EThreadMessageState, type ThreadMessageReply } from '@dltech/atlas-wire'
+import {
+  EBootStep,
+  EBootStepState,
+  EThreadMessageState,
+  type RecordedBootStep,
+  type ThreadMessageReply,
+} from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { appendWithin, nextRunId } from '../../platform/sessions/append'
 import { ownedThread } from '../../platform/sessions/ownership'
@@ -16,8 +23,11 @@ import { failureText } from '../github/github-sandbox-wake-boot'
 import { findUserSaid, userSaidDraftOf } from './first-message'
 import { PodLaunchService } from './pod-launch.service'
 import { standingStateOf } from './sandbox-provisioning-rows'
-import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { SERVE_SEND, type ServeSend } from './serve-send'
+
+const agentStarted = (step: RecordedBootStep): boolean =>
+  step.step === EBootStep.Agent &&
+  (step.state === EBootStepState.Running || step.state === EBootStepState.Done)
 
 export const DELIVERY_FAILED_MESSAGE = "Couldn't hand the message to the sandbox. Try again."
 export const TAKE_BACK_TOO_LATE_MESSAGE =
@@ -57,7 +67,7 @@ export class ThreadMessagesService {
     await this.appendOnce({ userId, threadId, sendId, text })
     const existing = await db.orm.public.CloudSandbox.first({ threadId })
     const standing = existing === null ? undefined : standingStateOf(existing)
-    if (standing !== ESandboxProvisionState.Booting) await this.pod.launch({ thread, existing })
+    if (standing === undefined) await this.pod.launch({ thread, existing })
     return { state: EThreadMessageState.Queued }
   }
 
@@ -73,6 +83,8 @@ export class ThreadMessagesService {
       if (event === null) throw new NotFoundException(TAKE_BACK_NOT_FOUND_MESSAGE)
       const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
       if (event.seq !== thread.head) throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
+      const attempt = latestAttemptOf(await readBootSteps({ reader: tx, threadId }))
+      if (attempt.some(agentStarted)) throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
       await tx.orm.public.Event.where({ id: event.id }).delete()
       await retreatHead({ tx, threadId, at: new Date() })
     })

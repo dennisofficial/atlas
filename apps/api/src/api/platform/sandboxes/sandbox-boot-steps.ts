@@ -25,8 +25,13 @@ const isStep = (value: string): value is EBootStep =>
 const isState = (value: string): value is EBootStepState =>
   (Object.values(EBootStepState) as string[]).includes(value)
 
-export async function readBootSteps(args: { threadId: string }): Promise<RecordedBootStep[]> {
-  const rows = await db.orm.public.SandboxBootStep.where({ threadId: args.threadId })
+export async function readBootSteps(args: {
+  reader?: Writer | undefined
+  threadId: string
+}): Promise<RecordedBootStep[]> {
+  const rows = await (args.reader ?? db).orm.public.SandboxBootStep.where({
+    threadId: args.threadId,
+  })
     .orderBy((step) => step.at.asc())
     .all()
   return rows.flatMap((row) => {
@@ -40,4 +45,13 @@ export async function readBootSteps(args: { threadId: string }): Promise<Recorde
       },
     ]
   })
+}
+
+export const latestAttemptOf = (steps: RecordedBootStep[]): RecordedBootStep[] => {
+  const isProvision = (step: RecordedBootStep) => step.step === EBootStep.Provision
+  const start = steps.findLastIndex(
+    (step) => isProvision(step) && step.state === EBootStepState.Running,
+  )
+  const from = start === -1 ? steps.findLastIndex(isProvision) : start
+  return from === -1 ? steps : steps.slice(from)
 }

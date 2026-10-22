@@ -28,7 +28,7 @@ const scopedReturning = (
 
 const seedThreadWithProject = async (
   projectId: string | null,
-  extra: { organizationId?: string; executionLocation?: string } = {},
+  extra: { organizationId?: string; apiProvisioned?: boolean } = {},
 ): Promise<void> => {
   if (projectId !== null) await seedProject({ id: projectId, ownerUserId: 'user-a' })
   await seedThread({

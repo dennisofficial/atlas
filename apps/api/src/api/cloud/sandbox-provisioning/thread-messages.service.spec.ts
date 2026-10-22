@@ -1,6 +1,7 @@
-import { EBootStep, EThreadMessageState } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
@@ -103,6 +104,21 @@ describe('ThreadMessagesService.send', () => {
 
     expect(await eventsOf()).toHaveLength(1)
     expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('appends without claiming while a running sandbox is still parking', async () => {
+    await seedSandboxRow({
+      state: 'running',
+      wakeClaim: null,
+      serveUrl: 'https://serve.example.test',
+    })
+    const { service, dispatch } = messagesWith()
+
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
 
   it('re-claims a failed row for a new message', async () => {
@@ -224,5 +240,39 @@ describe('ThreadMessagesService.takeBack', () => {
     await appendRaw({ type: 'sandbox-boot-step', body: '{}' })
 
     await expect(service.takeBack(target)).rejects.toMatchObject({ status: 409 })
+  })
+
+  const recordAttempt = (agent: EBootStepState) =>
+    recordBootSteps({
+      threadId: 'thr-1',
+      steps: [
+        { step: EBootStep.Provision, state: EBootStepState.Running },
+        { step: EBootStep.Agent, state: agent },
+      ],
+    })
+
+  it.each([EBootStepState.Running, EBootStepState.Done])(
+    'refuses with 409 when the latest attempt has an agent step in state %s',
+    async (agent) => {
+      const { service } = messagesWith()
+      await service.send(ARGS)
+      await recordAttempt(agent)
+
+      await expect(service.takeBack(target)).rejects.toMatchObject({
+        status: 409,
+        message: TAKE_BACK_TOO_LATE_MESSAGE,
+      })
+      expect(await eventsOf()).toHaveLength(1)
+    },
+  )
+
+  it('still takes back when the latest attempt failed before the agent started', async () => {
+    const { service } = messagesWith()
+    await service.send(ARGS)
+    await recordAttempt(EBootStepState.Error)
+
+    await service.takeBack(target)
+
+    expect(await eventsOf()).toHaveLength(0)
   })
 })

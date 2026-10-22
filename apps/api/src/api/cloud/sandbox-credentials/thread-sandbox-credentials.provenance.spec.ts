@@ -59,7 +59,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
     })
     const scoped = fakeScoped()
 
-    const credentials = await serviceWith(scoped).forThread({ threadId: reply.thread.id })
+    const credentials = await serviceWith(scoped).forThread({ threadId: reply.thread.id ?? '' })
 
     expect(credentials).toMatchObject({ token: 'ws-token', workspaceOwned: true })
     expect(scoped.vercelCredentials).toHaveBeenCalledWith({

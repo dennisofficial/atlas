@@ -8,22 +8,13 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
-import { readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { standingStateOf } from './sandbox-provisioning-rows'
 
 const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
   row.wakeFailedAt !== null &&
   (row.wakeClaim === null || row.wakeFailedAt.getTime() >= row.wakeClaim.getTime())
-
-const latestAttemptOf = (steps: RecordedBootStep[]): RecordedBootStep[] => {
-  const isProvision = (step: RecordedBootStep) => step.step === EBootStep.Provision
-  const start = steps.findLastIndex(
-    (step) => isProvision(step) && step.state === EBootStepState.Running,
-  )
-  const from = start === -1 ? steps.findLastIndex(isProvision) : start
-  return from === -1 ? steps : steps.slice(from)
-}
 
 function stateOf(args: { row: Row<'CloudSandbox'> | null; steps: RecordedBootStep[] }): EPodState {
   const { row, steps } = args
