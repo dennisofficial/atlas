@@ -103,8 +103,8 @@ describe('resolveScopedConfig', () => {
 })
 
 describe('project setting registry', () => {
-  it('holds the vercel project id and harness keys, and rejects unknown keys', () => {
-    expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelProjectId')).toBe(true)
+  it('holds harness keys and no vercel provisioning key, and rejects unknown keys', () => {
+    expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelProjectId')).toBe(false)
     expect(PROJECT_SETTING_REGISTRY.has('model.id')).toBe(true)
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelTeamId')).toBe(false)
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelToken')).toBe(false)
@@ -113,26 +113,31 @@ describe('project setting registry', () => {
         key: 'sandbox.vercelProjectId',
         stored: encodeSettingValue('prj_1'),
       }).ok,
-    ).toBe(true)
+    ).toBe(false)
     expect(validateProjectSetting({ key: 'nope', stored: 'x' }).ok).toBe(false)
   })
 })
 
-describe('workspace vercel credential', () => {
-  it('reads without a token and takes an optional write-only token', () => {
+describe('vercel credential', () => {
+  it('reads without a token and takes an optional write-only token beside team and project', () => {
     expect(
       workspaceVercelCredentialSchema.safeParse({
         configured: false,
         teamId: null,
+        vercelProjectId: null,
         updatedAt: null,
       }).success,
     ).toBe(true)
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ teamId: 'team_1' }).success).toBe(true)
+    const owned = { teamId: 'team_1', vercelProjectId: 'prj_1' }
+    expect(workspaceVercelCredentialUpsertSchema.safeParse(owned).success).toBe(true)
+    expect(workspaceVercelCredentialUpsertSchema.safeParse({ ...owned, token: 'v' }).success).toBe(
+      true,
+    )
+    expect(workspaceVercelCredentialUpsertSchema.safeParse({ ...owned, token: '' }).success).toBe(
+      false,
+    )
     expect(
       workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success,
-    ).toBe(true)
-    expect(
-      workspaceVercelCredentialUpsertSchema.safeParse({ token: '', teamId: 'team_1' }).success,
     ).toBe(false)
     expect(workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v' }).success).toBe(false)
   })

@@ -8,7 +8,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator'
 
@@ -43,6 +45,18 @@ export class EventDraftDto {
   contextDigest?: string
 }
 
+export class FirstMessageDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  sendId!: string
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100_000)
+  text!: string
+}
+
 export class CreateThreadDto {
   @IsOptional()
   @IsString()
@@ -60,6 +74,21 @@ export class CreateThreadDto {
   @IsString()
   @IsNotEmpty()
   projectId?: string
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  model?: string
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  effort?: string
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FirstMessageDto)
+  firstMessage?: FirstMessageDto
 
   @IsOptional()
   @ValidateNested()

@@ -45,43 +45,71 @@ describe('workspace vercel credential HTTP surface', () => {
 
   it('reads unconfigured, saves a sealed token and never returns it', async () => {
     const empty = await http().get(vercel).set(as('session-b')).expect(200)
-    expect(empty.body).toEqual({ configured: false, teamId: null, updatedAt: null })
+    expect(empty.body).toEqual({
+      configured: false,
+      teamId: null,
+      vercelProjectId: null,
+      updatedAt: null,
+    })
 
     await http()
       .put(vercel)
       .set(as('session-a'))
-      .send({ token: 'vtok_secret', teamId: 'team_1' })
+      .send({ token: 'vtok_secret', teamId: 'team_1', vercelProjectId: 'prj_1' })
       .expect(204)
-    expect(await credential()).toMatchObject({ teamId: 'team_1' })
+    expect(await credential()).toMatchObject({ teamId: 'team_1', vercelProjectId: 'prj_1' })
     expect((await credential())?.sealedToken).not.toContain('vtok_secret')
 
     const read = await http().get(vercel).set(as('session-b')).expect(200)
-    expect(read.body).toMatchObject({ configured: true, teamId: 'team_1' })
+    expect(read.body).toMatchObject({
+      configured: true,
+      teamId: 'team_1',
+      vercelProjectId: 'prj_1',
+    })
     expect(JSON.stringify(read.body)).not.toContain('vtok')
   })
 
   it('keeps the token when a later PUT omits it, and needs one the first time', async () => {
-    await http().put(vercel).set(as('session-a')).send({ teamId: 'team_1' }).expect(400)
     await http()
       .put(vercel)
       .set(as('session-a'))
-      .send({ token: 'vtok_1', teamId: 'team_1' })
+      .send({ teamId: 'team_1', vercelProjectId: 'prj_1' })
+      .expect(400)
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ token: 'vtok_1', teamId: 'team_1', vercelProjectId: 'prj_1' })
       .expect(204)
     const sealed = (await credential())?.sealedToken
-    await http().put(vercel).set(as('session-a')).send({ teamId: 'team_2' }).expect(204)
-    expect(await credential()).toMatchObject({ teamId: 'team_2', sealedToken: sealed })
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ teamId: 'team_2', vercelProjectId: 'prj_2' })
+      .expect(204)
+    expect(await credential()).toMatchObject({
+      teamId: 'team_2',
+      vercelProjectId: 'prj_2',
+      sealedToken: sealed,
+    })
   })
 
   it('limits writes to owners and admins, and 404s outsiders', async () => {
-    await http().put(vercel).set(as('session-b')).send({ token: 't', teamId: 'x' }).expect(403)
+    await http()
+      .put(vercel)
+      .set(as('session-b'))
+      .send({ token: 't', teamId: 'x', vercelProjectId: 'p' })
+      .expect(403)
     await http().delete(vercel).set(as('session-b')).expect(403)
     await http().get(vercel).set(as('session-c')).expect(404)
   })
 
-  it('rejects a malformed body and deletes the credential', async () => {
-    await http().put(vercel).set(as('session-a')).send({ token: '', teamId: 'team_1' }).expect(400)
-    await http().put(vercel).set(as('session-a')).send({ token: 't' }).expect(400)
-    await http().put(vercel).set(as('session-a')).send({ token: 't', teamId: 'team_1' }).expect(204)
+  it('requires the vercel project id, rejects a malformed body and deletes the credential', async () => {
+    const put = (body: object) => http().put(vercel).set(as('session-a')).send(body)
+    await put({ token: '', teamId: 'team_1', vercelProjectId: 'prj_1' }).expect(400)
+    await put({ token: 't' }).expect(400)
+    await put({ token: 't', teamId: 'team_1' }).expect(400)
+    await put({ token: 't', teamId: 'team_1', vercelProjectId: '  ' }).expect(400)
+    await put({ token: 't', teamId: 'team_1', vercelProjectId: 'prj_1' }).expect(204)
     await http().delete(vercel).set(as('session-a')).expect(204)
     expect(await credential()).toBeNull()
   })

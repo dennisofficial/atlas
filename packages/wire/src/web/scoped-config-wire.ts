@@ -52,25 +52,35 @@ export const PROVISIONING_ONLY_PREFIX = 'sandbox.vercel'
 export const isProvisioningOnlyName = (name: string): boolean =>
   name.startsWith(PROVISIONING_ONLY_PREFIX)
 
-export const workspaceVercelCredentialSchema = z.object({
+export const vercelCredentialSchema = z.object({
   configured: z.boolean(),
   teamId: z.string().nullable(),
+  vercelProjectId: z.string().nullable(),
   updatedAt: z.string().nullable(),
 })
-export type WorkspaceVercelCredential = z.infer<typeof workspaceVercelCredentialSchema>
+export type VercelCredentialView = z.infer<typeof vercelCredentialSchema>
+
+export const workspaceVercelCredentialSchema = vercelCredentialSchema
+export type WorkspaceVercelCredential = VercelCredentialView
+
+export const userVercelCredentialSchema = vercelCredentialSchema
+export type UserVercelCredential = VercelCredentialView
 
 export const MAX_VERCEL_FIELD_LENGTH = 500
 
-export const workspaceVercelCredentialUpsertSchema = z.object({
+export const vercelCredentialUpsertSchema = z.object({
   token: z.string().trim().min(1).max(MAX_VERCEL_FIELD_LENGTH).optional(),
   teamId: z.string().trim().min(1).max(MAX_VERCEL_FIELD_LENGTH),
+  vercelProjectId: z.string().trim().min(1).max(MAX_VERCEL_FIELD_LENGTH),
 })
-export type WorkspaceVercelCredentialUpsert = z.infer<typeof workspaceVercelCredentialUpsertSchema>
+export type VercelCredentialUpsert = z.infer<typeof vercelCredentialUpsertSchema>
 
-export enum EVercelCredentialGap {
-  ProjectWorkspace = 'project-workspace',
-  WorkspaceCredential = 'workspace-credential',
-  ProjectId = 'project-id',
-}
+export const workspaceVercelCredentialUpsertSchema = vercelCredentialUpsertSchema
+export type WorkspaceVercelCredentialUpsert = VercelCredentialUpsert
+
+export const userVercelCredentialUpsertSchema = vercelCredentialUpsertSchema
+export type UserVercelCredentialUpsert = VercelCredentialUpsert
+
+export const USER_VERCEL_CREDENTIAL_PATH = '/v1/me/vercel'
 
 export type VercelProvisioningCredentials = { token: string; teamId: string; projectId: string }

@@ -17,10 +17,22 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
   }
 
   async forThread(args: { threadId: string }): Promise<ThreadSandboxCredentials> {
-    const thread = await db.orm.public.Thread.select('projectId').first({ id: args.threadId })
-    if (thread?.projectId == null) return this.legacyCredentials()
-    const credentials = await this.scoped.vercelCredentials({ projectId: thread.projectId })
+    const thread = await db.orm.public.Thread.select('userId', 'organizationId', 'projectId').first(
+      { id: args.threadId },
+    )
+    if (thread === null) return this.legacyCredentials()
+    if (thread.projectId === null && !(await this.apiProvisioned(args.threadId))) {
+      return this.legacyCredentials()
+    }
+    const credentials = await this.scoped.vercelCredentials({
+      thread: { userId: thread.userId, organizationId: thread.organizationId },
+    })
     return { ...credentials, workspaceOwned: true }
+  }
+
+  private async apiProvisioned(threadId: string): Promise<boolean> {
+    const step = await db.orm.public.SandboxBootStep.where({ threadId }).select('id').first()
+    return step !== null
   }
 
   private legacyCredentials(): ThreadSandboxCredentials {

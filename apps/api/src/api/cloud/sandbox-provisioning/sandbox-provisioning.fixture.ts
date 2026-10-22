@@ -1,31 +1,47 @@
 import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
+import { seedOrganization, seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 import type { EnvService } from '../../../_core/config/env/env.service'
-import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
+import type { JobDispatch, JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
 import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
+import { ThreadsService } from '../../platform/sessions/threads.service'
+import { appendWithin } from '../../platform/sessions/append'
+import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
+import type { PodProvisionTask } from './pod-provision.contract'
+import { PodLaunchService } from './pod-launch.service'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
 import type { ServeSendArgs } from './serve-send'
+import { ThreadLaunchService } from './thread-launch.service'
 import { ThreadMessagesService } from './thread-messages.service'
 
 export const CREDENTIALS = { token: 'ws-token', teamId: 'team-ws', projectId: 'vcl-proj' }
 
-const cipher = new SecretCipherService({
+export const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? 'b'.repeat(64) : undefined),
 } as unknown as EnvService)
+
+export async function seedBase(): Promise<void> {
+  await seedUser({ db, id: 'usr-1' })
+  await seedOrganization({ db, id: 'org-1', memberIds: ['usr-1'] })
+  for (const id of ['prj-1', 'prj-9']) {
+    await db.orm.public.Project.create({ id, name: id, ownerUserId: 'usr-1', createdById: 'usr-1' })
+  }
+  await db.orm.public.Project.create({
+    id: 'prj-ws',
+    name: 'prj-ws',
+    organizationId: 'org-1',
+    createdById: 'usr-1',
+  })
+}
 
 export async function seedThread(
   partial: { projectId?: string | null; modelRef?: string | null } = {},
 ): Promise<void> {
-  await seedUser({ db, id: 'usr-1' })
-  for (const id of ['prj-1', 'prj-9']) {
-    await db.orm.public.Project.create({ id, name: id, ownerUserId: 'usr-1', createdById: 'usr-1' })
-  }
+  await seedBase()
   const projectId = partial.projectId === undefined ? 'prj-1' : partial.projectId
   await seedThreadRow({
     db,
@@ -42,7 +58,15 @@ export const sandboxRows = () => db.orm.public.CloudSandbox.all()
 
 export const threadRow = () => db.orm.public.Thread.first({ id: 'thr-1' })
 
-export const bootEvents = () => db.orm.public.Event.where({ type: 'sandbox-boot-step' }).all()
+export const bootSteps = (threadId = 'thr-1') =>
+  db.orm.public.SandboxBootStep.where({ threadId })
+    .orderBy((step) => step.at.asc())
+    .all()
+
+export const eventsOf = (threadId = 'thr-1') =>
+  db.orm.public.Event.where({ threadId })
+    .orderBy((event) => event.seq.asc())
+    .all()
 
 export function fakeBoot(options: { held?: Promise<void>; failWith?: Error } = {}): {
   boot: SandboxWakeBoot
@@ -80,23 +104,37 @@ export function fakeScoped(
   return scoped as unknown as ScopedConfigService & typeof scoped
 }
 
-export function serviceWith(args: {
-  boot: SandboxWakeBoot
-  scoped?: ScopedConfigService
-  messages?: ThreadMessagesService
-}) {
-  const env = {
-    get: (key: string) =>
-      ({ SANDBOX_IMAGE: 'atlas-sandbox:latest', ATLAS_CLOUD_URL: 'https://api.byatlas.io' })[key],
-  } as unknown as EnvService
-  return new SandboxProvisioningService(
-    args.scoped ?? fakeScoped(),
-    env,
-    cipher,
-    args.boot,
-    new ProcessBackgroundWork(),
-    args.messages ?? messagesWith({}).service,
-  )
+export function fakeDispatcher(options: { failWith?: Error } = {}) {
+  const dispatch = vi.fn(async (_job: JobDispatch<PodProvisionTask>) => {
+    if (options.failWith !== undefined) throw options.failWith
+    return { runId: 'run_fake' }
+  })
+  return { dispatcher: { dispatch } as unknown as JobDispatcher, dispatch }
+}
+
+export function podLaunchWith(
+  args: { scoped?: ScopedConfigService; dispatcher?: ReturnType<typeof fakeDispatcher> } = {},
+) {
+  const dispatching = args.dispatcher ?? fakeDispatcher()
+  const pod = new PodLaunchService(args.scoped ?? fakeScoped(), cipher, dispatching.dispatcher)
+  return { pod, dispatch: dispatching.dispatch }
+}
+
+export function provisioningWith(
+  args: { scoped?: ScopedConfigService; dispatcher?: ReturnType<typeof fakeDispatcher> } = {},
+) {
+  const launched = podLaunchWith(args)
+  return { service: new SandboxProvisioningService(launched.pod), dispatch: launched.dispatch }
+}
+
+export function launchWith(
+  args: { scoped?: ScopedConfigService; dispatcher?: ReturnType<typeof fakeDispatcher> } = {},
+) {
+  const launched = podLaunchWith(args)
+  return {
+    service: new ThreadLaunchService(new ThreadsService(), launched.pod),
+    dispatch: launched.dispatch,
+  }
 }
 
 export function fakeSandbox() {
@@ -105,18 +143,78 @@ export function fakeSandbox() {
   return { sandbox: { runCommand, writeFiles } as unknown as Sandbox, runCommand, writeFiles }
 }
 
-export function messagesWith(args: {
-  endpoint?: { token: string; url: string } | null
-  serveFails?: Error
-}) {
+export function messagesWith(
+  args: {
+    endpoint?: { token: string; url: string } | null
+    serveFails?: Error
+    scoped?: ScopedConfigService
+    dispatcher?: ReturnType<typeof fakeDispatcher>
+  } = {},
+) {
   const endpoint = args.endpoint ?? null
   const runningEndpoint = vi.fn(async () => endpoint)
   const serve = vi.fn(async (_delivery: ServeSendArgs) => {
     if (args.serveFails !== undefined) throw args.serveFails
   })
+  const launched = podLaunchWith({
+    ...(args.scoped === undefined ? {} : { scoped: args.scoped }),
+    ...(args.dispatcher === undefined ? {} : { dispatcher: args.dispatcher }),
+  })
   const service = new ThreadMessagesService(
     { runningEndpoint } as unknown as SandboxEndpointService,
     serve,
+    launched.pod,
   )
-  return { service, serve, runningEndpoint }
+  return { service, serve, runningEndpoint, dispatch: launched.dispatch }
+}
+
+export async function seedSandboxRow(
+  partial: {
+    state?: string
+    wakeClaim?: Date | null
+    wakeFailedAt?: Date | null
+    serveUrl?: string | null
+  } = {},
+): Promise<void> {
+  const at = new Date()
+  await db.orm.public.CloudSandbox.create({
+    id: 'sbx-1',
+    threadId: 'thr-1',
+    userId: 'usr-1',
+    sandboxId: '',
+    name: 'atlas-thread-1',
+    region: 'iad1',
+    state: partial.state ?? 'resuming',
+    lastActivityAt: at,
+    tokenHash: 'hash',
+    sealedToken: cipher.encrypt('seed-token'),
+    wakeClaim: partial.wakeClaim === undefined ? at : partial.wakeClaim,
+    wakeFailedAt: partial.wakeFailedAt ?? null,
+    serveUrl: partial.serveUrl ?? null,
+    createdAt: at,
+    updatedAt: at,
+  })
+}
+
+export async function appendRaw(args: { type: string; body: string; threadId?: string }) {
+  await db.transaction((tx) =>
+    appendWithin({
+      tx,
+      threadId: args.threadId ?? 'thr-1',
+      userId: 'usr-1',
+      runId: 'run_seed',
+      drafts: [{ type: args.type, body: args.body }],
+    }),
+  )
+}
+
+export function runDepsWith(args: { boot?: SandboxWakeBoot; scoped?: ScopedConfigService } = {}) {
+  return {
+    cipher,
+    scoped: args.scoped ?? fakeScoped(),
+    boot: args.boot ?? fakeBoot().boot,
+    image: 'atlas-sandbox:latest',
+    cloudUrl: 'https://api.byatlas.io',
+    log: () => undefined,
+  }
 }

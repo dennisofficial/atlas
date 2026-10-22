@@ -13,7 +13,8 @@ import { fetchSecretDetails } from '../data/personal/secrets-api'
 import { useSecretsStore } from '../data/personal/use-secrets-store'
 import { ELibraryScope, type LibraryMember } from '../fixtures/settings-library'
 import { SecretsView } from '../parts/library-secrets-view'
-import { Mono } from '../settings-layout'
+import { Mono, SettingsSection } from '../settings-layout'
+import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
 
 const TITLE = 'Secrets & Env Vars'
 
@@ -46,6 +47,14 @@ function SecretsContent({ details, reload }: { details: SecretDetail[]; reload: 
       scope={ELibraryScope.Personal}
       description={DESCRIPTION}
       sectionDescription="Only visible to you."
+      lead={
+        <SettingsSection
+          title="Sandbox credential"
+          description="Lets Atlas Cloud create sandboxes for your personal projects and for threads without a project."
+        >
+          <UserVercelCardSlot />
+        </SettingsSection>
+      }
       store={store}
     />
   )

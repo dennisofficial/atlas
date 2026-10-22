@@ -6,9 +6,16 @@ export enum ESandboxProvisionState {
   NotConfigured = 'not-configured',
 }
 
+export enum EVercelCredentialGap {
+  UserCredential = 'user-credential',
+  WorkspaceCredential = 'workspace-credential',
+  CredentialProjectId = 'credential-project-id',
+}
+
 export const sandboxProvisionReplySchema = z.object({
   state: z.enum(ESandboxProvisionState),
   error: z.string().optional(),
+  gap: z.enum(EVercelCredentialGap).optional(),
 })
 export type SandboxProvisionReply = z.infer<typeof sandboxProvisionReplySchema>
 
@@ -17,6 +24,7 @@ export const sandboxProvisionPath = (threadId: string): string =>
 
 export const SANDBOX_SELF_PORTS_PATH = '/v1/sandboxes/self/ports'
 export const SANDBOX_SELF_STOP_PATH = '/v1/sandboxes/self/stop'
+export const SANDBOX_SELF_BOOT_STEPS_PATH = '/v1/sandboxes/self/boot-steps'
 
 export const sandboxExposePortRequestSchema = z.object({
   port: z.number().int().min(1).max(65_535),

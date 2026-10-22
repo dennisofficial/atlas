@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common'
 import type { ThreadMessageReply } from '@dltech/atlas-wire'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
@@ -24,5 +24,15 @@ export class ThreadMessagesController {
       sendId: body.sendId,
       text: body.text,
     })
+  }
+
+  @Delete(':threadId/messages/:sendId')
+  @HttpCode(204)
+  handleTakeBack(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+    @Param('sendId') sendId: string,
+  ): Promise<void> {
+    return this.messages.takeBack({ userId: userIdOf(request), threadId, sendId })
   }
 }

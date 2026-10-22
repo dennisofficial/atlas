@@ -19,26 +19,48 @@ export type VercelCredentialResource = {
   remove: () => Promise<void>
 }
 
-export function useVercelCredential(organizationId: string): VercelCredentialResource {
+export type VercelCredentialSource = {
+  key: string
+  load: () => Promise<VercelCredentialView>
+  put: (body: VercelUpsertBody) => Promise<void>
+  remove: () => Promise<void>
+}
+
+export function useVercelCredentialSource(
+  source: VercelCredentialSource,
+): VercelCredentialResource {
+  const { key, load: loadView, put, remove: removeCredential } = source
   const load = useCallback(
-    async (): Promise<VercelSnapshot> => ({
-      view: await getVercelCredential(organizationId),
-      fetchedAt: Date.now(),
-    }),
-    [organizationId],
+    async (): Promise<VercelSnapshot> => ({ view: await loadView(), fetchedAt: Date.now() }),
+    [loadView],
   )
-  const query = useCloudQuery({ key: `vercel-credential:${organizationId}`, load })
+  const query = useCloudQuery({ key, load })
   const { reload } = query
   const save = useCallback(
     async (body: VercelUpsertBody) => {
-      await putVercelCredential({ organizationId, body })
+      await put(body)
       reload()
     },
-    [organizationId, reload],
+    [put, reload],
   )
   const remove = useCallback(async () => {
-    await deleteVercelCredential(organizationId)
+    await removeCredential()
     reload()
-  }, [organizationId, reload])
+  }, [removeCredential, reload])
   return { query, save, remove }
+}
+
+export function useVercelCredential(organizationId: string): VercelCredentialResource {
+  const load = useCallback(() => getVercelCredential(organizationId), [organizationId])
+  const put = useCallback(
+    (body: VercelUpsertBody) => putVercelCredential({ organizationId, body }),
+    [organizationId],
+  )
+  const remove = useCallback(() => deleteVercelCredential(organizationId), [organizationId])
+  return useVercelCredentialSource({
+    key: `vercel-credential:${organizationId}`,
+    load,
+    put,
+    remove,
+  })
 }

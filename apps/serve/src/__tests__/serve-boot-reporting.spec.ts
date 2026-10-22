@@ -6,10 +6,11 @@ import { join } from 'node:path'
 import { toThreadId } from '@dltech/atlas-core'
 import {
   API_PROVISIONED_ENV,
-  bootStepOfWire,
+  bootStepsPostSchema,
   EBootStep,
   EBootStepState,
   NOOP_BOOT_REPORTER,
+  SANDBOX_SELF_BOOT_STEPS_PATH,
   type BootStepEvent,
 } from '@dltech/atlas-wire'
 
@@ -33,14 +34,12 @@ const recordingFetch = () => {
   const requests: { url: string; authorization: string | null }[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (!url.endsWith(`/v1/threads/${threadId}/events`)) return new Response('{}', { status: 404 })
+    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) return Response.json([])
+    if (url !== `${controlPlaneUrl}${SANDBOX_SELF_BOOT_STEPS_PATH}`)
+      return new Response('{}', { status: 404 })
     const headers = new Headers(init?.headers)
     requests.push({ url, authorization: headers.get('authorization') })
-    const parsed: { drafts: { type: string; body: string }[] } = JSON.parse(String(init?.body))
-    for (const draft of parsed.drafts) {
-      const event = bootStepOfWire(draft)
-      if (event !== null) events.push(event)
-    }
+    events.push(...bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps)
     return new Response('{}', { status: 200 })
   }) as unknown as typeof fetch
   return { fetchFn, events, requests }

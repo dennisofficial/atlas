@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
 import { EQueryState } from '@/lib/use-cloud-query'
 
+import { useUserVercelCredential } from '../data/user/vercel-credential-resource'
 import { LoadFailed, LoadingBlocks } from '../data/workspace/query-gate'
 import { runAction } from '../data/workspace/run-action'
 import {
@@ -14,11 +15,25 @@ import {
   validateVercelDraft,
   type VercelDraft,
 } from '../data/workspace/vercel-credential'
-import { useVercelCredential } from '../data/workspace/vercel-credential-resource'
-import { WorkspaceVercelCard } from './workspace-vercel-card'
+import {
+  useVercelCredential,
+  type VercelCredentialResource,
+} from '../data/workspace/vercel-credential-resource'
+import {
+  PERSONAL_VERCEL_COPY,
+  VercelCredentialCard,
+  WORKSPACE_VERCEL_COPY,
+  type VercelCardCopy,
+} from './vercel-credential-card'
 
-function LiveVercelCard({ organizationId }: { organizationId: string }) {
-  const { query, save, remove } = useVercelCredential(organizationId)
+function LiveVercelCard({
+  resource,
+  copy,
+}: {
+  resource: VercelCredentialResource
+  copy: VercelCardCopy
+}) {
+  const { query, save, remove } = resource
   const [saving, setSaving] = useState(false)
 
   if (query.state === EQueryState.Loading) return <LoadingBlocks label="the Vercel credential" />
@@ -53,8 +68,9 @@ function LiveVercelCard({ organizationId }: { organizationId: string }) {
   }
 
   return (
-    <WorkspaceVercelCard
-      key={`${view.configured}|${view.teamId}|${view.updatedAt}`}
+    <VercelCredentialCard
+      key={`${view.configured}|${view.teamId}|${view.vercelProjectId}|${view.updatedAt}`}
+      copy={copy}
       view={view}
       statusLine={statusLineOf({ view, now: fetchedAt })}
       saving={saving}
@@ -64,6 +80,16 @@ function LiveVercelCard({ organizationId }: { organizationId: string }) {
   )
 }
 
+function WorkspaceLiveCard({ organizationId }: { organizationId: string }) {
+  return (
+    <LiveVercelCard resource={useVercelCredential(organizationId)} copy={WORKSPACE_VERCEL_COPY} />
+  )
+}
+
+function UserLiveCard() {
+  return <LiveVercelCard resource={useUserVercelCredential()} copy={PERSONAL_VERCEL_COPY} />
+}
+
 export function WorkspaceVercelCardSlot({
   organizationId,
   canEdit,
@@ -71,7 +97,16 @@ export function WorkspaceVercelCardSlot({
   organizationId: string
   canEdit: boolean
 }) {
-  if (!CLOUD_CAPABILITIES.workspaceVercelCredential) return <WorkspaceVercelCard disabled soon />
-  if (!canEdit) return <WorkspaceVercelCard disabled />
-  return <LiveVercelCard organizationId={organizationId} />
+  if (!CLOUD_CAPABILITIES.workspaceVercelCredential) {
+    return <VercelCredentialCard disabled soon />
+  }
+  if (!canEdit) return <VercelCredentialCard disabled />
+  return <WorkspaceLiveCard organizationId={organizationId} />
+}
+
+export function UserVercelCardSlot() {
+  if (!CLOUD_CAPABILITIES.userVercelCredential) {
+    return <VercelCredentialCard copy={PERSONAL_VERCEL_COPY} disabled soon />
+  }
+  return <UserLiveCard />
 }

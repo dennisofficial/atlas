@@ -5,7 +5,7 @@ import {
   type ServeFrame,
   type StepId,
 } from '@dltech/atlas-harness'
-import { admissionClosedFor, EBootStep } from '@dltech/atlas-wire'
+import { admissionClosedFor } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
@@ -17,7 +17,6 @@ import {
   type LifecycleFrame,
   type SignalFrame,
 } from './frame-buffer'
-import { startServeIdleStop } from './idle-stop'
 import { workspaceRefusalOf } from './materialize-workspace'
 import { createRuntimeCheckpointCapture } from './runtime-checkpoint'
 import { bindRuntimeCheckpoint } from './runtime-checkpoint-binding'
@@ -25,16 +24,15 @@ import { runtimeWork } from './runtime-work'
 import { providerStopFor } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
-import { bootServeFiles } from './serve-boot'
-import { bootReporterFor } from './serve-boot-reporter'
+import { bootServeApp } from './serve-boot-app'
+import { bindServeIdleStop } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
-import { composeBootApp } from './serve-compose-boot'
 import { bindServeDrain } from './serve-drain-binding'
+import { resumeWhenApiProvisioned } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
 import { handlerOptionsOf } from './serve-handler-options'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
-import { createServeRotationRecovery } from './serve-rotation-recovery'
 import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
 import { createSessionHandlers } from './socket-session'
@@ -56,55 +54,10 @@ export async function finishServeBoot(args: {
   sandboxSessionId: string
   boot: BootListener
 }): Promise<ServeHandle> {
-  const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, startedAt, log, notice } = args
+  const { serveArgs, env, threadId, token, controlPlaneUrl, startedAt, log } = args
   const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
-  const fetchFn = serveArgs.fetchFn ?? fetch
-  const clientVersion = serveArgs.clientVersion ?? 'dev'
-  const reporter = bootReporterFor({
-    env,
-    controlPlaneUrl,
-    threadId,
-    token,
-    clientVersion,
-    fetchFn,
-    log,
-  })
-  const recovery = await createServeRotationRecovery({ atlasHome, threadId, sandboxSessionId, log })
-  const { workspace, activeCwd, spec, identity } = await bootServeFiles({
-    env,
-    threadId,
-    cwd,
-    atlasHome,
-    log,
-    ensureWorkspace: serveArgs.ensureWorkspace,
-    profile: serveArgs.profile,
-    contextFiles: serveArgs.contextFiles,
-    controlPlaneUrl,
-    token,
-    clientVersion,
-    fetchFn,
-    reporter,
-  })
-
-  const app = await reporter.track({
-    step: EBootStep.Agent,
-    work: () =>
-      composeBootApp({
-        compose: serveArgs.compose,
-        model: serveArgs.model,
-        spec,
-        identity,
-        threadId,
-        cwd: activeCwd,
-        atlasHome,
-        controlPlaneUrl,
-        token,
-        clientVersion,
-        env,
-        notice,
-      }),
-  })
+  const { app, recovery, workspace, fetchFn, clientVersion } = await bootServeApp(args)
 
   const admissionClosed = (): boolean => {
     if (recovery.admissionLatched) return true
@@ -263,6 +216,13 @@ export async function finishServeBoot(args: {
     })
 
   await recovery.recover({ session, driver })
+  resumeWhenApiProvisioned({
+    env,
+    resumable,
+    admissionLatched: admissionClosed(),
+    driver,
+    log,
+  })
   const exit = serveArgs.exit ?? process.exit
   const drain = bindServeDrain({
     app,
@@ -322,18 +282,12 @@ export async function finishServeBoot(args: {
   })
 
   idleStop = recovery.checkpointAllowed
-    ? startServeIdleStop({
+    ? bindServeIdleStop({
+        serveArgs,
         turnRunning: driver.busy,
-        childrenSettling: () => work().settlingWork,
-        runningChildren: () => work().childrenRunning,
-        runningShells: () => work().shellsRunning,
-        runningServices: () => work().servicesRunning,
-        pendingInput: () => work().pendingInput,
+        work,
         clientsAttached: handlers.clients,
-        idleMinutes: serveArgs.idleMinutes,
-        serviceIdleMinutes: serveArgs.serviceIdleMinutes,
-        tickMs: serveArgs.idleTickMs,
-        log: (line) => log({ event: EServeEvent.IdleCheckFailed, reason: line }),
+        log,
         onDue: () => void lifecycle.park(),
       })
     : idleStop

@@ -1,16 +1,14 @@
 import type { ResolvedSandboxConfig, VercelProvisioningCredentials } from '@dltech/atlas-wire/web'
 import {
-  decodeSettingValue,
   EMPTY_SCOPE_LAYER,
   EVercelCredentialGap,
   podFacingConfig,
   resolveScopedConfig,
-  VERCEL_PROJECT_ID_SETTING,
 } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { WorkspaceVercelService } from '../workspaces/workspace-vercel.service'
+import { openSecretValue } from '../secrets/sealed-secret'
 import { VercelNotConfiguredError } from './scoped-config.errors'
 import { loadProjectLayer, loadUserLayer, loadWorkspaceLayer } from './scoped-config.layers'
 
@@ -18,12 +16,11 @@ type ProjectLink = { id: string; organizationId: string | null }
 
 export type ScopedConfigTarget = { userId: string; projectId: string | null }
 
+export type ThreadOwner = { userId: string; organizationId: string | null }
+
 @Injectable()
 export class ScopedConfigService {
-  constructor(
-    private readonly cipher: SecretCipherService,
-    private readonly vercel: WorkspaceVercelService,
-  ) {}
+  constructor(private readonly cipher: SecretCipherService) {}
 
   async resolveForPod(args: ScopedConfigTarget): Promise<ResolvedSandboxConfig> {
     return podFacingConfig(await this.resolveWithProvisioning(args))
@@ -50,24 +47,26 @@ export class ScopedConfigService {
     })
   }
 
-  async vercelCredentials(args: { projectId: string }): Promise<VercelProvisioningCredentials> {
-    const project = await db.orm.public.Project.select('id', 'organizationId').first({
-      id: args.projectId,
-    })
-    if (project === null) throw new NotFoundException('project not found')
-    if (project.organizationId === null) {
-      throw new VercelNotConfiguredError(EVercelCredentialGap.ProjectWorkspace)
+  async vercelCredentials(args: { thread: ThreadOwner }): Promise<VercelProvisioningCredentials> {
+    const { organizationId, userId } = args.thread
+    if (organizationId === null) return this.userCredential({ userId })
+    const row = await db.orm.public.WorkspaceVercelCredential.first({ organizationId })
+    if (row === null) throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
+    const projectId = row.vercelProjectId?.trim() ?? ''
+    if (projectId.length === 0) {
+      throw new VercelNotConfiguredError(EVercelCredentialGap.CredentialProjectId)
     }
-    const credential = await this.vercel.openToken({ organizationId: project.organizationId })
-    if (credential === null)
-      throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
-    const setting = await db.orm.public.ProjectSetting.first({
-      projectId: project.id,
-      key: VERCEL_PROJECT_ID_SETTING,
-    })
-    const projectId = setting === null ? '' : String(decodeSettingValue(setting.value)).trim()
-    if (projectId.length === 0) throw new VercelNotConfiguredError(EVercelCredentialGap.ProjectId)
-    return { token: credential.token, teamId: credential.teamId, projectId }
+    return { token: this.open(row.sealedToken), teamId: row.teamId, projectId }
+  }
+
+  private async userCredential(args: { userId: string }): Promise<VercelProvisioningCredentials> {
+    const row = await db.orm.public.UserVercelCredential.first({ userId: args.userId })
+    if (row === null) throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    return { token: this.open(row.sealedToken), teamId: row.teamId, projectId: row.vercelProjectId }
+  }
+
+  private open(sealed: string): string {
+    return openSecretValue({ cipher: this.cipher, sealed })
   }
 
   async accessibleProject(args: { userId: string; projectId: string }): Promise<ProjectLink> {

@@ -1,16 +1,22 @@
 import { z } from 'zod'
 
 import {
+  createThreadReplySchema,
+  podStatusSchema,
   sandboxProvisionPath,
   sandboxProvisionReplySchema,
   threadMessagePath,
   threadMessageReplySchema,
+  threadMessageTakeBackPath,
+  threadPodPath,
   wireEventSchema,
   wireThreadSchema,
 } from '@dltech/atlas-wire/web'
 import { projectSchema } from '@dltech/atlas-wire/web'
 
-import { cloudJson, EHttpMethod } from '@/lib/cloud-api'
+import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+
+import type { CreateThreadBody } from './create-thread'
 
 const threadPath = (threadId: string) => `/v1/threads/${encodeURIComponent(threadId)}`
 
@@ -19,24 +25,30 @@ const headSchema = z.object({ head: z.number().int() })
 export const fetchProjects = () =>
   cloudJson({ method: EHttpMethod.Get, path: '/v1/projects', schema: z.array(projectSchema) })
 
-export const createThread = (args: { projectId: string; title: string }) =>
+export const createThread = (body: CreateThreadBody) =>
   cloudJson({
     method: EHttpMethod.Post,
     path: '/v1/threads',
-    body: { projectId: args.projectId, title: args.title },
-    schema: wireThreadSchema,
+    body,
+    schema: createThreadReplySchema,
   })
 
 export const fetchThread = (threadId: string) =>
   cloudJson({ method: EHttpMethod.Get, path: threadPath(threadId), schema: wireThreadSchema })
 
-export const provisionSandbox = (args: { threadId: string; projectId?: string | undefined }) =>
+export const provisionSandbox = (args: { threadId: string }) =>
   cloudJson({
     method: EHttpMethod.Post,
     path: sandboxProvisionPath(args.threadId),
-    body: args.projectId === undefined ? {} : { projectId: args.projectId },
+    body: {},
     schema: sandboxProvisionReplySchema,
   })
+
+export const fetchPod = (threadId: string) =>
+  cloudJson({ method: EHttpMethod.Get, path: threadPodPath(threadId), schema: podStatusSchema })
+
+export const takeBackMessage = (args: { threadId: string; sendId: string }) =>
+  cloudSend({ method: EHttpMethod.Delete, path: threadMessageTakeBackPath(args) })
 
 export const postMessage = (args: { threadId: string; sendId: string; text: string }) =>
   cloudJson({

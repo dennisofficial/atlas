@@ -25,6 +25,15 @@ export type LinkedPullRequestDto = {
   branch: string
 }
 
+export type ThreadDraft = {
+  title?: string | undefined
+  workspace?: string | undefined
+  repo?: string | null | undefined
+  model?: string | undefined
+  effort?: string | undefined
+  agent?: SupervisedAgentDto | undefined
+}
+
 export type ThreadDto = {
   id: string
   title?: string | undefined
@@ -40,6 +49,7 @@ export type ThreadDto = {
   worktree?: ThreadWorktreeDto | undefined
   pullRequests?: LinkedPullRequestDto[] | undefined
   executionLocation?: string | undefined
+  projectId?: string | null | undefined
 }
 
 export type EventDto = {

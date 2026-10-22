@@ -31,6 +31,7 @@ import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
+import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
 import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
 
 @Module({
@@ -56,6 +57,7 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     SettingsModule,
     ProjectsModule,
     UserFilesModule,
+    UserVercelModule,
     McpServersModule,
     GithubModule,
     SshSigningKeyModule,

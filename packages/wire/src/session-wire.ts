@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { sandboxProvisionReplySchema } from './sandbox-self-wire'
+
 export const wireThreadSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
@@ -17,6 +19,7 @@ export const wireThreadSchema = z.object({
     .array(z.object({ number: z.number(), url: z.string(), repo: z.string(), branch: z.string() }))
     .optional(),
   executionLocation: z.string().optional(),
+  projectId: z.string().nullable().optional(),
 })
 
 export type WireThread = z.infer<typeof wireThreadSchema>
@@ -63,3 +66,9 @@ export type WireDraft = {
   contextKey?: string | undefined
   contextDigest?: string | undefined
 }
+
+export const createThreadReplySchema = z.object({
+  thread: wireThreadSchema,
+  provision: sandboxProvisionReplySchema,
+})
+export type CreateThreadReply = z.infer<typeof createThreadReplySchema>

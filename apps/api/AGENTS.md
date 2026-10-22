@@ -9,29 +9,39 @@ access tokens, never refresh tokens, from that authority. Persistent ownership s
 and outages; a stale local seed is never a fallback refresher. Model requests still go directly
 to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
 
-**The API provisions Atlas Cloud sandboxes, with the workspace's own Vercel credentials.** A web
-thread's first message calls `POST /v1/threads/:threadId/sandbox`
-(`src/api/cloud/sandbox-provisioning/`). The API resolves the thread's project, then that project's
-workspace credential (`WorkspaceVercelCredential`: token + team) and the project setting
-`sandbox.vercelProjectId` through `ScopedConfigService.vercelCredentials`. It creates the sandbox,
-launches serve under `BackgroundWork.keepAlive`, and answers `booting | running | not-configured`
-at once. A thread with no project, or a workspace or project missing a piece, gets a Provision
-error event that names where to fix it. It never falls back to another identity. Atlas Cloud's own
-Vercel account never pays for user compute: the API env `VERCEL_*` are only the legacy fallback
-that `SandboxCredentials` (`src/_core/ports/sandbox-credentials.ts`) uses to inspect and stop BYO
-rows the TUI created (rows whose thread has no project). They are never used to create a sandbox.
+**The API provisions Atlas Cloud sandboxes, with the thread owner's own Vercel credentials.** A web
+thread is created in one call: `POST /v1/threads` with a `firstMessage` writes the Thread row, its
+first `user-said` Event and the `CloudSandbox` claim in one transaction, then dispatches the
+`pod-provision` trigger.dev task (`src/api/cloud/sandbox-provisioning/`, worker in
+`src/trigger/pod-provision/`). The task re-reads the row, exits if its `wakeClaim` was superseded,
+creates the sandbox and launches serve. `POST /v1/threads/:threadId/sandbox` is Retry: claim and
+dispatch again. Without `firstMessage`, `POST /v1/threads` is unchanged for the TUI.
+
+A thread's owner is fixed at creation: `Thread.organizationId` is the project's workspace, or null
+for a personal or no-project thread. `ScopedConfigService.vercelCredentials` resolves the owner's
+credential — `WorkspaceVercelCredential` for a workspace thread, the creator's
+`UserVercelCredential` otherwise (`GET/PUT/DELETE /v1/me/vercel`) — each carrying token, team and
+Vercel project id. Nothing falls back between owners. A missing piece still creates the thread and
+its message, records a Provision error boot step and answers `not-configured` with the gap, whose
+message names the settings page to fix. Atlas Cloud's own Vercel account never pays for user
+compute: the API env `VERCEL_*` are only the legacy fallback that `SandboxCredentials`
+(`src/_core/ports/sandbox-credentials.ts`) uses to inspect and stop BYO rows the TUI created
+(threads with no project that were not born in the cloud). They are never used to create a sandbox.
 
 An API-provisioned sandbox carries **no** Vercel credentials in its environment
 (`mountWithRetries({ injectVercelCredentials: false })`), because the agent can read anything in
-the pod and the token belongs to the whole workspace. Its serve sees `ATLAS_API_PROVISIONED=1` and
-asks the API for what used to need the token: `POST /v1/sandboxes/self/ports` to publish a port,
+the pod and the token belongs to its owner. Its serve sees `ATLAS_API_PROVISIONED=1` and asks the
+API for what used to need the token: `POST /v1/sandboxes/self/ports` to publish a port,
 `POST /v1/sandboxes/self/stop` to park itself. Both take the sandbox session token. The API acts
 with the credential it resolves per thread.
 
-Boot progress is a thread event (`sandbox-boot-step`, `bootStepEventSchema` in
-`packages/wire/src/boot-progress-wire.ts`) on run `run_sandbox-boot`. The API appends Provision
-and Serve. Serve cannot report its own download, so it appends Clone, Context, Settings and Agent
-with its sandbox token.
+Boot progress lives in `SandboxBootStep`, never in the Event log. The API records Provision and
+Serve; serve posts Clone, Context, Settings and Agent to `POST /v1/sandboxes/self/boot-steps` with
+its sandbox token. The web reads `GET /v1/threads/:threadId/pod` (`{ state, steps }`). At boot,
+serve imports the Postgres events past its local head and resumes a pending `user-said`, so the
+first message is answered even if the browser closed. Messages sent while no pod runs are appended
+as Events (and start a pod); `DELETE /v1/threads/:threadId/messages/:sendId` takes back an unrun
+last message while no pod holds the thread.
 
 The TUI still provisions its own BYO sandboxes with the operator's token and registers them
 through `POST /v1/sandboxes`. That path is unchanged and frozen with the TUI. OAuth-bearing lifts
@@ -163,9 +173,10 @@ spec passes 8/8 without one, so the lazily imported externals fail as ordinary, 
 
 Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
 because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
-`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. First-message
-provisioning boots ride it, and so do wake boots. Both share `VercelSandboxWakeBoot`, which mounts,
-launches serve and rolls back a sandbox it created when the boot fails. A boot can outlive one
+`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. GitHub wake boots
+ride it; web-thread provisioning runs in the `pod-provision` trigger.dev task instead. Both share
+`VercelSandboxWakeBoot`, which mounts, launches serve and rolls back a sandbox it created when the
+boot fails. A boot can outlive one
 response: a sandbox create plus the serve download can approach the function's `maxDuration`.
 `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
 wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts

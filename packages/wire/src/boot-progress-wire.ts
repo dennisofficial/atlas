@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { EVercelCredentialGap, SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire'
+
 export enum EBootStep {
   Provision = 'provision',
   Serve = 'serve',
@@ -26,7 +28,6 @@ export const BOOT_STEP_ORDER: readonly EBootStep[] = [
 ]
 
 export const BOOT_STEP_EVENT_TYPE = 'sandbox-boot-step'
-export const BOOT_RUN_ID = 'run_sandbox-boot'
 /**
  * Set to '1' on a sandbox the API provisioned. Serve then reports boot steps and routes port
  * exposure and stop through the API, because such a sandbox carries no Vercel credentials.
@@ -36,30 +37,16 @@ export const API_PROVISIONED_ENV = 'ATLAS_API_PROVISIONED'
 export const isApiProvisioned = (env: Record<string, string | undefined>): boolean =>
   env[API_PROVISIONED_ENV] === '1'
 
+export const MAX_BOOT_STEP_TEXT = 2000
+
 export const bootStepEventSchema = z.object({
   step: z.enum(EBootStep),
   state: z.enum(EBootStepState),
-  detail: z.string().optional(),
-  error: z.string().optional(),
+  detail: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
+  error: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
+  gap: z.enum(EVercelCredentialGap).optional(),
 })
 export type BootStepEvent = z.infer<typeof bootStepEventSchema>
-
-export type BootStepDraft = { type: typeof BOOT_STEP_EVENT_TYPE; body: string }
-
-export const bootStepDraftOf = (event: BootStepEvent): BootStepDraft => ({
-  type: BOOT_STEP_EVENT_TYPE,
-  body: JSON.stringify(bootStepEventSchema.parse(event)),
-})
-
-export const bootStepOfWire = (wire: { type: string; body: string }): BootStepEvent | null => {
-  if (wire.type !== BOOT_STEP_EVENT_TYPE) return null
-  try {
-    const parsed = bootStepEventSchema.safeParse(JSON.parse(wire.body))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
-}
 
 export type BootStepStatus = Omit<BootStepEvent, 'step'>
 
@@ -125,7 +112,7 @@ export const NOOP_BOOT_REPORTER: BootReporter = {
   track: (tracked) => tracked.work(),
 }
 
-/** Serve's sink: appends to the thread's API event stream with the sandbox's own session token. */
+/** Serve's sink: posts boot steps to the API's sandbox-token endpoint, outside the event log. */
 export function serveBootReporter(args: {
   controlPlaneUrl: string
   threadId: string
@@ -134,7 +121,7 @@ export function serveBootReporter(args: {
   fetchFn: typeof fetch
   log?: ((line: string) => void) | undefined
 }): BootReporter {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}/v1/threads/${encodeURIComponent(args.threadId)}/events`
+  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}${SANDBOX_SELF_BOOT_STEPS_PATH}`
   return createBootReporter({
     log: args.log,
     sink: async (events) => {
@@ -145,9 +132,38 @@ export function serveBootReporter(args: {
           'content-type': 'application/json',
           'atlas-client-version': args.clientVersion,
         },
-        body: JSON.stringify({ runId: BOOT_RUN_ID, drafts: events.map(bootStepDraftOf) }),
+        body: JSON.stringify(bootStepsPostSchema.parse({ steps: events })),
       })
       if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
     },
   })
 }
+
+export const recordedBootStepSchema = z.object({
+  step: z.enum(EBootStep),
+  state: z.enum(EBootStepState),
+  error: z.string().optional(),
+  gap: z.enum(EVercelCredentialGap).optional(),
+  at: z.string(),
+})
+export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>
+
+export const bootStepsPostSchema = z.object({ steps: z.array(bootStepEventSchema).min(1).max(50) })
+export type BootStepsPost = z.infer<typeof bootStepsPostSchema>
+
+export enum EPodState {
+  None = 'none',
+  Booting = 'booting',
+  Running = 'running',
+  Parked = 'parked',
+  Failed = 'failed',
+}
+
+export const podStatusSchema = z.object({
+  state: z.enum(EPodState),
+  steps: z.array(recordedBootStepSchema),
+})
+export type PodStatus = z.infer<typeof podStatusSchema>
+
+export const threadPodPath = (threadId: string): string =>
+  `/v1/threads/${encodeURIComponent(threadId)}/pod`

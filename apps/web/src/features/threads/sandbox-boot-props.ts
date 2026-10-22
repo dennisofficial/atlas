@@ -1,7 +1,7 @@
 import { EBootStepState } from '@dltech/atlas-wire/web'
 import { EBootStepState as EUiBootState } from '@dltech/atlas-ui/ai/sandbox-boot'
 
-import type { BootView } from './data/transcript'
+import type { BootView } from './data/boot-view'
 
 const UI_STATE: Record<EBootStepState, EUiBootState> = {
   [EBootStepState.Pending]: EUiBootState.Pending,

@@ -1,57 +1,45 @@
-import { EThreadMessageState } from '@dltech/atlas-wire'
+import { EBootStep, EThreadMessageState } from '@dltech/atlas-wire'
+import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { applyPodEvents } from '../../platform/sandboxes/pod-events'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
-  fakeBoot,
+  bootSteps,
+  eventsOf,
+  fakeDispatcher,
+  fakeScoped,
   messagesWith,
   sandboxRows,
+  seedSandboxRow,
   seedThread,
-  serviceWith,
+  threadRow,
 } from './sandbox-provisioning.fixture'
-import { NOT_RUNNING_MESSAGE, SEND_PENDING_MESSAGE } from './thread-messages.service'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
+const _SAID = (sendId: string, text: string) =>
+  JSON.stringify({ type: 'user-said', text, requestId: sendId })
 
-type PendingSend = { sendId: string; text: string }
+const podAnswer = (seq: number) => ({
+  seq,
+  runId: 'run_pod',
+  depth: 0,
+  at: '2026-10-22T10:00:00.000Z',
+  type: 'assistant-said',
+  body: JSON.stringify({ type: 'assistant-said', parts: [] }),
+})
 
-async function seedRow(
-  partial: { wakeClaim?: Date | null; pendingSend?: PendingSend } = {},
-): Promise<void> {
-  const at = new Date()
-  await db.orm.public.CloudSandbox.create({
-    id: 'sbx-1',
-    threadId: 'thr-1',
-    userId: 'usr-1',
-    sandboxId: '',
-    name: 'atlas-thread-1',
-    region: 'iad1',
-    state: 'resuming',
-    lastActivityAt: at,
-    tokenHash: 'hash',
-    sealedToken: 'sealed',
-    wakeClaim: partial.wakeClaim === undefined ? at : partial.wakeClaim,
-    createdAt: at,
-    updatedAt: at,
-    ...(partial.pendingSend === undefined ? {} : { pendingSend: partial.pendingSend }),
-  })
-}
-
-const stored = async () => (await sandboxRows())[0]?.pendingSend
-
-const replacePending = (pendingSend: PendingSend) =>
-  db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({ pendingSend })
-
-describe('ThreadMessagesService', () => {
+describe('ThreadMessagesService.send', () => {
   useTestDatabase()
 
   beforeEach(async () => {
     await seedThread()
   })
 
-  it('delivers at once when the sandbox is running', async () => {
-    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+  it('delivers live when the sandbox is running, appending nothing', async () => {
+    const { service, serve, dispatch } = messagesWith({ endpoint: ENDPOINT })
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Delivered })
     expect(serve).toHaveBeenCalledWith({
@@ -60,6 +48,8 @@ describe('ThreadMessagesService', () => {
       sendId: 'snd-1',
       text: 'hello',
     })
+    expect(await eventsOf()).toHaveLength(0)
+    expect(dispatch).not.toHaveBeenCalled()
   })
 
   it('answers 502 when delivery to a running sandbox fails', async () => {
@@ -75,72 +65,129 @@ describe('ThreadMessagesService', () => {
     expect(serve).not.toHaveBeenCalled()
   })
 
-  it('queues and persists the send while the sandbox boots', async () => {
-    await seedRow()
-    const { service, serve } = messagesWith({})
+  it('appends a user-said event, claims and dispatches when nothing runs', async () => {
+    const { service, serve, dispatch } = messagesWith()
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
-    expect(await stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
+
+    const [event] = await eventsOf()
+    expect(event).toMatchObject({ seq: 1, type: 'user-said' })
+    expect(JSON.parse(event?.body ?? '')).toEqual({
+      type: 'user-said',
+      text: 'hello',
+      requestId: 'snd-1',
+    })
+    expect((await threadRow())?.head).toBe(1)
+    expect(await sandboxRows()).toHaveLength(1)
+    expect(dispatch).toHaveBeenCalledTimes(1)
     expect(serve).not.toHaveBeenCalled()
   })
 
-  it('accepts a repeat of the same pending sendId', async () => {
-    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
-    const { service } = messagesWith({})
+  it('does not append twice when the same sendId is retried', async () => {
+    const { service, dispatch } = messagesWith()
+
+    await service.send(ARGS)
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect((await threadRow())?.head).toBe(1)
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('appends a different send after the first and does not dispatch again while booting', async () => {
+    const { service, dispatch } = messagesWith()
+
+    await service.send(ARGS)
+    await service.send({ ...ARGS, sendId: 'snd-2', text: 'more' })
+
+    expect((await eventsOf()).map((event) => event.seq)).toEqual([1, 2])
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('appends without dispatching while a claim is already active', async () => {
+    await seedSandboxRow()
+    const { service, dispatch } = messagesWith()
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it('refuses a different send while one is pending', async () => {
-    await seedRow({ pendingSend: { sendId: 'snd-0', text: 'earlier' } })
-    const { service } = messagesWith({})
-
-    await expect(service.send(ARGS)).rejects.toThrow(SEND_PENDING_MESSAGE)
-    expect(await stored()).toEqual({ sendId: 'snd-0', text: 'earlier' })
-  })
-
-  it('refuses when no sandbox was started', async () => {
-    const { service } = messagesWith({})
-
-    await expect(service.send(ARGS)).rejects.toThrow(NOT_RUNNING_MESSAGE)
-  })
-
-  it('delivers and clears the pending send when the boot finishes', async () => {
-    const messages = messagesWith({ endpoint: ENDPOINT })
-    let release: () => void = () => undefined
-    const { boot } = fakeBoot({ held: new Promise<void>((resolve) => (release = resolve)) })
-    const service = serviceWith({ boot, messages: messages.service })
-    await service.provision({ userId: 'usr-1', threadId: 'thr-1' })
-    await replacePending({ sendId: 'snd-1', text: 'hello' })
-    release()
-    await service.settle()
-
-    expect(messages.serve).toHaveBeenCalledWith({
-      ...ENDPOINT,
-      threadId: 'thr-1',
-      sendId: 'snd-1',
-      text: 'hello',
+  it('appends without claiming while a running sandbox is still parking', async () => {
+    await seedSandboxRow({
+      state: 'running',
+      wakeClaim: null,
+      serveUrl: 'https://serve.example.test',
     })
-    expect(await stored()).toBeNull()
+    const { service, dispatch } = messagesWith()
+
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
 
-  it('leaves the pending send in place when the drain delivery fails', async () => {
-    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
-    const { service } = messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') })
-
-    await expect(service.drain({ threadId: 'thr-1' })).resolves.toBeUndefined()
-    expect(await stored()).toEqual({ sendId: 'snd-1', text: 'hello' })
-  })
-
-  it('keeps a newer pending send that replaced the one just delivered', async () => {
-    await seedRow({ pendingSend: { sendId: 'snd-1', text: 'hello' } })
-    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
-    serve.mockImplementationOnce(async () => {
-      await replacePending({ sendId: 'snd-2', text: 'newer' })
+  it('appends after the pod answer a parked pod flushed, continuing its seq', async () => {
+    const { service, dispatch } = messagesWith()
+    await service.send(ARGS)
+    await applyPodEvents({ threadId: 'thr-1', events: [podAnswer(2), podAnswer(3)] })
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+      state: 'parked',
+      wakeClaim: null,
+      wakeFailedAt: null,
     })
 
-    await service.drain({ threadId: 'thr-1' })
+    await service.send({ ...ARGS, sendId: 'snd-2', text: 'follow up' })
 
-    expect(await stored()).toEqual({ sendId: 'snd-2', text: 'newer' })
+    expect((await eventsOf()).map((event) => [event.seq, event.type])).toEqual([
+      [1, 'user-said'],
+      [2, 'assistant-said'],
+      [3, 'assistant-said'],
+      [4, 'user-said'],
+    ])
+    expect((await threadRow())?.head).toBe(4)
+    expect(dispatch).toHaveBeenCalledTimes(2)
+  })
+
+  it('re-claims a failed row for a new message', async () => {
+    await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
+    const { service, dispatch } = messagesWith()
+
+    await service.send(ARGS)
+
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect((await sandboxRows())[0]?.wakeClaim).not.toBeNull()
+  })
+
+  it('keeps the message, records a step and stays Queued on a credential gap', async () => {
+    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
+    const { service, dispatch } = messagesWith({ scoped })
+
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect(await bootSteps()).toMatchObject([
+      {
+        step: EBootStep.Provision,
+        state: 'error',
+        error: failure.message,
+        gap: EVercelCredentialGap.UserCredential,
+      },
+    ])
+    expect(await sandboxRows()).toHaveLength(0)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('keeps the message and stays Queued when dispatch throws', async () => {
+    const dispatcher = fakeDispatcher({ failWith: new Error('trigger is down') })
+    const { service } = messagesWith({ dispatcher })
+
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(await eventsOf()).toHaveLength(1)
+    expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
 })

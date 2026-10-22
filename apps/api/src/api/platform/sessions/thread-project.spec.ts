@@ -44,6 +44,11 @@ describe('thread project reachability', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
     expect(await threadProjectColumn({ userId: 'member', projectId: 'prj_workspace' })).toEqual({
       projectId: 'prj_workspace',
+      organizationId: 'org_1',
     })
+    expect(await threadProjectColumn({ userId: 'owner', projectId: 'prj_personal' })).toEqual({
+      projectId: 'prj_personal',
+    })
+    expect(await threadProjectColumn({ userId: 'owner', projectId: undefined })).toEqual({})
   })
 })

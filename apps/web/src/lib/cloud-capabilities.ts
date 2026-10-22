@@ -4,13 +4,13 @@ const wireExports = (name: string): boolean => Object.hasOwn(webWire, name)
 
 export type CloudCapabilities = {
   workspaceVercelCredential: boolean
-  projectSettings: boolean
+  userVercelCredential: boolean
   projectWorkspace: boolean
 }
 
 export const CLOUD_CAPABILITIES: CloudCapabilities = {
   workspaceVercelCredential: wireExports('workspaceVercelCredentialSchema'),
-  projectSettings: wireExports('PROJECT_SETTING_REGISTRY'),
+  userVercelCredential: wireExports('userVercelCredentialSchema'),
   projectWorkspace: Object.hasOwn(webWire.projectSchema.shape, 'organizationId'),
 }
 

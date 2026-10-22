@@ -30,15 +30,7 @@ export const WORKSPACE_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> 
   }),
 ])
 
-export const VERCEL_PROJECT_ID_SETTING = 'sandbox.vercelProjectId'
-
 export const PROJECT_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> = new Map([
-  settingEntry({
-    key: VERCEL_PROJECT_ID_SETTING,
-    schema: z.string().trim().max(500),
-    fallback: '',
-    consumer: ESettingConsumer.Api,
-  }),
   ...HARNESS_SETTING_ENTRIES,
 ])
 

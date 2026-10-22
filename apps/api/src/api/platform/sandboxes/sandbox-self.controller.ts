@@ -1,4 +1,11 @@
-import { sandboxExposePortRequestSchema, sandboxSelfStopRequestSchema } from '@dltech/atlas-wire'
+import {
+  bootStepsPostSchema,
+  podEventsPostSchema,
+  podEventsTruncateSchema,
+  type PodEventsReply,
+  sandboxExposePortRequestSchema,
+  sandboxSelfStopRequestSchema,
+} from '@dltech/atlas-wire'
 import type { SandboxExposePortReply } from '@dltech/atlas-wire'
 import {
   BadRequestException,
@@ -14,6 +21,8 @@ import {
 import { db } from '@dltech/atlas-db'
 import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
 import { SandboxTokenGuard } from './sandbox-token.guard'
+import { recordBootSteps } from './sandbox-boot-steps'
+import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 type SandboxIdentity = { threadId: string; name: string }
@@ -45,6 +54,45 @@ export class SandboxSelfController {
     if (!parsed.success) throw new BadRequestException(parsed.error.message)
     const sandbox = await this.identityOf(request)
     await this.vercel.stopSession({ ...sandbox, sessionId: parsed.data.sessionId })
+  }
+
+  @Post('boot-steps')
+  @HttpCode(204)
+  async handleBootSteps(
+    @Req() request: SandboxAuthenticatedRequest,
+    @Body() body: unknown,
+  ): Promise<void> {
+    const parsed = bootStepsPostSchema.safeParse(body)
+    if (!parsed.success) throw new BadRequestException(parsed.error.message)
+    if (request.sandbox === undefined)
+      throw new UnauthorizedException('a sandbox session token is required')
+    await recordBootSteps({ threadId: request.sandbox.threadId, steps: parsed.data.steps })
+  }
+
+  @Post('events')
+  async handleEvents(
+    @Req() request: SandboxAuthenticatedRequest,
+    @Body() body: unknown,
+  ): Promise<PodEventsReply> {
+    const parsed = podEventsPostSchema.safeParse(body)
+    if (!parsed.success) throw new BadRequestException(parsed.error.message)
+    return applyPodEvents({ threadId: this.threadOf(request), events: parsed.data.events })
+  }
+
+  @Post('events/truncate')
+  async handleEventsTruncate(
+    @Req() request: SandboxAuthenticatedRequest,
+    @Body() body: unknown,
+  ): Promise<PodEventsReply> {
+    const parsed = podEventsTruncateSchema.safeParse(body)
+    if (!parsed.success) throw new BadRequestException(parsed.error.message)
+    return truncatePodEvents({ threadId: this.threadOf(request), toSeq: parsed.data.toSeq })
+  }
+
+  private threadOf(request: SandboxAuthenticatedRequest): string {
+    if (request.sandbox === undefined)
+      throw new UnauthorizedException('a sandbox session token is required')
+    return request.sandbox.threadId
   }
 
   private async identityOf(request: SandboxAuthenticatedRequest): Promise<SandboxIdentity> {

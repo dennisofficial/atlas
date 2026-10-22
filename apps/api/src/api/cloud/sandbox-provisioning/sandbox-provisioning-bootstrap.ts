@@ -5,7 +5,7 @@ const BOOTSTRAP_DIRECTORY = `${SANDBOX_HOME_PATH}/bootstrap`
 export const WORKSPACE_SPEC_PATH = `${BOOTSTRAP_DIRECTORY}/workspace-spec.json`
 
 export function workspaceSpecWriter(args: {
-  projectId: string
+  projectId: string | null
   model: string | null
 }): (sandbox: Sandbox) => Promise<void> {
   const content = JSON.stringify({

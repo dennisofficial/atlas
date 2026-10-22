@@ -72,8 +72,6 @@ export interface SandboxSize {
   unavailableReason?: string
 }
 
-export const VERCEL_PROJECT_ID = 'prj_8Qm2ZkT4vLx9'
-
 export const SANDBOX_SIZES: readonly SandboxSize[] = [
   { id: 's1.small', vcpus: 1, memoryGb: 2, diskGb: 16, pricePerHour: '$0.06' },
   { id: 's1.medium', vcpus: 2, memoryGb: 4, diskGb: 32, pricePerHour: '$0.12' },

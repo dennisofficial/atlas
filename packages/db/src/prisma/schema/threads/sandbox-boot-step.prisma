@@ -1,0 +1,13 @@
+// use prisma-8
+model SandboxBootStep {
+  id       String               @id @onCreate(cuid(2))
+  threadId String
+  step     String
+  state    String
+  error    String?
+  gap      String?
+  at       TimestamptzJsDate(3) @default(now())
+  thread   Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_threadId_at_idx")
+
+  @@index([threadId, at], map: "SandboxBootStep_threadId_at_idx")
+}
