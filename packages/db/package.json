@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "contract:emit": "prisma contract emit",
     "db:plan": "prisma migration plan",
-    "db:migrate": "prisma db migrate --advance-ref db",
+    "db:migrate": "prisma db migrate --to db",
     "db:verify": "prisma db verify",
     "db:seed": "bun src/seed/cli.ts",
     "db:test:up": "docker compose up -d --wait test-postgres",
