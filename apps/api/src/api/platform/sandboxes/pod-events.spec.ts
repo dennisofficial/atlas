@@ -80,7 +80,7 @@ describe('applyPodEvents', () => {
     const failure = await conflictOf(
       applyPodEvents({
         threadId: 'thr-1',
-        events: [eventAt(2), eventAt(1, { body: '{"type":"other"}' })],
+        events: [eventAt(1, { body: '{"type":"other"}' }), eventAt(2)],
       }),
     )
 
@@ -90,15 +90,66 @@ describe('applyPodEvents', () => {
     expect(await head()).toBe(1)
   })
 
-  it('answers 409 for a gap past head+1, writing nothing', async () => {
+  it('accepts a gapped batch and sets the head to its highest seq', async () => {
+    const reply = await applyPodEvents({
+      threadId: 'thr-1',
+      events: [eventAt(2), eventAt(4), eventAt(9)],
+    })
+
+    expect(reply).toEqual({ head: 9 })
+    expect(await head()).toBe(9)
+    expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 4, 9])
+  })
+
+  it('accepts a batch that skips ahead of the head', async () => {
+    await seedEventRow({ threadId: 'thr-1', seq: 2 })
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ head: 2 })
+
+    const reply = await applyPodEvents({ threadId: 'thr-1', events: [eventAt(5), eventAt(6)] })
+
+    expect(reply).toEqual({ head: 6 })
+    expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 5, 6])
+  })
+
+  it('answers 409 for a batch that goes backwards or repeats a seq, writing nothing', async () => {
+    const backwards = await conflictOf(
+      applyPodEvents({ threadId: 'thr-1', events: [eventAt(4), eventAt(3)] }),
+    )
+    const repeated = await conflictOf(
+      applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(2)] }),
+    )
+
+    expect(backwards?.status).toBe(409)
+    expect(backwards?.response).toMatchObject({ code: POD_EVENT_CONFLICT_CODE, seq: 3 })
+    expect(repeated?.status).toBe(409)
+    expect(repeated?.response).toMatchObject({ code: POD_EVENT_CONFLICT_CODE, seq: 2 })
+    expect(await eventsOf('thr-1')).toHaveLength(1)
+    expect(await head()).toBe(1)
+  })
+
+  it('answers 409 for a fresh seq in a hole below the head, writing nothing', async () => {
+    await seedEventRow({ threadId: 'thr-1', seq: 5 })
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ head: 5 })
+
     const failure = await conflictOf(
-      applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(4)] }),
+      applyPodEvents({ threadId: 'thr-1', events: [eventAt(3), eventAt(6)] }),
     )
 
     expect(failure?.status).toBe(409)
-    expect(failure?.response).toMatchObject({ code: POD_EVENT_CONFLICT_CODE, seq: 4 })
-    expect(await eventsOf('thr-1')).toHaveLength(1)
-    expect(await head()).toBe(1)
+    expect(failure?.response).toMatchObject({ code: POD_EVENT_CONFLICT_CODE, seq: 3 })
+    expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 5])
+    expect(await head()).toBe(5)
+  })
+
+  it('accepts a gapped tail re-flushed after a truncate', async () => {
+    await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(3), eventAt(4)] })
+
+    expect(await truncatePodEvents({ threadId: 'thr-1', toSeq: 3 })).toEqual({ head: 3 })
+    const reply = await applyPodEvents({ threadId: 'thr-1', events: [eventAt(5), eventAt(7)] })
+
+    expect(reply).toEqual({ head: 7 })
+    expect(await head()).toBe(7)
+    expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 3, 5, 7])
   })
 
   it('never lowers the head', async () => {
