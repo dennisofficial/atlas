@@ -29,6 +29,7 @@ import {
   standingStateOf,
   type RowClaim,
 } from './sandbox-provisioning-rows'
+import { ThreadMessagesService } from './thread-messages.service'
 
 export const NO_PROJECT_MESSAGE =
   'This thread has no project. Pick a project before sending your first message.'
@@ -54,6 +55,7 @@ export class SandboxProvisioningService {
     private readonly cipher: SecretCipherService,
     @Inject(SANDBOX_WAKE_BOOT) private readonly bootAdapter: SandboxWakeBoot,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
+    private readonly messages: ThreadMessagesService,
   ) {}
 
   async settle(): Promise<void> {
@@ -69,6 +71,9 @@ export class SandboxProvisioningService {
     const reporter = this.reporterOf(thread)
     const projectId = await this.resolveProject({ thread, requested: args.projectId })
     if (projectId === undefined) return this.notConfigured({ reporter, error: NO_PROJECT_MESSAGE })
+    if (thread.executionLocation === null) {
+      await db.thread.update({ where: { id: thread.id }, data: { executionLocation: 'cloud' } })
+    }
 
     const existing = await db.cloudSandbox.findUnique({ where: { threadId: thread.id } })
     const standing = existing === null ? undefined : standingStateOf(existing)
@@ -160,6 +165,7 @@ export class SandboxProvisioningService {
         prepare: workspaceSpecWriter({ projectId: target.projectId, model: thread.modelRef }),
       })
       await markRunning({ threadId: thread.id, serveUrl })
+      await this.messages.drain({ threadId: thread.id })
       this.logger.log(`provisioned sandbox ${claim.name} for thread ${thread.id} — serve at ${serveUrl}`)
     } catch (failure) {
       this.logger.warn(`provisioning sandbox ${claim.name} for thread ${thread.id} failed: ${failureText(failure)}`)
