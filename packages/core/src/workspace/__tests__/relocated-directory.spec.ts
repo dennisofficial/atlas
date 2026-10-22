@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, toEventId, toRunId, toThreadId } from '../../index'
 import { homeDirectoryAfter, projectDirectoryOf } from '../worktree'

@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["bun", "node"]
   },
-  "include": ["src", "code-quality", "__fixtures__"],
+  "include": ["src", "code-quality", "__fixtures__", "../vitest-setup/matchers.d.ts"],
   "exclude": ["node_modules", ".work", "dist", "datasets"]
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { Chunk, ModelPort, ModelStepResult } from '@dltech/atlas-core'
 import { EFinishReason, toThreadId } from '@dltech/atlas-core'

@@ -3,7 +3,7 @@ import { ValidationPipe } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, mock, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
@@ -13,7 +13,7 @@ import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 
-vi.mock('../src/db', () => ({ db: {} }))
+mock.module('../src/db', () => ({ db: {} }))
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const USER_SESSION = 'user-session-token'

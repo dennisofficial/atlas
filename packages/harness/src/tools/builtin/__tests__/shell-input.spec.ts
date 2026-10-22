@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 
 import { ShellInputTool } from '../shell-input'

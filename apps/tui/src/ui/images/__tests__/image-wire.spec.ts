@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'bun:test'
 import { inflateSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 

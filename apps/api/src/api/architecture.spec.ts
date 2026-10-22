@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 type Layer = 'platform' | 'cloud'
 
@@ -16,7 +16,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 // decision (2026-09-25) put the websocket channel contract and the REST wire schemas there so
 // every consumer shares it instead of hand-restating the protocol. Any other @dltech/* import
 // still fails.
-const ALLOWED_EXTERNAL = /^@dltech\/atlas-wire(?:\/|$)/
+const ALLOWED_EXTERNAL = /^@dltech\/(?:atlas-wire|bun-test-shims)(?:\/|$)/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)

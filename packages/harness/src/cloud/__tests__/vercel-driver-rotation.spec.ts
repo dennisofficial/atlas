@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire'
 import { VercelDriver } from '../vercel-driver'

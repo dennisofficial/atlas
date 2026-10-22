@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import type { ThreadId } from '@dltech/atlas-core'
 import { ECloudSandboxState, RemoteThreadStore } from '@dltech/atlas-harness'

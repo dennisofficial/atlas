@@ -1,5 +1,5 @@
 import { ERuntimePhase } from '@dltech/atlas-wire'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   sandboxStateOf,

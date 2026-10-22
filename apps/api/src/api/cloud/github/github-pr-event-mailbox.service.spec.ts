@@ -1,11 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { waitFor } from '../../../../test/fake-timers'
+import { vi } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -50,7 +48,7 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Comment,
       payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
     })
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(fake.prEvents.every((row) => row.deliveredAt !== null)).toBe(true)
     })
 
@@ -75,7 +73,7 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Verdict,
       payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc' },
     })
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(fake.prEvents.find((row) => row.userId === 'usr-a')?.deliveredAt).not.toBeNull()
     })
 

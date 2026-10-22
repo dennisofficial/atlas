@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { StdioTransport } from '../transport/stdio'
 import type { ServerTransport } from '../transport/transport'

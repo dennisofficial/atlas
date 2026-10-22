@@ -1,5 +1,5 @@
 import { parseColor, TextAttributes, type TextChunk } from '@opentui/core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { chunksFor, dimChunks, emphasiseChunks, emphasisBg } from '../chunk-styling'
 

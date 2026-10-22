@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   toEventId,
   toRunId,
@@ -266,7 +266,7 @@ describe('driveThreadViewExternally', () => {
       viewRefresh,
     })
 
-    await vi.advanceTimersByTimeAsync(4000)
+    vi.advanceTimersByTime(4000)
     await flush()
     expect(applied.map((event) => event.seq)).toEqual([1])
 
@@ -275,12 +275,12 @@ describe('driveThreadViewExternally', () => {
       eventOf({ threadId: CHILD, seq: 2, text: 'second' }),
     ])
     control.state.current = PARKED
-    await vi.advanceTimersByTimeAsync(8000)
+    vi.advanceTimersByTime(8000)
     await flush()
     expect(applied.map((event) => event.seq)).toEqual([1])
 
     control.state.current = OPEN
-    await vi.advanceTimersByTimeAsync(4000)
+    vi.advanceTimersByTime(4000)
     await flush()
     expect(applied.map((event) => event.seq)).toEqual([1, 2])
     dispose?.()

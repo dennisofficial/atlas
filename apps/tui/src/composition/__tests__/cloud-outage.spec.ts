@@ -1,5 +1,5 @@
 import { CloudError } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { cloudOutageMessage, isCloudOutage } from '@dltech/atlas-harness'
 import { diagnoseCredentialFailure } from '../credential-diagnosis'

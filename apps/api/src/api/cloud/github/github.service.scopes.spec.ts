@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -20,7 +21,7 @@ interface GithubConnectionRow {
   userId: string
 }
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const connections: GithubConnectionRow[] = []
 
   const db = {
@@ -47,7 +48,7 @@ const fake = vi.hoisted(() => {
   return { db, connections }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 

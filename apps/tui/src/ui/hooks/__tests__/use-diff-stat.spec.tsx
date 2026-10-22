@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React, { act, useState } from 'react'
 
 import type { DiffStat } from '../../header-bar'

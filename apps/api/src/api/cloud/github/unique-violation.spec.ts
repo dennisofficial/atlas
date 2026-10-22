@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { Prisma } from '../../../generated/prisma/client'
 import { inconsistentStore, isUniqueViolation } from './unique-violation'
 

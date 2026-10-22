@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EFileLoad, FileBrowser, MAX_MENTION_BYTES, resolveMentionPath } from '../file-browser'
 

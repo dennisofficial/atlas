@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EConnectionView } from '../connection-view'
 
 import { toRunId } from '@dltech/atlas-core'

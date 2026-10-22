@@ -1,6 +1,6 @@
 import { ECompactionAnchor, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnSpend } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { durableEntries } from '../durable-entries'
 import { EEntryKind } from '../transcript-model'

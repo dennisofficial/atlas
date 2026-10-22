@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { MENTION_FILES_CONNECTING, UnavailableMentionFiles } from '../unavailable-mention-files'
 

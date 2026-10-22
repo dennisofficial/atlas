@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { ECompactionRefusal } from '../compaction-target'
 import { suffixCompactionTarget } from '../suffix-target'

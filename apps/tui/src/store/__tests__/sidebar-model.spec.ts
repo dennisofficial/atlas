@@ -13,7 +13,7 @@ import {
   NOTHING_SPENT,
   type TurnSpend,
 } from "@dltech/atlas-harness";
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { IDLE_TURN } from "../../ui/turn-clock";
 import { ESidebarPlace } from "../../ui/sidebar-section";

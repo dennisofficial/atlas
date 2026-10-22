@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { ESshSigningKeyState } from '@dltech/atlas-wire'
 
 import { CloudError } from '../cloud-transport'

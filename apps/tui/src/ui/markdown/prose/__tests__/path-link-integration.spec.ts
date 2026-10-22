@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { createPathResolver } from '@dltech/atlas-harness'
 
 import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'

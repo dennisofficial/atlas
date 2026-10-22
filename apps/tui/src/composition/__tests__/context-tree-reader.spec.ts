@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import type { DirectoryEntry } from '@dltech/atlas-core'
 import { readContextTree, sameContextTreeLevels } from '../context-tree-reader'
 import type { ContextTreeLevels } from '../../ui/context-tree-model'

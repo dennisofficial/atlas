@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import type { LanguageModelUsage, TextStreamPart, ToolSet } from 'ai'
 
 import { EFinishReason } from '@dltech/atlas-core'

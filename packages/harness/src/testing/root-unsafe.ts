@@ -1,4 +1,4 @@
-import { it } from 'vitest'
+import { it } from 'bun:test'
 
 export const runningAsRoot = (): boolean =>
   typeof process.geteuid === 'function' && process.geteuid() === 0

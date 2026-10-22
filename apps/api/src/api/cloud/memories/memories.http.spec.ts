@@ -2,16 +2,13 @@ import type { INestApplication } from '@nestjs/common'
 import { Controller, Get, UnauthorizedException, UseGuards, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { MEMORY_STALE_REVISION_CODE } from '@dltech/atlas-wire'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { sharedMemoryDb } = await import('./memories.fake-db')
-  return { db: sharedMemoryDb.db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'

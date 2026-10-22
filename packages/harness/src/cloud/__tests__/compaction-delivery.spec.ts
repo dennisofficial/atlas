@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EClientFrame, EClientRequest, EServeFrame } from '../channel-wire'
 import { RemoteRequestLost } from '../remote-channel-upstream'

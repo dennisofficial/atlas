@@ -1,7 +1,7 @@
 import type { ExecutionContext } from '@nestjs/common'
 import { HttpException, InternalServerErrorException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { MIN_CLIENT_VERSION_KEY } from '../../_core/decorators/min-client-version.decorator'
 import { ClientVersionGuard } from './client-version.guard'
 

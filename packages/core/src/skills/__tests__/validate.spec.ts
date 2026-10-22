@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { parseYaml } from '../../yaml/parse'
 import { skillFrontmatterOf } from '../parse'

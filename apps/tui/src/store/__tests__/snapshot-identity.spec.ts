@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 

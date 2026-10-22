@@ -1,5 +1,5 @@
 import type { SaidImage } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { saidImageText } from '../said-images'
 

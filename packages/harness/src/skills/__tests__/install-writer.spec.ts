@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { FilesystemSkillSource } from '../filesystem-source'
 import { ESkillInstallLayer, writeSkill } from '../install-writer'

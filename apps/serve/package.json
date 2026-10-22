@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun --bun vitest run",
+    "test": "bun test",
     "build:serve": "bun scripts/build-serve.ts"
   },
   "dependencies": {
@@ -16,8 +16,6 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@vscode/ripgrep": "^1.18.0",
-    "vitest": "4.0.1",
-    "@dltech/vitest-incremental": "workspace:*"
+    "@vscode/ripgrep": "^1.18.0"
   }
 }

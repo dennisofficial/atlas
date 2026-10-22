@@ -3,7 +3,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { PrismaClient } from '../../../generated/prisma/client'
@@ -29,7 +30,7 @@ interface GithubConnectionRow {
   userId: string
 }
 
-const fake = vi.hoisted(() => {
+const fake = hoisted(() => {
   const connections: GithubConnectionRow[] = []
 
   const db = {
@@ -62,7 +63,7 @@ const fake = vi.hoisted(() => {
   return { db, connections }
 })
 
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -154,7 +155,7 @@ describe('GithubService', () => {
   ])('poll maps the %s error to %s', async (error, status) => {
     fetchImpl = async () => jsonResponse({ error })
 
-    await expect(
+    await expect<unknown>(
       service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' }),
     ).resolves.toEqual({ status })
     expect(fake.connections).toHaveLength(0)

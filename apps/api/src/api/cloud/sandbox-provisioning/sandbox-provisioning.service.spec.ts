@@ -1,12 +1,9 @@
 import { API_PROVISIONED_ENV, BOOT_RUN_ID, ESandboxProvisionState, SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock, vi } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { provisioningFakeDb } = await import('../../../../test/sandbox-provisioning-fake-db.js')
-  return { db: provisioningFakeDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: provisioningFakeDb().db as unknown as PrismaClient }))
 
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
@@ -19,6 +16,7 @@ import {
   serviceWith,
 } from './sandbox-provisioning.fixture'
 import { NO_PROJECT_MESSAGE } from './sandbox-provisioning.service'
+import { provisioningFakeDb } from '../../../../test/sandbox-provisioning-fake-db.js'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1' } as const
 
@@ -78,7 +76,7 @@ describe('SandboxProvisioningService', () => {
 
     expect(reply).toEqual({ state: ESandboxProvisionState.NotConfigured, error: failure.message })
     expect(failure.message).toContain('Workspace → Secrets')
-    expect(bootStepEvents()).toEqual([
+    expect<unknown>(bootStepEvents()).toEqual([
       { runId: BOOT_RUN_ID, step: 'provision', state: 'error', error: failure.message },
     ])
     expect(fake.sandboxes).toHaveLength(0)

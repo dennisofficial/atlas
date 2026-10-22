@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { assemble } from '../../assembly/assemble'
 import { compactedHistory } from '../../assembly/rules/compacted-history'

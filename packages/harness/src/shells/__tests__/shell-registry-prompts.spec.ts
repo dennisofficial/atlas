@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EShellStatus } from '../background-shell'
 import { PROMPT_SETTLE_MS } from '../shell-registry'

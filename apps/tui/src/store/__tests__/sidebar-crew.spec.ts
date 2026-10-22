@@ -1,6 +1,6 @@
 import { EAgentStatus, EShellStatus, toThreadId, type ProviderIdentity } from '@dltech/atlas-core'
 import { toShellId, type AgentSnapshot, type ShellSnapshot } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { crewTiersOf, deriveSidebar, withCrew } from '../sidebar-model'
 import {

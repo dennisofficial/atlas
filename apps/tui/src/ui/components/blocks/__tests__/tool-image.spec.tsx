@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

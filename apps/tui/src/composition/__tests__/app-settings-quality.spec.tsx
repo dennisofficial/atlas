@@ -1,5 +1,5 @@
 import { ESettingId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { appWith, landed, onSettings, valueOf } from './app-settings-fixture'
 

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it } from 'bun:test'
 
 import { DockerEngine } from '../engine'
 import { tarEntries } from '../../image/tar'

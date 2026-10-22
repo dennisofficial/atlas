@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { dockerUnavailableReason, LIVE_DOCKER_ENV } from './live-docker'
 

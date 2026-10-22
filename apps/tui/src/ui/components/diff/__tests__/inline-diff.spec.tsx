@@ -1,7 +1,7 @@
 import { EDiffLine, type DiffFile } from '@dltech/atlas-core'
 import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { RAIL_TAIL } from '../../../borders'

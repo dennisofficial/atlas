@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 
 import { EConnectionView } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { cloudConnectionItemOf } from '../cloud-connection-item'

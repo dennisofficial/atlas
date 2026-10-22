@@ -1,6 +1,6 @@
 import { EGrantScope, ERiskDimension, type Grant } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { IDLE_SIDEBAR, type SidebarModel } from '../../store/sidebar-model'

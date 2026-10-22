@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { COST_DANGER_USD, COST_WARN_USD, costTone } from "../sidebar-spend";
 import { theme } from "../../ui/theme";

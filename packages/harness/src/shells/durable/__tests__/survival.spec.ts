@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'bun:test'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 

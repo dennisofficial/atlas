@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot } from '@opentui/react'
 import React, { act } from 'react'

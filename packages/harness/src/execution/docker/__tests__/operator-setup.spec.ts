@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { prepareContainerForOperator } from '../operator-setup'
 import { FAKE_CONFIG, fakeEngine } from './fake-engine'

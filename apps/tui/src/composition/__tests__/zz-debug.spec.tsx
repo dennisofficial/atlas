@@ -1,6 +1,6 @@
 import { toThreadId } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import { it } from 'vitest'
+import { it } from 'bun:test'
 import React from 'react'
 
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'

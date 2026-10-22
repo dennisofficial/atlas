@@ -1,7 +1,7 @@
 import type { ExecutionContext } from '@nestjs/common'
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 import type { Reflector } from '@nestjs/core'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import { POD_REACHABLE_KEY } from '../../../_core/decorators/pod-reachable.decorator'
 import { SANDBOX_REACHABLE_KEY } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { SessionVerifier } from '../../../_core/ports/session-verifier'
