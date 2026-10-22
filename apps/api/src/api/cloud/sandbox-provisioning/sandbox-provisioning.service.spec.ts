@@ -65,6 +65,30 @@ describe('SandboxProvisioningService', () => {
     expect(calls).toHaveLength(1)
   })
 
+  it('re-boots a sandbox whose serve has mirrored a parked record', async () => {
+    seedThread()
+    const { boot, calls } = fakeBoot()
+    const service = serviceWith({ boot })
+    await service.provision(ARGS)
+    await service.settle()
+    Object.assign(row(), {
+      runtimeCheckpoint: {
+        phase: 'parked',
+        revision: 1,
+        threadId: 'thr-1',
+        runtimeId: 'rt-1',
+        sandboxSessionId: 'sbx-session-1',
+        reportedAt: new Date(Date.now() + 1_000).toISOString(),
+        transcript: { head: 4, count: 4, digest: 'a'.repeat(64) },
+      },
+      runtimeCheckpointRevision: 1,
+    })
+
+    expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Booting })
+    await service.settle()
+    expect(calls).toHaveLength(2)
+  })
+
   it('answers Booting while a recent claim is in flight', async () => {
     seedThread()
     const { boot, calls } = fakeBoot({ held: new Promise<void>(() => undefined) })
