@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { mixHex } from '../colour'
 import type { Span } from '../components/spans'

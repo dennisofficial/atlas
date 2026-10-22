@@ -1,6 +1,6 @@
 import { EServiceStatus } from '@dltech/atlas-core'
 import type { ServiceSnapshot } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   moveServiceSelection,

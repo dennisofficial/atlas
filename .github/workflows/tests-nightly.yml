@@ -1,7 +1,8 @@
 # Nightly guard for the incremental test cache (see the `test` job in ci.yml). It first plans what
-# main's cache would skip, then runs every file (VITEST_INCREMENTAL=force, which also refreshes main's
-# cache), and fails only when a file the cache would have skipped fails in the full run — the cache
-# hiding a failure. Ordinary failures already fail the push and PR runs.
+# main's cache would skip (BUN_TEST_INCREMENTAL=plan), then runs every spec (BUN_TEST_INCREMENTAL=force,
+# which also refreshes main's cache) and fails only when a spec the cache would have skipped fails in the
+# full run — the cache hiding a failure. Never pass `--changed` here: the nightly is the whole-suite
+# backstop, so no git-diff pre-filter may narrow it. Ordinary failures already fail the push and PR runs.
 name: tests-nightly
 
 on:
@@ -45,29 +46,27 @@ jobs:
             incremental-tests-${{ github.ref }}-
 
       - name: plan what the cache would skip
-        run: |
-          VITEST_INCREMENTAL=plan VITEST_INCREMENTAL_SUMMARY="$RUNNER_TEMP/plan-bun.json" bun --bun vitest run
-          (cd apps/api && bun run db:generate && VITEST_INCREMENTAL=plan VITEST_INCREMENTAL_SUMMARY="$RUNNER_TEMP/plan-api.json" npx vitest run)
+        env:
+          BUN_TEST_INCREMENTAL: plan
+          BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/plan
+        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' test
 
       - name: run everything
         continue-on-error: true
         env:
-          VITEST_INCREMENTAL: force
-        run: |
-          status=0
-          VITEST_INCREMENTAL_SUMMARY="$RUNNER_TEMP/full-bun.json" bun --bun vitest run || status=1
-          (cd apps/api && VITEST_INCREMENTAL_SUMMARY="$RUNNER_TEMP/full-api.json" npx vitest run) || status=1
-          exit $status
+          BUN_TEST_INCREMENTAL: force
+          BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/full
+        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' test
 
       - name: check the cache hid no failure
         if: always()
         run: |
           flat() { jq -s '[.[] | if type == "array" then .[] else . end]' "$@"; }
-          for f in plan-bun plan-api full-bun full-api; do
-            [ -f "$RUNNER_TEMP/$f.json" ] || { echo "::error::nightly check incomplete: $f.json missing"; exit 1; }
+          for d in plan full; do
+            ls "$RUNNER_TEMP/$d"/*.json >/dev/null 2>&1 || { echo "::error::nightly check incomplete: no $d summaries"; exit 1; }
           done
-          plan=$(flat "$RUNNER_TEMP"/plan-*.json)
-          missed=$(flat "$RUNNER_TEMP"/full-*.json | jq -r --argjson plan "$plan" \
+          plan=$(flat "$RUNNER_TEMP"/plan/*.json)
+          missed=$(flat "$RUNNER_TEMP"/full/*.json | jq -r --argjson plan "$plan" \
             '[.[].failedFiles[] | sub(" \\(.*\\)$"; "")] - [$plan[].executedFiles[]] | .[]')
           if [ -n "$missed" ]; then
             {
@@ -82,7 +81,7 @@ jobs:
 
       - name: report
         if: always()
-        run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/full-*.json
+        run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/full/*.json
 
       - name: save incremental test cache
         if: always() && steps.restore.outcome == 'success'

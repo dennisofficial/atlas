@@ -1,5 +1,5 @@
 import type { DirectoryEntry } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import {
   completedMention,

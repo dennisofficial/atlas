@@ -1,5 +1,5 @@
 import { EQualityHealthStatus, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { EQualityHealthReadKind } from '../use-quality-health'

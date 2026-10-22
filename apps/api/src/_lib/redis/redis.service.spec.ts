@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
 import { RedisService } from './redis.service'
 

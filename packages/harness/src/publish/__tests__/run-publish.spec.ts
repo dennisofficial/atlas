@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { PublishedBundleClient } from '../../cloud/published-bundle-client'
 import { publishBundle, EPublishStage } from '../run-publish'

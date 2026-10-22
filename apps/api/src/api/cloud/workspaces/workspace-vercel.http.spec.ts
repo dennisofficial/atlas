@@ -1,10 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 
-vi.mock('../../../db', async () => {
-  const { sharedWebSettingsDb } = await import('../web-settings.fake-db')
-  return { db: sharedWebSettingsDb.db }
-})
+mock.module('../../../db', () => ({ db: fake.db }))
 
 import request from 'supertest'
 import { as, buildSessionApp } from '../session-test-app'

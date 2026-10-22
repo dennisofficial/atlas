@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { VercelDriver } from '../vercel-driver'
 import { ESettleWait, type SettleWaitNotice, EVercelFailure, VercelFailure } from '@dltech/atlas-wire'

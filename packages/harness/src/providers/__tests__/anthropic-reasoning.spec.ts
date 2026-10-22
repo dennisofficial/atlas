@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+import { afterEach, describe, expect, it, type Mock, vi } from 'bun:test'
 
 import type { LanguageModelV4Prompt } from '@ai-sdk/provider'
 
@@ -75,7 +75,7 @@ const thinkingBlocks = (recorder: RecordingFetch, index: number): AnthropicBlock
 
 describe('anthropic history reasoning compatibility', () => {
   const warnings: string[] = []
-  let warnSpy: MockInstance<typeof console.warn>
+  let warnSpy: Mock<typeof console.warn>
 
   afterEach(() => {
     warnSpy?.mockRestore()

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { ESettingId } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { accentHex } from '../../ui/accents'
 import { appearanceOf, applyAppearance } from '../../ui/appearance'

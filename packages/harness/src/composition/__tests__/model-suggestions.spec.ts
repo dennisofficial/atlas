@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { agentTypeSettingId, ATLAS_SETTINGS, ESettingId, refKey } from '@dltech/atlas-core'
 

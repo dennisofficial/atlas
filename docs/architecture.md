@@ -1642,7 +1642,7 @@ atlas/
 `deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
 
 `api` runs on Bun like every other member, as ESM with no build step (`bun src/main.ts`, Nest 12),
-and tests with vitest + unplugin-swc, whose transform emits the decorator metadata. It also performs no model calls —
+and tests with `bun test`. It also performs no model calls —
 it holds users, organizations, and sealed credentials, and clients (the TUI first) fetch from it
 over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 
@@ -1751,8 +1751,8 @@ Max 300 lines per file. Tests in a sibling `__tests__/` as `*.spec.ts`.
 | Hook discovery | Glob at dev time, generated manifest for `--compile` |
 | Format evolution | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
 | Packages | `core`, `harness`, `apps/tui` — raw TS source, no build step |
-| Runtime | Bun — runtime and package manager; tests run Vitest on the Bun runtime (`bun --bun vitest`) |
-| Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `vitest` |
+| Runtime | Bun — runtime and package manager; tests run `bun test` (`evals` stays on Vitest, as evalite is a vitest harness) |
+| Task runner | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test` |
 | Fenced-code highlighting | **Two tiers.** tree-sitter wasm where a small maintainer build exists; a declarative lexer for the long tail |
 
 **`core` owns its own message type.** `Assembled` cannot hold `ModelMessage` without `core` depending

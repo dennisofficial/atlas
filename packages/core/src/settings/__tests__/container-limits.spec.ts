@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { definitionsOfPage, ESettingPage, type RangeDefinition } from '../definition'
 import { ESettingsLayer } from '../layers'

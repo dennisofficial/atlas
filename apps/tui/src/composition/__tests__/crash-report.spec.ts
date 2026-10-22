@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { annotateCrashStack, codeFrame, isOwnFrame, parseCrashFrame } from '../crash-report'
 

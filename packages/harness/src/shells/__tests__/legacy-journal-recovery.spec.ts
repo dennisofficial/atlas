@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EventLogPort, lostShellsOf, stampDrafts, toEventId, toRunId, toThreadId, type Event, type EventDraft, type RunId, type ThreadId } from '@dltech/atlas-core'
 
 import { ShellRecovery } from '../recovery'

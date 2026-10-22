@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EToolEffect } from '../../tools/tool'
 import type { EventDraft } from '../body'

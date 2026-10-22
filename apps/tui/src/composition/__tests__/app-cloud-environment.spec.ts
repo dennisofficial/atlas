@@ -13,7 +13,7 @@ import {
   type SettingsLayerInput,
 } from '@dltech/atlas-core'
 import { TELEMETRY_FILE_NAME } from '@dltech/atlas-harness'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { cloudEnvironmentOf, telemetryEnvironmentOf } from '../app'
 

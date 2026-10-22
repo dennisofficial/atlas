@@ -1,5 +1,5 @@
 import { ECommandGroup, ECommandKind, EContextSlot, type CommandSpec } from '@dltech/atlas-core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch, type LoadedSkill } from '../dispatch'
 import { ECommandEcho, ECommandEffect, ECommandTiming, RAN, type LocalCommand } from '../local-command'

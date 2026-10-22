@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import React, { act, useCallback, useState, useSyncExternalStore } from 'react'
 
 import type * as EntryViewModule from '../components/entry-view'
@@ -10,13 +10,14 @@ type RowProps = React.ComponentProps<typeof EntryViewModule.EntryView>
 /**
  * Every row in the transcript is the memoized `EntryView`, so a render that survives the memo is
  * exactly a render whose props changed identity. The wrapper counts those — it is memoized with the
- * same default shallow compare, so its counts are the real component's counts. `vi.mock` is hoisted
- * above every import, so the real component comes from `importActual` inside the factory.
+ * same default shallow compare, so its counts are the real component's counts. The real component is
+ * imported before the mock is installed and wrapped by the factory.
  */
-const renders = vi.hoisted(() => new Map<string, number>())
+const renders = new Map<string, number>()
 
-vi.mock('../components/entry-view', async () => {
-  const actual = await vi.importActual<typeof EntryViewModule>('../components/entry-view')
+const actual: typeof EntryViewModule = { ...(await import('../components/entry-view')) }
+
+mock.module('../components/entry-view', () => {
   const RealEntryView = actual.EntryView
   const CountedRow = React.memo((props: RowProps): React.ReactNode => {
     renders.set(props.entry.key, (renders.get(props.entry.key) ?? 0) + 1)

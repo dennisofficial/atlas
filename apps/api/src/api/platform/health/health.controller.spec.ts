@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
 import { DrainStateService } from './drain-state.service'
 import { HealthController } from './health.controller'
 import {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import type { DecisionQuestion } from '../../ports/decision.port'
 import { JEV_MODEL } from '../../policy/classifier/jev'

@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { expect } from 'bun:test'
 
 import { glyph } from '../glyphs'
 

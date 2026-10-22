@@ -1,5 +1,5 @@
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import React, { act } from 'react'

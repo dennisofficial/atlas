@@ -4,7 +4,7 @@ import {
   type LoadedMcpSpec,
   type McpServerStatus,
 } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch } from '../commands/dispatch'
 import { localCommands } from '../commands/registry'

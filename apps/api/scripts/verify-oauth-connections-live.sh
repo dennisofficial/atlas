@@ -36,4 +36,4 @@ done
 [ "$ready" = 1 ] || { echo "postgres never became ready" >&2; exit 1; }
 
 DIRECT_URL="$URL" DATABASE_URL="$URL" bunx prisma migrate deploy
-ATLAS_LIVE_OAUTH_DB=1 bunx vitest run --maxWorkers=1 test/oauth-connections-live.spec.ts
+ATLAS_LIVE_OAUTH_DB=1 bun test test/oauth-connections-live.spec.ts

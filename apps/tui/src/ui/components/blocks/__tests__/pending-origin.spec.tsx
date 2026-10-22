@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EMessageOrigin, toThreadId } from '@dltech/atlas-core'
 import { createPendingQueues } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'

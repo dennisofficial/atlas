@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ThreadId, type ToolOutcome } from '@dltech/atlas-core'
 

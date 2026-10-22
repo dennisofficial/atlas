@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { dirname } from 'node:path'
 
 import { NATIVE_PLUGIN_IDS } from '../manifest.generated'

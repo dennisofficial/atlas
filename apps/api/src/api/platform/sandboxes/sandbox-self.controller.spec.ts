@@ -1,13 +1,14 @@
 import { UnauthorizedException, ValidationPipe, VersioningType, type INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock, vi } from 'bun:test'
+import { hoisted } from '@dltech/bun-test-shims'
 
-const rows = vi.hoisted(() => ({
+const rows = hoisted(() => ({
   byThread: new Map<string, { threadId: string; name: string }>(),
 }))
 
-vi.mock('../../../db', () => ({
+mock.module('../../../db', () => ({
   db: {
     cloudSandbox: {
       findUnique: async (args: { where: { threadId: string } }) =>

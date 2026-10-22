@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy, EServiceStatus, type Event } from '@dltech/atlas-core'
 

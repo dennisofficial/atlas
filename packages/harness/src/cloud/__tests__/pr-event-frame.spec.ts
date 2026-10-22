@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EPrEventKind, EPrReviewState, EPrVerdict } from '@dltech/atlas-core'
 
 import { parsePrEventFrame, prEventFrameSchema, prEventNoticeOf, repoOfFrame } from '../pr-event-frame'

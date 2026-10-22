@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from '../../test/fake-timers'
 import { registerGracefulShutdown } from './graceful-shutdown'
 
 type SignalHandler = () => void
@@ -113,7 +114,7 @@ describe('registerGracefulShutdown', () => {
       })
 
       handlers.get('SIGINT')!()
-      await vi.advanceTimersByTimeAsync(115_000)
+      await advanceTimersByTimeAsync(115_000)
       expect(exited).toBe(true)
     } finally {
       vi.useRealTimers()

@@ -1,11 +1,11 @@
 import { EThreadMessageState } from '@dltech/atlas-wire'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
+import { provisioningFakeDb } from '../../../../test/sandbox-provisioning-fake-db'
 
-vi.mock('../../../db', async () => {
-  const { provisioningFakeDb } = await import('../../../../test/sandbox-provisioning-fake-db.js')
-  return { db: provisioningFakeDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({
+  db: provisioningFakeDb().db as unknown as PrismaClient,
+}))
 
 import { fake, fakeBoot, messagesWith, seedThread, serviceWith } from './sandbox-provisioning.fixture'
 import { NOT_RUNNING_MESSAGE, SEND_PENDING_MESSAGE } from './thread-messages.service'

@@ -1,10 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fakeGithubDb().db as unknown as PrismaClient }))
 
 import { fakeGithubDb } from '../../../../test/fake-github-db'
 import { GithubAppInstallationsService } from './github-app-installations.service'

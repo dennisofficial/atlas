@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { EDefinitionOrigin, ESkillRootFlavour, type SkillRoot } from '@dltech/atlas-core'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { loadSkills } from '../registry'
 import { resolveSkillRoots, skillSourcesFor } from '../roots'

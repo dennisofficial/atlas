@@ -2,17 +2,14 @@ import type { INestApplication } from '@nestjs/common'
 import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import type { PrismaClient } from '../../../generated/prisma/client'
 
-vi.mock('../../../db', async () => {
-  const { sharedSigningKeyDb } = await import('../../../../test/fake-signing-key-db.js')
-  return { db: sharedSigningKeyDb.db as unknown as PrismaClient }
-})
+mock.module('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 import { sharedSigningKeyDb as fake } from '../../../../test/fake-signing-key-db.js'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'

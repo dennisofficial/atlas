@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { VercelBundleBlobStore } from './vercel-bundle-blob-store'
 

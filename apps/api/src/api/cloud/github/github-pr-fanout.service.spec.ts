@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
@@ -46,7 +47,7 @@ describe('GithubPrFanoutService', () => {
     fanout.openStream({ userId: 'usr_b', handler: (state) => receivedB.push(state) })
 
     fanout.push({ userIds: ['usr_a'], state: STATE })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(receivedA).toHaveLength(2)
     expect(receivedB).toHaveLength(0)
@@ -63,7 +64,7 @@ describe('GithubPrFanoutService', () => {
 
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 3 } })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(2)
     expect(received[1]?.checksRunning).toBe(3)
@@ -75,7 +76,7 @@ describe('GithubPrFanoutService', () => {
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 0, checksPassed: 4 } })
 
     expect(received).toHaveLength(2)
@@ -89,7 +90,7 @@ describe('GithubPrFanoutService', () => {
 
     close()
     fanout.push({ userIds: ['usr_a'], state: STATE })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(0)
   })
@@ -106,7 +107,7 @@ describe('GithubPrFanoutService', () => {
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
     fanout.push({ userIds: ['usr_a'], state: STATE })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(1)
   })
@@ -127,7 +128,7 @@ describe('GithubPrFanoutService', () => {
       event: EVENT,
       ackId: 'evt_1',
     })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(delivered).toEqual(['usr_a'])
   })
@@ -149,7 +150,7 @@ describe('GithubPrFanoutService', () => {
       event: EVENT,
       ackId: 'evt_1',
     })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(1)
   })
@@ -167,7 +168,7 @@ describe('GithubPrFanoutService', () => {
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 1 } })
     fanout.push({ userIds: ['usr_a'], state: { ...STATE, checksRunning: 2 } })
     fanout.closeAll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(closed).toEqual(['usr_a'])
   })
@@ -189,7 +190,7 @@ describe('GithubPrFanoutService', () => {
 
     drain.beginDrain()
     fanout.push({ userIds: ['usr_a', 'usr_b'], state: STATE })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(closed).toEqual(['a1', 'b1'])
     expect(received).toHaveLength(0)

@@ -2,14 +2,14 @@ import type { INestApplication } from '@nestjs/common'
 import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 
-vi.mock('../src/db', () => ({ db: {} }))
+mock.module('../src/db', () => ({ db: {} }))
 
 describe('AccountsController validation (in-process)', () => {
   let app: INestApplication

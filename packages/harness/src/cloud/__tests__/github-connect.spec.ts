@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'bun:test'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { EGithubConnectPoll } from '../github-connect'

@@ -2,7 +2,7 @@
   "name": "@dltech/atlas",
   "version": "0.1.0",
   "private": true,
-  "description": "Atlas — a coding-agent harness in the shape of Claude Code.",
+  "description": "Atlas \u2014 a coding-agent harness in the shape of Claude Code.",
   "type": "module",
   "bin": {
     "atlas": "./bin/atlas",
@@ -21,7 +21,7 @@
     "proto:links": "bun prototype/link-affordances.tsx",
     "probe:size": "bun scripts/probe-size.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun --bun vitest run",
+    "test": "bun test",
     "grammars:update": "bun scripts/update-grammars.ts",
     "grammars:build-dockerfile": "bun scripts/build-dockerfile-grammar.ts",
     "build:prepare": "bun run --filter @dltech/atlas-harness plugins:generate && bun scripts/generate-manifest.ts && bun scripts/generate-skills.ts",
@@ -43,8 +43,6 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/react": "^19",
-    "ai": "^7.0.143",
-    "vitest": "4.0.1",
-    "@dltech/vitest-incremental": "workspace:*"
+    "ai": "^7.0.143"
   }
 }
