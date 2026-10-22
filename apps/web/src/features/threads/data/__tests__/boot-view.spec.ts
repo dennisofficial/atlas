@@ -8,7 +8,8 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
 
-import { bootViewOf, FAILED_FALLBACK, isPodSettled, shouldPollPod } from '../boot-view'
+import { bootViewOf, FAILED_FALLBACK, isPodFailed, isPodSettled, shouldPollPod } from '../boot-view'
+import { awaitingRunOf } from '../take-back'
 
 const T0 = Date.parse('2026-10-22T10:00:00.000Z')
 const isoAt = (offsetMs: number) => new Date(T0 + offsetMs).toISOString()
@@ -46,6 +47,11 @@ describe('bootViewOf', () => {
     expect(bootViewOf({ pod: null, now: T0 })).toBeNull()
     expect(bootViewOf({ pod: pod(EPodState.None), now: T0 })).toBeNull()
     expect(bootViewOf({ pod: pod(EPodState.Running), now: T0 })).toBeNull()
+  })
+
+  it('hides the boot block for a parked pod, even with the last boot attempt recorded', () => {
+    expect(bootViewOf({ pod: pod(EPodState.Parked), now: T0 })).toBeNull()
+    expect(bootViewOf({ pod: pod(EPodState.Parked, allDone), now: T0 })).toBeNull()
   })
 
   it('shows every step pending while booting before the first step lands', () => {
@@ -162,5 +168,54 @@ describe('isPodSettled and shouldPollPod', () => {
     expect(shouldPollPod({ pod: pod(EPodState.None), awaitingRun: false })).toBe(false)
     expect(shouldPollPod({ pod: pod(EPodState.Running, allDone), awaitingRun: true })).toBe(false)
     expect(shouldPollPod({ pod: pod(EPodState.Failed), awaitingRun: true })).toBe(false)
+  })
+
+  it('stops polling once the pod is parked, whatever is waiting on it', () => {
+    expect(isPodSettled(pod(EPodState.Parked))).toBe(true)
+    expect(shouldPollPod({ pod: pod(EPodState.Parked), awaitingRun: false })).toBe(false)
+    expect(shouldPollPod({ pod: pod(EPodState.Parked, allDone), awaitingRun: true })).toBe(false)
+  })
+
+  it('stops polling a running pod whose agent is done, and keeps polling while it starts', () => {
+    expect(shouldPollPod({ pod: pod(EPodState.Running, allDone), awaitingRun: false })).toBe(false)
+    expect(
+      shouldPollPod({
+        pod: pod(EPodState.Running, [
+          step({ step: EBootStep.Agent, state: EBootStepState.Running, offsetMs: 0 }),
+        ]),
+        awaitingRun: false,
+      }),
+    ).toBe(true)
+  })
+
+  it('does not poll forever for a pod that is none once the thread has been answered', () => {
+    const answered = [
+      { seq: 1, type: 'user-said' },
+      { seq: 2, type: 'assistant-said' },
+    ].map(({ seq, type }) => ({
+      id: `evt_${seq}`,
+      threadId: 'thr_1',
+      seq,
+      runId: 'run_1',
+      depth: 0,
+      at: isoAt(0),
+      type,
+      body: '{}',
+    }))
+    expect(shouldPollPod({ pod: pod(EPodState.None), awaitingRun: awaitingRunOf(answered) })).toBe(
+      false,
+    )
+    expect(
+      shouldPollPod({ pod: pod(EPodState.None), awaitingRun: awaitingRunOf(answered.slice(0, 1)) }),
+    ).toBe(true)
+  })
+})
+
+describe('isPodFailed', () => {
+  it('is true only for a failed pod, never for a parked one', () => {
+    expect(isPodFailed(pod(EPodState.Failed))).toBe(true)
+    expect(isPodFailed(pod(EPodState.Parked))).toBe(false)
+    expect(isPodFailed(pod(EPodState.Running))).toBe(false)
+    expect(isPodFailed(null)).toBe(false)
   })
 })

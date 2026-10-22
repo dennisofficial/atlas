@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { clearProvisionOutcome, notConfiguredOf, setProvisionOutcome } from './provision-outcome'
 import { sendMessage } from './send-message'
 import { provisionSandbox } from './threads-api'
 
@@ -32,10 +31,8 @@ export function useSend() {
   }, [])
 
   const retryBoot = useCallback(async (threadId: string): Promise<void> => {
-    clearProvisionOutcome(threadId)
     try {
-      const outcome = notConfiguredOf(await provisionSandbox({ threadId }))
-      if (outcome !== null) setProvisionOutcome({ threadId, outcome })
+      await provisionSandbox({ threadId })
     } catch (failure) {
       toast.error(messageOf(failure))
     }

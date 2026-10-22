@@ -43,7 +43,8 @@ export function takeBackTargetOf(args: {
   events: readonly WireEvent[]
   podState: EPodState | null
 }): TakeBackTarget | null {
-  if (args.podState === null || args.podState === EPodState.Running) return null
+  if (args.podState === null) return null
+  if (args.podState === EPodState.Running || args.podState === EPodState.Parked) return null
   const last = lastCoreOf(args.events)
   const body = last === undefined ? null : userBodyOf(last)
   if (body === null || body.requestId === undefined) return null

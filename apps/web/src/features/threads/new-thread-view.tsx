@@ -12,7 +12,6 @@ import { QueryGate } from '@/features/settings/data/workspace/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { createThreadBodyOf } from './data/create-thread'
-import { notConfiguredOf, setProvisionOutcome } from './data/provision-outcome'
 import { createThread, fetchProjects } from './data/threads-api'
 import { messageOf } from './data/use-send'
 import { ProjectSelect } from './project-select'
@@ -39,11 +38,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     attempt.current = { text, projectId, sendId }
     setCreating(true)
     try {
-      const { thread, provision } = await createThread(
-        createThreadBodyOf({ projectId, text, sendId }),
-      )
-      const outcome = notConfiguredOf(provision)
-      if (outcome !== null) setProvisionOutcome({ threadId: thread.id, outcome })
+      const { thread } = await createThread(createThreadBodyOf({ projectId, text, sendId }))
       attempt.current = null
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {

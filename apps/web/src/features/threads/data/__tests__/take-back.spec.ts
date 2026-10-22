@@ -50,6 +50,27 @@ describe('takeBackTargetOf', () => {
     ).toEqual({ sendId: 's1', text: 'build it' })
   })
 
+  it('is null while the pod is parked, even when the last event is an unanswered message', () => {
+    expect(
+      takeBackTargetOf({ events: [said(1, 'build it', 's1')], podState: EPodState.Parked }),
+    ).toBeNull()
+  })
+
+  it('is null once any core event follows the message, whatever the pod state', () => {
+    for (const podState of [EPodState.None, EPodState.Booting, EPodState.Failed]) {
+      expect(takeBackTargetOf({ events: [said(1, 'hi', 's1'), answered(2)], podState })).toBeNull()
+    }
+  })
+
+  it('targets a message sent after an earlier answered turn', () => {
+    expect(
+      takeBackTargetOf({
+        events: [said(1, 'one', 's1'), answered(2), said(3, 'two', 's2')],
+        podState: EPodState.Booting,
+      }),
+    ).toEqual({ sendId: 's2', text: 'two' })
+  })
+
   it('ignores legacy boot events when finding the last core event', () => {
     expect(
       takeBackTargetOf({

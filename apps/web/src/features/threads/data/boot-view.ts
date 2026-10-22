@@ -76,7 +76,7 @@ function elapsedOf(args: {
 
 export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootView | null {
   const { pod } = args
-  if (pod === null || pod.state === EPodState.None) return null
+  if (pod === null || pod.state === EPodState.None || pod.state === EPodState.Parked) return null
   if (pod.state === EPodState.Running && pod.steps.length === 0) return null
   const attempt = [...pod.steps].sort(byAt)
   const folded = foldBootSteps(attempt.map(eventOf))
@@ -102,8 +102,10 @@ export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootVi
   }
 }
 
+export const isPodFailed = (pod: PodStatus | null): boolean => pod?.state === EPodState.Failed
+
 export function isPodSettled(pod: PodStatus): boolean {
-  if (pod.state === EPodState.Failed) return true
+  if (pod.state === EPodState.Failed || pod.state === EPodState.Parked) return true
   if (pod.state !== EPodState.Running) return false
   if (pod.steps.length === 0) return true
   return foldBootSteps(pod.steps.map(eventOf))[EBootStep.Agent].state === EBootStepState.Done

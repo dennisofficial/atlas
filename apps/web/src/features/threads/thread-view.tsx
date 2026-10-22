@@ -16,13 +16,12 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
-import { EPodState } from '@dltech/atlas-wire/web'
 
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { bootViewOf } from './data/boot-view'
-import { useProvisionOutcome } from './data/provision-outcome'
+import { bootViewOf, isPodFailed } from './data/boot-view'
+import { notConfiguredOf } from './data/not-configured'
 import {
   awaitingRunOf,
   ETakeBackOutcome,
@@ -86,7 +85,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
   const { events, loaded, error } = useThreadEvents(threadId)
   const { sending, send, retryBoot } = useSend()
-  const notConfigured = useProvisionOutcome(threadId)
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
@@ -100,6 +98,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const probe = bootViewOf({ pod, now: 0 })
   const now = useNow(isBootStarting(probe))
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
+  const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
 
   const handleSubmit = async (text: string) => {
     const sent = await send({ threadId, text })
@@ -131,7 +130,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   }
 
   const starting = isBootStarting(boot)
-  const failed = pod?.state === EPodState.Failed || notConfigured !== undefined
+  const failed = isPodFailed(pod)
   const title = thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
 
   return (
@@ -151,7 +150,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
         <ThreadTranscript items={items} boot={boot} onRetryBoot={() => void handleRetryBoot()} />
       </div>
       <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-        {notConfigured === undefined ? null : (
+        {notConfigured === null ? null : (
           <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
         )}
         <ThreadComposer
