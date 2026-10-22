@@ -1,6 +1,8 @@
 import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { applyPodEvents } from '../../platform/sandboxes/pod-events'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
@@ -22,6 +24,15 @@ const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
 const SAID = (sendId: string, text: string) =>
   JSON.stringify({ type: 'user-said', text, requestId: sendId })
+
+const podAnswer = (seq: number) => ({
+  seq,
+  runId: 'run_pod',
+  depth: 0,
+  at: '2026-10-22T10:00:00.000Z',
+  type: 'assistant-said',
+  body: JSON.stringify({ type: 'assistant-said', parts: [] }),
+})
 
 describe('ThreadMessagesService.send', () => {
   useTestDatabase()
@@ -121,6 +132,28 @@ describe('ThreadMessagesService.send', () => {
     expect((await sandboxRows())[0]?.wakeClaim).toBeNull()
   })
 
+  it('appends after the pod answer a parked pod flushed, continuing its seq', async () => {
+    const { service, dispatch } = messagesWith()
+    await service.send(ARGS)
+    await applyPodEvents({ threadId: 'thr-1', events: [podAnswer(2), podAnswer(3)] })
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+      state: 'parked',
+      wakeClaim: null,
+      wakeFailedAt: null,
+    })
+
+    await service.send({ ...ARGS, sendId: 'snd-2', text: 'follow up' })
+
+    expect((await eventsOf()).map((event) => [event.seq, event.type])).toEqual([
+      [1, 'user-said'],
+      [2, 'assistant-said'],
+      [3, 'assistant-said'],
+      [4, 'user-said'],
+    ])
+    expect((await threadRow())?.head).toBe(4)
+    expect(dispatch).toHaveBeenCalledTimes(2)
+  })
+
   it('re-claims a failed row for a new message', async () => {
     await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
     const { service, dispatch } = messagesWith()
@@ -214,6 +247,18 @@ describe('ThreadMessagesService.takeBack', () => {
 
     await expect(service.takeBack(target)).rejects.toMatchObject({ status: 409 })
     expect(await eventsOf()).toHaveLength(1)
+  })
+
+  it('refuses with 409 once the pod answer reached Postgres', async () => {
+    const { service } = messagesWith()
+    await service.send(ARGS)
+    await applyPodEvents({ threadId: 'thr-1', events: [podAnswer(2)] })
+
+    await expect(service.takeBack(target)).rejects.toMatchObject({
+      status: 409,
+      message: TAKE_BACK_TOO_LATE_MESSAGE,
+    })
+    expect(await eventsOf()).toHaveLength(2)
   })
 
   it('answers 404 when no such message exists', async () => {
