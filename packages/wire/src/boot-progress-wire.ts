@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire.js'
+import { SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire'
 
 export enum EBootStep {
   Provision = 'provision',

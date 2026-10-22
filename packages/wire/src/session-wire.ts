@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { sandboxProvisionReplySchema } from './sandbox-self-wire.js'
+import { sandboxProvisionReplySchema } from './sandbox-self-wire'
 
 export const wireThreadSchema = z.object({
   id: z.string(),
