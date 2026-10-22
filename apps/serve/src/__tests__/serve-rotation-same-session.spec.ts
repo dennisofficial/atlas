@@ -33,6 +33,8 @@ const parentOwed = async (home: string): Promise<boolean> =>
 afterEach(cleanupRotationFixtures)
 
 const recordingDriver = (runs: (TurnRunOptions | undefined)[]): ServeTurnDriver => ({
+  outcome: () => null,
+  failure: () => null,
   beginRelocation: async () => undefined,
   relocationResumable: () => false,
   busy: () => false,
