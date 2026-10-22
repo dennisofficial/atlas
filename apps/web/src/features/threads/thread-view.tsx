@@ -31,7 +31,8 @@ import {
   withoutTakenBack,
 } from './data/take-back'
 import { fetchThread } from './data/threads-api'
-import { transcriptOf } from './data/transcript'
+import { eventsFromWire } from './data/events-from-wire'
+import { transcriptViewOf } from './data/transcript'
 import { useNow } from './data/use-now'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
@@ -84,7 +85,10 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
 export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
   const [liveEligible, setLiveEligible] = useState(false)
-  const { events, loaded, error, working, sendLive } = useThreadSource({ threadId, liveEligible })
+  const { events, signals, outputs, loaded, error, working, sendLive } = useThreadSource({
+    threadId,
+    liveEligible,
+  })
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -93,7 +97,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     () => withoutTakenBack({ events, sendIds: takenBack }),
     [events, takenBack],
   )
-  const items = useMemo(() => transcriptOf(visible), [visible])
+  const view = useMemo(
+    () => transcriptViewOf({ events: eventsFromWire(visible), signals, outputs }),
+    [visible, signals, outputs],
+  )
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
   const { pod, refresh } = usePodStatus({ threadId, awaitingRun })
   const eligibleNow = isPodLiveEligible(pod)
@@ -151,7 +158,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
       ) : null}
       <div className="min-h-0 flex-1">
         <ThreadTranscript
-          items={items}
+          items={view.items}
+          failure={view.failure}
           boot={boot}
           working={working}
           onRetryBoot={() => void handleRetryBoot()}
