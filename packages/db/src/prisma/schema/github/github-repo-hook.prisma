@@ -1,12 +1,12 @@
 // use prisma-8
-
 model GithubRepoHook {
-  repoFullName    String              @id
+  repoFullName    String                @id
   hookId          BigInt
   secret          String
   createdBy       String
   status          String
-  idleSince       TimestampString(3)?
-  sweepLeaseUntil TimestampString(3)?
-  createdAt       TimestampString(3)  @default(now())
+  idleSince       TimestamptzJsDate(3)?
+  sweepLeaseUntil TimestamptzJsDate(3)?
+  createdAt       TimestamptzJsDate(3)  @default(now())
+  creator         User                  @relation(fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }

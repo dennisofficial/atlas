@@ -1,5 +1,4 @@
 // use prisma-8
-
 model GithubPrState {
   repoFullName     String
   prNumber         Int
@@ -9,12 +8,11 @@ model GithubPrState {
   headBranch       String
   headSha          String
   headRepoFullName String?
-  checksRunning    Int                @default(0)
-  checksPassed     Int                @default(0)
-  checksFailed     Int                @default(0)
+  checksRunning    Int                  @default(0)
+  checksPassed     Int                  @default(0)
+  checksFailed     Int                  @default(0)
   mergeable        Boolean?
-  updatedAt        TimestampString(3)
+  updatedAt        TimestamptzJsDate(3)
 
   @@id([repoFullName, prNumber])
-  @@index([repoFullName], map: "GithubPrState_repoFullName_idx")
 }

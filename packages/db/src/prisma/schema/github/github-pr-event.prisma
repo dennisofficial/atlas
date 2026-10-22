@@ -1,14 +1,14 @@
 // use prisma-8
-
 model GithubPrEvent {
-  id           String              @id @onCreate(cuid(2))
+  id           String                @id @onCreate(cuid(2))
   userId       String
   repoFullName String
   prNumber     Int
   kind         String
   payload      Jsonb
-  deliveredAt  TimestampString(3)?
-  createdAt    TimestampString(3)  @default(now())
+  deliveredAt  TimestamptzJsDate(3)?
+  createdAt    TimestamptzJsDate(3)  @default(now())
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubPrEvent_userId_deliveredAt_idx")
 
   @@index([userId, deliveredAt], map: "GithubPrEvent_userId_deliveredAt_idx")
   @@index([repoFullName, prNumber], map: "GithubPrEvent_repoFullName_prNumber_idx")

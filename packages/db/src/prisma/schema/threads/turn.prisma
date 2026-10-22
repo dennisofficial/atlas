@@ -1,7 +1,6 @@
 // use prisma-8
-
 model Turn {
-  runId            String @id
+  runId            String               @id
   threadId         String
   status           String
   providerId       String
@@ -11,11 +10,11 @@ model Turn {
   outputTokens     Int
   cacheReadTokens  Int
   cacheWriteTokens Int
-  startedAt        String
-  endedAt          String
+  startedAt        TimestamptzJsDate(3)
+  endedAt          TimestamptzJsDate(3)
   durationMs       Int
   userId           String
-  thread           Thread @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Turn_threadId_startedAt_idx")
+  thread           Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Turn_threadId_startedAt_idx")
 
   @@index([threadId, startedAt], map: "Turn_threadId_startedAt_idx")
   @@index([userId], map: "Turn_userId_idx")

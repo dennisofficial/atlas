@@ -1,7 +1,6 @@
 // use prisma-8
-
 model PublishedBundle {
-  id        String             @id @onCreate(cuid(2))
+  id        String               @id @onCreate(cuid(2))
   userId    String
   version   Int
   pathname  String
@@ -9,8 +8,8 @@ model PublishedBundle {
   sha256    String
   sizeBytes Int
   manifest  Jsonb
-  createdAt TimestampString(3) @default(now())
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "PublishedBundle_userId_version_key")
+  createdAt TimestamptzJsDate(3) @default(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "PublishedBundle_userId_version_key")
 
   @@index([userId, version], map: "PublishedBundle_userId_version_key", unique: true)
   @@index([pathname], map: "PublishedBundle_pathname_key", unique: true)

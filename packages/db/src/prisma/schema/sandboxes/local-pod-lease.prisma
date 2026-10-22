@@ -1,13 +1,12 @@
 // use prisma-8
-
 model LocalPodLease {
-  id        String             @id @onCreate(cuid(2))
+  id        String               @id @onCreate(cuid(2))
   userId    String
   threadId  String
   tokenHash String
-  createdAt TimestampString(3) @default(now())
-  updatedAt TimestampString(3) @onCreate(now()) @onUpdate(now())
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt TimestamptzJsDate(3) @default(now())
+  updatedAt TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, threadId], map: "LocalPodLease_userId_threadId_key", unique: true)
   @@index([tokenHash], map: "LocalPodLease_tokenHash_key", unique: true)

@@ -21,7 +21,7 @@
       "namespace": "public"
     },
     "CloudSetting": {
-      "model": "CloudSetting",
+      "model": "UserSetting",
       "namespace": "public"
     },
     "DeviceCode": {
@@ -69,7 +69,7 @@
       "namespace": "public"
     },
     "McpServerConfig": {
-      "model": "McpServerConfig",
+      "model": "UserMcpServer",
       "namespace": "public"
     },
     "Member": {
@@ -113,7 +113,7 @@
       "namespace": "public"
     },
     "SecretEntry": {
-      "model": "SecretEntry",
+      "model": "UserSecret",
       "namespace": "public"
     },
     "Session": {
@@ -177,7 +177,7 @@
               "accessTokenExpiresAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -194,7 +194,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -239,7 +239,7 @@
               "refreshTokenExpiresAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -256,7 +256,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -347,7 +347,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -364,7 +364,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -379,7 +379,40 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "account": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "accountId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "AgentAccount",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
                 "accountId": {
@@ -407,7 +440,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -494,7 +527,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -510,6 +543,21 @@
               }
             },
             "relations": {
+              "activePointers": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "accountId"
+                  ]
+                },
+                "to": {
+                  "model": "ActiveAccount",
+                  "namespace": "public"
+                }
+              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -588,15 +636,11 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "driveName": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "id": {
@@ -609,8 +653,11 @@
               "lastActivityAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "name": {
@@ -714,8 +761,11 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "userId": {
@@ -728,57 +778,21 @@
               "wakeClaim": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "wakeFailedAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspaceBranch": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspaceCommit": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspaceGitEmail": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspaceGitName": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspacePatch": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "workspaceProjectDirectory": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "workspaceRemoteUrl": {
@@ -861,9 +875,6 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
-                "driveName": {
-                  "column": "driveName"
-                },
                 "id": {
                   "column": "id"
                 },
@@ -924,124 +935,12 @@
                 "wakeFailedAt": {
                   "column": "wakeFailedAt"
                 },
-                "workspaceBranch": {
-                  "column": "workspaceBranch"
-                },
-                "workspaceCommit": {
-                  "column": "workspaceCommit"
-                },
-                "workspaceGitEmail": {
-                  "column": "workspaceGitEmail"
-                },
-                "workspaceGitName": {
-                  "column": "workspaceGitName"
-                },
-                "workspacePatch": {
-                  "column": "workspacePatch"
-                },
-                "workspaceProjectDirectory": {
-                  "column": "workspaceProjectDirectory"
-                },
                 "workspaceRemoteUrl": {
                   "column": "workspaceRemoteUrl"
                 }
               },
               "namespaceId": "public",
               "table": "CloudSandbox"
-            }
-          },
-          "CloudSetting": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "key": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "value": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "key": {
-                  "column": "key"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
-                },
-                "value": {
-                  "column": "value"
-                }
-              },
-              "namespaceId": "public",
-              "table": "CloudSetting"
             }
           },
           "DeviceCode": {
@@ -1056,7 +955,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1073,7 +972,7 @@
               "expiresAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1090,7 +989,7 @@
               "lastPolledAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1121,7 +1020,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1209,8 +1108,11 @@
               "at": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "body": {
@@ -1381,7 +1283,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1408,7 +1310,7 @@
               "suspendedAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1418,7 +1320,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1460,7 +1362,7 @@
               "dismissedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1482,7 +1384,24 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
                 "dismissedAt": {
@@ -1504,7 +1423,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1542,7 +1461,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1608,7 +1527,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1618,7 +1537,7 @@
               "deliveredAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1668,7 +1587,24 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
                 "createdAt": {
@@ -1782,7 +1718,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1849,7 +1785,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1873,7 +1809,7 @@
               "idleSince": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1904,7 +1840,7 @@
               "sweepLeaseUntil": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1912,7 +1848,24 @@
                 }
               }
             },
-            "relations": {},
+            "relations": {
+              "creator": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "createdBy"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
             "storage": {
               "fields": {
                 "createdAt": {
@@ -1956,7 +1909,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1966,7 +1919,7 @@
               "expiresAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -1983,7 +1936,7 @@
               "liveUntil": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2006,13 +1959,6 @@
               },
               "repoFullName": {
                 "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sandboxId": {
-                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -2049,6 +1995,22 @@
                   "model": "CloudSandbox",
                   "namespace": "public"
                 }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -2077,9 +2039,6 @@
                 "repoFullName": {
                   "column": "repoFullName"
                 },
-                "sandboxId": {
-                  "column": "sandboxId"
-                },
                 "threadId": {
                   "column": "threadId"
                 },
@@ -2096,7 +2055,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2113,7 +2072,7 @@
               "expiresAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2226,7 +2185,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2257,7 +2216,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2315,106 +2274,12 @@
               "table": "LocalPodLease"
             }
           },
-          "McpServerConfig": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedSpec": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "sealedSpec": {
-                  "column": "sealedSpec"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "McpServerConfig"
-            }
-          },
           "Member": {
             "fields": {
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2518,7 +2383,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2577,7 +2442,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2662,7 +2527,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2700,7 +2565,7 @@
               "refreshStartedAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2724,7 +2589,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2824,7 +2689,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -2894,7 +2759,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3089,11 +2954,18 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
                   }
+                }
+              },
+              "createdById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
                 }
               },
               "description": {
@@ -3118,6 +2990,13 @@
                 }
               },
               "organizationId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ownerUserId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3155,22 +3034,31 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
                   }
                 }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
@@ -3199,6 +3087,22 @@
                 },
                 "to": {
                   "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "owner": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "ownerUserId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
                   "namespace": "public"
                 }
               },
@@ -3246,22 +3150,6 @@
                   "model": "Thread",
                   "namespace": "public"
                 }
-              },
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
               }
             },
             "storage": {
@@ -3275,6 +3163,9 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "createdById": {
+                  "column": "createdById"
+                },
                 "description": {
                   "column": "description"
                 },
@@ -3286,6 +3177,9 @@
                 },
                 "organizationId": {
                   "column": "organizationId"
+                },
+                "ownerUserId": {
+                  "column": "ownerUserId"
                 },
                 "repo": {
                   "column": "repo"
@@ -3301,9 +3195,6 @@
                 },
                 "updatedAt": {
                   "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
                 }
               },
               "namespaceId": "public",
@@ -3315,7 +3206,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3353,7 +3244,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3409,7 +3300,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3454,7 +3345,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3513,7 +3404,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3544,7 +3435,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3614,7 +3505,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3723,110 +3614,6 @@
               "table": "PublishedBundle"
             }
           },
-          "SecretEntry": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "kind": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedValue": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamp-string@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "kind": {
-                  "column": "kind"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "sealedValue": {
-                  "column": "sealedValue"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "userId": {
-                  "column": "userId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "SecretEntry"
-            }
-          },
           "Session": {
             "fields": {
               "activeOrganizationId": {
@@ -3839,7 +3626,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3849,7 +3636,7 @@
               "expiresAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3880,7 +3667,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3959,7 +3746,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -3997,7 +3784,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -4090,8 +3877,11 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "executionLocation": {
@@ -4181,8 +3971,11 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "userId": {
@@ -4426,8 +4219,11 @@
               "endedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "inputTokens": {
@@ -4468,8 +4264,11 @@
               "startedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "status": {
@@ -4573,7 +4372,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -4618,7 +4417,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -4639,6 +4438,21 @@
                 },
                 "to": {
                   "model": "Account",
+                  "namespace": "public"
+                }
+              },
+              "activeAccounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "ActiveAccount",
                   "namespace": "public"
                 }
               },
@@ -4672,18 +4486,18 @@
                   "namespace": "public"
                 }
               },
-              "cloudSettings": {
+              "createdProjects": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "userId"
+                    "createdById"
                   ]
                 },
                 "to": {
-                  "model": "CloudSetting",
+                  "model": "Project",
                   "namespace": "public"
                 }
               },
@@ -4715,6 +4529,66 @@
                 },
                 "to": {
                   "model": "GithubConnection",
+                  "namespace": "public"
+                }
+              },
+              "githubNoticeDismissals": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubAppNoticeDismissal",
+                  "namespace": "public"
+                }
+              },
+              "githubPrEvents": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubPrEvent",
+                  "namespace": "public"
+                }
+              },
+              "githubRepoHooks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdBy"
+                  ]
+                },
+                "to": {
+                  "model": "GithubRepoHook",
+                  "namespace": "public"
+                }
+              },
+              "githubSubscriptions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubSubscription",
                   "namespace": "public"
                 }
               },
@@ -4759,7 +4633,7 @@
                   ]
                 },
                 "to": {
-                  "model": "McpServerConfig",
+                  "model": "UserMcpServer",
                   "namespace": "public"
                 }
               },
@@ -4808,14 +4682,14 @@
                   "namespace": "public"
                 }
               },
-              "projects": {
+              "ownedProjects": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "userId"
+                    "ownerUserId"
                   ]
                 },
                 "to": {
@@ -4838,7 +4712,7 @@
                   "namespace": "public"
                 }
               },
-              "secretEntries": {
+              "secrets": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
@@ -4849,7 +4723,7 @@
                   ]
                 },
                 "to": {
-                  "model": "SecretEntry",
+                  "model": "UserSecret",
                   "namespace": "public"
                 }
               },
@@ -4865,6 +4739,21 @@
                 },
                 "to": {
                   "model": "Session",
+                  "namespace": "public"
+                }
+              },
+              "settings": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "UserSetting",
                   "namespace": "public"
                 }
               },
@@ -4896,6 +4785,36 @@
                 },
                 "to": {
                   "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "updatedVercelCredentials": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceVercelCredential",
+                  "namespace": "public"
+                }
+              },
+              "updatedWorkspaceSecrets": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
+                },
+                "to": {
+                  "model": "WorkspaceSecret",
                   "namespace": "public"
                 }
               },
@@ -4962,7 +4881,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -4993,7 +4912,7 @@
               "tombstonedAt": {
                 "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5010,7 +4929,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5080,12 +4999,304 @@
               "table": "UserFile"
             }
           },
+          "UserMcpServer": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedSpec": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "sealedSpec": {
+                  "column": "sealedSpec"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "McpServerConfig"
+            }
+          },
+          "UserSecret": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedValue": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "sealedValue": {
+                  "column": "sealedValue"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "SecretEntry"
+            }
+          },
+          "UserSetting": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "key": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "value": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "key": {
+                  "column": "key"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                },
+                "value": {
+                  "column": "value"
+                }
+              },
+              "namespaceId": "public",
+              "table": "CloudSetting"
+            }
+          },
           "Verification": {
             "fields": {
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5095,7 +5306,7 @@
               "expiresAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5119,7 +5330,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5165,7 +5376,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5203,7 +5414,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5259,7 +5470,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5304,7 +5515,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5333,6 +5544,22 @@
                 },
                 "to": {
                   "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "updatedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
                   "namespace": "public"
                 }
               }
@@ -5373,7 +5600,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5404,7 +5631,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5467,7 +5694,7 @@
               "createdAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5498,7 +5725,7 @@
               "updatedAt": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamp-string@1",
+                  "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
                   "typeParams": {
                     "precision": 3
@@ -5527,6 +5754,22 @@
                 },
                 "to": {
                   "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "updatedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
                   "namespace": "public"
                 }
               }
@@ -5573,8 +5816,8 @@
                   "nullable": true
                 },
                 "accessTokenExpiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -5586,8 +5829,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -5623,8 +5866,8 @@
                   "nullable": true
                 },
                 "refreshTokenExpiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -5636,8 +5879,86 @@
                   "nullable": true
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "Account_userId_idx_a489d58a"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Account"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "Account_userId_idx_a489d58a",
+                  "prefix": "Account_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "ActiveAccount": {
+              "columns": {
+                "accountId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -5658,7 +5979,7 @@
                       "userId"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Account"
+                    "tableName": "ActiveAccount"
                   },
                   "target": {
                     "columns": [
@@ -5667,56 +5988,39 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
+                },
+                {
+                  "index": {
+                    "name": "ActiveAccount_accountId_idx_cbfb3085"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "accountId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ActiveAccount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "AgentAccount"
+                  }
                 }
               ],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": []
-            },
-            "ActiveAccount": {
-              "columns": {
-                "accountId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "provider": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "userId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+              "indexes": [
+                {
+                  "columns": [
+                    "accountId"
+                  ],
+                  "name": "ActiveAccount_accountId_idx_cbfb3085",
+                  "prefix": "ActiveAccount_accountId_idx",
+                  "unique": false
                 }
-              },
-              "foreignKeys": [],
-              "indexes": [],
+              ],
               "primaryKey": {
                 "columns": [
                   "userId",
@@ -5728,8 +6032,8 @@
             "AgentAccount": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -5799,8 +6103,8 @@
                   "nullable": true
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -5864,14 +6168,12 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "driveName": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -5879,9 +6181,12 @@
                   "nullable": false
                 },
                 "lastActivityAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "name": {
                   "codecId": "pg/text@1",
@@ -5954,9 +6259,12 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "userId": {
                   "codecId": "pg/text@1",
@@ -5964,44 +6272,20 @@
                   "nullable": false
                 },
                 "wakeClaim": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "wakeFailedAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspaceBranch": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspaceCommit": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspaceGitEmail": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspaceGitName": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspacePatch": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "workspaceProjectDirectory": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "workspaceRemoteUrl": {
                   "codecId": "pg/text@1",
@@ -6082,13 +6366,19 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "tokenHash"
+                  ]
+                }
+              ]
             },
             "CloudSetting": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6109,8 +6399,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6175,8 +6465,8 @@
                   "nullable": true
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6192,8 +6482,8 @@
                   "nullable": false
                 },
                 "expiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6205,8 +6495,8 @@
                   "nullable": false
                 },
                 "lastPolledAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -6228,8 +6518,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6272,14 +6562,28 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "deviceCode"
+                  ]
+                },
+                {
+                  "columns": [
+                    "userCode"
+                  ]
+                }
+              ]
             },
             "Event": {
               "columns": {
                 "at": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "body": {
                   "codecId": "pg/text@1",
@@ -6420,8 +6724,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6445,16 +6749,16 @@
                   "nullable": true
                 },
                 "suspendedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
                   }
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6481,8 +6785,8 @@
             "GithubAppNoticeDismissal": {
               "columns": {
                 "dismissedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6503,7 +6807,26 @@
                   "nullable": false
                 }
               },
-              "foreignKeys": [],
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubAppNoticeDismissal"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
               "indexes": [],
               "primaryKey": {
                 "columns": [
@@ -6516,8 +6839,8 @@
             "GithubConnection": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6548,8 +6871,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6603,8 +6926,8 @@
             "GithubPrEvent": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6615,8 +6938,8 @@
                   }
                 },
                 "deliveredAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -6653,7 +6976,29 @@
                   "nullable": false
                 }
               },
-              "foreignKeys": [],
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "GithubPrEvent_userId_deliveredAt_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubPrEvent"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
               "indexes": [
                 {
                   "columns": [
@@ -6749,8 +7094,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6763,15 +7108,7 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [
-                {
-                  "columns": [
-                    "repoFullName"
-                  ],
-                  "name": "GithubPrState_repoFullName_idx",
-                  "unique": false
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "repoFullName",
@@ -6783,8 +7120,8 @@
             "GithubRepoHook": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6805,8 +7142,8 @@
                   "nullable": false
                 },
                 "idleSince": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -6828,16 +7165,47 @@
                   "nullable": false
                 },
                 "sweepLeaseUntil": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
                   }
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "GithubRepoHook_createdBy_idx_ba0f792f"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdBy"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubRepoHook"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "createdBy"
+                  ],
+                  "name": "GithubRepoHook_createdBy_idx_ba0f792f",
+                  "prefix": "GithubRepoHook_createdBy_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "repoFullName"
@@ -6857,8 +7225,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6869,8 +7237,8 @@
                   }
                 },
                 "expiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -6882,8 +7250,8 @@
                   "nullable": false
                 },
                 "liveUntil": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -6912,11 +7280,6 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "sandboxId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "threadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -6929,6 +7292,27 @@
                 }
               },
               "foreignKeys": [
+                {
+                  "index": {
+                    "name": "GithubSubscription_userId_repoFullName_branch_key"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubSubscription"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
                 {
                   "index": {
                     "name": "GithubSubscription_threadId_idx"
@@ -7009,8 +7393,8 @@
             "Invitation": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7026,8 +7410,8 @@
                   "nullable": false
                 },
                 "expiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7061,6 +7445,9 @@
               },
               "foreignKeys": [
                 {
+                  "index": {
+                    "name": "Invitation_organizationId_idx_2e17ef41"
+                  },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
@@ -7079,6 +7466,9 @@
                   }
                 },
                 {
+                  "index": {
+                    "name": "Invitation_inviterId_idx_c2d8c6d6"
+                  },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
@@ -7097,7 +7487,24 @@
                   }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "inviterId"
+                  ],
+                  "name": "Invitation_inviterId_idx_c2d8c6d6",
+                  "prefix": "Invitation_inviterId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "Invitation_organizationId_idx_2e17ef41",
+                  "prefix": "Invitation_organizationId_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -7108,8 +7515,8 @@
             "LocalPodLease": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7135,8 +7542,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7205,8 +7612,8 @@
             "McpServerConfig": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7232,8 +7639,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7288,8 +7695,8 @@
             "Member": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7322,6 +7729,12 @@
               },
               "foreignKeys": [
                 {
+                  "index": {
+                    "unique": [
+                      "organizationId",
+                      "userId"
+                    ]
+                  },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
@@ -7340,6 +7753,9 @@
                   }
                 },
                 {
+                  "index": {
+                    "name": "Member_userId_idx_a489d58a"
+                  },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
@@ -7358,13 +7774,30 @@
                   }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "Member_userId_idx_a489d58a",
+                  "prefix": "Member_userId_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "userId"
+                  ],
+                  "name": "Member_organizationId_userId_key"
+                }
+              ]
             },
             "Memory": {
               "columns": {
@@ -7374,8 +7807,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7429,8 +7862,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7500,8 +7933,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7536,8 +7969,8 @@
                   "nullable": true
                 },
                 "refreshStartedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -7558,8 +7991,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7618,8 +8051,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7696,8 +8129,8 @@
             "Organization": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7751,6 +8184,13 @@
               "uniques": []
             },
             "Project": {
+              "checks": [
+                {
+                  "expression": "((\"ownerUserId\" IS NULL) <> (\"organizationId\" IS NULL))",
+                  "name": "Project_exactly_one_owner_ad5ba0b8",
+                  "prefix": "Project_exactly_one_owner"
+                }
+              ],
               "columns": {
                 "additionalRepos": {
                   "codecId": "pg/jsonb@1",
@@ -7767,8 +8207,8 @@
                   "nullable": true
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7777,6 +8217,11 @@
                   "typeParams": {
                     "precision": 3
                   }
+                },
+                "createdById": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "description": {
                   "codecId": "pg/text@1",
@@ -7798,6 +8243,11 @@
                   "nullable": false
                 },
                 "organizationId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "ownerUserId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
@@ -7831,29 +8281,45 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
                   }
-                },
-                "userId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Project_userId_idx"
+                    "name": "Project_ownerUserId_idx_f93ae154"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
-                      "userId"
+                      "ownerUserId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Project"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "Project_createdById_idx_8bf640ed"
+                  },
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdById"
                     ],
                     "namespaceId": "public",
                     "tableName": "Project"
@@ -7870,7 +8336,7 @@
                   "index": {
                     "name": "Project_organizationId_idx"
                   },
-                  "onDelete": "restrict",
+                  "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
@@ -7891,6 +8357,14 @@
               "indexes": [
                 {
                   "columns": [
+                    "createdById"
+                  ],
+                  "name": "Project_createdById_idx_8bf640ed",
+                  "prefix": "Project_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "organizationId"
                   ],
                   "name": "Project_organizationId_idx",
@@ -7898,9 +8372,10 @@
                 },
                 {
                   "columns": [
-                    "userId"
+                    "ownerUserId"
                   ],
-                  "name": "Project_userId_idx",
+                  "name": "Project_ownerUserId_idx_f93ae154",
+                  "prefix": "Project_ownerUserId_idx",
                   "unique": false
                 }
               ],
@@ -7914,8 +8389,8 @@
             "ProjectMcpServer": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -7946,8 +8421,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -7997,8 +8472,8 @@
             "ProjectSecret": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8038,8 +8513,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8089,8 +8564,8 @@
             "ProjectSetting": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8116,8 +8591,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8177,8 +8652,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8274,8 +8749,8 @@
             "SecretEntry": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8310,8 +8785,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8371,8 +8846,8 @@
                   "nullable": true
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8383,8 +8858,8 @@
                   }
                 },
                 "expiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8406,8 +8881,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8426,6 +8901,9 @@
               },
               "foreignKeys": [
                 {
+                  "index": {
+                    "name": "Session_userId_idx_a489d58a"
+                  },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
@@ -8451,6 +8929,14 @@
                   ],
                   "name": "Session_token_key",
                   "unique": true
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "Session_userId_idx_a489d58a",
+                  "prefix": "Session_userId_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -8463,8 +8949,8 @@
             "SshSigningKey": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8495,8 +8981,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8565,9 +9051,12 @@
                   "nullable": true
                 },
                 "createdAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "executionLocation": {
                   "codecId": "pg/text@1",
@@ -8634,9 +9123,12 @@
                   "nullable": true
                 },
                 "updatedAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "userId": {
                   "codecId": "pg/text@1",
@@ -8675,7 +9167,7 @@
                   "index": {
                     "name": "Thread_parentThreadId_idx"
                   },
-                  "onDelete": "restrict",
+                  "onDelete": "setNull",
                   "source": {
                     "columns": [
                       "parentThreadId"
@@ -8695,7 +9187,7 @@
                   "index": {
                     "name": "Thread_spawnerThreadId_idx"
                   },
-                  "onDelete": "restrict",
+                  "onDelete": "setNull",
                   "source": {
                     "columns": [
                       "spawnerThreadId"
@@ -8807,9 +9299,12 @@
                   "nullable": false
                 },
                 "endedAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "inputTokens": {
                   "codecId": "pg/int4@1",
@@ -8837,9 +9332,12 @@
                   "nullable": false
                 },
                 "startedAt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "status": {
                   "codecId": "pg/text@1",
@@ -8912,8 +9410,8 @@
             "User": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -8953,8 +9451,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -8991,8 +9489,8 @@
                   "nullable": false
                 },
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9018,8 +9516,8 @@
                   "nullable": false
                 },
                 "tombstonedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": true,
                   "typeParams": {
                     "precision": 3
@@ -9031,8 +9529,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9097,8 +9595,8 @@
             "Verification": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9109,8 +9607,8 @@
                   }
                 },
                 "expiresAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9127,8 +9625,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9141,7 +9639,16 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "identifier"
+                  ],
+                  "name": "Verification_identifier_idx_79a0dbb3",
+                  "prefix": "Verification_identifier_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -9152,8 +9659,8 @@
             "WorkspaceMcpServer": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9184,8 +9691,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9235,8 +9742,8 @@
             "WorkspaceSecret": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9276,8 +9783,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9290,6 +9797,27 @@
                 }
               },
               "foreignKeys": [
+                {
+                  "index": {
+                    "name": "WorkspaceSecret_updatedById_idx_d0517c24"
+                  },
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "updatedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "WorkspaceSecret"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
                 {
                   "index": {
                     "name": "WorkspaceSecret_organizationId_name_key"
@@ -9320,6 +9848,14 @@
                   ],
                   "name": "WorkspaceSecret_organizationId_name_key",
                   "unique": true
+                },
+                {
+                  "columns": [
+                    "updatedById"
+                  ],
+                  "name": "WorkspaceSecret_updatedById_idx_d0517c24",
+                  "prefix": "WorkspaceSecret_updatedById_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -9332,8 +9868,8 @@
             "WorkspaceSetting": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9359,8 +9895,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9415,8 +9951,8 @@
             "WorkspaceVercelCredential": {
               "columns": {
                 "createdAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "default": {
                     "expression": "now()",
                     "kind": "function"
@@ -9442,8 +9978,8 @@
                   "nullable": false
                 },
                 "updatedAt": {
-                  "codecId": "pg/timestamp-string@1",
-                  "dataType": "pg/timestamp",
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
@@ -9456,6 +9992,27 @@
                 }
               },
               "foreignKeys": [
+                {
+                  "index": {
+                    "name": "WorkspaceVercelCredential_updatedById_idx_d0517c24"
+                  },
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "updatedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "WorkspaceVercelCredential"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
                 {
                   "index": {
                     "primaryKey": true
@@ -9478,7 +10035,16 @@
                   }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "updatedById"
+                  ],
+                  "name": "WorkspaceVercelCredential_updatedById_idx_d0517c24",
+                  "prefix": "WorkspaceVercelCredential_updatedById_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "organizationId"
@@ -9492,19 +10058,19 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221"
+    "storageHash": "64cb0885c524619aabe36260368c3940d543a21b3ee63b53c73aea62f33a6d4b"
   },
   "execution": {
-    "executionHash": "20dd3499c7a934e375724941595b28c5dd065aede85bf91c249be6e04ec02e98",
+    "executionHash": "9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf",
     "mutations": {
       "defaults": [
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9515,11 +10081,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9530,11 +10096,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9545,11 +10111,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9560,11 +10126,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9575,11 +10141,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9590,11 +10156,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9638,11 +10204,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9653,11 +10219,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9679,11 +10245,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9694,11 +10260,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9720,11 +10286,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9735,11 +10301,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9750,11 +10316,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9765,11 +10331,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9791,11 +10357,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9806,11 +10372,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9832,11 +10398,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9847,11 +10413,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9873,11 +10439,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9888,11 +10454,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9903,11 +10469,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9918,11 +10484,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9933,11 +10499,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {
@@ -9948,11 +10514,11 @@
         },
         {
           "onCreate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "onUpdate": {
-            "id": "timestampStringNow",
+            "id": "timestampNow",
             "kind": "generator"
           },
           "ref": {

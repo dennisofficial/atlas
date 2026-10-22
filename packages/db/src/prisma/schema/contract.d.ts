@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221'>;
+  StorageHashBase<'64cb0885c524619aabe36260368c3940d543a21b3ee63b53c73aea62f33a6d4b'>;
 export type ExecutionHash =
-  ExecutionHashBase<'20dd3499c7a934e375724941595b28c5dd065aede85bf91c249be6e04ec02e98'>;
+  ExecutionHashBase<'9e0799c9bddb2d38cfb399284ddde61d1f2133abcb73c659a49e48095f7e1daf'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -293,7 +293,9 @@ export namespace Models {
     provider: FieldOutputTypes['public']['ActiveAccount']['provider'];
     updatedAt: FieldOutputTypes['public']['ActiveAccount']['updatedAt'];
     userId: FieldOutputTypes['public']['ActiveAccount']['userId'];
-    readonly [RelationKeys]?: never;
+    account: public_AgentAccount;
+    user: public_User;
+    readonly [RelationKeys]?: 'account' | 'user';
   };
   export type public_AgentAccount = {
     createdAt: FieldOutputTypes['public']['AgentAccount']['createdAt'];
@@ -310,13 +312,13 @@ export namespace Models {
     subscription: FieldOutputTypes['public']['AgentAccount']['subscription'];
     updatedAt: FieldOutputTypes['public']['AgentAccount']['updatedAt'];
     userId: FieldOutputTypes['public']['AgentAccount']['userId'];
+    activePointers: public_ActiveAccount[];
     user: public_User;
-    readonly [RelationKeys]?: 'user';
+    readonly [RelationKeys]?: 'activePointers' | 'user';
   };
   export type public_CloudSandbox = {
     contextPending: FieldOutputTypes['public']['CloudSandbox']['contextPending'];
     createdAt: FieldOutputTypes['public']['CloudSandbox']['createdAt'];
-    driveName: FieldOutputTypes['public']['CloudSandbox']['driveName'];
     id: FieldOutputTypes['public']['CloudSandbox']['id'];
     lastActivityAt: FieldOutputTypes['public']['CloudSandbox']['lastActivityAt'];
     name: FieldOutputTypes['public']['CloudSandbox']['name'];
@@ -337,28 +339,12 @@ export namespace Models {
     userId: FieldOutputTypes['public']['CloudSandbox']['userId'];
     wakeClaim: FieldOutputTypes['public']['CloudSandbox']['wakeClaim'];
     wakeFailedAt: FieldOutputTypes['public']['CloudSandbox']['wakeFailedAt'];
-    workspaceBranch: FieldOutputTypes['public']['CloudSandbox']['workspaceBranch'];
-    workspaceCommit: FieldOutputTypes['public']['CloudSandbox']['workspaceCommit'];
-    workspaceGitEmail: FieldOutputTypes['public']['CloudSandbox']['workspaceGitEmail'];
-    workspaceGitName: FieldOutputTypes['public']['CloudSandbox']['workspaceGitName'];
-    workspacePatch: FieldOutputTypes['public']['CloudSandbox']['workspacePatch'];
-    workspaceProjectDirectory: FieldOutputTypes['public']['CloudSandbox']['workspaceProjectDirectory'];
     workspaceRemoteUrl: FieldOutputTypes['public']['CloudSandbox']['workspaceRemoteUrl'];
     githubSubscriptions: public_GithubSubscription[];
     oauthConnections: public_OauthConnectionSandbox[];
     thread: public_Thread;
     user: public_User;
     readonly [RelationKeys]?: 'githubSubscriptions' | 'oauthConnections' | 'thread' | 'user';
-  };
-  export type public_CloudSetting = {
-    createdAt: FieldOutputTypes['public']['CloudSetting']['createdAt'];
-    id: FieldOutputTypes['public']['CloudSetting']['id'];
-    key: FieldOutputTypes['public']['CloudSetting']['key'];
-    updatedAt: FieldOutputTypes['public']['CloudSetting']['updatedAt'];
-    userId: FieldOutputTypes['public']['CloudSetting']['userId'];
-    value: FieldOutputTypes['public']['CloudSetting']['value'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
   };
   export type public_DeviceCode = {
     clientId: FieldOutputTypes['public']['DeviceCode']['clientId'];
@@ -407,7 +393,8 @@ export namespace Models {
     dismissedAt: FieldOutputTypes['public']['GithubAppNoticeDismissal']['dismissedAt'];
     repoFullName: FieldOutputTypes['public']['GithubAppNoticeDismissal']['repoFullName'];
     userId: FieldOutputTypes['public']['GithubAppNoticeDismissal']['userId'];
-    readonly [RelationKeys]?: never;
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
   };
   export type public_GithubConnection = {
     createdAt: FieldOutputTypes['public']['GithubConnection']['createdAt'];
@@ -429,7 +416,8 @@ export namespace Models {
     prNumber: FieldOutputTypes['public']['GithubPrEvent']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubPrEvent']['repoFullName'];
     userId: FieldOutputTypes['public']['GithubPrEvent']['userId'];
-    readonly [RelationKeys]?: never;
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
   };
   export type public_GithubPrState = {
     checksFailed: FieldOutputTypes['public']['GithubPrState']['checksFailed'];
@@ -456,7 +444,8 @@ export namespace Models {
     secret: FieldOutputTypes['public']['GithubRepoHook']['secret'];
     status: FieldOutputTypes['public']['GithubRepoHook']['status'];
     sweepLeaseUntil: FieldOutputTypes['public']['GithubRepoHook']['sweepLeaseUntil'];
-    readonly [RelationKeys]?: never;
+    creator: public_User;
+    readonly [RelationKeys]?: 'creator';
   };
   export type public_GithubSubscription = {
     branch: FieldOutputTypes['public']['GithubSubscription']['branch'];
@@ -467,11 +456,11 @@ export namespace Models {
     pollBacked: FieldOutputTypes['public']['GithubSubscription']['pollBacked'];
     prNumber: FieldOutputTypes['public']['GithubSubscription']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubSubscription']['repoFullName'];
-    sandboxId: FieldOutputTypes['public']['GithubSubscription']['sandboxId'];
     threadId: FieldOutputTypes['public']['GithubSubscription']['threadId'];
     userId: FieldOutputTypes['public']['GithubSubscription']['userId'];
     sandbox: public_CloudSandbox | null;
-    readonly [RelationKeys]?: 'sandbox';
+    user: public_User;
+    readonly [RelationKeys]?: 'sandbox' | 'user';
   };
   export type public_Invitation = {
     createdAt: FieldOutputTypes['public']['Invitation']['createdAt'];
@@ -493,16 +482,6 @@ export namespace Models {
     tokenHash: FieldOutputTypes['public']['LocalPodLease']['tokenHash'];
     updatedAt: FieldOutputTypes['public']['LocalPodLease']['updatedAt'];
     userId: FieldOutputTypes['public']['LocalPodLease']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
-  export type public_McpServerConfig = {
-    createdAt: FieldOutputTypes['public']['McpServerConfig']['createdAt'];
-    id: FieldOutputTypes['public']['McpServerConfig']['id'];
-    name: FieldOutputTypes['public']['McpServerConfig']['name'];
-    sealedSpec: FieldOutputTypes['public']['McpServerConfig']['sealedSpec'];
-    updatedAt: FieldOutputTypes['public']['McpServerConfig']['updatedAt'];
-    userId: FieldOutputTypes['public']['McpServerConfig']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -582,24 +561,26 @@ export namespace Models {
     additionalRepos: FieldOutputTypes['public']['Project']['additionalRepos'];
     baseBranch: FieldOutputTypes['public']['Project']['baseBranch'];
     createdAt: FieldOutputTypes['public']['Project']['createdAt'];
+    createdById: FieldOutputTypes['public']['Project']['createdById'];
     description: FieldOutputTypes['public']['Project']['description'];
     id: FieldOutputTypes['public']['Project']['id'];
     name: FieldOutputTypes['public']['Project']['name'];
     organizationId: FieldOutputTypes['public']['Project']['organizationId'];
+    ownerUserId: FieldOutputTypes['public']['Project']['ownerUserId'];
     repo: FieldOutputTypes['public']['Project']['repo'];
     sandboxVcpus: FieldOutputTypes['public']['Project']['sandboxVcpus'];
     setupScript: FieldOutputTypes['public']['Project']['setupScript'];
     shipBehavior: FieldOutputTypes['public']['Project']['shipBehavior'];
     updatedAt: FieldOutputTypes['public']['Project']['updatedAt'];
-    userId: FieldOutputTypes['public']['Project']['userId'];
+    createdBy: public_User | null;
     mcpServers: public_ProjectMcpServer[];
     organization: public_Organization | null;
+    owner: public_User | null;
     secrets: public_ProjectSecret[];
     settings: public_ProjectSetting[];
     threads: public_Thread[];
-    user: public_User;
     readonly [RelationKeys]?:
-      'mcpServers' | 'organization' | 'secrets' | 'settings' | 'threads' | 'user';
+      'createdBy' | 'mcpServers' | 'organization' | 'owner' | 'secrets' | 'settings' | 'threads';
   };
   export type public_ProjectMcpServer = {
     createdAt: FieldOutputTypes['public']['ProjectMcpServer']['createdAt'];
@@ -642,17 +623,6 @@ export namespace Models {
     sizeBytes: FieldOutputTypes['public']['PublishedBundle']['sizeBytes'];
     userId: FieldOutputTypes['public']['PublishedBundle']['userId'];
     version: FieldOutputTypes['public']['PublishedBundle']['version'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
-  export type public_SecretEntry = {
-    createdAt: FieldOutputTypes['public']['SecretEntry']['createdAt'];
-    id: FieldOutputTypes['public']['SecretEntry']['id'];
-    kind: FieldOutputTypes['public']['SecretEntry']['kind'];
-    name: FieldOutputTypes['public']['SecretEntry']['name'];
-    sealedValue: FieldOutputTypes['public']['SecretEntry']['sealedValue'];
-    updatedAt: FieldOutputTypes['public']['SecretEntry']['updatedAt'];
-    userId: FieldOutputTypes['public']['SecretEntry']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -747,43 +717,59 @@ export namespace Models {
     name: FieldOutputTypes['public']['User']['name'];
     updatedAt: FieldOutputTypes['public']['User']['updatedAt'];
     accounts: public_Account[];
+    activeAccounts: public_ActiveAccount[];
     agentAccounts: public_AgentAccount[];
     cloudSandboxes: public_CloudSandbox[];
-    cloudSettings: public_CloudSetting[];
+    createdProjects: public_Project[];
     deviceCodes: public_DeviceCode[];
     githubConnection: public_GithubConnection | null;
+    githubNoticeDismissals: public_GithubAppNoticeDismissal[];
+    githubPrEvents: public_GithubPrEvent[];
+    githubRepoHooks: public_GithubRepoHook[];
+    githubSubscriptions: public_GithubSubscription[];
     invitations: public_Invitation[];
     localPodLeases: public_LocalPodLease[];
-    mcpServers: public_McpServerConfig[];
+    mcpServers: public_UserMcpServer[];
     members: public_Member[];
     memories: public_Memory[];
     oauthConnections: public_OauthConnection[];
-    projects: public_Project[];
+    ownedProjects: public_Project[];
     publishedBundles: public_PublishedBundle[];
-    secretEntries: public_SecretEntry[];
+    secrets: public_UserSecret[];
     sessions: public_Session[];
+    settings: public_UserSetting[];
     sshSigningKey: public_SshSigningKey | null;
     threads: public_Thread[];
+    updatedVercelCredentials: public_WorkspaceVercelCredential[];
+    updatedWorkspaceSecrets: public_WorkspaceSecret[];
     userFiles: public_UserFile[];
     readonly [RelationKeys]?:
       | 'accounts'
+      | 'activeAccounts'
       | 'agentAccounts'
       | 'cloudSandboxes'
-      | 'cloudSettings'
+      | 'createdProjects'
       | 'deviceCodes'
       | 'githubConnection'
+      | 'githubNoticeDismissals'
+      | 'githubPrEvents'
+      | 'githubRepoHooks'
+      | 'githubSubscriptions'
       | 'invitations'
       | 'localPodLeases'
       | 'mcpServers'
       | 'members'
       | 'memories'
       | 'oauthConnections'
-      | 'projects'
+      | 'ownedProjects'
       | 'publishedBundles'
-      | 'secretEntries'
+      | 'secrets'
       | 'sessions'
+      | 'settings'
       | 'sshSigningKey'
       | 'threads'
+      | 'updatedVercelCredentials'
+      | 'updatedWorkspaceSecrets'
       | 'userFiles';
   };
   export type public_UserFile = {
@@ -797,6 +783,37 @@ export namespace Models {
     tree: FieldOutputTypes['public']['UserFile']['tree'];
     updatedAt: FieldOutputTypes['public']['UserFile']['updatedAt'];
     userId: FieldOutputTypes['public']['UserFile']['userId'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
+  export type public_UserMcpServer = {
+    createdAt: FieldOutputTypes['public']['UserMcpServer']['createdAt'];
+    id: FieldOutputTypes['public']['UserMcpServer']['id'];
+    name: FieldOutputTypes['public']['UserMcpServer']['name'];
+    sealedSpec: FieldOutputTypes['public']['UserMcpServer']['sealedSpec'];
+    updatedAt: FieldOutputTypes['public']['UserMcpServer']['updatedAt'];
+    userId: FieldOutputTypes['public']['UserMcpServer']['userId'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
+  export type public_UserSecret = {
+    createdAt: FieldOutputTypes['public']['UserSecret']['createdAt'];
+    id: FieldOutputTypes['public']['UserSecret']['id'];
+    kind: FieldOutputTypes['public']['UserSecret']['kind'];
+    name: FieldOutputTypes['public']['UserSecret']['name'];
+    sealedValue: FieldOutputTypes['public']['UserSecret']['sealedValue'];
+    updatedAt: FieldOutputTypes['public']['UserSecret']['updatedAt'];
+    userId: FieldOutputTypes['public']['UserSecret']['userId'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
+  export type public_UserSetting = {
+    createdAt: FieldOutputTypes['public']['UserSetting']['createdAt'];
+    id: FieldOutputTypes['public']['UserSetting']['id'];
+    key: FieldOutputTypes['public']['UserSetting']['key'];
+    updatedAt: FieldOutputTypes['public']['UserSetting']['updatedAt'];
+    userId: FieldOutputTypes['public']['UserSetting']['userId'];
+    value: FieldOutputTypes['public']['UserSetting']['value'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -829,7 +846,8 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['WorkspaceSecret']['updatedAt'];
     updatedById: FieldOutputTypes['public']['WorkspaceSecret']['updatedById'];
     organization: public_Organization;
-    readonly [RelationKeys]?: 'organization';
+    updatedBy: public_User | null;
+    readonly [RelationKeys]?: 'organization' | 'updatedBy';
   };
   export type public_WorkspaceSetting = {
     createdAt: FieldOutputTypes['public']['WorkspaceSetting']['createdAt'];
@@ -849,7 +867,8 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['WorkspaceVercelCredential']['updatedAt'];
     updatedById: FieldOutputTypes['public']['WorkspaceVercelCredential']['updatedById'];
     organization: public_Organization;
-    readonly [RelationKeys]?: 'organization';
+    updatedBy: public_User | null;
+    readonly [RelationKeys]?: 'organization' | 'updatedBy';
   };
 }
 
@@ -859,7 +878,6 @@ export declare const models: {
     ActiveAccount: Models.public_ActiveAccount;
     AgentAccount: Models.public_AgentAccount;
     CloudSandbox: Models.public_CloudSandbox;
-    CloudSetting: Models.public_CloudSetting;
     DeviceCode: Models.public_DeviceCode;
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
@@ -871,7 +889,6 @@ export declare const models: {
     GithubSubscription: Models.public_GithubSubscription;
     Invitation: Models.public_Invitation;
     LocalPodLease: Models.public_LocalPodLease;
-    McpServerConfig: Models.public_McpServerConfig;
     Member: Models.public_Member;
     Memory: Models.public_Memory;
     OauthConnection: Models.public_OauthConnection;
@@ -882,13 +899,15 @@ export declare const models: {
     ProjectSecret: Models.public_ProjectSecret;
     ProjectSetting: Models.public_ProjectSetting;
     PublishedBundle: Models.public_PublishedBundle;
-    SecretEntry: Models.public_SecretEntry;
     Session: Models.public_Session;
     SshSigningKey: Models.public_SshSigningKey;
     Thread: Models.public_Thread;
     Turn: Models.public_Turn;
     User: Models.public_User;
     UserFile: Models.public_UserFile;
+    UserMcpServer: Models.public_UserMcpServer;
+    UserSecret: Models.public_UserSecret;
+    UserSetting: Models.public_UserSetting;
     Verification: Models.public_Verification;
     WorkspaceMcpServer: Models.public_WorkspaceMcpServer;
     WorkspaceSecret: Models.public_WorkspaceSecret;
@@ -924,8 +943,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly accessTokenExpiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -937,8 +956,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -975,8 +994,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly refreshTokenExpiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -988,8 +1007,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1003,7 +1022,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Account_userId_idx_a489d58a';
+                  readonly prefix: 'Account_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -1028,8 +1054,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1042,8 +1068,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1057,14 +1083,46 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['userId', 'provider'] };
               uniques: readonly [];
-              indexes: readonly [];
-              foreignKeys: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'ActiveAccount_accountId_idx_cbfb3085';
+                  readonly prefix: 'ActiveAccount_accountId_idx';
+                  readonly columns: readonly ['accountId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ActiveAccount';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ActiveAccount';
+                    readonly columns: readonly ['accountId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'AgentAccount';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
             };
             readonly AgentAccount: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1141,8 +1199,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1191,15 +1249,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly driveName: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly id: {
@@ -1209,9 +1262,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly lastActivityAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly name: {
@@ -1299,9 +1353,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly userId: {
@@ -1311,51 +1366,17 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly wakeClaim: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly wakeFailedAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspaceBranch: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspaceCommit: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspaceGitEmail: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspaceGitName: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspacePatch: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly workspaceProjectDirectory: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly workspaceRemoteUrl: {
@@ -1366,7 +1387,7 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [{ readonly columns: readonly ['tokenHash'] }];
               indexes: readonly [
                 {
                   readonly name: 'CloudSandbox_state_lastActivityAt_idx';
@@ -1414,8 +1435,8 @@ type ContractBase = Omit<
             readonly CloudSetting: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1434,8 +1455,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1486,8 +1507,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1500,8 +1521,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly expiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1513,8 +1534,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly lastPolledAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1538,8 +1559,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1558,7 +1579,10 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [
+                { readonly columns: readonly ['deviceCode'] },
+                { readonly columns: readonly ['userCode'] },
+              ];
               indexes: readonly [];
               foreignKeys: readonly [
                 {
@@ -1578,9 +1602,10 @@ type ContractBase = Omit<
             readonly Event: {
               columns: {
                 readonly at: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly body: {
@@ -1715,8 +1740,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1735,15 +1760,15 @@ type ContractBase = Omit<
                   readonly many: { readonly elementNullable: true };
                 };
                 readonly suspendedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1763,8 +1788,8 @@ type ContractBase = Omit<
             readonly GithubAppNoticeDismissal: {
               columns: {
                 readonly dismissedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1786,13 +1811,26 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['userId', 'repoFullName'] };
               uniques: readonly [];
               indexes: readonly [];
-              foreignKeys: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubAppNoticeDismissal';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
             };
             readonly GithubConnection: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -1823,8 +1861,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1863,16 +1901,16 @@ type ContractBase = Omit<
             readonly GithubPrEvent: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly deliveredAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -1928,7 +1966,20 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
               ];
-              foreignKeys: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubPrEvent';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
             };
             readonly GithubPrState: {
               columns: {
@@ -2011,8 +2062,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2026,20 +2077,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['repoFullName', 'prNumber'] };
               uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'GithubPrState_repoFullName_idx';
-                  readonly columns: readonly ['repoFullName'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [];
             };
             readonly GithubRepoHook: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2058,8 +2103,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly idleSince: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2083,8 +2128,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly sweepLeaseUntil: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2092,8 +2137,28 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['repoFullName'] };
               uniques: readonly [];
-              indexes: readonly [];
-              foreignKeys: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'GithubRepoHook_createdBy_idx_ba0f792f';
+                  readonly prefix: 'GithubRepoHook_createdBy_idx';
+                  readonly columns: readonly ['createdBy'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubRepoHook';
+                    readonly columns: readonly ['createdBy'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
             };
             readonly GithubSubscription: {
               columns: {
@@ -2108,16 +2173,16 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly expiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2129,8 +2194,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly liveUntil: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2156,12 +2221,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sandboxId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly threadId: {
@@ -2216,6 +2275,18 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'GithubSubscription';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubSubscription';
                     readonly columns: readonly ['threadId'];
                   };
                   readonly target: {
@@ -2229,8 +2300,8 @@ type ContractBase = Omit<
             readonly Invitation: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2243,8 +2314,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly expiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2282,7 +2353,20 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Invitation_inviterId_idx_c2d8c6d6';
+                  readonly prefix: 'Invitation_inviterId_idx';
+                  readonly columns: readonly ['inviterId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Invitation_organizationId_idx_2e17ef41';
+                  readonly prefix: 'Invitation_organizationId_idx';
+                  readonly columns: readonly ['organizationId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -2313,8 +2397,8 @@ type ContractBase = Omit<
             readonly LocalPodLease: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2339,8 +2423,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2389,8 +2473,8 @@ type ContractBase = Omit<
             readonly McpServerConfig: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2415,8 +2499,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2455,8 +2539,8 @@ type ContractBase = Omit<
             readonly Member: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2488,8 +2572,20 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [];
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['organizationId', 'userId'];
+                  readonly name: 'Member_organizationId_userId_key';
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'Member_userId_idx_a489d58a';
+                  readonly prefix: 'Member_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -2526,8 +2622,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2584,8 +2680,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2635,8 +2731,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2671,8 +2767,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly refreshStartedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2694,8 +2790,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -2740,8 +2836,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2793,8 +2889,8 @@ type ContractBase = Omit<
             readonly Organization: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -2861,11 +2957,17 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly createdById: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly description: {
@@ -2891,6 +2993,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly organizationId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly ownerUserId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -2929,16 +3037,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
                   readonly many: false;
                 };
               };
@@ -2946,13 +3048,20 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'Project_createdById_idx_8bf640ed';
+                  readonly prefix: 'Project_createdById_idx';
+                  readonly columns: readonly ['createdById'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Project_organizationId_idx';
                   readonly columns: readonly ['organizationId'];
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'Project_userId_idx';
-                  readonly columns: readonly ['userId'];
+                  readonly name: 'Project_ownerUserId_idx_f93ae154';
+                  readonly prefix: 'Project_ownerUserId_idx';
+                  readonly columns: readonly ['ownerUserId'];
                   readonly unique: false;
                 },
               ];
@@ -2961,7 +3070,19 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Project';
-                    readonly columns: readonly ['userId'];
+                    readonly columns: readonly ['ownerUserId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Project';
+                    readonly columns: readonly ['createdById'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
@@ -2986,8 +3107,8 @@ type ContractBase = Omit<
             readonly ProjectMcpServer: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3018,8 +3139,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3052,8 +3173,8 @@ type ContractBase = Omit<
             readonly ProjectSecret: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3094,8 +3215,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3128,8 +3249,8 @@ type ContractBase = Omit<
             readonly ProjectSetting: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3154,8 +3275,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3200,8 +3321,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3282,8 +3403,8 @@ type ContractBase = Omit<
             readonly SecretEntry: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3318,8 +3439,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3364,16 +3485,16 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly expiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3397,8 +3518,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3424,6 +3545,12 @@ type ContractBase = Omit<
                   readonly columns: readonly ['token'];
                   readonly unique: true;
                 },
+                {
+                  readonly name: 'Session_userId_idx_a489d58a';
+                  readonly prefix: 'Session_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
               ];
               foreignKeys: readonly [
                 {
@@ -3443,8 +3570,8 @@ type ContractBase = Omit<
             readonly SshSigningKey: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3475,8 +3602,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3533,9 +3660,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly executionLocation: {
@@ -3615,9 +3743,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly userId: {
@@ -3739,9 +3868,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly endedAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly inputTokens: {
@@ -3775,9 +3905,10 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly startedAt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly status: {
@@ -3837,8 +3968,8 @@ type ContractBase = Omit<
             readonly User: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3879,8 +4010,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3912,8 +4043,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -3938,8 +4069,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly tombstonedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3951,8 +4082,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -3996,16 +4127,16 @@ type ContractBase = Omit<
             readonly Verification: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly expiresAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4023,8 +4154,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4038,14 +4169,21 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Verification_identifier_idx_79a0dbb3';
+                  readonly prefix: 'Verification_identifier_idx';
+                  readonly columns: readonly ['identifier'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly WorkspaceMcpServer: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -4076,8 +4214,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4110,8 +4248,8 @@ type ContractBase = Omit<
             readonly WorkspaceSecret: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -4152,8 +4290,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4173,8 +4311,26 @@ type ContractBase = Omit<
                   readonly columns: readonly ['organizationId', 'name'];
                   readonly unique: true;
                 },
+                {
+                  readonly name: 'WorkspaceSecret_updatedById_idx_d0517c24';
+                  readonly prefix: 'WorkspaceSecret_updatedById_idx';
+                  readonly columns: readonly ['updatedById'];
+                  readonly unique: false;
+                },
               ];
               foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'WorkspaceSecret';
+                    readonly columns: readonly ['updatedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
                 {
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
@@ -4192,8 +4348,8 @@ type ContractBase = Omit<
             readonly WorkspaceSetting: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -4218,8 +4374,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4258,8 +4414,8 @@ type ContractBase = Omit<
             readonly WorkspaceVercelCredential: {
               columns: {
                 readonly createdAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
@@ -4284,8 +4440,8 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly updatedAt: {
-                  readonly dataType: 'pg/timestamp';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
@@ -4299,8 +4455,27 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['organizationId'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'WorkspaceVercelCredential_updatedById_idx_d0517c24';
+                  readonly prefix: 'WorkspaceVercelCredential_updatedById_idx';
+                  readonly columns: readonly ['updatedById'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'WorkspaceVercelCredential';
+                    readonly columns: readonly ['updatedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
                 {
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
@@ -4341,7 +4516,7 @@ type ContractBase = Omit<
     };
     readonly CloudSetting: {
       readonly namespace: 'public' & NamespaceId;
-      readonly model: 'CloudSetting';
+      readonly model: 'UserSetting';
     };
     readonly DeviceCode: {
       readonly namespace: 'public' & NamespaceId;
@@ -4386,7 +4561,7 @@ type ContractBase = Omit<
     };
     readonly McpServerConfig: {
       readonly namespace: 'public' & NamespaceId;
-      readonly model: 'McpServerConfig';
+      readonly model: 'UserMcpServer';
     };
     readonly Member: { readonly namespace: 'public' & NamespaceId; readonly model: 'Member' };
     readonly Memory: { readonly namespace: 'public' & NamespaceId; readonly model: 'Memory' };
@@ -4421,7 +4596,7 @@ type ContractBase = Omit<
     };
     readonly SecretEntry: {
       readonly namespace: 'public' & NamespaceId;
-      readonly model: 'SecretEntry';
+      readonly model: 'UserSecret';
     };
     readonly Session: { readonly namespace: 'public' & NamespaceId; readonly model: 'Session' };
     readonly SshSigningKey: {
@@ -4467,7 +4642,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4479,7 +4654,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4507,7 +4682,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4519,7 +4694,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4569,7 +4744,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4581,7 +4756,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4590,7 +4765,29 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly account: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'AgentAccount';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['accountId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
             readonly storage: {
               readonly table: 'ActiveAccount';
               readonly namespaceId: 'public';
@@ -4609,7 +4806,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4661,7 +4858,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4671,6 +4868,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly activePointers: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ActiveAccount';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['accountId'];
+                };
+              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -4710,11 +4918,11 @@ type ContractBase = Omit<
               };
               readonly createdAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly driveName: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly id: {
                 readonly nullable: false;
@@ -4722,7 +4930,11 @@ type ContractBase = Omit<
               };
               readonly lastActivityAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly name: {
                 readonly nullable: false;
@@ -4782,7 +4994,11 @@ type ContractBase = Omit<
               };
               readonly updatedAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly userId: {
                 readonly nullable: false;
@@ -4790,35 +5006,19 @@ type ContractBase = Omit<
               };
               readonly wakeClaim: {
                 readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly wakeFailedAt: {
                 readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspaceBranch: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspaceCommit: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspaceGitEmail: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspaceGitName: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspacePatch: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspaceProjectDirectory: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly workspaceRemoteUrl: {
                 readonly nullable: true;
@@ -4876,7 +5076,6 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly contextPending: { readonly column: 'contextPending' };
                 readonly createdAt: { readonly column: 'createdAt' };
-                readonly driveName: { readonly column: 'driveName' };
                 readonly id: { readonly column: 'id' };
                 readonly lastActivityAt: { readonly column: 'lastActivityAt' };
                 readonly name: { readonly column: 'name' };
@@ -4899,74 +5098,7 @@ type ContractBase = Omit<
                 readonly userId: { readonly column: 'userId' };
                 readonly wakeClaim: { readonly column: 'wakeClaim' };
                 readonly wakeFailedAt: { readonly column: 'wakeFailedAt' };
-                readonly workspaceBranch: { readonly column: 'workspaceBranch' };
-                readonly workspaceCommit: { readonly column: 'workspaceCommit' };
-                readonly workspaceGitEmail: { readonly column: 'workspaceGitEmail' };
-                readonly workspaceGitName: { readonly column: 'workspaceGitName' };
-                readonly workspacePatch: { readonly column: 'workspacePatch' };
-                readonly workspaceProjectDirectory: {
-                  readonly column: 'workspaceProjectDirectory';
-                };
                 readonly workspaceRemoteUrl: { readonly column: 'workspaceRemoteUrl' };
-              };
-            };
-          };
-          readonly CloudSetting: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly key: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly value: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'CloudSetting';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly key: { readonly column: 'key' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-                readonly value: { readonly column: 'value' };
               };
             };
           };
@@ -4980,7 +5112,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -4992,7 +5124,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5004,7 +5136,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5024,7 +5156,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5071,7 +5203,11 @@ type ContractBase = Omit<
             readonly fields: {
               readonly at: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly body: {
                 readonly nullable: false;
@@ -5170,7 +5306,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5187,7 +5323,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5195,7 +5331,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5221,7 +5357,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5234,7 +5370,17 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
             readonly storage: {
               readonly table: 'GithubAppNoticeDismissal';
               readonly namespaceId: 'public';
@@ -5251,7 +5397,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5275,7 +5421,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5315,7 +5461,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5323,7 +5469,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5352,7 +5498,17 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
             readonly storage: {
               readonly table: 'GithubPrEvent';
               readonly namespaceId: 'public';
@@ -5418,7 +5574,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5454,7 +5610,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5470,7 +5626,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5490,12 +5646,22 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
             };
-            readonly relations: Record<string, never>;
+            readonly relations: {
+              readonly creator: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['createdBy'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
             readonly storage: {
               readonly table: 'GithubRepoHook';
               readonly namespaceId: 'public';
@@ -5521,7 +5687,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5529,7 +5695,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5541,7 +5707,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5555,10 +5721,6 @@ type ContractBase = Omit<
               };
               readonly repoFullName: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sandboxId: {
-                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly threadId: {
@@ -5583,6 +5745,15 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['threadId'];
                 };
               };
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'GithubSubscription';
@@ -5596,7 +5767,6 @@ type ContractBase = Omit<
                 readonly pollBacked: { readonly column: 'pollBacked' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
-                readonly sandboxId: { readonly column: 'sandboxId' };
                 readonly threadId: { readonly column: 'threadId' };
                 readonly userId: { readonly column: 'userId' };
               };
@@ -5608,7 +5778,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5620,7 +5790,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5689,7 +5859,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5709,7 +5879,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5742,72 +5912,13 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly McpServerConfig: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedSpec: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'McpServerConfig';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly name: { readonly column: 'name' };
-                readonly sealedSpec: { readonly column: 'sealedSpec' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly Member: {
             readonly fields: {
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5873,7 +5984,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5909,7 +6020,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5957,7 +6068,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5981,7 +6092,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -5997,7 +6108,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6056,7 +6167,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6107,7 +6218,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6239,9 +6350,13 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
+              };
+              readonly createdById: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly description: {
                 readonly nullable: false;
@@ -6256,6 +6371,10 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly organizationId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly ownerUserId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -6279,16 +6398,21 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
             };
             readonly relations: {
+              readonly createdBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['createdById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly mcpServers: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -6309,6 +6433,15 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['organizationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly owner: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['ownerUserId'];
                   readonly targetFields: readonly ['id'];
                 };
               };
@@ -6345,15 +6478,6 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['projectId'];
                 };
               };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
             };
             readonly storage: {
               readonly table: 'Project';
@@ -6362,16 +6486,17 @@ type ContractBase = Omit<
                 readonly additionalRepos: { readonly column: 'additionalRepos' };
                 readonly baseBranch: { readonly column: 'baseBranch' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly createdById: { readonly column: 'createdById' };
                 readonly description: { readonly column: 'description' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
                 readonly organizationId: { readonly column: 'organizationId' };
+                readonly ownerUserId: { readonly column: 'ownerUserId' };
                 readonly repo: { readonly column: 'repo' };
                 readonly sandboxVcpus: { readonly column: 'sandboxVcpus' };
                 readonly setupScript: { readonly column: 'setupScript' };
                 readonly shipBehavior: { readonly column: 'shipBehavior' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
               };
             };
           };
@@ -6381,7 +6506,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6405,7 +6530,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6443,7 +6568,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6471,7 +6596,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6510,7 +6635,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6530,7 +6655,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6576,7 +6701,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6636,70 +6761,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly SecretEntry: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedValue: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'SecretEntry';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
-                readonly name: { readonly column: 'name' };
-                readonly sealedValue: { readonly column: 'sealedValue' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly Session: {
             readonly fields: {
               readonly activeOrganizationId: {
@@ -6710,7 +6771,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6718,7 +6779,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6738,7 +6799,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6784,7 +6845,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6808,7 +6869,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -6860,7 +6921,11 @@ type ContractBase = Omit<
               };
               readonly createdAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly executionLocation: {
                 readonly nullable: true;
@@ -6912,7 +6977,11 @@ type ContractBase = Omit<
               };
               readonly updatedAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly userId: {
                 readonly nullable: false;
@@ -7063,7 +7132,11 @@ type ContractBase = Omit<
               };
               readonly endedAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly inputTokens: {
                 readonly nullable: false;
@@ -7087,7 +7160,11 @@ type ContractBase = Omit<
               };
               readonly startedAt: {
                 readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly status: {
                 readonly nullable: false;
@@ -7147,7 +7224,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7175,7 +7252,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7185,6 +7262,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'Account';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly activeAccounts: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ActiveAccount';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7214,15 +7302,15 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly cloudSettings: {
+              readonly createdProjects: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'CloudSetting';
+                  readonly model: 'Project';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
                   readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
+                  readonly targetFields: readonly ['createdById'];
                 };
               };
               readonly deviceCodes: {
@@ -7243,6 +7331,50 @@ type ContractBase = Omit<
                 };
                 readonly cardinality: '1:1';
                 readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly githubNoticeDismissals: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubAppNoticeDismissal';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly githubPrEvents: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubPrEvent';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly githubRepoHooks: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubRepoHook';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['createdBy'];
+                };
+              };
+              readonly githubSubscriptions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubSubscription';
+                };
+                readonly cardinality: '1:N';
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['userId'];
@@ -7273,7 +7405,7 @@ type ContractBase = Omit<
               readonly mcpServers: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'McpServerConfig';
+                  readonly model: 'UserMcpServer';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7314,7 +7446,7 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly projects: {
+              readonly ownedProjects: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'Project';
@@ -7322,7 +7454,7 @@ type ContractBase = Omit<
                 readonly cardinality: '1:N';
                 readonly on: {
                   readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
+                  readonly targetFields: readonly ['ownerUserId'];
                 };
               };
               readonly publishedBundles: {
@@ -7336,10 +7468,10 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly secretEntries: {
+              readonly secrets: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'SecretEntry';
+                  readonly model: 'UserSecret';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7351,6 +7483,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'Session';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly settings: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'UserSetting';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7379,6 +7522,28 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly updatedVercelCredentials: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'WorkspaceVercelCredential';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['updatedById'];
+                };
+              };
+              readonly updatedWorkspaceSecrets: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'WorkspaceSecret';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['updatedById'];
                 };
               };
               readonly userFiles: {
@@ -7421,7 +7586,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7441,7 +7606,7 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7453,7 +7618,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7490,13 +7655,195 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly UserMcpServer: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sealedSpec: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'McpServerConfig';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly name: { readonly column: 'name' };
+                readonly sealedSpec: { readonly column: 'sealedSpec' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly UserSecret: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly kind: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sealedValue: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'SecretEntry';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly kind: { readonly column: 'kind' };
+                readonly name: { readonly column: 'name' };
+                readonly sealedValue: { readonly column: 'sealedValue' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly UserSetting: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly key: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly value: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'CloudSetting';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly key: { readonly column: 'key' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+                readonly value: { readonly column: 'value' };
+              };
+            };
+          };
           readonly Verification: {
             readonly fields: {
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7504,7 +7851,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7520,7 +7867,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7549,7 +7896,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7573,7 +7920,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7611,7 +7958,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7639,7 +7986,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7658,6 +8005,15 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['organizationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly updatedBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['updatedById'];
                   readonly targetFields: readonly ['id'];
                 };
               };
@@ -7683,7 +8039,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7703,7 +8059,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7745,7 +8101,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7765,7 +8121,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
@@ -7784,6 +8140,15 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['organizationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly updatedBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['updatedById'];
                   readonly targetFields: readonly ['id'];
                 };
               };
@@ -7838,8 +8203,8 @@ type ContractBase = Omit<
     readonly mutations: {
       readonly defaults: readonly [
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Account';
             readonly field: 'updatedAt';
@@ -7847,8 +8212,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'ActiveAccount';
             readonly field: 'updatedAt';
@@ -7856,8 +8221,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'AgentAccount';
             readonly field: 'updatedAt';
@@ -7865,8 +8230,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'CloudSetting';
             readonly field: 'updatedAt';
@@ -7874,8 +8239,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'DeviceCode';
             readonly field: 'updatedAt';
@@ -7883,8 +8248,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'GithubAppInstallation';
             readonly field: 'updatedAt';
@@ -7892,8 +8257,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'GithubConnection';
             readonly field: 'updatedAt';
@@ -7925,8 +8290,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'LocalPodLease';
             readonly field: 'updatedAt';
@@ -7934,8 +8299,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'McpServerConfig';
             readonly field: 'updatedAt';
@@ -7951,8 +8316,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Memory';
             readonly field: 'updatedAt';
@@ -7960,8 +8325,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'OauthConnection';
             readonly field: 'updatedAt';
@@ -7977,8 +8342,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Project';
             readonly field: 'updatedAt';
@@ -7986,8 +8351,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'ProjectMcpServer';
             readonly field: 'updatedAt';
@@ -7995,8 +8360,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'ProjectSecret';
             readonly field: 'updatedAt';
@@ -8004,8 +8369,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'ProjectSetting';
             readonly field: 'updatedAt';
@@ -8021,8 +8386,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'SecretEntry';
             readonly field: 'updatedAt';
@@ -8030,8 +8395,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Session';
             readonly field: 'updatedAt';
@@ -8047,8 +8412,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'SshSigningKey';
             readonly field: 'updatedAt';
@@ -8056,8 +8421,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'User';
             readonly field: 'updatedAt';
@@ -8073,8 +8438,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'UserFile';
             readonly field: 'updatedAt';
@@ -8082,8 +8447,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Verification';
             readonly field: 'updatedAt';
@@ -8091,8 +8456,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'WorkspaceMcpServer';
             readonly field: 'updatedAt';
@@ -8100,8 +8465,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'WorkspaceSecret';
             readonly field: 'updatedAt';
@@ -8109,8 +8474,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'WorkspaceSetting';
             readonly field: 'updatedAt';
@@ -8118,8 +8483,8 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampStringNow'; readonly kind: 'generator' };
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'WorkspaceVercelCredential';
             readonly field: 'updatedAt';

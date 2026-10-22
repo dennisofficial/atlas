@@ -1,18 +1,17 @@
 // use prisma-8
-
 model GithubSubscription {
-  id           String             @id @onCreate(cuid(2))
+  id           String               @id @onCreate(cuid(2))
   userId       String
   repoFullName String
   prNumber     Int?
-  branch       String             @default("")
-  pollBacked   Boolean            @default(false)
-  expiresAt    TimestampString(3)
-  liveUntil    TimestampString(3) @default(now())
+  branch       String               @default("")
+  pollBacked   Boolean              @default(false)
+  expiresAt    TimestamptzJsDate(3)
+  liveUntil    TimestamptzJsDate(3) @default(now())
   threadId     String?
-  sandboxId    String?
-  createdAt    TimestampString(3) @default(now())
-  sandbox      CloudSandbox?      @relation(fields: [threadId], references: [threadId], onDelete: SetNull, onUpdate: Cascade)
+  createdAt    TimestamptzJsDate(3) @default(now())
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubSubscription_userId_repoFullName_branch_key")
+  sandbox      CloudSandbox?        @relation(fields: [threadId], references: [threadId], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([userId, repoFullName, branch], map: "GithubSubscription_userId_repoFullName_branch_key", unique: true)
   @@index([repoFullName, prNumber], map: "GithubSubscription_repoFullName_prNumber_idx")
