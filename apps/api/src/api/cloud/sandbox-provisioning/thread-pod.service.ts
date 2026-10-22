@@ -8,6 +8,7 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
+import { parkedOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { standingStateOf } from './sandbox-provisioning-rows'
@@ -23,6 +24,7 @@ function stateOf(args: { row: Row<'CloudSandbox'> | null; steps: RecordedBootSte
   if (standing === ESandboxProvisionState.Booting) return EPodState.Booting
   if (steps.at(-1)?.state === EBootStepState.Error) return EPodState.Failed
   if (row !== null && failedAfterClaim(row)) return EPodState.Failed
+  if (row !== null && parkedOf(row)) return EPodState.Parked
   return EPodState.None
 }
 

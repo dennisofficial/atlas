@@ -81,7 +81,12 @@ describe('SandboxProvisioningService (retry)', () => {
       gap: EVercelCredentialGap.UserCredential,
     })
     expect(await bootSteps()).toMatchObject([
-      { step: 'provision', state: 'error', error: failure.message },
+      {
+        step: 'provision',
+        state: 'error',
+        error: failure.message,
+        gap: EVercelCredentialGap.UserCredential,
+      },
     ])
     expect(await sandboxRows()).toHaveLength(0)
     expect(dispatch).not.toHaveBeenCalled()

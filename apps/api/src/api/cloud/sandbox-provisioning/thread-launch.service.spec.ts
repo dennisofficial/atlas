@@ -109,7 +109,12 @@ describe('ThreadLaunchService', () => {
     expect(await threads()).toHaveLength(1)
     expect(await eventsOf(reply.thread.id)).toHaveLength(1)
     expect(await bootSteps(reply.thread.id)).toMatchObject([
-      { step: 'provision', state: 'error', error: failure.message },
+      {
+        step: 'provision',
+        state: 'error',
+        error: failure.message,
+        gap: EVercelCredentialGap.UserCredential,
+      },
     ])
     expect(await sandboxRows()).toHaveLength(0)
     expect(dispatch).not.toHaveBeenCalled()

@@ -1,5 +1,5 @@
 import type { BootStepEvent, RecordedBootStep } from '@dltech/atlas-wire'
-import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, EVercelCredentialGap } from '@dltech/atlas-wire'
 import { db, type Tx } from '@dltech/atlas-db'
 
 type Writer = Pick<Tx, 'orm'>
@@ -16,12 +16,15 @@ export async function recordBootSteps(args: {
       step: step.step,
       state: step.state,
       error: step.error ?? null,
+      gap: step.gap ?? null,
     })
   }
 }
 
 const isStep = (value: string): value is EBootStep =>
   (Object.values(EBootStep) as string[]).includes(value)
+const isGap = (value: string): value is EVercelCredentialGap =>
+  (Object.values(EVercelCredentialGap) as string[]).includes(value)
 const isState = (value: string): value is EBootStepState =>
   (Object.values(EBootStepState) as string[]).includes(value)
 
@@ -42,6 +45,7 @@ export async function readBootSteps(args: {
         state: row.state,
         at: row.at.toISOString(),
         ...(row.error === null ? {} : { error: row.error }),
+        ...(row.gap === null || !isGap(row.gap) ? {} : { gap: row.gap }),
       },
     ]
   })

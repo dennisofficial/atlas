@@ -1,4 +1,4 @@
-import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, EVercelCredentialGap } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -69,5 +69,24 @@ describe('boot step store', () => {
     await db.orm.public.SandboxBootStep.create({ threadId: 'thr-1', step: 'legacy', state: 'done' })
 
     expect(await readBootSteps({ threadId: 'thr-1' })).toEqual([])
+  })
+
+  it('stores and reads back the credential gap of a step', async () => {
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [
+        {
+          step: EBootStep.Provision,
+          state: EBootStepState.Error,
+          error: 'no credential',
+          gap: EVercelCredentialGap.UserCredential,
+        },
+        { step: EBootStep.Provision, state: EBootStepState.Running },
+      ],
+    })
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.gap)).toEqual([EVercelCredentialGap.UserCredential, undefined])
   })
 })

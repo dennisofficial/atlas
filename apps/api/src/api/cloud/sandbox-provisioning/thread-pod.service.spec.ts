@@ -106,11 +106,18 @@ describe('ThreadPodService', () => {
     expect(await shape()).toEqual({ state: EPodState.Failed, steps: [[Provision, Failed]] })
   })
 
-  it('answers none for a parked row whose last step is not an error', async () => {
+  it('answers parked for a parked row whose last step is not an error', async () => {
     await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', state: 'parked' })
     await record([Provision, Running], [Provision, Done], [Agent, Done])
 
-    expect((await shape()).state).toBe(EPodState.None)
+    expect((await shape()).state).toBe(EPodState.Parked)
+  })
+
+  it('answers failed, not parked, for a parked row whose latest step is an error', async () => {
+    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', state: 'parked' })
+    await record([Provision, Running], [Provision, Failed, 'x'])
+
+    expect((await shape()).state).toBe(EPodState.Failed)
   })
 
   it('returns only the steps from the last Provision/Running onward', async () => {

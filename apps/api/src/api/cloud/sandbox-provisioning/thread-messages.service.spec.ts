@@ -140,7 +140,12 @@ describe('ThreadMessagesService.send', () => {
 
     expect(await eventsOf()).toHaveLength(1)
     expect(await bootSteps()).toMatchObject([
-      { step: EBootStep.Provision, state: 'error', error: failure.message },
+      {
+        step: EBootStep.Provision,
+        state: 'error',
+        error: failure.message,
+        gap: EVercelCredentialGap.UserCredential,
+      },
     ])
     expect(await sandboxRows()).toHaveLength(0)
     expect(dispatch).not.toHaveBeenCalled()

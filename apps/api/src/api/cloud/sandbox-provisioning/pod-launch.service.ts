@@ -58,7 +58,12 @@ export class PodLaunchService {
       writer: args.writer,
       threadId: args.threadId,
       steps: [
-        { step: EBootStep.Provision, state: EBootStepState.Error, error: args.failure.message },
+        {
+          step: EBootStep.Provision,
+          state: EBootStepState.Error,
+          error: args.failure.message,
+          gap: args.failure.gap,
+        },
       ],
     })
   }
