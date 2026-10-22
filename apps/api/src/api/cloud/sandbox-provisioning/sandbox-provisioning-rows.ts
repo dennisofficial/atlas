@@ -3,7 +3,7 @@ import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { db } from '../../../db'
 import type { CloudSandboxModel, ThreadModel } from '../../../db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
+import { parkedOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { mintSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
@@ -13,7 +13,9 @@ import { isUniqueViolation } from '../github/unique-violation'
 export type RowClaim = { token: string; wakeClaim: string; name: string }
 
 export function standingStateOf(row: CloudSandboxModel): ESandboxProvisionState | undefined {
-  if (row.state === ESandboxState.Running && row.serveUrl) return ESandboxProvisionState.Running
+  if (row.state === ESandboxState.Running && row.serveUrl && !parkedOf(row)) {
+    return ESandboxProvisionState.Running
+  }
   const failedAfterClaim =
     row.wakeFailedAt !== null && row.wakeClaim !== null && row.wakeFailedAt > row.wakeClaim
   if (wakeClaimActive(row) && !failedAfterClaim) return ESandboxProvisionState.Booting
