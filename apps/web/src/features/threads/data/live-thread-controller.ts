@@ -2,6 +2,7 @@ import {
   createRemoteDeltaChannel,
   EClientRequest,
   EConnectionView,
+  type ChannelSignal,
   type RemoteDeltaChannel,
   type RemoteDeltaChannelOptions,
   type SandboxAttachment,
@@ -10,6 +11,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { readEventsReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
+import { absorbInto, EMPTY_SIGNALS, settleInto } from './live-signals'
 import { IDLE_LIVE_THREAD, type LiveSend, type LiveThreadState } from './live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
 
@@ -62,7 +64,11 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     fellBack = true
     release()
     channel?.close()
-    update({ live: false, working: false })
+    update({ live: false, working: false, ...EMPTY_SIGNALS })
+  }
+
+  const commit = (next: LiveThreadState) => {
+    if (next !== state) update(next)
   }
 
   const attachmentOf = async (): Promise<SandboxAttachment> => {
@@ -89,7 +95,12 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
         })
         if (stopped || fellBack) return
         const { events } = readEventsReplySchema.parse(reply)
-        update({ events: appendEvents({ current: state.events, incoming: events }) })
+        commit(
+          settleInto({
+            ...state,
+            events: appendEvents({ current: state.events, incoming: events }),
+          }),
+        )
       } while (readAgain)
     } catch {
       fallBack()
@@ -98,11 +109,10 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
   }
 
-  const handleSignal = (live: RemoteDeltaChannel) => (signal: { type: string }) => {
+  const handleSignal = (live: RemoteDeltaChannel) => (signal: ChannelSignal) => {
     if (signal.type === 'events-appended') void readFromHead(live)
-    if (signal.type === 'turn-working' && 'working' in signal) {
-      update({ working: signal.working === true })
-    }
+    if (signal.type === 'turn-working') update({ working: signal.working })
+    commit(absorbInto({ state, signal }))
   }
 
   const scheduleReconnect =
@@ -151,7 +161,12 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
         if (!everConnected) fallBack()
       }),
       live.onReload(({ sinceEventSeq }) => {
-        update({ events: keepThrough({ events: state.events, seq: sinceEventSeq }) })
+        commit(
+          settleInto({
+            ...state,
+            events: keepThrough({ events: state.events, seq: sinceEventSeq }),
+          }),
+        )
         void readFromHead(live)
       }),
     )
@@ -181,6 +196,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     start: () => void start(),
     send,
     stop: () => {
+      update({ ...EMPTY_SIGNALS })
       stopped = true
       release()
       channel?.close()
