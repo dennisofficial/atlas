@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ESandboxProvisionState, EThreadMessageState } from '@dltech/atlas-wire/web'
 
