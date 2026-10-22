@@ -1,12 +1,17 @@
+import { db, type Row } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
+import {
+  ensureUsers,
+  prEventRows,
+  prStateRows,
+  repoHookRows,
+  seedCloudSandbox,
+  seedPrState as seedPrStateRow,
+  seedRepoHook,
+  seedSubscription as seedSubscriptionRow,
+  subscriptionRows,
+} from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -16,8 +21,6 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
-
-const fake = fakeGithubDb()
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -50,53 +53,31 @@ function serviceWith(args: {
   return { service: new GithubPollSweeperService(github, reads, fanout, mailbox), fanout }
 }
 
-function seedSubscription(overrides: Partial<(typeof fake.subscriptions)[number]> = {}): void {
-  fake.subscriptions.push({
+const seedSubscription = (overrides: Partial<Row<'GithubSubscription'>> = {}) =>
+  seedSubscriptionRow({
     id: 'sub-1',
     userId: 'usr_1',
-    repoFullName: 'compai/app',
-    prNumber: 42,
-    branch: '',
+    branch: '#42',
     pollBacked: true,
-    expiresAt: new Date(Date.now() + 60_000),
-    liveUntil: new Date(Date.now() + 60_000),
-    threadId: null,
-    sandboxId: null,
-    createdAt: new Date(),
     ...overrides,
   })
-}
 
-function seedPrState(overrides: Partial<(typeof fake.prStates)[number]> = {}): void {
-  fake.prStates.push({
-    repoFullName: 'compai/app',
-    prNumber: 42,
-    title: 'add the thing',
-    url: 'https://github.com/compai/app/pull/42',
-    state: 'open',
-    headBranch: 'dennis/add-the-thing',
-    headSha: 'abc123',
-    headRepoFullName: 'compai/app',
-    checksRunning: 0,
-    checksPassed: 3,
-    checksFailed: 1,
-    mergeable: false,
-    updatedAt: new Date(),
-    ...overrides,
-  })
-}
+const seedPrState = (overrides: Partial<Row<'GithubPrState'>> = {}) =>
+  seedPrStateRow({ checksPassed: 3, checksFailed: 1, mergeable: false, ...overrides })
 
 describe('GithubPollSweeperService', () => {
-  beforeEach(() => {
-    fake.reset()
+  useTestDatabase()
+
+  beforeEach(async () => {
     vi.useRealTimers()
+    await ensureUsers('usr_1', 'usr_2')
   })
 
   it('polls a live poll-backed subscription as its user and pushes the diff', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription()
+    await seedSubscription()
 
     const received: unknown[] = []
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
@@ -110,14 +91,14 @@ describe('GithubPollSweeperService', () => {
       repo: 'app',
       number: 42,
     })
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, checksFailed: 1, mergeable: false })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, checksFailed: 1, mergeable: false })
     expect(received).toHaveLength(1)
   })
 
   it('skips expired subscriptions', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription({
+    await seedSubscription({
       id: 'sub-2',
       prNumber: 7,
       expiresAt: new Date(Date.now() - 60_000),
@@ -132,12 +113,12 @@ describe('GithubPollSweeperService', () => {
   it('records a merged state event when a poll-backed read first reports merged', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription()
-    seedPrState({ state: 'open' })
+    await seedSubscription()
+    await seedPrState({ state: 'open' })
 
     await service.handlePoll()
 
-    const states = fake.prEvents.filter((row) => row.kind === 'state')
+    const states = (await prEventRows()).filter((row) => row.kind === 'state')
     expect(states).toHaveLength(1)
     expect(states[0]).toMatchObject({
       userId: 'usr_1',
@@ -155,12 +136,12 @@ describe('GithubPollSweeperService', () => {
       mergeable: true,
     }))
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription()
-    seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
+    await seedSubscription()
+    await seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
 
     await service.handlePoll()
 
-    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
   })
@@ -168,29 +149,29 @@ describe('GithubPollSweeperService', () => {
   it('records no event on a steady-state re-read of a poll-backed pr', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription()
-    seedPrState()
+    await seedSubscription()
+    await seedPrState()
 
     await service.handlePoll()
 
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prEventRows()).toHaveLength(0)
   })
 
   it('records no event when a poll-backed pr row is brand new', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription()
+    await seedSubscription()
 
     await service.handlePoll()
 
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prEventRows()).toHaveLength(0)
   })
 
   it('re-anchors a hook-backed subscription whose state row is missing', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription({ pollBacked: false })
+    await seedSubscription({ pollBacked: false })
 
     const received: unknown[] = []
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
@@ -204,15 +185,15 @@ describe('GithubPollSweeperService', () => {
       repo: 'app',
       number: 42,
     })
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42 })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42 })
     expect(received).toHaveLength(1)
   })
 
   it('re-anchors a hook-backed subscription whose state row has gone quiet', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription({ pollBacked: false })
-    seedPrState({ updatedAt: new Date(Date.now() - 11 * 60 * 1_000) })
+    await seedSubscription({ pollBacked: false })
+    await seedPrState({ updatedAt: new Date(Date.now() - 11 * 60 * 1_000) })
 
     await service.handlePoll()
 
@@ -222,8 +203,8 @@ describe('GithubPollSweeperService', () => {
   it('leaves a hook-backed subscription alone while webhooks keep its state row fresh', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedSubscription({ pollBacked: false })
-    seedPrState({ updatedAt: new Date(Date.now() - 2 * 60 * 1_000) })
+    await seedSubscription({ pollBacked: false })
+    await seedPrState({ updatedAt: new Date(Date.now() - 2 * 60 * 1_000) })
 
     await service.handlePoll()
 
@@ -238,7 +219,7 @@ describe('GithubPollSweeperService', () => {
       readPullRequest,
       findOpenPrForBranch,
     })
-    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing', pollBacked: false })
+    await seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing', pollBacked: false })
 
     await service.handlePoll()
 
@@ -249,12 +230,12 @@ describe('GithubPollSweeperService', () => {
   it('skips a subscription whose owner has no token', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
-    seedSubscription()
+    await seedSubscription()
 
     await service.handlePoll()
 
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.prStates).toHaveLength(0)
+    expect(await prStateRows()).toHaveLength(0)
   })
 
   it('tolerates a rejected token without failing the sweep', async () => {
@@ -262,10 +243,10 @@ describe('GithubPollSweeperService', () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_dead' }, readPullRequest })
-    seedSubscription()
+    await seedSubscription()
 
     await expect(service.handlePoll()).resolves.toBeUndefined()
-    expect(fake.prStates).toHaveLength(0)
+    expect(await prStateRows()).toHaveLength(0)
   })
 
   it('re-resolves a poll-backed branch row with no pr number and records the found pr', async () => {
@@ -277,7 +258,7 @@ describe('GithubPollSweeperService', () => {
       readPullRequest,
       findOpenPrForBranch,
     })
-    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
 
     const received: unknown[] = []
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
@@ -291,14 +272,14 @@ describe('GithubPollSweeperService', () => {
       repo: 'app',
       branch: 'dennis/add-the-thing',
     })
-    expect(fake.subscriptions[0]?.prNumber).toBe(42)
+    expect((await subscriptionRows())[0]?.prNumber).toBe(42)
     expect(readPullRequest).toHaveBeenCalledWith({
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',
       number: 42,
     })
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42 })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42 })
     expect(received).toHaveLength(1)
   })
 
@@ -310,32 +291,25 @@ describe('GithubPollSweeperService', () => {
       readPullRequest,
       findOpenPrForBranch,
     })
-    seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
 
     await service.handlePoll()
 
     expect(findOpenPrForBranch).toHaveBeenCalled()
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.subscriptions[0]?.prNumber).toBeNull()
-    expect(fake.prStates).toHaveLength(0)
+    expect((await subscriptionRows())[0]?.prNumber).toBeNull()
+    expect(await prStateRows()).toHaveLength(0)
   })
 
   it('a poll for a known pr reaches a branch subscriber of the same repo', async () => {
     vi.useFakeTimers()
     const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' } })
-    seedSubscription()
-    fake.subscriptions.push({
+    await seedSubscription()
+    await seedSubscriptionRow({
       id: 'sub-branch',
       userId: 'usr_2',
-      repoFullName: 'compai/app',
       prNumber: null,
       branch: 'dennis/add-the-thing',
-      pollBacked: false,
-      expiresAt: new Date(Date.now() + 60_000),
-      liveUntil: new Date(Date.now() + 60_000),
-      threadId: null,
-      sandboxId: null,
-      createdAt: new Date(),
     })
 
     const pushes = vi.spyOn(fanout, 'push')
@@ -349,17 +323,8 @@ describe('GithubPollSweeperService', () => {
 
   it('marks a hook idle once its last live subscription expires', async () => {
     const { service } = serviceWith({ tokens: {} })
-    fake.repoHooks.push({
-      repoFullName: 'compai/app',
-      hookId: 101n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
-    })
-    seedSubscription({
+    await seedRepoHook({ createdBy: 'usr_1' })
+    await seedSubscription({
       pollBacked: false,
       expiresAt: new Date(Date.now() - 60_000),
       liveUntil: new Date(Date.now() - 60_000),
@@ -367,54 +332,44 @@ describe('GithubPollSweeperService', () => {
 
     await service.handlePoll()
 
-    expect(fake.repoHooks[0]?.idleSince).not.toBeNull()
+    expect((await repoHookRows())[0]?.idleSince).not.toBeNull()
   })
 
   it('keeps a hook active while any subscription is live', async () => {
     const { service } = serviceWith({ tokens: {} })
-    fake.repoHooks.push({
-      repoFullName: 'compai/app',
-      hookId: 101n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
-    })
-    seedSubscription({ pollBacked: false })
+    await seedRepoHook({ createdBy: 'usr_1' })
+    await seedSubscription({ pollBacked: false })
 
     await service.handlePoll()
 
-    expect(fake.repoHooks[0]?.idleSince).toBeNull()
+    expect((await repoHookRows())[0]?.idleSince).toBeNull()
   })
 })
 
 describe('GithubPollSweeperService parked-subscription survival', () => {
-  beforeEach(() => {
-    fake.reset()
+  useTestDatabase()
+
+  beforeEach(async () => {
     vi.useRealTimers()
+    await ensureUsers('usr_1', 'usr_2')
   })
 
   it('polls an expired subscription whose sandbox is inside the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedCloudSandbox({
+    await seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',
       userId: 'usr_1',
-      sandboxId: 'sbx_1',
       name: 'atlas-thr_1',
-      region: 'iad1',
       state: 'parked',
-      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000).toISOString(),
+      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000),
     })
-    seedSubscription({
+    await seedSubscription({
       id: 'sub-parked',
       prNumber: 7,
       expiresAt: new Date(Date.now() - 60_000),
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
 
     await service.handlePoll()
@@ -430,23 +385,20 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
   it('skips an expired subscription whose sandbox fell out of the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
-    seedCloudSandbox({
+    await seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',
       userId: 'usr_1',
-      sandboxId: 'sbx_1',
       name: 'atlas-thr_1',
-      region: 'iad1',
       state: 'parked',
-      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000).toISOString(),
+      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000),
     })
-    seedSubscription({
+    await seedSubscription({
       id: 'sub-stale',
       prNumber: 7,
       expiresAt: new Date(Date.now() - 60_000),
       liveUntil: new Date(Date.now() - 60_000),
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
 
     await service.handlePoll()

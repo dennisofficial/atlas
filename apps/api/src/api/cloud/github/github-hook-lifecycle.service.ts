@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { Injectable, Logger } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { db } from '../../../db'
+import { db, or } from '@dltech/atlas-db'
 import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
 import { GithubAppInstallationsService } from './github-app-installations.service'
@@ -14,6 +14,7 @@ export const HOOK_EVENTS = GITHUB_HOOK_EVENTS
 const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
 const SWEEP_LEASE_MS = 5 * 60 * 1_000
 const VERIFY_HOOK_TTL_MS = 5 * 60 * 1_000
+const REPO_HOOK_PRIMARY_KEY = 'GithubRepoHook_pkey'
 
 export type EnsureHookResult = 'created' | 'existing' | 'app-backed' | 'poll-backed'
 
@@ -37,9 +38,7 @@ export class GithubHookLifecycleService {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }
-    const hook = await db.githubRepoHook.findUnique({
-      where: { repoFullName: args.repoFullName },
-    })
+    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
     if (hook !== null) {
       if (hook.status === ERepoHookStatus.Orphaned) {
         return this.reconcile({ ...args, existingSecret: hook.secret })
@@ -56,33 +55,29 @@ export class GithubHookLifecycleService {
   }
 
   async markIdle(args: { repoFullName: string }): Promise<void> {
-    await db.githubRepoHook.updateMany({
-      where: { repoFullName: args.repoFullName, idleSince: null },
-      data: { idleSince: new Date() },
-    })
+    await db.orm.public.GithubRepoHook.where({
+      repoFullName: args.repoFullName,
+      idleSince: null,
+    }).updateAndCount({ idleSince: new Date() })
   }
 
   async handleSweep(): Promise<void> {
     const now = new Date()
-    const candidates = await db.githubRepoHook.findMany({
-      where: {
-        idleSince: { lt: new Date(now.getTime() - IDLE_DELETE_AFTER_MS) },
-        status: ERepoHookStatus.Active,
-      },
-    })
+    const idleCutoff = new Date(now.getTime() - IDLE_DELETE_AFTER_MS)
+    const candidates = await db.orm.public.GithubRepoHook.where((hook) => hook.idleSince.lt(idleCutoff))
+      .where({ status: ERepoHookStatus.Active })
+      .all()
     for (const candidate of candidates) {
-      const claimed = await db.githubRepoHook.updateMany({
-        where: {
-          repoFullName: candidate.repoFullName,
-          status: ERepoHookStatus.Active,
-          OR: [{ sweepLeaseUntil: null }, { sweepLeaseUntil: { lt: now } }],
-        },
-        data: {
+      const claimed = await db.orm.public.GithubRepoHook.where({
+        repoFullName: candidate.repoFullName,
+        status: ERepoHookStatus.Active,
+      })
+        .where((hook) => or(hook.sweepLeaseUntil.isNull(), hook.sweepLeaseUntil.lt(now)))
+        .updateAndCount({
           sweepLeaseUntil: new Date(now.getTime() + SWEEP_LEASE_MS),
           status: ERepoHookStatus.Deleting,
-        },
-      })
-      if (claimed.count === 1) await this.teardown({ repoFullName: candidate.repoFullName })
+        })
+      if (claimed === 1) await this.teardown({ repoFullName: candidate.repoFullName })
     }
   }
 
@@ -156,15 +151,12 @@ export class GithubHookLifecycleService {
     if (result.outcome === 'forbidden') return 'poll-backed'
     if (result.hookId === undefined) return 'poll-backed'
 
-    await db.githubRepoHook.update({
-      where: { repoFullName: args.repoFullName },
-      data: {
-        hookId: BigInt(result.hookId),
-        secret: this.cipher.encrypt(secret),
-        createdBy: args.userId,
-        status: ERepoHookStatus.Active,
-        idleSince: null,
-      },
+    await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
+      hookId: BigInt(result.hookId),
+      secret: this.cipher.encrypt(secret),
+      createdBy: args.userId,
+      status: ERepoHookStatus.Active,
+      idleSince: null,
     })
     return result.outcome === 'adopted' ? 'existing' : 'created'
   }
@@ -191,33 +183,29 @@ export class GithubHookLifecycleService {
     }
 
     try {
-      await db.githubRepoHook.create({
-        data: {
-          repoFullName: args.repoFullName,
-          hookId: BigInt(result.hookId),
-          secret: this.cipher.encrypt(secret),
-          createdBy: args.userId,
-          status: ERepoHookStatus.Active,
-        },
+      await db.orm.public.GithubRepoHook.create({
+        repoFullName: args.repoFullName,
+        hookId: BigInt(result.hookId),
+        secret: this.cipher.encrypt(secret),
+        createdBy: args.userId,
+        status: ERepoHookStatus.Active,
       })
       return result.outcome === 'adopted' ? 'existing' : 'created'
     } catch (failure) {
-      if (isUniqueViolation(failure, ['repoFullName'])) return 'existing'
+      if (isUniqueViolation({ error: failure, constraint: REPO_HOOK_PRIMARY_KEY })) return 'existing'
       throw failure
     }
   }
 
   private async teardown(args: { repoFullName: string }): Promise<void> {
-    const hook = await db.githubRepoHook.findUnique({
-      where: { repoFullName: args.repoFullName },
-    })
+    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
     if (hook === null) return
 
     const token = await this.github.findToken({ userId: hook.createdBy })
     if (token === undefined) {
-      await db.githubRepoHook.update({
-        where: { repoFullName: args.repoFullName },
-        data: { status: ERepoHookStatus.Orphaned, sweepLeaseUntil: null },
+      await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
+        status: ERepoHookStatus.Orphaned,
+        sweepLeaseUntil: null,
       })
       return
     }
@@ -225,14 +213,14 @@ export class GithubHookLifecycleService {
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     const outcome = await this.reads.deleteHook({ token, owner, repo, hookId: Number(hook.hookId) })
     if (outcome === 'unauthorized') {
-      await db.githubRepoHook.update({
-        where: { repoFullName: args.repoFullName },
-        data: { status: ERepoHookStatus.Orphaned, sweepLeaseUntil: null },
+      await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
+        status: ERepoHookStatus.Orphaned,
+        sweepLeaseUntil: null,
       })
       return
     }
 
-    await db.githubRepoHook.deleteMany({ where: { repoFullName: args.repoFullName } })
+    await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).deleteAndCount()
   }
 
   private hookUrl(args: { repoFullName: string }): string {

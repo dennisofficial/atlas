@@ -1,18 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { describe, expect, it } from 'vitest'
+import { ensureUsers, seedRepoHook } from '../../../../test/github-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubAppInstallationWebhookPayload } from './github-webhook.types'
 
-const fake = fakeGithubDb()
 const ENV = {
   get: (key: string) => (key === 'GITHUB_APP_SLUG' ? 'atlas-by-dl' : undefined),
 } as unknown as EnvService
@@ -30,8 +23,7 @@ function seedAppCovering(repoFullName: string): Promise<void> {
 }
 
 describe('GithubAppInstallNoticeService', () => {
-  beforeEach(() => fake.reset())
-
+  useTestDatabase()
   it('recommends for an uncovered, hook-less, undismissed repo', async () => {
     expect(
       await service.shouldRecommend({ userId: 'usr_1', repoFullName: 'trycompai/comp-v2' }),
@@ -46,22 +38,14 @@ describe('GithubAppInstallNoticeService', () => {
   })
 
   it('does not recommend when a personal hook exists for the repo', async () => {
-    fake.repoHooks.push({
-      repoFullName: 'trycompai/comp-v2',
-      hookId: 1n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
-    })
+    await seedRepoHook({ repoFullName: 'trycompai/comp-v2', hookId: 1n, createdBy: 'usr_1' })
     expect(
       await service.shouldRecommend({ userId: 'usr_1', repoFullName: 'trycompai/comp-v2' }),
     ).toBe(false)
   })
 
   it('stops recommending after dismissal, per user and per repo', async () => {
+    await ensureUsers('usr_1', 'usr_2')
     await service.dismiss({ userId: 'usr_1', repoFullName: 'trycompai/comp-v2' })
     expect(
       await service.shouldRecommend({ userId: 'usr_1', repoFullName: 'trycompai/comp-v2' }),

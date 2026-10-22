@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { db, type GithubPrStateModel } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -77,7 +77,7 @@ export class GithubDeliveryService {
     const repoFullName = payload.repository.full_name
     const prNumber = payload.pull_request.number
     const [prior, token] = await Promise.all([
-      db.githubPrState.findUnique({ where: { repoFullName_prNumber: { repoFullName, prNumber } } }),
+      db.orm.public.GithubPrState.first({ repoFullName, prNumber }),
       this.findFillToken({ repoFullName }),
     ])
 
@@ -123,37 +123,30 @@ export class GithubDeliveryService {
     }
   }
 
-  private async affectedPrs(target: CheckTarget): Promise<GithubPrStateModel[]> {
-    const open = { repoFullName: target.repoFullName, state: { in: ['open', 'draft'] } }
+  private async affectedPrs(target: CheckTarget): Promise<Row<'GithubPrState'>[]> {
+    const open = db.orm.public.GithubPrState.where({ repoFullName: target.repoFullName }).where(
+      (pr) => pr.state.in(['open', 'draft']),
+    )
     const byBranch =
-      target.branch === null
-        ? []
-        : await db.githubPrState.findMany({ where: { ...open, headBranch: target.branch } })
-    const bySha =
-      target.sha === null
-        ? []
-        : await db.githubPrState.findMany({ where: { ...open, headSha: target.sha } })
-
-    const prs = new Map<number, GithubPrStateModel>()
+      target.branch === null ? [] : await open.where({ headBranch: target.branch }).all()
+    const bySha = target.sha === null ? [] : await open.where({ headSha: target.sha }).all()
+    const prs = new Map<number, Row<'GithubPrState'>>()
     for (const row of [...byBranch, ...bySha]) prs.set(row.prNumber, row)
     return [...prs.values()]
   }
 
   private async findFillToken(args: { repoFullName: string }): Promise<string | undefined> {
-    const hook = await db.githubRepoHook.findUnique({
-      where: { repoFullName: args.repoFullName },
-    })
+    const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: args.repoFullName })
     if (hook !== null) {
       const createdByToken = await this.github.findToken({ userId: hook.createdBy })
       if (createdByToken !== undefined) return createdByToken
     }
 
-    const subscribers = await db.githubSubscription.findMany({
-      where: {
-        repoFullName: args.repoFullName,
-        AND: [subscriptionLiveWhere({ now: new Date() })],
-      },
+    const subscribers = await db.orm.public.GithubSubscription.where({
+      repoFullName: args.repoFullName,
     })
+      .where(subscriptionLiveWhere({ now: new Date() }))
+      .all()
     for (const subscriber of subscribers) {
       const token = await this.github.findToken({ userId: subscriber.userId })
       if (token !== undefined) return token
@@ -189,16 +182,13 @@ export class GithubDeliveryService {
     prNumber: number
     fields: GithubPrStateRecord
   }): Promise<void> {
-    const priorRow = await db.githubPrState.findUnique({
-      where: {
-        repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      },
+    const priorRow = await db.orm.public.GithubPrState.first({
+      repoFullName: args.repoFullName,
+      prNumber: args.prNumber,
     })
     const prior = snapshotOf(priorRow)
-    const row = await db.githubPrState.upsert({
-      where: {
-        repoFullName_prNumber: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      },
+    const row = await db.orm.public.GithubPrState.upsert({
+      conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
       create: { repoFullName: args.repoFullName, prNumber: args.prNumber, ...args.fields },
       update: args.fields,
     })
@@ -208,8 +198,8 @@ export class GithubDeliveryService {
     // fields are never staler than what was just upserted. A delivery that carries no repo
     // (deleted fork, or provisional fields carried forward from an old row) falls back to the
     // row, and NULL stays number-routed — silence over a same-name fork branch leaking frames.
-    const subscribers = await db.githubSubscription.findMany({
-      where: subscriberWhereOf({
+    const subscribers = await db.orm.public.GithubSubscription.where(
+      subscriberWhereOf({
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
         routing: branchRoutingOf({
@@ -218,7 +208,7 @@ export class GithubDeliveryService {
           headRepoFullName: args.fields.headRepoFullName ?? row.headRepoFullName,
         }),
       }),
-    })
+    ).all()
     if (subscribers.length === 0) return
 
     const state = dtoOf(row)
@@ -229,7 +219,7 @@ export class GithubDeliveryService {
   }
 }
 
-function snapshotOf(row: GithubPrStateModel | null): PrTransitionSnapshot | null {
+function snapshotOf(row: Row<'GithubPrState'> | null): PrTransitionSnapshot | null {
   if (row === null) return null
   return {
     state: row.state,

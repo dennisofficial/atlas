@@ -1,12 +1,16 @@
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb, seedCloudSandbox } from '../../../../test/fake-github-db'
+import {
+  ensureUsers,
+  prEventRows,
+  prStateRows,
+  seedCloudSandbox,
+  seedPrState,
+  seedRepoHook,
+  seedSubscription as seedSubscriptionRow,
+  seedUserSetting,
+} from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -19,8 +23,6 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
-
-const fake = fakeGithubDb()
 
 const PULL_REQUEST_PAYLOAD = {
   action: 'opened',
@@ -48,6 +50,22 @@ const REST_FIELDS: PullRequestCacheFields = {
   checksFailed: 0,
   mergeable: true,
 }
+
+const USERS = [
+  'usr-creator',
+  'usr-gone',
+  'usr-sub',
+  'usr-a',
+  'usr-b',
+  'usr-c',
+  'usr-branch',
+  'usr-other',
+  'usr-number',
+  'usr-fast',
+  'usr-settled',
+  'usr-parked',
+  'usr-stale',
+]
 
 const FILLED_PR_STATE = {
   repoFullName: 'compai/app',
@@ -91,43 +109,27 @@ function serviceWith(args: {
   }
 }
 
-function seedHook(args: { createdBy: string }): void {
-  fake.repoHooks.push({
-    repoFullName: 'compai/app',
-    hookId: 101n,
-    secret: 'sealed',
-    createdBy: args.createdBy,
-    status: 'active',
-    idleSince: null,
-    sweepLeaseUntil: null,
-    createdAt: new Date(),
-  })
-}
+const seedHook = (args: { createdBy: string }) => seedRepoHook({ createdBy: args.createdBy })
 
 function seedSubscription(args: {
   userId: string
   prNumber: number | null
   branch?: string
-}): void {
-  fake.subscriptions.push({
+}): Promise<unknown> {
+  return seedSubscriptionRow({
     id: `sub-${args.userId}-${args.prNumber ?? args.branch}`,
     userId: args.userId,
-    repoFullName: 'compai/app',
     prNumber: args.prNumber,
-    branch: args.branch ?? '',
-    pollBacked: false,
-    expiresAt: new Date(Date.now() + 60_000),
-    liveUntil: new Date(Date.now() + 60_000),
-    threadId: null,
-    sandboxId: null,
-    createdAt: new Date(),
+    branch: args.branch ?? `#${args.prNumber}`,
   })
 }
 
 describe('GithubDeliveryService', () => {
-  beforeEach(() => {
-    fake.reset()
+  useTestDatabase()
+
+  beforeEach(async () => {
     vi.useRealTimers()
+    await ensureUsers(...USERS)
   })
 
   it('a pull_request delivery fills computed fields with one REST read as the hook creator', async () => {
@@ -136,7 +138,7 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
+    await seedHook({ createdBy: 'usr-creator' })
 
     const outcome = await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
@@ -147,7 +149,7 @@ describe('GithubDeliveryService', () => {
       repo: 'app',
       number: 42,
     })
-    expect(fake.prStates[0]).toMatchObject({
+    expect((await prStateRows())[0]).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,
       checksPassed: 2,
@@ -158,13 +160,13 @@ describe('GithubDeliveryService', () => {
   it('records payload-derived state without computed fields when every token is gone', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
-    seedHook({ createdBy: 'usr-gone' })
+    await seedHook({ createdBy: 'usr-gone' })
 
     const outcome = await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(outcome.handled).toBe(true)
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.prStates[0]).toMatchObject({
+    expect((await prStateRows())[0]).toMatchObject({
       prNumber: 42,
       state: 'open',
       headSha: 'abc123',
@@ -178,11 +180,11 @@ describe('GithubDeliveryService', () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
     const { service } = serviceWith({ tokens: { 'usr-creator': 'ghu_dead' }, readPullRequest })
-    seedHook({ createdBy: 'usr-creator' })
+    await seedHook({ createdBy: 'usr-creator' })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, mergeable: null })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, mergeable: null })
   })
 
   it('a check_suite delivery fills every affected open PR', async () => {
@@ -191,9 +193,9 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-sub': 'ghu_sub' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-gone' })
-    seedSubscription({ userId: 'usr-sub', prNumber: 42 })
-    fake.prStates.push({
+    await seedHook({ createdBy: 'usr-gone' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+    await seedPrState({
       repoFullName: 'compai/app',
       prNumber: 42,
       title: 'add the thing',
@@ -223,13 +225,13 @@ describe('GithubDeliveryService', () => {
       repo: 'app',
       number: 42,
     })
-    expect(fake.prStates[0]?.checksPassed).toBe(2)
+    expect((await prStateRows())[0]?.checksPassed).toBe(2)
   })
 
   it('skips check events that match no tracked PR and needs no token for them', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
-    seedHook({ createdBy: 'usr-gone' })
+    await seedHook({ createdBy: 'usr-gone' })
 
     await service.handle({
       event: 'check_run',
@@ -247,10 +249,10 @@ describe('GithubDeliveryService', () => {
     const { service, fanout } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    seedSubscription({ userId: 'usr-b', prNumber: 42 })
-    seedSubscription({ userId: 'usr-c', prNumber: 7 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-b', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-c', prNumber: 7 })
 
     const receivedA: unknown[] = []
     const receivedC: unknown[] = []
@@ -282,8 +284,8 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr-a', handler: (state) => received.push(state) })
@@ -311,9 +313,9 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, checksPassed: 3, checksRunning: 0 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksPassed: 3, checksRunning: 0 })
     const pushes = vi.spyOn(fanout, 'push')
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
@@ -341,16 +343,16 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_dead' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, updatedAt: new Date() })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, updatedAt: new Date() })
     const pushes = vi.spyOn(fanout, 'push')
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
     expect(pushes).toHaveBeenCalledTimes(1)
     expect(pushes.mock.calls[0]?.[0].state).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
   })
 
 
@@ -359,8 +361,8 @@ describe('GithubDeliveryService', () => {
     const { service, fanout } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     const received: unknown[] = []
     fanout.openStream({ userId: 'usr-a', handler: (state) => received.push(state) })
@@ -380,15 +382,15 @@ describe('GithubDeliveryService', () => {
     expect(await service.handle({ event: 'ping', payload: {} })).toEqual({ handled: true })
     expect(await service.handle({ event: 'issues', payload: {} })).toEqual({ handled: false })
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.prStates).toHaveLength(0)
+    expect(await prStateRows()).toHaveLength(0)
   })
 
   it('a pull_request delivery reaches a branch subscriber whose row has no pr number', async () => {
     vi.useFakeTimers()
     const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
-    seedSubscription({ userId: 'usr-other', prNumber: null, branch: 'someone/else' })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedSubscription({ userId: 'usr-other', prNumber: null, branch: 'someone/else' })
 
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr-branch', handler: (state) => received.push(state) })
@@ -406,9 +408,9 @@ describe('GithubDeliveryService', () => {
   it('a pull_request delivery reaches both the number subscriber and the branch subscriber', async () => {
     vi.useFakeTimers()
     const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-number', prNumber: 42 })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-number', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
 
     const pushes = vi.spyOn(fanout, 'push')
 
@@ -426,9 +428,9 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest: async () => ({ ...REST_FIELDS, headRepoFullName: 'forker/app' }),
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
-    seedSubscription({ userId: 'usr-number', prNumber: 42 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedSubscription({ userId: 'usr-number', prNumber: 42 })
 
     const receivedBranch: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
@@ -444,7 +446,7 @@ describe('GithubDeliveryService', () => {
     await vi.advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch).toHaveLength(0)
-    expect(fake.prStates[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
   })
 
   it('a pull_request with a deleted head repo never branch-routes', async () => {
@@ -453,8 +455,8 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest: async () => ({ ...REST_FIELDS, headRepoFullName: null }),
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
 
     const receivedBranch: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
@@ -475,9 +477,9 @@ describe('GithubDeliveryService', () => {
   it('a delivery for a row written before headRepoFullName existed routes on the incoming fields', async () => {
     vi.useFakeTimers()
     const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
-    fake.prStates.push({
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedPrState({
       repoFullName: 'compai/app',
       prNumber: 42,
       title: 'add the thing',
@@ -504,9 +506,9 @@ describe('GithubDeliveryService', () => {
 
   it('a PR issue_comment delivery writes a mailbox row per subscriber and pushes a live frame', async () => {
     const { service, fanout } = serviceWith({ tokens: { 'usr-creator': 'ghu_creator' } })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    seedSubscription({ userId: 'usr-b', prNumber: 42 })
-    seedSubscription({ userId: 'usr-c', prNumber: 7 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-b', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-c', prNumber: 7 })
 
     const received: unknown[] = []
     fanout.openStream({
@@ -534,10 +536,10 @@ describe('GithubDeliveryService', () => {
     })
 
     expect(outcome.handled).toBe(true)
-    expect(fake.prEvents).toHaveLength(2)
-    const userIds = fake.prEvents.map((row) => row.userId).sort()
+    expect(await prEventRows()).toHaveLength(2)
+    const userIds = (await prEventRows()).map((row) => row.userId).sort()
     expect(userIds).toEqual(['usr-a', 'usr-b'])
-    const byUser = new Map(fake.prEvents.map((row) => [row.userId, row]))
+    const byUser = new Map((await prEventRows()).map((row) => [row.userId, row]))
     expect(byUser.get('usr-a')).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,
@@ -548,12 +550,13 @@ describe('GithubDeliveryService', () => {
         body: 'ship it',
       },
     })
-    await vi.waitFor(() => {
-      expect(byUser.get('usr-a')?.deliveredAt).not.toBeNull()
+    await vi.waitFor(async () => {
+      const delivered = new Map((await prEventRows()).map((row) => [row.userId, row]))
+      expect(delivered.get('usr-a')?.deliveredAt).not.toBeNull()
     })
-    expect(byUser.get('usr-b')?.deliveredAt).toBeNull()
+    expect((await prEventRows()).find((row) => row.userId === 'usr-b')?.deliveredAt).toBeNull()
     expect(
-      (fake.prEvents[0]?.payload as Record<string, unknown>).headSha,
+      ((await prEventRows())[0]?.payload as Record<string, unknown>).headSha,
     ).toBeUndefined()
     expect(received).toHaveLength(1)
     expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
@@ -561,7 +564,7 @@ describe('GithubDeliveryService', () => {
 
   it('ignores an issue_comment on a plain issue and non-created actions', async () => {
     const { service } = serviceWith({ tokens: {} })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     await service.handle({
       event: 'issue_comment',
@@ -588,12 +591,12 @@ describe('GithubDeliveryService', () => {
       },
     })
 
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prEventRows()).toHaveLength(0)
   })
 
   it('records an approved review with its body and state', async () => {
     const { service } = serviceWith({ tokens: {} })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     const outcome = await service.handle({
       event: 'pull_request_review',
@@ -611,8 +614,8 @@ describe('GithubDeliveryService', () => {
     })
 
     expect(outcome.handled).toBe(true)
-    expect(fake.prEvents).toHaveLength(1)
-    expect(fake.prEvents[0]).toMatchObject({
+    expect(await prEventRows()).toHaveLength(1)
+    expect((await prEventRows())[0]).toMatchObject({
       kind: 'review',
       payload: {
         url: 'https://github.com/compai/app/pull/42#pullrequestreview-1',
@@ -626,7 +629,7 @@ describe('GithubDeliveryService', () => {
 
   it('skips review states that are not recorded and non-submitted actions', async () => {
     const { service } = serviceWith({ tokens: {} })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     await service.handle({
       event: 'pull_request_review',
@@ -649,12 +652,12 @@ describe('GithubDeliveryService', () => {
       },
     })
 
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prEventRows()).toHaveLength(0)
   })
 
   it('records an inline review comment', async () => {
     const { service } = serviceWith({ tokens: {} })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     await service.handle({
       event: 'pull_request_review_comment',
@@ -670,8 +673,8 @@ describe('GithubDeliveryService', () => {
       },
     })
 
-    expect(fake.prEvents).toHaveLength(1)
-    expect(fake.prEvents[0]).toMatchObject({
+    expect(await prEventRows()).toHaveLength(1)
+    expect((await prEventRows())[0]).toMatchObject({
       kind: 'review-comment',
       payload: {
         url: 'https://github.com/compai/app/pull/42#discussion_r1',
@@ -684,8 +687,8 @@ describe('GithubDeliveryService', () => {
 
   it('a comment delivery reaches a branch subscriber through the recorded head branch', async () => {
     const { service } = serviceWith({ tokens: {} })
-    seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
-    fake.prStates.push({ ...FILLED_PR_STATE })
+    await seedSubscription({ userId: 'usr-branch', prNumber: null, branch: 'dennis/add-the-thing' })
+    await seedPrState({ ...FILLED_PR_STATE })
 
     await service.handle({
       event: 'issue_comment',
@@ -702,8 +705,8 @@ describe('GithubDeliveryService', () => {
       },
     })
 
-    expect(fake.prEvents).toHaveLength(1)
-    expect(fake.prEvents[0]?.userId).toBe('usr-branch')
+    expect(await prEventRows()).toHaveLength(1)
+    expect((await prEventRows())[0]?.userId).toBe('usr-branch')
   })
 
   it('records no mailbox row when nobody subscribes', async () => {
@@ -724,7 +727,7 @@ describe('GithubDeliveryService', () => {
       },
     })
 
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prEventRows()).toHaveLength(0)
   })
 
   it('records a failed verdict when a check failure first appears', async () => {
@@ -737,13 +740,13 @@ describe('GithubDeliveryService', () => {
         checksFailed: 1,
       }),
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE })
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({
       userId: 'usr-a',
@@ -764,13 +767,13 @@ describe('GithubDeliveryService', () => {
         checksFailed: 0,
       }),
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const verdicts = fake.prEvents.filter((row) => row.kind === 'verdict')
+    const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green' } })
   })
@@ -785,13 +788,13 @@ describe('GithubDeliveryService', () => {
         checksFailed: 1,
       }),
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 2, checksFailed: 1 })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 2, checksFailed: 1 })
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    expect(fake.prEvents.filter((row) => row.kind === 'verdict')).toHaveLength(0)
+    expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(0)
   })
 
   it('records a mergeability flip but not a repeated mergeable value', async () => {
@@ -800,21 +803,21 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 3, mergeable: false })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 3, mergeable: false })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    const flips = fake.prEvents.filter((row) => row.kind === 'mergeability')
+    const flips = (await prEventRows()).filter((row) => row.kind === 'mergeability')
     expect(flips.length).toBeGreaterThan(0)
     expect(flips[flips.length - 1]).toMatchObject({ payload: { mergeable: true } })
-    const settled = fake.prStates[0]
+    const settled = (await prStateRows())[0]
     expect(settled).toMatchObject({ mergeable: true })
 
-    const before = fake.prEvents.filter((row) => row.kind === 'mergeability').length
+    const before = (await prEventRows()).filter((row) => row.kind === 'mergeability').length
     readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(before)
+    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(before)
   })
 
   it('records a merged state transition when the fill first reports merged', async () => {
@@ -826,13 +829,13 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({ ...FILLED_PR_STATE })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({ ...FILLED_PR_STATE })
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const stateEvents = fake.prEvents.filter((row) => row.kind === 'state')
+    const stateEvents = (await prEventRows()).filter((row) => row.kind === 'state')
     expect(stateEvents).toHaveLength(1)
     expect(stateEvents[0]).toMatchObject({ payload: { state: 'merged' } })
   })
@@ -849,35 +852,32 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-fast', prNumber: 42 })
-    seedSubscription({ userId: 'usr-settled', prNumber: 42 })
-    fake.cloudSettings.push({
-      id: 'set-usr-settled',
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-fast', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-settled', prNumber: 42 })
+    await seedUserSetting({
       userId: 'usr-settled',
       key: 'github.prEvents.verdictTiming',
       value: 'atlas-setting:v1:"settled"',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     })
-    fake.prStates.push({ ...FILLED_PR_STATE, checksRunning: 10, checksPassed: 0, checksFailed: 0 })
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 10, checksPassed: 0, checksFailed: 0 })
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const midRun = fake.prEvents.filter((row) => row.kind === 'verdict')
+    const midRun = (await prEventRows()).filter((row) => row.kind === 'verdict')
     expect(midRun).toHaveLength(1)
     expect(midRun[0]).toMatchObject({ userId: 'usr-fast', payload: { verdict: 'failed' } })
 
     running = false
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const settled = fake.prEvents.filter(
+    const settled = (await prEventRows()).filter(
       (row) => row.kind === 'verdict' && row.userId === 'usr-settled',
     )
     expect(settled).toHaveLength(1)
     expect(settled[0]).toMatchObject({ payload: { verdict: 'failed' } })
     expect(
-      fake.prEvents.filter((row) => row.kind === 'verdict' && row.userId === 'usr-fast'),
+      (await prEventRows()).filter((row) => row.kind === 'verdict' && row.userId === 'usr-fast'),
     ).toHaveLength(1)
   })
 
@@ -894,9 +894,9 @@ describe('GithubDeliveryService', () => {
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
-    seedHook({ createdBy: 'usr-creator' })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    fake.prStates.push({
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({
       ...FILLED_PR_STATE,
       checksRunning: 10,
       checksPassed: 0,
@@ -906,15 +906,15 @@ describe('GithubDeliveryService', () => {
 
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    expect(fake.prEvents.filter((row) => row.kind === 'mergeability')).toHaveLength(0)
+    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(0)
 
     running = false
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
-    const kinds = fake.prEvents.map((row) => row.kind)
+    const kinds = (await prEventRows()).map((row) => row.kind)
     expect(kinds.filter((kind) => kind === 'verdict')).toHaveLength(1)
     expect(kinds.filter((kind) => kind === 'mergeability')).toHaveLength(1)
-    expect(fake.prEvents.find((row) => row.kind === 'mergeability')).toMatchObject({
+    expect((await prEventRows()).find((row) => row.kind === 'mergeability')).toMatchObject({
       payload: { mergeable: true },
     })
   })
@@ -922,56 +922,53 @@ describe('GithubDeliveryService', () => {
   it('records no transition events for a brand-new PR row', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS }))
     const { service } = serviceWith({ tokens: {}, readPullRequest })
-    seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.prStates).toHaveLength(1)
-    expect(fake.prEvents).toHaveLength(0)
+    expect(await prStateRows()).toHaveLength(1)
+    expect(await prEventRows()).toHaveLength(0)
   })
 })
 
 describe('GithubDeliveryService parked-subscription survival', () => {
-  beforeEach(() => {
-    fake.reset()
+  useTestDatabase()
+
+  beforeEach(async () => {
     vi.useRealTimers()
+    await ensureUsers(...USERS)
   })
 
   const parkSubscription = (args: {
     userId: string
-    threadId: string | null
-    sandboxId: string | null
+    threadId: string
     expiresAt: Date
     liveUntil?: Date
-  }): void => {
-    fake.subscriptions.push({
+  }): Promise<unknown> =>
+    seedSubscriptionRow({
       id: `sub-parked-${args.userId}`,
       userId: args.userId,
-      repoFullName: 'compai/app',
       prNumber: 42,
-      branch: '',
-      pollBacked: false,
+      branch: '#42',
       expiresAt: args.expiresAt,
       liveUntil: args.liveUntil ?? args.expiresAt,
       threadId: args.threadId,
-      sandboxId: args.sandboxId,
-      createdAt: new Date(),
     })
-  }
 
-  const sandboxWithinWindow = (): void => {
+  const sandboxAt = (args: { userId: string; lastActivityAt: Date }): Promise<unknown> =>
     seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',
-      userId: 'usr-parked',
+      userId: args.userId,
       sandboxId: 'sbx_1',
       name: 'atlas-thr_1',
-      region: 'iad1',
       state: 'parked',
-      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000).toISOString(),
+      lastActivityAt: args.lastActivityAt,
     })
-  }
+
+  const sandboxWithinWindow = (): Promise<unknown> =>
+    sandboxAt({ userId: 'usr-parked', lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000) })
 
   it('a delivery fans out to an expired subscription whose sandbox is inside the wake window', async () => {
     const { service, fanout } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
@@ -982,11 +979,10 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       eventHandler: () => {},
       onClosed: () => {},
     })
-    sandboxWithinWindow()
-    parkSubscription({
+    await sandboxWithinWindow()
+    await parkSubscription({
       userId: 'usr-parked',
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
       expiresAt: new Date(Date.now() - 60_000),
       liveUntil: new Date(Date.now() + 60_000),
     })
@@ -994,7 +990,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(pushes).toHaveLength(1)
-    expect(fake.prEvents.filter((row) => row.userId === 'usr-parked')).toHaveLength(0)
+    expect((await prEventRows()).filter((row) => row.userId === 'usr-parked')).toHaveLength(0)
   })
 
   it('a delivery skips an expired subscription whose sandbox fell out of the wake window', async () => {
@@ -1006,27 +1002,17 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       eventHandler: () => {},
       onClosed: () => {},
     })
-    seedCloudSandbox({
-      id: 'sbx_row_1',
-      threadId: 'thr_1',
-      userId: 'usr-stale',
-      sandboxId: 'sbx_1',
-      name: 'atlas-thr_1',
-      region: 'iad1',
-      state: 'parked',
-      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000).toISOString(),
-    })
-    parkSubscription({
+    await sandboxAt({ userId: 'usr-stale', lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
+    await parkSubscription({
       userId: 'usr-stale',
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
       expiresAt: new Date(Date.now() - 60_000),
     })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(pushes).toHaveLength(0)
-    expect(fake.prEvents.filter((row) => row.userId === 'usr-stale')).toHaveLength(0)
+    expect((await prEventRows()).filter((row) => row.userId === 'usr-stale')).toHaveLength(0)
   })
 
   it('a delivery skips an expired subscription with a threadId but no sandbox row', async () => {
@@ -1038,13 +1024,13 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       eventHandler: () => {},
       onClosed: () => {},
     })
-    parkSubscription({
+    await seedCloudSandbox({ threadId: 'thr_gone', userId: 'usr-gone' })
+    await parkSubscription({
       userId: 'usr-gone',
       threadId: 'thr_gone',
-      sandboxId: 'sbx_gone',
       expiresAt: new Date(Date.now() - 60_000),
     })
-
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr_gone' }).deleteAndCount()
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(pushes).toHaveLength(0)
@@ -1052,11 +1038,10 @@ describe('GithubDeliveryService parked-subscription survival', () => {
 
   it('a discussion delivery records a mailbox row for an in-window parked subscriber', async () => {
     const { service } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
-    sandboxWithinWindow()
-    parkSubscription({
+    await sandboxWithinWindow()
+    await parkSubscription({
       userId: 'usr-parked',
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
       expiresAt: new Date(Date.now() - 60_000),
       liveUntil: new Date(Date.now() + 60_000),
     })
@@ -1077,6 +1062,6 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       },
     })
 
-    expect(fake.prEvents.filter((row) => row.userId === 'usr-parked')).toHaveLength(1)
+    expect((await prEventRows()).filter((row) => row.userId === 'usr-parked')).toHaveLength(1)
   })
 })

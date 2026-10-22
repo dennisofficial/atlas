@@ -1,21 +1,23 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { db, type Row } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb, seedCloudSandbox, type FakeSubscriptionRow } from '../../../../test/fake-github-db'
+import {
+  ensureUsers,
+  prStateRows,
+  repoHookRows,
+  seedCloudSandbox,
+  seedPrState,
+  seedRepoHook,
+  seedSubscription,
+  subscriptionRows,
+} from '../../../../test/github-seed'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
-
-const fake = fakeGithubDb()
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -60,7 +62,12 @@ function serviceWith(args: {
 }
 
 describe('GithubSubscriptionsService', () => {
-  beforeEach(() => fake.reset())
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await ensureUsers('usr_1', 'usr_2')
+  })
+
   afterEach(() => vi.unstubAllGlobals())
 
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
@@ -69,8 +76,8 @@ describe('GithubSubscriptionsService', () => {
     const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
     expect(dto.pollBacked).toBe(false)
-    expect(fake.subscriptions).toHaveLength(1)
-    expect(fake.prStates).toHaveLength(1)
+    expect(await subscriptionRows()).toHaveLength(1)
+    expect(await prStateRows()).toHaveLength(1)
     expect(dto.state).toMatchObject({ prNumber: 42, checksPassed: 2, mergeable: true })
     expect(Date.parse(dto.expiresAt)).toBeGreaterThan(Date.now())
   })
@@ -84,8 +91,8 @@ describe('GithubSubscriptionsService', () => {
       branch: 'dennis/add-the-thing',
     })
 
-    expect(fake.subscriptions).toHaveLength(1)
-    expect(fake.subscriptions[0]).toMatchObject({
+    expect(await subscriptionRows()).toHaveLength(1)
+    expect((await subscriptionRows())[0]).toMatchObject({
       prNumber: 42,
       branch: 'dennis/add-the-thing',
     })
@@ -107,9 +114,9 @@ describe('GithubSubscriptionsService', () => {
     expect(dto.prNumber).toBeNull()
     expect(dto.branch).toBe('dennis/add-the-thing')
     expect(dto.state).toBeNull()
-    expect(fake.subscriptions).toHaveLength(1)
-    expect(fake.subscriptions[0]).toMatchObject({ prNumber: null, branch: 'dennis/add-the-thing' })
-    expect(fake.prStates).toHaveLength(0)
+    expect(await subscriptionRows()).toHaveLength(1)
+    expect((await subscriptionRows())[0]).toMatchObject({ prNumber: null, branch: 'dennis/add-the-thing' })
+    expect(await prStateRows()).toHaveLength(0)
   })
 
   it('a poll-backed branch row with no pull request yet is still recorded', async () => {
@@ -126,7 +133,7 @@ describe('GithubSubscriptionsService', () => {
     })
 
     expect(dto.pollBacked).toBe(true)
-    expect(fake.subscriptions[0]).toMatchObject({
+    expect((await subscriptionRows())[0]).toMatchObject({
       prNumber: null,
       branch: 'dennis/add-the-thing',
       pollBacked: true,
@@ -139,7 +146,7 @@ describe('GithubSubscriptionsService', () => {
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'no/such' }),
     ).resolves.toMatchObject({ prNumber: null, branch: 'no/such' })
-    expect(fake.subscriptions).toHaveLength(1)
+    expect(await subscriptionRows()).toHaveLength(1)
   })
 
   it('re-subscribing a branch with an open PR after subscribing before it updates the row', async () => {
@@ -160,7 +167,7 @@ describe('GithubSubscriptionsService', () => {
       branch: 'dennis/add-the-thing',
     })
 
-    expect(fake.subscriptions).toHaveLength(1)
+    expect(await subscriptionRows()).toHaveLength(1)
     expect(second.id).toBe(first.id)
     expect(second.prNumber).toBe(42)
     expect(second.state?.prNumber).toBe(42)
@@ -173,7 +180,9 @@ describe('GithubSubscriptionsService', () => {
       repoFullName: 'compai/app',
       branch: 'dennis/add-the-thing',
     })
-    fake.subscriptions[0]!.expiresAt = new Date(Date.now() - 60_000)
+    await db.orm.public.GithubSubscription.where({ id: dto.id }).update({
+      expiresAt: new Date(Date.now() - 60_000),
+    })
 
     const beat = await service.heartbeat({ userId: 'usr_1', subscriptionId: dto.id })
 
@@ -195,7 +204,7 @@ describe('GithubSubscriptionsService', () => {
     const first = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
     const second = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
-    expect(fake.subscriptions).toHaveLength(1)
+    expect(await subscriptionRows()).toHaveLength(1)
     expect(second.id).toBe(first.id)
   })
 
@@ -205,7 +214,7 @@ describe('GithubSubscriptionsService', () => {
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 87 })
 
-    const branches = fake.subscriptions.map((row) => row.branch).sort()
+    const branches = (await subscriptionRows()).map((row) => row.branch).sort()
     expect(branches).toEqual(['#42', '#87'])
   })
 
@@ -216,7 +225,7 @@ describe('GithubSubscriptionsService', () => {
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
     ).rejects.toBeInstanceOf(ForbiddenException)
-    expect(fake.subscriptions).toHaveLength(0)
+    expect(await subscriptionRows()).toHaveLength(0)
   })
 
   it('refuses callers who never connected github', async () => {
@@ -230,7 +239,9 @@ describe('GithubSubscriptionsService', () => {
   it('heartbeat pushes the expiry out five minutes', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
-    fake.subscriptions[0]!.expiresAt = new Date(Date.now() - 60_000)
+    await db.orm.public.GithubSubscription.where({ id: dto.id }).update({
+      expiresAt: new Date(Date.now() - 60_000),
+    })
 
     const beat = await service.heartbeat({ userId: 'usr_1', subscriptionId: dto.id })
 
@@ -249,53 +260,23 @@ describe('GithubSubscriptionsService', () => {
   it('unsubscribe removes the row and marks the repo idle when nothing live remains', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
-    fake.repoHooks.push({
-      repoFullName: 'compai/app',
-      hookId: 101n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
-    })
+    await seedRepoHook({ createdBy: 'usr_1' })
 
     await service.unsubscribe({ userId: 'usr_1', subscriptionId: dto.id })
 
-    expect(fake.subscriptions).toHaveLength(0)
-    expect(fake.repoHooks[0]?.idleSince).not.toBeNull()
+    expect(await subscriptionRows()).toHaveLength(0)
+    expect((await repoHookRows())[0]?.idleSince).not.toBeNull()
   })
 
   it('unsubscribe keeps the repo active while another subscription is live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
-    fake.subscriptions.push({
-      id: 'sub-other',
-      userId: 'usr_2',
-      repoFullName: 'compai/app',
-      prNumber: 7,
-      branch: '',
-      pollBacked: false,
-      expiresAt: new Date(Date.now() + 60_000),
-      liveUntil: new Date(Date.now() + 60_000),
-      threadId: null,
-      sandboxId: null,
-      createdAt: new Date(),
-    })
-    fake.repoHooks.push({
-      repoFullName: 'compai/app',
-      hookId: 101n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
-    })
+    await seedSubscription({ id: 'sub-other', userId: 'usr_2', prNumber: 7 })
+    await seedRepoHook({ createdBy: 'usr_1' })
 
     await service.unsubscribe({ userId: 'usr_1', subscriptionId: dto.id })
 
-    expect(fake.repoHooks[0]?.idleSince).toBeNull()
+    expect((await repoHookRows())[0]?.idleSince).toBeNull()
   })
 
   it('unsubscribe of a missing row 404s', async () => {
@@ -308,70 +289,19 @@ describe('GithubSubscriptionsService', () => {
 
   it('currentStates returns the cached state for every live subscription with a pr number', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    fake.subscriptions.push(
-      {
-        id: 'sub-1',
-        userId: 'usr_1',
-        repoFullName: 'compai/app',
-        prNumber: 42,
-        branch: '',
-        pollBacked: false,
-        expiresAt: new Date(Date.now() + 60_000),
-        liveUntil: new Date(Date.now() + 60_000),
-        threadId: null,
-        sandboxId: null,
-        createdAt: new Date(),
-      },
-      {
-        id: 'sub-2',
-        userId: 'usr_1',
-        repoFullName: 'compai/app',
-        prNumber: null,
-        branch: 'dennis/fresh-branch',
-        pollBacked: false,
-        expiresAt: new Date(Date.now() + 60_000),
-        liveUntil: new Date(Date.now() + 60_000),
-        threadId: null,
-        sandboxId: null,
-        createdAt: new Date(),
-      },
-      {
-        id: 'sub-3',
-        userId: 'usr_1',
-        repoFullName: 'compai/app',
-        prNumber: 7,
-        branch: '',
-        pollBacked: false,
-        expiresAt: new Date(Date.now() - 60_000),
-        liveUntil: new Date(Date.now() - 60_000),
-        threadId: null,
-        sandboxId: null,
-        createdAt: new Date(),
-      },
-      {
-        id: 'sub-4',
-        userId: 'usr_2',
-        repoFullName: 'compai/app',
-        prNumber: 99,
-        branch: '',
-        pollBacked: false,
-        expiresAt: new Date(Date.now() + 60_000),
-        liveUntil: new Date(Date.now() + 60_000),
-        threadId: null,
-        sandboxId: null,
-        createdAt: new Date(),
-      },
-    )
-    fake.prStates.push({
-      repoFullName: 'compai/app',
-      prNumber: 42,
-      title: 'add the thing',
-      url: 'https://github.com/compai/app/pull/42',
-      state: 'open',
-      headBranch: 'dennis/add-the-thing',
-      headSha: 'abc123',
-      headRepoFullName: 'compai/app',
-      checksRunning: 0,
+    const past = new Date(Date.now() - 60_000)
+    await seedSubscription({ id: 'sub-1', userId: 'usr_1', prNumber: 42, branch: '#42' })
+    await seedSubscription({ id: 'sub-2', userId: 'usr_1', prNumber: null, branch: 'dennis/fresh-branch' })
+    await seedSubscription({
+      id: 'sub-3',
+      userId: 'usr_1',
+      prNumber: 7,
+      branch: '#7',
+      expiresAt: past,
+      liveUntil: past,
+    })
+    await seedSubscription({ id: 'sub-4', userId: 'usr_2', prNumber: 99, branch: '#99' })
+    await seedPrState({
       checksPassed: 3,
       checksFailed: 0,
       mergeable: true,
@@ -391,47 +321,46 @@ describe('GithubSubscriptionsService', () => {
 })
 
 describe('sandbox link and park survival', () => {
-  beforeEach(() => fake.reset())
+  useTestDatabase()
 
-  const expiredRow = (overrides: Partial<FakeSubscriptionRow> = {}): FakeSubscriptionRow => ({
-    id: 'sub-parked',
-    userId: 'usr_1',
-    repoFullName: 'compai/app',
-    prNumber: 42,
-    branch: '',
-    pollBacked: false,
-    expiresAt: new Date(Date.now() - 60_000),
-    liveUntil: new Date(Date.now() - 60_000),
-    threadId: null,
-    sandboxId: null,
-    createdAt: new Date(),
-    ...overrides,
+  beforeEach(async () => {
+    await ensureUsers('usr_1', 'usr_2')
   })
 
-  const sandboxRow = (overrides: Partial<Parameters<typeof seedCloudSandbox>[0]> = {}) => ({
-    id: 'sbx_row_1',
-    threadId: 'thr_1',
-    userId: 'usr_1',
-    sandboxId: 'sbx_1',
-    name: 'atlas-thr_1',
-    region: 'iad1',
-    state: 'parked',
-    lastActivityAt: new Date().toISOString(),
-    ...overrides,
-  })
+  const expiredRow = (overrides: Partial<Row<'GithubSubscription'>> = {}) =>
+    seedSubscription({
+      id: 'sub-parked',
+      userId: 'usr_1',
+      branch: '',
+      expiresAt: new Date(Date.now() - 60_000),
+      liveUntil: new Date(Date.now() - 60_000),
+      ...overrides,
+    })
 
-  it('subscribe with a sandbox principal records the thread and sandbox link', async () => {
+  const sandboxRow = (overrides: Partial<Parameters<typeof seedCloudSandbox>[0]> = {}) =>
+    seedCloudSandbox({
+      id: 'sbx_row_1',
+      threadId: 'thr_1',
+      userId: 'usr_1',
+      sandboxId: 'sbx_1',
+      name: 'atlas-thr_1',
+      state: 'parked',
+      lastActivityAt: new Date(),
+      ...overrides,
+    })
+
+  it('subscribe with a sandbox principal records the thread link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
+    await sandboxRow()
 
     await service.subscribe({
       userId: 'usr_1',
       repoFullName: 'compai/app',
       prNumber: 42,
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
 
-    expect(fake.subscriptions[0]).toMatchObject({ threadId: 'thr_1', sandboxId: 'sbx_1' })
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_1' })
   })
 
   it('subscribe without a sandbox principal leaves the link null', async () => {
@@ -439,17 +368,18 @@ describe('sandbox link and park survival', () => {
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
-    expect(fake.subscriptions[0]).toMatchObject({ threadId: null, sandboxId: null })
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: null })
   })
 
   it('re-subscribing from a different sandbox re-points the link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
+    await sandboxRow()
+    await sandboxRow({ id: 'sbx_row_2', threadId: 'thr_2', sandboxId: 'sbx_2' })
     await service.subscribe({
       userId: 'usr_1',
       repoFullName: 'compai/app',
       prNumber: 42,
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
 
     await service.subscribe({
@@ -457,49 +387,35 @@ describe('sandbox link and park survival', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       threadId: 'thr_2',
-      sandboxId: 'sbx_2',
     })
 
-    expect(fake.subscriptions).toHaveLength(1)
-    expect(fake.subscriptions[0]).toMatchObject({ threadId: 'thr_2', sandboxId: 'sbx_2' })
+    expect(await subscriptionRows()).toHaveLength(1)
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_2' })
   })
 
   it('heartbeat from a sandbox re-points the link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
+    await sandboxRow()
     const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
     await service.heartbeat({
       userId: 'usr_1',
       subscriptionId: dto.id,
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
 
-    expect(fake.subscriptions[0]).toMatchObject({ threadId: 'thr_1', sandboxId: 'sbx_1' })
+    expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_1' })
   })
 
   it('an expired subscription whose liveUntil covers the wake window still counts as live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    seedCloudSandbox(sandboxRow())
-    fake.subscriptions.push(
-      expiredRow({
-        threadId: 'thr_1',
-        sandboxId: 'sbx_1',
-        liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
-      }),
-    )
-    fake.prStates.push({
-      repoFullName: 'compai/app',
-      prNumber: 42,
-      title: 'add the thing',
-      url: 'https://github.com/compai/app/pull/42',
-      state: 'open',
-      headBranch: 'dennis/add-the-thing',
-      headSha: 'abc123',
-      headRepoFullName: 'compai/app',
-      checksRunning: 0,
+    await sandboxRow()
+    await expiredRow({
+      threadId: 'thr_1',
+      liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
+    })
+    await seedPrState({
       checksPassed: 3,
-      checksFailed: 0,
       mergeable: true,
       updatedAt: new Date('2026-09-28T00:00:00.000Z'),
     })
@@ -514,12 +430,8 @@ describe('sandbox link and park survival', () => {
 
   it('an expired subscription whose sandbox fell out of the wake window is dead', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    seedCloudSandbox(
-      sandboxRow({
-        lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000).toISOString(),
-      }),
-    )
-    fake.subscriptions.push(expiredRow({ threadId: 'thr_1', sandboxId: 'sbx_1' }))
+    await sandboxRow({ lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
+    await expiredRow({ threadId: 'thr_1' })
 
     expect(await service.liveSubscriptions({ userId: 'usr_1' })).toHaveLength(0)
     expect(await service.currentStates({ userId: 'usr_1' })).toHaveLength(0)
@@ -527,34 +439,24 @@ describe('sandbox link and park survival', () => {
 
   it('an expired subscription with a threadId but no sandbox row is dead', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    fake.subscriptions.push(expiredRow({ threadId: 'thr_gone', sandboxId: 'sbx_gone' }))
+    await sandboxRow({ threadId: 'thr_gone' })
+    await expiredRow({ threadId: 'thr_gone' })
+    await db.orm.public.CloudSandbox.where({ threadId: 'thr_gone' }).deleteAndCount()
 
     expect(await service.liveSubscriptions({ userId: 'usr_1' })).toHaveLength(0)
   })
 
   it('a parked-linked subscription keeps its repo hook out of the idle drain', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    seedCloudSandbox(sandboxRow())
-    fake.subscriptions.push(
-      expiredRow({
-        threadId: 'thr_1',
-        sandboxId: 'sbx_1',
-        liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
-      }),
-    )
-    fake.repoHooks.push({
-      repoFullName: 'compai/app',
-      hookId: 101n,
-      secret: 'sealed',
-      createdBy: 'usr_1',
-      status: 'active',
-      idleSince: null,
-      sweepLeaseUntil: null,
-      createdAt: new Date(),
+    await sandboxRow()
+    await expiredRow({
+      threadId: 'thr_1',
+      liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
     })
+    await seedRepoHook({ createdBy: 'usr_1' })
 
     await service.markIdleWhenDrained({ repoFullName: 'compai/app' })
 
-    expect(fake.repoHooks[0]?.idleSince).toBeNull()
+    expect((await repoHookRows())[0]?.idleSince).toBeNull()
   })
 })

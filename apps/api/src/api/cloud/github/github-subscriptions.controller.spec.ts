@@ -41,7 +41,6 @@ describe('GithubSubscriptionsController sandbox link', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
   })
 
@@ -69,7 +68,6 @@ describe('GithubSubscriptionsController sandbox link', () => {
       userId: 'usr_1',
       subscriptionId: 'sub_1',
       threadId: 'thr_1',
-      sandboxId: 'sbx_1',
     })
   })
 

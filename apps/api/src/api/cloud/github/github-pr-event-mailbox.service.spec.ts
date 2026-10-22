@@ -1,20 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ensureUsers, prEventRows, seedPrEvent } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-
-const fake = fakeGithubDb()
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -26,7 +17,11 @@ function serviceWith(): {
 }
 
 describe('GithubPrEventMailboxService', () => {
-  beforeEach(() => fake.reset())
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await ensureUsers('usr-a', 'usr-b', 'usr-offline')
+  })
 
   it('stamps deliveredAt on rows whose live push reached a stream', async () => {
     const { mailbox, fanout } = serviceWith()
@@ -50,11 +45,11 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Comment,
       payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
     })
-    await vi.waitFor(() => {
-      expect(fake.prEvents.every((row) => row.deliveredAt !== null)).toBe(true)
+    await vi.waitFor(async () => {
+      expect((await prEventRows()).every((row) => row.deliveredAt !== null)).toBe(true)
     })
 
-    expect(fake.prEvents).toHaveLength(2)
+    expect(await prEventRows()).toHaveLength(2)
     expect(receivedA).toHaveLength(1)
     expect(receivedB).toHaveLength(1)
     expect(receivedA[0]).toMatchObject({ kind: 'comment', repoFullName: 'compai/app', prNumber: 42 })
@@ -75,11 +70,11 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Verdict,
       payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc' },
     })
-    await vi.waitFor(() => {
-      expect(fake.prEvents.find((row) => row.userId === 'usr-a')?.deliveredAt).not.toBeNull()
+    await vi.waitFor(async () => {
+      expect((await prEventRows()).find((row) => row.userId === 'usr-a')?.deliveredAt).not.toBeNull()
     })
 
-    expect(fake.prEvents.find((row) => row.userId === 'usr-offline')?.deliveredAt).toBeNull()
+    expect((await prEventRows()).find((row) => row.userId === 'usr-offline')?.deliveredAt).toBeNull()
     const replayed = await mailbox.replayUndelivered({ userId: 'usr-offline' })
     expect(replayed).toHaveLength(1)
     expect(await mailbox.replayUndelivered({ userId: 'usr-a' })).toHaveLength(0)
@@ -96,15 +91,16 @@ describe('GithubPrEventMailboxService', () => {
       payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'failed', headSha: 'abc' },
     })
 
-    expect(fake.prEvents).toHaveLength(1)
-    expect(fake.prEvents[0]?.deliveredAt).toBeNull()
+    const rows = await prEventRows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.deliveredAt).toBeNull()
   })
 
   it('replays undelivered rows oldest-first and stamps them delivered', async () => {
     const { mailbox } = serviceWith()
     const older = new Date('2026-10-08T10:00:00.000Z')
     const newer = new Date('2026-10-08T11:00:00.000Z')
-    fake.prEvents.push(
+    for (const row of [
       {
         id: 'evt_newer',
         userId: 'usr-a',
@@ -145,13 +141,15 @@ describe('GithubPrEventMailboxService', () => {
         deliveredAt: null,
         createdAt: older,
       },
-    )
+    ]) {
+      await seedPrEvent(row)
+    }
 
     const events = await mailbox.replayUndelivered({ userId: 'usr-a' })
 
     expect(events.map((event) => event.id)).toEqual(['evt_older', 'evt_newer'])
     expect(events[0]?.createdAt).toBe(older.toISOString())
-    const byId = new Map(fake.prEvents.map((row) => [row.id, row]))
+    const byId = new Map((await prEventRows()).map((row) => [row.id, row]))
     expect(byId.get('evt_older')?.deliveredAt).not.toBeNull()
     expect(byId.get('evt_newer')?.deliveredAt).not.toBeNull()
     expect(byId.get('evt_done')?.deliveredAt).toEqual(new Date('2026-10-08T09:00:00.000Z'))
@@ -160,16 +158,7 @@ describe('GithubPrEventMailboxService', () => {
 
   it('a second replay is empty — delivered rows never replay twice', async () => {
     const { mailbox } = serviceWith()
-    fake.prEvents.push({
-      id: 'evt_1',
-      userId: 'usr-a',
-      repoFullName: 'compai/app',
-      prNumber: 42,
-      kind: 'comment',
-      payload: { url: 'u1', authorLogin: 'x' },
-      deliveredAt: null,
-      createdAt: new Date(),
-    })
+    await seedPrEvent({ id: 'evt_1', userId: 'usr-a', payload: { url: 'u1', authorLogin: 'x' } })
 
     const first = await mailbox.replayUndelivered({ userId: 'usr-a' })
     const second = await mailbox.replayUndelivered({ userId: 'usr-a' })

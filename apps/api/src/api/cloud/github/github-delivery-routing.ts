@@ -1,4 +1,4 @@
-import type { GithubPrStateModel } from '../../../db'
+import { and, or, type Row } from '@dltech/atlas-db'
 import type { CheckTarget } from './github-pr-state-fields'
 import type {
   GithubBranchRouting,
@@ -19,8 +19,18 @@ import type {
  */
 export const PARK_WAKE_WINDOW_MS = 24 * 60 * 60 * 1_000
 
-export function subscriptionLiveWhere(args: { now: Date }): Record<string, unknown> {
-  return { liveUntil: { gt: args.now } }
+type Condition = Parameters<typeof and>[number]
+
+type LiveFields = { liveUntil: { gt(value: Date): Condition } }
+
+type SubscriberFields = LiveFields & {
+  repoFullName: { eq(value: string): Condition }
+  prNumber: { eq(value: number): Condition }
+  branch: { eq(value: string): Condition; neq(value: string): Condition }
+}
+
+export function subscriptionLiveWhere(args: { now: Date }): (subscription: LiveFields) => Condition {
+  return (subscription) => subscription.liveUntil.gt(args.now)
 }
 
 /**
@@ -38,20 +48,26 @@ export function subscriberWhereOf(args: {
   repoFullName: string
   prNumber: number
   routing: GithubBranchRouting
-}): Record<string, unknown> {
+}): (subscription: SubscriberFields) => Condition {
   const live = subscriptionLiveWhere({ now: new Date() })
   const routing = args.routing
   if (!routing.headRepoMatchesBase || routing.headBranch === '') {
-    return {
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-      AND: [live],
-    }
+    return (subscription) =>
+      and(
+        subscription.repoFullName.eq(args.repoFullName),
+        subscription.prNumber.eq(args.prNumber),
+        live(subscription),
+      )
   }
-  return {
-    repoFullName: args.repoFullName,
-    AND: [live, { OR: [{ prNumber: args.prNumber }, { branch: { equals: routing.headBranch, not: '' } }] }],
-  }
+  return (subscription) =>
+    and(
+      subscription.repoFullName.eq(args.repoFullName),
+      live(subscription),
+      or(
+        subscription.prNumber.eq(args.prNumber),
+        and(subscription.branch.eq(routing.headBranch), subscription.branch.neq('')),
+      ),
+    )
 }
 
 /**
@@ -71,7 +87,7 @@ export function branchRoutingOf(args: {
   }
 }
 
-export function dtoOf(row: GithubPrStateModel): GithubPrStateDto {
+export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
   return {
     repoFullName: row.repoFullName,
     prNumber: row.prNumber,

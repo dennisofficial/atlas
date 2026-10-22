@@ -46,7 +46,7 @@ export class GithubSubscriptionsController {
       ...(body.branch === undefined ? {} : { branch: body.branch }),
       ...(request.sandbox === undefined
         ? {}
-        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
+        : { threadId: request.sandbox.threadId }),
     })
   }
 
@@ -84,7 +84,7 @@ export class GithubSubscriptionsController {
       subscriptionId: id,
       ...(request.sandbox === undefined
         ? {}
-        : { threadId: request.sandbox.threadId, sandboxId: request.sandbox.sandboxId }),
+        : { threadId: request.sandbox.threadId }),
     })
   }
 }

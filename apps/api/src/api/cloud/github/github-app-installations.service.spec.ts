@@ -1,16 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { describe, expect, it } from 'vitest'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubAppInstallationWebhookPayload } from './github-webhook.types'
 
-const fake = fakeGithubDb()
 const service = new GithubAppInstallationsService()
 
 function installationPayload(overrides: {
@@ -31,8 +23,7 @@ function installationPayload(overrides: {
 }
 
 describe('GithubAppInstallationsService', () => {
-  beforeEach(() => fake.reset())
-
+  useTestDatabase()
   it('covers a repo after a created installation and stops covering it on delete', async () => {
     await service.applyInstallation(installationPayload({}))
     expect(await service.coversRepo({ repoFullName: 'trycompai/comp-v2' })).toBe(true)

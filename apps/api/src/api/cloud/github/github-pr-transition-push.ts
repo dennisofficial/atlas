@@ -1,4 +1,4 @@
-import type { GithubPrStateModel } from '../../../db'
+import type { Row } from '@dltech/atlas-db'
 
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { verdictTimingByUser } from './github-pr-event-policy'
@@ -14,7 +14,7 @@ import { transitionsOf, type PrTransitionSnapshot, type PrVerdictTiming } from '
 export async function pushPrTransitions(args: {
   mailbox: GithubPrEventMailboxService
   prior: PrTransitionSnapshot | null
-  row: GithubPrStateModel
+  row: Row<'GithubPrState'>
   userIds: readonly string[]
 }): Promise<void> {
   if (args.prior === null || args.userIds.length === 0) return
@@ -45,7 +45,7 @@ export async function pushPrTransitions(args: {
   }
 }
 
-export function snapshotOf(row: GithubPrStateModel | null): PrTransitionSnapshot | null {
+export function snapshotOf(row: Row<'GithubPrState'> | null): PrTransitionSnapshot | null {
   if (row === null) return null
   return {
     state: row.state,

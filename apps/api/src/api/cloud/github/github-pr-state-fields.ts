@@ -1,4 +1,4 @@
-import type { GithubPrStateModel } from '../../../db'
+import type { Row } from '@dltech/atlas-db'
 import type { GithubPrStateFields, GithubPrStateRecord } from './github-realtime.types'
 
 export type CheckTarget = {
@@ -7,7 +7,7 @@ export type CheckTarget = {
   sha: string | null
 }
 
-export function stateFieldsOf(row: GithubPrStateModel): GithubPrStateFields & {
+export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & {
   headRepoFullName: string | null
 } {
   return {

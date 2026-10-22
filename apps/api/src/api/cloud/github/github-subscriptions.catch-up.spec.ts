@@ -1,20 +1,12 @@
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { fakeGithubDb } = await import('../../../../test/fake-github-db.js')
-  return { db: fakeGithubDb().db as unknown as PrismaClient }
-})
-
-import { fakeGithubDb } from '../../../../test/fake-github-db'
+import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
-
-const fake = fakeGithubDb()
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -53,7 +45,11 @@ function serviceWith(args: {
 }
 
 describe('GithubSubscriptionsService branch catch-up', () => {
-  beforeEach(() => fake.reset())
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await ensureUsers('usr_1', 'usr_2')
+  })
   afterEach(() => vi.unstubAllGlobals())
 
   it.each([
@@ -75,11 +71,11 @@ describe('GithubSubscriptionsService branch catch-up', () => {
       const first = await service.subscribe(subscribe)
       const second = await service.subscribe(subscribe)
 
-      expect(fake.subscriptions).toHaveLength(1)
+      expect(await subscriptionRows()).toHaveLength(1)
       expect(second.id).toBe(first.id)
       expect(second.prNumber).toBe(42)
       expect(second.state).toMatchObject({ prNumber: 42, state: mergedState, mergeable })
-      expect(fake.prStates[0]?.state).toBe(mergedState)
+      expect((await prStateRows())[0]?.state).toBe(mergedState)
     },
   )
 
@@ -140,6 +136,6 @@ describe('GithubSubscriptionsService branch catch-up', () => {
     expect(dto.prNumber).toBeNull()
     expect(dto.state).toBeNull()
     expect(readPullRequest).not.toHaveBeenCalled()
-    expect(fake.prStates).toHaveLength(0)
+    expect(await prStateRows()).toHaveLength(0)
   })
 })

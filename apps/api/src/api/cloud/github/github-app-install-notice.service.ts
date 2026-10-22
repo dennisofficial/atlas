@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 
 /**
@@ -23,16 +23,14 @@ export class GithubAppInstallNoticeService {
   }
 
   async shouldRecommend(args: { userId: string; repoFullName: string }): Promise<boolean> {
-    const dismissed = await db.githubAppNoticeDismissal.findUnique({
-      where: {
-        userId_repoFullName: { userId: args.userId, repoFullName: args.repoFullName },
-      },
-    })
+    const dismissed = await db.orm.public.GithubAppNoticeDismissal.where({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+    }).first()
     if (dismissed !== null) return false
 
-    const hook = await db.githubRepoHook.findUnique({
-      where: { repoFullName: args.repoFullName },
-      select: { repoFullName: true },
+    const hook = await db.orm.public.GithubRepoHook.select('repoFullName').first({
+      repoFullName: args.repoFullName,
     })
     if (hook !== null) return false
 
@@ -40,12 +38,10 @@ export class GithubAppInstallNoticeService {
   }
 
   async dismiss(args: { userId: string; repoFullName: string }): Promise<void> {
-    await db.githubAppNoticeDismissal.upsert({
-      where: {
-        userId_repoFullName: { userId: args.userId, repoFullName: args.repoFullName },
-      },
+    await db.orm.public.GithubAppNoticeDismissal.upsert({
       create: { userId: args.userId, repoFullName: args.repoFullName },
       update: { dismissedAt: new Date() },
+      conflictOn: { userId: args.userId, repoFullName: args.repoFullName },
     })
   }
 }

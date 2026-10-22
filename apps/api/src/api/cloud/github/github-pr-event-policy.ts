@@ -1,4 +1,4 @@
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { PrVerdictTiming } from './github-pr-event-transitions'
 
 // Harness settings upload envelope: packages/harness/src/cloud/sync-settings.ts encodes values
@@ -35,9 +35,9 @@ export async function verdictTimingByUser(args: {
   const resolved = new Map<string, PrVerdictTiming>()
   if (args.userIds.length === 0) return resolved
 
-  const rows = await db.cloudSetting.findMany({
-    where: { userId: { in: [...args.userIds] }, key: VERDICT_TIMING_SETTING_KEY },
-  })
+  const rows = await db.orm.public.UserSetting.where((setting) => setting.userId.in([...args.userIds]))
+    .where({ key: VERDICT_TIMING_SETTING_KEY })
+    .all()
   const byUser = new Map(rows.map((row) => [row.userId, row.value]))
   for (const userId of args.userIds) {
     resolved.set(userId, verdictTimingOf(byUser.get(userId)))
