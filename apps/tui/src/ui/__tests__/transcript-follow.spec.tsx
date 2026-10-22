@@ -1,4 +1,4 @@
-import { parseColor, type CapturedFrame, type CapturedSpan, } from '@opentui/core'
+import { parseColor, type CapturedFrame, type CapturedSpan } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import { act } from 'react'

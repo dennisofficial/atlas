@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  EChecksState,
-  POLL_FLOOR_MS,
-  POLL_RUNNING_MS,
-} from '../pure'
+import { EChecksState, POLL_FLOOR_MS, POLL_RUNNING_MS } from '../pure'
 
 import { createPullRequestService, EXPECTING_CHECKS_MS } from '../pull-request-service'
 import {

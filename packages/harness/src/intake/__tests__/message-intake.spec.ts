@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isTurnTaking,
-  toThreadId,
-  type EventDraft,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { isTurnTaking, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import { createPendingQueues } from '../../pending'
 import { MessageIntake, type IntakeSource } from '../message-intake'

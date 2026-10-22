@@ -105,10 +105,25 @@
           }
         }
       }
-    },
-    "includes": ["**", "!packages/ui/src/components"]
+    }
   },
   "overrides": [
+    {
+      "includes": ["packages/ui/src/components/**"],
+      "linter": {
+        "rules": {
+          "a11y": "off",
+          "security": "off",
+          "suspicious": {
+            "noDoubleEquals": "off",
+            "noDocumentCookie": "off"
+          },
+          "correctness": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["apps/tui/**"],
       "linter": {

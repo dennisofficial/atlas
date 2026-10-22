@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { runtimeCheckpointFile } from '@dltech/atlas-harness'
-import { ERuntimePhase, } from '@dltech/atlas-wire'
+import { ERuntimePhase } from '@dltech/atlas-wire'
 
 import type { ServeLogLine } from '../serve-log'
 import {

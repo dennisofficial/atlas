@@ -115,8 +115,7 @@ export class LocalRotation extends RotationPort {
     for (const listener of [...this.listeners]) {
       try {
         listener(stage)
-      } catch {
-      }
+      } catch {}
     }
   }
 }

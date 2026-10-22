@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import { EAgentStatus, } from '@dltech/atlas-core'
+import { EAgentStatus } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'vitest'
 import React, { act } from 'react'

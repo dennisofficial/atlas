@@ -5,7 +5,6 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
-
 export abstract class ToolRegistry {
   abstract declarations(): readonly ToolDeclaration[]
   abstract find(name: string): ToolDefinition | undefined

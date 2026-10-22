@@ -7,7 +7,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-
 export class InvalidateFactsHook extends AfterToolHook {
   readonly name = 'invalidateFacts'
   readonly order: HookOrder = { stage: EStage.Observe, nudge: 2 }

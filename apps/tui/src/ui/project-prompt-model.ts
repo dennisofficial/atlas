@@ -61,16 +61,14 @@ const newestFirst = (a: Project, b: Project): number =>
   a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
 
 export function projectRows(projects: readonly Project[]): readonly ProjectRow[] {
-  const rows = [...projects]
-    .sort(newestFirst)
-    .map(
-      (project): ProjectRow => ({
-        projectId: project.id,
-        name: project.name,
-        repo: project.repo,
-        updatedAt: project.updatedAt,
-      }),
-    )
+  const rows = [...projects].sort(newestFirst).map(
+    (project): ProjectRow => ({
+      projectId: project.id,
+      name: project.name,
+      repo: project.repo,
+      updatedAt: project.updatedAt,
+    }),
+  )
   return [...rows, { projectId: null, name: NO_WORKSPACE_LABEL, repo: null, updatedAt: null }]
 }
 

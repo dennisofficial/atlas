@@ -1,4 +1,4 @@
-import { EAgentRestart, type EventLogPort, type IdPort, } from '@dltech/atlas-core'
+import { EAgentRestart, type EventLogPort, type IdPort } from '@dltech/atlas-core'
 
 import type { ChildState } from './child-state'
 

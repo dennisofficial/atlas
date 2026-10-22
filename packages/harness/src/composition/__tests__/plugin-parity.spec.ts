@@ -4,13 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import {
-  ATLAS_SETTINGS,
-  toCallId,
-  toRunId,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, toCallId, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { registeredPortToken } from '../../container/injection'
 import { MemorySettingsStore } from '../../settings/memory-store'

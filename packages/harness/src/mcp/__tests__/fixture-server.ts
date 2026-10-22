@@ -65,7 +65,6 @@ for await (const chunk of process.stdin) {
       if (response !== undefined) {
         process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...response })}\n`)
       }
-    } catch {
-    }
+    } catch {}
   }
 }

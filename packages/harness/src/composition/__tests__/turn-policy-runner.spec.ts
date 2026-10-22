@@ -1,9 +1,4 @@
-import {
-  EFinishReason,
-  toRunId,
-  toThreadId,
-  type ModelPort,
-} from '@dltech/atlas-core'
+import { EFinishReason, toRunId, toThreadId, type ModelPort } from '@dltech/atlas-core'
 import { describe, expect, it } from 'vitest'
 
 import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'

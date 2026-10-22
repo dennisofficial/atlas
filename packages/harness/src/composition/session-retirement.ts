@@ -15,8 +15,7 @@ export function createRetirementQueue<
     for (const binding of pending.splice(0)) {
       try {
         binding.close?.()
-      } catch {
-      }
+      } catch {}
     }
   }
 

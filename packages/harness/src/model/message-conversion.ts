@@ -1,8 +1,4 @@
-import type {
-  AssistantContent,
-  ModelMessage,
-  ToolResultPart as ModelToolResultPart,
-} from 'ai'
+import type { AssistantContent, ModelMessage, ToolResultPart as ModelToolResultPart } from 'ai'
 
 import type {
   AssistantMessage,

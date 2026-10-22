@@ -1,8 +1,4 @@
-import {
-  EExecutionLocation,
-  toThreadId,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { WireSandboxListEntry } from '@dltech/atlas-harness'
 
 import { messageOf } from '../error-text'

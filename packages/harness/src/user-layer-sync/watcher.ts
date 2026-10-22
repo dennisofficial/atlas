@@ -91,8 +91,7 @@ export function watchUserLayer(args: {
     for (const nested of [directory, ...(await subdirectoriesOf(directory))]) {
       try {
         open({ directory: nested, recursive: false })
-      } catch {
-      }
+      } catch {}
     }
   }
 
@@ -102,8 +101,7 @@ export function watchUserLayer(args: {
       try {
         if (target.recursive) await openRecursively(target.directory)
         else open(target)
-      } catch {
-      }
+      } catch {}
     }
   }
 

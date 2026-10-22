@@ -153,7 +153,6 @@ export function removeBundleResources({ names }: { names: BundleNames }): void {
   for (const args of removals) {
     try {
       docker(args)
-    } catch {
-    }
+    } catch {}
   }
 }

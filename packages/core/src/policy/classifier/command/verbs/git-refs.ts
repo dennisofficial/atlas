@@ -1,14 +1,6 @@
 import { EDeed, EDeedRealm, type DeedTarget } from '../../deed'
 import { applyToTree, rest, type GitHandler } from './git-tree'
-import {
-  anyFlag,
-  readOnly,
-  refTargets,
-  routine,
-  sketch,
-  subverbOf,
-  worktreeTarget,
-} from './view'
+import { anyFlag, readOnly, refTargets, routine, sketch, subverbOf, worktreeTarget } from './view'
 
 const rebaseControlFlags = ['--abort', '--continue', '--skip', '--quit', '--edit-todo']
 

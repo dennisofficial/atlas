@@ -9,10 +9,7 @@ import { beginCloudLogin, type CloudLoginTicket } from './device-login'
 import { restoreArchivedLocalFiles } from './local-recovery'
 import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
-import {
-  prepareSandboxOauth,
-  type OauthHandoffCallback,
-} from './cloud-oauth-sandbox'
+import { prepareSandboxOauth, type OauthHandoffCallback } from './cloud-oauth-sandbox'
 import { uploadLocalSettings } from './sync-settings'
 import {
   uploadLocalAccounts,

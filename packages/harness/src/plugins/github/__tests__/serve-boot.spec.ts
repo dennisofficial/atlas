@@ -6,7 +6,7 @@ import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 
 import { createSessionFacts } from '../session'
 import { createPullRequestService } from '../pull-request-service'
-import { checkoutKey, } from '../pure'
+import { checkoutKey } from '../pure'
 import { aCheckout, pullRequestsByKey, wasFound } from '../testing'
 import { createCheckoutTracking } from '../tracking'
 

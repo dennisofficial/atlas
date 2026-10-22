@@ -100,8 +100,7 @@ class GitProbe {
     for (const handle of this.running) {
       try {
         handle.terminate()
-      } catch {
-      }
+      } catch {}
     }
     this.running.clear()
   }

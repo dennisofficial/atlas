@@ -71,8 +71,7 @@ export async function buildContextArchive(args: {
         await mkdir(join(target, '..'), { recursive: true })
         await cp(file.path, target, { preserveTimestamps: true, dereference: true })
         staged += 1
-      } catch {
-      }
+      } catch {}
     }
     if (staged === 0) return undefined
 
@@ -102,8 +101,7 @@ const collectEntries = async (contentDir: string): Promise<readonly ExtractedArc
     try {
       const stats = await stat(path)
       entries.push({ key, path, mtimeMs: stats.mtimeMs })
-    } catch {
-    }
+    } catch {}
   }
   return entries
 }

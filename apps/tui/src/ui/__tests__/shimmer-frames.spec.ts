@@ -1,4 +1,3 @@
-
 import { describe, expect, test } from 'vitest'
 
 import { beaconHeat, shimmerCrest, WORKING_SHIMMER } from '../shimmer'

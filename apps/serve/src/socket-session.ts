@@ -14,7 +14,7 @@ import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
-import { createRequestRouter, } from './socket-requests'
+import { createRequestRouter } from './socket-requests'
 import { createDeferredFrames } from './socket-deferred-frames'
 import { createSocketGreeter } from './socket-greet'
 import type {

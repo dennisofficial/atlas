@@ -8,7 +8,7 @@ import {
 import { FileMcpSource } from '../mcp/config/sources'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import type { CloudClient } from './cloud-client'
-import { accountDraftOf, sameAccountSecret, } from './sync-accounts'
+import { accountDraftOf, sameAccountSecret } from './sync-accounts'
 import { RemoteAccountStore } from './remote-account-store'
 
 export type { CloudSyncCounts } from './sync-accounts'

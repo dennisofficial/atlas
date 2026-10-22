@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { toThreadId, type EventDraft } from '@dltech/atlas-core'
 
-import { EClientFrame, EServeFrame, } from '@dltech/atlas-harness'
+import { EClientFrame, EServeFrame } from '@dltech/atlas-harness'
 
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 

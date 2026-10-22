@@ -6,7 +6,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-
 export class PrewarmFactsHook extends BeforeTurnHook {
   readonly name = 'prewarmFacts'
   readonly order: HookOrder = { stage: EStage.Observe, nudge: 1 }

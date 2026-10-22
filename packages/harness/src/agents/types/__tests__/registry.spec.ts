@@ -1,11 +1,7 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'vitest'
 
-import {
-  AGENT_SPAWN_TOOL_NAME,
-  AgentTypeSource,
-  type AgentTypeRead,
-} from '../agent-type'
+import { AGENT_SPAWN_TOOL_NAME, AgentTypeSource, type AgentTypeRead } from '../agent-type'
 import { DirectoryAgentTypeSource } from '../directory-source'
 import { loadAgentTypes } from '../registry'
 

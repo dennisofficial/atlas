@@ -2,13 +2,7 @@ import { stat } from 'node:fs/promises'
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  EExecutionLocation,
-  toEventId,
-  toRunId,
-  toThreadId,
-  type Event,
-} from '@dltech/atlas-core'
+import { EExecutionLocation, toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
 import {
   atlasDirectory,
   EClientRequest,

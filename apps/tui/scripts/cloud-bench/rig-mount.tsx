@@ -1,5 +1,3 @@
-
-
 import { testRender } from '@opentui/react/test-utils'
 
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'

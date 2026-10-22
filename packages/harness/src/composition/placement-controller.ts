@@ -283,8 +283,7 @@ export class PlacementController {
     for (const listener of [...this.listeners]) {
       try {
         listener()
-      } catch {
-      }
+      } catch {}
     }
   }
 }

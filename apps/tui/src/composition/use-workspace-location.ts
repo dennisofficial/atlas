@@ -1,4 +1,4 @@
-import { useCallback, useEffect, } from 'react'
+import { useCallback, useEffect } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 

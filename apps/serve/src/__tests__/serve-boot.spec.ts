@@ -260,7 +260,8 @@ describe('startServe', () => {
       fetchFn: (async (input: unknown, init?: RequestInit) => {
         requested.push({
           url: String(input),
-          authorization: (init?.headers as Record<string, string> | undefined)?.authorization ?? null,
+          authorization:
+            (init?.headers as Record<string, string> | undefined)?.authorization ?? null,
         })
         return Response.json({
           projectId: 'proj-boot',
