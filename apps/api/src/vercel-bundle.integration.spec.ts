@@ -98,7 +98,7 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     const databaseUrl = `postgresql://atlas:atlas@127.0.0.1:${dbPort}/atlas`
     sh({
       file: 'bun',
-      args: ['run', '--bun', 'prisma', 'db', 'migrate'],
+      args: ['run', '--bun', 'prisma', 'db', 'migrate', '--to', 'db'],
       cwd: DB_PACKAGE,
       env: minimalEnv({ DATABASE_URL: databaseUrl, DIRECT_URL: databaseUrl }),
     })
