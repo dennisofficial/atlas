@@ -28,7 +28,6 @@ export const BOOT_STEP_ORDER: readonly EBootStep[] = [
 ]
 
 export const BOOT_STEP_EVENT_TYPE = 'sandbox-boot-step'
-export const BOOT_RUN_ID = 'run_sandbox-boot'
 /**
  * Set to '1' on a sandbox the API provisioned. Serve then reports boot steps and routes port
  * exposure and stop through the API, because such a sandbox carries no Vercel credentials.
@@ -45,23 +44,6 @@ export const bootStepEventSchema = z.object({
   error: z.string().optional(),
 })
 export type BootStepEvent = z.infer<typeof bootStepEventSchema>
-
-export type BootStepDraft = { type: typeof BOOT_STEP_EVENT_TYPE; body: string }
-
-export const bootStepDraftOf = (event: BootStepEvent): BootStepDraft => ({
-  type: BOOT_STEP_EVENT_TYPE,
-  body: JSON.stringify(bootStepEventSchema.parse(event)),
-})
-
-export const bootStepOfWire = (wire: { type: string; body: string }): BootStepEvent | null => {
-  if (wire.type !== BOOT_STEP_EVENT_TYPE) return null
-  try {
-    const parsed = bootStepEventSchema.safeParse(JSON.parse(wire.body))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
-}
 
 export type BootStepStatus = Omit<BootStepEvent, 'step'>
 
