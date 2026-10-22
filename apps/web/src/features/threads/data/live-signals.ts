@@ -1,6 +1,9 @@
 import type { ChannelSignal, StepSignal } from '@dltech/atlas-client/channel'
 import { prunedSignals } from '@dltech/atlas-client/transcript'
 import type { CallId, Event } from '@dltech/atlas-core'
+import type { WireEvent } from '@dltech/atlas-wire/web'
+
+import { eventsFromWire } from './events-from-wire'
 
 export const MAX_TAIL_CHARACTERS = 60_000
 
@@ -40,4 +43,22 @@ export function pruneSignals(args: { state: SignalState; events: readonly Event[
   const outputs = kept.length === state.outputs.size ? state.outputs : new Map(kept)
   if (signals === state.signals && outputs === state.outputs) return state
   return { signals: [...signals], outputs }
+}
+
+export type LiveSignalFields = Pick<SignalState, 'signals' | 'outputs'> & { events: WireEvent[] }
+
+export function absorbInto<State extends LiveSignalFields>(args: {
+  state: State
+  signal: ChannelSignal
+}): State {
+  const { state, signal } = args
+  const absorbed = absorbSignal({ state, signal })
+  if (absorbed === state) return state
+  return settleInto({ ...state, signals: absorbed.signals, outputs: absorbed.outputs })
+}
+
+export function settleInto<State extends LiveSignalFields>(state: State): State {
+  if (state.signals.length === 0 && state.outputs.size === 0) return state
+  const pruned = pruneSignals({ state, events: eventsFromWire(state.events) })
+  return pruned === state ? state : { ...state, signals: pruned.signals, outputs: pruned.outputs }
 }
