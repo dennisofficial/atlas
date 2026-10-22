@@ -94,7 +94,16 @@
         "noShadowRestrictedNames": "off",
         "noTemplateCurlyInString": "off",
         "noThenProperty": "off",
-        "noUndeclaredEnvVars": "off"
+        "noUndeclaredEnvVars": "off",
+        "noImplicitAnyLet": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": {
+            "inputComponents": ["RadioGroupItem"]
+          }
+        }
       }
     },
     "includes": ["**", "!packages/ui/src/components"]
@@ -137,6 +146,17 @@
         "rules": {
           "correctness": {
             "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/storybook/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useValidAnchor": "off",
+            "noStaticElementInteractions": "off"
           }
         }
       }

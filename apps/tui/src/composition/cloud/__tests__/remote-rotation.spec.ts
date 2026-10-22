@@ -18,7 +18,9 @@ const channel = (reply: unknown) => {
   const requests: { op: EClientRequest; params: unknown }[] = []
   return {
     requests,
-    emit: (signal: ChannelSignal) => listeners.forEach((listener) => listener(signal)),
+    emit: (signal: ChannelSignal) => {
+      for (const listener of listeners) listener(signal)
+    },
     port: {
       threadId: MAIN,
       request: async (given: { op: EClientRequest; params: unknown }) => {

@@ -126,7 +126,7 @@ export const fakeSandbox = (
     },
     writeFiles: async (files: RecordedWrite[]) => {
       written.push(...files)
-      files.forEach((file) => calls?.push({ kind: ERecordedCallKind.Write, path: file.path }))
+      for (const file of files) calls?.push({ kind: ERecordedCallKind.Write, path: file.path })
     },
     update: async (params: { ports?: number[]; resources?: { vcpus?: number } }) => {
       if (params.ports !== undefined) {

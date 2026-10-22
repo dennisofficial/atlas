@@ -64,7 +64,7 @@ describe('the shell event journal', () => {
     await Bun.sleep(0)
 
     expect(log.calls).toHaveLength(2)
-    log.calls.forEach((call) => call.settle.release())
+    for (const call of log.calls) call.settle.release()
     await Promise.all([first, second])
   })
 

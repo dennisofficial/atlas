@@ -201,7 +201,9 @@ const controllableChannelFor = (args: { connection: ChannelConnection }) => {
     },
     subscribe: () => () => undefined,
   }
-  return { channel, state, emitReady: () => [...readyListeners].forEach((fire) => fire()) }
+  return { channel, state, emitReady: () => {
+    for (const fire of [...readyListeners]) fire()
+  } }
 }
 
 describe('driveThreadViewExternally', () => {

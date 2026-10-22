@@ -46,7 +46,7 @@ describe('JevDecisionClient', () => {
     expect(request.model).toBe('jev-latest')
     expect(request.state).toBe('the call about to run')
     expect(request.questions['danger']?.type).toBe('noul')
-    expect((seen?.options as { signal: AbortSignal }).signal).toBeInstanceOf(AbortSignal)
+    expect((seen!.options as { signal: AbortSignal }).signal).toBeInstanceOf(AbortSignal)
   })
 
   it('fails closed-shape when the SDK rejects (a non-2xx after retries)', async () => {

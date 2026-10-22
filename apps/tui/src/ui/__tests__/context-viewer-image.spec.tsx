@@ -16,12 +16,12 @@ const FOOTER = '↑↓ scroll'
 const GLYPH = /[▀-▟]/
 const heldTermProgram = process.env.TERM_PROGRAM
 
-const useTerminal = (program: string | undefined): void => {
+const pinTerminal = (program: string | undefined): void => {
   if (program === undefined) delete process.env.TERM_PROGRAM
   else process.env.TERM_PROGRAM = program
 }
 
-afterEach(() => useTerminal(heldTermProgram))
+afterEach(() => pinTerminal(heldTermProgram))
 
 const picture = (args: { width: number; height: number }): string => {
   const rgba = new Uint8Array(args.width * args.height * 4)
@@ -113,7 +113,7 @@ async function frameOf(args: {
   program: string | undefined
   capabilities: Parameters<typeof setRendererCapabilities>[1]
 }): Promise<Capture> {
-  useTerminal(args.program)
+  pinTerminal(args.program)
   const draws: ImageDraw[] = []
   const original = OptimizedBuffer.prototype.drawImage
   const spy = vi.spyOn(OptimizedBuffer.prototype, 'drawImage').mockImplementation(function (

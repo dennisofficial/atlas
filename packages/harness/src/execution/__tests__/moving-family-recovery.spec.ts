@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
 
-import { familyRecoveryFixture } from '../../shells/__tests__/family-recovery.spec'
+import { familyRecoveryFixture } from '../../shells/__tests__/family-recovery-fixture'
 import { stopMovingShells } from '../moving-shells'
 
 describe('moving recovered shell families', () => {

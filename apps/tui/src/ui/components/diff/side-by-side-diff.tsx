@@ -25,7 +25,7 @@ function SideBySideHunk(props: {
 
   const byLine = useMemo(() => {
     const map = new Map<DiffLine, readonly TextChunk[] | null>()
-    props.hunk.lines.forEach((line, index) => map.set(line, chunks[index] ?? null))
+    for (const [index, line] of props.hunk.lines.entries()) map.set(line, chunks[index] ?? null)
     return map
   }, [props.hunk.lines, chunks])
 

@@ -66,7 +66,9 @@ function requirePadding(padding: Buffer): void {
 
 function requirePrivateBlock(args: { block: Buffer; publicBytes: Buffer }): void {
   const cursor = new Cursor(args.block)
-  if (cursor.uint32() !== cursor.uint32()) throw refuse('checkints differ')
+  const checkInt = cursor.uint32()
+  const checkIntRepeat = cursor.uint32()
+  if (checkInt !== checkIntRepeat) throw refuse('checkints differ')
   if (cursor.string().toString('latin1') !== ED25519) throw refuse('not an ed25519 key')
   if (!cursor.string().equals(args.publicBytes)) throw refuse('public key mismatch')
   const secret = cursor.string()

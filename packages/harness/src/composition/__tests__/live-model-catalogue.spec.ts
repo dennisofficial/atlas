@@ -49,7 +49,9 @@ const liveOf = (cards: readonly ModelCard[] | undefined) => {
   }
   return {
     live,
-    fire: () => listeners.forEach((listener) => listener()),
+    fire: () => {
+      for (const listener of listeners) listener()
+    },
     refreshes: () => refreshes,
   }
 }

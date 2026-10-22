@@ -45,14 +45,14 @@ describe('durable shell survives its launcher', () => {
     expect(first.text).toContain('ready')
     expect((await handle.writeInput('hello\n')).ok).toBe(true)
 
-    const rest = new Promise<string>(async (resolve) => {
+    const rest = (async (): Promise<string> => {
       let text = ''
       for (;;) {
         const { done, value } = await first.reader.read()
-        if (done) return resolve(text)
+        if (done) return text
         text += new TextDecoder().decode(value)
       }
-    })
+    })()
     expect(await handle.exited).toBe(7)
     expect(await rest).toContain('got:hello')
     const settled = await handle.settled

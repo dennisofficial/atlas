@@ -96,7 +96,7 @@ describe('createDecisionClient', () => {
         })
         expect(seen).toHaveLength(1)
         expect(seen[0]?.url).toBe('https://api.openai.com/v1/decisions')
-        expect((seen[0]?.init.headers as Record<string, string>).Authorization).toBe('Bearer sk-o')
+        expect((seen[0]!.init.headers as Record<string, string>).Authorization).toBe('Bearer sk-o')
         const body = JSON.parse(String(seen[0]?.init.body)) as {
           model: string
           input: string

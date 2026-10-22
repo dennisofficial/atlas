@@ -560,7 +560,7 @@ describe('GithubDeliveryService', () => {
       expect(byUser.get('usr-a')?.deliveredAt).not.toBeNull()
     })
     expect(byUser.get('usr-b')?.deliveredAt).toBeNull()
-    expect((fake.prEvents[0]?.payload as Record<string, unknown>).headSha).toBeUndefined()
+    expect((fake.prEvents[0]!.payload as Record<string, unknown>).headSha).toBeUndefined()
     expect(received).toHaveLength(1)
     expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
   })
@@ -776,7 +776,7 @@ describe('GithubDeliveryService', () => {
         url: 'https://github.com/compai/app/pull/42',
       },
     })
-    expect((verdicts[0]?.payload as Record<string, unknown>).authorLogin).toBeUndefined()
+    expect((verdicts[0]!.payload as Record<string, unknown>).authorLogin).toBeUndefined()
   })
 
   it('records a green verdict when checks settle passing after running', async () => {
