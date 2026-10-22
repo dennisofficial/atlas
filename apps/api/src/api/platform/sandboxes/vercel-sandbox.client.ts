@@ -73,7 +73,11 @@ export class VercelSandboxClient {
     await this.stopSession(args)
   }
 
-  async stopSession(args: { threadId: string; name: string; sessionId?: string | undefined }): Promise<void> {
+  async stopSession(args: {
+    threadId: string
+    name: string
+    sessionId?: string | undefined
+  }): Promise<void> {
     try {
       const sandbox = await this.get({ ...args, resume: false })
       assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
@@ -122,7 +126,9 @@ export class VercelSandboxClient {
   }
 
   private async get(args: { threadId: string; name: string; resume?: boolean }): Promise<Sandbox> {
-    const { token, teamId, projectId } = await this.credentials.forThread({ threadId: args.threadId })
+    const { token, teamId, projectId } = await this.credentials.forThread({
+      threadId: args.threadId,
+    })
     return Sandbox.get({
       token,
       teamId,

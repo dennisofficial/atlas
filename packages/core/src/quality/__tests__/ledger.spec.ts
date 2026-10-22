@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { activeFindings, applyAssessments, findingId, foldQualityFindings } from '../ledger'
-import { EQualityFindingState, EQualityReviewStatus, EQualityTransition, type QualityFinding } from '../policy'
+import {
+  EQualityFindingState,
+  EQualityReviewStatus,
+  EQualityTransition,
+  type QualityFinding,
+} from '../policy'
 import { assessmentFixture, reviewFixture, scopeFixture } from './fixtures'
 
 const finding = (overrides: Partial<QualityFinding> = {}): QualityFinding => ({
@@ -59,7 +64,10 @@ describe('applyAssessments transition table', () => {
   })
 
   it('updates an unnotified finding silently on TrackDebt', () => {
-    const result = step({ previous: [finding({ notified: false })], transition: EQualityTransition.TrackDebt })
+    const result = step({
+      previous: [finding({ notified: false })],
+      transition: EQualityTransition.TrackDebt,
+    })
     expect(result.findings[0]?.notified).toBe(false)
     expect(result.findings[0]?.lastAfterHash).toBe('a1')
     expect(result.notifiable).toEqual([])
@@ -87,8 +95,14 @@ describe('applyAssessments transition table', () => {
     const resolved = finding({ state: EQualityFindingState.Resolved })
     const result = step({ previous: [resolved], transition: EQualityTransition.Introduce })
     expect(result.findings).toHaveLength(1)
-    expect(result.findings[0]).toMatchObject({ episode: 2, state: EQualityFindingState.Active, notified: true })
-    expect(result.findings[0]?.id).toBe(findingId({ policyId: 'srp', scopeId: 'scope-1', episode: 2 }))
+    expect(result.findings[0]).toMatchObject({
+      episode: 2,
+      state: EQualityFindingState.Active,
+      notified: true,
+    })
+    expect(result.findings[0]?.id).toBe(
+      findingId({ policyId: 'srp', scopeId: 'scope-1', episode: 2 }),
+    )
     expect(result.notifiable).toHaveLength(1)
   })
 
@@ -106,15 +120,16 @@ describe('applyAssessments transition table', () => {
     expect(result.notifiable).toEqual([])
   })
 
-  it.each([EQualityReviewStatus.Skipped, EQualityReviewStatus.Inconclusive, EQualityReviewStatus.OperationalError])(
-    'never moves findings on a %s assessment',
-    (status) => {
-      const previous = [finding()]
-      for (const transition of [EQualityTransition.Resolve, EQualityTransition.Introduce]) {
-        expect(step({ previous, transition, status }).findings).toEqual(previous)
-      }
-    },
-  )
+  it.each([
+    EQualityReviewStatus.Skipped,
+    EQualityReviewStatus.Inconclusive,
+    EQualityReviewStatus.OperationalError,
+  ])('never moves findings on a %s assessment', (status) => {
+    const previous = [finding()]
+    for (const transition of [EQualityTransition.Resolve, EQualityTransition.Introduce]) {
+      expect(step({ previous, transition, status }).findings).toEqual(previous)
+    }
+  })
 
   it('keeps findings of other policies on the scope and tracks policies independently', () => {
     const other = finding({ policyId: 'other', id: 'other:scope-1:1' })
@@ -135,7 +150,9 @@ describe('applyAssessments transition table', () => {
       afterHash: null,
       scopeDeleted: true,
     })
-    expect(result.findings.every((entry) => entry.state === EQualityFindingState.Resolved)).toBe(true)
+    expect(result.findings.every((entry) => entry.state === EQualityFindingState.Resolved)).toBe(
+      true,
+    )
     expect(result.findings.every((entry) => entry.lastAfterHash === null)).toBe(true)
     expect(result.notifiable).toEqual([])
   })
@@ -155,7 +172,10 @@ describe('foldQualityFindings', () => {
   it('keeps the latest snapshot per scope and ignores file-level records', () => {
     const records = [
       reviewFixture({ scope: identity, findings: [finding({ notified: false })] }),
-      reviewFixture({ scope: { ...identity, id: 'scope-2' }, findings: [finding({ scopeId: 'scope-2' })] }),
+      reviewFixture({
+        scope: { ...identity, id: 'scope-2' },
+        findings: [finding({ scopeId: 'scope-2' })],
+      }),
       reviewFixture({ status: EQualityReviewStatus.Skipped }),
       reviewFixture({ scope: identity, findings: [finding()] }),
     ]

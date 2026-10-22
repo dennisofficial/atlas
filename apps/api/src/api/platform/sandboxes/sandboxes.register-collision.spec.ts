@@ -22,10 +22,7 @@ describe('registering a client token that a pod lease already holds', () => {
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
-    service = new SandboxesService(
-      {} as unknown as VercelSandboxClient,
-      cipher,
-    )
+    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
     await db.orm.public.LocalPodLease.create({
       id: 'lease_1',
       userId: 'user-b',
@@ -34,12 +31,15 @@ describe('registering a client token that a pod lease already holds', () => {
     })
   })
 
-  it.each(['user-a', 'user-b'])('refuses with a conflict for owner %s and writes nothing', async (userId) => {
-    await expect(
-      service.claim({ userId, threadId: 'brn_new', clientToken: TOKEN, serveUrl: SERVE_URL }),
-    ).rejects.toBeInstanceOf(ConflictException)
+  it.each(['user-a', 'user-b'])(
+    'refuses with a conflict for owner %s and writes nothing',
+    async (userId) => {
+      await expect(
+        service.claim({ userId, threadId: 'brn_new', clientToken: TOKEN, serveUrl: SERVE_URL }),
+      ).rejects.toBeInstanceOf(ConflictException)
 
-    expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
-    expect(await db.orm.public.Thread.all()).toHaveLength(0)
-  })
+      expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
+      expect(await db.orm.public.Thread.all()).toHaveLength(0)
+    },
+  )
 })

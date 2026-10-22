@@ -1,4 +1,10 @@
-import { choiceValueOf, EHarnessPlacement, ERunner, ESettingId, type ThreadId } from '@dltech/atlas-core'
+import {
+  choiceValueOf,
+  EHarnessPlacement,
+  ERunner,
+  ESettingId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { cloudProvisioningConfigured } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
@@ -25,7 +31,10 @@ export type BornCloudArgs = {
   birthCloud: (args: { threadId: ThreadId; runner: ERunner; projectId: string | null }) => void
 }
 
-export function rememberPlacement(args: { app: Pick<AtlasApp, 'settings'>; runner: ERunner }): void {
+export function rememberPlacement(args: {
+  app: Pick<AtlasApp, 'settings'>
+  runner: ERunner
+}): void {
   args.app.settings.set({ id: ESettingId.LastBornPlacement, value: args.runner })
 }
 
@@ -42,14 +51,24 @@ export const vercelConfigured = (app: Pick<AtlasApp, 'settings' | 'secrets'>): b
   cloudProvisioningConfigured({ settings: app.settings, secrets: app.secrets })
 
 export function notifyVercelUnconfigured(): void {
-  notify({ key: 'born-cloud-unconfigured', text: CLOUD_NOT_CONFIGURED_NOTICE, tone: ENoticeTone.Info, ttlMs: NOTICE_WARN_MS })
+  notify({
+    key: 'born-cloud-unconfigured',
+    text: CLOUD_NOT_CONFIGURED_NOTICE,
+    tone: ENoticeTone.Info,
+    ttlMs: NOTICE_WARN_MS,
+  })
 }
 
 export async function bornWith(args: BornCloudArgs): Promise<boolean> {
   const { app, threadId } = args
 
   if (app.cloud.session() === null) {
-    notify({ key: 'born-sign-in', text: SIGN_IN_TO_BIRTH_NOTICE, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    notify({
+      key: 'born-sign-in',
+      text: SIGN_IN_TO_BIRTH_NOTICE,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
     args.requireSignIn()
     return false
   }
@@ -63,7 +82,12 @@ export async function bornWith(args: BornCloudArgs): Promise<boolean> {
 
   const refusal = (await args.preflightBirth?.({ runner })) ?? null
   if (refusal !== null) {
-    notify({ key: 'born-cloud-preflight', text: refusal, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
+    notify({
+      key: 'born-cloud-preflight',
+      text: refusal,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+    })
     return false
   }
 

@@ -60,8 +60,7 @@ export const registerClient = async (args: {
     throw new OAuthError({
       failure: EOAuthFailure.RegistrationFailed,
       message:
-        errorBody?.errorDescription ??
-        `the registration endpoint answered HTTP ${response.status}`,
+        errorBody?.errorDescription ?? `the registration endpoint answered HTTP ${response.status}`,
       ...(errorBody === undefined ? {} : { code: errorBody.error }),
       status: response.status,
     })

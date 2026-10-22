@@ -50,7 +50,8 @@ export type SinkParse =
   | { record: SinkRecord }
   | { rejection: { kind: EExportRejection; detail: string; captureId: string | null } }
 
-const digestOrNull = (text: string | null): string | null => (text === null ? null : sha256Hex({ text }))
+const digestOrNull = (text: string | null): string | null =>
+  text === null ? null : sha256Hex({ text })
 
 export const exportedScopeOf = ({ record }: { record: SinkRecord }): ExportedScope => ({
   ...record.scope,
@@ -83,24 +84,38 @@ export function parseSinkRecord({
   } catch {
     return schemaInvalid('file is not readable JSON')
   }
-  const version: unknown = typeof json === 'object' && json !== null ? Reflect.get(json, 'schemaVersion') : undefined
+  const version: unknown =
+    typeof json === 'object' && json !== null ? Reflect.get(json, 'schemaVersion') : undefined
   if (version !== SINK_SCHEMA_VERSION) {
-    return schemaInvalid(`unsupported sink schemaVersion ${JSON.stringify(version)}; this reader accepts "${SINK_SCHEMA_VERSION}"`)
+    return schemaInvalid(
+      `unsupported sink schemaVersion ${JSON.stringify(version)}; this reader accepts "${SINK_SCHEMA_VERSION}"`,
+    )
   }
   const decoded = sinkRecordSchema.safeParse(json)
   if (!decoded.success) {
-    return schemaInvalid(decoded.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '))
+    return schemaInvalid(
+      decoded.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '),
+    )
   }
   const record = decoded.data
 
-  if (sha256Hex({ text: rawText }) !== fileStem) return digestMismatch('content digest does not match the file name')
+  if (sha256Hex({ text: rawText }) !== fileStem)
+    return digestMismatch('content digest does not match the file name')
   if (record.provenance.threadId !== threadId) {
-    return schemaInvalid(`provenance threadId ${record.provenance.threadId} does not match thread directory ${threadId}`)
+    return schemaInvalid(
+      `provenance threadId ${record.provenance.threadId} does not match thread directory ${threadId}`,
+    )
   }
-  if (digestOrNull(record.before) !== record.hashes.before) return digestMismatch('hashes.before does not match before')
-  if (digestOrNull(record.after) !== record.hashes.after) return digestMismatch('hashes.after does not match after')
-  if (record.before === null && record.after === null) return schemaInvalid('scope records neither before nor after text')
-  if (renderScopeDiff({ path: record.path, before: record.before, after: record.after }) !== record.diff) {
+  if (digestOrNull(record.before) !== record.hashes.before)
+    return digestMismatch('hashes.before does not match before')
+  if (digestOrNull(record.after) !== record.hashes.after)
+    return digestMismatch('hashes.after does not match after')
+  if (record.before === null && record.after === null)
+    return schemaInvalid('scope records neither before nor after text')
+  if (
+    renderScopeDiff({ path: record.path, before: record.before, after: record.after }) !==
+    record.diff
+  ) {
     return digestMismatch('diff does not match before and after')
   }
   return { record }

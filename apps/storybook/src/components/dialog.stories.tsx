@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogClose,
@@ -10,18 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@dltech/atlas-ui/components/dialog";
-import { Field, FieldGroup, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
+} from '@dltech/atlas-ui/components/dialog'
+import { Field, FieldGroup, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
 
 const meta = {
-  title: "Components/Dialog",
+  title: 'Components/Dialog',
   component: Dialog,
-} satisfies Meta<typeof Dialog>;
+} satisfies Meta<typeof Dialog>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -45,7 +45,7 @@ export const Default: Story = {
       </DialogContent>
     </Dialog>
   ),
-};
+}
 
 export const DefaultOpen: Story = {
   render: () => (
@@ -69,7 +69,7 @@ export const DefaultOpen: Story = {
       </DialogContent>
     </Dialog>
   ),
-};
+}
 
 export const NoCloseButton: Story = {
   render: () => (
@@ -89,4 +89,4 @@ export const NoCloseButton: Story = {
       </DialogContent>
     </Dialog>
   ),
-};
+}

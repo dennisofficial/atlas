@@ -60,8 +60,8 @@ export function useThreadRouter(args: {
 
   const runnerOf = useCallback(
     async (threadId: string): Promise<ERunner> =>
-      (await localApp.threads.find({ threadId: toThreadId(threadId) }).catch(() => undefined))?.runner ??
-      ERunner.Vercel,
+      (await localApp.threads.find({ threadId: toThreadId(threadId) }).catch(() => undefined))
+        ?.runner ?? ERunner.Vercel,
     [localApp],
   )
 
@@ -73,14 +73,19 @@ export function useThreadRouter(args: {
     [args.activeThreadId, bridgeFor, cloudBridge, runnerOf],
   )
 
-  const listing = useCallback((): Pick<ThreadStorePort, 'list'> => cloudListing(localApp), [localApp])
+  const listing = useCallback(
+    (): Pick<ThreadStorePort, 'list'> => cloudListing(localApp),
+    [localApp],
+  )
 
   const attach = useCallback(
     async (threadId: string): Promise<void> => {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = await bridgeOf(threadId)
-      await localApp.sessionOwner.activateLocal({ threadId: toThreadId(threadId) }).catch(() => undefined)
+      await localApp.sessionOwner
+        .activateLocal({ threadId: toThreadId(threadId) })
+        .catch(() => undefined)
 
       const adopted = await openCloudThread({
         app: localApp,
@@ -88,27 +93,29 @@ export function useThreadRouter(args: {
         threadId: toThreadId(threadId),
         move: containerMove,
         onReload: args.onReload,
-      }).then(async (binding) => {
-        try {
-          await localApp.sessionOwner.adopt({
-            threadId: toThreadId(threadId),
-            binding,
-          })
-        } catch (error) {
-          binding.close?.()
-          throw error
-        }
-        return binding
-      }).catch((error: unknown) => {
-        recordAttachFailure({ threadId: toThreadId(threadId), detail: messageOf(error) })
-        notify({
-          key: 'cloud-open-failed',
-          text: messageOf(error),
-          tone: ENoticeTone.Warn,
-          ttlMs: NOTICE_WARN_MS,
-        })
-        return null
       })
+        .then(async (binding) => {
+          try {
+            await localApp.sessionOwner.adopt({
+              threadId: toThreadId(threadId),
+              binding,
+            })
+          } catch (error) {
+            binding.close?.()
+            throw error
+          }
+          return binding
+        })
+        .catch((error: unknown) => {
+          recordAttachFailure({ threadId: toThreadId(threadId), detail: messageOf(error) })
+          notify({
+            key: 'cloud-open-failed',
+            text: messageOf(error),
+            tone: ENoticeTone.Warn,
+            ttlMs: NOTICE_WARN_MS,
+          })
+          return null
+        })
       if (adopted === null) return
       clearAttachFailure()
       cloudAttachmentOf(adopted)?.settleOpen()

@@ -13,7 +13,11 @@ describe('seed', () => {
 
     const projects = await db.orm.public.Project.select('id', 'ownerUserId', 'organizationId').all()
     expect(projects).toHaveLength(2)
-    expect(projects).toContainEqual({ id: SEED_IDS.personalProject, ownerUserId: SEED_IDS.user, organizationId: null })
+    expect(projects).toContainEqual({
+      id: SEED_IDS.personalProject,
+      ownerUserId: SEED_IDS.user,
+      organizationId: null,
+    })
     expect(projects).toContainEqual({
       id: SEED_IDS.workspaceProject,
       ownerUserId: null,
@@ -23,7 +27,9 @@ describe('seed', () => {
   })
 
   it('refuses any host other than localhost', () => {
-    expect(() => assertLocalTarget('postgresql://u:p@db.example.com:5432/atlas')).toThrow('refusing db.example.com')
+    expect(() => assertLocalTarget('postgresql://u:p@db.example.com:5432/atlas')).toThrow(
+      'refusing db.example.com',
+    )
     expect(assertLocalTarget('postgresql://u:p@localhost:5433/atlas')).toContain('localhost')
   })
 })

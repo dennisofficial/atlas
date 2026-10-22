@@ -4,7 +4,6 @@ import {
   EQualityTransition,
   type QualityAssessment,
   type QualityPolicy,
-  type QualityScope,
 } from '@dltech/atlas-core'
 
 export const FAKE_SRP_POLICY_ID = 'single-responsibility'
@@ -29,10 +28,16 @@ export const fakeSrpPolicy: QualityPolicy = {
   description: 'A scope should gather behavior that changes for the same reasons',
   settingKey: 'quality.policies.singleResponsibility',
   defaultEnabled: true,
-  definition: 'Gather behavior that changes for the same reasons; separate independently changing behavior.',
-  exceptions: ['thin delegation or facades', 'orchestration composing responsibilities intentionally'],
+  definition:
+    'Gather behavior that changes for the same reasons; separate independently changing behavior.',
+  exceptions: [
+    'thin delegation or facades',
+    'orchestration composing responsibilities intentionally',
+  ],
   selectScopes: ({ scopes }) =>
-    scopes.filter((scope) => scope.kind === 'class' || scope.kind === 'function').map((scope) => scope.id),
+    scopes
+      .filter((scope) => scope.kind === 'class' || scope.kind === 'function')
+      .map((scope) => scope.id),
   questions: ({ scope }) => ({
     currentConcern: {
       type: 'noul',
@@ -45,7 +50,8 @@ export const fakeSrpPolicy: QualityPolicy = {
     },
     focus: {
       type: 'choice',
-      instructions: 'Which supplied changed declaration/evidence candidate (state.scope.evidence ids) most directly supports a new or worsened concern? Use none or uncertain when unsupported.',
+      instructions:
+        'Which supplied changed declaration/evidence candidate (state.scope.evidence ids) most directly supports a new or worsened concern? Use none or uncertain when unsupported.',
       criteria: {
         none: 'No candidate supports the concern',
         uncertain: 'Cannot decide among candidates',
@@ -89,7 +95,9 @@ export const fakeSrpPolicy: QualityPolicy = {
 
     const resolves =
       concern <= RESOLVE_CONCERN_CEILING &&
-      (impact === EQualityImpact.Resolved || impact === EQualityImpact.Improved || impact === EQualityImpact.Unchanged) &&
+      (impact === EQualityImpact.Resolved ||
+        impact === EQualityImpact.Improved ||
+        impact === EQualityImpact.Unchanged) &&
       (answers.impact?.probabilities?.[impactChoice] ?? 1) >= CONCERN_THRESHOLD
 
     const transition = resolves

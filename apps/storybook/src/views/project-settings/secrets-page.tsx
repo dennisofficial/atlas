@@ -1,22 +1,22 @@
-import { useState } from "react";
-import { EllipsisIcon, EyeIcon, EyeOffIcon, KeyRoundIcon } from "lucide-react";
+import { useState } from 'react'
+import { EllipsisIcon, EyeIcon, EyeOffIcon, KeyRoundIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
+} from '@dltech/atlas-ui/components/dropdown-menu'
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
+} from '@dltech/atlas-ui/components/empty'
 import {
   Table,
   TableBody,
@@ -24,23 +24,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@dltech/atlas-ui/components/table";
+} from '@dltech/atlas-ui/components/table'
 
-import { ESecretScope, SECRETS, type SecretRow } from "../../fixtures/project-settings";
-import { AddSecretDialog, BulkAddDialog, type SecretPair } from "./secrets-dialogs";
-import { SettingsCard, SettingsSection } from "./settings-layout";
+import { ESecretScope, SECRETS, type SecretRow } from '../../fixtures/project-settings'
+import { AddSecretDialog, BulkAddDialog, type SecretPair } from './secrets-dialogs'
+import { SettingsCard, SettingsSection } from './settings-layout'
 
 export enum ESecretsDialog {
-  None = "none",
-  Add = "add",
-  BulkAdd = "bulk-add",
+  None = 'none',
+  Add = 'add',
+  BulkAdd = 'bulk-add',
 }
 
-const MASK = "••••••••••••";
+const MASK = '••••••••••••'
 
 function MaskedValue({ row }: { row: SecretRow }) {
-  const [revealed, setRevealed] = useState(false);
-  const Icon = revealed ? EyeOffIcon : EyeIcon;
+  const [revealed, setRevealed] = useState(false)
+  const Icon = revealed ? EyeOffIcon : EyeIcon
   return (
     <span className="flex min-w-0 items-center gap-1">
       <span className="truncate font-mono text-xs text-muted-foreground">
@@ -49,19 +49,19 @@ function MaskedValue({ row }: { row: SecretRow }) {
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label={`${revealed ? "Hide" : "Reveal"} ${row.name}`}
+        aria-label={`${revealed ? 'Hide' : 'Reveal'} ${row.name}`}
         aria-pressed={revealed}
         onClick={() => setRevealed((current) => !current)}
       >
         <Icon />
       </Button>
     </span>
-  );
+  )
 }
 
 function ScopeBadge({ row }: { row: SecretRow }) {
   if (row.scope === ESecretScope.Workspace) {
-    return <Badge variant="outline">Workspace</Badge>;
+    return <Badge variant="outline">Workspace</Badge>
   }
   return (
     <span className="flex min-w-0 items-center gap-1.5">
@@ -70,11 +70,11 @@ function ScopeBadge({ row }: { row: SecretRow }) {
         <span className="truncate text-xs text-muted-foreground">overrides workspace</span>
       ) : null}
     </span>
-  );
+  )
 }
 
 function RowMenu({ row, onDelete }: { row: SecretRow; onDelete: () => void }) {
-  const inherited = row.scope === ESecretScope.Workspace;
+  const inherited = row.scope === ESecretScope.Workspace
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -100,10 +100,16 @@ function RowMenu({ row, onDelete }: { row: SecretRow; onDelete: () => void }) {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
 
-function SecretsTable({ rows, onDelete }: { rows: readonly SecretRow[]; onDelete: (name: string) => void }) {
+function SecretsTable({
+  rows,
+  onDelete,
+}: {
+  rows: readonly SecretRow[]
+  onDelete: (name: string) => void
+}) {
   return (
     <Table className="table-fixed">
       <TableHeader>
@@ -120,7 +126,9 @@ function SecretsTable({ rows, onDelete }: { rows: readonly SecretRow[]; onDelete
       <TableBody>
         {rows.map((row) => (
           <TableRow key={`${row.scope}-${row.name}`}>
-            <TableCell className="truncate pl-4 font-mono text-xs font-medium">{row.name}</TableCell>
+            <TableCell className="truncate pl-4 font-mono text-xs font-medium">
+              {row.name}
+            </TableCell>
             <TableCell>
               <MaskedValue row={row} />
             </TableCell>
@@ -135,7 +143,7 @@ function SecretsTable({ rows, onDelete }: { rows: readonly SecretRow[]; onDelete
         ))}
       </TableBody>
     </Table>
-  );
+  )
 }
 
 function SecretsEmpty() {
@@ -152,40 +160,47 @@ function SecretsEmpty() {
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-  );
+  )
 }
 
-function upsert({ rows, pairs }: { rows: readonly SecretRow[]; pairs: readonly SecretPair[] }): SecretRow[] {
-  const incoming = new Set(pairs.map((pair) => pair.name));
+function upsert({
+  rows,
+  pairs,
+}: {
+  rows: readonly SecretRow[]
+  pairs: readonly SecretPair[]
+}): SecretRow[] {
+  const incoming = new Set(pairs.map((pair) => pair.name))
   const workspaceNames = new Set(
     rows.filter((row) => row.scope === ESecretScope.Workspace).map((row) => row.name),
-  );
-  const kept = rows.filter((row) => row.scope === ESecretScope.Workspace || !incoming.has(row.name));
+  )
+  const kept = rows.filter((row) => row.scope === ESecretScope.Workspace || !incoming.has(row.name))
   const added = pairs.map((pair) => ({
     name: pair.name,
     value: pair.value,
     scope: ESecretScope.Project,
-    updated: "just now",
+    updated: 'just now',
     overridesWorkspace: workspaceNames.has(pair.name),
-  }));
-  return [...added, ...kept];
+  }))
+  return [...added, ...kept]
 }
 
 export function SecretsPage({
   initialRows = SECRETS,
   openDialog = ESecretsDialog.None,
-  bulkText = "",
+  bulkText = '',
 }: {
-  initialRows?: readonly SecretRow[];
-  openDialog?: ESecretsDialog;
-  bulkText?: string;
+  initialRows?: readonly SecretRow[]
+  openDialog?: ESecretsDialog
+  bulkText?: string
 }) {
-  const [rows, setRows] = useState<readonly SecretRow[]>(initialRows);
-  const handleAdd = (pairs: readonly SecretPair[]) => setRows((current) => upsert({ rows: current, pairs }));
+  const [rows, setRows] = useState<readonly SecretRow[]>(initialRows)
+  const handleAdd = (pairs: readonly SecretPair[]) =>
+    setRows((current) => upsert({ rows: current, pairs }))
   const handleDelete = (name: string) =>
     setRows((current) =>
       current.filter((row) => row.scope === ESecretScope.Workspace || row.name !== name),
-    );
+    )
 
   return (
     <SettingsSection
@@ -193,8 +208,8 @@ export function SecretsPage({
       description={
         <>
           Order of precedence: default, then workspace, then personal, then project. The project
-          value wins. Workspace values shown here are a preview of what will merge; sessions don&apos;t
-          load project or workspace values yet.
+          value wins. Workspace values shown here are a preview of what will merge; sessions
+          don&apos;t load project or workspace values yet.
         </>
       }
     >
@@ -218,8 +233,12 @@ export function SecretsPage({
             />
           </div>
         </div>
-        {rows.length === 0 ? <SecretsEmpty /> : <SecretsTable rows={rows} onDelete={handleDelete} />}
+        {rows.length === 0 ? (
+          <SecretsEmpty />
+        ) : (
+          <SecretsTable rows={rows} onDelete={handleDelete} />
+        )}
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

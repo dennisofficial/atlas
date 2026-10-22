@@ -11,7 +11,9 @@ function bigintAsText(_key: string, value: unknown): unknown {
 type FirstReader = { first: () => Promise<unknown> }
 
 function isFirstReader(value: unknown): value is FirstReader {
-  return typeof value === 'object' && value !== null && typeof Reflect.get(value, 'first') === 'function'
+  return (
+    typeof value === 'object' && value !== null && typeof Reflect.get(value, 'first') === 'function'
+  )
 }
 
 describe('timestamp wire format', () => {
@@ -26,7 +28,10 @@ describe('timestamp wire format', () => {
       const columns = Object.keys(row)
       const placeholders = columns.map((_, index) => `$${index + 1}`).join(', ')
       const names = columns.map((column) => `"${column}"`).join(', ')
-      await pool.query(`INSERT INTO "public"."${table}" (${names}) VALUES (${placeholders})`, Object.values(row))
+      await pool.query(
+        `INSERT INTO "public"."${table}" (${names}) VALUES (${placeholders})`,
+        Object.values(row),
+      )
       keys.set(table, row)
 
       const stamps = timestampColumns(table)

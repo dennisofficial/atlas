@@ -106,5 +106,4 @@ describe('SandboxesService listing, status, stop and destroy', () => {
     )
     expect(await db.orm.public.CloudSandbox.all()).toHaveLength(1)
   })
-
 })

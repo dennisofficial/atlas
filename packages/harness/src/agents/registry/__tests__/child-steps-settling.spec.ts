@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ETurnStatus } from '../../../loop/turn-outcome'
-import { fakeRunners, finished, openSupervisor, type OpenedSupervisor } from './fixtures'
+import { finished, openSupervisor, type OpenedSupervisor } from './fixtures'
 
 let opened: OpenedSupervisor | undefined
 
@@ -34,7 +34,9 @@ describe('a child step still settling', () => {
     run.settle({ ...finished(), status: ETurnStatus.Completed })
 
     let cleanedUp = false
-    void supervisor.whenChildrenSettled({ threadId: opened.parent }).then(() => { cleanedUp = true })
+    void supervisor.whenChildrenSettled({ threadId: opened.parent }).then(() => {
+      cleanedUp = true
+    })
     for (let attempt = 0; attempt < 400 && !cleanedUp; attempt += 1) await Bun.sleep(5)
     expect(cleanedUp).toBe(true)
     expect(supervisor.settling?.()).toBe(false)

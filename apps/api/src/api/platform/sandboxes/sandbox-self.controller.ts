@@ -37,7 +37,10 @@ export class SandboxSelfController {
 
   @Post('stop')
   @HttpCode(204)
-  async handleStop(@Req() request: SandboxAuthenticatedRequest, @Body() body: unknown): Promise<void> {
+  async handleStop(
+    @Req() request: SandboxAuthenticatedRequest,
+    @Body() body: unknown,
+  ): Promise<void> {
     const parsed = sandboxSelfStopRequestSchema.safeParse(body ?? {})
     if (!parsed.success) throw new BadRequestException(parsed.error.message)
     const sandbox = await this.identityOf(request)
@@ -45,7 +48,8 @@ export class SandboxSelfController {
   }
 
   private async identityOf(request: SandboxAuthenticatedRequest): Promise<SandboxIdentity> {
-    if (request.sandbox === undefined) throw new UnauthorizedException('a sandbox session token is required')
+    if (request.sandbox === undefined)
+      throw new UnauthorizedException('a sandbox session token is required')
     const row = await db.orm.public.CloudSandbox.where({ threadId: request.sandbox.threadId })
       .select('threadId', 'name')
       .first()

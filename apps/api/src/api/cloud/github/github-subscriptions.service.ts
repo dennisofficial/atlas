@@ -258,10 +258,7 @@ export class GithubSubscriptionsService {
     }
   }
 
-  private async liveCeiling(args: {
-    threadId: string | null
-    expiresAt: Date
-  }): Promise<Date> {
+  private async liveCeiling(args: { threadId: string | null; expiresAt: Date }): Promise<Date> {
     if (args.threadId === null) return args.expiresAt
     const sandbox = await db.orm.public.CloudSandbox.select('lastActivityAt').first({
       threadId: args.threadId,
@@ -279,7 +276,6 @@ export class GithubSubscriptionsService {
     }
     return token
   }
-
 }
 
 const nextExpiry = () => new Date(Date.now() + SUBSCRIPTION_TTL_MS)

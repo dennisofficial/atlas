@@ -69,7 +69,11 @@ export class CodexOauthClient implements BrowserLoginClient {
     const login = server
       .waitForCallback({ state: pkce.state })
       .then(async ({ code }) => {
-        const exchanged = await this.exchangeBrowserCode({ code, verifier: pkce.verifier, redirectUri })
+        const exchanged = await this.exchangeBrowserCode({
+          code,
+          verifier: pkce.verifier,
+          redirectUri,
+        })
         if (cancelled) throw new Error('sign-in cancelled')
 
         return exchanged
@@ -112,7 +116,8 @@ export class CodexOauthClient implements BrowserLoginClient {
 
     // The poll interval arrives as either a number or a string ("0"); zero means "as fast as you like".
     const intervalRaw = typeof body.interval === 'string' ? Number(body.interval) : body.interval
-    const intervalSeconds = typeof intervalRaw === 'number' && Number.isFinite(intervalRaw) ? intervalRaw : 5
+    const intervalSeconds =
+      typeof intervalRaw === 'number' && Number.isFinite(intervalRaw) ? intervalRaw : 5
 
     return {
       deviceAuthId,
@@ -230,7 +235,8 @@ export class CodexOauthClient implements BrowserLoginClient {
 
   private loginFrom(tokens: CodexTokens, expiresIn: unknown): OauthLogin {
     const claims = decodeJwtClaims(tokens.idToken)
-    const email = stringOr(claims?.email) ?? stringOr(claims?.['https://api.openai.com/profile']?.email)
+    const email =
+      stringOr(claims?.email) ?? stringOr(claims?.['https://api.openai.com/profile']?.email)
     const plan = stringOr(claims?.['https://api.openai.com/auth']?.chatgpt_plan_type)
 
     return {
@@ -272,7 +278,9 @@ export class CodexOauthClient implements BrowserLoginClient {
   }
 }
 
-const accountIdFrom = (idToken: string | undefined): { accountId: string } | Record<string, never> => {
+const accountIdFrom = (
+  idToken: string | undefined,
+): { accountId: string } | Record<string, never> => {
   if (idToken === undefined) return {}
 
   const accountId = stringOr(

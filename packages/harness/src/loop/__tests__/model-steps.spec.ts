@@ -75,7 +75,13 @@ async function openScripted(args: { script: readonly ScriptedStep[] }): Promise<
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
-      assembly: { rules: [...defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }), recordStep], annotators: defaultAnnotators() },
+      assembly: {
+        rules: [
+          ...defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
+          recordStep,
+        ],
+        annotators: defaultAnnotators(),
+      },
       tools: () => registry.declarations(),
       dispatch: new HookedToolDispatcher({ registry, hooks: new HookChain({}) }),
     }),
@@ -124,7 +130,10 @@ describe('the shape of the prompt the loop is about to send', () => {
           system: input.system,
           messages: [
             {
-              message: { role: 'assistant', content: [{ type: 'text', text: 'the model spoke first' }] },
+              message: {
+                role: 'assistant',
+                content: [{ type: 'text', text: 'the model spoke first' }],
+              },
               origin: { eventId: first.id, seq: first.seq },
             },
           ],
@@ -136,7 +145,13 @@ describe('the shape of the prompt the loop is about to send', () => {
       log: harness.log,
       model: harness.model,
       ids: harness.ids,
-      assembly: { rules: [...defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }), speakOutOfTurn], annotators: defaultAnnotators() },
+      assembly: {
+        rules: [
+          ...defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: PROJECT_DIRECTORY }),
+          speakOutOfTurn,
+        ],
+        annotators: defaultAnnotators(),
+      },
     })
     const thread = await harness.threads.create({})
 
@@ -146,8 +161,12 @@ describe('the shape of the prompt the loop is about to send', () => {
     expect(outcome.status).toBe(ETurnStatus.Failed)
     const events = await harness.log.read({ threadId: thread.id })
     const said = events[0]
-    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toContain(said?.id ?? 'no event')
-    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/first message must be the user/)
+    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toContain(
+      said?.id ?? 'no event',
+    )
+    expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(
+      /first message must be the user/,
+    )
   })
 
   it('sends a real tool exchange to the model rather than faulting on its own projection', async () => {
@@ -167,7 +186,11 @@ describe('a thinking turn whose text block arrives blank', () => {
   it('completes the turn Claude opens a blank text block in, and records only what was said', async () => {
     const { runner, harness, model } = await openScripted({
       script: [
-        { reasoning: { text: 'the file needs touching' }, text: '  \n ', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
+        {
+          reasoning: { text: 'the file needs touching' },
+          text: '  \n ',
+          calls: [{ callId: 'call-1', name: 'touch', input: {} }],
+        },
         { text: 'touched it' },
       ],
     })
@@ -186,7 +209,10 @@ describe('a thinking turn whose text block arrives blank', () => {
 
   it('appends no assistant turn at all when the only thing said was blank', async () => {
     const { runner, harness } = await openScripted({
-      script: [{ text: '   ', calls: [{ callId: 'call-1', name: 'touch', input: {} }] }, { text: 'touched it' }],
+      script: [
+        { text: '   ', calls: [{ callId: 'call-1', name: 'touch', input: {} }] },
+        { text: 'touched it' },
+      ],
     })
     const thread = await harness.threads.create({})
 

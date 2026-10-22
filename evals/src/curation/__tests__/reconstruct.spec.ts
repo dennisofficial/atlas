@@ -8,7 +8,10 @@ const before = 'one\ntwo\nthree\nfour\nfive\nsix\n'
 describe('applyUnifiedDiff', () => {
   test('applies a single hunk', () => {
     const result = applyUnifiedDiff({ before, diff: '@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n' })
-    expect(result).toEqual({ kind: EReconstructionKind.Applied, after: 'one\nTWO\nthree\nfour\nfive\nsix\n' })
+    expect(result).toEqual({
+      kind: EReconstructionKind.Applied,
+      after: 'one\nTWO\nthree\nfour\nfive\nsix\n',
+    })
   })
 
   test('applies separated hunks sequentially', () => {
@@ -96,31 +99,52 @@ describe('reconstructChange', () => {
   const after = 'uno\ntwo\nthree\nfour\nfive\nsix\n'
 
   test('returns the change when the digest matches and derives the path from the diff', () => {
-    const result = reconstructChange({ before, diff, expectedAfterSha256: sha256Hex({ text: after }) })
+    const result = reconstructChange({
+      before,
+      diff,
+      expectedAfterSha256: sha256Hex({ text: after }),
+    })
     expect(result.ok).toBe(true)
     expect(result.change).toEqual({ path: 'src/f.ts', before, after })
   })
 
   test('fails on a digest mismatch', () => {
-    const result = reconstructChange({ before, diff, expectedAfterSha256: sha256Hex({ text: 'other' }) })
+    const result = reconstructChange({
+      before,
+      diff,
+      expectedAfterSha256: sha256Hex({ text: 'other' }),
+    })
     expect(result).toMatchObject({ ok: false, change: null, kind: EReconstructionKind.Failed })
   })
 
   test('fails when the diff does not apply', () => {
-    const result = reconstructChange({ before, diff: '@@ -1,1 +1,1 @@\n-zzz\n+yyy\n', path: 'f.ts', expectedAfterSha256: sha256Hex({ text: after }) })
+    const result = reconstructChange({
+      before,
+      diff: '@@ -1,1 +1,1 @@\n-zzz\n+yyy\n',
+      path: 'f.ts',
+      expectedAfterSha256: sha256Hex({ text: after }),
+    })
     expect(result.ok).toBe(false)
     expect(result.change).toBeNull()
   })
 
   test('fails with a missing baseline and never substitutes other content', () => {
-    const result = reconstructChange({ before: null, diff, expectedAfterSha256: sha256Hex({ text: after }) })
+    const result = reconstructChange({
+      before: null,
+      diff,
+      expectedAfterSha256: sha256Hex({ text: after }),
+    })
     expect(result.ok).toBe(false)
     expect(result.kind).toBe(EReconstructionKind.Failed)
     expect(result.detail).toContain('baseline is missing')
   })
 
   test('refuses an already-applied diff', () => {
-    const result = reconstructChange({ before: after, diff, expectedAfterSha256: sha256Hex({ text: after }) })
+    const result = reconstructChange({
+      before: after,
+      diff,
+      expectedAfterSha256: sha256Hex({ text: after }),
+    })
     expect(result.ok).toBe(false)
     expect(result.kind).toBe(EReconstructionKind.AlreadyApplied)
   })

@@ -86,7 +86,10 @@ describe('sandboxStateOf', () => {
   })
 
   it('expires a claim whose waker died mid-wake', () => {
-    const stale = lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: dateAgo(WAKE_CLAIM_TTL_MS + 1_000) })
+    const stale = lifecycleRow({
+      phase: ERuntimePhase.Parked,
+      wakeClaim: dateAgo(WAKE_CLAIM_TTL_MS + 1_000),
+    })
     expect(sandboxStateOf(stale)).toBe(ESandboxState.Parked)
   })
 })
@@ -96,7 +99,9 @@ describe('wakeableOf', () => {
     expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parked }))).toBe(true)
     expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parking }))).toBe(false)
     expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Serving }))).toBe(false)
-    expect(wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: dateAgo(1_000) }))).toBe(false)
+    expect(
+      wakeableOf(lifecycleRow({ phase: ERuntimePhase.Parked, wakeClaim: dateAgo(1_000) })),
+    ).toBe(false)
     expect(wakeableOf(lifecycleRow({ state: 'parked' }))).toBe(true)
   })
 })

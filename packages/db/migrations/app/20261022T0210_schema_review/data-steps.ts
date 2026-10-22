@@ -1,10 +1,23 @@
 import { rawSql } from '@prisma/orm-postgres/migration'
 
 function tableTarget(table: string) {
-  return { id: `table.${table}`, details: { schema: 'public', objectType: 'table' as const, name: table } }
+  return {
+    id: `table.${table}`,
+    details: { schema: 'public', objectType: 'table' as const, name: table },
+  }
 }
 
-function dataStep({ id, table, label, sql }: { id: string; table: string; label: string; sql: string }) {
+function dataStep({
+  id,
+  table,
+  label,
+  sql,
+}: {
+  id: string
+  table: string
+  label: string
+  sql: string
+}) {
   return rawSql({
     id: `data.${id}`,
     label,
@@ -19,7 +32,8 @@ function dataStep({ id, table, label, sql }: { id: string; table: string; label:
 export const backfillProjectOwnership = dataStep({
   id: 'project-ownership-backfill',
   table: 'Project',
-  label: 'Backfill Project.createdById from userId, and ownerUserId where no workspace owns the project',
+  label:
+    'Backfill Project.createdById from userId, and ownerUserId where no workspace owns the project',
   sql: `UPDATE "public"."Project" SET "createdById" = "userId", "ownerUserId" = CASE WHEN "organizationId" IS NULL THEN "userId" END`,
 })
 
@@ -50,7 +64,15 @@ export const uniqueGuards = [
   noDuplicates({ table: 'Member', columns: ['organizationId', 'userId'] }),
 ]
 
-function deleteOrphans({ table, column, parent }: { table: string; column: string; parent: string }) {
+function deleteOrphans({
+  table,
+  column,
+  parent,
+}: {
+  table: string
+  column: string
+  parent: string
+}) {
   return dataStep({
     id: `orphans.${table}.${column}`,
     table,
@@ -59,7 +81,15 @@ function deleteOrphans({ table, column, parent }: { table: string; column: strin
   })
 }
 
-function clearOrphans({ table, column, parent }: { table: string; column: string; parent: string }) {
+function clearOrphans({
+  table,
+  column,
+  parent,
+}: {
+  table: string
+  column: string
+  parent: string
+}) {
   return dataStep({
     id: `orphans.${table}.${column}`,
     table,

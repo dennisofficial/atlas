@@ -1,5 +1,11 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { PauseSignal, ETurnStatus, type RotationSettle, type TurnOutcome, type MessageIntake, type PendingQueues } from '@dltech/atlas-harness'
+import {
+  PauseSignal,
+  ETurnStatus,
+  type RotationSettle,
+  type TurnOutcome,
+  type MessageIntake,
+} from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 import { createHistoryAdmission } from './history-admission'
@@ -40,11 +46,13 @@ export type TurnDriverHooks = {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'the turn stopped for a reason it did not name'
 
-export function createTurnDriver(args: {
-  app: ServeApp
-  threadId: ThreadId
-  refusal?: (() => string | undefined) | undefined
-} & TurnDriverHooks): ServeTurnDriver {
+export function createTurnDriver(
+  args: {
+    app: ServeApp
+    threadId: ThreadId
+    refusal?: (() => string | undefined) | undefined
+  } & TurnDriverHooks,
+): ServeTurnDriver {
   const { app } = args
   const served = args.threadId
   const intake = app.intake ?? null
@@ -64,13 +72,23 @@ export function createTurnDriver(args: {
   let lastOutcome: TurnOutcome | null = null
   let turnFailure: Error | null = null
   let resumeRelocation = false
-  const history = createHistoryAdmission({ threadId: () => served, intake, refusal: args.refusal, unavailable: () => turning !== null || committing !== null || relocationFrozen, relocating: () => relocationFrozen || relocationSettling !== null })
+  const history = createHistoryAdmission({
+    threadId: () => served,
+    intake,
+    refusal: args.refusal,
+    unavailable: () => turning !== null || committing !== null || relocationFrozen,
+    relocating: () => relocationFrozen || relocationSettling !== null,
+  })
 
   const commit = createTurnCommit({ app, threadId: () => served, intake })
 
   const finishOutcome = async (outcome: TurnOutcome): Promise<void> => {
     if (!relocationConfirmed) lastOutcome = outcome
-    if (outcome.status !== ETurnStatus.RelocationPaused || !relocationFrozen || relocationConfirmed) {
+    if (
+      outcome.status !== ETurnStatus.RelocationPaused ||
+      !relocationFrozen ||
+      relocationConfirmed
+    ) {
       args.onOutcome(outcome)
     }
     outcomePending = false
@@ -131,7 +149,11 @@ export function createTurnDriver(args: {
       const refused = args.refusal?.()
       if (refused !== undefined) throw new Error(refused)
       if (relocationFrozen) throw new Error('the session is paused for a workspace handoff')
-      if (intake !== null && pending !== null && (turning !== null || committing !== null || history.held())) {
+      if (
+        intake !== null &&
+        pending !== null &&
+        (turning !== null || committing !== null || history.held())
+      ) {
         pending.forThread({ threadId: served }).enqueue({
           text: said.text,
           ...(said.requestId === undefined ? {} : { requestId: said.requestId }),
@@ -144,10 +166,13 @@ export function createTurnDriver(args: {
       }
       history.assertAvailable()
       const writing = commit(said)
-      const active = committing === null ? writing : Promise.allSettled([committing, writing]).then((results) => {
-        const failed = results.find((result) => result.status === 'rejected')
-        if (failed?.status === 'rejected') throw failed.reason
-      })
+      const active =
+        committing === null
+          ? writing
+          : Promise.allSettled([committing, writing]).then((results) => {
+              const failed = results.find((result) => result.status === 'rejected')
+              if (failed?.status === 'rejected') throw failed.reason
+            })
       committing = active
       try {
         await active
@@ -200,15 +225,26 @@ export function createTurnDriver(args: {
         await activeCommit
         await activeTurn
         if (activeTurn !== null && turnFailure !== null) throw turnFailure
-        if (activeTurn !== null && lastOutcome !== null && lastOutcome.status !== ETurnStatus.Completed &&
-          lastOutcome.status !== ETurnStatus.Idle && lastOutcome.status !== ETurnStatus.RelocationPaused) {
-          throw new Error(lastOutcome.status === ETurnStatus.Failed
-            ? lastOutcome.message : `the parent turn ${lastOutcome.status} instead of pausing`)
+        if (
+          activeTurn !== null &&
+          lastOutcome !== null &&
+          lastOutcome.status !== ETurnStatus.Completed &&
+          lastOutcome.status !== ETurnStatus.Idle &&
+          lastOutcome.status !== ETurnStatus.RelocationPaused
+        ) {
+          throw new Error(
+            lastOutcome.status === ETurnStatus.Failed
+              ? lastOutcome.message
+              : `the parent turn ${lastOutcome.status} instead of pausing`,
+          )
         }
         await app.family?.pauseChildren({ threadId: served })
         relocationConfirmed = true
-        await finishOutcome(lastOutcome?.status === ETurnStatus.RelocationPaused
-          ? lastOutcome : { status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() })
+        await finishOutcome(
+          lastOutcome?.status === ETurnStatus.RelocationPaused
+            ? lastOutcome
+            : { status: ETurnStatus.RelocationPaused, runId: app.ids.nextRunId() },
+        )
       })()
       relocationSettling = preparing
       void preparing.catch((error: unknown) => {
@@ -220,16 +256,18 @@ export function createTurnDriver(args: {
       })
       return preparing
     },
-    beginRotation: () => createRotationSettle({
-      stop: () => {
-        again = false
-        pause?.pause()
-      },
-      inFlight: () => ({ commit: committing, turn: turning }),
-      outcome: () => lastOutcome,
-      failure: () => turnFailure,
-    }),
-    relocationResumable: () => relocationCommitIntent || lastOutcome?.status === ETurnStatus.RelocationPaused,
+    beginRotation: () =>
+      createRotationSettle({
+        stop: () => {
+          again = false
+          pause?.pause()
+        },
+        inFlight: () => ({ commit: committing, turn: turning }),
+        outcome: () => lastOutcome,
+        failure: () => turnFailure,
+      }),
+    relocationResumable: () =>
+      relocationCommitIntent || lastOutcome?.status === ETurnStatus.RelocationPaused,
     resume() {
       if (!relocationFrozen || committing !== null || relocationResuming !== null) return
       const generation = ++relocationGeneration
@@ -253,18 +291,22 @@ export function createTurnDriver(args: {
       }
       const resuming = resumeFamily()
       relocationResuming = resuming
-      void resuming.then(() => {
-        if (relocationResuming === resuming) relocationResuming = null
-      }, (error: unknown) => {
-        if (relocationResuming === resuming) relocationResuming = null
-        args.onFailure(messageOf(error))
-      })
+      void resuming.then(
+        () => {
+          if (relocationResuming === resuming) relocationResuming = null
+        },
+        (error: unknown) => {
+          if (relocationResuming === resuming) relocationResuming = null
+          args.onFailure(messageOf(error))
+        },
+      )
     },
     attach(shared) {
       return shared.register({
         threadId: served,
         driver: {
-          blocked: () => turning !== null || committing !== null || relocationFrozen || history.held(),
+          blocked: () =>
+            turning !== null || committing !== null || relocationFrozen || history.held(),
           wake: () => {
             handle.sayOrRun()
           },
@@ -274,7 +316,10 @@ export function createTurnDriver(args: {
     running: () => turning !== null,
     busy: () => turning !== null || committing !== null || history.held(),
     outcomePending: () => outcomePending || (relocationSettling !== null && !relocationConfirmed),
-    settled: () => Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(() => undefined),
+    settled: () =>
+      Promise.allSettled([committing, turning, relocationSettling, relocationResuming]).then(
+        () => undefined,
+      ),
     holdHistory: history.hold,
     holdForRotation: history.holdForRotation,
   }

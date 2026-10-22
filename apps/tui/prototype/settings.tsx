@@ -38,9 +38,24 @@ type Row = {
 const ROWS: readonly Row[] = [
   { id: 'accent', label: 'Accent', group: 'Colour', options: ['clay', 'slate', 'moss', 'plum'] },
   { id: 'density', label: 'Block padding', group: 'Density', options: ['comfort', 'compact'] },
-  { id: 'composer', label: 'Composer edge', group: 'Composer', options: ['slab', 'bordered', 'claude'] },
-  { id: 'thinking', label: 'Thinking blocks', group: 'Transcript', options: ['keep', 'while streaming', 'hide'] },
-  { id: 'sidebar', label: 'Sidebar width', group: 'Layout', options: ['38 cols', '42 cols', '46 cols'] },
+  {
+    id: 'composer',
+    label: 'Composer edge',
+    group: 'Composer',
+    options: ['slab', 'bordered', 'claude'],
+  },
+  {
+    id: 'thinking',
+    label: 'Thinking blocks',
+    group: 'Transcript',
+    options: ['keep', 'while streaming', 'hide'],
+  },
+  {
+    id: 'sidebar',
+    label: 'Sidebar width',
+    group: 'Layout',
+    options: ['38 cols', '42 cols', '46 cols'],
+  },
 ]
 
 type Held = Record<string, string>
@@ -211,7 +226,9 @@ export function SettingsPrototype(): React.ReactNode {
     }
     if (key.name === 'up' || key.name === 'down') {
       key.preventDefault()
-      setAt((current) => Math.min(Math.max(0, current + (key.name === 'up' ? -1 : 1)), ROWS.length - 1))
+      setAt((current) =>
+        Math.min(Math.max(0, current + (key.name === 'up' ? -1 : 1)), ROWS.length - 1),
+      )
       return
     }
     if (key.name === 'left' || key.name === 'right' || key.name === 'return') {

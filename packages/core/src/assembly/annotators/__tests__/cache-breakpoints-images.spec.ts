@@ -8,7 +8,11 @@ import type { Assembled, AssembledMessage } from '../../assembled'
 import type { RuleContext } from '../../rule'
 import { contextFor } from '../../__tests__/log-fixture'
 import { MAX_IMAGE_BLOCKS, imagesInContext } from '../../rules/images'
-import { ANTHROPIC_PROVIDER_ID, CACHE_LOOKBACK_BLOCKS, cacheBreakpoints } from '../cache-breakpoints'
+import {
+  ANTHROPIC_PROVIDER_ID,
+  CACHE_LOOKBACK_BLOCKS,
+  cacheBreakpoints,
+} from '../cache-breakpoints'
 
 const anthropicContext = (): RuleContext => ({
   ...contextFor({ events: [] }),
@@ -26,10 +30,7 @@ const shownWith = ({ images, seq }: { images: number; seq: number }): AssembledM
   entry(
     {
       role: 'user',
-      content: [
-        { type: 'text', text: `turn ${seq}` },
-        ...Array.from({ length: images }, shot),
-      ],
+      content: [{ type: 'text', text: `turn ${seq}` }, ...Array.from({ length: images }, shot)],
     },
     seq,
   )

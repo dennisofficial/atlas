@@ -171,7 +171,10 @@ describe('AccountsService', () => {
       apiKey: 'or-key-1',
     })
 
-    const again = await service.addApiKey({ provider: EAuthProvider.OpenRouter, apiKey: 'or-key-2' })
+    const again = await service.addApiKey({
+      provider: EAuthProvider.OpenRouter,
+      apiKey: 'or-key-2',
+    })
 
     expect(again.id).toBe(original.id)
     expect(await service.list()).toHaveLength(1)

@@ -11,10 +11,7 @@ export type TestCleanupEngine = Pick<
 export const uniqueTestPrefix = (suite: string): string =>
   `atlas-dev-${suite}-${process.pid}-${randomUUID().slice(0, 8)}`
 
-const attempt = async (args: {
-  failures: unknown[]
-  work: () => Promise<void>
-}): Promise<void> => {
+const attempt = async (args: { failures: unknown[]; work: () => Promise<void> }): Promise<void> => {
   try {
     await args.work()
   } catch (error) {

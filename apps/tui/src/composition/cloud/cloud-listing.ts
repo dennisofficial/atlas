@@ -16,11 +16,13 @@ export function cloudListing(app: ListingApp): Pick<ThreadStorePort, 'list'> {
       if (enrich !== undefined) return app.threads.list({ project, limit, onUpdate, enrich })
       const session = app.cloud.session()
       const cap = limit ?? THREAD_LISTING_LIMIT
-      const remoteRequest = session === null
-        ? Promise.resolve([])
-        : app.cloud.sessionsClient({ session })
-          .listThreads({ project: projectOf(app.workspace), limit: THREAD_LISTING_LIMIT })
-          .catch(() => [])
+      const remoteRequest =
+        session === null
+          ? Promise.resolve([])
+          : app.cloud
+              .sessionsClient({ session })
+              .listThreads({ project: projectOf(app.workspace), limit: THREAD_LISTING_LIMIT })
+              .catch(() => [])
       let local: readonly ThreadSummary[] = []
       let remoteRows: readonly ThreadSummary[] = []
       let localReady = false
@@ -28,25 +30,31 @@ export function cloudListing(app: ListingApp): Pick<ThreadStorePort, 'list'> {
         if (!localReady && remoteRows.length === 0) return
         onUpdate?.(mergedRows({ local, remote: remoteRows, limit: cap, pods: app.pods }))
       }
-      const localRequest = app.threads.list({
-        project,
-        limit: cap,
-        ...(onUpdate === undefined ? {} : {
-          onUpdate: (rows: readonly ThreadSummary[]) => {
-            local = rows
-            localReady = true
-            publish()
-          },
-        }),
-      }).then((rows) => {
-        local = rows
-        localReady = true
-        publish()
-      })
+      const localRequest = app.threads
+        .list({
+          project,
+          limit: cap,
+          ...(onUpdate === undefined
+            ? {}
+            : {
+                onUpdate: (rows: readonly ThreadSummary[]) => {
+                  local = rows
+                  localReady = true
+                  publish()
+                },
+              }),
+        })
+        .then((rows) => {
+          local = rows
+          localReady = true
+          publish()
+        })
       await Promise.all([
         localRequest,
         remoteRequest.then(async (remote) => {
-          const stubbed = await Promise.all(remote.map((wire) => stubInto({ app, wire }).catch(() => undefined)))
+          const stubbed = await Promise.all(
+            remote.map((wire) => stubInto({ app, wire }).catch(() => undefined)),
+          )
           remoteRows = stubbed.filter((row): row is ThreadSummary => row !== undefined)
           publish()
         }),
@@ -63,7 +71,9 @@ function mergedRows(args: {
   pods: boolean
 }): ThreadSummary[] {
   const known = new Map(args.remote.map((row) => [row.id, row]))
-  const listed = args.pods ? args.local.filter((row) => row.executionLocation === EExecutionLocation.Cloud) : args.local
+  const listed = args.pods
+    ? args.local.filter((row) => row.executionLocation === EExecutionLocation.Cloud)
+    : args.local
   for (const row of listed) known.set(row.id, row)
   return [...known.values()]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))

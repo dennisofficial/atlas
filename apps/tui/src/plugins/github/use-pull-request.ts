@@ -93,9 +93,7 @@ const repoStringOf = (checkout: RepositoryCheckout): string =>
   `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`
 
 const worktreeGone = (entry: PullRequestEntry): boolean =>
-  entry.current === false &&
-  entry.worktreePath !== undefined &&
-  !existsSync(entry.worktreePath)
+  entry.current === false && entry.worktreePath !== undefined && !existsSync(entry.worktreePath)
 
 const rowOf = (args: {
   entry: PullRequestEntry
@@ -166,7 +164,7 @@ export function usePullRequest(args: {
     if (cloud === null || remote === null) return
 
     setCheckout((current) => (sameCheckout(current, cloud) ? current : cloud))
-    let owned = true
+    const owned = true
     const apply = (states: readonly PrStateWire[]) => {
       if (owned) setRemoteStates(states)
     }
@@ -233,19 +231,25 @@ export function usePullRequest(args: {
       const fromWire = (key: string): PullRequestReading => {
         const state = remoteStates.find((entry) => `${entry.repo}#${entry.number}` === key)
         if (state !== undefined) return wireReading(state)
-        const cached =
-          service.snapshot({ key })
+        const cached = service.snapshot({ key })
         if (cached.lookup !== EPullRequestLookup.Unavailable) return cached
-        return badges?.peekBadge({ kind: 'linked', repo, number: Number(key.split('#').pop()) }) ?? NO_PULL_REQUEST_READING
+        return (
+          badges?.peekBadge({ kind: 'linked', repo, number: Number(key.split('#').pop()) }) ??
+          NO_PULL_REQUEST_READING
+        )
       }
-      const trackedState = remoteStates.find((entry) => entry.repo === repo && entry.branch === cloud.branch)
+      const trackedState = remoteStates.find(
+        (entry) => entry.repo === repo && entry.branch === cloud.branch,
+      )
       const currentReading =
         trackedState !== undefined
           ? wireReading(trackedState)
           : ((): PullRequestReading => {
               const cached = service.snapshot({ key: checkoutKey(cloud) })
               if (cached.lookup !== EPullRequestLookup.Unavailable) return cached
-              return badges?.peekBadge({ kind: 'checkout', checkout: cloud }) ?? NO_PULL_REQUEST_READING
+              return (
+                badges?.peekBadge({ kind: 'checkout', checkout: cloud }) ?? NO_PULL_REQUEST_READING
+              )
             })()
       return pullRequestEntries({
         linked,

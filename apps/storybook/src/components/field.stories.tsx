@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Checkbox } from "@dltech/atlas-ui/components/checkbox";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Checkbox } from '@dltech/atlas-ui/components/checkbox'
 import {
   Field,
   FieldContent,
@@ -13,9 +13,9 @@ import {
   FieldSeparator,
   FieldSet,
   FieldTitle,
-} from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { RadioGroup, RadioGroupItem } from "@dltech/atlas-ui/components/radio-group";
+} from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
 import {
   Select,
   SelectContent,
@@ -23,23 +23,23 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
-import { Switch } from "@dltech/atlas-ui/components/switch";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
+} from '@dltech/atlas-ui/components/select'
+import { Switch } from '@dltech/atlas-ui/components/switch'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 const meta = {
-  title: "Components/Field",
+  title: 'Components/Field',
   component: Field,
   argTypes: {
-    orientation: { control: "inline-radio", options: ["vertical", "horizontal", "responsive"] },
+    orientation: { control: 'inline-radio', options: ['vertical', 'horizontal', 'responsive'] },
   },
-  args: { orientation: "vertical" },
-  parameters: { layout: "padded" },
-} satisfies Meta<typeof Field>;
+  args: { orientation: 'vertical' },
+  parameters: { layout: 'padded' },
+} satisfies Meta<typeof Field>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -49,7 +49,7 @@ export const Default: Story = {
       <FieldDescription>Atlas creates this branch from origin/main.</FieldDescription>
     </Field>
   ),
-};
+}
 
 export const Invalid: Story = {
   render: (args) => (
@@ -59,7 +59,7 @@ export const Invalid: Story = {
       <FieldError>Branch names cannot contain spaces.</FieldError>
     </Field>
   ),
-};
+}
 
 export const Disabled: Story = {
   render: (args) => (
@@ -69,7 +69,7 @@ export const Disabled: Story = {
       <FieldDescription>Locked while a session is running.</FieldDescription>
     </Field>
   ),
-};
+}
 
 export const Horizontal: Story = {
   render: () => (
@@ -81,7 +81,7 @@ export const Horizontal: Story = {
       <Switch id="autoapprove" />
     </Field>
   ),
-};
+}
 
 export const Form: Story = {
   render: () => (
@@ -89,7 +89,9 @@ export const Form: Story = {
       <FieldGroup>
         <FieldSet>
           <FieldLegend>New session</FieldLegend>
-          <FieldDescription>Configure what Atlas works on and how much freedom it has.</FieldDescription>
+          <FieldDescription>
+            Configure what Atlas works on and how much freedom it has.
+          </FieldDescription>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="form-repo">Repository</FieldLabel>
@@ -144,7 +146,7 @@ export const Form: Story = {
       </FieldGroup>
     </form>
   ),
-};
+}
 
 export const ChoiceCards: Story = {
   render: () => (
@@ -153,7 +155,9 @@ export const ChoiceCards: Story = {
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>Cloud sandbox</FieldTitle>
-            <FieldDescription>Runs in a Vercel sandbox, survives closing your laptop.</FieldDescription>
+            <FieldDescription>
+              Runs in a Vercel sandbox, survives closing your laptop.
+            </FieldDescription>
           </FieldContent>
           <RadioGroupItem value="cloud" id="where-cloud" />
         </Field>
@@ -169,4 +173,4 @@ export const ChoiceCards: Story = {
       </FieldLabel>
     </RadioGroup>
   ),
-};
+}

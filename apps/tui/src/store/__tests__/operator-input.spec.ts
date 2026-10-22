@@ -12,13 +12,19 @@ describe('durable operator input outcomes', () => {
     [EOperatorInputOutcome.Cancelled, 'the operator input request was cancelled'],
   ])('reports %s without confusing failed delivery with cancellation', (outcome, text) => {
     const events = log([
-      { type: 'operator-input-requested', requestId: 'input', description: 'Paste the document', path: '/tmp/input' },
+      {
+        type: 'operator-input-requested',
+        requestId: 'input',
+        description: 'Paste the document',
+        path: '/tmp/input',
+      },
       { type: 'operator-input-resolved', requestId: 'input', outcome, bytes: 12000 },
     ])
     const model = deriveTranscript({ events, signals: [] })
-    expect(model.entries.filter((entry) => entry.kind === EEntryKind.OperatorInput).map((entry) => entry.text)).toEqual([
-      'asks the operator: Paste the document',
-      text,
-    ])
+    expect(
+      model.entries
+        .filter((entry) => entry.kind === EEntryKind.OperatorInput)
+        .map((entry) => entry.text),
+    ).toEqual(['asks the operator: Paste the document', text])
   })
 })

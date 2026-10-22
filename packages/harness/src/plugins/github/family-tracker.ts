@@ -75,12 +75,16 @@ export function createFamilyTracker(args: {
     hasVisibleThread: () => visibleThread !== null,
     checkoutFor: ({ threadId }) => places.get(threadId) ?? null,
     threadsOn: ({ key }) =>
-      [...places].filter(([, checkout]) => checkoutKey(checkout) === key).map(([threadId]) => threadId),
+      [...places]
+        .filter(([, checkout]) => checkoutKey(checkout) === key)
+        .map(([threadId]) => threadId),
     threadsOwning: async ({ key }) => {
       const standing = [...places]
         .filter(([, checkout]) => checkoutKey(checkout) === key)
         .map(([threadId]) => threadId)
-      const owners = await Promise.all(standing.map((threadId) => threadKinds.ownerOf({ threadId })))
+      const owners = await Promise.all(
+        standing.map((threadId) => threadKinds.ownerOf({ threadId })),
+      )
       return [...new Set(owners)]
     },
     ownerOf: threadKinds.ownerOf,

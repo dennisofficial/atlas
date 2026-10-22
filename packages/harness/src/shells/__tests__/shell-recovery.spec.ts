@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EKilledBy,
-  EShellStatus,
-  toRunId,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
 
 import { ShellRecovery } from '../recovery'
 import { MemoryLog, SequenceIds } from './shell-recovery-fixture'
@@ -45,13 +39,15 @@ const setup = () => {
 describe('ShellRecovery.recordLost', () => {
   it('settles a shell that started and never ended', async () => {
     const { ids, log, recovery } = setup()
-    await log.append({ threadId: thread, runId: ids.nextRunId(), drafts: [startedDraft({ shellId: 'bash_1', command: 'bun test' })] })
+    await log.append({
+      threadId: thread,
+      runId: ids.nextRunId(),
+      drafts: [startedDraft({ shellId: 'bash_1', command: 'bun test' })],
+    })
 
     const settled = await recovery.recordLost({ threadId: thread })
 
-    expect(settled).toEqual([
-      { shellId: 'bash_1', command: 'bun test', description: undefined },
-    ])
+    expect(settled).toEqual([{ shellId: 'bash_1', command: 'bun test', description: undefined }])
 
     const ending = log.stored.at(-1)
     expect(ending?.type).toBe('background-shell-ended')
@@ -71,7 +67,10 @@ describe('ShellRecovery.recordLost', () => {
     await log.append({
       threadId: thread,
       runId: ids.nextRunId(),
-      drafts: [startedDraft({ shellId: 'bash_1', command: 'bun test' }), endedDraft({ shellId: 'bash_1', command: 'bun test' })],
+      drafts: [
+        startedDraft({ shellId: 'bash_1', command: 'bun test' }),
+        endedDraft({ shellId: 'bash_1', command: 'bun test' }),
+      ],
     })
 
     const before = log.stored.length

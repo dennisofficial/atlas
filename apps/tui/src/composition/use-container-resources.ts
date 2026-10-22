@@ -45,7 +45,9 @@ const stepBy = (vcpus: number, delta: number): number => {
 
 const resizedNoticeOf = (args: { vcpus: number; appliesAt: EResizeApplies }): string => {
   const size = `sandbox resized to ${args.vcpus} vCPU · ${memoryGbOf(args.vcpus)} GB`
-  return args.appliesAt === EResizeApplies.Live ? `${size} (live)` : `${size} — applies at next wake`
+  return args.appliesAt === EResizeApplies.Live
+    ? `${size} (live)`
+    : `${size} — applies at next wake`
 }
 
 /**

@@ -21,10 +21,7 @@ export function NewProjectHost({
 }) {
   const organizations = useOrganizations()
   const workspace = useActiveWorkspace()
-  const owners = useMemo(
-    () => ownerOptionsOf(organizations.data ?? []),
-    [organizations.data],
-  )
+  const owners = useMemo(() => ownerOptionsOf(organizations.data ?? []), [organizations.data])
   const loading =
     organizations.state === EQueryState.Loading || workspace.state === EQueryState.Loading
   if (loading) return null

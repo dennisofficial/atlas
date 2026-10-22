@@ -19,7 +19,8 @@ const latestVersion = await fetch('https://api.github.com/repos/openai/codex/rel
   })
   .then((body) => {
     if (!isReleaseBody(body)) throw new Error('github release response carried no tag_name')
-    if (!body.tag_name.startsWith(TAG_PREFIX)) throw new Error(`latest release tag ${body.tag_name} is not a ${TAG_PREFIX} tag`)
+    if (!body.tag_name.startsWith(TAG_PREFIX))
+      throw new Error(`latest release tag ${body.tag_name} is not a ${TAG_PREFIX} tag`)
     return body.tag_name.slice(TAG_PREFIX.length)
   })
 

@@ -41,9 +41,12 @@ export async function publishBundle(args: {
 
   stage({ stage: EPublishStage.Packing, bytes: null })
   const archive = await buildContextArchive({
-    files: args.items.flatMap((item) => item.files.map((file) => ({ key: file.archiveKey, path: file.path }))),
+    files: args.items.flatMap((item) =>
+      item.files.map((file) => ({ key: file.archiveKey, path: file.path })),
+    ),
   })
-  if (archive === undefined) throw new Error('nothing to publish: none of the selected files could be read')
+  if (archive === undefined)
+    throw new Error('nothing to publish: none of the selected files could be read')
   if (archive.byteLength > PUBLISHED_BUNDLE_MAX_BYTES) {
     throw new Error(
       `the bundle is ${archive.byteLength} bytes, over the ${PUBLISHED_BUNDLE_MAX_BYTES} byte limit — deselect some skills`,
@@ -53,7 +56,9 @@ export async function publishBundle(args: {
 
   const upload = await args.client.requestUpload()
   if (archive.byteLength > upload.maximumSizeInBytes) {
-    throw new Error(`the bundle is ${archive.byteLength} bytes, over the ${upload.maximumSizeInBytes} byte upload limit`)
+    throw new Error(
+      `the bundle is ${archive.byteLength} bytes, over the ${upload.maximumSizeInBytes} byte upload limit`,
+    )
   }
 
   stage({ stage: EPublishStage.Uploading, bytes: archive.byteLength })
@@ -64,9 +69,15 @@ export async function publishBundle(args: {
   })
   if (!response.ok) {
     const detail = (await response.text().catch(() => '')).slice(0, ERROR_BODY_CHARS)
-    throw new Error(`the upload to storage failed with ${response.status}${detail === '' ? '' : `: ${detail}`}`)
+    throw new Error(
+      `the upload to storage failed with ${response.status}${detail === '' ? '' : `: ${detail}`}`,
+    )
   }
 
   stage({ stage: EPublishStage.Committing, bytes: null })
-  return await args.client.commit({ pathname: upload.pathname, sha256, manifest: manifestOf(args.items) })
+  return await args.client.commit({
+    pathname: upload.pathname,
+    sha256,
+    manifest: manifestOf(args.items),
+  })
 }

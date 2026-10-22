@@ -89,7 +89,9 @@ describe('projects HTTP surface', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -118,7 +120,10 @@ describe('projects HTTP surface', () => {
   it('lets a pod read its owner’s project workspace with the brokered token, uncached', async () => {
     const id = await createAsA()
 
-    const response = await http().get(`/v1/projects/${id}/workspace`).set(as('pod-token-a')).expect(200)
+    const response = await http()
+      .get(`/v1/projects/${id}/workspace`)
+      .set(as('pod-token-a'))
+      .expect(200)
 
     expect(response.headers['cache-control']).toBe('no-store')
     expect(response.body).toEqual({
@@ -150,7 +155,10 @@ describe('projects HTTP surface', () => {
   it('lets a sandbox bearer read its owner’s project workspace', async () => {
     const id = await createAsA()
 
-    const response = await http().get(`/v1/projects/${id}/workspace`).set(as('sandbox-token-a')).expect(200)
+    const response = await http()
+      .get(`/v1/projects/${id}/workspace`)
+      .set(as('sandbox-token-a'))
+      .expect(200)
 
     expect(response.body).toMatchObject({ projectId: id, githubToken: 'gho_user-a' })
   })

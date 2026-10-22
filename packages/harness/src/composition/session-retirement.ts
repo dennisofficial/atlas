@@ -4,7 +4,9 @@ export type RetirementQueue<T extends { close?: (() => void) | undefined }> = {
   hold: () => () => void
 }
 
-export function createRetirementQueue<T extends { close?: (() => void) | undefined }>(): RetirementQueue<T> {
+export function createRetirementQueue<
+  T extends { close?: (() => void) | undefined },
+>(): RetirementQueue<T> {
   const pending: T[] = []
   let holds = 0
 
@@ -13,9 +15,7 @@ export function createRetirementQueue<T extends { close?: (() => void) | undefin
     for (const binding of pending.splice(0)) {
       try {
         binding.close?.()
-      } catch {
-        continue
-      }
+      } catch {}
     }
   }
 

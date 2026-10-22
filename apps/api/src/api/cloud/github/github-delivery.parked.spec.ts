@@ -6,11 +6,7 @@ import {
   seedCloudSandbox,
   seedSubscription as seedSubscriptionRow,
 } from '../../../../test/github-seed'
-import {
-  prepareDelivery,
-  PULL_REQUEST_PAYLOAD,
-  serviceWith,
-} from './github-delivery.fixture'
+import { prepareDelivery, PULL_REQUEST_PAYLOAD, serviceWith } from './github-delivery.fixture'
 import type { GithubPrStateDto } from './github-realtime.types'
 
 describe('GithubDeliveryService parked-subscription survival', () => {
@@ -80,7 +76,10 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       eventHandler: () => {},
       onClosed: () => {},
     })
-    await sandboxAt({ userId: 'usr-stale', lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
+    await sandboxAt({
+      userId: 'usr-stale',
+      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000),
+    })
     await parkSubscription({
       userId: 'usr-stale',
       threadId: 'thr_1',

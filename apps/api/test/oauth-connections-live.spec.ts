@@ -6,7 +6,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { OauthConnectionsService } from '../src/api/platform/oauth-connections/oauth-connections.service'
-import { EOauthProvider, OauthClock } from '../src/api/platform/oauth-connections/oauth-connections.types'
+import {
+  EOauthProvider,
+  OauthClock,
+} from '../src/api/platform/oauth-connections/oauth-connections.types'
 import { HttpOauthIssuer } from '../src/api/platform/oauth-connections/oauth-issuer'
 import { PrismaOauthConnectionStore } from '../src/api/platform/oauth-connections/prisma-oauth-connection.store'
 
@@ -16,8 +19,12 @@ const ISSUER_DELAY_MS = 300
 
 class OffsetClock implements OauthClock {
   offsetMs = 0
-  now(): number { return Date.now() + this.offsetMs }
-  sleep(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)) }
+  now(): number {
+    return Date.now() + this.offsetMs
+  }
+  sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
 }
 
 describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer', () => {
@@ -27,8 +34,15 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
   const realFetch = globalThis.fetch
   const clock = new OffsetClock()
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
-  const instances = [0, 1].map(() =>
-    new OauthConnectionsService(new PrismaOauthConnectionStore(), cipher, new HttpOauthIssuer(), clock))
+  const instances = [0, 1].map(
+    () =>
+      new OauthConnectionsService(
+        new PrismaOauthConnectionStore(),
+        cipher,
+        new HttpOauthIssuer(),
+        clock,
+      ),
+  )
   const database = useTestDatabase()
   const connectionRow = (id: string) => db.orm.public.OauthConnection.first({ id })
   const assignmentCount = async (where: { connectionId: string } | { sandboxId: string }) =>
@@ -39,16 +53,21 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
   let failure: 'none' | 'invalid_grant' | 'drop' = 'none'
 
   const grant = (refreshToken: string) => ({
-    accessToken: 'access-0', refreshToken, expiresAt: new Date(clock.now() + HOUR).toISOString(),
+    accessToken: 'access-0',
+    refreshToken,
+    expiresAt: new Date(clock.now() + HOUR).toISOString(),
   })
   const upload = (connectionId: string, userId = ownerId) =>
     instances[0]!.upload({
-      userId, connectionId,
+      userId,
+      connectionId,
       draft: { provider: EOauthProvider.Anthropic, tokens: grant(`refresh-${connectionId}-0`) },
     })
   const issue = (connectionId: string, via = 0, sandboxId?: string) =>
     instances[via]!.issueAccessToken({
-      userId: ownerId, connectionId, ...(sandboxId === undefined ? {} : { sandboxId }),
+      userId: ownerId,
+      connectionId,
+      ...(sandboxId === undefined ? {} : { sandboxId }),
     })
   const startNewConnection = async () => {
     const id = `conn-${randomUUID()}`
@@ -67,7 +86,9 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
   beforeAll(async () => {
     issuerServer = createServer((req, res) => {
       let raw = ''
-      req.on('data', (chunk) => { raw += String(chunk) })
+      req.on('data', (chunk) => {
+        raw += String(chunk)
+      })
       req.on('end', () => {
         const sent = (JSON.parse(raw) as { refresh_token?: string }).refresh_token ?? ''
         exchanges.push(sent)
@@ -78,10 +99,13 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
             return
           }
           currentRefreshToken = `${sent}+`
-          res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
-            access_token: `access-${exchanges.length}-${randomUUID()}`,
-            refresh_token: currentRefreshToken, expires_in: 3600,
-          }))
+          res.writeHead(200, { 'content-type': 'application/json' }).end(
+            JSON.stringify({
+              access_token: `access-${exchanges.length}-${randomUUID()}`,
+              refresh_token: currentRefreshToken,
+              expires_in: 3600,
+            }),
+          )
         }, ISSUER_DELAY_MS)
       })
     })
@@ -91,7 +115,9 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
       realFetch(`http://127.0.0.1:${port}${new URL(input).pathname}`, init)) as typeof fetch
   }, 30_000)
 
-  afterEach(() => { clock.offsetMs = 0 })
+  afterEach(() => {
+    clock.offsetMs = 0
+  })
 
   afterAll(async () => {
     globalThis.fetch = realFetch
@@ -121,17 +147,23 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
     const id = await startNewConnection()
     const reauthorize = (to: string, from: string) =>
       instances[1]!.reauthorize({
-        userId: ownerId, connectionId: id,
+        userId: ownerId,
+        connectionId: id,
         draft: {
-          provider: EOauthProvider.Anthropic, tokens: { ...grant(`refresh-${to}`), accessToken: `access-${to}` },
-          authorizationId: to, previousAuthorizationId: from,
+          provider: EOauthProvider.Anthropic,
+          tokens: { ...grant(`refresh-${to}`), accessToken: `access-${to}` },
+          authorizationId: to,
+          previousAuthorizationId: from,
         },
       })
 
     const inFlight = issue(id, 0)
     await new Promise((resolve) => setTimeout(resolve, ISSUER_DELAY_MS / 3))
     await expect(reauthorize('auth-2', id)).resolves.toMatchObject({ authorizationId: 'auth-2' })
-    await expect(inFlight).resolves.toMatchObject({ accessToken: 'access-auth-2', authorizationId: 'auth-2' })
+    await expect(inFlight).resolves.toMatchObject({
+      accessToken: 'access-auth-2',
+      authorizationId: 'auth-2',
+    })
 
     const row = await connectionRow(id)
     expect(row).toMatchObject({ authorizationId: 'auth-2', status: 'active', refreshAttempt: null })
@@ -169,21 +201,42 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
     for (const sandboxId of sandboxes) {
       await seedThread({ db, id: `thr-${sandboxId}`, userId: ownerId })
       await db.orm.public.CloudSandbox.create({
-        id: sandboxId, threadId: `thr-${sandboxId}`, userId: ownerId, sandboxId: `p-${sandboxId}`, name: sandboxId,
-        region: 'iad1', state: 'running', tokenHash: sandboxId, lastActivityAt: at, createdAt: at, updatedAt: at,
+        id: sandboxId,
+        threadId: `thr-${sandboxId}`,
+        userId: ownerId,
+        sandboxId: `p-${sandboxId}`,
+        name: sandboxId,
+        region: 'iad1',
+        state: 'running',
+        tokenHash: sandboxId,
+        lastActivityAt: at,
+        createdAt: at,
+        updatedAt: at,
       })
     }
     const [assigned, other] = sandboxes as [string, string]
     await expect(issue(id, 0, assigned)).rejects.toMatchObject({ status: 404 })
-    await instances[0]!.assignSandbox({ userId: ownerId, connectionId: id, threadId: `thr-${assigned}` })
-    await instances[1]!.assignSandbox({ userId: ownerId, connectionId: id, threadId: `thr-${assigned}` })
+    await instances[0]!.assignSandbox({
+      userId: ownerId,
+      connectionId: id,
+      threadId: `thr-${assigned}`,
+    })
+    await instances[1]!.assignSandbox({
+      userId: ownerId,
+      connectionId: id,
+      threadId: `thr-${assigned}`,
+    })
     await expect(issue(id, 1, assigned)).resolves.toMatchObject({ generation: 1 })
     await expect(issue(id, 1, other)).rejects.toMatchObject({ status: 404 })
     expect(await assignmentCount({ connectionId: id })).toBe(1)
 
     await db.orm.public.CloudSandbox.where({ id: assigned }).delete()
     expect(await assignmentCount({ connectionId: id })).toBe(0)
-    await instances[0]!.assignSandbox({ userId: ownerId, connectionId: id, threadId: `thr-${other}` })
+    await instances[0]!.assignSandbox({
+      userId: ownerId,
+      connectionId: id,
+      threadId: `thr-${other}`,
+    })
     await instances[0]!.remove({ userId: ownerId, connectionId: id })
     expect(await assignmentCount({ sandboxId: other })).toBe(0)
   })

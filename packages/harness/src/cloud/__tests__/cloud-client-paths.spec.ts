@@ -7,10 +7,13 @@ const recordingClient = () => {
   const client = new CloudClient({
     url: 'https://cloud.test',
     token: 'test-session',
-    fetchFn: Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
-      requests.push({ path: new URL(String(input)).pathname, method: init?.method ?? 'GET' })
-      return new Response(null, { status: 204 })
-    }, { preconnect: fetch.preconnect }),
+    fetchFn: Object.assign(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        requests.push({ path: new URL(String(input)).pathname, method: init?.method ?? 'GET' })
+        return new Response(null, { status: 204 })
+      },
+      { preconnect: fetch.preconnect },
+    ),
   })
   return { client, requests }
 }

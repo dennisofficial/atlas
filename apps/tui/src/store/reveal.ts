@@ -28,14 +28,20 @@ export function tailRunOf(args: {
   return { key: runKey({ stepId: step.stepId, kind: block.kind, id: block.id }), text: block.text }
 }
 
-export function attachedGate(args: { gate: RevealGate | null; tail: TailRun | null }): RevealGate | null {
+export function attachedGate(args: {
+  gate: RevealGate | null
+  tail: TailRun | null
+}): RevealGate | null {
   if (args.tail === null) return null
   if (args.gate?.key === args.tail.key) return args.gate
 
   return { key: args.tail.key, revealed: 0 }
 }
 
-export function advancedGate(args: { gate: RevealGate | null; tail: TailRun | null }): RevealGate | null {
+export function advancedGate(args: {
+  gate: RevealGate | null
+  tail: TailRun | null
+}): RevealGate | null {
   const attached = attachedGate(args)
   if (attached === null || args.tail === null) return null
 
@@ -43,11 +49,15 @@ export function advancedGate(args: { gate: RevealGate | null; tail: TailRun | nu
   if (backlog <= 0) return attached
 
   const reached = attached.revealed + sliceSize(backlog)
-  return { key: attached.key, revealed: pastAnyLoneSurrogate({ text: args.tail.text, at: reached }) }
+  return {
+    key: attached.key,
+    revealed: pastAnyLoneSurrogate({ text: args.tail.text, at: reached }),
+  }
 }
 
 export const gateIsDraining = (args: { gate: RevealGate | null; tail: TailRun | null }): boolean =>
-  args.tail !== null && (args.gate?.key !== args.tail.key || args.gate.revealed < args.tail.text.length)
+  args.tail !== null &&
+  (args.gate?.key !== args.tail.key || args.gate.revealed < args.tail.text.length)
 
 export function revealedText(args: { key: string; text: string; gate: RevealGate | null }): string {
   if (args.gate === null || args.gate.key !== args.key) return args.text

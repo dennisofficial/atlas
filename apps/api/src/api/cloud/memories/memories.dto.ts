@@ -1,5 +1,14 @@
 import { Transform } from 'class-transformer'
-import { IsIn, IsInt, IsString, Matches, MaxLength, Min, MinLength, ValidateIf } from 'class-validator'
+import {
+  IsIn,
+  IsInt,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateIf,
+} from 'class-validator'
 import {
   EMemoryScope,
   EMemoryType,

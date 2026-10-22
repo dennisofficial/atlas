@@ -149,15 +149,14 @@ describe('inline syntax', () => {
 
   it('never strands a lit cell of the slab at a wrap', async () => {
     for (let filler = 20; filler <= WIDTH; filler += 1) {
-      const setup = await mount(`${'w'.repeat(filler)} \`useFactory\` collector above is idiomatic.`)
+      const setup = await mount(
+        `${'w'.repeat(filler)} \`useFactory\` collector above is idiomatic.`,
+      )
       try {
         const stranded = setup
           .captureSpans()
           .lines.flatMap((line) => line.spans)
-          .filter(
-            (span) =>
-              span.text.trim().length === 0 && Math.round(span.bg.r * 255) === 0x33,
-          )
+          .filter((span) => span.text.trim().length === 0 && Math.round(span.bg.r * 255) === 0x33)
         expect(stranded).toEqual([])
       } finally {
         await teardown(setup)

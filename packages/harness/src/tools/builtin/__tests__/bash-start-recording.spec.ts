@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { RecordingLog } from '../../../shells/__tests__/shell-registry-log'
 import { discardSuites, openRuntimeRegistry, type RuntimeSuite } from './runtime-launcher'
 
 let root = ''

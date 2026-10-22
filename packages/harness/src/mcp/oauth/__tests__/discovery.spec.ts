@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  discoverProtectedResourceMetadata,
-  parseWwwAuthenticate,
-  selectScope,
-} from '../discovery'
+import { discoverProtectedResourceMetadata, parseWwwAuthenticate, selectScope } from '../discovery'
 import { EOAuthFailure } from '../oauth-error'
 
 type Route = { status?: number; body?: unknown }
@@ -27,8 +23,7 @@ describe('parseWwwAuthenticate', () => {
     )
 
     expect(challenge).toEqual({
-      resourceMetadataUrl:
-        'https://mcp.example.com/.well-known/oauth-protected-resource',
+      resourceMetadataUrl: 'https://mcp.example.com/.well-known/oauth-protected-resource',
       scope: 'files:read files:write',
       error: 'invalid_token',
       errorDescription: 'The access token expired',
@@ -45,9 +40,7 @@ describe('parseWwwAuthenticate', () => {
   })
 
   it('unescapes quoted values', () => {
-    const challenge = parseWwwAuthenticate(
-      'Bearer error_description="the token \\"died\\" hard"',
-    )
+    const challenge = parseWwwAuthenticate('Bearer error_description="the token \\"died\\" hard"')
 
     expect(challenge.errorDescription).toBe('the token "died" hard')
   })
@@ -90,9 +83,7 @@ describe('discoverProtectedResourceMetadata', () => {
 
     await discoverProtectedResourceMetadata({ serverUrl: 'https://mcp.example.com/server', fetch })
 
-    expect(calls).toEqual([
-      'https://mcp.example.com/.well-known/oauth-protected-resource/server',
-    ])
+    expect(calls).toEqual(['https://mcp.example.com/.well-known/oauth-protected-resource/server'])
   })
 
   it('falls back to the path-less well-known URL on 404', async () => {

@@ -7,7 +7,13 @@ import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { liveNudgeIds } from '../../events/nudges'
 import { imagePathLine, inlinable } from '../../images/attached'
-import type { FilePart, ImagePart, TextPart, ToolCallPart, ToolResultPart } from '../../message/parts'
+import type {
+  FilePart,
+  ImagePart,
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+} from '../../message/parts'
 import { basenameOf } from '../../policy/classifier/path-set'
 import { shellEventContextsOf } from '../../shells/lifecycle'
 import type { AssembledMessage } from '../assembled'
@@ -148,7 +154,10 @@ function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | F
     })
   }
 
-  return [{ type: 'text', text: operatorSaid({ text: [event.text, ...named].join('\n') }) }, ...shown]
+  return [
+    { type: 'text', text: operatorSaid({ text: [event.text, ...named].join('\n') }) },
+    ...shown,
+  ]
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }
@@ -167,7 +176,10 @@ function walkEvents(events: readonly Event[]): Walk {
 
   for (const event of events) {
     if (event.type === 'assistant-said') {
-      openAssistant = { message: { role: 'assistant', content: [...event.parts] }, origin: originOf(event) }
+      openAssistant = {
+        message: { role: 'assistant', content: [...event.parts] },
+        origin: originOf(event),
+      }
       groups.push(openAssistant)
       continue
     }
@@ -202,7 +214,10 @@ function walkEvents(events: readonly Event[]): Walk {
         message: {
           role: 'user',
           content: [
-            { type: 'text', text: contextBlock({ slot: event.slot, key: event.key, content: event.content }) },
+            {
+              type: 'text',
+              text: contextBlock({ slot: event.slot, key: event.key, content: event.content }),
+            },
           ],
         },
         origin: originOf(event),
@@ -224,7 +239,12 @@ function walkEvents(events: readonly Event[]): Walk {
       if (toldByKill.has(event.id)) continue
 
       groups.push({
-        message: { role: 'user', content: [{ type: 'text', text: backgroundShellBlock(event, shellContexts.get(event.id)) }] },
+        message: {
+          role: 'user',
+          content: [
+            { type: 'text', text: backgroundShellBlock(event, shellContexts.get(event.id)) },
+          ],
+        },
         origin: originOf(event),
       })
       continue
@@ -234,7 +254,12 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellAwaitingInputBlock(event, shellContexts.get(event.id)) }],
+          content: [
+            {
+              type: 'text',
+              text: backgroundShellAwaitingInputBlock(event, shellContexts.get(event.id)),
+            },
+          ],
         },
         origin: originOf(event),
       })
@@ -245,7 +270,9 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellMatchedBlock(event, shellContexts.get(event.id)) }],
+          content: [
+            { type: 'text', text: backgroundShellMatchedBlock(event, shellContexts.get(event.id)) },
+          ],
         },
         origin: originOf(event),
       })
@@ -256,7 +283,12 @@ function walkEvents(events: readonly Event[]): Walk {
       groups.push({
         message: {
           role: 'user',
-          content: [{ type: 'text', text: backgroundShellStillRunningBlock(event, shellContexts.get(event.id)) }],
+          content: [
+            {
+              type: 'text',
+              text: backgroundShellStillRunningBlock(event, shellContexts.get(event.id)),
+            },
+          ],
         },
         origin: originOf(event),
       })
@@ -308,7 +340,10 @@ function walkEvents(events: readonly Event[]): Walk {
       const latest = open.at(-1)
       if (latest !== undefined) open.pop()
       const settledId = latest ?? event.callId
-      settlements.set(settledId, { part: toolResultPart(event, settledId), origin: originOf(event) })
+      settlements.set(settledId, {
+        part: toolResultPart(event, settledId),
+        origin: originOf(event),
+      })
     }
   }
 

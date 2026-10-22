@@ -85,7 +85,8 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     this.sdk = deps.sdk
     this.log = deps.log
     this.launch =
-      deps.launch ?? createServeLauncher({ log: deps.log, installServe: releaseOnlyServeInstaller() })
+      deps.launch ??
+      createServeLauncher({ log: deps.log, installServe: releaseOnlyServeInstaller() })
   }
 
   async boot(args: WakeBootArgs): Promise<WakeBootResult> {
@@ -127,7 +128,9 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
       image: args.image,
       threadId: args.threadId,
       token: args.freshToken,
-      ...(args.injectVercelCredentials === undefined ? {} : { injectVercelCredentials: args.injectVercelCredentials }),
+      ...(args.injectVercelCredentials === undefined
+        ? {}
+        : { injectVercelCredentials: args.injectVercelCredentials }),
       ...(args.environment === undefined ? {} : { environment: args.environment }),
       onCreate: () => {
         params.onCreate()
@@ -136,7 +139,11 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     })
   }
 
-  private async launchServe(args: { sandbox: Sandbox; token: string; args: WakeBootArgs }): Promise<void> {
+  private async launchServe(args: {
+    sandbox: Sandbox
+    token: string
+    args: WakeBootArgs
+  }): Promise<void> {
     await this.launch({
       sandbox: args.sandbox,
       token: args.token,
@@ -158,7 +165,9 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
           resume: false,
           signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
         })
-        .catch((failure: unknown) => (isSandboxMissing(failure) ? undefined : Promise.reject(failure)))
+        .catch((failure: unknown) =>
+          isSandboxMissing(failure) ? undefined : Promise.reject(failure),
+        )
       if (leaked === undefined) return
       await leaked.delete({ signal: AbortSignal.timeout(30_000) })
       this.log(`wake rolled back freshly created sandbox ${args.name} after its failed boot`)

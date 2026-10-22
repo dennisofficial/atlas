@@ -4,7 +4,11 @@ import {
   type OptimizedBuffer,
   type Renderable,
 } from '@opentui/core'
-import { createTestRenderer, setRendererCapabilities, type TestRendererSetup } from '@opentui/core/testing'
+import {
+  createTestRenderer,
+  setRendererCapabilities,
+  type TestRendererSetup,
+} from '@opentui/core/testing'
 
 import { TranscriptImageRenderable } from '../transcript-image'
 import { ViewerImageRenderable } from '../viewer-image'
@@ -12,7 +16,12 @@ import { ViewerImageRenderable } from '../viewer-image'
 export type Kind = typeof TranscriptImageRenderable | typeof ViewerImageRenderable
 export type Picture = TranscriptImageRenderable | ViewerImageRenderable
 
-export const BANDS = { red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], yellow: [255, 255, 0] }
+export const BANDS = {
+  red: [255, 0, 0],
+  green: [0, 255, 0],
+  blue: [0, 0, 255],
+  yellow: [255, 255, 0],
+}
 export type Band = keyof typeof BANDS
 export const BAND_ORDER: readonly Band[] = ['red', 'green', 'blue', 'yellow']
 export const WARP = 'WarpTerminal'

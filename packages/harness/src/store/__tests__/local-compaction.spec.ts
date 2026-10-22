@@ -22,7 +22,9 @@ const replied = (text: string): EventDraft => ({
 
 const conversation = [said('one'), replied('two'), said('three'), replied('four'), said('five')]
 
-const open = async (summarise: Summariser): Promise<{ port: CompactionPort; threadId: ThreadId }> => {
+const open = async (
+  summarise: Summariser,
+): Promise<{ port: CompactionPort; threadId: ThreadId }> => {
   fixture = openStoreFixture()
   const thread = await fixture.threads.create({ title: 'work' })
   await fixture.log.append({ threadId: thread.id, runId: toRunId('run-1'), drafts: conversation })
@@ -84,11 +86,17 @@ describe('LocalCompaction', () => {
     const before = await fixture!.log.read({ threadId })
     const through = before[1]!.seq
 
-    const outcome = await port.summarise({ threadId, anchor: ECompactionAnchor.Prefix, seq: through })
+    const outcome = await port.summarise({
+      threadId,
+      anchor: ECompactionAnchor.Prefix,
+      seq: through,
+    })
 
     expect(outcome).toMatchObject({ type: ECompaction.Compacted, throughSeq: through })
     const after = await fixture!.log.read({ threadId })
-    expect(after.some((event) => event.seq === before[0]!.seq && event.type === 'user-said')).toBe(false)
+    expect(after.some((event) => event.seq === before[0]!.seq && event.type === 'user-said')).toBe(
+      false,
+    )
   })
 
   it('surfaces a refusal when the summariser yields nothing', async () => {

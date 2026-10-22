@@ -4,10 +4,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import React from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, placementOf, toRunId, type ThreadId } from '@dltech/atlas-core'
+import { EExecutionLocation, toRunId, type ThreadId } from '@dltech/atlas-core'
 
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -51,11 +50,12 @@ const speaking = (): FakeApp =>
  * there as a cloud thread — the row that says where it runs — while its transcript stays in the
  * sandbox's stores, which the fake bridge serves.
  */
-const seedCloudThread = async (
-  app: FakeApp,
-): Promise<{ threadId: ThreadId }> => {
+const seedCloudThread = async (app: FakeApp): Promise<{ threadId: ThreadId }> => {
   const thread = await app.threads.create({ workspace: FAKE_CONFIG.cwd, repo: null })
-  await app.threads.chooseExecutionLocation({ threadId: thread.id, location: EExecutionLocation.Cloud })
+  await app.threads.chooseExecutionLocation({
+    threadId: thread.id,
+    location: EExecutionLocation.Cloud,
+  })
   await app.threads.rename({ threadId: thread.id, title: 'the cloud thread' })
   return { threadId: thread.id }
 }
@@ -217,7 +217,10 @@ describe('opening a conversation that lives in the cloud', () => {
   it('keeps the meta saying cloud and warns when the boot attach fails', async () => {
     const app = speaking()
     const { threadId } = await seedCloudThread(app)
-    const bridge = fakeBridge({ status: RUNNING_STATUS, createFails: new Error('the sandbox could not wake') })
+    const bridge = fakeBridge({
+      status: RUNNING_STATUS,
+      createFails: new Error('the sandbox could not wake'),
+    })
     const mounted = await mount({
       app,
       bridge,
@@ -254,11 +257,20 @@ describe('opening a conversation that lives in the cloud', () => {
     const mounted = await mount({
       app,
       bridge,
-      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
+      opened: {
+        threadId: THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: false,
+        bootCloudThreadId: threadId,
+      },
     })
 
     try {
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
       expect(bridge.created).toEqual([{ threadId, projectId: 'proj_1' }])
     } finally {
       await mounted.done()
@@ -284,7 +296,14 @@ describe('opening a conversation that lives in the cloud', () => {
     const mounted = await mount({
       app,
       bridge,
-      opened: { threadId: THREAD, events: [], turns: [], name: null, started: false, bootCloudThreadId: threadId },
+      opened: {
+        threadId: THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: false,
+        bootCloudThreadId: threadId,
+      },
     })
 
     try {
@@ -293,7 +312,9 @@ describe('opening a conversation that lives in the cloud', () => {
       expect(failed.location).toBe(EExecutionLocation.Cloud)
       expect(failed.bound).toBe(false)
       expect(() => app.sessionOwner.require()).toThrow('not attached')
-      expect(currentNotices().some((notice) => notice.text.includes('the sandbox could not wake'))).toBe(true)
+      expect(
+        currentNotices().some((notice) => notice.text.includes('the sandbox could not wake')),
+      ).toBe(true)
       expect(app.sessionOwner.snapshot().threadId).toBe(threadId)
       expect(bridge.attached).toEqual([])
 
@@ -302,7 +323,9 @@ describe('opening a conversation that lives in the cloud', () => {
       await mounted.command('/resume')
       await mounted.typeText('cloud thread')
       await mounted.pick()
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
       const attached = app.sessionOwner.snapshot()
       expect(attached.bound).toBe(true)
       expect(attached.threadId).toBe(threadId)
@@ -312,7 +335,6 @@ describe('opening a conversation that lives in the cloud', () => {
     }
   }, 60_000)
 })
-
 
 describe('the picker badge', () => {
   it('badges a cloud conversation with its sandbox state in the picker', async () => {
@@ -330,7 +352,6 @@ describe('the picker badge', () => {
       await mounted.done()
     }
   }, 60_000)
-
 })
 
 describe('coming back to the host', () => {
@@ -356,7 +377,9 @@ describe('coming back to the host', () => {
       await mounted.command('/resume')
       await mounted.typeText('cloud thread')
       await mounted.pick()
-      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(true)
+      expect(await until({ holds: async () => bridge.attached.length === 1, within: 10_000 })).toBe(
+        true,
+      )
       await mounted.showing('said inside the sandbox')
 
       await mounted.command('/resume')

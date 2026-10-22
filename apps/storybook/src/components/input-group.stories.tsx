@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CopyIcon, SearchIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { CopyIcon, SearchIcon } from 'lucide-react'
 
 import {
   InputGroup,
@@ -8,11 +8,11 @@ import {
   InputGroupInput,
   InputGroupText,
   InputGroupTextarea,
-} from "@dltech/atlas-ui/components/input-group";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
+} from '@dltech/atlas-ui/components/input-group'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 const meta = {
-  title: "Components/Input Group",
+  title: 'Components/Input Group',
   component: InputGroup,
   decorators: [
     (Story) => (
@@ -21,11 +21,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof InputGroup>;
+} satisfies Meta<typeof InputGroup>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -39,7 +39,7 @@ export const Default: Story = {
       </InputGroupAddon>
     </InputGroup>
   ),
-};
+}
 
 export const WithButton: Story = {
   render: () => (
@@ -52,7 +52,7 @@ export const WithButton: Story = {
       </InputGroupAddon>
     </InputGroup>
   ),
-};
+}
 
 export const Loading: Story = {
   render: () => (
@@ -63,7 +63,7 @@ export const Loading: Story = {
       </InputGroupAddon>
     </InputGroup>
   ),
-};
+}
 
 export const Textarea: Story = {
   render: () => (
@@ -77,4 +77,4 @@ export const Textarea: Story = {
       </InputGroupAddon>
     </InputGroup>
   ),
-};
+}

@@ -84,7 +84,10 @@ export const pullRequestSurface = (args: {
           : { recordDismissal: args.recordAppInstallDismissal }),
       })
 
-      const footerItem = useMemo(() => pullRequestItem({ footer, onOpen: openUrl }), [footer, openUrl])
+      const footerItem = useMemo(
+        () => pullRequestItem({ footer, onOpen: openUrl }),
+        [footer, openUrl],
+      )
 
       return useMemo(() => ({ footerItem, sidebarSection: section }), [footerItem, section])
     },

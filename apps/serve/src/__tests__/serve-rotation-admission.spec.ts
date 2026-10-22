@@ -9,46 +9,83 @@ import { createServeDriver } from '../serve-driver'
 import { createServeRotationRecovery } from '../serve-rotation-recovery'
 import { createServeWorkspaceSession } from '../serve-workspace-session'
 import { fakeServeApp } from './fakes'
-import { cleanupRotationFixtures, gate, replacementSession, rotationFixture, threadId, token } from './serve-rotation-fixture'
+import {
+  cleanupRotationFixtures,
+  gate,
+  replacementSession,
+  rotationFixture,
+  threadId,
+  token,
+} from './serve-rotation-fixture'
 
 const noop = (): void => undefined
 
 afterEach(cleanupRotationFixtures)
 
-const rig = async (args: {
-  adopt?: () => Promise<void>
-  freeze?: () => Promise<void>
-  release?: () => Promise<void>
-  sealFailsOnce?: boolean
-} = {}) => {
+const rig = async (
+  args: {
+    adopt?: () => Promise<void>
+    freeze?: () => Promise<void>
+    release?: () => Promise<void>
+    sealFailsOnce?: boolean
+  } = {},
+) => {
   const fixture = await rotationFixture()
   let parentStarts = 0
   let familyResumes = 0
   let adoptions = 0
   let sealing = 0
   const app = fakeServeApp({
-    threadId, root: '/workspace', intake: true, log: fixture.store.log,
-    adoptChildren: async () => { adoptions += 1; await args.adopt?.(); return [] },
+    threadId,
+    root: '/workspace',
+    intake: true,
+    log: fixture.store.log,
+    adoptChildren: async () => {
+      adoptions += 1
+      await args.adopt?.()
+      return []
+    },
     family: {
-      freeze: async () => { await args.freeze?.() },
+      freeze: async () => {
+        await args.freeze?.()
+      },
       pauseChildren: async () => undefined,
-      resumeChildren: async () => { familyResumes += 1; await args.release?.() },
+      resumeChildren: async () => {
+        familyResumes += 1
+        await args.release?.()
+      },
     },
   })
   const resume = app.runner.resume
-  app.runner.resume = (given) => { parentStarts += 1; return resume(given) }
+  app.runner.resume = (given) => {
+    parentStarts += 1
+    return resume(given)
+  }
   const recovery = await createServeRotationRecovery({
-    atlasHome: fixture.home, threadId, sandboxSessionId: replacementSession, log: noop,
+    atlasHome: fixture.home,
+    threadId,
+    sandboxSessionId: replacementSession,
+    log: noop,
   })
   const session = createServeWorkspaceSession({
-    threadId, app,
-    deferStartChildren: false, log: noop, settling: { count: 0 }, note: noop,
+    threadId,
+    app,
+    deferStartChildren: false,
+    log: noop,
+    settling: { count: 0 },
+    note: noop,
   })
   const checkpoint = bindRuntimeCheckpoint({
     capture: createRuntimeCheckpointCapture({
-      threadId, atlasHome: fixture.home, env: { ATLAS_SANDBOX_SESSION_ID: replacementSession },
-      token, transcript: app.log, log: noop,
-    }), log: noop, publish: noop,
+      threadId,
+      atlasHome: fixture.home,
+      env: { ATLAS_SANDBOX_SESSION_ID: replacementSession },
+      token,
+      transcript: app.log,
+      log: noop,
+    }),
+    log: noop,
+    publish: noop,
   })
   const admissionClosed = (): boolean => {
     if (recovery.admissionLatched) return true
@@ -57,13 +94,22 @@ const rig = async (args: {
   }
   await recovery.guard({ app, checkpoint })
   const driver = createServeDriver({
-    app, threadId, workspace: { state: EWorkspaceState.Skipped },
-    log: noop, idleStop: () => ({ note: noop }), emitLifecycle: recovery.consume,
+    app,
+    threadId,
+    workspace: { state: EWorkspaceState.Skipped },
+    log: noop,
+    idleStop: () => ({ note: noop }),
+    emitLifecycle: recovery.consume,
   })
   const drain = bindServeDrain({
-    app, driver, threadId, atlasHome: fixture.home, sandboxSessionId: replacementSession,
+    app,
+    driver,
+    threadId,
+    atlasHome: fixture.home,
+    sandboxSessionId: replacementSession,
     owed: recovery.owed,
-    haltIdle: noop, whenMutationsSettled: async () => undefined,
+    haltIdle: noop,
+    whenMutationsSettled: async () => undefined,
     checkpoint: {
       ...checkpoint,
       finalizeRotation: async (given) => {
@@ -72,11 +118,23 @@ const rig = async (args: {
         await checkpoint.finalizeRotation(given)
       },
     },
-    close: async () => undefined, exit: noop, log: noop,
+    close: async () => undefined,
+    exit: noop,
+    log: noop,
   })
-  return { app, admissionClosed, checkpoint, recovery, session, driver, drain,
-    parentStarts: () => parentStarts, familyResumes: () => familyResumes,
-    adoptions: () => adoptions, sealing: () => sealing }
+  return {
+    app,
+    admissionClosed,
+    checkpoint,
+    recovery,
+    session,
+    driver,
+    drain,
+    parentStarts: () => parentStarts,
+    familyResumes: () => familyResumes,
+    adoptions: () => adoptions,
+    sealing: () => sealing,
+  }
 }
 
 describe('recovery admission while another rotation starts', () => {
@@ -110,7 +168,12 @@ describe('recovery admission while another rotation starts', () => {
   it('waits for an accepted recovery release but never reopens admission when its family callback returns', async () => {
     const entered = gate()
     const held = gate()
-    const entry = await rig({ release: async () => { entered.release(); await held.promise } })
+    const entry = await rig({
+      release: async () => {
+        entered.release()
+        await held.promise
+      },
+    })
     const recovering = entry.recovery.recover(entry)
     await entered.promise
     const draining = entry.recovery.drain({ drain: entry.drain, reason: 'next rotation' })
@@ -130,8 +193,9 @@ describe('recovery admission while another rotation starts', () => {
     const entry = await rig({ sealFailsOnce: true })
     await entry.recovery.recover(entry)
     expect(entry.admissionClosed()).toBe(false)
-    await expect(entry.recovery.drain({ drain: entry.drain, reason: 'failed rotation' }))
-      .rejects.toThrow('seal failed')
+    await expect(
+      entry.recovery.drain({ drain: entry.drain, reason: 'failed rotation' }),
+    ).rejects.toThrow('seal failed')
     expect(entry.admissionClosed()).toBe(false)
     const proof = await entry.recovery.drain({ drain: entry.drain, reason: 'rotation retry' })
     expect(proof.ok).toBe(true)

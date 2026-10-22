@@ -20,7 +20,11 @@ import {
   type DevServeSourceProbe,
 } from './dev-serve-key'
 
-export type DevServeBuild = (args: { repo: string; outfile: string; target: ELinuxServeTarget }) => Promise<void>
+export type DevServeBuild = (args: {
+  repo: string
+  outfile: string
+  target: ELinuxServeTarget
+}) => Promise<void>
 
 export type DevServeDeps = {
   repo: () => Promise<string | null>
@@ -40,9 +44,13 @@ const tailOf = (text: string): string => {
   return trimmed.length <= FAILURE_TAIL_CHARS ? trimmed : `…${trimmed.slice(-FAILURE_TAIL_CHARS)}`
 }
 
-const bunExecutable = (): string => (basename(process.execPath).startsWith('bun') ? process.execPath : 'bun')
+const bunExecutable = (): string =>
+  basename(process.execPath).startsWith('bun') ? process.execPath : 'bun'
 
-export const devServeBuildArgvOf = (args: { target: ELinuxServeTarget; outfile: string }): string[] => [
+export const devServeBuildArgvOf = (args: {
+  target: ELinuxServeTarget
+  outfile: string
+}): string[] => [
   bunExecutable(),
   'scripts/build-serve.ts',
   '--target',
@@ -65,10 +73,13 @@ export const buildDevServeWithBun: DevServeBuild = async ({ repo, outfile, targe
   ])
   if (code === 0) return
   const output = tailOf(stderr.length > 0 ? stderr : stdout)
-  throw new Error(`the dev serve build failed (exit ${code}): ${output.length > 0 ? output : 'no output'}`)
+  throw new Error(
+    `the dev serve build failed (exit ${code}): ${output.length > 0 ? output : 'no output'}`,
+  )
 }
 
-const secondsSince = (args: { start: number; now: number }): string => ((args.now - args.start) / 1000).toFixed(1)
+const secondsSince = (args: { start: number; now: number }): string =>
+  ((args.now - args.start) / 1000).toFixed(1)
 
 const inputsLabel = (inputKey: string): string => inputKey.slice(0, 8)
 
@@ -79,7 +90,8 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
 
   const sourceKey = async (repo: string): Promise<string> => {
     const source = await deps.probe({ repo })
-    if (source === null) throw new Error(`cannot pin a dev serve: ${repo} is not a readable git checkout`)
+    if (source === null)
+      throw new Error(`cannot pin a dev serve: ${repo} is not a readable git checkout`)
     return devServeCacheKeyOf({ source, target: deps.target })
   }
 
@@ -93,7 +105,8 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
       target: deps.target,
       now: deps.now(),
     })
-    if (cached !== null) args.log(`dev serve ${cached.version} cached (inputs ${inputsLabel(args.inputKey)})`)
+    if (cached !== null)
+      args.log(`dev serve ${cached.version} cached (inputs ${inputsLabel(args.inputKey)})`)
     return cached
   }
 
@@ -140,7 +153,8 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
   return async ({ log }) => {
     const narrate = log ?? (() => undefined)
     const repo = await deps.repo()
-    if (repo === null) throw new Error('cannot pin a dev serve: this Atlas build has no source checkout')
+    if (repo === null)
+      throw new Error('cannot pin a dev serve: this Atlas build has no source checkout')
 
     const inputKey = await sourceKey(repo)
     const shared = inFlight.get(inputKey)
@@ -151,7 +165,9 @@ export function createDevServeResolver(deps: DevServeDeps): DevServeResolver {
     const sharedAfterRead = inFlight.get(inputKey)
     if (sharedAfterRead !== undefined) return sharedAfterRead
 
-    const resolving = processWideBuildQueue.then(() => buildAndStore({ repo, inputKey, log: narrate }))
+    const resolving = processWideBuildQueue.then(() =>
+      buildAndStore({ repo, inputKey, log: narrate }),
+    )
     processWideBuildQueue = resolving.catch(() => undefined)
     inFlight.set(inputKey, resolving)
     try {

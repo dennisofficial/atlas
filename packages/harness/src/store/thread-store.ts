@@ -124,10 +124,7 @@ export abstract class ThreadStorePort {
     enrich?: readonly ThreadId[] | undefined
   }): Promise<readonly ThreadSummary[]>
   /** Resume-by-name lookup; uncapped, where `list`'s limit is the picker's display window. */
-  abstract findNamed(args: {
-    project: string
-    handle: string
-  }): Promise<ThreadSummary | undefined>
+  abstract findNamed(args: { project: string; handle: string }): Promise<ThreadSummary | undefined>
   abstract rename(args: { threadId: ThreadId; title: string }): Promise<void>
   abstract chooseModel(args: {
     threadId: ThreadId

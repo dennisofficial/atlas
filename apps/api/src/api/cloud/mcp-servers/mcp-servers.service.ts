@@ -108,13 +108,18 @@ export class McpServersService {
 
   async remove(args: { userId: string; name: string }): Promise<void> {
     assertValidName(args.name)
-    await db.orm.public.UserMcpServer.where({ userId: args.userId, name: args.name }).deleteAndCount()
+    await db.orm.public.UserMcpServer.where({
+      userId: args.userId,
+      name: args.name,
+    }).deleteAndCount()
   }
 
   private toServerDto(row: Row<'UserMcpServer'>): McpServerDto {
-    const spec = toMcpSpec(JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
-      name: string
-    })
+    const spec = toMcpSpec(
+      JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
+        name: string
+      },
+    )
     return { ...spec, updatedAt: row.updatedAt.toISOString() }
   }
 }

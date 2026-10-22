@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Card,
   CardAction,
@@ -10,18 +10,18 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@dltech/atlas-ui/components/card";
+} from '@dltech/atlas-ui/components/card'
 
 const meta = {
-  title: "Components/Card",
+  title: 'Components/Card',
   component: Card,
-  argTypes: { size: { control: "inline-radio", options: ["default", "sm"] } },
-  args: { size: "default" },
-} satisfies Meta<typeof Card>;
+  argTypes: { size: { control: 'inline-radio', options: ['default', 'sm'] } },
+  args: { size: 'default' },
+} satisfies Meta<typeof Card>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -34,8 +34,8 @@ export const Default: Story = {
         </CardAction>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">
-        The client retries three times with backoff, then surfaces a disconnected
-        banner. Two specs still race on the reconnect timer.
+        The client retries three times with backoff, then surfaces a disconnected banner. Two specs
+        still race on the reconnect timer.
       </CardContent>
       <CardFooter className="gap-2">
         <Button size="sm">Open</Button>
@@ -45,12 +45,12 @@ export const Default: Story = {
       </CardFooter>
     </Card>
   ),
-};
+}
 
 export const Small: Story = {
-  args: { size: "sm" },
+  args: { size: 'sm' },
   render: Default.render,
-};
+}
 
 export const ContentOnly: Story = {
   render: (args) => (
@@ -60,4 +60,4 @@ export const ContentOnly: Story = {
       </CardContent>
     </Card>
   ),
-};
+}

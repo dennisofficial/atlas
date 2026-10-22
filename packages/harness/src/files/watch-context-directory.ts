@@ -21,7 +21,9 @@ export type WatchSeams = {
 }
 
 const scheduleTimeout: Schedule = ({ run, delayMs }) => {
-  const timer = setTimeout(() => { void run() }, delayMs)
+  const timer = setTimeout(() => {
+    void run()
+  }, delayMs)
   timer.unref()
   return () => clearTimeout(timer)
 }
@@ -57,13 +59,23 @@ export function watchContextDirectory(
         watcher = watchPath(held, { recursive: held === root }, (_event, name) => {
           if (stopped) return
           const changed = name == null ? held : join(held, name)
-          if (changed !== context && !changed.startsWith(`${context}/`) && !context.startsWith(`${changed}/`)) return
+          if (
+            changed !== context &&
+            !changed.startsWith(`${context}/`) &&
+            !context.startsWith(`${changed}/`)
+          )
+            return
           delivered = true
           if (held !== root) attach({ initial: false })
           args.onChange()
         })
       } catch (error) {
-        if (ancestor === home || !(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+        if (
+          ancestor === home ||
+          !(error instanceof Error) ||
+          !('code' in error) ||
+          error.code !== 'ENOENT'
+        ) {
           args.onChange()
           return
         }
@@ -91,12 +103,21 @@ export function watchContextDirectory(
         },
         delayMs: ATTACH_RECHECK_DELAY_MS,
       })
-      close = () => { cancelRecheck(); watcher.close() }
-      if (initial && args.catchUp === true) queueMicrotask(() => { if (!stopped) args.onChange() })
+      close = () => {
+        cancelRecheck()
+        watcher.close()
+      }
+      if (initial && args.catchUp === true)
+        queueMicrotask(() => {
+          if (!stopped) args.onChange()
+        })
       return
     }
   }
 
   attach({ initial: true })
-  return () => { stopped = true; close() }
+  return () => {
+    stopped = true
+    close()
+  }
 }

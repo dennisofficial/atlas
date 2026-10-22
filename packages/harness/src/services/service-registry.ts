@@ -144,8 +144,11 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   }
 
   override settling(): boolean {
-    return this.recordingStarts > 0 || [...this.tracked.values()].some(
-      (entry) => entry.service.snapshot().status !== EServiceStatus.Running && !entry.announced,
+    return (
+      this.recordingStarts > 0 ||
+      [...this.tracked.values()].some(
+        (entry) => entry.service.snapshot().status !== EServiceStatus.Running && !entry.announced,
+      )
     )
   }
 
@@ -184,7 +187,10 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     )
     const deaths = await Promise.all(
       signalled.map((entry) =>
-        diedWithin(ms, entry.service.exited.then(() => entry.ending)),
+        diedWithin(
+          ms,
+          entry.service.exited.then(() => entry.ending),
+        ),
       ),
     )
     return deaths.filter((died) => !died).length

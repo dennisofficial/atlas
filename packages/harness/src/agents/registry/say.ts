@@ -17,7 +17,13 @@ import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentJournal } from './agent-journal'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentOutcome } from './port'
-import { NOT_A_TEAMMATE, notYourTeammate, reportNotRecorded, retiredAgentType, unknownAgent } from './reasons'
+import {
+  NOT_A_TEAMMATE,
+  notYourTeammate,
+  reportNotRecorded,
+  retiredAgentType,
+  unknownAgent,
+} from './reasons'
 import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
 import type { AgentRoster } from './roster'
@@ -97,7 +103,9 @@ async function deliverAdmitted({
   try {
     if (input !== undefined) {
       input.submit({
-        threadId: args.agentId, text: args.text, via,
+        threadId: args.agentId,
+        text: args.text,
+        via,
         ...(args.images === undefined ? {} : { images: args.images }),
         ...(args.files === undefined ? {} : { files: args.files }),
       })

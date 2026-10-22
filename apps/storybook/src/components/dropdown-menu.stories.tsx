@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { MoreHorizontalIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { MoreHorizontalIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -17,16 +17,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
+} from '@dltech/atlas-ui/components/dropdown-menu'
 
 const meta = {
-  title: "Components/Dropdown Menu",
+  title: 'Components/Dropdown Menu',
   component: DropdownMenu,
-} satisfies Meta<typeof DropdownMenu>;
+} satisfies Meta<typeof DropdownMenu>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -55,7 +55,7 @@ export const Default: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-};
+}
 
 export const CheckboxesAndRadios: Story = {
   render: () => (
@@ -79,12 +79,14 @@ export const CheckboxesAndRadios: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-};
+}
 
 export const IconTrigger: Story = {
   render: () => (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="More actions" />}>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" aria-label="More actions" />}
+      >
         <MoreHorizontalIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -95,4 +97,4 @@ export const IconTrigger: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-};
+}

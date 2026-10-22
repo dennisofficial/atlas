@@ -50,9 +50,7 @@ export type PullRequestBadgeKey =
   | { kind: 'linked'; repo: string; number: number }
 
 export const pullRequestBadgeKeyString = (args: PullRequestBadgeKey): string =>
-  args.kind === 'checkout'
-    ? checkoutKey(args.checkout)
-    : `${args.repo}#${args.number}`
+  args.kind === 'checkout' ? checkoutKey(args.checkout) : `${args.repo}#${args.number}`
 
 export abstract class PullRequestPort {
   abstract read(request: { checkout: RepositoryCheckout }): Promise<PullRequestReading>

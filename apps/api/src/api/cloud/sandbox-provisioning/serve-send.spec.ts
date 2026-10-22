@@ -2,7 +2,13 @@ import { EClientFrame, EServeFrame } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
 import { deliverToServe, type ServeSocketHandlers } from './serve-send'
 
-const DELIVERY = { url: 'https://serve.example.test/', token: 'tok', threadId: 'thr-1', sendId: 'snd-1', text: 'hi' }
+const DELIVERY = {
+  url: 'https://serve.example.test/',
+  token: 'tok',
+  threadId: 'thr-1',
+  sendId: 'snd-1',
+  text: 'hi',
+}
 
 function fakeSocket() {
   const sent: string[] = []
@@ -31,8 +37,12 @@ describe('deliverToServe', () => {
     const delivery = deliverToServe({ ...DELIVERY, openSocket: socket.open })
 
     socket.handlers().handleOpen()
-    socket.handlers().handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'other' }))
-    socket.handlers().handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'snd-1' }))
+    socket
+      .handlers()
+      .handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'other' }))
+    socket
+      .handlers()
+      .handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'snd-1' }))
     await delivery
 
     expect(socket.opened()).toEqual({
@@ -50,7 +60,9 @@ describe('deliverToServe', () => {
     const socket = fakeSocket()
     const delivery = deliverToServe({ ...DELIVERY, openSocket: socket.open })
 
-    socket.handlers().handleMessage(JSON.stringify({ kind: EServeFrame.Error, message: 'protocol mismatch' }))
+    socket
+      .handlers()
+      .handleMessage(JSON.stringify({ kind: EServeFrame.Error, message: 'protocol mismatch' }))
 
     await expect(delivery).rejects.toThrow('protocol mismatch')
     expect(socket.closedCount()).toBe(1)
@@ -68,9 +80,9 @@ describe('deliverToServe', () => {
   it('rejects on timeout and closes', async () => {
     const socket = fakeSocket()
 
-    await expect(deliverToServe({ ...DELIVERY, timeoutMs: 10, openSocket: socket.open })).rejects.toThrow(
-      'did not acknowledge',
-    )
+    await expect(
+      deliverToServe({ ...DELIVERY, timeoutMs: 10, openSocket: socket.open }),
+    ).rejects.toThrow('did not acknowledge')
     expect(socket.closedCount()).toBe(1)
   })
 })

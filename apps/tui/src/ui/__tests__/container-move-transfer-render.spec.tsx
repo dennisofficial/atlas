@@ -66,7 +66,11 @@ describe('a transfer on the active row', () => {
     const frame = await frameOf(
       overlay({
         move: moveWith(
-          reading({ transferId: 'workspace-download', label: 'downloading workspace', transferredBytes: 10 * MIB }),
+          reading({
+            transferId: 'workspace-download',
+            label: 'downloading workspace',
+            transferredBytes: 10 * MIB,
+          }),
         ),
       }),
       80,
@@ -107,10 +111,7 @@ describe('a transfer on the active row', () => {
   })
 
   it('shows bytes alone when the total is unknown', async () => {
-    const frame = await frameOf(
-      overlay({ move: moveWith(reading({ totalBytes: undefined })) }),
-      80,
-    )
+    const frame = await frameOf(overlay({ move: moveWith(reading({ totalBytes: undefined })) }), 80)
 
     expect(frame).toContain('uploading workspace')
     expect(frame).toContain('5.0 MiB')
@@ -139,7 +140,12 @@ describe('a transfer on the active row', () => {
       overlay({
         move: moveWith(
           reading(),
-          reading({ transferId: 'session-upload', label: 'uploading conversation', transferredBytes: 1, totalBytes: 4 }),
+          reading({
+            transferId: 'session-upload',
+            label: 'uploading conversation',
+            transferredBytes: 1,
+            totalBytes: 4,
+          }),
         ),
       }),
       80,
@@ -155,7 +161,12 @@ describe('an archive build on the active row', () => {
     const frame = await frameOf(
       overlay({
         move: moveWith(
-          reading({ transferId: 'archive-build-workspace', label: 'packing the workspace', transferredBytes: 3 * MIB, totalBytes: undefined }),
+          reading({
+            transferId: 'archive-build-workspace',
+            label: 'packing the workspace',
+            transferredBytes: 3 * MIB,
+            totalBytes: undefined,
+          }),
         ),
       }),
       80,

@@ -51,7 +51,11 @@ describe('ThreadsHistoryService', () => {
     await seedThreadWithEvents(['user-said', 'assistant-said'])
     await seedThreadRow({ id: 'brn_agent_lost', spawnerThreadId: 'brn_one', agentType: 'explore' })
     await seedThreadRow({ id: 'brn_agent_kept', spawnerThreadId: 'brn_one', agentType: 'explore' })
-    await seedThreadRow({ id: 'brn_grandchild', spawnerThreadId: 'brn_agent_kept', agentType: 'builder' })
+    await seedThreadRow({
+      id: 'brn_grandchild',
+      spawnerThreadId: 'brn_agent_kept',
+      agentType: 'builder',
+    })
 
     await service.rewind({
       userId: USER_A,

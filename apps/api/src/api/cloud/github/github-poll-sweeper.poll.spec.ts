@@ -23,7 +23,7 @@ describe('GithubPollSweeperService polling', () => {
   it('polls a live poll-backed subscription as its user and pushes the diff', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
 
     const received: unknown[] = []
@@ -38,13 +38,17 @@ describe('GithubPollSweeperService polling', () => {
       repo: 'app',
       number: 42,
     })
-    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, checksFailed: 1, mergeable: false })
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      checksFailed: 1,
+      mergeable: false,
+    })
     expect(received).toHaveLength(1)
   })
 
   it('skips expired subscriptions', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription({
       id: 'sub-2',
       prNumber: 7,
@@ -60,7 +64,7 @@ describe('GithubPollSweeperService polling', () => {
   it('re-anchors a hook-backed subscription whose state row is missing', async () => {
     vi.useFakeTimers()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription({ pollBacked: false })
 
     const received: unknown[] = []
@@ -81,7 +85,7 @@ describe('GithubPollSweeperService polling', () => {
 
   it('re-anchors a hook-backed subscription whose state row has gone quiet', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription({ pollBacked: false })
     await seedPrState({ updatedAt: new Date(Date.now() - 11 * 60 * 1_000) })
 
@@ -92,7 +96,7 @@ describe('GithubPollSweeperService polling', () => {
 
   it('leaves a hook-backed subscription alone while webhooks keep its state row fresh', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription({ pollBacked: false })
     await seedPrState({ updatedAt: new Date(Date.now() - 2 * 60 * 1_000) })
 
@@ -116,7 +120,7 @@ describe('GithubPollSweeperService polling', () => {
     const readPullRequest = vi.fn(async () => {
       throw new GithubUserReadFailed('bad credentials', 401)
     })
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_dead' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_dead' }, readPullRequest })
     await seedSubscription()
 
     await expect(service.handlePoll()).resolves.toBeUndefined()

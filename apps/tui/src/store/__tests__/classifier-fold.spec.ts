@@ -91,7 +91,6 @@ describe('the pauses-per-turn figure', () => {
   it('names no dimension when nothing ever paused', () => {
     expect(foldOf([said('one'), weighed({})])?.topDimension).toBeNull()
   })
-
 })
 
 describe('the offline reading', () => {

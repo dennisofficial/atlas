@@ -7,10 +7,7 @@ import type {
   RegisteredPortName,
 } from '../ports/registry'
 
-import type { EventLogPort } from '../ports/event-log.port'
-import type { NoticePort } from '../ports/notice.port'
 import type { ClockPort } from '../ports/clock.port'
-import type { AccountStorePort } from '../ports/account-store.port'
 
 type Expect<T extends true> = T
 type Equal<A, B> =

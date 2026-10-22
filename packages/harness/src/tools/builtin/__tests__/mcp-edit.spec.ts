@@ -112,7 +112,10 @@ describe('McpEditTool', () => {
     })
 
     expect(outcome).toMatchObject({ ok: true })
-    const text = JSON.parse(await Bun.file(join(root, '.atlas', 'mcp.json')).text()) as Record<string, unknown>
+    const text = JSON.parse(await Bun.file(join(root, '.atlas', 'mcp.json')).text()) as Record<
+      string,
+      unknown
+    >
     expect('disabled' in Object(text['linear'])).toBe(false)
   })
 
@@ -197,10 +200,13 @@ describe('McpEditTool with a cloud session', () => {
     })
     sessions.write({ url: 'http://cloud.test', token: 'sess_a', email: 'a@b.c' })
     calls = []
-    globalThis.fetch = Object.assign(async (input: string | URL | Request) => {
-      calls.push(String(input))
-      throw new Error('Atlas Cloud is offline')
-    }, { preconnect: realFetch.preconnect })
+    globalThis.fetch = Object.assign(
+      async (input: string | URL | Request) => {
+        calls.push(String(input))
+        throw new Error('Atlas Cloud is offline')
+      },
+      { preconnect: realFetch.preconnect },
+    )
   })
 
   afterEach(() => {
@@ -233,5 +239,3 @@ describe('McpEditTool with a cloud session', () => {
     expect(await Bun.file(join(root, 'mcp.json')).json()).toEqual({})
   })
 })
-
-

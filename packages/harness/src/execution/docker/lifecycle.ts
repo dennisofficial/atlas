@@ -22,11 +22,7 @@ export type LifecycleEngine = Pick<
   'listContainers' | 'listNetworks' | 'stopContainer' | 'removeContainer' | 'removeNetwork'
 >
 
-const findBySession = async (args: {
-  engine: LifecycleEngine
-  prefix: string
-  session: string
-}) =>
+const findBySession = async (args: { engine: LifecycleEngine; prefix: string; session: string }) =>
   args.engine.listContainers({
     labels: { [sessionLabel(args.prefix)]: args.session },
     all: true,
@@ -242,7 +238,11 @@ export class ReclaimWorktreeSandboxHook extends AfterToolHook {
     const exited = exitedWorktreeOf(result.output)
     if (exited === undefined || exited.action !== EWorktreeExit.Remove) return {}
 
-    await removeSandboxesAtWorktree({ engine: this.engine, worktree: exited.path, prefix: this.prefix })
+    await removeSandboxesAtWorktree({
+      engine: this.engine,
+      worktree: exited.path,
+      prefix: this.prefix,
+    })
     return {}
   }
 }

@@ -42,17 +42,23 @@ for (const adapter of shellAdapters) {
         if (!theirs.ok) throw new Error(theirs.reason)
         await settle({ registry, shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })
 
-        expect((await registry.read({ shellId: theirs.snapshot.shellId, threadId: THREAD })).ok).toBe(false)
         expect(
-          await registry.peek({ shellId: theirs.snapshot.shellId, characters: 100, threadId: THREAD }),
+          (await registry.read({ shellId: theirs.snapshot.shellId, threadId: THREAD })).ok,
+        ).toBe(false)
+        expect(
+          await registry.peek({
+            shellId: theirs.snapshot.shellId,
+            characters: 100,
+            threadId: THREAD,
+          }),
         ).toBeUndefined()
         expect(
           registry.kill({ shellId: theirs.snapshot.shellId, by: EKilledBy.Model, threadId: THREAD })
             .ok,
         ).toBe(false)
-        expect((await registry.read({ shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })).ok).toBe(
-          true,
-        )
+        expect(
+          (await registry.read({ shellId: theirs.snapshot.shellId, threadId: ELSEWHERE })).ok,
+        ).toBe(true)
       })
 
       it('announces an ending only to the thread that started the shell', async () => {

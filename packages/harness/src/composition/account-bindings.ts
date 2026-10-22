@@ -56,7 +56,10 @@ export async function bindAccounts(args: {
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
     ...(credentials instanceof CloudManagedCredentialPort
-      ? { handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) => credentials.handoffAll(session, accountIds) }
+      ? {
+          handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) =>
+            credentials.handoffAll(session, accountIds),
+        }
       : {}),
   })
 
@@ -67,12 +70,16 @@ export async function bindAccounts(args: {
   const accounts = new AccountsService({
     accounts: accountStore,
     clients: builtinOauthClients({ clock: container.resolve(registeredPortToken(ClockPort)) }),
-    ...(credentials instanceof CloudManagedCredentialPort ? {
-      onOauthLogin: (account: Account) =>
-        credentials.read({ provider: account.provider, accountId: account.id }).then(() => undefined),
-      prepareOauthReplacement: (replacement: { accountId: AccountId; secret: AccountSecret }) =>
-        credentials.prepareReplacement(replacement),
-    } : {}),
+    ...(credentials instanceof CloudManagedCredentialPort
+      ? {
+          onOauthLogin: (account: Account) =>
+            credentials
+              .read({ provider: account.provider, accountId: account.id })
+              .then(() => undefined),
+          prepareOauthReplacement: (replacement: { accountId: AccountId; secret: AccountSecret }) =>
+            credentials.prepareReplacement(replacement),
+        }
+      : {}),
   })
   const usage = createAccountUsageService({
     usage: new RoutedAccountUsage({

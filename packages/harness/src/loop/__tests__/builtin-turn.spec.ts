@@ -57,9 +57,7 @@ async function openWorkspace(scriptFor: (workspace: string) => readonly Scripted
       dispatch: new HookedToolDispatcher({
         registry,
         hooks: new HookChain({
-          beforeTool: [
-            createReadBeforeWriteHook({ seen: viewed, tools: declarations }),
-          ],
+          beforeTool: [createReadBeforeWriteHook({ seen: viewed, tools: declarations })],
           afterTool: [createRecordFileStateHook({ seen: viewed, tools: declarations })],
         }),
       }),
@@ -72,10 +70,7 @@ async function openWorkspace(scriptFor: (workspace: string) => readonly Scripted
   return { harness, workspace, runner, threadId: thread.id, seen }
 }
 
-const resultOf = (args: {
-  events: readonly Event[]
-  name: string
-}): EventOfType<'tool-result'> => {
+const resultOf = (args: { events: readonly Event[]; name: string }): EventOfType<'tool-result'> => {
   const found = args.events.find(
     (event): event is EventOfType<'tool-result'> =>
       event.type === 'tool-result' && event.name === args.name,
@@ -85,7 +80,9 @@ const resultOf = (args: {
 }
 
 const denialOf = (events: readonly Event[]): EventOfType<'tool-denied'> => {
-  const found = events.find((event): event is EventOfType<'tool-denied'> => event.type === 'tool-denied')
+  const found = events.find(
+    (event): event is EventOfType<'tool-denied'> => event.type === 'tool-denied',
+  )
   if (found === undefined) throw new Error('no tool denial was recorded')
   return found
 }
@@ -120,7 +117,11 @@ describe('a turn that drives a real builtin tool', () => {
           {
             callId: 'call-2',
             name: 'edit',
-            input: { path: join(root, 'beta.ts'), oldString: 'let x = 1', newString: 'const x = 2' },
+            input: {
+              path: join(root, 'beta.ts'),
+              oldString: 'let x = 1',
+              newString: 'const x = 2',
+            },
           },
         ],
       },

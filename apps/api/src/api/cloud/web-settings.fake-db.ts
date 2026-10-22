@@ -22,7 +22,11 @@ export async function seedWorkspace(args: {
   }
 }
 
-export async function seedProject(args: { id: string; ownerUserId?: string; organizationId?: string }) {
+export async function seedProject(args: {
+  id: string
+  ownerUserId?: string
+  organizationId?: string
+}) {
   return db.orm.public.Project.create({
     id: args.id,
     name: args.id,

@@ -1,4 +1,9 @@
-import { ESettingPage, type EventLogPort, type QualityHealth, type ThreadId } from '@dltech/atlas-core'
+import {
+  ESettingPage,
+  type EventLogPort,
+  type QualityHealth,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { readQualityHealth, type DeltaChannel } from '@dltech/atlas-harness'
 import { useEffect, useRef, useState } from 'react'
 

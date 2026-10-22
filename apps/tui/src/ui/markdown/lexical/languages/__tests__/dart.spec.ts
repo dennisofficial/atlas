@@ -33,7 +33,7 @@ const source = [
   '  final calc = Doubler();',
   '  const raw = r"a \\n b";',
   "  final banner = '''== ${Calculator.label} ==''';",
-  '  final digits = RegExp(r\'\'\'^\\d+$\'\'\');',
+  "  final digits = RegExp(r'''^\\d+$''');",
   '  print("${add(2, 3)} $banner $raw ${calc.multiply(5, 3)}");',
   "  print(digits.hasMatch('12') ? 'ok' : 'no');",
   '  await Future<void>.delayed(Duration.zero);',
@@ -93,13 +93,9 @@ describe('dart lexical highlighting', () => {
   })
 
   it('reads the null-safety operators as operators', () => {
-    expect(textFor({ spec, source: 'int? a = b ?? c; a ??= d; a?.hash;', group: 'operator' })).toEqual([
-      '?',
-      '=',
-      '??',
-      '??=',
-      '?',
-    ])
+    expect(
+      textFor({ spec, source: 'int? a = b ?? c; a ??= d; a?.hash;', group: 'operator' }),
+    ).toEqual(['?', '=', '??', '??=', '?'])
   })
 
   it('reads a dollar-bearing identifier whole', () => {

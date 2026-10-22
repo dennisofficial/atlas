@@ -14,7 +14,9 @@ export const cloudModelFailureNotice = (): {
   text: "the model change didn't reach the cloud session — the footer is back on what the sandbox is running",
 })
 
-export const modelPersistFailureNotice = (args: { model: string }): {
+export const modelPersistFailureNotice = (args: {
+  model: string
+}): {
   key: string
   tone: ENoticeTone
   text: string

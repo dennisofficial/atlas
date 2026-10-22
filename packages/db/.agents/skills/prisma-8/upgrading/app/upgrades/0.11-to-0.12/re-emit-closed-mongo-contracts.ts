@@ -27,49 +27,49 @@
  *   --check   dry-run; lists directories that would be re-emitted and
  *             exits 1 if any contract.json still lacks closed validators.
  */
-import { execFile } from 'node:child_process';
-import { access, readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { promisify } from 'node:util';
+import { execFile } from 'node:child_process'
+import { access, readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 
-const execFileAsync = promisify(execFile);
+const execFileAsync = promisify(execFile)
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build'])
 
-const dryRun = process.argv.includes('--check');
-const projectRoot = process.cwd();
+const dryRun = process.argv.includes('--check')
+const projectRoot = process.cwd()
 
 async function pathExists(path: string): Promise<boolean> {
   try {
-    await access(path);
-    return true;
+    await access(path)
+    return true
   } catch {
-    return false;
+    return false
   }
 }
 
 async function findPrismaNextConfigDirs(root: string): Promise<string[]> {
-  const out: string[] = [];
+  const out: string[] = []
 
   async function walk(dir: string): Promise<void> {
-    let entries: Awaited<ReturnType<typeof readdir>>;
+    let entries: Awaited<ReturnType<typeof readdir>>
     try {
-      entries = await readdir(dir, { withFileTypes: true });
+      entries = await readdir(dir, { withFileTypes: true })
     } catch {
-      return;
+      return
     }
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (SKIP_DIRS.has(entry.name)) continue;
-        await walk(join(dir, entry.name));
+        if (SKIP_DIRS.has(entry.name)) continue
+        await walk(join(dir, entry.name))
       } else if (entry.isFile() && entry.name === 'prisma.config.ts') {
-        out.push(dir);
+        out.push(dir)
       }
     }
   }
 
-  await walk(root);
-  return out.sort();
+  await walk(root)
+  return out.sort()
 }
 
 function contractJsonCandidates(configDir: string): string[] {
@@ -78,19 +78,19 @@ function contractJsonCandidates(configDir: string): string[] {
     join(configDir, 'src', 'prisma', 'contract.json'),
     join(configDir, 'prisma', 'contract.json'),
     join(configDir, 'contract.json'),
-  ];
+  ]
 }
 
 async function resolveContractJson(configDir: string): Promise<string | null> {
   for (const candidate of contractJsonCandidates(configDir)) {
-    if (await pathExists(candidate)) return candidate;
+    if (await pathExists(candidate)) return candidate
   }
-  return null;
+  return null
 }
 
 async function isMongoContract(contractPath: string): Promise<boolean> {
-  const raw = await readFile(contractPath, 'utf-8');
-  return raw.includes('"kind": "mongo-database"') || raw.includes('"kind":"mongo-database"');
+  const raw = await readFile(contractPath, 'utf-8')
+  return raw.includes('"kind": "mongo-database"') || raw.includes('"kind":"mongo-database"')
 }
 
 /**
@@ -110,93 +110,93 @@ async function isMongoContract(contractPath: string): Promise<boolean> {
  */
 /** Narrows an arbitrary JSON-parsed value to a plain object (non-null, non-array). */
 function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function contractLooksClosed(raw: string): boolean {
-  let parsed: unknown;
+  let parsed: unknown
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw)
   } catch {
-    return false;
+    return false
   }
 
   function isClosed(node: unknown): boolean {
-    if (Array.isArray(node)) return node.every(isClosed);
-    if (!isJsonObject(node)) return true;
+    if (Array.isArray(node)) return node.every(isClosed)
+    if (!isJsonObject(node)) return true
 
-    const hasProperties = isJsonObject(node['properties']);
-    const isPolymorphicTopLevel = Array.isArray(node['oneOf']);
+    const hasProperties = isJsonObject(node['properties'])
+    const isPolymorphicTopLevel = Array.isArray(node['oneOf'])
     if (hasProperties && !isPolymorphicTopLevel && node['additionalProperties'] !== false) {
-      return false;
+      return false
     }
 
-    return Object.values(node).every(isClosed);
+    return Object.values(node).every(isClosed)
   }
 
-  return isClosed(parsed);
+  return isClosed(parsed)
 }
 
 async function packageJsonHasEmitScript(configDir: string): Promise<boolean> {
-  const pkgPath = join(configDir, 'package.json');
-  if (!(await pathExists(pkgPath))) return false;
-  const raw = await readFile(pkgPath, 'utf-8');
+  const pkgPath = join(configDir, 'package.json')
+  if (!(await pathExists(pkgPath))) return false
+  const raw = await readFile(pkgPath, 'utf-8')
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isJsonObject(parsed)) return false;
-    const scripts = parsed['scripts'];
-    if (!isJsonObject(scripts)) return false;
-    return typeof scripts['emit'] === 'string' && scripts['emit'].length > 0;
+    const parsed: unknown = JSON.parse(raw)
+    if (!isJsonObject(parsed)) return false
+    const scripts = parsed['scripts']
+    if (!isJsonObject(scripts)) return false
+    return typeof scripts['emit'] === 'string' && scripts['emit'].length > 0
   } catch {
-    return false;
+    return false
   }
 }
 
 async function runEmit(configDir: string): Promise<void> {
-  const hasEmitScript = await packageJsonHasEmitScript(configDir);
-  const cmd = hasEmitScript ? 'pnpm' : 'pnpm';
-  const args = hasEmitScript ? ['emit'] : ['exec', 'prisma-next', 'contract', 'emit'];
-  await execFileAsync(cmd, args, { cwd: configDir, env: process.env });
+  const hasEmitScript = await packageJsonHasEmitScript(configDir)
+  const cmd = hasEmitScript ? 'pnpm' : 'pnpm'
+  const args = hasEmitScript ? ['emit'] : ['exec', 'prisma-next', 'contract', 'emit']
+  await execFileAsync(cmd, args, { cwd: configDir, env: process.env })
 }
 
-const configDirs = await findPrismaNextConfigDirs(projectRoot);
-const mongoDirs: Array<{ dir: string; contractPath: string }> = [];
+const configDirs = await findPrismaNextConfigDirs(projectRoot)
+const mongoDirs: Array<{ dir: string; contractPath: string }> = []
 
 for (const dir of configDirs) {
-  const contractPath = await resolveContractJson(dir);
-  if (contractPath === null) continue;
-  if (!(await isMongoContract(contractPath))) continue;
-  mongoDirs.push({ dir, contractPath });
+  const contractPath = await resolveContractJson(dir)
+  if (contractPath === null) continue
+  if (!(await isMongoContract(contractPath))) continue
+  mongoDirs.push({ dir, contractPath })
 }
 
 if (mongoDirs.length === 0) {
-  console.error(`No Mongo contract directories found under ${projectRoot}.`);
-  process.exit(1);
+  console.error(`No Mongo contract directories found under ${projectRoot}.`)
+  process.exit(1)
 }
 
-let needsFix = 0;
-let alreadyClean = 0;
+let needsFix = 0
+let alreadyClean = 0
 
 for (const { dir, contractPath } of mongoDirs) {
-  const rel = dir.slice(projectRoot.length + 1) || '.';
-  const raw = await readFile(contractPath, 'utf-8');
+  const rel = dir.slice(projectRoot.length + 1) || '.'
+  const raw = await readFile(contractPath, 'utf-8')
   if (contractLooksClosed(raw)) {
-    alreadyClean += 1;
-    console.log(`OK    ${rel}`);
-    continue;
+    alreadyClean += 1
+    console.log(`OK    ${rel}`)
+    continue
   }
-  needsFix += 1;
+  needsFix += 1
   if (dryRun) {
-    console.log(`WOULD RE-EMIT  ${rel}`);
-    continue;
+    console.log(`WOULD RE-EMIT  ${rel}`)
+    continue
   }
-  console.log(`EMIT  ${rel}`);
-  await runEmit(dir);
+  console.log(`EMIT  ${rel}`)
+  await runEmit(dir)
 }
 
-console.log();
+console.log()
 console.log(
   `${mongoDirs.length} Mongo contract(s): ${needsFix} ${dryRun ? 'needing re-emit' : 're-emitted'}, ${alreadyClean} already closed.`,
-);
+)
 
-if (dryRun && needsFix > 0) process.exit(1);
+if (dryRun && needsFix > 0) process.exit(1)

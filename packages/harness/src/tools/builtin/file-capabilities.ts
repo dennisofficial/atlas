@@ -1,8 +1,4 @@
-import {
-  acceptsFileParts,
-  FileCapabilitiesPort,
-  type ModelCard,
-} from '@dltech/atlas-core'
+import { acceptsFileParts, FileCapabilitiesPort, type ModelCard } from '@dltech/atlas-core'
 
 import type { ModelCardSource } from '../../model/ai-sdk-model-port'
 

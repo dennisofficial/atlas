@@ -62,7 +62,9 @@ describe('isUniqueViolation', () => {
   })
 
   it('rejects a unique violation that names no constraint rather than guessing', () => {
-    expect(isUniqueViolation({ error: sqlError({ sqlState: '23505' }), constraint: 'id' })).toBe(false)
+    expect(isUniqueViolation({ error: sqlError({ sqlState: '23505' }), constraint: 'id' })).toBe(
+      false,
+    )
   })
 })
 

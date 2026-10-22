@@ -8,7 +8,6 @@ import {
   type SkippedFragment,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../container/injection'
 import { isVolatilePromptFragment, type VolatilePromptFragment } from './volatile'
 
 export abstract class PromptRegistry {
@@ -52,7 +51,7 @@ export class InMemoryPromptRegistry extends PromptRegistry {
   private readonly volatile: readonly VolatilePromptFragment[]
   private readonly memo = new Map<string, { stamp: string; compiled: CompiledPrompt }>()
 
-  constructor( fragments: readonly PromptFragment[]) {
+  constructor(fragments: readonly PromptFragment[]) {
     super()
     const ids = new Set<string>()
     for (const fragment of fragments) {

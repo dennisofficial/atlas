@@ -8,10 +8,15 @@ type ContractTable = {
   columns: Record<string, ContractColumn>
   primaryKey?: { columns: string[] }
   uniques: { columns: string[] }[]
-  foreignKeys?: { onDelete?: string; source: { columns: string[] }; target: { columns: string[]; tableName: string } }[]
+  foreignKeys?: {
+    onDelete?: string
+    source: { columns: string[] }
+    target: { columns: string[]; tableName: string }
+  }[]
 }
 
-const contractTables: Record<string, ContractTable> = contract.storage.namespaces.public.entries.table
+const contractTables: Record<string, ContractTable> =
+  contract.storage.namespaces.public.entries.table
 
 const dataTypeOf: Record<string, string> = {
   string: 'pg/text',
@@ -83,13 +88,18 @@ describe('better-auth schema against the @dltech/atlas-db contract', () => {
 
         if (field.unique) {
           it(`keeps ${name} unique`, () => {
-            expect(contractTable?.uniques.map((unique) => unique.columns)).toContainEqual([columnName])
+            expect(contractTable?.uniques.map((unique) => unique.columns)).toContainEqual([
+              columnName,
+            ])
           })
         }
       }
 
       it('has no required column without a default that better-auth does not write', () => {
-        const written = new Set(['id', ...Object.entries(table.fields).map(([name, field]) => field.fieldName ?? name)])
+        const written = new Set([
+          'id',
+          ...Object.entries(table.fields).map(([name, field]) => field.fieldName ?? name),
+        ])
         const unwritten = Object.entries(contractTable?.columns ?? {})
           .filter(([, column]) => !column.nullable && column.default === undefined)
           .map(([name]) => name)

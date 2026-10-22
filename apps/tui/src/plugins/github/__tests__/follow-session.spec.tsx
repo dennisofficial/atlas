@@ -24,7 +24,8 @@ import {
   GithubUiBridgePort,
   loadPlugins,
   NativePlugin,
-  portToken, registeredPortToken,
+  portToken,
+  registeredPortToken,
   registerGithubPlugin,
   resolveHookChain,
   WorkspaceRoot,
@@ -113,7 +114,9 @@ const branchRowOf = (probe: Probe): string | null => {
   const row = probe.surface?.sidebarSection?.rows.find((entry) => entry.id === 'branch')
   if (row === undefined) return null
 
-  return flattenedSpans({ row, cells: WIDE }).map((span) => span.text).join('')
+  return flattenedSpans({ row, cells: WIDE })
+    .map((span) => span.text)
+    .join('')
 }
 
 const BRANCH_SETTLE_MS = 10_000
@@ -246,14 +249,24 @@ describe('the github section following the session, through the real wiring', ()
 
       await act(async () => {
         for (const hook of chain.afterTool) {
-          await hook.run({ call: callNamed('enter_worktree'), result: entered(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
+          await hook.run({
+            call: callNamed('enter_worktree'),
+            result: entered(worktree),
+            projectDirectory: '/repo',
+            signal: NEVER_ABORTED,
+          })
         }
       })
       expect(await branchRowSettling({ probe, flush, to: 'dennis/thing' })).toBe('dennis/thing')
 
       await act(async () => {
         for (const hook of chain.afterTool) {
-          await hook.run({ call: callNamed('exit_worktree'), result: exited(worktree), projectDirectory: '/repo', signal: NEVER_ABORTED })
+          await hook.run({
+            call: callNamed('exit_worktree'),
+            result: exited(worktree),
+            projectDirectory: '/repo',
+            signal: NEVER_ABORTED,
+          })
         }
       })
       expect(await branchRowSettling({ probe, flush, to: 'main' })).toBe('main')

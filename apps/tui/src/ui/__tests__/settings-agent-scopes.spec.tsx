@@ -34,9 +34,24 @@ const types = [
 ]
 
 const shadowed: readonly ShadowedAgentTypeSource[] = [
-  { name: 'reviewer', origin: EDefinitionOrigin.User, definedIn: GLOBAL_AGENT, shadowedBy: EDefinitionOrigin.Project },
-  { name: 'reviewer', origin: EDefinitionOrigin.User, definedIn: COMPAT_AGENT, shadowedBy: EDefinitionOrigin.Project },
-  { name: 'explore', origin: EDefinitionOrigin.BuiltIn, definedIn: undefined, shadowedBy: EDefinitionOrigin.User },
+  {
+    name: 'reviewer',
+    origin: EDefinitionOrigin.User,
+    definedIn: GLOBAL_AGENT,
+    shadowedBy: EDefinitionOrigin.Project,
+  },
+  {
+    name: 'reviewer',
+    origin: EDefinitionOrigin.User,
+    definedIn: COMPAT_AGENT,
+    shadowedBy: EDefinitionOrigin.Project,
+  },
+  {
+    name: 'explore',
+    origin: EDefinitionOrigin.BuiltIn,
+    definedIn: undefined,
+    shadowedBy: EDefinitionOrigin.User,
+  },
 ]
 
 const definitions = [...ATLAS_SETTINGS, ...agentTypeModelDefinitions({ types })]
@@ -110,8 +125,14 @@ describe('the models page agent sections', () => {
     const resolution = resolveSettings({ definitions, layers: [] })
 
     expect(held.rows.filter(isOverriddenSetting)).toHaveLength(3)
-    expect(held.rows.filter((row) => !isOverriddenSetting(row)).every((row) => resolution.settings.get(row.definition.id) !== undefined)).toBe(true)
-    expect([...resolution.settings.keys()].filter((id) => id === agentTypeSettingId('reviewer'))).toHaveLength(1)
+    expect(
+      held.rows
+        .filter((row) => !isOverriddenSetting(row))
+        .every((row) => resolution.settings.get(row.definition.id) !== undefined),
+    ).toBe(true)
+    expect(
+      [...resolution.settings.keys()].filter((id) => id === agentTypeSettingId('reviewer')),
+    ).toHaveLength(1)
   })
 
   it('carries each row its own save destination', () => {
@@ -151,7 +172,11 @@ describe('the models page agent rows on screen', () => {
   it('headings the three sections', async () => {
     const rows = await shown(modelsState(0))
 
-    for (const heading of ['BUILT-IN SUB-AGENTS', 'REPOSITORY-DEFINED SUB-AGENTS', 'GLOBAL USER-DEFINED SUB-AGENTS']) {
+    for (const heading of [
+      'BUILT-IN SUB-AGENTS',
+      'REPOSITORY-DEFINED SUB-AGENTS',
+      'GLOBAL USER-DEFINED SUB-AGENTS',
+    ]) {
       expect(rowWith(rows, heading)).not.toBe('')
     }
   })

@@ -34,7 +34,10 @@ describe('xml lexical highlighting', () => {
   })
 
   it('reads the declaration delimiters as a directive and still lexes inside them', () => {
-    expect(textFor({ spec, source: declaration, group: 'keyword.directive' })).toEqual(['<?xml', '?>'])
+    expect(textFor({ spec, source: declaration, group: 'keyword.directive' })).toEqual([
+      '<?xml',
+      '?>',
+    ])
     expect(textFor({ spec, source: declaration, group: 'attribute' })).toEqual(['version'])
     expect(textFor({ spec, source: declaration, group: 'string' })).toEqual(['"1.0"'])
   })

@@ -26,7 +26,8 @@ export async function registerSandbox(
   assertPublicServeUrl(args.serveUrl)
   const tokenHash = hashSessionToken(args.clientToken)
   const lease = await db.orm.public.LocalPodLease.where({ tokenHash }).select('id').first()
-  if (lease !== null) throw new ConflictException('this token is already in use by another credential')
+  if (lease !== null)
+    throw new ConflictException('this token is already in use by another credential')
   const thread = await findOrCreateClaimThread({
     db,
     userId: args.userId,

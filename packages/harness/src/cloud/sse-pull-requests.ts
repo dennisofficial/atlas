@@ -11,7 +11,11 @@ import { CloudError, type TransportRetryLog } from './cloud-transport'
 import { deliverPrEvent, type PrEventFrame } from './pr-event-frame'
 import { runSseStream, SseRefused } from './sse-client'
 import { PrSubscriptionClient, type SubscriptionHandle } from './pr-subscription-client'
-import { createAppInstallRaiser, type AppInstallRaiser, type AppInstallRecommended } from './app-install-recommendation'
+import {
+  createAppInstallRaiser,
+  type AppInstallRaiser,
+  type AppInstallRecommended,
+} from './app-install-recommendation'
 import { createHeartbeatLoop, type HeartbeatLoop } from './sse-heartbeat-loop'
 import { resolveSseClock, type SsePullRequestClock } from './sse-pull-request-clock'
 import { createSseSubscriptionBook, type SseSubscriptionBook } from './sse-pull-request-book'
@@ -58,7 +62,10 @@ export class SsePullRequestPort extends PullRequestPort {
     super()
     this.log = args.log
     this.onPrEvent = args.onPrEvent
-    this.raiseAppInstall = createAppInstallRaiser({ onRecommended: args.onAppInstallRecommended, log: args.log })
+    this.raiseAppInstall = createAppInstallRaiser({
+      onRecommended: args.onAppInstallRecommended,
+      log: args.log,
+    })
     this.silenceTimeoutMs = args.silenceTimeoutMs
     this.clock = resolveSseClock(args.clock)
     this.client = new PrSubscriptionClient({
@@ -193,16 +200,18 @@ export class SsePullRequestPort extends PullRequestPort {
           this.book.markAllStale()
         },
       },
-    }).catch((failure: unknown) => {
-      if (controller.signal.aborted || this.stream !== controller) return
-      if (failure instanceof SseRefused) {
-        this.noteSessionDead()
-        this.heartbeat.stop()
-      }
-      this.book.markAllStale()
-    }).finally(() => {
-      if (this.stream === controller) this.stream = null
     })
+      .catch((failure: unknown) => {
+        if (controller.signal.aborted || this.stream !== controller) return
+        if (failure instanceof SseRefused) {
+          this.noteSessionDead()
+          this.heartbeat.stop()
+        }
+        this.book.markAllStale()
+      })
+      .finally(() => {
+        if (this.stream === controller) this.stream = null
+      })
   }
 
   private catchUp(args: { controller: AbortController; generation: number }): Promise<void> {
@@ -214,7 +223,10 @@ export class SsePullRequestPort extends PullRequestPort {
     return pending
   }
 
-  private async refreshSubscriptions({ controller, generation }: {
+  private async refreshSubscriptions({
+    controller,
+    generation,
+  }: {
     controller: AbortController
     generation: number
   }): Promise<void> {
@@ -251,7 +263,12 @@ export class SsePullRequestPort extends PullRequestPort {
     if (controller === null || controller.signal.aborted) return
     const generation = this.generation
     void this.catchUp({ controller, generation }).catch((failure: unknown) => {
-      if (!(failure instanceof SseRefused) || this.stream !== controller || generation !== this.generation) return
+      if (
+        !(failure instanceof SseRefused) ||
+        this.stream !== controller ||
+        generation !== this.generation
+      )
+        return
       this.noteSessionDead()
       this.book.markAllStale()
       this.heartbeat.stop()
@@ -265,7 +282,8 @@ export class SsePullRequestPort extends PullRequestPort {
     this.sessionDead = true
     this.log?.port.warn({
       source: 'cloud.pull-requests',
-      message: 'the cloud API rejected the pull request session; realtime tracking is dead until it answers again',
+      message:
+        'the cloud API rejected the pull request session; realtime tracking is dead until it answers again',
     })
   }
 

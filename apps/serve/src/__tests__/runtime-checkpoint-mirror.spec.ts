@@ -133,7 +133,7 @@ describe('runtime checkpoint mirror', () => {
 
   it('sends a parked mirror immediately, coalescing queued progress into the final report', async () => {
     const home = scratchHome()
-    let clock = 1_000_000
+    const clock = 1_000_000
     const sent: { revision: number; phase: string }[] = []
     const capture = captureFor({
       home,
@@ -258,30 +258,26 @@ describe('runtime checkpoint mirror', () => {
     expect(lines.filter((line) => line.event === 'serve.checkpoint-mirror-failed')).toHaveLength(2)
   })
 
-  it(
-    'resolves flush on timeout without throwing while the mirror hangs',
-    async () => {
-      const home = scratchHome()
-      const lines: ServeLogLine[] = []
-      const capture = captureFor({
-        home,
-        lines,
-        cloudURL: 'http://127.0.0.1:9',
-        fetchFn: fakeFetch(
-          (_input: unknown, init?: RequestInit) =>
-            new Promise<Response>((resolve) => {
-              init?.signal?.addEventListener('abort', () =>
-                resolve(new Response(null, { status: 408 })),
-              )
-            }),
-        ),
-      })
+  it('resolves flush on timeout without throwing while the mirror hangs', async () => {
+    const home = scratchHome()
+    const lines: ServeLogLine[] = []
+    const capture = captureFor({
+      home,
+      lines,
+      cloudURL: 'http://127.0.0.1:9',
+      fetchFn: fakeFetch(
+        (_input: unknown, init?: RequestInit) =>
+          new Promise<Response>((resolve) => {
+            init?.signal?.addEventListener('abort', () =>
+              resolve(new Response(null, { status: 408 })),
+            )
+          }),
+      ),
+    })
 
-      await capture.capture({ phase: ERuntimePhase.Serving })
-      await expect(capture.flush({ timeoutMs: 20 })).resolves.toBeUndefined()
-      await capture.flush({ timeoutMs: 6_000 })
-      expect(lines.some((line) => line.event === 'serve.checkpoint-mirror-failed')).toBe(true)
-    },
-    10_000,
-  )
+    await capture.capture({ phase: ERuntimePhase.Serving })
+    await expect(capture.flush({ timeoutMs: 20 })).resolves.toBeUndefined()
+    await capture.flush({ timeoutMs: 6_000 })
+    expect(lines.some((line) => line.event === 'serve.checkpoint-mirror-failed')).toBe(true)
+  }, 10_000)
 })

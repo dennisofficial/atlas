@@ -53,7 +53,11 @@ export function selectedOption(args: { state: ExitGuardState }): ExitGuardOption
 }
 
 export function moveSelection(args: { state: ExitGuardState; delta: number }): ExitGuardState {
-  return moveStopGuardSelection({ options: EXIT_GUARD_OPTIONS, state: args.state, delta: args.delta })
+  return moveStopGuardSelection({
+    options: EXIT_GUARD_OPTIONS,
+    state: args.state,
+    delta: args.delta,
+  })
 }
 
 export function resolve(args: { state: ExitGuardState }): EExitChoice | null {

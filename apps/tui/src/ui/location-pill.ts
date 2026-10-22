@@ -37,7 +37,8 @@ export function locationPillOf(args: {
   location: EExecutionLocation
   placement?: PlacementChoice | null | undefined
 }): FooterItem | null {
-  if (args.placement !== undefined && args.placement !== null) return placementChipOf(args.placement)
+  if (args.placement !== undefined && args.placement !== null)
+    return placementChipOf(args.placement)
   if (args.location === EExecutionLocation.Host) return null
 
   return chipItem({

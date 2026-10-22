@@ -42,10 +42,14 @@ describe('GithubDeliveryService transition events', () => {
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({
       userId: 'usr-a',
-      payload: { verdict: 'failed', headSha: 'abc123', url: 'https://github.com/compai/app/pull/42' },
+      payload: {
+        verdict: 'failed',
+        headSha: 'abc123',
+        url: 'https://github.com/compai/app/pull/42',
+      },
     })
     expect(
-      (verdicts[0]?.payload as Record<string, unknown>).authorLogin,
+      (verdicts[0]?.payload as Record<string, unknown> | undefined)?.authorLogin,
     ).toBeUndefined()
   })
 
@@ -90,7 +94,12 @@ describe('GithubDeliveryService transition events', () => {
   })
 
   it('records a mergeability flip but not a repeated mergeable value', async () => {
-    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 0,
+      checksPassed: 3,
+      mergeable: true,
+    }))
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
@@ -107,7 +116,12 @@ describe('GithubDeliveryService transition events', () => {
     expect(settled).toMatchObject({ mergeable: true })
 
     const before = (await prEventRows()).filter((row) => row.kind === 'mergeability').length
-    readPullRequest.mockImplementation(async () => ({ ...REST_FIELDS, checksRunning: 0, checksPassed: 3, mergeable: true }))
+    readPullRequest.mockImplementation(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 0,
+      checksPassed: 3,
+      mergeable: true,
+    }))
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(before)
   })

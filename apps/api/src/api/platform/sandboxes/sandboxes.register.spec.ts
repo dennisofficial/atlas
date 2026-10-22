@@ -1,9 +1,5 @@
 import { createHash } from 'node:crypto'
-import {
-  BadRequestException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -112,7 +108,12 @@ describe('the client-provisioned register path', () => {
 
   it('rejects a token that is not 32 bytes hex-encoded', async () => {
     await expect(
-      service.claim({ userId: USER_A, threadId: THREAD, clientToken: 'tok_short', serveUrl: SERVE_URL }),
+      service.claim({
+        userId: USER_A,
+        threadId: THREAD,
+        clientToken: 'tok_short',
+        serveUrl: SERVE_URL,
+      }),
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(await db.orm.public.CloudSandbox.all()).toHaveLength(0)
   })
@@ -184,5 +185,4 @@ describe('the client-provisioned register path', () => {
     const verified = await service.verifySessionToken({ threadId: THREAD, token: CLIENT_TOKEN })
     expect(verified.userId).toBe(USER_A)
   })
-
 })

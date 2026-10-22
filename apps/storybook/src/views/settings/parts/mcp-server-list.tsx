@@ -1,33 +1,33 @@
-import { EllipsisIcon, PlugIcon } from "lucide-react";
+import { EllipsisIcon, PlugIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
+} from '@dltech/atlas-ui/components/dropdown-menu'
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
-import { Switch } from "@dltech/atlas-ui/components/switch";
+} from '@dltech/atlas-ui/components/empty'
+import { Switch } from '@dltech/atlas-ui/components/switch'
 
-import type { McpServer } from "../../../fixtures/settings-mcp";
-import { Mono, SettingsCard, SettingsRow } from "../settings-layout";
+import type { McpServer } from '../../../fixtures/settings-mcp'
+import { Mono, SettingsCard, SettingsRow } from '../settings-layout'
 
 export function McpServerList({
   servers,
   onToggle,
   onRemove,
 }: {
-  servers: McpServer[];
-  onToggle: (id: string, enabled: boolean) => void;
-  onRemove: (id: string) => void;
+  servers: McpServer[]
+  onToggle: (id: string, enabled: boolean) => void
+  onRemove: (id: string) => void
 }) {
   if (servers.length === 0) {
     return (
@@ -37,12 +37,10 @@ export function McpServerList({
             <PlugIcon />
           </EmptyMedia>
           <EmptyTitle>No MCP servers configured</EmptyTitle>
-          <EmptyDescription>
-            Add a server to give threads extra tools.
-          </EmptyDescription>
+          <EmptyDescription>Add a server to give threads extra tools.</EmptyDescription>
         </EmptyHeader>
       </Empty>
-    );
+    )
   }
 
   return (
@@ -56,7 +54,9 @@ export function McpServerList({
               <Badge variant="outline">{server.transport}</Badge>
             </>
           }
-          description={<Mono className="block truncate text-muted-foreground">{server.target}</Mono>}
+          description={
+            <Mono className="block truncate text-muted-foreground">{server.target}</Mono>
+          }
           control={
             <>
               <Switch
@@ -67,7 +67,9 @@ export function McpServerList({
               />
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  render={<Button variant="ghost" size="icon-sm" aria-label={`${server.id} actions`} />}
+                  render={
+                    <Button variant="ghost" size="icon-sm" aria-label={`${server.id} actions`} />
+                  }
                 >
                   <EllipsisIcon />
                 </DropdownMenuTrigger>
@@ -82,5 +84,5 @@ export function McpServerList({
         />
       ))}
     </SettingsCard>
-  );
+  )
 }

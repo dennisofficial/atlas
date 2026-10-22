@@ -28,7 +28,11 @@ export class WorkspaceSettingsService {
     organizationId: string
     values: Record<string, string | null>
   }): Promise<void> {
-    await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: true })
+    await this.access.require({
+      userId: args.userId,
+      organizationId: args.organizationId,
+      write: true,
+    })
     const entries = Object.entries(args.values)
     if (entries.length === 0 || entries.length > MAX_PATCH_KEYS) {
       throw new BadRequestException(`a patch carries between 1 and ${MAX_PATCH_KEYS} keys`)

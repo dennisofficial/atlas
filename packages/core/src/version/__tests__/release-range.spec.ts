@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  decideReleaseNotes,
-  releaseNotesHeading,
-  releaseRowsInRange,
-} from '../release-range'
+import { decideReleaseNotes, releaseNotesHeading, releaseRowsInRange } from '../release-range'
 
 describe('decideReleaseNotes', () => {
   it('is a first run when nothing was ever recorded', () => {

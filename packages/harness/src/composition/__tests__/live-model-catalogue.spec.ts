@@ -47,7 +47,13 @@ const liveOf = (cards: readonly ModelCard[] | undefined) => {
       refreshes += 1
     },
   }
-  return { live, fire: () => listeners.forEach((listener) => listener()), refreshes: () => refreshes }
+  return {
+    live,
+    fire: () => {
+      for (const listener of listeners) listener()
+    },
+    refreshes: () => refreshes,
+  }
 }
 
 const catalogueWith = (args: { kind: EAuthKind; live: LiveCards }) =>
@@ -96,7 +102,9 @@ describe('live codex cards in the catalogue', () => {
 
     expect(openAiCards(catalogue)).toEqual([LIVE_CARD])
     expect(catalogue.cardFor(LIVE_CARD.ref)).toEqual(LIVE_CARD)
-    expect(catalogue.cardFor({ providerId: OPENAI_PROVIDER_ID, modelId: 'gpt-4.1' })).toBeUndefined()
+    expect(
+      catalogue.cardFor({ providerId: OPENAI_PROVIDER_ID, modelId: 'gpt-4.1' }),
+    ).toBeUndefined()
   })
 
   it('falls back to the static list while no live cards exist', () => {

@@ -8,8 +8,7 @@ import type { CreateAccountDto, SecretDto } from './accounts.dto'
 import { AccountsService } from './accounts.service'
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from './accounts.types'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -132,9 +131,9 @@ describe('AccountsService', () => {
   it('remove omits accounts owned by another user', async () => {
     const account = await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
 
-    await expect(
-      service.remove({ userId: USER_B, accountId: account.id }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.remove({ userId: USER_B, accountId: account.id })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
     expect(await accounts()).toHaveLength(1)
   })
 

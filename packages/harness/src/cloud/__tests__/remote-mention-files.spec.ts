@@ -12,7 +12,12 @@ const asking = (reply: () => Promise<unknown>) => {
   const calls: Array<{ op: EClientRequest; params: unknown }> = []
   const files = new RemoteMentionFiles({
     threadId,
-    channel: { request: async (args) => { calls.push(args); return reply() } },
+    channel: {
+      request: async (args) => {
+        calls.push(args)
+        return reply()
+      },
+    },
   })
   return { files, calls }
 }
@@ -30,9 +35,22 @@ describe('RemoteMentionFiles', () => {
 
     expect(await files.list('src')).toEqual([{ name: 'only-in-sandbox.txt', isDirectory: false }])
     expect(await files.exists('a.txt')).toBe(true)
-    expect(await files.load('a.txt')).toEqual({ type: EFileLoad.Text, path: 'a.txt', content: 'sandbox', truncated: false })
-    expect(await files.load('src')).toEqual({ type: EFileLoad.Listing, path: 'src', content: 'a.ts' })
-    expect(await files.load('x')).toEqual({ type: EFileLoad.Refused, path: 'x', reason: 'it does not exist' })
+    expect(await files.load('a.txt')).toEqual({
+      type: EFileLoad.Text,
+      path: 'a.txt',
+      content: 'sandbox',
+      truncated: false,
+    })
+    expect(await files.load('src')).toEqual({
+      type: EFileLoad.Listing,
+      path: 'src',
+      content: 'a.ts',
+    })
+    expect(await files.load('x')).toEqual({
+      type: EFileLoad.Refused,
+      path: 'x',
+      reason: 'it does not exist',
+    })
     expect(calls).toEqual([
       { op: EClientRequest.ListMentionFiles, params: { threadId, directory: 'src' } },
       { op: EClientRequest.MentionFileExists, params: { threadId, path: 'a.txt' } },
@@ -51,7 +69,9 @@ describe('RemoteMentionFiles', () => {
   })
 
   it('propagates a failed request rather than answering from anywhere else', async () => {
-    const { files } = asking(async () => { throw new Error('the sandbox is parked') })
+    const { files } = asking(async () => {
+      throw new Error('the sandbox is parked')
+    })
     await expect(files.list('.')).rejects.toThrow('the sandbox is parked')
     await expect(files.exists('a')).rejects.toThrow('the sandbox is parked')
     await expect(files.load('a')).rejects.toThrow('the sandbox is parked')

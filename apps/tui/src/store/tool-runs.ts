@@ -1,4 +1,10 @@
-import { EContextSlot, type CallId, type CodeQualityReviewedBody, type Event, type EventOfType } from '@dltech/atlas-core'
+import {
+  EContextSlot,
+  type CallId,
+  type CodeQualityReviewedBody,
+  type Event,
+  type EventOfType,
+} from '@dltech/atlas-core'
 
 import { transcriptNotice } from './notice-barriers'
 
@@ -218,7 +224,11 @@ export function attachmentsOf(events: readonly Event[]): Map<CallId, ContextAtta
       lastCall = null
       continue
     }
-    if (event.type === 'tool-called' || event.type === 'tool-result' || event.type === 'tool-denied') {
+    if (
+      event.type === 'tool-called' ||
+      event.type === 'tool-result' ||
+      event.type === 'tool-denied'
+    ) {
       lastCall = event.callId
       continue
     }
@@ -295,7 +305,12 @@ export function liveToolRuns(calls: readonly LiveToolCall[]): LiveToolRun[] {
   }
 
   return runs.map((run) => ({
-    run: runOf({ seeds: run.seeds, settles: NO_SETTLES, awaiting: NONE_AWAITING, attachments: NO_ATTACHMENTS }),
+    run: runOf({
+      seeds: run.seeds,
+      settles: NO_SETTLES,
+      awaiting: NONE_AWAITING,
+      attachments: NO_ATTACHMENTS,
+    }),
     precededByBlocks: run.precededByBlocks,
   }))
 }

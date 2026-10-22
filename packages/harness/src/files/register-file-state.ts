@@ -1,6 +1,10 @@
 import { AgentFileSystemPort } from '@dltech/atlas-core'
 
-import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from '../container/injection'
+import {
+  instanceCachingFactory,
+  registeredPortToken,
+  type DependencyContainer,
+} from '../container/injection'
 import { FileReadStatePort, InMemoryFileReadState } from './read-state'
 import { FileWriteGuardPort, VerifyingWriteGuard } from './write-guard'
 

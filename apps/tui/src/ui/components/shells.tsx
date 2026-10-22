@@ -84,7 +84,9 @@ function ShellHeading(props: {
     { text: shellNameLabel(shell), fg: theme.hover },
     { text: '  ' },
     { text: state, fg: shell.awaitingInput ? theme.warn : theme.meta },
-    ...(named(shell) ? [{ text: '  ' }, { text: shellCommandLabel(shell.command), fg: theme.dim }] : []),
+    ...(named(shell)
+      ? [{ text: '  ' }, { text: shellCommandLabel(shell.command), fg: theme.dim }]
+      : []),
   ]
 
   return (
@@ -133,7 +135,12 @@ function OutputSection(props: {
       {props.shell.awaitingInput ? (
         <DrawerLine>
           <text>
-            <Spans spans={clipSpans({ spans: [{ text: STDIN_CLOSED, fg: theme.warn }], cells: props.cells })} />
+            <Spans
+              spans={clipSpans({
+                spans: [{ text: STDIN_CLOSED, fg: theme.warn }],
+                cells: props.cells,
+              })}
+            />
           </text>
         </DrawerLine>
       ) : null}

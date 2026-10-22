@@ -19,12 +19,14 @@ export type RedactionResult = {
   map: readonly RedactionMapEntry[]
 }
 
-const redactedAssignment = (match: string): string => match.replace(/["'][^"']*["']$/, '"<redacted>"')
+const redactedAssignment = (match: string): string =>
+  match.replace(/["'][^"']*["']$/, '"<redacted>"')
 
 export const REDACTION_RULES: readonly RedactionRule[] = [
   {
     id: 'credential-assignment',
-    pattern: /(api[_-]?key|token|secret|password|authorization)\s*[:=]\s*["'](?!<redacted>["'])[^"']{8,}["']/gi,
+    pattern:
+      /(api[_-]?key|token|secret|password|authorization)\s*[:=]\s*["'](?!<redacted>["'])[^"']{8,}["']/gi,
     replacement: redactedAssignment,
   },
   {
@@ -42,7 +44,11 @@ export function redactText({ text }: { text: string }): RedactionResult {
       const digest = sha256Hex({ text: `${DIGEST_SALT}${match}` })
       const key = `${rule.id}\0${digest}`
       const existing = occurrences.get(key)
-      occurrences.set(key, { ruleId: rule.id, digest, occurrences: (existing?.occurrences ?? 0) + 1 })
+      occurrences.set(key, {
+        ruleId: rule.id,
+        digest,
+        occurrences: (existing?.occurrences ?? 0) + 1,
+      })
       return rule.replacement(match)
     })
   }
@@ -71,13 +77,22 @@ export function redactionMapEquals({
   })
 }
 
-export function mergeRedactionMaps({ maps }: { maps: readonly (readonly RedactionMapEntry[])[] }): RedactionMapEntry[] {
+export function mergeRedactionMaps({
+  maps,
+}: {
+  maps: readonly (readonly RedactionMapEntry[])[]
+}): RedactionMapEntry[] {
   const merged = new Map<string, RedactionMapEntry>()
   for (const map of maps) {
     for (const entry of map) {
       const key = `${entry.ruleId}\0${entry.digest}`
-      merged.set(key, { ...entry, occurrences: (merged.get(key)?.occurrences ?? 0) + entry.occurrences })
+      merged.set(key, {
+        ...entry,
+        occurrences: (merged.get(key)?.occurrences ?? 0) + entry.occurrences,
+      })
     }
   }
-  return [...merged.values()].sort((a, b) => a.ruleId.localeCompare(b.ruleId) || a.digest.localeCompare(b.digest))
+  return [...merged.values()].sort(
+    (a, b) => a.ruleId.localeCompare(b.ruleId) || a.digest.localeCompare(b.digest),
+  )
 }

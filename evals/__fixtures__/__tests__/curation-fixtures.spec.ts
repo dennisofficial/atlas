@@ -18,9 +18,15 @@ describe('curation fixtures', () => {
     const sessionDir = await makeTmpDir()
     created.push(sessionDir)
 
-    const capture = await recordCapture({ sessionDir, before: counterBefore(), after: counterAfter() })
+    const capture = await recordCapture({
+      sessionDir,
+      before: counterBefore(),
+      after: counterAfter(),
+    })
 
-    expect(capture.scopes.map((scope) => [scope.kind, scope.name])).toEqual([[EQualityScopeKind.Class, 'Counter']])
+    expect(capture.scopes.map((scope) => [scope.kind, scope.name])).toEqual([
+      [EQualityScopeKind.Class, 'Counter'],
+    ])
     const directory = join(sessionDir, 'threads', 'thread-1', 'quality', 'examples')
     const files = await readdir(directory)
     expect(files).toHaveLength(1)

@@ -1,10 +1,6 @@
 import { EExecutionLocation } from '@dltech/atlas-core'
 
-import {
-  openStopGuard,
-  type StopGuardOption,
-  type StopGuardState,
-} from './stop-guard-model'
+import { openStopGuard, type StopGuardOption, type StopGuardState } from './stop-guard-model'
 
 export enum EContainerGuardChoice {
   SwitchAndStop = 'switch-and-stop',

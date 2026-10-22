@@ -30,13 +30,17 @@ export class PlacementController {
   private readonly records = new Map<ThreadId, PlacementRecord>()
   private readonly listeners = new Set<() => void>()
   private readonly moving = new Set<ThreadId>()
-  private readonly gates = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
-  private binding: {
-    threads: PlacementStore
-    workspace: string
-    repo: string | null
-    authority?: PlacementSessionAuthority | undefined
-  } | undefined
+  private readonly gates = new Set<
+    (args: { threadId: ThreadId; record: PlacementRecord }) => void
+  >()
+  private binding:
+    | {
+        threads: PlacementStore
+        workspace: string
+        repo: string | null
+        authority?: PlacementSessionAuthority | undefined
+      }
+    | undefined
 
   constructor(private readonly initial: EExecutionLocation) {}
 
@@ -50,12 +54,15 @@ export class PlacementController {
 
   readonly activeThread = (): ThreadId | undefined => this.active
 
-  readonly beforePublish = (gate: (args: { threadId: ThreadId; record: PlacementRecord }) => void): (() => void) => {
+  readonly beforePublish = (
+    gate: (args: { threadId: ThreadId; record: PlacementRecord }) => void,
+  ): (() => void) => {
     this.gates.add(gate)
     return () => this.gates.delete(gate)
   }
 
-  readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined => this.records.get(threadId)
+  readonly snapshot = (threadId: ThreadId): PlacementRecord | undefined =>
+    this.records.get(threadId)
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
@@ -73,18 +80,25 @@ export class PlacementController {
     binding.threads.onPlacementChanged(({ threadId, record }) => this.publish({ threadId, record }))
   }
 
-  async activate(args: { threadId: ThreadId; fallback?: EExecutionLocation | undefined }): Promise<void> {
+  async activate(args: {
+    threadId: ThreadId
+    fallback?: EExecutionLocation | undefined
+  }): Promise<void> {
     this.active = args.threadId
     await this.load(args)
     this.notify()
   }
 
-  async load(args: { threadId: ThreadId; fallback?: EExecutionLocation | undefined }): Promise<PlacementRecord> {
+  async load(args: {
+    threadId: ThreadId
+    fallback?: EExecutionLocation | undefined
+  }): Promise<PlacementRecord> {
     const record = await this.binding?.threads.readPlacement({ threadId: args.threadId })
-    const resolved = record ?? this.records.get(args.threadId) ?? {
-      placement: placementOf(args.fallback ?? this.initial),
-      revision: 0,
-    }
+    const resolved = record ??
+      this.records.get(args.threadId) ?? {
+        placement: placementOf(args.fallback ?? this.initial),
+        revision: 0,
+      }
     this.publish({ threadId: args.threadId, record: resolved })
     return resolved
   }
@@ -97,7 +111,10 @@ export class PlacementController {
    * Records the placement a thread was born with. Not a move: a thread that already holds a record
    * keeps it, so creation replays are safe.
    */
-  async placeAtCreation(args: { threadId: ThreadId; placement: SessionPlacement }): Promise<PlacementRecord> {
+  async placeAtCreation(args: {
+    threadId: ThreadId
+    placement: SessionPlacement
+  }): Promise<PlacementRecord> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
     const known = await binding.threads.find({ threadId: args.threadId })
@@ -205,12 +222,21 @@ export class PlacementController {
     }
   }
 
-  private async write(args: { threadId: ThreadId; prior: PlacementRecord; next: PlacementRecord }): Promise<PlacementRecord> {
+  private async write(args: {
+    threadId: ThreadId
+    prior: PlacementRecord
+    next: PlacementRecord
+  }): Promise<PlacementRecord> {
     const binding = this.binding
     if (binding === undefined) throw new Error('placement has no durable store')
     const publishedRevision = this.records.get(args.threadId)?.revision ?? 0
     const record = { ...args.next, revision: Math.max(args.prior.revision, publishedRevision) + 1 }
-    await binding.threads.writePlacement({ ...binding, threadId: args.threadId, record, expectedRevision: args.prior.revision })
+    await binding.threads.writePlacement({
+      ...binding,
+      threadId: args.threadId,
+      record,
+      expectedRevision: args.prior.revision,
+    })
     this.publish({ threadId: args.threadId, record })
     return record
   }
@@ -257,9 +283,7 @@ export class PlacementController {
     for (const listener of [...this.listeners]) {
       try {
         listener()
-      } catch {
-        continue
-      }
+      } catch {}
     }
   }
 }

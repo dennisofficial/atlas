@@ -1,5 +1,4 @@
 import {
-  ClockPort,
   EAgentStatus,
   EventLogPort,
   EServiceStatus,
@@ -14,12 +13,20 @@ import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
-import { SecretsStoreToken, ServeSessionToken, SessionRegistryToken, SessionEnvironmentProcessPort } from '@dltech/atlas-harness'
+import {
+  ServeSessionToken,
+  SessionRegistryToken,
+  SessionEnvironmentProcessPort,
+} from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
 import { RotationPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
 
-import { activateTransferredChildren, adoptTransferredChildren, holdFamilyIntake } from '@dltech/atlas-harness'
+import {
+  activateTransferredChildren,
+  adoptTransferredChildren,
+  holdFamilyIntake,
+} from '@dltech/atlas-harness'
 import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
 import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
@@ -64,9 +71,12 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const model = container.resolve(SelectableModelToken)
         const prStates = container.isRegistered(registeredPortToken(GithubUiBridgePort), true)
           ? {
-              snapshot: () => container.resolve(registeredPortToken(GithubUiBridgePort)).service.states(),
+              snapshot: () =>
+                container.resolve(registeredPortToken(GithubUiBridgePort)).service.states(),
               subscribe: (listener: () => void) =>
-                container.resolve(registeredPortToken(GithubUiBridgePort)).service.subscribe(listener),
+                container
+                  .resolve(registeredPortToken(GithubUiBridgePort))
+                  .service.subscribe(listener),
             }
           : undefined
         const modelBridge: ServeModelBridge = {
@@ -74,7 +84,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           select: (next) => {
             const ref = parseRef(next.ref)
             if (ref === undefined) return
-            const effort = EFFORT_LADDER.find((rung) => rung === next.effort) ?? model.choice().effort
+            const effort =
+              EFFORT_LADDER.find((rung) => rung === next.effort) ?? model.choice().effort
             model.select({ ref, effort })
           },
         }
@@ -89,7 +100,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const rotation = container.isRegistered(registeredPortToken(RotationPort), true)
           ? container.resolve(registeredPortToken(RotationPort))
           : undefined
-        return { log, threads, modelBridge, rotation, ...(prStates === undefined ? {} : { prStates }) }
+        return {
+          log,
+          threads,
+          modelBridge,
+          rotation,
+          ...(prStates === undefined ? {} : { prStates }),
+        }
       },
     },
   })
@@ -123,14 +140,25 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     settings: app.settings,
     ids: app.ids,
     files: app.files,
-    mentionFiles: (id) => threadMentionFiles({ threadId: id, log: app.surface.log, threads: app.surface.threads, launchDirectory: args.cwd }),
+    mentionFiles: (id) =>
+      threadMentionFiles({
+        threadId: id,
+        log: app.surface.log,
+        threads: app.surface.threads,
+        launchDirectory: args.cwd,
+      }),
     workspace: app.workspace,
     toolEffect: (name) => app.tools.find(name)?.effect,
     pending: app.pending,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })
-      return activateTransferredChildren({ agents: app.agents, log: app.surface.log, threadId, resumeChildren })
+      return activateTransferredChildren({
+        agents: app.agents,
+        log: app.surface.log,
+        threadId,
+        resumeChildren,
+      })
     },
     recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
@@ -138,16 +166,26 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family: {
       freeze: async ({ threadId }) => {
-        releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
+        releaseFamily ??= await holdFamilyIntake({
+          threadId,
+          threads: app.surface.threads,
+          intake: app.intake,
+        })
       },
       pauseChildren: async ({ threadId }) => {
-        releaseFamily ??= await holdFamilyIntake({ threadId, threads: app.surface.threads, intake: app.intake })
+        releaseFamily ??= await holdFamilyIntake({
+          threadId,
+          threads: app.surface.threads,
+          intake: app.intake,
+        })
         try {
-          for (const child of await app.agents.pauseChildren({ threadId })) pausedChildren.add(child)
+          for (const child of await app.agents.pauseChildren({ threadId }))
+            pausedChildren.add(child)
         } finally {
           const family = await familyThreadIdsOf({ root: threadId, threads: app.surface.threads })
           for (const child of app.agents.listEverywhere()) {
-            if (family.has(child.spawnedBy) && child.status === EAgentStatus.Paused) pausedChildren.add(child.agentId)
+            if (family.has(child.spawnedBy) && child.status === EAgentStatus.Paused)
+              pausedChildren.add(child.agentId)
           }
         }
       },
@@ -155,7 +193,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         const roster = app.agents.listEverywhere()
         for (const agentId of pausedChildren) {
           const child = roster.find((entry) => entry.agentId === agentId)
-          if (child === undefined) throw new Error(`paused child ${agentId} is missing from the family roster`)
+          if (child === undefined)
+            throw new Error(`paused child ${agentId} is missing from the family roster`)
           if (child.status === EAgentStatus.Paused) {
             const resumed = await app.agents.resume({ agentId, threadId: child.spawnedBy })
             if (!resumed.ok) throw new Error(resumed.reason)
@@ -166,23 +205,29 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
         releaseFamily = undefined
       },
     },
-    runningChildren: () => app.agents.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length,
-    settlingWork: () => (app.agents.settling?.() ?? false) || (app.shells.settling?.() ?? false) || (app.services.settling?.() ?? false),
-    pendingInput: () => app.pending.waitingCount() > 0 || (app.intake?.threadsWithPendingInput().length ?? 0) > 0,
+    runningChildren: () =>
+      app.agents.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length,
+    settlingWork: () =>
+      (app.agents.settling?.() ?? false) ||
+      (app.shells.settling?.() ?? false) ||
+      (app.services.settling?.() ?? false),
+    pendingInput: () =>
+      app.pending.waitingCount() > 0 || (app.intake?.threadsWithPendingInput().length ?? 0) > 0,
     runningShells: () =>
       app.shells.listEverywhere().filter((shell) => shell.status === EShellStatus.Running).length,
     runningServices: () =>
       app.services.list().filter((service) => service.status === EServiceStatus.Running).length,
     executionLocation: app.executionLocation,
-    endProcesses: ({ killedBy }) => stopWorkspaceProcessesFor({
-      killedBy,
-      root: args.threadId,
-      shells: app.shells,
-      services: app.services,
-      log: app.surface.log,
-      threads: app.surface.threads,
-      ids: app.ids,
-    })(),
+    endProcesses: ({ killedBy }) =>
+      stopWorkspaceProcessesFor({
+        killedBy,
+        root: args.threadId,
+        shells: app.shells,
+        services: app.services,
+        log: app.surface.log,
+        threads: app.surface.threads,
+        ids: app.ids,
+      })(),
     ...workspaceHooks,
     ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
     roster: {

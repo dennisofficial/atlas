@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@dltech/atlas-ui/components/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
 const meta = {
-  title: "Components/Tabs",
+  title: 'Components/Tabs',
   component: Tabs,
-  argTypes: { orientation: { control: "inline-radio", options: ["horizontal", "vertical"] } },
-  args: { orientation: "horizontal", defaultValue: "transcript" },
-} satisfies Meta<typeof Tabs>;
+  argTypes: { orientation: { control: 'inline-radio', options: ['horizontal', 'vertical'] } },
+  args: { orientation: 'horizontal', defaultValue: 'transcript' },
+} satisfies Meta<typeof Tabs>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 function Panels() {
   return (
@@ -26,7 +26,7 @@ function Panels() {
         182k tokens, $4.21 so far.
       </TabsContent>
     </>
-  );
+  )
 }
 
 export const Default: Story = {
@@ -40,7 +40,7 @@ export const Default: Story = {
       <Panels />
     </Tabs>
   ),
-};
+}
 
 export const Line: Story = {
   render: (args) => (
@@ -53,10 +53,10 @@ export const Line: Story = {
       <Panels />
     </Tabs>
   ),
-};
+}
 
 export const Vertical: Story = {
-  args: { orientation: "vertical" },
+  args: { orientation: 'vertical' },
   render: (args) => (
     <Tabs className="w-96" {...args}>
       <TabsList>
@@ -67,7 +67,7 @@ export const Vertical: Story = {
       <Panels />
     </Tabs>
   ),
-};
+}
 
 export const WithDisabled: Story = {
   render: (args) => (
@@ -82,4 +82,4 @@ export const WithDisabled: Story = {
       <Panels />
     </Tabs>
   ),
-};
+}

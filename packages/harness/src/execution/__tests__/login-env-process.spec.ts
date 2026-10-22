@@ -71,7 +71,11 @@ describe('LoginEnvProcessPort', () => {
 
     withShell('/bin/zsh', () => port.spawn(markedShellCommand))
 
-    expect(inner.spawned[0]?.cmd).toEqual(['/bin/zsh', '-ilc', 'exec bash -c "$ATLAS_SHELL_COMMAND"'])
+    expect(inner.spawned[0]?.cmd).toEqual([
+      '/bin/zsh',
+      '-ilc',
+      'exec bash -c "$ATLAS_SHELL_COMMAND"',
+    ])
     expect(inner.spawned[0]?.cwd).toBe('/tmp/project')
     expect(inner.spawned[0]?.env?.ATLAS_SHELL_COMMAND).toBe('node -v')
     expect(inner.spawned[0]?.env?.[LOGIN_ENV_MARKER]).toBeUndefined()
@@ -82,7 +86,10 @@ describe('LoginEnvProcessPort', () => {
     const port = new LoginEnvProcessPort(inner)
 
     withShell('/bin/zsh', () =>
-      port.spawn({ ...markedShellCommand, env: { ...markedShellCommand.env, FNM_LOGLEVEL: 'info' } }),
+      port.spawn({
+        ...markedShellCommand,
+        env: { ...markedShellCommand.env, FNM_LOGLEVEL: 'info' },
+      }),
     )
 
     expect(inner.spawned[0]?.env?.FNM_LOGLEVEL).toBe('quiet')
@@ -94,7 +101,11 @@ describe('LoginEnvProcessPort', () => {
 
     withShell('/bin/bash', () => port.spawn(markedShellCommand))
 
-    expect(inner.spawned[0]?.cmd).toEqual(['/bin/bash', '-lc', 'exec bash -c "$ATLAS_SHELL_COMMAND"'])
+    expect(inner.spawned[0]?.cmd).toEqual([
+      '/bin/bash',
+      '-lc',
+      'exec bash -c "$ATLAS_SHELL_COMMAND"',
+    ])
   })
 
   it('falls back to plain bash when SHELL is not set', () => {

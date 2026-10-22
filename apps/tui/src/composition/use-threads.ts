@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { projectOf, toThreadId } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 import type { CloudSandboxes, ThreadStorePort, ThreadSummary } from '@dltech/atlas-harness'
 
 import {
@@ -73,15 +73,13 @@ export function useThreads(args: {
     [activeThreadId],
   )
 
-  const putRows = useCallback(
-    (current: ThreadsState, rows: readonly ThreadRow[]): ThreadsState => {
-      const selected = matchingThreads(current)[current.index]?.threadId
-      const selectedIndex = selected === undefined ? -1 : rows.findIndex((row) => row.threadId === selected)
-      const next = withThreads({ state: current, rows })
-      return selectedIndex >= 0 ? { ...next, index: selectedIndex } : next
-    },
-    [],
-  )
+  const putRows = useCallback((current: ThreadsState, rows: readonly ThreadRow[]): ThreadsState => {
+    const selected = matchingThreads(current)[current.index]?.threadId
+    const selectedIndex =
+      selected === undefined ? -1 : rows.findIndex((row) => row.threadId === selected)
+    const next = withThreads({ state: current, rows })
+    return selectedIndex >= 0 ? { ...next, index: selectedIndex } : next
+  }, [])
 
   const adopt = useCallback(
     (threads: readonly ThreadSummary[], gen: number) => {

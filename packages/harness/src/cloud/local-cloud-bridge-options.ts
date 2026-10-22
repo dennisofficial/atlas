@@ -3,11 +3,7 @@ import type { RuntimeCheckpoint, VercelSandboxConfig } from '@dltech/atlas-wire'
 
 import type { SettingsService } from '../settings/service'
 import type { MirrorLocalLog } from './transcript-syncer'
-import type {
-  BridgeDriver,
-  RegistrationSender,
-  SandboxRegistration,
-} from './local-cloud-bootstrap'
+import type { BridgeDriver, RegistrationSender, SandboxRegistration } from './local-cloud-bootstrap'
 
 export type SandboxAuthorizer = (args: {
   threadId: ThreadId

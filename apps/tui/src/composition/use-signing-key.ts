@@ -6,7 +6,11 @@ import {
   SigningKeyClient,
   type CloudService,
 } from '@dltech/atlas-harness'
-import { ESshSigningKeyState, SSH_SIGNING_SCOPE_NOTICE, type SshSigningKeyStatus } from '@dltech/atlas-wire'
+import {
+  ESshSigningKeyState,
+  SSH_SIGNING_SCOPE_NOTICE,
+  type SshSigningKeyStatus,
+} from '@dltech/atlas-wire'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { clientVersionHeader } from '../build/info'

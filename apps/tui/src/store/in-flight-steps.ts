@@ -47,7 +47,9 @@ export const emptyStep = (stepId: StepId): ArrivingStep => ({
 })
 
 function blockFor(args: { step: ArrivingStep; kind: EBlockKind; id: string }): StepBlock {
-  const existing = args.step.blocks.find((block) => block.kind === args.kind && block.id === args.id)
+  const existing = args.step.blocks.find(
+    (block) => block.kind === args.kind && block.id === args.id,
+  )
   if (existing !== undefined) return existing
 
   const created: StepBlock = { id: args.id, kind: args.kind, text: '' }
@@ -175,9 +177,7 @@ export function withoutFailedTail(args: {
   const tail = live.at(-1)
   if (tail === undefined || tail.end !== EStepEnd.Failed) return args.signals
 
-  return args.signals.filter(
-    (signal) => !stepKeyed(signal) || signal.stepId !== tail.stepId,
-  )
+  return args.signals.filter((signal) => !stepKeyed(signal) || signal.stepId !== tail.stepId)
 }
 
 export function prunedSignals(args: {
@@ -186,9 +186,7 @@ export function prunedSignals(args: {
 }): readonly StepSignal[] {
   const live = liveSteps({ steps: stepsOfSignals(args.signals), events: args.events })
   const rendered = new Set(live.map((step) => step.stepId))
-  const kept = args.signals.filter(
-    (signal) => !stepKeyed(signal) || rendered.has(signal.stepId),
-  )
+  const kept = args.signals.filter((signal) => !stepKeyed(signal) || rendered.has(signal.stepId))
 
   return kept.length === args.signals.length ? args.signals : kept
 }

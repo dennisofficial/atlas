@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { APICallError } from '@ai-sdk/provider'
 import {
-  defaultPipeline, EMPTY_PROMPT, ECompactionAnchor, EFinishReason, EImageTier,
-  type Assembled, type ModelCard, type ModelPort, type RetryPolicy,
+  defaultPipeline,
+  EMPTY_PROMPT,
+  ECompactionAnchor,
+  EFinishReason,
+  EImageTier,
+  type Assembled,
+  type ModelCard,
+  type ModelPort,
+  type RetryPolicy,
 } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, LoopTurnRunner, type AtlasHarness } from '..'
@@ -21,12 +28,18 @@ afterEach(async () => {
 const FAIL_FAST: RetryPolicy = { maxAttempts: 5, baseDelayMs: 1, maxDelayMs: 1 }
 const card: ModelCard = {
   ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
-  label: 'haiku-4-5', api: 'anthropic', contextWindow: 200_000, imageTier: EImageTier.Standard,
+  label: 'haiku-4-5',
+  api: 'anthropic',
+  contextWindow: 200_000,
+  imageTier: EImageTier.Standard,
 }
 
 async function fixture() {
   const temp = createTempHome()
-  const harness = await buildHarness({ home: temp.home, model: scriptedModel({ script: [{ text: 'done' }] }) })
+  const harness = await buildHarness({
+    home: temp.home,
+    model: scriptedModel({ script: [{ text: 'done' }] }),
+  })
   opened.push({ harness, temp })
   return harness
 }
@@ -41,18 +54,32 @@ describe('retry and compaction preparation', () => {
       identity: { id: 'anthropic', modelId: 'claude-test' },
       step: async ({ assembled }) => {
         requested.push(assembled)
-        if (requested.length === 1) throw new APICallError({
-          message: 'overloaded', url: 'https://api.anthropic.com/v1/messages', requestBodyValues: {}, statusCode: 529,
-        })
-        return { parts: [{ type: 'text', text: 'done' }], toolCalls: [], finishReason: EFinishReason.Stop }
+        if (requested.length === 1)
+          throw new APICallError({
+            message: 'overloaded',
+            url: 'https://api.anthropic.com/v1/messages',
+            requestBodyValues: {},
+            statusCode: 529,
+          })
+        return {
+          parts: [{ type: 'text', text: 'done' }],
+          toolCalls: [],
+          finishReason: EFinishReason.Stop,
+        }
       },
     }
     const outcome = await takeModelStepWithRetry({
-      model, tools: [], onChunk: undefined, assembled: initial, signal: new AbortController().signal,
+      model,
+      tools: [],
+      onChunk: undefined,
+      assembled: initial,
+      signal: new AbortController().signal,
       retry: { policy: FAIL_FAST, sleep: async () => undefined, jitter: () => 1 },
       prepare: async () => {
         prepares += 1
-        return prepares === 1 ? { ok: true, compacted: true } : { ok: true, assembled: refreshed, tokens: 0 }
+        return prepares === 1
+          ? { ok: true, compacted: true }
+          : { ok: true, assembled: refreshed, tokens: 0 }
       },
     })
     expect(outcome.ok).toBe(true)
@@ -66,16 +93,21 @@ describe('retry and compaction preparation', () => {
     let compacted = false
     let asked = 0
     const runner = new LoopTurnRunner({
-      log: harness.log, ids: harness.ids,
+      log: harness.log,
+      ids: harness.ids,
       model: {
         identity: harness.model.identity,
         step: (args) => harness.model.step(args),
         traits: () => ({ contextWindow: 1_000 }),
       },
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
-      countTokens: () => compacted ? 100 : 950,
+      countTokens: () => (compacted ? 100 : 950),
       autoCompactAtPercent: () => 90,
-      compact: async () => { asked += 1; compacted = true; return true },
+      compact: async () => {
+        asked += 1
+        compacted = true
+        return true
+      },
     })
     const outcome = await runner.say({ threadId: thread.id, text: 'work' })
     expect(asked).toBe(0)
@@ -86,13 +118,18 @@ describe('retry and compaction preparation', () => {
     const temp = createTempHome()
     let asked = 0
     const harness = await buildHarness({
-      home: temp.home, model: scriptedModel({ script: [{ text: 'done' }] }),
-      identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' }, card,
+      home: temp.home,
+      model: scriptedModel({ script: [{ text: 'done' }] }),
+      identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' },
+      card,
       autoCompactAtPercent: () => 90,
       compact: async ({ threadId }) => {
         asked += 1
         await harness.threads.compact({
-          threadId, anchor: ECompactionAnchor.Prefix, fromSeq: 1, throughSeq: 2,
+          threadId,
+          anchor: ECompactionAnchor.Prefix,
+          fromSeq: 1,
+          throughSeq: 2,
           summary: 'compacted at the window limit',
         })
         return true
@@ -100,10 +137,14 @@ describe('retry and compaction preparation', () => {
     })
     opened.push({ harness, temp })
     const thread = await harness.threads.create({})
-    await harness.log.append({ threadId: thread.id, runId: harness.ids.nextRunId(), drafts: [
-      { type: 'user-said', text: 'x'.repeat(800_000) },
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'read it' }] },
-    ] })
+    await harness.log.append({
+      threadId: thread.id,
+      runId: harness.ids.nextRunId(),
+      drafts: [
+        { type: 'user-said', text: 'x'.repeat(800_000) },
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'read it' }] },
+      ],
+    })
     const outcome = await harness.runner.say({ threadId: thread.id, text: 'summarise' })
     expect(asked).toBe(1)
     expect(outcome.status).toBe(ETurnStatus.Completed)
@@ -113,9 +154,15 @@ describe('retry and compaction preparation', () => {
     const temp = createTempHome()
     let asked = 0
     const harness = await buildHarness({
-      home: temp.home, model: scriptedModel({ script: [{ text: 'done' }] }),
-      identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' }, card,
-      autoCompactAtPercent: () => 0, compact: async () => { asked += 1; return true },
+      home: temp.home,
+      model: scriptedModel({ script: [{ text: 'done' }] }),
+      identity: { id: 'anthropic', modelId: 'claude-haiku-4-5' },
+      card,
+      autoCompactAtPercent: () => 0,
+      compact: async () => {
+        asked += 1
+        return true
+      },
     })
     opened.push({ harness, temp })
     const thread = await harness.threads.create({})
@@ -131,13 +178,21 @@ describe('retry and compaction preparation', () => {
     let drains = 0
     let released = 0
     const runner = new LoopTurnRunner({
-      log: harness.log, model: harness.model, ids: harness.ids,
+      log: harness.log,
+      model: harness.model,
+      ids: harness.ids,
       assembly: defaultPipeline({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
       drainPending: async () => {
         drains += 1
         if (drains === 1) {
           controller.abort()
-          return { drafts: [], wakesTurn: false, release: () => { released += 1 } }
+          return {
+            drafts: [],
+            wakesTurn: false,
+            release: () => {
+              released += 1
+            },
+          }
         }
         return { drafts: [], wakesTurn: false }
       },

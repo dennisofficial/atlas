@@ -44,7 +44,9 @@ describe('verifyGithubSignature', () => {
   it('rejects a signature missing the sha256= prefix', () => {
     const hex = createHmac('sha256', SECRET).update(BODY).digest('hex')
 
-    expect(verifyGithubSignature({ secret: SECRET, rawBody: BODY, signatureHeader: hex })).toBe(false)
+    expect(verifyGithubSignature({ secret: SECRET, rawBody: BODY, signatureHeader: hex })).toBe(
+      false,
+    )
   })
 
   it('rejects a signature with non-hex characters', () => {

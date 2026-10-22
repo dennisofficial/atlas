@@ -36,18 +36,33 @@ const deps = (overrides: Partial<ExportDeps> = {}): ExportDeps => ({
 
 const outputIn = async (): Promise<string> => join(await tmpDir(), 'out')
 
-const exportOne = async ({ before, after, overrides }: { before: string | null; after: string; overrides?: Partial<ExportDeps> }) => {
+const exportOne = async ({
+  before,
+  after,
+  overrides,
+}: {
+  before: string | null
+  after: string
+  overrides?: Partial<ExportDeps>
+}) => {
   const sessionDir = await tmpDir()
   const capture = await recordCapture({ sessionDir, before, after })
   const outputDir = await outputIn()
-  const report = await exportExamples({ sessionDirs: [sessionDir], outputDir, deps: deps(overrides) })
+  const report = await exportExamples({
+    sessionDirs: [sessionDir],
+    outputDir,
+    deps: deps(overrides),
+  })
   const id = basename(capture.relativePaths[0] ?? '', '.json')
   return { sessionDir, outputDir, report, id }
 }
 
 describe('exportExamples against the production sink', () => {
   test('preserves the stored scope snapshot, evidence and provenance; capture id is the sink digest', async () => {
-    const { outputDir, report, id, sessionDir } = await exportOne({ before: counterBefore(), after: counterAfter() })
+    const { outputDir, report, id, sessionDir } = await exportOne({
+      before: counterBefore(),
+      after: counterAfter(),
+    })
 
     expect(report.rejections).toEqual([])
     const written = JSON.parse(await readFile(join(outputDir, `${id}.json`), 'utf8'))
@@ -55,14 +70,23 @@ describe('exportExamples against the production sink', () => {
     expect(written.sinkSchemaVersion).toBe('1')
     expect(written.captureId).toBe(id)
     expect(written.session).toBe(basename(sessionDir))
-    expect(written.provenance).toEqual({ toolName: 'write', threadId: 'thread-1', runId: 'run-1', callId: 'call-1' })
+    expect(written.provenance).toEqual({
+      toolName: 'write',
+      threadId: 'thread-1',
+      runId: 'run-1',
+      callId: 'call-1',
+    })
     expect(written.scope.kind).toBe('class')
     expect(written.scope.name).toBe('Counter')
     expect(written.scope.after).toStartWith('export class Counter')
     expect(written.scope.after).not.toContain('import ')
     expect(written.scope.before).not.toBeNull()
     expect(written.scope.diff).toContain('+  describe(): string')
-    expect(written.scope.evidence.map((entry: { label: string }) => entry.label)).toEqual(['total', 'add', 'describe'])
+    expect(written.scope.evidence.map((entry: { label: string }) => entry.label)).toEqual([
+      'total',
+      'add',
+      'describe',
+    ])
     expect(written).not.toHaveProperty('capturedAt')
     expect(written.digests.redacted.afterSha256).toBe(sha256Hex({ text: written.scope.after }))
   })
@@ -76,7 +100,10 @@ describe('exportExamples against the production sink', () => {
   })
 
   test('redacts every source-bearing field and keeps per-field redaction maps', async () => {
-    const { outputDir, id, report } = await exportOne({ before: null, after: secretBearingSource() })
+    const { outputDir, id, report } = await exportOne({
+      before: null,
+      after: secretBearingSource(),
+    })
 
     expect(report.rejections).toEqual([])
     const text = await readFile(join(outputDir, `${id}.json`), 'utf8')
@@ -91,16 +118,32 @@ describe('exportExamples against the production sink', () => {
 
   test('rejects an unsupported sink schema version legibly', async () => {
     const sessionDir = await tmpDir()
-    await writeRawSinkFile({ sessionDir, fileStem: 'a'.repeat(64), content: JSON.stringify({ schemaVersion: '2' }) })
-    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    await writeRawSinkFile({
+      sessionDir,
+      fileStem: 'a'.repeat(64),
+      content: JSON.stringify({ schemaVersion: '2' }),
+    })
+    const report = await exportExamples({
+      sessionDirs: [sessionDir],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
     expect(report.rejections[0]?.kind).toBe(EExportRejection.SchemaInvalid)
     expect(report.rejections[0]?.detail).toContain('unsupported sink schemaVersion "2"')
   })
 
   test('rejects the legacy numeric schemaVersion 1 flat format', async () => {
     const sessionDir = await tmpDir()
-    await writeRawSinkFile({ sessionDir, fileStem: 'b'.repeat(64), content: JSON.stringify({ schemaVersion: 1, captureId: 'x' }) })
-    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    await writeRawSinkFile({
+      sessionDir,
+      fileStem: 'b'.repeat(64),
+      content: JSON.stringify({ schemaVersion: 1, captureId: 'x' }),
+    })
+    const report = await exportExamples({
+      sessionDirs: [sessionDir],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
     expect(report.rejections[0]?.detail).toContain('unsupported sink schemaVersion 1')
   })
 
@@ -110,8 +153,14 @@ describe('exportExamples against the production sink', () => {
     const text = await readFile(file, 'utf8')
     await rm(file)
     await writeRawSinkFile({ sessionDir, fileStem: id, content: `${text} ` })
-    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
-    expect(report.rejections.map((entry) => [entry.captureId, entry.kind])).toEqual([[id, EExportRejection.DigestMismatch]])
+    const report = await exportExamples({
+      sessionDirs: [sessionDir],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
+    expect(report.rejections.map((entry) => [entry.captureId, entry.kind])).toEqual([
+      [id, EExportRejection.DigestMismatch],
+    ])
     expect(report.rejections[0]?.detail).toContain('content digest')
   })
 
@@ -122,8 +171,16 @@ describe('exportExamples against the production sink', () => {
     record.after = `${record.after}// tampered`
     const tampered = JSON.stringify(record)
     await rm(file)
-    await writeRawSinkFile({ sessionDir, fileStem: sha256Hex({ text: tampered }), content: tampered })
-    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    await writeRawSinkFile({
+      sessionDir,
+      fileStem: sha256Hex({ text: tampered }),
+      content: tampered,
+    })
+    const report = await exportExamples({
+      sessionDirs: [sessionDir],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
     expect(report.rejections[0]?.kind).toBe(EExportRejection.DigestMismatch)
     expect(report.rejections[0]?.detail).toContain('hashes.after')
   })
@@ -133,12 +190,20 @@ describe('exportExamples against the production sink', () => {
     const source = join(sessionDir, 'threads', 'thread-1', 'quality', 'examples', `${id}.json`)
     const text = await readFile(source, 'utf8')
     await writeRawSinkFile({ sessionDir, threadId: 'thread-2', fileStem: id, content: text })
-    const report = await exportExamples({ sessionDirs: [sessionDir], outputDir: await outputIn(), deps: deps() })
+    const report = await exportExamples({
+      sessionDirs: [sessionDir],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
     expect(report.rejections.map((entry) => entry.kind)).toEqual([EExportRejection.SchemaInvalid])
   })
 
   test('rejects adapter reparse failures and writes nothing for them', async () => {
-    const { outputDir, report } = await exportOne({ before: null, after: counterAfter(), overrides: { reparse: () => 'cannot parse' } })
+    const { outputDir, report } = await exportOne({
+      before: null,
+      after: counterAfter(),
+      overrides: { reparse: () => 'cannot parse' },
+    })
     expect(report.exported).toBe(0)
     expect(report.rejections[0]?.kind).toBe(EExportRejection.AdapterMismatch)
     expect((await readdir(outputDir)).sort()).toEqual(['manifest.json', 'rejections.jsonl'])
@@ -146,7 +211,11 @@ describe('exportExamples against the production sink', () => {
 
   test('rejects a redactor that is not stable on its own output', async () => {
     const growing: ExportDeps['redact'] = (text) => ({ text: `${text}!`, map: [] })
-    const { report } = await exportOne({ before: null, after: counterAfter(), overrides: { redact: growing } })
+    const { report } = await exportOne({
+      before: null,
+      after: counterAfter(),
+      overrides: { redact: growing },
+    })
     expect(report.rejections[0]?.kind).toBe(EExportRejection.RedactionUnstable)
   })
 
@@ -154,17 +223,30 @@ describe('exportExamples against the production sink', () => {
     const empty = await tmpDir()
     const good = await tmpDir()
     await recordCapture({ sessionDir: good, before: null, after: counterAfter() })
-    const report = await exportExamples({ sessionDirs: [empty, good], outputDir: await outputIn(), deps: deps() })
+    const report = await exportExamples({
+      sessionDirs: [empty, good],
+      outputDir: await outputIn(),
+      deps: deps(),
+    })
     expect(report.exported).toBe(1)
     expect(report.rejections).toEqual([
-      { session: basename(empty), captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' },
+      {
+        session: basename(empty),
+        captureId: null,
+        kind: EExportRejection.NoExamples,
+        detail: 'no captured examples found',
+      },
     ])
   })
 
   test('refuses an existing output directory and a missing session directory', async () => {
-    await expect(exportExamples({ sessionDirs: [], outputDir: await tmpDir(), deps: deps() })).rejects.toThrow('output directory already exists')
+    await expect(
+      exportExamples({ sessionDirs: [], outputDir: await tmpDir(), deps: deps() }),
+    ).rejects.toThrow('output directory already exists')
     const missing = join(await tmpDir(), 'nope')
-    await expect(exportExamples({ sessionDirs: [missing], outputDir: await outputIn(), deps: deps() })).rejects.toThrow('session directory does not exist')
+    await expect(
+      exportExamples({ sessionDirs: [missing], outputDir: await outputIn(), deps: deps() }),
+    ).rejects.toThrow('session directory does not exist')
   })
 
   test('manifest records only base names, never absolute session directories', async () => {

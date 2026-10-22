@@ -16,7 +16,7 @@ describe('GithubPollSweeperService transition events', () => {
 
   it('records a merged state event when a poll-backed read first reports merged', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
     await seedPrState({ state: 'open' })
 
@@ -39,7 +39,7 @@ describe('GithubPollSweeperService transition events', () => {
       checksFailed: 0,
       mergeable: true,
     }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
     await seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
 
@@ -52,7 +52,7 @@ describe('GithubPollSweeperService transition events', () => {
 
   it('records no event on a steady-state re-read of a poll-backed pr', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
     await seedPrState()
 
@@ -63,7 +63,7 @@ describe('GithubPollSweeperService transition events', () => {
 
   it('records no event when a poll-backed pr row is brand new', async () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
 
     await service.handlePoll()

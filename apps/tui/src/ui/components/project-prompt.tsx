@@ -14,7 +14,14 @@ import {
   type ProjectRow,
 } from '../project-prompt-model'
 import { glyph, theme } from '../theme'
-import { BottomDrawer, drawerCells, DrawerGap, DrawerHeading, DrawerHints, DrawerLine } from './drawer'
+import {
+  BottomDrawer,
+  drawerCells,
+  DrawerGap,
+  DrawerHeading,
+  DrawerHints,
+  DrawerLine,
+} from './drawer'
 import { clipSpans, spanCells } from './sidebar/cells'
 import { Spans, type Span } from './spans'
 
@@ -22,7 +29,8 @@ export const PICK_HEADING = 'Run this thread in a project'
 
 export const CREATE_HEADING = 'Create a project for this repository'
 
-export const NO_PROJECTS_HINT = 'No projects yet — launching Atlas from a GitHub repository creates one automatically.'
+export const NO_PROJECTS_HINT =
+  'No projects yet — launching Atlas from a GitHub repository creates one automatically.'
 
 const CARET = '▏'
 
@@ -50,20 +58,33 @@ function Line(props: { spans: readonly Span[]; cells: number }): React.ReactNode
   )
 }
 
-function PickRow(props: { row: ProjectRow; cells: number; selected: boolean; onChoose: () => void }): React.ReactNode {
+function PickRow(props: {
+  row: ProjectRow
+  cells: number
+  selected: boolean
+  onChoose: () => void
+}): React.ReactNode {
   const click = useClickRegion(props.onChoose)
   const band = props.selected ? theme.hoverBg : click.wash.bg
   const none = props.row.projectId === null
 
   const mark: Span = { text: `${props.selected ? glyph.marker : ' '} `, fg: theme.accent }
-  const name: Span = { text: props.row.name, fg: props.selected ? theme.bright : none ? theme.hint : theme.hover }
+  const name: Span = {
+    text: props.row.name,
+    fg: props.selected ? theme.bright : none ? theme.hint : theme.hover,
+  }
   const repo: Span = { text: props.row.repo === null ? '' : props.row.repo, fg: theme.hint }
   const gap = Math.max(1, props.cells - spanCells([mark, name, repo]))
 
   return (
     <DrawerLine {...(band === undefined ? {} : { band })} press={click.handlers}>
       <text>
-        <Spans spans={clipSpans({ spans: [mark, name, { text: ' '.repeat(gap) }, repo], cells: props.cells })} />
+        <Spans
+          spans={clipSpans({
+            spans: [mark, name, { text: ' '.repeat(gap) }, repo],
+            cells: props.cells,
+          })}
+        />
       </text>
     </DrawerLine>
   )
@@ -194,7 +215,13 @@ export function ProjectPrompt(props: {
   return (
     <BottomDrawer
       overlay={props.overlay === true}
-      footer={<DrawerHints hints={pick ? PICK_HINTS : CREATE_HINTS} cells={cells} onDismiss={props.onCancel} />}
+      footer={
+        <DrawerHints
+          hints={pick ? PICK_HINTS : CREATE_HINTS}
+          cells={cells}
+          onDismiss={props.onCancel}
+        />
+      }
     >
       <box flexDirection="column" flexShrink={0}>
         {props.state.mode === EProjectPrompt.Pick ? (

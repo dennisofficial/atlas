@@ -6,7 +6,12 @@ import type { PruneImage, SandboxRef } from '../prune-vcr-images'
 const DAY_MS = 24 * 60 * 60 * 1000
 const NOW = Date.parse('2026-10-08T12:00:00Z')
 
-const image = (args: { id: string; tags: string[]; createdAt: string; digest?: string }): PruneImage => ({
+const image = (args: {
+  id: string
+  tags: string[]
+  createdAt: string
+  digest?: string
+}): PruneImage => ({
   id: args.id,
   tags: args.tags,
   createdAt: Date.parse(args.createdAt),
@@ -68,7 +73,12 @@ describe('planPrune', () => {
       digest: 'sha256:inuse',
     })
     const sandbox: SandboxRef = { image: 'comp-ai/atlas/atlas-sandbox@sha256:inuse' }
-    const plan = planPrune({ images: [stale], sandboxes: [sandbox], now: NOW, windowMs: 7 * DAY_MS })
+    const plan = planPrune({
+      images: [stale],
+      sandboxes: [sandbox],
+      now: NOW,
+      windowMs: 7 * DAY_MS,
+    })
     expect(plan.delete).toEqual([])
     expect(plan.keep.map((i) => i.id)).toEqual(['stale'])
   })
@@ -80,15 +90,25 @@ describe('planPrune', () => {
       createdAt: '2026-09-20T12:00:00Z',
       digest: 'sha256:abc123',
     })
-    const byDigest: SandboxRef = { image: 'vcr.vercel.com/comp-ai/atlas/atlas-sandbox@sha256:abc123' }
+    const byDigest: SandboxRef = {
+      image: 'vcr.vercel.com/comp-ai/atlas/atlas-sandbox@sha256:abc123',
+    }
     const other: SandboxRef = { image: 'comp-ai/atlas/atlas-sandbox@sha256:different' }
-    expect(planPrune({ images: [img], sandboxes: [byDigest], now: NOW, windowMs: 7 * DAY_MS }).delete).toEqual([])
-    expect(planPrune({ images: [img], sandboxes: [other], now: NOW, windowMs: 7 * DAY_MS }).delete.map((i) => i.id)).toEqual(['x'])
+    expect(
+      planPrune({ images: [img], sandboxes: [byDigest], now: NOW, windowMs: 7 * DAY_MS }).delete,
+    ).toEqual([])
+    expect(
+      planPrune({ images: [img], sandboxes: [other], now: NOW, windowMs: 7 * DAY_MS }).delete.map(
+        (i) => i.id,
+      ),
+    ).toEqual(['x'])
   })
 
   it('an image with several tags is kept when any of them is in-window', () => {
     const plan = planPrune({
-      images: [image({ id: 'multi', tags: ['sha-abc1234', '1.81.3'], createdAt: '2026-10-07T12:00:00Z' })],
+      images: [
+        image({ id: 'multi', tags: ['sha-abc1234', '1.81.3'], createdAt: '2026-10-07T12:00:00Z' }),
+      ],
       sandboxes: [],
       now: NOW,
       windowMs: 7 * DAY_MS,

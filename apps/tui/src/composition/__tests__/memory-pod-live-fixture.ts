@@ -3,7 +3,11 @@ import { MODEL_ID, OPENROUTER_LEASE } from './pod-session-live-fixture'
 export const REMEMBER_TRIGGER = 'remember the pod fact'
 
 type ChatMessage = { role: string; content?: unknown }
-type ChatBody = { stream?: boolean; tools?: { function?: { name?: string } }[]; messages: ChatMessage[] }
+type ChatBody = {
+  stream?: boolean
+  tools?: { function?: { name?: string } }[]
+  messages: ChatMessage[]
+}
 
 type Reply = { text: string } | { tool: string; input: object }
 
@@ -22,7 +26,9 @@ export const textOf = (content: unknown): string => {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return content
-    .map((part: unknown) => (typeof part === 'object' && part !== null && 'text' in part ? String(part.text) : ''))
+    .map((part: unknown) =>
+      typeof part === 'object' && part !== null && 'text' in part ? String(part.text) : '',
+    )
     .join('')
 }
 
@@ -32,7 +38,9 @@ const chunk = (delta: object, finish: string | null) => ({
   created: 1,
   model: MODEL_ID,
   choices: [{ index: 0, delta, finish_reason: finish }],
-  ...(finish === null ? {} : { usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
+  ...(finish === null
+    ? {}
+    : { usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }),
 })
 
 const toolCallFrame = (reply: { tool: string; input: object }) =>
@@ -56,7 +64,10 @@ const streamOf = (reply: Reply): Response => {
     'text' in reply
       ? [chunk({ role: 'assistant', content: reply.text }, null), chunk({}, 'stop')]
       : [toolCallFrame(reply), chunk({}, 'tool_calls')]
-  const body = [...frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`), 'data: [DONE]\n\n'].join('')
+  const body = [
+    ...frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`),
+    'data: [DONE]\n\n',
+  ].join('')
   return new Response(body, { headers: { 'content-type': 'text/event-stream' } })
 }
 
@@ -67,7 +78,11 @@ const completionOf = (reply: Reply): Response =>
     created: 1,
     model: MODEL_ID,
     choices: [
-      { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'text' in reply ? reply.text : 'ok' } },
+      {
+        index: 0,
+        finish_reason: 'stop',
+        message: { role: 'assistant', content: 'text' in reply ? reply.text : 'ok' },
+      },
     ],
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   })
@@ -84,7 +99,11 @@ const replyFor = ({ body, memoryName }: { body: ChatBody; memoryName: string }):
   const last = body.messages.at(-1)
   if (last?.role === 'tool') return { text: 'done' }
   const offersMemory = body.tools?.some((tool) => tool.function?.name === 'write_memory') === true
-  if (!offersMemory || last?.role !== 'user' || !saidSinceLastAnswer(body.messages).includes(REMEMBER_TRIGGER)) {
+  if (
+    !offersMemory ||
+    last?.role !== 'user' ||
+    !saidSinceLastAnswer(body.messages).includes(REMEMBER_TRIGGER)
+  ) {
     return { text: 'ok' }
   }
   return {
@@ -107,7 +126,8 @@ export const startMemoryModel = ({ memoryName }: { memoryName: string }): FakeMe
     port: 0,
     hostname: '0.0.0.0',
     fetch: async (request) => {
-      if (new URL(request.url).pathname !== '/v1/chat/completions') return new Response('not found', { status: 404 })
+      if (new URL(request.url).pathname !== '/v1/chat/completions')
+        return new Response('not found', { status: 404 })
       const body = (await request.json()) as ChatBody
       requests.push(body)
       const reply = replyFor({ body, memoryName })

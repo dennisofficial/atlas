@@ -2,7 +2,12 @@
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
-import { fetchGithub, GITHUB_ORG_SCOPE, GITHUB_REPO_SCOPE, type GithubConnection } from '../data/personal/github-api'
+import {
+  fetchGithub,
+  GITHUB_ORG_SCOPE,
+  GITHUB_REPO_SCOPE,
+  type GithubConnection,
+} from '../data/personal/github-api'
 import { fetchMcpServers } from '../data/personal/mcp-api'
 import { QuerySection } from '../data/personal/query-boundary'
 import { useMcpStore } from '../data/personal/use-mcp-store'

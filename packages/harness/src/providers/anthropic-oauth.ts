@@ -54,7 +54,8 @@ const mergedProviderOptions = (args: {
 
 // @ai-sdk/anthropic 4.0.41 resolves auth headers lazily, per request, so a provider built with no
 // credential is legal as long as no request is made through it. `supportedUrls` reads pure config.
-const supportedUrlsWithoutACredential = (modelId: string) => createAnthropic()(modelId).supportedUrls
+const supportedUrlsWithoutACredential = (modelId: string) =>
+  createAnthropic()(modelId).supportedUrls
 
 const heldProviderOptions = (
   held: AnthropicProviderOptions | undefined,

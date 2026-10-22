@@ -1,69 +1,63 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { ChevronRightIcon } from "lucide-react";
+import { useState } from 'react'
+import { ChevronRightIcon } from 'lucide-react'
 
-import { Button } from "#components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "#components/select";
-import { cn } from "#lib/utils";
-import { DiffViewer, type DiffLine } from "./diff-viewer";
-import { EFileChange } from "./file-tree";
+import { Button } from '#components/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#components/select'
+import { cn } from '#lib/utils'
+import { DiffViewer, type DiffLine } from './diff-viewer'
+import { EFileChange } from './file-tree'
 
-export { EFileChange };
+export { EFileChange }
 
-const MINUS = "−";
+const MINUS = '−'
 
 export interface ChangedFile {
-  path: string;
-  added: number;
-  removed: number;
-  change: EFileChange;
-  hunk?: string;
-  lines?: DiffLine[];
+  path: string
+  added: number
+  removed: number
+  change: EFileChange
+  hunk?: string
+  lines?: DiffLine[]
 }
 
 export interface ChangeScopeOption {
-  id: string;
-  label: string;
-  detail?: string;
+  id: string
+  label: string
+  detail?: string
 }
 
 export interface ChangesPanelProps {
-  files: ChangedFile[];
-  scopes: ChangeScopeOption[];
-  scope: string;
-  onScopeChange?: (id: string) => void;
-  expanded?: string[];
-  defaultExpanded?: string[];
-  onExpandedChange?: (paths: string[]) => void;
-  onCommit?: () => void;
-  onReview?: () => void;
-  onOpenPullRequest?: () => void;
-  className?: string;
+  files: ChangedFile[]
+  scopes: ChangeScopeOption[]
+  scope: string
+  onScopeChange?: (id: string) => void
+  expanded?: string[]
+  defaultExpanded?: string[]
+  onExpandedChange?: (paths: string[]) => void
+  onCommit?: () => void
+  onReview?: () => void
+  onOpenPullRequest?: () => void
+  className?: string
 }
 
 const CHANGE_MARK: Record<EFileChange, { mark: string; className: string }> = {
-  [EFileChange.Added]: { mark: "A", className: "text-diff-add-foreground" },
-  [EFileChange.Modified]: { mark: "M", className: "text-warning" },
-  [EFileChange.Deleted]: { mark: "D", className: "text-diff-remove-foreground" },
-};
+  [EFileChange.Added]: { mark: 'A', className: 'text-diff-add-foreground' },
+  [EFileChange.Modified]: { mark: 'M', className: 'text-warning' },
+  [EFileChange.Deleted]: { mark: 'D', className: 'text-diff-remove-foreground' },
+}
 
 export function formatCount(count: number): string {
-  if (count < 1000) return `${count}`;
-  const thousands = count / 1000;
-  const rounded = thousands < 10 ? Math.round(thousands * 10) / 10 : Math.round(thousands);
-  return `${rounded}k`;
+  if (count < 1000) return `${count}`
+  const thousands = count / 1000
+  const rounded = thousands < 10 ? Math.round(thousands * 10) / 10 : Math.round(thousands)
+  return `${rounded}k`
 }
 
 export function totalChanges(files: ChangedFile[]): {
-  added: number;
-  removed: number;
+  added: number
+  removed: number
 } {
   return files.reduce(
     (total, file) => ({
@@ -71,17 +65,17 @@ export function totalChanges(files: ChangedFile[]): {
       removed: total.removed + file.removed,
     }),
     { added: 0, removed: 0 },
-  );
+  )
 }
 
 export function splitPath(path: string): { name: string; dir: string } {
-  const index = path.lastIndexOf("/");
-  if (index === -1) return { name: path, dir: "" };
-  return { name: path.slice(index + 1), dir: path.slice(0, index) };
+  const index = path.lastIndexOf('/')
+  if (index === -1) return { name: path, dir: '' }
+  return { name: path.slice(index + 1), dir: path.slice(0, index) }
 }
 
 function scopeLabel(scope: ChangeScopeOption): string {
-  return scope.detail ? `${scope.label} · ${scope.detail}` : scope.label;
+  return scope.detail ? `${scope.label} · ${scope.detail}` : scope.label
 }
 
 function Counts({ added, removed }: { added: number; removed: number }) {
@@ -93,19 +87,19 @@ function Counts({ added, removed }: { added: number; removed: number }) {
         {formatCount(removed)}
       </span>
     </span>
-  );
+  )
 }
 
 interface FileRowProps {
-  file: ChangedFile;
-  open: boolean;
-  onToggle: (path: string) => void;
+  file: ChangedFile
+  open: boolean
+  onToggle: (path: string) => void
 }
 
 function FileRow({ file, open, onToggle }: FileRowProps) {
-  const { name, dir } = splitPath(file.path);
-  const mark = CHANGE_MARK[file.change];
-  const handleToggle = () => onToggle(file.path);
+  const { name, dir } = splitPath(file.path)
+  const mark = CHANGE_MARK[file.change]
+  const handleToggle = () => onToggle(file.path)
 
   return (
     <li className="flex flex-col">
@@ -114,31 +108,26 @@ function FileRow({ file, open, onToggle }: FileRowProps) {
         aria-expanded={open}
         onClick={handleToggle}
         className={cn(
-          "flex w-full min-w-0 cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-sm outline-none",
-          "hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
-          open && "bg-muted/40",
+          'flex w-full min-w-0 cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-sm outline-none',
+          'hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
+          open && 'bg-muted/40',
         )}
       >
         <ChevronRightIcon
           className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-90",
+            'size-3.5 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-90',
           )}
         />
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
           <span className="shrink-0 text-foreground">{name}</span>
           {dir ? (
-            <span className="min-w-0 truncate text-xs text-muted-foreground">
-              {dir}
-            </span>
+            <span className="min-w-0 truncate text-xs text-muted-foreground">{dir}</span>
           ) : null}
         </span>
         <Counts added={file.added} removed={file.removed} />
         <span
-          className={cn(
-            "w-3 shrink-0 text-center font-mono text-xs font-semibold",
-            mark.className,
-          )}
+          className={cn('w-3 shrink-0 text-center font-mono text-xs font-semibold', mark.className)}
         >
           {mark.mark}
         </span>
@@ -161,42 +150,42 @@ function FileRow({ file, open, onToggle }: FileRowProps) {
         </div>
       ) : null}
     </li>
-  );
+  )
 }
 
 function useExpanded({
   expanded,
   defaultExpanded,
   onExpandedChange,
-}: Pick<ChangesPanelProps, "expanded" | "defaultExpanded" | "onExpandedChange">) {
-  const [internal, setInternal] = useState<string[]>(defaultExpanded ?? []);
-  const current = expanded ?? internal;
+}: Pick<ChangesPanelProps, 'expanded' | 'defaultExpanded' | 'onExpandedChange'>) {
+  const [internal, setInternal] = useState<string[]>(defaultExpanded ?? [])
+  const current = expanded ?? internal
 
   const toggle = (path: string) => {
     const next = current.includes(path)
       ? current.filter((entry) => entry !== path)
-      : [...current, path];
-    setInternal(next);
-    onExpandedChange?.(next);
-  };
+      : [...current, path]
+    setInternal(next)
+    onExpandedChange?.(next)
+  }
 
-  return { current, toggle };
+  return { current, toggle }
 }
 
 interface ScopeSwitcherProps {
-  scopes: ChangeScopeOption[];
-  scope: string;
-  onScopeChange?: (id: string) => void;
+  scopes: ChangeScopeOption[]
+  scope: string
+  onScopeChange?: (id: string) => void
 }
 
 function ScopeSwitcher({ scopes, scope, onScopeChange }: ScopeSwitcherProps) {
   const items = scopes.map((option) => ({
     value: option.id,
     label: scopeLabel(option),
-  }));
+  }))
   const handleValueChange = (value: string | null) => {
-    if (value !== null) onScopeChange?.(value);
-  };
+    if (value !== null) onScopeChange?.(value)
+  }
 
   return (
     <Select items={items} value={scope} onValueChange={handleValueChange}>
@@ -211,14 +200,12 @@ function ScopeSwitcher({ scopes, scope, onScopeChange }: ScopeSwitcherProps) {
         {scopes.map((option) => (
           <SelectItem key={option.id} value={option.id}>
             <span className="text-foreground">{option.label}</span>
-            {option.detail ? (
-              <span className="text-muted-foreground">{option.detail}</span>
-            ) : null}
+            {option.detail ? <span className="text-muted-foreground">{option.detail}</span> : null}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
-  );
+  )
 }
 
 export function ChangesPanel({
@@ -238,13 +225,13 @@ export function ChangesPanel({
     expanded,
     defaultExpanded,
     onExpandedChange,
-  });
-  const totals = totalChanges(files);
+  })
+  const totals = totalChanges(files)
 
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full min-w-0 flex-col bg-card text-card-foreground",
+        'flex h-full min-h-0 w-full min-w-0 flex-col bg-card text-card-foreground',
         className,
       )}
     >
@@ -252,7 +239,7 @@ export function ChangesPanel({
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <Counts added={totals.added} removed={totals.removed} />
           <span className="truncate text-xs text-muted-foreground tabular-nums">
-            {files.length} {files.length === 1 ? "file" : "files"}
+            {files.length} {files.length === 1 ? 'file' : 'files'}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -286,12 +273,8 @@ export function ChangesPanel({
         )}
       </div>
       <div className="shrink-0 border-t border-border p-1.5">
-        <ScopeSwitcher
-          scopes={scopes}
-          scope={scope}
-          onScopeChange={onScopeChange}
-        />
+        <ScopeSwitcher scopes={scopes} scope={scope} onScopeChange={onScopeChange} />
       </div>
     </div>
-  );
+  )
 }

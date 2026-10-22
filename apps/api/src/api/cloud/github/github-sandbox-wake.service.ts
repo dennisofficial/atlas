@@ -8,16 +8,15 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { wakeableOf, type SandboxLifecycleColumns } from '../../platform/sandboxes/sandbox-lifecycle'
+import {
+  wakeableOf,
+  type SandboxLifecycleColumns,
+} from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
-import {
-  failureText,
-  SANDBOX_WAKE_BOOT,
-  type SandboxWakeBoot,
-} from './github-sandbox-wake-boot'
+import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
 
 export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
@@ -122,7 +121,10 @@ export class GithubSandboxWakeService {
     const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
     const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS)
     const targets = subscriptions
-      .filter((subscription): subscription is typeof subscription & { threadId: string } => subscription.threadId !== null)
+      .filter(
+        (subscription): subscription is typeof subscription & { threadId: string } =>
+          subscription.threadId !== null,
+      )
       .flatMap((subscription): WakeTarget[] =>
         subscription.sandbox === null
           ? []
@@ -186,7 +188,9 @@ export class GithubSandboxWakeService {
       state: row.state,
     }).updateAndCount({ wakeClaim, updatedAt: wakeClaim })
     if (claimed === 0) {
-      this.logger.log(`wake of thread ${args.threadId} lost its claim — the row moved underneath it`)
+      this.logger.log(
+        `wake of thread ${args.threadId} lost its claim — the row moved underneath it`,
+      )
       return
     }
     try {
@@ -241,12 +245,16 @@ export class GithubSandboxWakeService {
     })
   }
 
-  private unsealedToken(row: Pick<Row<'CloudSandbox'>, 'name' | 'sealedToken'>): string | undefined {
+  private unsealedToken(
+    row: Pick<Row<'CloudSandbox'>, 'name' | 'sealedToken'>,
+  ): string | undefined {
     if (row.sealedToken === null) return undefined
     try {
       return this.cipher.decrypt(row.sealedToken)
     } catch (failure) {
-      this.logger.warn(`the sealed token on sandbox ${row.name} does not decrypt: ${failureText(failure)}`)
+      this.logger.warn(
+        `the sealed token on sandbox ${row.name} does not decrypt: ${failureText(failure)}`,
+      )
       return undefined
     }
   }

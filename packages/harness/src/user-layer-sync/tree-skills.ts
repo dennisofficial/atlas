@@ -1,10 +1,22 @@
 import { dirname, join } from 'node:path'
 
-import { EDefinitionOrigin, ESkillRootFlavour, isValidTreePath, skillRootPlan, type SkillRoot } from '@dltech/atlas-core'
+import {
+  EDefinitionOrigin,
+  ESkillRootFlavour,
+  isValidTreePath,
+  skillRootPlan,
+  type SkillRoot,
+} from '@dltech/atlas-core'
 
 import { resolveSkillRoots } from '../skills/roots'
 
-import { directoryExists, EUserLayerTree, walkFiles, type TreeLayout, type WatchTarget } from './layout'
+import {
+  directoryExists,
+  EUserLayerTree,
+  walkFiles,
+  type TreeLayout,
+  type WatchTarget,
+} from './layout'
 
 const SKILLS_DIRECTORY_NAME = 'skills'
 
@@ -34,7 +46,9 @@ export function skillsTree(args: { atlasHome: string; home: string }): TreeLayou
 
   const locate: TreeLayout['locate'] = (key) => {
     if (!isValidTreePath(key)) return null
-    const flavour = Object.values(ESkillRootFlavour).find((candidate) => key.startsWith(`${candidate}/`))
+    const flavour = Object.values(ESkillRootFlavour).find((candidate) =>
+      key.startsWith(`${candidate}/`),
+    )
     if (flavour === undefined) return null
     const root = rootOf(flavour)
     const relativePath = key.slice(flavour.length + 1)

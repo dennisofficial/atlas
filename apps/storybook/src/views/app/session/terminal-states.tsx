@@ -1,54 +1,63 @@
-import type { ReactNode } from "react";
-import { PauseIcon, PlayIcon, RotateCwIcon, UnplugIcon } from "lucide-react";
+import type { ReactNode } from 'react'
+import { PauseIcon, PlayIcon, RotateCwIcon, UnplugIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { ETerminalConnection, SANDBOX } from "./sandbox-terminal";
+import { ETerminalConnection, SANDBOX } from './sandbox-terminal'
 
-export const DEFAULT_NOUN = "pod";
+export const DEFAULT_NOUN = 'pod'
 
 function capitalise(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function headerOf({ connection, noun }: { connection: ETerminalConnection; noun: string }) {
   const headers: Record<ETerminalConnection, { label: string; dot: string }> = {
-    [ETerminalConnection.Connecting]: { label: `Connecting to ${noun}…`, dot: "" },
-    [ETerminalConnection.Connected]: { label: `Connected to ${noun} · ${SANDBOX.size}`, dot: "bg-success" },
-    [ETerminalConnection.Paused]: { label: `${capitalise(noun)} paused · ${SANDBOX.size}`, dot: "bg-warning" },
-    [ETerminalConnection.Disconnected]: { label: `Disconnected from ${noun}`, dot: "bg-destructive" },
-  };
-  return headers[connection];
+    [ETerminalConnection.Connecting]: { label: `Connecting to ${noun}…`, dot: '' },
+    [ETerminalConnection.Connected]: {
+      label: `Connected to ${noun} · ${SANDBOX.size}`,
+      dot: 'bg-success',
+    },
+    [ETerminalConnection.Paused]: {
+      label: `${capitalise(noun)} paused · ${SANDBOX.size}`,
+      dot: 'bg-warning',
+    },
+    [ETerminalConnection.Disconnected]: {
+      label: `Disconnected from ${noun}`,
+      dot: 'bg-destructive',
+    },
+  }
+  return headers[connection]
 }
 
 export function ConnectionHeader({
   connection,
   noun = DEFAULT_NOUN,
 }: {
-  connection: ETerminalConnection;
-  noun?: string;
+  connection: ETerminalConnection
+  noun?: string
 }) {
-  const { label, dot } = headerOf({ connection, noun });
+  const { label, dot } = headerOf({ connection, noun })
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-2 border-b border-border px-3 text-xs text-muted-foreground">
       {connection === ETerminalConnection.Connecting ? (
         <Spinner className="size-3" />
       ) : (
-        <span aria-hidden className={cn("size-1.5 rounded-full", dot)} />
+        <span aria-hidden className={cn('size-1.5 rounded-full', dot)} />
       )}
       <span>{label}</span>
     </div>
-  );
+  )
 }
 
 interface NoticeProps {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  action?: ReactNode;
+  icon: ReactNode
+  title: string
+  description: string
+  action?: ReactNode
 }
 
 export function Notice({ icon, title, description, action }: NoticeProps) {
@@ -63,7 +72,7 @@ export function Notice({ icon, title, description, action }: NoticeProps) {
       </div>
       {action}
     </div>
-  );
+  )
 }
 
 export function ConnectingNotice({ noun = DEFAULT_NOUN }: { noun?: string }) {
@@ -73,7 +82,7 @@ export function ConnectingNotice({ noun = DEFAULT_NOUN }: { noun?: string }) {
       title="Opening a shell"
       description={`Starting a login shell in this thread's ${noun}.`}
     />
-  );
+  )
 }
 
 export function PausedNotice({ onResume }: { onResume: () => void }) {
@@ -89,17 +98,17 @@ export function PausedNotice({ onResume }: { onResume: () => void }) {
         </Button>
       }
     />
-  );
+  )
 }
 
 interface DisconnectedBarProps {
-  onReconnect: () => void;
-  message?: string;
+  onReconnect: () => void
+  message?: string
 }
 
 export function DisconnectedBar({
   onReconnect,
-  message = "Connection lost. Scrollback is kept.",
+  message = 'Connection lost. Scrollback is kept.',
 }: DisconnectedBarProps) {
   return (
     <div className="flex shrink-0 items-center gap-2 border-t border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -110,5 +119,5 @@ export function DisconnectedBar({
         Reconnect
       </Button>
     </div>
-  );
+  )
 }

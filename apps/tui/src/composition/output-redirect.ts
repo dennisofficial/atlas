@@ -27,11 +27,7 @@ const SEVERITY_OF = {
 
 type StreamName = 'stdout' | 'stderr'
 
-type StreamWrite = (
-  chunk: unknown,
-  encodingOrCallback?: unknown,
-  callback?: unknown,
-) => boolean
+type StreamWrite = (chunk: unknown, encodingOrCallback?: unknown, callback?: unknown) => boolean
 
 export type OutputRedirect = {
   readonly enableNotices: () => void
@@ -122,9 +118,17 @@ export function installOutputRedirect(args: { log: JsonlLog }): OutputRedirect {
     })
   }) as typeof process.emitWarning
 
-  const hookStream = (stream: StreamName, source: ESinkSource.StdoutWrite | ESinkSource.StderrWrite) => {
+  const hookStream = (
+    stream: StreamName,
+    source: ESinkSource.StdoutWrite | ESinkSource.StderrWrite,
+  ) => {
     const original = prior[stream === 'stdout' ? 'stdoutWrite' : 'stderrWrite'] as StreamWrite
-    const write: StreamWrite = function (this: NodeJS.WriteStream, chunk, encodingOrCallback, callback) {
+    const write: StreamWrite = function (
+      this: NodeJS.WriteStream,
+      chunk,
+      encodingOrCallback,
+      callback,
+    ) {
       const text =
         typeof chunk === 'string'
           ? chunk

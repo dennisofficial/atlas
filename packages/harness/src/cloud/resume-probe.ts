@@ -174,7 +174,9 @@ const notifyRotationStarted = (args: {
   try {
     args.onRotationStarted?.()
   } catch (failure) {
-    args.log?.(`rotation notice callback threw: ${failure instanceof Error ? failure.message : String(failure)}`)
+    args.log?.(
+      `rotation notice callback threw: ${failure instanceof Error ? failure.message : String(failure)}`,
+    )
   }
 }
 
@@ -207,12 +209,16 @@ export async function probeSandboxForResume(args: {
     if (pinned === undefined) return { probe: ESandboxProbe.Kept }
     // Never-delete: a stopped sandbox is resumed in place and its serve swapped — the snapshot
     // carries the workspace, and nothing here ever deletes the sandbox entity.
-    args.log?.(`sandbox ${args.name} is stopped — resuming it in place to swap serve without losing its filesystem`)
+    args.log?.(
+      `sandbox ${args.name} is stopped — resuming it in place to swap serve without losing its filesystem`,
+    )
     await args.swapServe(sandbox)
     return { probe: ESandboxProbe.Swapped }
   }
   if (providerStatus !== 'running' && providerStatus !== 'pending') {
-    args.log?.(`sandbox ${args.name} runtime is ${providerStatus} — keeping it without executing a probe`)
+    args.log?.(
+      `sandbox ${args.name} runtime is ${providerStatus} — keeping it without executing a probe`,
+    )
     return { probe: ESandboxProbe.Kept }
   }
 
@@ -232,7 +238,9 @@ export async function probeSandboxForResume(args: {
   const installedProtocol = protocolOf(protocolLine)
 
   if (installedProtocol > CHANNEL_PROTOCOL_VERSION) {
-    throw new Error(`the sandbox speaks newer wire protocol ${installedProtocol} — update Atlas before attaching; nothing was destroyed`)
+    throw new Error(
+      `the sandbox speaks newer wire protocol ${installedProtocol} — update Atlas before attaching; nothing was destroyed`,
+    )
   }
 
   const rotate = async (line: string): Promise<ESandboxProbe> => {
@@ -245,14 +253,21 @@ export async function probeSandboxForResume(args: {
     const health = await args.runtimeHealth({ sandbox, url }).catch(() => undefined)
     const idle = runtimeIdleOf(health)
     if (idle === ERuntimeIdle.Idle) {
-      args.log?.(`sandbox ${args.name} reports no work in flight — replacing serve without draining`)
+      args.log?.(
+        `sandbox ${args.name} reports no work in flight — replacing serve without draining`,
+      )
     } else if (servePredatesDrainProtocol(installed)) {
-      args.log?.(`sandbox ${args.name} carries serve "${installed}", which predates the drain protocol — replacing it directly`)
+      args.log?.(
+        `sandbox ${args.name} carries serve "${installed}", which predates the drain protocol — replacing it directly`,
+      )
     } else {
-      const serveAlive = args.serveAlive ?? (({ sandbox: s }: { sandbox: Sandbox }) => probeServeAlive(s))
+      const serveAlive =
+        args.serveAlive ?? (({ sandbox: s }: { sandbox: Sandbox }) => probeServeAlive(s))
       const alive = idle === ERuntimeIdle.Unknown && (await serveAlive({ sandbox }))
       if (idle === ERuntimeIdle.Unknown && !alive) {
-        args.log?.(`sandbox ${args.name}'s serve process is gone — nothing left to drain, replacing serve directly`)
+        args.log?.(
+          `sandbox ${args.name}'s serve process is gone — nothing left to drain, replacing serve directly`,
+        )
       } else {
         await (args.drain ?? drainServe)({ sandbox, url })
       }

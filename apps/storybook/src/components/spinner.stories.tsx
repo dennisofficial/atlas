@@ -1,18 +1,18 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 const meta = {
-  title: "Components/Spinner",
+  title: 'Components/Spinner',
   component: Spinner,
-} satisfies Meta<typeof Spinner>;
+} satisfies Meta<typeof Spinner>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const Sizes: Story = {
   render: () => (
@@ -23,7 +23,7 @@ export const Sizes: Story = {
       <Spinner className="size-8" />
     </div>
   ),
-};
+}
 
 export const InButton: Story = {
   render: () => (
@@ -32,4 +32,4 @@ export const InButton: Story = {
       Starting session
     </Button>
   ),
-};
+}

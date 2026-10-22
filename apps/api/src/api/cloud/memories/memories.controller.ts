@@ -56,17 +56,26 @@ export class MemoriesController {
 
   @Get('entry')
   @Header('Cache-Control', NO_STORE)
-  handleGet(@Req() request: AuthenticatedRequest, @Query() query: MemoryKeyDto): Promise<MemoryEntry> {
+  handleGet(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: MemoryKeyDto,
+  ): Promise<MemoryEntry> {
     return this.memories.get({ ...query, userId: userIdOf(request) })
   }
 
   @Put('entry')
-  handlePut(@Req() request: AuthenticatedRequest, @Body() body: PutMemoryDto): Promise<MemorySummary> {
+  handlePut(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: PutMemoryDto,
+  ): Promise<MemorySummary> {
     return this.memories.put({ ...body, userId: userIdOf(request) })
   }
 
   @Patch('entry')
-  handleEdit(@Req() request: AuthenticatedRequest, @Body() body: EditMemoryDto): Promise<MemorySummary> {
+  handleEdit(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: EditMemoryDto,
+  ): Promise<MemorySummary> {
     return this.memories.edit({
       userId: userIdOf(request),
       scope: body.scope,
@@ -80,7 +89,10 @@ export class MemoriesController {
 
   @Delete('entry')
   @HttpCode(204)
-  async handleRemove(@Req() request: AuthenticatedRequest, @Query() query: MemoryKeyDto): Promise<void> {
+  async handleRemove(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: MemoryKeyDto,
+  ): Promise<void> {
     await this.memories.remove({ ...query, userId: userIdOf(request) })
   }
 }

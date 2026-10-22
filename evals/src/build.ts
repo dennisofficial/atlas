@@ -15,7 +15,13 @@ export const BUILD_TARGETS = [
 
 export type BuiltArtifact = { target: string; outPath: string; digest: string }
 
-async function buildTarget({ source, out }: { source: string; out: string }): Promise<BuiltArtifact> {
+async function buildTarget({
+  source,
+  out,
+}: {
+  source: string
+  out: string
+}): Promise<BuiltArtifact> {
   const outPath = join(evalsRoot(), out)
   await mkdir(dirname(outPath), { recursive: true })
   const result = await Bun.build({
@@ -61,7 +67,8 @@ async function handleBuildCli(): Promise<void> {
     return
   }
   const artifacts = await buildAll()
-  for (const artifact of artifacts) console.log(`${artifact.target} -> ${artifact.outPath} ${artifact.digest}`)
+  for (const artifact of artifacts)
+    console.log(`${artifact.target} -> ${artifact.outPath} ${artifact.digest}`)
 }
 
 if (import.meta.main) {

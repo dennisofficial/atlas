@@ -1,4 +1,3 @@
-import React from 'react'
 import { mkdtempSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -83,7 +82,11 @@ export const mountCloud = async (args: {
     mutedEntries: (): number => {
       let muted = 0
       const walk = (node: unknown): void => {
-        const candidate = node as { opacity?: unknown; id?: unknown; getChildren?: () => readonly unknown[] }
+        const candidate = node as {
+          opacity?: unknown
+          id?: unknown
+          getChildren?: () => readonly unknown[]
+        }
         if (candidate.opacity === 0.4 && typeof candidate.id === 'string') muted += 1
         for (const child of candidate.getChildren?.() ?? []) walk(child)
       }

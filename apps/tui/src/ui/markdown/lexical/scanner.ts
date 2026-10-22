@@ -131,11 +131,7 @@ function matchRules(args: {
   return null
 }
 
-function matchRule(args: {
-  prepared: PreparedRule
-  source: string
-  index: number
-}): number | null {
+function matchRule(args: { prepared: PreparedRule; source: string; index: number }): number | null {
   const { rule, pattern } = args.prepared
 
   if (rule.kind === ELexRule.pattern) {
@@ -152,16 +148,13 @@ function matchRule(args: {
     return stop === -1 ? args.source.length : stop
   }
 
-  if (rule.kind === ELexRule.span) return closeSpan({ rule, source: args.source, index: args.index })
+  if (rule.kind === ELexRule.span)
+    return closeSpan({ rule, source: args.source, index: args.index })
 
   return closeQuote({ rule, source: args.source, index: args.index })
 }
 
-function closeSpan(args: {
-  rule: SpanRule
-  source: string
-  index: number
-}): number {
+function closeSpan(args: { rule: SpanRule; source: string; index: number }): number {
   const { rule, source } = args
   let depth = 1
   let cursor = args.index + rule.open.length
@@ -184,11 +177,7 @@ function closeSpan(args: {
   return source.length
 }
 
-function closeQuote(args: {
-  rule: QuotedRule
-  source: string
-  index: number
-}): number {
+function closeQuote(args: { rule: QuotedRule; source: string; index: number }): number {
   const { rule, source } = args
   const close = rule.close ?? rule.open
   let cursor = args.index + rule.open.length

@@ -70,9 +70,9 @@ describe('SideBySideDiff', () => {
     expect(
       spans({ cells: context, from: CONTENT_LEFT, count: LEFT_WIDTH, colour: theme.panelBg }),
     ).toBe(true)
-    expect(spans({ cells: context, from: RIGHT_AT, count: RIGHT_WIDTH, colour: theme.panelBg })).toBe(
-      true,
-    )
+    expect(
+      spans({ cells: context, from: RIGHT_AT, count: RIGHT_WIDTH, colour: theme.panelBg }),
+    ).toBe(true)
   }, 30_000)
 
   it('leaves the half with no counterpart bare rather than tinting it', async () => {

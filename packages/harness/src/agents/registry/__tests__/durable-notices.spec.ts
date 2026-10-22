@@ -20,7 +20,10 @@ afterEach(async () => {
 
 async function open(): Promise<OpenedSupervisor> {
   const entry = await openSupervisor({
-    agentTypes: [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: TEAMMATE_AGENT_TYPE })],
+    agentTypes: [
+      agentTypeNamed({ name: 'explore' }),
+      agentTypeNamed({ name: TEAMMATE_AGENT_TYPE }),
+    ],
   })
   opened.push(entry)
   return entry
@@ -58,17 +61,27 @@ describe('a teammate report', () => {
     interceptAppend({
       entry,
       on: (append, call) => {
-        if (isNotice(call)) queuedWhenAppended = entry.supervisor.pendingNotices({ threadId: entry.parent }).length
+        if (isNotice(call))
+          queuedWhenAppended = entry.supervisor.pendingNotices({ threadId: entry.parent }).length
         return append(call)
       },
     })
 
-    const outcome = await entry.supervisor.reportToParent({ threadId: agentId, text: 'billing is migrated' })
+    const outcome = await entry.supervisor.reportToParent({
+      threadId: agentId,
+      text: 'billing is migrated',
+    })
 
     expect(outcome.ok).toBe(true)
     expect(queuedWhenAppended).toBe(0)
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-reported' })).toHaveLength(1)
+    expect(
+      await loggedOfType({
+        harness: entry.harness,
+        threadId: entry.parent,
+        type: 'agent-reported',
+      }),
+    ).toHaveLength(1)
   })
 
   it('is refused, and queues no wake, when the parent log cannot take it', async () => {
@@ -82,12 +95,21 @@ describe('a teammate report', () => {
       },
     })
 
-    const outcome = await entry.supervisor.reportToParent({ threadId: agentId, text: 'billing is migrated' })
+    const outcome = await entry.supervisor.reportToParent({
+      threadId: agentId,
+      text: 'billing is migrated',
+    })
 
     expect(outcome.ok).toBe(false)
     expect(outcome.ok ? '' : outcome.reason).toContain('disk full')
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-reported' })).toHaveLength(0)
+    expect(
+      await loggedOfType({
+        harness: entry.harness,
+        threadId: entry.parent,
+        type: 'agent-reported',
+      }),
+    ).toHaveLength(0)
   })
 
   it('is never appended a second time by the intake that delivers the wake', async () => {
@@ -101,7 +123,11 @@ describe('a teammate report', () => {
     expect(batch.wakesTurn).toBe(true)
     batch.acknowledge()
 
-    const logged = await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-reported' })
+    const logged = await loggedOfType({
+      harness: entry.harness,
+      threadId: entry.parent,
+      type: 'agent-reported',
+    })
     expect(logged.map((event) => event.prose)).toEqual(['one', 'two'])
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
   })
@@ -122,7 +148,9 @@ describe('a teammate report', () => {
     })
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
 
-    expect(events.some((event) => event.type === 'agent-reported' && event.prose === 'before the crash')).toBe(true)
+    expect(
+      events.some((event) => event.type === 'agent-reported' && event.prose === 'before the crash'),
+    ).toBe(true)
     expect(rebuilt.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
     expect(rebuilt.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
   })
@@ -136,7 +164,8 @@ describe('a child ending', () => {
     interceptAppend({
       entry,
       on: (append, call) => {
-        if (isNotice(call)) queuedWhenAppended = entry.supervisor.pendingNotices({ threadId: entry.parent }).length
+        if (isNotice(call))
+          queuedWhenAppended = entry.supervisor.pendingNotices({ threadId: entry.parent }).length
         return append(call)
       },
     })
@@ -146,7 +175,9 @@ describe('a child ending', () => {
 
     expect(queuedWhenAppended).toBe(0)
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(1)
   })
 
   it('stays owed through the intake when the first append fails, and lands exactly once', async () => {
@@ -163,7 +194,9 @@ describe('a child ending', () => {
 
     entry.runners.started[0]?.settle(finished())
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(0)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(0)
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
     expect(batch.drafts).toHaveLength(1)
@@ -174,7 +207,9 @@ describe('a child ending', () => {
     })
     batch.acknowledge()
 
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(1)
     expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
   })
 
@@ -199,7 +234,9 @@ describe('a child ending', () => {
 
     expect(lied).toBe(true)
     expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
-    expect(await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })).toHaveLength(1)
+    expect(
+      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
+    ).toHaveLength(1)
   })
 
   it('is cut by a rewind without coming back as a pending delivery', async () => {

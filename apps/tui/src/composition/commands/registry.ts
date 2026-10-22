@@ -104,7 +104,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     }),
     local({
       name: 'container',
-      summary: 'say where this conversation runs; switch a host-born thread between host and docker',
+      summary:
+        'say where this conversation runs; switch a host-born thread between host and docker',
       argumentHint: '[off|docker|resources]',
       group: ECommandGroup.Session,
       timing: ECommandTiming.Immediate,
@@ -167,7 +168,8 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
     rotateCommand({ onRotate: handlers.onRotate }),
     local({
       name: 'rewind',
-      summary: 'go back to an earlier message, summarise around it, or fork the conversation from it',
+      summary:
+        'go back to an earlier message, summarise around it, or fork the conversation from it',
       group: ECommandGroup.Context,
       timing: ECommandTiming.Settled,
       echo: ECommandEcho.Silent,
@@ -277,17 +279,22 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       echo: ECommandEcho.Output,
       run: async ({ argumentText }) => {
         const asked = argumentText.trim()
-        if (asked.length === 0)
-          return { type: ECommandEffect.Ran, notice: handlers.onShowMcp() }
+        if (asked.length === 0) return { type: ECommandEffect.Ran, notice: handlers.onShowMcp() }
 
         const signIn = asked.match(/^signin\s+(\S+)$/i)
         if (signIn?.[1] !== undefined) {
           if (handlers.onMcpSignIn === null)
-            return { type: ECommandEffect.Ran, notice: 'this Atlas cannot sign in to MCP servers (no secrets store)' }
+            return {
+              type: ECommandEffect.Ran,
+              notice: 'this Atlas cannot sign in to MCP servers (no secrets store)',
+            }
           return { type: ECommandEffect.Ran, notice: await handlers.onMcpSignIn(signIn[1]) }
         }
 
-        return { type: ECommandEffect.Ran, notice: `/mcp takes no argument, or "signin <name>" to sign a server in — not ${asked}` }
+        return {
+          type: ECommandEffect.Ran,
+          notice: `/mcp takes no argument, or "signin <name>" to sign a server in — not ${asked}`,
+        }
       },
     }),
   ]

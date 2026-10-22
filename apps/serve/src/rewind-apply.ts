@@ -1,10 +1,5 @@
-import {
-  EKilledBy,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
 import { rewindApplyParamsSchema, type RewindCutWire } from '@dltech/atlas-wire'
-
-import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import type { ReplyFrame, RequestFrame } from './requests'
 import { answeredRequest, refusedRequest } from './requests'
@@ -19,7 +14,11 @@ import type { ServeTurnDriver } from './turn-driver'
  */
 export type ServeRewindTarget = {
   removeChildren(args: { threadId: ThreadId; agentIds: readonly ThreadId[] }): Promise<void>
-  removeShells(args: { threadId: ThreadId; shellIds: readonly string[]; by: EKilledBy }): Promise<void> | void
+  removeShells(args: {
+    threadId: ThreadId
+    shellIds: readonly string[]
+    by: EKilledBy
+  }): Promise<void> | void
   removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
 }
 
@@ -29,7 +28,11 @@ export type ServeRewindTarget = {
  * and the truncation are one request rather than a write racing a command.
  */
 export type ServeRewindLog = {
-  truncate(args: { threadId: ThreadId; toSeq: number; cutAgents: readonly ThreadId[] }): Promise<void>
+  truncate(args: {
+    threadId: ThreadId
+    toSeq: number
+    cutAgents: readonly ThreadId[]
+  }): Promise<void>
 }
 
 export async function answerRewind(args: {

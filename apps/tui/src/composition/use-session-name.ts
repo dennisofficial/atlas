@@ -12,7 +12,12 @@ import { ERenamed, type Renaming } from './session-rename'
 
 const trace = (message: string, threadId: ThreadId, data?: Record<string, unknown>): void => {
   if (process.env.ATLAS_TRACE_TITLING === undefined) return
-  durableOpLog()?.info({ source: 'titling.trace', message, threadId, ...(data === undefined ? {} : { data }) })
+  durableOpLog()?.info({
+    source: 'titling.trace',
+    message,
+    threadId,
+    ...(data === undefined ? {} : { data }),
+  })
 }
 
 /** A rename in flight: the name on screen when it started, and the answer once it resolves. The
@@ -70,7 +75,9 @@ export function useSessionName(args: {
        */
       if (titlingRef.current) {
         setNamingRequest((current) =>
-          current === null || current.answer !== null ? current : { ...current, answer: renamed.title },
+          current === null || current.answer !== null
+            ? current
+            : { ...current, answer: renamed.title },
         )
         if (requestTimer.current !== null) clearTimeout(requestTimer.current)
         requestTimer.current = setTimeout(() => setNamingRequest(null), NAMING_ANIMATION_MS)
@@ -80,15 +87,18 @@ export function useSessionName(args: {
         setNaming(false)
       }
     })
-    void threads.find({ threadId }).then((thread) => {
-      const title = thread?.title
-      if (!live || title === undefined) return
-      setName((current) => {
-        if (current !== null) return current
-        trace('recovered missed rename', threadId, { title })
-        return title
+    void threads
+      .find({ threadId })
+      .then((thread) => {
+        const title = thread?.title
+        if (!live || title === undefined) return
+        setName((current) => {
+          if (current !== null) return current
+          trace('recovered missed rename', threadId, { title })
+          return title
+        })
       })
-    }).catch(() => undefined)
+      .catch(() => undefined)
     return () => {
       live = false
       trace('onRename unsubscribed', threadId)
@@ -142,7 +152,9 @@ export function useSessionName(args: {
       }
       awaitedEcho.current = generated
       trace('rename asked', threadId, { title: generated })
-      await threads.rename({ threadId, title: generated }).catch(() => notify(cloudRenameFailureNotice()))
+      await threads
+        .rename({ threadId, title: generated })
+        .catch(() => notify(cloudRenameFailureNotice()))
       trace('rename returned', threadId, { title: generated, pending: awaitedEcho.current })
       if (awaitedEcho.current === generated) {
         awaitedEcho.current = null

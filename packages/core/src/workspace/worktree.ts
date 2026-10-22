@@ -69,10 +69,7 @@ export function homeDirectoryOf(args: {
   return home
 }
 
-export function homeDirectoryAfter(args: {
-  drafts: readonly EventDraft[]
-  home: string
-}): string {
+export function homeDirectoryAfter(args: { drafts: readonly EventDraft[]; home: string }): string {
   let home = args.home
   for (const draft of args.drafts) {
     if (draft.type === 'location-changed' && draft.cwd !== undefined) home = draft.cwd

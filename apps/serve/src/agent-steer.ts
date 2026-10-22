@@ -28,7 +28,10 @@ export const answerAgentSteer = async (args: {
   if (frame.op === EClientRequest.SayToAgent) {
     const parsed = sayToAgentParamsSchema.safeParse(frame.params)
     if (!parsed.success) {
-      return refusedRequest({ replyTo: frame.id, message: 'say-to-agent wants { threadId, agentId, text, images?, files? }' })
+      return refusedRequest({
+        replyTo: frame.id,
+        message: 'say-to-agent wants { threadId, agentId, text, images?, files? }',
+      })
     }
     const outcome = await agents.say(parsed.data)
     return answeredRequest({ replyTo: frame.id, data: outcome })
@@ -37,7 +40,10 @@ export const answerAgentSteer = async (args: {
   if (frame.op === EClientRequest.ResumeAgent) {
     const parsed = resumeAgentParamsSchema.safeParse(frame.params)
     if (!parsed.success) {
-      return refusedRequest({ replyTo: frame.id, message: 'resume-agent wants { threadId, agentId }' })
+      return refusedRequest({
+        replyTo: frame.id,
+        message: 'resume-agent wants { threadId, agentId }',
+      })
     }
     const outcome = await agents.resume(parsed.data)
     return answeredRequest({ replyTo: frame.id, data: outcome })

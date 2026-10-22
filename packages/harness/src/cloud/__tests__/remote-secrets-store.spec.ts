@@ -173,7 +173,8 @@ describe('RemoteSecretsStore', () => {
     expect(store.read('doomed')).toBe('x')
   })
 
-  it('clears the recorded failure after a successful drain', async () => {    let open = false
+  it('clears the recorded failure after a successful drain', async () => {
+    let open = false
     const { store } = storeWith(({ method }) => {
       if (method === 'GET') return { status: 200, body: { secrets: [] } }
       return open ? { status: 204 } : { status: 500, body: { message: 'down' } }

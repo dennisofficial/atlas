@@ -47,7 +47,11 @@ describe('workspace vercel credential HTTP surface', () => {
     const empty = await http().get(vercel).set(as('session-b')).expect(200)
     expect(empty.body).toEqual({ configured: false, teamId: null, updatedAt: null })
 
-    await http().put(vercel).set(as('session-a')).send({ token: 'vtok_secret', teamId: 'team_1' }).expect(204)
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ token: 'vtok_secret', teamId: 'team_1' })
+      .expect(204)
     expect(await credential()).toMatchObject({ teamId: 'team_1' })
     expect((await credential())?.sealedToken).not.toContain('vtok_secret')
 
@@ -58,7 +62,11 @@ describe('workspace vercel credential HTTP surface', () => {
 
   it('keeps the token when a later PUT omits it, and needs one the first time', async () => {
     await http().put(vercel).set(as('session-a')).send({ teamId: 'team_1' }).expect(400)
-    await http().put(vercel).set(as('session-a')).send({ token: 'vtok_1', teamId: 'team_1' }).expect(204)
+    await http()
+      .put(vercel)
+      .set(as('session-a'))
+      .send({ token: 'vtok_1', teamId: 'team_1' })
+      .expect(204)
     const sealed = (await credential())?.sealedToken
     await http().put(vercel).set(as('session-a')).send({ teamId: 'team_2' }).expect(204)
     expect(await credential()).toMatchObject({ teamId: 'team_2', sealedToken: sealed })

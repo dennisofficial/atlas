@@ -8,9 +8,14 @@ import {
 import { settleUnderBudget } from './deadline'
 import { WorkspaceIdentityDeadlineError } from './git-workspace-identity'
 
-export type NamespaceFailure = { status: EQualityReviewStatus; reason: EQualitySkipReason; detail: string }
+export type NamespaceFailure = {
+  status: EQualityReviewStatus
+  reason: EQualitySkipReason
+  detail: string
+}
 
-const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const unidentified = (detail: string): NamespaceFailure => ({
   status: EQualityReviewStatus.OperationalError,
@@ -40,9 +45,14 @@ export async function resolveWorkspaceNamespace({
     work: () => identity.identify({ projectDirectory, threadId }),
   })
   if (raced.kind === 'aborted') {
-    return { status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.TurnInterrupted, detail: 'turn interrupted' }
+    return {
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.TurnInterrupted,
+      detail: 'turn interrupted',
+    }
   }
-  if (raced.kind === 'deadline') return deadlineFailure(`workspace identity: ${raced.error.message}`)
+  if (raced.kind === 'deadline')
+    return deadlineFailure(`workspace identity: ${raced.error.message}`)
   if (raced.kind === 'failed') {
     return raced.error instanceof WorkspaceIdentityDeadlineError
       ? deadlineFailure(describeError(raced.error))

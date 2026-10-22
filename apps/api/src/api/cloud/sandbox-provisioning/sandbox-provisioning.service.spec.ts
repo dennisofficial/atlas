@@ -1,4 +1,9 @@
-import { API_PROVISIONED_ENV, BOOT_RUN_ID, ESandboxProvisionState, SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
+import {
+  API_PROVISIONED_ENV,
+  BOOT_RUN_ID,
+  ESandboxProvisionState,
+  SANDBOX_HOME_PATH,
+} from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
@@ -19,7 +24,10 @@ import { NO_PROJECT_MESSAGE } from './sandbox-provisioning.service'
 const ARGS = { userId: 'usr-1', threadId: 'thr-1' } as const
 
 const bootStepEvents = async () =>
-  (await bootEvents()).map((event) => ({ runId: event.runId, ...JSON.parse(event.body) as Record<string, string> }))
+  (await bootEvents()).map((event) => ({
+    runId: event.runId,
+    ...(JSON.parse(event.body) as Record<string, string>),
+  }))
 
 const row = async () => {
   const held = (await sandboxRows())[0]
@@ -45,7 +53,11 @@ describe('SandboxProvisioningService', () => {
     release()
     await service.settle()
     expect(calls).toHaveLength(1)
-    expect(await row()).toMatchObject({ state: 'running', serveUrl: 'https://serve.example.test', wakeFailedAt: null })
+    expect(await row()).toMatchObject({
+      state: 'running',
+      serveUrl: 'https://serve.example.test',
+      wakeFailedAt: null,
+    })
     expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Running })
     expect(calls).toHaveLength(1)
   })
@@ -84,8 +96,13 @@ describe('SandboxProvisioningService', () => {
 
     const reply = await serviceWith({ boot, scoped }).provision(ARGS)
 
-    expect(reply).toEqual({ state: ESandboxProvisionState.NotConfigured, error: NO_PROJECT_MESSAGE })
-    expect(await bootStepEvents()).toMatchObject([{ step: 'provision', state: 'error', error: NO_PROJECT_MESSAGE }])
+    expect(reply).toEqual({
+      state: ESandboxProvisionState.NotConfigured,
+      error: NO_PROJECT_MESSAGE,
+    })
+    expect(await bootStepEvents()).toMatchObject([
+      { step: 'provision', state: 'error', error: NO_PROJECT_MESSAGE },
+    ])
     expect(scoped.vercelCredentials).not.toHaveBeenCalled()
     expect(await sandboxRows()).toHaveLength(0)
     expect(calls).toHaveLength(0)
@@ -128,11 +145,13 @@ describe('SandboxProvisioningService', () => {
     expect((await threadRow())?.projectId).toBe('prj-1')
   })
 
-  it('does not provision another user\'s thread', async () => {
+  it("does not provision another user's thread", async () => {
     await seedThread()
     const { boot, calls } = fakeBoot()
 
-    await expect(serviceWith({ boot }).provision({ ...ARGS, userId: 'usr-2' })).rejects.toThrow('thread not found')
+    await expect(serviceWith({ boot }).provision({ ...ARGS, userId: 'usr-2' })).rejects.toThrow(
+      'thread not found',
+    )
     expect(calls).toHaveLength(0)
   })
 
@@ -147,7 +166,9 @@ describe('SandboxProvisioningService', () => {
     expect((await row()).wakeClaim).toBeNull()
     expect((await row()).wakeFailedAt).not.toBeNull()
     expect((await row()).state).not.toBe('running')
-    expect(await bootStepEvents()).toMatchObject([{ step: 'provision', state: 'error', error: 'vercel is down' }])
+    expect(await bootStepEvents()).toMatchObject([
+      { step: 'provision', state: 'error', error: 'vercel is down' },
+    ])
     const firstTokenHash = (await row()).tokenHash
 
     const working = fakeBoot()
@@ -201,8 +222,13 @@ describe('SandboxProvisioningService', () => {
     expect(runCommand).toHaveBeenCalledWith(
       expect.objectContaining({ args: ['-c', `mkdir -p ${SANDBOX_HOME_PATH}/bootstrap`] }),
     )
-    const [files] = writeFiles.mock.calls[0] as unknown as [{ path: string; content: string; mode: number }[]]
-    expect(files[0]).toMatchObject({ path: `${SANDBOX_HOME_PATH}/bootstrap/workspace-spec.json`, mode: 0o600 })
+    const [files] = writeFiles.mock.calls[0] as unknown as [
+      { path: string; content: string; mode: number }[],
+    ]
+    expect(files[0]).toMatchObject({
+      path: `${SANDBOX_HOME_PATH}/bootstrap/workspace-spec.json`,
+      mode: 0o600,
+    })
     expect(JSON.parse(files[0]?.content ?? '')).toEqual({
       remoteUrl: null,
       githubToken: null,

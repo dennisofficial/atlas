@@ -8,7 +8,8 @@ export type SearchRequest = {
 }
 
 export type SearchOutcome =
-  { ok: true; results: readonly WebSearchResult[] } | { ok: false; reason: string }
+  | { ok: true; results: readonly WebSearchResult[] }
+  | { ok: false; reason: string }
 
 export type SearchBackend = (request: SearchRequest) => Promise<SearchOutcome>
 

@@ -81,7 +81,9 @@ const pickThreads = (from: string, flags: ReplayFlags): Candidate[] => {
     })
   }
   return candidates
-    .filter((candidate) => candidate.events >= flags.minEvents && candidate.events <= flags.maxEvents)
+    .filter(
+      (candidate) => candidate.events >= flags.minEvents && candidate.events <= flags.maxEvents,
+    )
     .sort((a, b) => b.events - a.events)
     .slice(0, flags.threads)
 }

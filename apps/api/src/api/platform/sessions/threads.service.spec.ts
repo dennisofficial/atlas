@@ -220,13 +220,20 @@ describe('ThreadsService', () => {
   })
 
   it('mostRecent answers the freshest thread in the project', async () => {
-    const old = await service.create({ userId: USER_A, draft: { workspace: '/repo', title: 'old' } })
+    const old = await service.create({
+      userId: USER_A,
+      draft: { workspace: '/repo', title: 'old' },
+    })
     const fresh = await service.create({
       userId: USER_A,
       draft: { workspace: '/repo', title: 'fresh' },
     })
-    await db.orm.public.Thread.where({ id: old.id }).update({ updatedAt: new Date('2026-09-14T00:00:00.000Z') })
-    await db.orm.public.Thread.where({ id: fresh.id }).update({ updatedAt: new Date('2026-09-15T00:00:00.000Z') })
+    await db.orm.public.Thread.where({ id: old.id }).update({
+      updatedAt: new Date('2026-09-14T00:00:00.000Z'),
+    })
+    await db.orm.public.Thread.where({ id: fresh.id }).update({
+      updatedAt: new Date('2026-09-15T00:00:00.000Z'),
+    })
 
     const recent = await service.mostRecent({ userId: USER_A, project: '/repo' })
     expect(recent?.id).toBe(fresh.id)
@@ -271,8 +278,8 @@ describe('ThreadsService', () => {
     expect(spawned).toHaveLength(1)
     expect(spawned[0]?.agent).toEqual({ spawnedBy: parent.id, type: 'explore' })
 
-    await expect(
-      service.spawned({ userId: USER_B, threadId: parent.id }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.spawned({ userId: USER_B, threadId: parent.id })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
   })
 })

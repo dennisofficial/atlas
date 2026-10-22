@@ -30,7 +30,11 @@ const exploreId = agentTypeSettingId('explore')
 
 const types = [
   { name: 'explore', origin: EDefinitionOrigin.BuiltIn },
-  { name: 'reviewer', origin: EDefinitionOrigin.Project, definedIn: '/work/repo/.atlas/agents/reviewer.md' },
+  {
+    name: 'reviewer',
+    origin: EDefinitionOrigin.Project,
+    definedIn: '/work/repo/.atlas/agents/reviewer.md',
+  },
 ]
 
 const appWith = (withProject = true): FakeApp => {
@@ -40,7 +44,12 @@ const appWith = (withProject = true): FakeApp => {
     agentTypes: {
       ...EMPTY_AGENT_TYPE_CATALOG,
       shadowed: [
-        { name: 'explore', origin: EDefinitionOrigin.BuiltIn, definedIn: undefined, shadowedBy: EDefinitionOrigin.User },
+        {
+          name: 'explore',
+          origin: EDefinitionOrigin.BuiltIn,
+          definedIn: undefined,
+          shadowedBy: EDefinitionOrigin.User,
+        },
       ],
     },
   })
@@ -55,7 +64,10 @@ async function landed(setup: Mounted): Promise<void> {
 
 async function onModels(app: FakeApp, size = WIDE): Promise<Mounted> {
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
     size,
   )
   await setup.flush()
@@ -69,7 +81,10 @@ async function onModels(app: FakeApp, size = WIDE): Promise<Mounted> {
 }
 
 const lineWith = (setup: Mounted, needle: string): string =>
-  setup.captureCharFrame().split('\n').find((line) => line.includes(needle)) ?? ''
+  setup
+    .captureCharFrame()
+    .split('\n')
+    .find((line) => line.includes(needle)) ?? ''
 
 async function downTo(args: { setup: Mounted; needle: string }): Promise<void> {
   for (let step = 0; step < 30; step += 1) {

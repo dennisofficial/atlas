@@ -15,16 +15,21 @@ export function firstStepId(signals: readonly ChannelSignal[]): StepId {
   return started.stepId
 }
 
-export function stepEnded(signals: readonly ChannelSignal[]): Extract<ChannelSignal, { type: 'step-ended' }> {
-  const ended = signals.find((signal): signal is Extract<ChannelSignal, { type: 'step-ended' }> =>
-    signal.type === 'step-ended',
+export function stepEnded(
+  signals: readonly ChannelSignal[],
+): Extract<ChannelSignal, { type: 'step-ended' }> {
+  const ended = signals.find(
+    (signal): signal is Extract<ChannelSignal, { type: 'step-ended' }> =>
+      signal.type === 'step-ended',
   )
   if (ended === undefined) throw new Error('no step ended')
   return ended
 }
 
 export function assistantEvent(events: readonly Event[]): EventOfType<'assistant-said'> {
-  const found = events.find((event): event is EventOfType<'assistant-said'> => event.type === 'assistant-said')
+  const found = events.find(
+    (event): event is EventOfType<'assistant-said'> => event.type === 'assistant-said',
+  )
   if (found === undefined) throw new Error('no assistant event')
   return found
 }

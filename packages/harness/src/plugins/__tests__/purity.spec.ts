@@ -18,9 +18,9 @@ describe('a plugin pure/ directory obeys the same rules core does', () => {
   it('holds nothing impure', async () => {
     const found = (await pureSources()).flatMap(violationsIn)
 
-    expect(found.map((violation) => `${violation.path}: ${violation.rule}: ${violation.line}`)).toEqual(
-      [],
-    )
+    expect(
+      found.map((violation) => `${violation.path}: ${violation.rule}: ${violation.line}`),
+    ).toEqual([])
   })
 })
 
@@ -29,9 +29,9 @@ describe('the rule itself, proven against a fixture rather than against an empty
     violationsIn({ path: 'github/pure/sample.ts', text }).map((violation) => violation.rule)
 
   it('passes code that only computes', () => {
-    expect(detects("import { z } from 'zod'\nexport const add = (a: number, b: number) => a + b")).toEqual(
-      [],
-    )
+    expect(
+      detects("import { z } from 'zod'\nexport const add = (a: number, b: number) => a + b"),
+    ).toEqual([])
   })
 
   it('passes a relative import inside its own pure directory', () => {

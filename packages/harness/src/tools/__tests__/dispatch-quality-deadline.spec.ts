@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EQualityReviewStatus, EQualitySkipReason, type CodeQualityReviewedBody } from '@dltech/atlas-core'
+import {
+  EQualityReviewStatus,
+  EQualitySkipReason,
+  type CodeQualityReviewedBody,
+} from '@dltech/atlas-core'
 
 import { QUALITY_REVIEW_BUDGET_MS } from '../quality-dispatch'
 import { FakeQuality, dispatchWrite, qualityDispatcher, type ReviewArgs } from './quality-fixtures'

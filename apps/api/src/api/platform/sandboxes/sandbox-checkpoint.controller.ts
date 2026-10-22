@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Put, Req, UnauthorizedException, UseGuards } from '@nestjs/common'
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Put,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
 import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { runtimeCheckpointSchema } from '@dltech/atlas-wire'
@@ -69,7 +80,9 @@ export class SandboxCheckpointController {
         or(row.runtimeCheckpointRevision.isNull(), row.runtimeCheckpointRevision.lt(revision)),
       )
       .updateAndCount({
-        runtimeCheckpoint: JSON.parse(JSON.stringify(parsed.data)) as Row<'CloudSandbox'>['runtimeCheckpoint'],
+        runtimeCheckpoint: JSON.parse(
+          JSON.stringify(parsed.data),
+        ) as Row<'CloudSandbox'>['runtimeCheckpoint'],
         runtimeCheckpointRevision: revision,
         updatedAt: new Date(),
       })

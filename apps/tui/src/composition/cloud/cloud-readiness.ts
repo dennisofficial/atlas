@@ -27,8 +27,10 @@ const readinessByChannel = new WeakMap<Pick<CloudChannel, 'threadId'>, CloudTran
 const matchesIdentity = (args: {
   applied: ThreadIdentity | undefined
   wanted: ThreadIdentity
-}): boolean => args.applied?.head === args.wanted.head &&
-  args.applied.count === args.wanted.count && args.applied.digest === args.wanted.digest
+}): boolean =>
+  args.applied?.head === args.wanted.head &&
+  args.applied.count === args.wanted.count &&
+  args.applied.digest === args.wanted.digest
 
 export const cloudReadinessOf = (
   channel: Pick<CloudChannel, 'threadId'>,
@@ -39,7 +41,11 @@ export const cloudReadinessOf = (
   let applied: CloudAppliedSnapshot | null = null
   let refresh: (() => Promise<void>) | null = null
   const listeners = new Set<() => void>()
-  const waiting = new Set<{ identity: ThreadIdentity; resolve: () => void; reject: (error: Error) => void }>()
+  const waiting = new Set<{
+    identity: ThreadIdentity
+    resolve: () => void
+    reject: (error: Error) => void
+  }>()
   const created: CloudTranscriptReadiness = {
     registerApplied(identity, appliedAt, events) {
       applied = identity === null || appliedAt === null ? null : { identity, appliedAt, events }
@@ -53,19 +59,29 @@ export const cloudReadinessOf = (
     applied: () => applied,
     bindRefresh(next) {
       refresh = next
-      return () => { if (refresh === next) refresh = null }
+      return () => {
+        if (refresh === next) refresh = null
+      }
     },
     refreshApplied: () => refresh?.() ?? Promise.resolve(),
     subscribe(listener) {
       listeners.add(listener)
-      return () => { listeners.delete(listener) }
+      return () => {
+        listeners.delete(listener)
+      }
     },
     waitUntilApplied(identity) {
-      if (matchesIdentity({ applied: applied?.identity, wanted: identity })) return Promise.resolve()
-      return new Promise((resolve, reject) => { waiting.add({ identity, resolve, reject }) })
+      if (matchesIdentity({ applied: applied?.identity, wanted: identity }))
+        return Promise.resolve()
+      return new Promise((resolve, reject) => {
+        waiting.add({ identity, resolve, reject })
+      })
     },
     cancelWaiting() {
-      for (const waiter of waiting) waiter.reject(new Error('the cloud attachment was detached before its transcript was applied'))
+      for (const waiter of waiting)
+        waiter.reject(
+          new Error('the cloud attachment was detached before its transcript was applied'),
+        )
       waiting.clear()
     },
   }

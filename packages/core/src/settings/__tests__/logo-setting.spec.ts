@@ -34,9 +34,7 @@ describe('the logo setting', () => {
     expect(definition().fallback).toBe('mark')
     expect(definition().environmentVariable).toBe('ATLAS_LOGO')
     expect(definition().options.map((option) => option.value)).toEqual(['mark', 'wordmark'])
-    expect(definition().options.find((option) => option.detail === 'shipped')?.value).toBe(
-      'mark',
-    )
+    expect(definition().options.find((option) => option.detail === 'shipped')?.value).toBe('mark')
   })
 
   it('resolves to the mark until the wordmark is chosen', () => {

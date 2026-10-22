@@ -1,10 +1,6 @@
 import type { Sandbox } from '@vercel/sandbox'
 
-import {
-  SANDBOX_HOME_PATH,
-  SERVE_LOG_PATH,
-  SANDBOX_QUICK_TIMEOUT_MS,
-} from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, SERVE_LOG_PATH, SANDBOX_QUICK_TIMEOUT_MS } from '@dltech/atlas-wire'
 
 export async function tailServeLog(sandbox: Sandbox): Promise<string> {
   const read = await sandbox.runCommand({

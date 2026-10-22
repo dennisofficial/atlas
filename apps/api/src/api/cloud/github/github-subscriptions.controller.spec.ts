@@ -14,7 +14,9 @@ function controllerWith(): {
   return { controller: new GithubSubscriptionsController(subscriptions), subscribe, heartbeat }
 }
 
-function requestFor(args: { sandbox?: { sandboxId: string; threadId: string } }): AuthenticatedRequest {
+function requestFor(args: {
+  sandbox?: { sandboxId: string; threadId: string }
+}): AuthenticatedRequest {
   const request = {
     auth: {
       userId: 'usr_1',

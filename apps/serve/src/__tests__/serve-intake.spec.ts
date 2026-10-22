@@ -5,9 +5,9 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
+import { toThreadId, type EventDraft } from '@dltech/atlas-core'
 
-import { EClientFrame, EServeFrame, ETurnStatus } from '@dltech/atlas-harness'
+import { EClientFrame, EServeFrame } from '@dltech/atlas-harness'
 
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 
@@ -139,7 +139,9 @@ describe('a serve composed with the shared message intake', () => {
     await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
 
     client.send({ kind: EClientFrame.Run })
-    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.status === 'idle')
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.status === 'idle',
+    )
     client.send({ kind: EClientFrame.Send, sendId: 'send-2' as never, text: 'second' })
     await entered.opened
 
@@ -170,7 +172,9 @@ describe('a serve composed with the shared message intake', () => {
     client.send({ kind: EClientFrame.Send, sendId: 'send-a' as never, text: 'one' })
     await entered.opened
     client.send({ kind: EClientFrame.Send, sendId: 'send-b' as never, text: 'two' })
-    await client.waitFor((frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === ('send-b' as never))
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.SendAcked && frame.sendId === ('send-b' as never),
+    )
 
     held.open()
     await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)

@@ -28,7 +28,10 @@ export async function readLocalFile(path: string): Promise<LocalRead> {
     return { exists: false }
   }
   const content = decodeText(bytes)
-  return { exists: true, text: content === null ? null : { content, bytes, hash: sha256Hex(bytes) } }
+  return {
+    exists: true,
+    text: content === null ? null : { content, bytes, hash: sha256Hex(bytes) },
+  }
 }
 
 export async function writeLocalFile(args: { path: string; content: string }): Promise<void> {

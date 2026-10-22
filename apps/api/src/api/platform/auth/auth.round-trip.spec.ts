@@ -10,12 +10,18 @@ describe('better-auth over the shared pool', () => {
   })
 
   it('signs up and signs in against real Postgres', async () => {
-    const credentials = { email: 'round-trip@test.local', password: 'a-long-enough-password', name: 'Round Trip' }
+    const credentials = {
+      email: 'round-trip@test.local',
+      password: 'a-long-enough-password',
+      name: 'Round Trip',
+    }
 
     const signedUp = await auth.api.signUpEmail({ body: credentials })
     expect(signedUp.user).toMatchObject({ email: credentials.email, name: credentials.name })
 
-    const signedIn = await auth.api.signInEmail({ body: { email: credentials.email, password: credentials.password } })
+    const signedIn = await auth.api.signInEmail({
+      body: { email: credentials.email, password: credentials.password },
+    })
     expect(signedIn.user.id).toBe(signedUp.user.id)
 
     const { db } = database()
@@ -34,7 +40,9 @@ describe('better-auth over the shared pool', () => {
       body: { name: 'Acme', slug: 'acme', userId: user.id },
     })
 
-    const members = await database().db.orm.public.Member.where({ organizationId: created.id }).all()
+    const members = await database()
+      .db.orm.public.Member.where({ organizationId: created.id })
+      .all()
     expect(members).toMatchObject([{ userId: user.id, role: 'owner' }])
   })
 })

@@ -97,7 +97,7 @@ export function stubGlobal(name: string | symbol, value: unknown): void {
   const globalScope = globalThis as Record<string | symbol, unknown>
   if (!stubbedGlobals.has(name)) {
     stubbedGlobals.set(name, {
-      had: Object.prototype.hasOwnProperty.call(globalScope, name),
+      had: Object.hasOwn(globalScope, name),
       value: globalScope[name],
     })
   }

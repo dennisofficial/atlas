@@ -25,8 +25,7 @@ import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
-const DESCRIPTION =
-  'Where Atlas gets model access. A subscription is used first, then an API key.'
+const DESCRIPTION = 'Where Atlas gets model access. A subscription is used first, then an API key.'
 const SIGN_IN_HINT = 'Sign in from the terminal with `atlas`.'
 
 const SUBSCRIPTIONS = [
@@ -134,7 +133,11 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
                 entry={entry}
                 busy={saving}
                 onSave={(apiKey) =>
-                  void handleKeySave({ provider: provider.id, apiKey, existingId: entry?.id ?? null })
+                  void handleKeySave({
+                    provider: provider.id,
+                    apiKey,
+                    existingId: entry?.id ?? null,
+                  })
                 }
                 onRemove={() => {
                   if (entry !== null) {

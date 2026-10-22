@@ -17,7 +17,11 @@ describe('GithubSubscriptionsService subscribe', () => {
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(dto.pollBacked).toBe(false)
     expect(await subscriptionRows()).toHaveLength(1)
@@ -59,7 +63,10 @@ describe('GithubSubscriptionsService subscribe', () => {
     expect(dto.branch).toBe('dennis/add-the-thing')
     expect(dto.state).toBeNull()
     expect(await subscriptionRows()).toHaveLength(1)
-    expect((await subscriptionRows())[0]).toMatchObject({ prNumber: null, branch: 'dennis/add-the-thing' })
+    expect((await subscriptionRows())[0]).toMatchObject({
+      prNumber: null,
+      branch: 'dennis/add-the-thing',
+    })
     expect(await prStateRows()).toHaveLength(0)
   })
 
@@ -120,7 +127,11 @@ describe('GithubSubscriptionsService subscribe', () => {
   it('marks the subscription poll-backed when the hook cannot be created', async () => {
     const service = serviceWith({ token: 'ghu_1', ensureHook: 'poll-backed' })
 
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(dto.pollBacked).toBe(true)
     expect(dto.state?.prNumber).toBe(42)
@@ -129,8 +140,16 @@ describe('GithubSubscriptionsService subscribe', () => {
   it('re-subscribing refreshes the expiry instead of duplicating the row', async () => {
     const service = serviceWith({ token: 'ghu_1', ensureHook: 'existing' })
 
-    const first = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
-    const second = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const first = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+    const second = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     expect(await subscriptionRows()).toHaveLength(1)
     expect(second.id).toBe(first.id)

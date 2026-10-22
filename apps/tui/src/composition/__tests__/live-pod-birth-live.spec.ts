@@ -23,14 +23,21 @@ import {
 } from '@dltech/atlas-harness'
 
 import { EProjectAnswer, type ProjectRequest } from '../../ui/project-prompt-model'
-import { beginMove, EStepMark, settleMoveNode, startMoveNode, type ContainerMove } from '../container-move'
+import {
+  beginMove,
+  EStepMark,
+  settleMoveNode,
+  startMoveNode,
+  type ContainerMove,
+} from '../container-move'
 import { resolveProject } from '../cloud/use-project-resolution'
 import { liveBridgeFor, livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
-const enabled = process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
+const enabled =
+  process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
 const describeLive = enabled ? describe : describe.skip
 
 const THREAD = toThreadId(`brn_tui_live_pod_${process.pid}`)
@@ -67,13 +74,22 @@ const activeRowSpy = () => {
   const seen: ActiveRow[] = []
   const record = (): void => {
     const active = move?.rows.find((row) => row.mark === EStepMark.Active)
-    if (active !== undefined && seen.at(-1)?.text !== active.text) seen.push({ text: active.text, atMs: Date.now() - began })
+    if (active !== undefined && seen.at(-1)?.text !== active.text)
+      seen.push({ text: active.text, atMs: Date.now() - began })
   }
   return {
     seen,
     finalMarks: () => move?.rows.map((row) => row.mark) ?? [],
     onBegin: ({ waves }: { waves: typeof BIRTH_WAVES }) => {
-      move = beginMove({ target: EExecutionLocation.Cloud, now: 0, rows: waves.map((wave) => ({ id: wave.ids[0] ?? wave.label, text: wave.label, nodeIds: wave.ids })) })
+      move = beginMove({
+        target: EExecutionLocation.Cloud,
+        now: 0,
+        rows: waves.map((wave) => ({
+          id: wave.ids[0] ?? wave.label,
+          text: wave.label,
+          nodeIds: wave.ids,
+        })),
+      })
     },
     onNodeStart: (nodeId: string) => {
       if (move !== null) move = startMoveNode({ move, nodeId, now: 0 })
@@ -90,7 +106,11 @@ type Lease = { path: string; auth: string | null; body: { token: string } }
 type ApiRead = { path: string; auth: string | null }
 
 const run = async (args: { command: readonly string[]; cwd?: string }): Promise<string> => {
-  const child = Bun.spawn([...args.command], { stdout: 'pipe', stderr: 'pipe', ...(args.cwd === undefined ? {} : { cwd: args.cwd }) })
+  const child = Bun.spawn([...args.command], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+    ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
+  })
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
@@ -103,10 +123,28 @@ const run = async (args: { command: readonly string[]; cwd?: string }): Promise<
 const podReachableHost = async (): Promise<string> =>
   process.platform === 'darwin'
     ? 'host.docker.internal'
-    : await run({ command: ['docker', 'network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}'] })
+    : await run({
+        command: [
+          'docker',
+          'network',
+          'inspect',
+          'bridge',
+          '--format',
+          '{{(index .IPAM.Config 0).Gateway}}',
+        ],
+      })
 
 const gitInPod = (args: { podName: string; command: string }): Promise<string> =>
-  run({ command: ['docker', 'exec', args.podName, 'sh', '-c', `git -c safe.directory='*' -C ${PRIMARY_DIR} ${args.command}`] })
+  run({
+    command: [
+      'docker',
+      'exec',
+      args.podName,
+      'sh',
+      '-c',
+      `git -c safe.directory='*' -C ${PRIMARY_DIR} ${args.command}`,
+    ],
+  })
 
 describeLive('a pod birth through the live TUI wiring', () => {
   const leases: Lease[] = []
@@ -147,55 +185,60 @@ describeLive('a pod birth through the live TUI wiring', () => {
       const app = fakeApp({
         pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
-        cloud: fakeCloud({ session: { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null } }),
+        cloud: fakeCloud({
+          session: { url: `http://127.0.0.1:${server.port}`, token: 'live-session', email: null },
+        }),
       })
       const bridge: CloudBridge = liveBridgeFor(app)({ runner: ERunner.Local })
       const spy = activeRowSpy()
       try {
-      await app.sessionOwner.placement.activate({ threadId: THREAD })
+        await app.sessionOwner.placement.activate({ threadId: THREAD })
 
-      const born = await birthInCloud({
-        threadId: THREAD,
-        projectId: null,
-        runner: ERunner.Local,
-        identity: app.workspace,
-        model: storedModel(app.model.choice()),
-        bridge,
-        localThreads: app.threads,
-        localLog: app.log,
-        ids: app.ids,
-        placement: app.sessionOwner,
-        onBegin: spy.onBegin,
-        onNodeStart: spy.onNodeStart,
-        onNodeDone: spy.onNodeDone,
-        open: async ({ prepareRuntime }) =>
-          prepareRuntime({
-            kind: ERuntimeKind.Cloud,
-            cwd: '/atlas/workspaces',
-            adapters: fakeSessionRuntime(app),
-          }),
-      })
+        const born = await birthInCloud({
+          threadId: THREAD,
+          projectId: null,
+          runner: ERunner.Local,
+          identity: app.workspace,
+          model: storedModel(app.model.choice()),
+          bridge,
+          localThreads: app.threads,
+          localLog: app.log,
+          ids: app.ids,
+          placement: app.sessionOwner,
+          onBegin: spy.onBegin,
+          onNodeStart: spy.onNodeStart,
+          onNodeDone: spy.onNodeDone,
+          open: async ({ prepareRuntime }) =>
+            prepareRuntime({
+              kind: ERuntimeKind.Cloud,
+              cwd: '/atlas/workspaces',
+              adapters: fakeSessionRuntime(app),
+            }),
+        })
 
-      if (!born.ok) throw new Error(`birth failed: ${born.detail}`)
-      expect(spy.seen.map((row) => row.text)).toEqual(['waiting for the pod', 'setting up the workspace'])
-      expect(spy.finalMarks()).toEqual([EStepMark.Done, EStepMark.Done])
-      const lease = leases.find((held) => held.path === `/v1/pod-leases/${THREAD}`)
-      expect(lease?.auth).toBe('Bearer live-session')
-      expect(lease?.body.token).toBe(born.sandbox.token)
+        if (!born.ok) throw new Error(`birth failed: ${born.detail}`)
+        expect(spy.seen.map((row) => row.text)).toEqual([
+          'waiting for the pod',
+          'setting up the workspace',
+        ])
+        expect(spy.finalMarks()).toEqual([EStepMark.Done, EStepMark.Done])
+        const lease = leases.find((held) => held.path === `/v1/pod-leases/${THREAD}`)
+        expect(lease?.auth).toBe('Bearer live-session')
+        expect(lease?.body.token).toBe(born.sandbox.token)
 
-      const pods = await new DockerEngine({ socketPath: SOCKET }).listContainers({
-        labels: { [podThreadLabel]: THREAD },
-        all: false,
-      })
-      expect(pods).toHaveLength(1)
-      expect(pods[0]?.name.replace(/^\//, '')).toStartWith('atlas-pod-')
-      expect(pods[0]?.labels[podHomeLabel]).toBe(podHomeDigestOf({ home: atlasDirectory() }))
+        const pods = await new DockerEngine({ socketPath: SOCKET }).listContainers({
+          labels: { [podThreadLabel]: THREAD },
+          all: false,
+        })
+        expect(pods).toHaveLength(1)
+        expect(pods[0]?.name.replace(/^\//, '')).toStartWith('atlas-pod-')
+        expect(pods[0]?.labels[podHomeLabel]).toBe(podHomeDigestOf({ home: atlasDirectory() }))
 
-      const health = await fetch(`${born.sandbox.url}/v1/health`, {
-        headers: { authorization: `Bearer ${born.sandbox.token}` },
-      })
-      expect(health.status).toBe(200)
-      expect((await app.threads.find({ threadId: THREAD }))?.runner).toBe(ERunner.Local)
+        const health = await fetch(`${born.sandbox.url}/v1/health`, {
+          headers: { authorization: `Bearer ${born.sandbox.token}` },
+        })
+        expect(health.status).toBe(200)
+        expect((await app.threads.find({ threadId: THREAD }))?.runner).toBe(ERunner.Local)
       } finally {
         await bridge.sandboxes.destroy({ threadId: THREAD })
       }
@@ -262,10 +305,14 @@ describeLive('a pod birth through the live TUI wiring', () => {
         expect(await gitInPod({ podName, command: 'rev-parse HEAD' })).toBe(PRIMARY_HEAD)
         expect(await gitInPod({ podName, command: 'remote get-url origin' })).toBe(PROJECT_ORIGIN)
 
-        expect(reads.some((read) => read.path === '/v1/projects' && read.auth === 'Bearer live-session')).toBe(true)
+        expect(
+          reads.some((read) => read.path === '/v1/projects' && read.auth === 'Bearer live-session'),
+        ).toBe(true)
         expect(
           reads.some(
-            (read) => read.path === `/v1/projects/${PROJECT_ID}/workspace` && read.auth === `Bearer ${born.sandbox.token}`,
+            (read) =>
+              read.path === `/v1/projects/${PROJECT_ID}/workspace` &&
+              read.auth === `Bearer ${born.sandbox.token}`,
           ),
         ).toBe(true)
         expect((await app.threads.find({ threadId: PROJECT_THREAD }))?.projectId).toBe(PROJECT_ID)

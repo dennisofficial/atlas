@@ -6,7 +6,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
+} from '@dltech/atlas-ui/components/select'
 
 import {
   AUTO_MODEL,
@@ -16,16 +16,16 @@ import {
   type EAgentRole,
   type EEffort,
   type RoleSetting,
-} from "../../../fixtures/settings-agent";
-import { SettingsCard, SettingsRow, SettingsSection } from "../settings-layout";
-import { EffortSlider } from "./agent-effort-slider";
+} from '../../../fixtures/settings-agent'
+import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
+import { EffortSlider } from './agent-effort-slider'
 
 function buildModelItems(autoLabel: string) {
-  const items = [{ value: AUTO_MODEL, label: autoLabel }];
+  const items = [{ value: AUTO_MODEL, label: autoLabel }]
   for (const group of MODEL_GROUPS) {
-    for (const model of group.models) items.push({ value: model.id, label: model.label });
+    for (const model of group.models) items.push({ value: model.id, label: model.label })
   }
-  return items;
+  return items
 }
 
 export function RoleCard({
@@ -33,18 +33,18 @@ export function RoleCard({
   setting,
   onChange,
 }: {
-  role: EAgentRole;
-  setting: RoleSetting;
-  onChange: (next: RoleSetting) => void;
+  role: EAgentRole
+  setting: RoleSetting
+  onChange: (next: RoleSetting) => void
 }) {
-  const meta = ROLE_META[role];
-  const items = buildModelItems(meta.autoLabel);
-  const effortLabel = EFFORT_STEPS.find((step) => step.effort === setting.effort)?.label;
+  const meta = ROLE_META[role]
+  const items = buildModelItems(meta.autoLabel)
+  const effortLabel = EFFORT_STEPS.find((step) => step.effort === setting.effort)?.label
 
   const handleModelChange = (model: string | null) => {
-    if (model) onChange({ ...setting, model });
-  };
-  const handleEffortChange = (effort: EEffort) => onChange({ ...setting, effort });
+    if (model) onChange({ ...setting, model })
+  }
+  const handleEffortChange = (effort: EEffort) => onChange({ ...setting, effort })
 
   return (
     <SettingsSection title={meta.title} description={meta.description}>
@@ -86,5 +86,5 @@ export function RoleCard({
         </SettingsRow>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }

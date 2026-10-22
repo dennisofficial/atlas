@@ -12,7 +12,9 @@ describe('better-auth device flow over the shared pool', () => {
   it('issues a device code row', async () => {
     const issued = await auth.api.deviceCode({ body: { client_id: 'atlas-tui' } })
 
-    const rows = await database().db.orm.public.DeviceCode.where({ deviceCode: issued.device_code }).all()
+    const rows = await database()
+      .db.orm.public.DeviceCode.where({ deviceCode: issued.device_code })
+      .all()
     expect(rows).toHaveLength(1)
     expect(rows[0]?.updatedAt).toBeInstanceOf(Date)
   })

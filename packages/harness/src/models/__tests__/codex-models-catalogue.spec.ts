@@ -194,7 +194,10 @@ describe('refresh', () => {
 
   it('keeps the cards on a 304, re-stamps fetchedAt and does not bump the version', async () => {
     const stale = () => new Response(null, { status: 304 })
-    const { fetch } = recordingFetch([() => jsonResponse({ models: [listed('a')], etag: '"v1"' }), stale])
+    const { fetch } = recordingFetch([
+      () => jsonResponse({ models: [listed('a')], etag: '"v1"' }),
+      stale,
+    ])
     const catalogue = catalogueWith({ fetch })
     await catalogue.refresh()
     clock = T0 + TTL * 2
@@ -240,7 +243,10 @@ describe('refresh', () => {
 
   it('does not replace the cache when the response lists no model', async () => {
     const hidden = { slug: 'z', visibility: 'hide', priority: 1 }
-    const replies = [() => jsonResponse({ models: [listed('a')] }), () => jsonResponse({ models: [hidden] })]
+    const replies = [
+      () => jsonResponse({ models: [listed('a')] }),
+      () => jsonResponse({ models: [hidden] }),
+    ]
     const { fetch } = recordingFetch(replies)
     const catalogue = catalogueWith({ fetch })
     await catalogue.refresh()

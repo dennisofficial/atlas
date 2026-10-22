@@ -62,7 +62,11 @@ describe('what ⏎ open acts on', () => {
   })
 
   it('takes the newest thing that can be unfolded, not the first', () => {
-    const entries = [thought({ key: 't1', streaming: false }), said('a1'), thought({ key: 't2', streaming: false })]
+    const entries = [
+      thought({ key: 't1', streaming: false }),
+      said('a1'),
+      thought({ key: 't2', streaming: false }),
+    ]
     expect(newestExpandableKey(entries)).toBe('t2')
   })
 

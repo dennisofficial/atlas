@@ -9,7 +9,8 @@ export const createFakeTimerClock = (randomFn: () => number = () => 0) => {
 
   const setTimeoutFn = ((handler: unknown, ms?: number) => {
     nextId += 1
-    if (typeof handler === 'function') timers.set(nextId, { due: now + (ms ?? 0), handler: handler as () => void })
+    if (typeof handler === 'function')
+      timers.set(nextId, { due: now + (ms ?? 0), handler: handler as () => void })
     return { id: nextId, unref: () => undefined } as unknown as ReturnType<typeof setTimeout>
   }) as typeof setTimeout
 
@@ -39,5 +40,10 @@ export const createFakeTimerClock = (randomFn: () => number = () => 0) => {
   }
 
   const clock: SsePullRequestClock = { now: () => now, setTimeoutFn, clearTimeoutFn, randomFn }
-  return { clock, advance, pending: () => timers.size, dueTimes: () => [...timers.values()].map((timer) => timer.due) }
+  return {
+    clock,
+    advance,
+    pending: () => timers.size,
+    dueTimes: () => [...timers.values()].map((timer) => timer.due),
+  }
 }

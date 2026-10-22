@@ -12,7 +12,8 @@ import { makeLog, toDiskLines } from './historical-log'
 const SHA_A1 = 'a3b135bcfeaabda5d6780642cf256059889ad4649c9ba4f7a4d5d6e83a68b402'
 const SHA_A2 = '1df3032e75cb45e568d2741f3dbf4ba4b11d547f91e906e0563bc9990d9cf07e'
 
-const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] => rejections.map((entry) => entry.kind)
+const kinds = (rejections: readonly { kind: EHistoricalRejection }[]): EHistoricalRejection[] =>
+  rejections.map((entry) => entry.kind)
 
 describe('recoverHistoricalChanges: provable creation', () => {
   test('recovers a created file with a null before and byte-checked after', () => {
@@ -81,7 +82,12 @@ describe('recoverHistoricalChanges: overwrite and anchoring', () => {
     const { changes, rejections } = recoverHistoricalChanges({ events: log.events })
 
     expect(rejections).toEqual([])
-    expect(changes[1]).toMatchObject({ before: V1, after: V2, basis: EHistoricalBasis.KnownPriorWrite, afterEvidence: EAfterEvidence.WriteByteChecked })
+    expect(changes[1]).toMatchObject({
+      before: V1,
+      after: V2,
+      basis: EHistoricalBasis.KnownPriorWrite,
+      afterEvidence: EAfterEvidence.WriteByteChecked,
+    })
   })
 
   test('chains a multi_edit after an edit from the replayed content', () => {
@@ -100,8 +106,16 @@ describe('recoverHistoricalChanges: overwrite and anchoring', () => {
   test('the same path in different relative spellings is not conflated', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
-    log.call({ callId: 'c2', name: 'edit', input: { path: 'a.ts', oldString: 'x', newString: 'y' } })
-    log.result({ callId: 'c2', name: 'edit', output: { path: A, diff: '--- /proj/a.ts\n+++ /proj/a.ts\n' } })
+    log.call({
+      callId: 'c2',
+      name: 'edit',
+      input: { path: 'a.ts', oldString: 'x', newString: 'y' },
+    })
+    log.result({
+      callId: 'c2',
+      name: 'edit',
+      output: { path: A, diff: '--- /proj/a.ts\n+++ /proj/a.ts\n' },
+    })
 
     const { changes, rejections } = recoverHistoricalChanges({ events: log.events })
 
@@ -113,7 +127,9 @@ describe('recoverHistoricalChanges: overwrite and anchoring', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: '$TMPDIR/a.ts', content: V1, created: true })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.UnresolvedPath])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.UnresolvedPath,
+    ])
   })
 
   test('rejects a created claim over a file earlier events established', () => {
@@ -133,7 +149,9 @@ describe('recoverHistoricalChanges: replay safety', () => {
     const log = makeLog()
     log.edit({ callId: 'c1', path: A, before: V1, after: V2 })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.MissingBefore])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.MissingBefore,
+    ])
   })
 
   test('rejects a diff that does not apply to the anchor and drops the anchor', () => {
@@ -145,7 +163,10 @@ describe('recoverHistoricalChanges: replay safety', () => {
     const { changes, rejections } = recoverHistoricalChanges({ events: log.events })
 
     expect(changes).toHaveLength(1)
-    expect(kinds(rejections)).toEqual([EHistoricalRejection.ReplayFailed, EHistoricalRejection.MissingBefore])
+    expect(kinds(rejections)).toEqual([
+      EHistoricalRejection.ReplayFailed,
+      EHistoricalRejection.MissingBefore,
+    ])
   })
 
   test('rejects an already-applied diff', () => {
@@ -153,7 +174,9 @@ describe('recoverHistoricalChanges: replay safety', () => {
     log.write({ callId: 'c1', path: A, content: V2, created: true })
     log.edit({ callId: 'c2', path: A, before: V1, after: V2 })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.AlreadyApplied])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.AlreadyApplied,
+    ])
   })
 
   test('rejects an empty diff', () => {
@@ -162,7 +185,9 @@ describe('recoverHistoricalChanges: replay safety', () => {
     log.call({ callId: 'c2', name: 'edit', input: { path: A, oldString: 'x', newString: 'y' } })
     log.result({ callId: 'c2', name: 'edit', output: { path: A, diff: `--- ${A}\n+++ ${A}\n` } })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.NoChange])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.NoChange,
+    ])
   })
 
   test('rejects a CRLF baseline rather than normalising it', () => {
@@ -181,9 +206,18 @@ describe('recoverHistoricalChanges: replay safety', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
     log.call({ callId: 'c2', name: 'edit', input: { path: A, oldString: 'x', newString: 'y' } })
-    log.result({ callId: 'c2', name: 'edit', output: { path: A, diff: '--- /proj/b.ts\n+++ /proj/b.ts\n@@ -1,1 +1,1 @@\n-export const a = 1\n+export const a = 2\n' } })
+    log.result({
+      callId: 'c2',
+      name: 'edit',
+      output: {
+        path: A,
+        diff: '--- /proj/b.ts\n+++ /proj/b.ts\n@@ -1,1 +1,1 @@\n-export const a = 1\n+export const a = 2\n',
+      },
+    })
 
-    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([EHistoricalRejection.PathMismatch])
+    expect(kinds(recoverHistoricalChanges({ events: log.events }).rejections)).toEqual([
+      EHistoricalRejection.PathMismatch,
+    ])
   })
 
   test('rejection details never carry source text', () => {
@@ -200,7 +234,8 @@ describe('recoverHistoricalChanges: replay safety', () => {
 })
 
 describe('recoverHistoricalChanges: persisted disk shape', () => {
-  const diskEvents = ({ log }: { log: ReturnType<typeof makeLog> }): unknown[] => toDiskLines({ events: log.events }).map((line) => JSON.parse(line))
+  const diskEvents = ({ log }: { log: ReturnType<typeof makeLog> }): unknown[] =>
+    toDiskLines({ events: log.events }).map((line) => JSON.parse(line))
 
   test('the harness codec nests call fields under body, and recovery reads them', () => {
     const log = makeLog()
@@ -208,7 +243,11 @@ describe('recoverHistoricalChanges: persisted disk shape', () => {
     log.edit({ callId: 'c2', path: A, before: V1, after: V2 })
     const disk = diskEvents({ log })
 
-    expect(disk[0]).toMatchObject({ v: 1, type: 'tool-called', body: { type: 'tool-called', callId: 'c1' } })
+    expect(disk[0]).toMatchObject({
+      v: 1,
+      type: 'tool-called',
+      body: { type: 'tool-called', callId: 'c1' },
+    })
     expect(disk[0]).not.toHaveProperty('callId')
     const native = recoverHistoricalChanges({ events: disk })
     const flat = recoverHistoricalChanges({ events: log.events })
@@ -221,7 +260,10 @@ describe('recoverHistoricalChanges: persisted disk shape', () => {
   test('rejects an outer type that disagrees with the body type', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
-    const disk = diskEvents({ log }).map((line) => ({ ...(line as Record<string, unknown>), type: 'user-said' }))
+    const disk = diskEvents({ log }).map((line) => ({
+      ...(line as Record<string, unknown>),
+      type: 'user-said',
+    }))
 
     const { changes, rejections } = recoverHistoricalChanges({ events: disk })
 
@@ -232,7 +274,10 @@ describe('recoverHistoricalChanges: persisted disk shape', () => {
   test('rejects a body that is not an object', () => {
     const log = makeLog()
     log.write({ callId: 'c1', path: A, content: V1, created: true })
-    const disk = diskEvents({ log }).map((line) => ({ ...(line as Record<string, unknown>), body: 'text' }))
+    const disk = diskEvents({ log }).map((line) => ({
+      ...(line as Record<string, unknown>),
+      body: 'text',
+    }))
 
     expect(recoverHistoricalChanges({ events: disk }).changes).toEqual([])
   })

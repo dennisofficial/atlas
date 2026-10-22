@@ -239,14 +239,17 @@ function DerivedComposer(props: {
             startCells: Math.min(props.naming.startCells, room),
             target: clipped === null ? null : ` ${clipped} `,
           }
-    const fg = edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? theme.caretFg : theme.body
-    const ground = edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? rail : theme.panelBg
+    const fg =
+      edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? theme.caretFg : theme.body
+    const ground =
+      edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? rail : theme.panelBg
     return (
       <NamingLine
         state={state}
         line={namingComposerLine({
           fg,
-          towards: edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? rail : theme.appBg,
+          towards:
+            edge === EComposerEdge.Bordered || edge === EComposerEdge.Claude ? rail : theme.appBg,
           bg: ground,
         })}
       />

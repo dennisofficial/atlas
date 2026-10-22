@@ -10,7 +10,13 @@ function contentHead(events: readonly Event[]): number {
   )
 }
 
-function spokeAbove({ events, anchorSeq }: { events: readonly Event[]; anchorSeq: number }): boolean {
+function spokeAbove({
+  events,
+  anchorSeq,
+}: {
+  events: readonly Event[]
+  anchorSeq: number
+}): boolean {
   return events.some(
     (event) =>
       event.type === 'assistant-said' &&

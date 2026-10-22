@@ -29,19 +29,26 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor(private readonly deps: {
-    operatorInput: OperatorInputPort
-    threads: Pick<ThreadStorePort, 'find'>
-  }) {
+  constructor(
+    private readonly deps: {
+      operatorInput: OperatorInputPort
+      threads: Pick<ThreadStorePort, 'find'>
+    },
+  ) {
     super()
   }
 
   protected override async run(args: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     try {
       const caller = await this.deps.threads.find({ threadId: args.threadId })
-      if (caller === undefined) return { ok: false, reason: 'cannot request operator input for an unknown thread' }
+      if (caller === undefined)
+        return { ok: false, reason: 'cannot request operator input for an unknown thread' }
       if (caller.agent !== undefined) {
-        return { ok: false, reason: 'only the main session can ask the operator for input — report what you need and let it run the login' }
+        return {
+          ok: false,
+          reason:
+            'only the main session can ask the operator for input — report what you need and let it run the login',
+        }
       }
     } catch {
       return { ok: false, reason: 'could not verify which thread would receive operator input' }

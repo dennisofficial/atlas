@@ -25,20 +25,34 @@ it('carries owed and pending continuation obligations into the seal, even when s
   app.pending?.forThread({ threadId }).enqueue({ text: 'continue parent' })
   app.pending?.forThread({ threadId: childId }).enqueue({ text: 'continue the finished child' })
   let retired = false
-  let sealed: RuntimeCheckpoint | null = null
+  const sealed: RuntimeCheckpoint | null = null
   let resume: RotationResume | undefined
   const drain = bindServeDrain({
-    app, threadId, atlasHome: home, sandboxSessionId: 'source',
+    app,
+    threadId,
+    atlasHome: home,
+    sandboxSessionId: 'source',
     owed: { parent: false, children: [owedChild] },
     driver: {
-      beginRelocation: async () => undefined, relocationResumable: () => false, busy: () => false,
-      say: async () => undefined, run: () => undefined, sayOrRun: () => false,
-      interrupt: () => undefined, pause: () => undefined, resume: () => undefined,
-      running: () => false, outcomePending: () => false, settled: async () => undefined,
-      attach: () => () => undefined, holdHistory: () => () => undefined,
-      beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }), holdForRotation: () => () => undefined,
+      beginRelocation: async () => undefined,
+      relocationResumable: () => false,
+      busy: () => false,
+      say: async () => undefined,
+      run: () => undefined,
+      sayOrRun: () => false,
+      interrupt: () => undefined,
+      pause: () => undefined,
+      resume: () => undefined,
+      running: () => false,
+      outcomePending: () => false,
+      settled: async () => undefined,
+      attach: () => () => undefined,
+      holdHistory: () => () => undefined,
+      beginRotation: () => ({ pause: () => undefined, waitSettled: async () => null }),
+      holdForRotation: () => () => undefined,
     },
-    haltIdle: () => undefined, whenMutationsSettled: async () => undefined,
+    haltIdle: () => undefined,
+    whenMutationsSettled: async () => undefined,
     checkpoint: {
       current: () => sealed,
       finalizeRotation: async (given) => {
@@ -46,7 +60,13 @@ it('carries owed and pending continuation obligations into the seal, even when s
         throw new Error('sealing interrupted')
       },
     },
-    close: async () => { retired = true }, exit: () => { retired = true }, log: () => undefined,
+    close: async () => {
+      retired = true
+    },
+    exit: () => {
+      retired = true
+    },
+    log: () => undefined,
   })
   try {
     await expect(drain({ reason: 'update' })).rejects.toThrow('sealing interrupted')

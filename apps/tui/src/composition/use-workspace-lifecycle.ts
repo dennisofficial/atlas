@@ -65,7 +65,15 @@ export function useWorkspaceLifecycle(args: {
     }
 
     props.onRestart()
-  }, [agents.running, cloud, exitGuard, props.cloudSession, props.onRestart, services.running, shells.runningEverywhere])
+  }, [
+    agents.running,
+    cloud,
+    exitGuard,
+    props.cloudSession,
+    props.onRestart,
+    services.running,
+    shells.runningEverywhere,
+  ])
 
   useEffect(() => {
     if (exitGuard.state === null) restarting.current = false
@@ -93,7 +101,10 @@ export function useWorkspaceLifecycle(args: {
 
   useEffect(() => {
     if (cloud) return
-    if (exitGuard.state !== null && shells.runningEverywhere + agents.running + services.running === 0) {
+    if (
+      exitGuard.state !== null &&
+      shells.runningEverywhere + agents.running + services.running === 0
+    ) {
       exitGuard.handleDismiss()
     }
   }, [agents.running, cloud, exitGuard, services.running, shells.runningEverywhere])

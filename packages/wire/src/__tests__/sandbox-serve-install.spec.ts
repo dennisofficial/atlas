@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire.js'
-import { EServeArch, serveInstallScript, serveStageAndStampSteps } from '../sandbox-serve-install.js'
+import {
+  EServeArch,
+  serveInstallScript,
+  serveStageAndStampSteps,
+} from '../sandbox-serve-install.js'
 import { SERVE_BINARY_PATH, SERVE_PROTOCOL_PATH, SERVE_VERSION_PATH } from '../serve-env.js'
 
 describe('the shared stage-and-stamp steps', () => {

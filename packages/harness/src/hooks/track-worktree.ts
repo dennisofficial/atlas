@@ -8,7 +8,6 @@ import {
   type HookOrder,
 } from '@dltech/atlas-core'
 
-
 export class TrackWorktreeHook extends AfterToolHook {
   readonly name = 'track-worktree'
   readonly order: HookOrder = { stage: EStage.Observe, nudge: 0 }

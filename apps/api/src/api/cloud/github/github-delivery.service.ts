@@ -6,8 +6,19 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { pushPrTransitions } from './github-pr-transition-push'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
-import { carryChecks, provisionalFieldsOf, stateFieldsOf, type CheckTarget } from './github-pr-state-fields'
-import { branchRoutingOf, checkTargetOf, dtoOf, subscriberWhereOf, subscriptionLiveWhere } from './github-delivery-routing'
+import {
+  carryChecks,
+  provisionalFieldsOf,
+  stateFieldsOf,
+  type CheckTarget,
+} from './github-pr-state-fields'
+import {
+  branchRoutingOf,
+  checkTargetOf,
+  dtoOf,
+  subscriberWhereOf,
+  subscriptionLiveWhere,
+} from './github-delivery-routing'
 import { type GithubPrStateRecord } from './github-realtime.types'
 import type { PrTransitionSnapshot } from './github-pr-event-transitions'
 import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
@@ -85,7 +96,10 @@ export class GithubDeliveryService {
     const recordPayload = this.recordAndPush({
       repoFullName,
       prNumber,
-      fields: carryChecks({ fields: payloadFields, prior: prior === null ? null : stateFieldsOf(prior) }),
+      fields: carryChecks({
+        fields: payloadFields,
+        prior: prior === null ? null : stateFieldsOf(prior),
+      }),
     })
 
     if (token === undefined) {
@@ -119,7 +133,11 @@ export class GithubDeliveryService {
 
       const rest = await fill
       if (rest === null) continue
-      await this.recordAndPush({ repoFullName: target.repoFullName, prNumber: pr.prNumber, fields: rest })
+      await this.recordAndPush({
+        repoFullName: target.repoFullName,
+        prNumber: pr.prNumber,
+        fields: rest,
+      })
     }
   }
 
@@ -169,10 +187,15 @@ export class GithubDeliveryService {
       })
       return { ...fields, updatedAt: new Date() }
     } catch (failure) {
-      if (failure instanceof GithubUserReadFailed && (failure.status === 401 || failure.status === 404)) {
+      if (
+        failure instanceof GithubUserReadFailed &&
+        (failure.status === 401 || failure.status === 404)
+      ) {
         return null
       }
-      this.logger.warn(`REST fill for ${args.owner}/${args.repo}#${args.prNumber} failed: ${String(failure)}`)
+      this.logger.warn(
+        `REST fill for ${args.owner}/${args.repo}#${args.prNumber} failed: ${String(failure)}`,
+      )
       return null
     }
   }

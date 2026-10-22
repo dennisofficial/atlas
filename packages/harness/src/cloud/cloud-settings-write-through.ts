@@ -1,9 +1,4 @@
-import {
-  ESettingId,
-  choiceValueOf,
-  type JsonValue,
-  type LogPort,
-} from '@dltech/atlas-core'
+import { ESettingId, choiceValueOf, type JsonValue, type LogPort } from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
 import { encodeSettingValue } from './sync-settings'

@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'bun:test'
 
-import { carriedProviderOptions, mergeProviderOptions, toCoreProviderOptions } from '../provider-options'
+import {
+  carriedProviderOptions,
+  mergeProviderOptions,
+  toCoreProviderOptions,
+} from '../provider-options'
 
 describe('mergeProviderOptions', () => {
   it('returns the incoming options when there is no base', () => {
-    expect(mergeProviderOptions({ base: undefined, incoming: { anthropic: { signature: 'sig-abc' } } })).toEqual({
+    expect(
+      mergeProviderOptions({ base: undefined, incoming: { anthropic: { signature: 'sig-abc' } } }),
+    ).toEqual({
       anthropic: { signature: 'sig-abc' },
     })
   })
 
   it('returns the base when nothing arrives', () => {
-    expect(mergeProviderOptions({ base: { anthropic: { signature: 'sig-abc' } }, incoming: undefined })).toEqual({
+    expect(
+      mergeProviderOptions({ base: { anthropic: { signature: 'sig-abc' } }, incoming: undefined }),
+    ).toEqual({
       anthropic: { signature: 'sig-abc' },
     })
   })
@@ -63,19 +71,25 @@ describe('toCoreProviderOptions', () => {
   })
 
   it('drops the undefined values the provider JSON type permits', () => {
-    expect(toCoreProviderOptions({ anthropic: { signature: 'sig-abc', absent: undefined } })).toEqual({
+    expect(
+      toCoreProviderOptions({ anthropic: { signature: 'sig-abc', absent: undefined } }),
+    ).toEqual({
       anthropic: { signature: 'sig-abc' },
     })
   })
 
   it('drops undefined values nested inside a namespace value', () => {
-    expect(toCoreProviderOptions({ anthropic: { detail: { kept: 1, absent: undefined } } })).toEqual({
+    expect(
+      toCoreProviderOptions({ anthropic: { detail: { kept: 1, absent: undefined } } }),
+    ).toEqual({
       anthropic: { detail: { kept: 1 } },
     })
   })
 
   it('preserves arrays and scalars', () => {
-    expect(toCoreProviderOptions({ openai: { ids: ['a', 'b'], depth: 2, on: true, none: null } })).toEqual({
+    expect(
+      toCoreProviderOptions({ openai: { ids: ['a', 'b'], depth: 2, on: true, none: null } }),
+    ).toEqual({
       openai: { ids: ['a', 'b'], depth: 2, on: true, none: null },
     })
   })

@@ -17,11 +17,7 @@ import { HookChain } from '../../hooks/registry'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { CompositeToolRegistry } from '../../tools/composite-registry'
 import { InMemoryToolRegistry } from '../../tools/registry'
-import {
-  HookedToolDispatcher,
-  ToolDispatcher,
-  type DispatchableCall,
-} from '../../tools/dispatch'
+import { HookedToolDispatcher, ToolDispatcher, type DispatchableCall } from '../../tools/dispatch'
 import { createSettlePending } from '../settle-pending'
 import { branchWithCalls } from './settle-pending-fixture'
 import { createTempHome, type TempHome } from './temp-home'
@@ -186,7 +182,13 @@ describe('settling against declarations that arrive late', () => {
       await Bun.sleep(20)
       this.inFlight -= 1
       return [
-        { type: 'tool-result', callId: call.callId, name: call.name, output: 'done', modelText: 'done' },
+        {
+          type: 'tool-result',
+          callId: call.callId,
+          name: call.name,
+          output: 'done',
+          modelText: 'done',
+        },
       ]
     }
   }

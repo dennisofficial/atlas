@@ -6,7 +6,11 @@ import { writeFileAtomic, writeJsonAtomic } from './atomic'
 
 export const SMOKE_FEATURE_ID = 'calculator'
 
-export async function materializeSmokeDataset({ workDirectory }: { workDirectory: string }): Promise<string> {
+export async function materializeSmokeDataset({
+  workDirectory,
+}: {
+  workDirectory: string
+}): Promise<string> {
   const directory = join(workDirectory, 'smoke-dataset')
   await mkdir(directory, { recursive: true })
   const casesText = smokeCasesText()

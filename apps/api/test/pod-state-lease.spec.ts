@@ -68,7 +68,11 @@ describe('account lease and pod-reachable settings and secrets', () => {
       createdAt: '2026-10-02T00:00:00.000Z',
       secret: {
         kind: EAuthKind.Oauth,
-        tokens: { accessToken: 'access-a', refreshToken: 'refresh-a', expiresAt: '2026-10-20T00:00:00.000Z' },
+        tokens: {
+          accessToken: 'access-a',
+          refreshToken: 'refresh-a',
+          expiresAt: '2026-10-20T00:00:00.000Z',
+        },
         authority: { url: 'https://api.example.test', connectionId: 'conn-a' },
       },
     })
@@ -90,12 +94,23 @@ describe('account lease and pod-reachable settings and secrets', () => {
       { userId: 'user-b', provider: 'openrouter', accountId: 'acc-key-b' },
     ])
     const stamp = new Date('2026-10-03T00:00:00.000Z')
-    for (const [userId, value] of [['user-a', 'image-a'], ['user-b', 'image-b']] as const) {
+    for (const [userId, value] of [
+      ['user-a', 'image-a'],
+      ['user-b', 'image-b'],
+    ] as const) {
       await db.orm.public.UserSetting.create({
-        id: `set_${userId}`, userId, key: 'sandbox.image', value, createdAt: stamp, updatedAt: stamp,
+        id: `set_${userId}`,
+        userId,
+        key: 'sandbox.image',
+        value,
+        createdAt: stamp,
+        updatedAt: stamp,
       })
     }
-    for (const [userId, value] of [['user-a', 'vercel-a'], ['user-b', 'vercel-b']] as const) {
+    for (const [userId, value] of [
+      ['user-a', 'vercel-a'],
+      ['user-b', 'vercel-b'],
+    ] as const) {
       await db.orm.public.UserSecret.create({
         id: `sec_${userId}`,
         userId,
@@ -107,7 +122,12 @@ describe('account lease and pod-reachable settings and secrets', () => {
     }
 
     const module = await Test.createTestingModule({
-      controllers: [AccountsController, AccountLeaseController, SettingsController, SecretsController],
+      controllers: [
+        AccountsController,
+        AccountLeaseController,
+        SettingsController,
+        SecretsController,
+      ],
       providers: [
         AccountsService,
         SettingsService,
@@ -142,7 +162,9 @@ describe('account lease and pod-reachable settings and secrets', () => {
     }).compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    )
     await app.init()
   })
 
@@ -152,7 +174,10 @@ describe('account lease and pod-reachable settings and secrets', () => {
     const lease = await http().get('/v1/account-lease').set(as('pod-token-a')).expect(200)
 
     expect(lease.headers['cache-control']).toBe('no-store')
-    expect(lease.body.accounts.map((account: { id: string }) => account.id)).toEqual(['acc-key-a', 'acc-oauth-a'])
+    expect(lease.body.accounts.map((account: { id: string }) => account.id)).toEqual([
+      'acc-key-a',
+      'acc-oauth-a',
+    ])
     expect(lease.body.accounts[0]).toMatchObject({
       id: 'acc-key-a',
       provider: 'openrouter',
@@ -177,7 +202,9 @@ describe('account lease and pod-reachable settings and secrets', () => {
     await http().get('/v1/account-lease').set(as('pod-token-a')).expect(200)
 
     const stored = await db.orm.public.AgentAccount.where({ id: 'acc-oauth-a' }).first()
-    expect(JSON.parse(cipher.decrypt(stored?.sealedSecret ?? '')).tokens.refreshToken).toBe('refresh-a')
+    expect(JSON.parse(cipher.decrypt(stored?.sealedSecret ?? '')).tokens.refreshToken).toBe(
+      'refresh-a',
+    )
   })
 
   it("gives another user's pod only its own rows", async () => {
@@ -233,7 +260,9 @@ describe('account lease and pod-reachable settings and secrets', () => {
     await http().put('/v1/secrets/NAME').set(as('session-a')).send({ value: 'x' }).expect(204)
 
     expect(settings.body.settings).toHaveLength(1)
-    expect(await db.orm.public.UserSecret.where({ userId: 'user-a', name: 'NAME' }).first()).not.toBeNull()
+    expect(
+      await db.orm.public.UserSecret.where({ userId: 'user-a', name: 'NAME' }).first(),
+    ).not.toBeNull()
     expect(await db.orm.public.UserSetting.all()).toHaveLength(2)
   })
 

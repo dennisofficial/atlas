@@ -19,13 +19,20 @@ const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? 'b'.repeat(64) : undefined),
 } as unknown as EnvService)
 
-export async function seedThread(partial: { projectId?: string | null; modelRef?: string | null } = {}): Promise<void> {
+export async function seedThread(
+  partial: { projectId?: string | null; modelRef?: string | null } = {},
+): Promise<void> {
   await seedUser({ db, id: 'usr-1' })
   for (const id of ['prj-1', 'prj-9']) {
     await db.orm.public.Project.create({ id, name: id, ownerUserId: 'usr-1', createdById: 'usr-1' })
   }
   const projectId = partial.projectId === undefined ? 'prj-1' : partial.projectId
-  await seedThreadRow({ db, id: 'thr-1', userId: 'usr-1', ...(projectId === null ? {} : { projectId }) })
+  await seedThreadRow({
+    db,
+    id: 'thr-1',
+    userId: 'usr-1',
+    ...(projectId === null ? {} : { projectId }),
+  })
   if (partial.modelRef !== undefined && partial.modelRef !== null) {
     await db.orm.public.Thread.where({ id: 'thr-1' }).update({ modelRef: partial.modelRef })
   }
@@ -62,7 +69,9 @@ export function fakeBoot(options: { held?: Promise<void>; failWith?: Error } = {
   }
 }
 
-export function fakeScoped(overrides: Partial<Record<'vercelCredentials' | 'accessibleProject', unknown>> = {}) {
+export function fakeScoped(
+  overrides: Partial<Record<'vercelCredentials' | 'accessibleProject', unknown>> = {},
+) {
   const scoped = {
     vercelCredentials: vi.fn(async () => CREDENTIALS),
     accessibleProject: vi.fn(async () => ({ id: 'prj-9', organizationId: 'org-1' })),
@@ -96,12 +105,18 @@ export function fakeSandbox() {
   return { sandbox: { runCommand, writeFiles } as unknown as Sandbox, runCommand, writeFiles }
 }
 
-export function messagesWith(args: { endpoint?: { token: string; url: string } | null; serveFails?: Error }) {
+export function messagesWith(args: {
+  endpoint?: { token: string; url: string } | null
+  serveFails?: Error
+}) {
   const endpoint = args.endpoint ?? null
   const runningEndpoint = vi.fn(async () => endpoint)
   const serve = vi.fn(async (_delivery: ServeSendArgs) => {
     if (args.serveFails !== undefined) throw args.serveFails
   })
-  const service = new ThreadMessagesService({ runningEndpoint } as unknown as SandboxEndpointService, serve)
+  const service = new ThreadMessagesService(
+    { runningEndpoint } as unknown as SandboxEndpointService,
+    serve,
+  )
   return { service, serve, runningEndpoint }
 }

@@ -28,7 +28,10 @@ interface Registration {
 }
 
 const scopeMissing = (): ForbiddenException =>
-  new ForbiddenException({ message: SSH_SIGNING_SCOPE_NOTICE, code: SSH_SIGNING_SCOPE_MISSING_CODE })
+  new ForbiddenException({
+    message: SSH_SIGNING_SCOPE_NOTICE,
+    code: SSH_SIGNING_SCOPE_MISSING_CODE,
+  })
 
 const USER_ID_UNIQUE = 'SshSigningKey_userId_key'
 
@@ -81,7 +84,12 @@ export class SshSigningKeyService {
     if (existing === null) throw new NotFoundException('no signing key is registered')
     const oldKeyId = Number(existing.githubKeyId)
     const registration = await this.registerOnGithub({ userId: args.userId, publicKey })
-    const swapped = await this.swapRow({ existing, registration, publicKey, privateKey: args.privateKey })
+    const swapped = await this.swapRow({
+      existing,
+      registration,
+      publicKey,
+      privateKey: args.privateKey,
+    })
     if (!swapped) {
       await this.removeIfCreated(registration)
       throw new ConflictException('the signing key changed concurrently; retry')
@@ -99,7 +107,9 @@ export class SshSigningKeyService {
       userId: args.userId,
       githubKeyId: row.githubKeyId,
     }).deleteAndCount()
-    const credentials = await this.github.findCredentials({ userId: args.userId }).catch(() => undefined)
+    const credentials = await this.github
+      .findCredentials({ userId: args.userId })
+      .catch(() => undefined)
     if (credentials === undefined) return
     await this.removeBestEffort({ token: credentials.token, keyId: Number(row.githubKeyId) })
   }
@@ -115,7 +125,10 @@ export class SshSigningKeyService {
     }
   }
 
-  private async registerOnGithub(args: { userId: string; publicKey: string }): Promise<Registration> {
+  private async registerOnGithub(args: {
+    userId: string
+    publicKey: string
+  }): Promise<Registration> {
     const credentials = await this.github.findCredentials({ userId: args.userId })
     if (credentials === undefined) {
       throw new ConflictException({

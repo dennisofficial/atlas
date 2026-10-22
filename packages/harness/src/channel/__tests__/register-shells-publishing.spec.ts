@@ -17,7 +17,11 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, registeredPortToken, type DependencyContainer } from '../../container/injection'
+import {
+  createIsolatedContainer,
+  registeredPortToken,
+  type DependencyContainer,
+} from '../../container/injection'
 import {
   AtlasHomeToken,
   DeltaChannelToken,
@@ -70,7 +74,9 @@ afterEach(async () => {
   }
 })
 
-function fakeLog(): EventLogPort & { readonly appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[] } {
+function fakeLog(): EventLogPort & {
+  readonly appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[]
+} {
   const appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[] = []
   let seq = 0
 
@@ -143,7 +149,9 @@ async function openContainer(): Promise<{
 
 const untilEnded = async (log: ReturnType<typeof fakeLog>): Promise<void> => {
   const ended = () =>
-    log.appended.some((call) => call.drafts.some((draft) => draft.type === 'background-shell-ended'))
+    log.appended.some((call) =>
+      call.drafts.some((draft) => draft.type === 'background-shell-ended'),
+    )
   for (let attempt = 0; attempt < 200 && !ended(); attempt += 1) {
     await Bun.sleep(25)
   }

@@ -1,5 +1,5 @@
-import type { Event, ModelRef, ModelUsage, ThreadId } from "@dltech/atlas-core";
-import type { TurnSpend } from "@dltech/atlas-harness";
+import type { Event, ModelRef, ModelUsage, ThreadId } from '@dltech/atlas-core'
+import type { TurnSpend } from '@dltech/atlas-harness'
 import {
   useCallback,
   useEffect,
@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-} from "react";
+} from 'react'
 
 import {
   createConversationStore,
@@ -18,21 +18,18 @@ import {
   type SidebarModel,
   type TranscriptModel,
   type TurnProgress,
-} from "../store";
-import type { LogAccumulator } from "../store/log-accumulator";
-import type { TurnClock } from "../ui/turn-clock";
-import type { AtlasApp } from "./compose";
-import { createThreadPager, type ThreadIdentity } from "./thread-reads";
+} from '../store'
+import type { LogAccumulator } from '../store/log-accumulator'
+import type { TurnClock } from '../ui/turn-clock'
+import type { AtlasApp } from './compose'
+import { createThreadPager, type ThreadIdentity } from './thread-reads'
 import {
   cloudChannelOf,
   createThreadViewRefresh,
   driveThreadViewExternally,
-} from "./thread-view-refresh";
-import { usePlacementRepublish } from "./use-placement-republish";
-import {
-  subscribeTranscriptViewport,
-  transcriptViewport,
-} from "../ui/transcript-viewport-store";
+} from './thread-view-refresh'
+import { usePlacementRepublish } from './use-placement-republish'
+import { subscribeTranscriptViewport, transcriptViewport } from '../ui/transcript-viewport-store'
 
 /**
  * Which rows of a thread the view reads.
@@ -42,36 +39,36 @@ import {
  * the thread that spawned it above its own first word.
  */
 export enum EThreadRows {
-  Composed = "composed",
-  Own = "own",
+  Composed = 'composed',
+  Own = 'own',
 }
 
 export type ThreadSeed = {
-  events: readonly Event[];
-  turns?: readonly TurnSpend[] | undefined;
-  base?: LogAccumulator | undefined;
+  events: readonly Event[]
+  turns?: readonly TurnSpend[] | undefined
+  base?: LogAccumulator | undefined
   /**
    * The transcript's full identity as read by whoever opened the thread — held above the
    * projection, which evicts rows past the retention cap and can never vouch for the whole log.
    */
-  identity?: ThreadIdentity | undefined;
+  identity?: ThreadIdentity | undefined
   /** The full event array that identity was computed over, held so a park can persist it. */
-  appliedEvents?: readonly Event[] | undefined;
-};
+  appliedEvents?: readonly Event[] | undefined
+}
 
 export type ThreadView = {
-  store: ConversationStore;
-  model: TranscriptModel;
-  sidebar: SidebarModel;
-  events: readonly Event[];
-  turn: TurnClock;
-  refresh: () => Promise<void>;
-  loadOlder: () => Promise<void>;
-  setEvents: (events: readonly Event[]) => void;
-  stamp: (advance: (progress: TurnProgress) => TurnProgress) => void;
-};
+  store: ConversationStore
+  model: TranscriptModel
+  sidebar: SidebarModel
+  events: readonly Event[]
+  turn: TurnClock
+  refresh: () => Promise<void>
+  loadOlder: () => Promise<void>
+  setEvents: (events: readonly Event[]) => void
+  stamp: (advance: (progress: TurnProgress) => TurnProgress) => void
+}
 
-const NO_EVENTS: readonly Event[] = Object.freeze([]);
+const NO_EVENTS: readonly Event[] = Object.freeze([])
 
 /**
  * One thread as something on screen: its transcript, its sidebar reading and its turn clock, fed by
@@ -84,61 +81,56 @@ const NO_EVENTS: readonly Event[] = Object.freeze([]);
  * is driven by the supervisor and has only the channel to go on.
  */
 export function useThreadView(args: {
-  app: AtlasApp;
-  threadId: ThreadId;
-  rows: EThreadRows;
-  thinking: EThinkingVisibility;
+  app: AtlasApp
+  threadId: ThreadId
+  rows: EThreadRows
+  thinking: EThinkingVisibility
   /** Absent on child threads — a sub-agent's log holds no footers, so the default shows them. */
-  tldrStatus?: boolean;
-  readClock: () => number;
+  tldrStatus?: boolean
+  readClock: () => number
   /**
    * Rows already read by whoever opened the thread, as a getter so that swapping conversations
    * hands the fresh store the rows of the thread it is actually for. Absent means nobody has read
    * them, so the view reads the log itself on mount — which is how an open sub-agent gets its
    * transcript.
    */
-  initial?: (() => ThreadSeed) | undefined;
-  paceReveal?: boolean;
-  projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined;
+  initial?: (() => ThreadSeed) | undefined
+  paceReveal?: boolean
+  projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined
   /**
    * What the model reported spending. Only a conversation passes this: a child runs its own window
    * and folding its usage into the parent's meter would make the parent's remaining context a lie.
    */
-  onUsage?: ((args: { threadId: ThreadId; usage: ModelUsage }) => void) | undefined;
+  onUsage?: ((args: { threadId: ThreadId; usage: ModelUsage }) => void) | undefined
 }): ThreadView {
-  const { app, threadId, rows, thinking, readClock, initial } = args;
-  const tldrStatus = args.tldrStatus ?? true;
-  const { onUsage, projectEvents } = args;
+  const { app, threadId, rows, thinking, readClock, initial } = args
+  const tldrStatus = args.tldrStatus ?? true
+  const { onUsage, projectEvents } = args
 
-  const paceReveal = args.paceReveal ?? false;
+  const paceReveal = args.paceReveal ?? false
 
-  const [events, setEventsState] = useState<readonly Event[]>(
-    () => initial?.().events ?? NO_EVENTS,
-  );
+  const [events, setEventsState] = useState<readonly Event[]>(() => initial?.().events ?? NO_EVENTS)
   /**
    * A refresh that re-read the log it already has must not cost a render: the OpenTUI reconciler
    * commits even when a setState updater returns its current value, so the no-op case never
    * dispatches. The ref holds the truth synchronously, where the state lags a commit behind.
    */
-  const heldEvents = useRef(events);
+  const heldEvents = useRef(events)
   const setEvents = useCallback((next: readonly Event[]) => {
-    if (sameEvents({ left: heldEvents.current, right: next })) return;
+    if (sameEvents({ left: heldEvents.current, right: next })) return
 
-    heldEvents.current = next;
-    setEventsState(next);
-  }, []);
-  const priceOf = useCallback(
-    (ref: ModelRef) => app.models.cardFor(ref)?.cost,
-    [app.models],
-  );
+    heldEvents.current = next
+    setEventsState(next)
+  }, [])
+  const priceOf = useCallback((ref: ModelRef) => app.models.cardFor(ref)?.cost, [app.models])
 
-  const clock = useRef(readClock);
-  clock.current = readClock;
+  const clock = useRef(readClock)
+  clock.current = readClock
 
-  const effects = useCallback((name: string) => app.tools.find(name)?.effect, [app.tools]);
+  const effects = useCallback((name: string) => app.tools.find(name)?.effect, [app.tools])
 
   const store = useMemo(() => {
-    const seed = initial?.();
+    const seed = initial?.()
 
     return createConversationStore({
       channel: app.channel,
@@ -152,13 +144,23 @@ export function useThreadView(args: {
       sandbox: app.containerStatus,
       readClock: () => clock.current(),
       ...(projectEvents === undefined ? {} : { projectEvents }),
-    });
-  }, [app.channel, app.containerStatus, app.executionLocation, threadId, effects, paceReveal, priceOf, projectEvents, initial]);
+    })
+  }, [
+    app.channel,
+    app.containerStatus,
+    app.executionLocation,
+    threadId,
+    effects,
+    paceReveal,
+    priceOf,
+    projectEvents,
+    initial,
+  ])
 
   const stamp = useCallback(
     (advance: (progress: TurnProgress) => TurnProgress) => store.stampTurn(advance),
     [store],
-  );
+  )
 
   const viewRefresh = useMemo(
     () =>
@@ -173,7 +175,7 @@ export function useThreadView(args: {
         readSeed: initial,
       }),
     [app, threadId, rows, effects, store, setEvents, initial],
-  );
+  )
 
   /**
    * A conversation swapped for another one arrives as a fresh getter, and the rows it already read
@@ -181,46 +183,46 @@ export function useThreadView(args: {
    * follow or the two disagree about what the thread says.
    */
   useEffect(() => {
-    if (initial === undefined) return;
+    if (initial === undefined) return
 
-    viewRefresh.markGapped(false);
-    setEvents(initial().events);
-  }, [initial, setEvents, viewRefresh]);
+    viewRefresh.markGapped(false)
+    setEvents(initial().events)
+  }, [initial, setEvents, viewRefresh])
 
   useLayoutEffect(() => {
-    viewRefresh.registerSeedIdentity();
-    return viewRefresh.bindLocalUpdates();
-  }, [viewRefresh]);
+    viewRefresh.registerSeedIdentity()
+    return viewRefresh.bindLocalUpdates()
+  }, [viewRefresh])
 
-  useEffect(() => () => store.dispose(), [store]);
+  useEffect(() => () => store.dispose(), [store])
 
-  useEffect(() => store.setThinking(thinking), [store, thinking]);
-  useEffect(() => store.setTldrStatus(tldrStatus), [store, tldrStatus]);
+  useEffect(() => store.setThinking(thinking), [store, thinking])
+  useEffect(() => store.setTldrStatus(tldrStatus), [store, tldrStatus])
 
-  usePlacementRepublish({ app, threadId, store });
+  usePlacementRepublish({ app, threadId, store })
 
   /**
    * A thread nobody handed rows for reads them itself, once, on the way in. The channel replays the
    * step in flight to a late subscriber, so a sub-agent opened mid-step catches up on that step
    * without anything polling for it.
    */
-  const load = useRef(viewRefresh.refresh);
-  load.current = viewRefresh.refresh;
+  const load = useRef(viewRefresh.refresh)
+  load.current = viewRefresh.refresh
   useEffect(() => {
-    if (initial !== undefined) return;
+    if (initial !== undefined) return
 
-    void load.current().catch(() => undefined);
-  }, [initial, threadId]);
+    void load.current().catch(() => undefined)
+  }, [initial, threadId])
 
   useEffect(() => {
-    if (viewRefresh.drivesExternally()) return;
+    if (viewRefresh.drivesExternally()) return
 
     return app.channel.subscribe({
       threadId,
       listener: (signal) => {
-        if (signal.type === "chunk" && signal.chunk.type === "finish") {
-          const { usage } = signal.chunk;
-          if (usage !== undefined) onUsage?.({ threadId, usage });
+        if (signal.type === 'chunk' && signal.chunk.type === 'finish') {
+          const { usage } = signal.chunk
+          if (usage !== undefined) onUsage?.({ threadId, usage })
         }
 
         /**
@@ -230,25 +232,25 @@ export function useThreadView(args: {
          * operator's own words would not appear until the child had finished answering them.
          */
         if (
-          signal.type === "step-started" ||
-          signal.type === "step-ended" ||
-          signal.type === "events-appended"
+          signal.type === 'step-started' ||
+          signal.type === 'step-ended' ||
+          signal.type === 'events-appended'
         ) {
-          if (!viewRefresh.refreshable()) return;
+          if (!viewRefresh.refreshable()) return
 
           // A refresh reads the thread's tail — over the wire for a cloud thread — so a failed
           // read leaves the stale view standing rather than taking the process down with an
           // unhandled rejection; the next signal retries.
-          void viewRefresh.refresh().catch(() => undefined);
+          void viewRefresh.refresh().catch(() => undefined)
         }
       },
-    });
-  }, [app.channel, onUsage, viewRefresh, threadId]);
+    })
+  }, [app.channel, onUsage, viewRefresh, threadId])
 
   useEffect(
     () => driveThreadViewExternally({ cloudChannel: cloudChannelOf(app), viewRefresh }),
     [app, viewRefresh],
-  );
+  )
 
   const pager = useMemo(
     () =>
@@ -260,24 +262,24 @@ export function useThreadView(args: {
         gapped: viewRefresh.gapped,
         markGapped: viewRefresh.markGapped,
         apply: (next) => {
-          store.setEvents({ events: next });
-          setEvents(next);
+          store.setEvents({ events: next })
+          setEvents(next)
         },
       }),
     [app.log, rows, store, threadId, setEvents, viewRefresh],
-  );
+  )
 
   useEffect(
     () =>
       subscribeTranscriptViewport(() => {
-        if (transcriptViewport().tailing) void pager.loadNewer().catch(() => undefined);
+        if (transcriptViewport().tailing) void pager.loadNewer().catch(() => undefined)
       }),
     [pager],
-  );
+  )
 
-  const model = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  const sidebar = useSyncExternalStore(store.subscribe, store.getSidebar);
-  const turn = useSyncExternalStore(store.subscribe, store.getTurn);
+  const model = useSyncExternalStore(store.subscribe, store.getSnapshot)
+  const sidebar = useSyncExternalStore(store.subscribe, store.getSidebar)
+  const turn = useSyncExternalStore(store.subscribe, store.getTurn)
 
   return {
     store,
@@ -289,5 +291,5 @@ export function useThreadView(args: {
     loadOlder: pager.loadOlder,
     setEvents,
     stamp,
-  };
+  }
 }

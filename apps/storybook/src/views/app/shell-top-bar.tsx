@@ -1,16 +1,12 @@
-import { ArrowLeft, ArrowRight, Plus, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Search } from 'lucide-react'
 
-import {
-  Avatar,
-  AvatarBadge,
-  AvatarFallback,
-} from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { SidebarHeader } from "@dltech/atlas-ui/components/sidebar";
+import { Avatar, AvatarBadge, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { SidebarHeader } from '@dltech/atlas-ui/components/sidebar'
 
-import { USER } from "../../fixtures/app";
-import { AtlasMark } from "./atlas-mark";
-import { RowAction } from "./shell-row-action";
+import { USER } from '../../fixtures/app'
+import { AtlasMark } from './atlas-mark'
+import { RowAction } from './shell-row-action'
 
 export function ShellTopBar() {
   return (
@@ -33,13 +29,9 @@ export function ShellTopBar() {
           <Search />
         </RowAction>
       </div>
-      <Button
-        size="icon-xs"
-        aria-label="New thread"
-        className="size-6 rounded-full"
-      >
+      <Button size="icon-xs" aria-label="New thread" className="size-6 rounded-full">
         <Plus />
       </Button>
     </SidebarHeader>
-  );
+  )
 }

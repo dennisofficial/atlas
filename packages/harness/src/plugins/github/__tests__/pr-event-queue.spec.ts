@@ -31,7 +31,10 @@ describe('PrEventNoticeQueue', () => {
 
     expect(batch.drafts).toEqual([draft(1)])
     expect(batch.wakesTurn).toBe(true)
-    expect(queue.prepare({ threadId: toThreadId('other') })).toMatchObject({ drafts: [], wakesTurn: false })
+    expect(queue.prepare({ threadId: toThreadId('other') })).toMatchObject({
+      drafts: [],
+      wakesTurn: false,
+    })
   })
 
   it('keeps notices until acknowledged and acknowledges only what it captured', () => {
@@ -136,7 +139,10 @@ describe('PrEventNoticeQueue through MessageIntake', () => {
     const queue = new PrEventNoticeQueue()
     const intake = new MessageIntake({ sources: [prEventIntakeSource(queue)] })
     let woke = 0
-    intake.register({ threadId: MAIN, driver: { blocked: () => true, wake: () => void (woke += 1) } })
+    intake.register({
+      threadId: MAIN,
+      driver: { blocked: () => true, wake: () => void (woke += 1) },
+    })
 
     queue.queue({ threadId: MAIN, draft: draft(1) })
     await flush()
@@ -160,7 +166,12 @@ describe('PrEventNoticeQueue through MessageIntake', () => {
     queue.queue({ threadId: MAIN, draft: draft(1) })
 
     await expect(
-      intake.commit({ threadId: MAIN, append: async () => { throw new Error('disk full') } }),
+      intake.commit({
+        threadId: MAIN,
+        append: async () => {
+          throw new Error('disk full')
+        },
+      }),
     ).rejects.toThrow('disk full')
 
     expect(queue.threadsAwaiting()).toEqual([MAIN])

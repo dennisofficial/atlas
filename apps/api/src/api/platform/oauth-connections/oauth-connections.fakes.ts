@@ -1,4 +1,9 @@
-import { EConnectionStatus, OauthClock, OauthConnectionStore, OauthIssuer } from './oauth-connections.types'
+import {
+  EConnectionStatus,
+  OauthClock,
+  OauthConnectionStore,
+  OauthIssuer,
+} from './oauth-connections.types'
 import type { AttemptFence, ConnectionRow, ProviderTokens } from './oauth-connections.types'
 
 export class FakeStore implements OauthConnectionStore {
@@ -32,7 +37,8 @@ export class FakeStore implements OauthConnectionStore {
     sealedTokens: string
   }) {
     const row = this.rows.get(args.id)
-    if (row?.userId !== args.userId || row.authorizationId !== args.previousAuthorizationId) return false
+    if (row?.userId !== args.userId || row.authorizationId !== args.previousAuthorizationId)
+      return false
     Object.assign(row, {
       sealedTokens: args.sealedTokens,
       authorizationId: args.authorizationId,
@@ -44,12 +50,22 @@ export class FakeStore implements OauthConnectionStore {
     return true
   }
 
-  async claim(args: { id: string; userId: string; generation: number; attemptId: string; startedAt: Date }) {
+  async claim(args: {
+    id: string
+    userId: string
+    generation: number
+    attemptId: string
+    startedAt: Date
+  }) {
     const row = this.rows.get(args.id)
     if (
-      row === undefined || row.userId !== args.userId || row.generation !== args.generation ||
-      row.refreshAttempt !== null || row.status !== EConnectionStatus.Active
-    ) return false
+      row === undefined ||
+      row.userId !== args.userId ||
+      row.generation !== args.generation ||
+      row.refreshAttempt !== null ||
+      row.status !== EConnectionStatus.Active
+    )
+      return false
     row.refreshAttempt = args.attemptId
     row.refreshStartedAt = args.startedAt
     return true
@@ -83,7 +99,11 @@ export class FakeStore implements OauthConnectionStore {
   async reject(args: AttemptFence) {
     const row = this.fenced(args)
     if (row === undefined) return false
-    Object.assign(row, { status: EConnectionStatus.Expired, refreshAttempt: null, refreshStartedAt: null })
+    Object.assign(row, {
+      status: EConnectionStatus.Expired,
+      refreshAttempt: null,
+      refreshStartedAt: null,
+    })
     return true
   }
 

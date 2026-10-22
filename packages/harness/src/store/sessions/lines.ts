@@ -227,7 +227,12 @@ function decodeLine({
   ) {
     return {
       reason: EUnreadableReason.CorruptEnvelope,
-      gap: gapOf({ raw, threadId, reason: EUnreadableReason.CorruptEnvelope, detail: 'envelope fields missing or mistyped' }),
+      gap: gapOf({
+        raw,
+        threadId,
+        reason: EUnreadableReason.CorruptEnvelope,
+        detail: 'envelope fields missing or mistyped',
+      }),
     }
   }
 
@@ -235,7 +240,12 @@ function decodeLine({
   if (!body.success) {
     return {
       reason: EUnreadableReason.UnrecognizedBody,
-      gap: gapOf({ raw, threadId, reason: EUnreadableReason.UnrecognizedBody, detail: messageOf(body.error) }),
+      gap: gapOf({
+        raw,
+        threadId,
+        reason: EUnreadableReason.UnrecognizedBody,
+        detail: messageOf(body.error),
+      }),
     }
   }
 

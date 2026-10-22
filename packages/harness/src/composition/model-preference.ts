@@ -51,11 +51,11 @@ const settled = (args: {
  * onboarding intercepts before this matters — falls back to the shipped ref unanswered.
  */
 export function fallbackRef(args: { catalogue: ModelCatalogue }): ModelRef {
-  if (isRefReachable({ catalogue: args.catalogue, ref: DEFAULT_MODEL_REF })) return DEFAULT_MODEL_REF
+  if (isRefReachable({ catalogue: args.catalogue, ref: DEFAULT_MODEL_REF }))
+    return DEFAULT_MODEL_REF
 
-  const offered = args.catalogue.providers.find((provider) =>
-    args.catalogue.reachable(provider.id),
-  )?.cards[0]
+  const offered = args.catalogue.providers.find((provider) => args.catalogue.reachable(provider.id))
+    ?.cards[0]
   return offered?.ref ?? DEFAULT_MODEL_REF
 }
 

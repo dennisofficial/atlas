@@ -1,4 +1,11 @@
-import type { CallId, ThreadId, ChunkFilter, Event, EventOfType, EventRef } from '@dltech/atlas-core'
+import type {
+  CallId,
+  ThreadId,
+  ChunkFilter,
+  Event,
+  EventOfType,
+  EventRef,
+} from '@dltech/atlas-core'
 
 import { retainReplayable, type InFlightSlots } from './in-flight'
 import {
@@ -28,7 +35,10 @@ export type ThreadPublisher = {
   close(args: { end: EStepEnd }): void
   retrying(notice: Omit<RetryWaitingSignal, 'type'>): void
   turnWorking(args: { working: boolean }): void
-  operatorInput(args: { open: OperatorInputRequest | null; onListenerError?: ListenerErrorSink }): void
+  operatorInput(args: {
+    open: OperatorInputRequest | null
+    onListenerError?: ListenerErrorSink
+  }): void
 }
 
 export type DeltaChannel = {
@@ -50,7 +60,9 @@ type ThreadState = {
 
 const NOTHING_IN_FLIGHT: readonly StepSignal[] = Object.freeze([])
 
-const durableAssistantEvent = (events: readonly Event[]): EventOfType<'assistant-said'> | undefined =>
+const durableAssistantEvent = (
+  events: readonly Event[],
+): EventOfType<'assistant-said'> | undefined =>
   events.find((event): event is EventOfType<'assistant-said'> => event.type === 'assistant-said')
 
 const refOf = (event: EventOfType<'assistant-said'> | undefined): EventRef | null =>
@@ -85,9 +97,12 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
 
   const forgetIfIdle = (args: { threadId: ThreadId; state: ThreadState }) => {
     if (
-      args.state.listeners.size > 0 || args.state.stepId !== undefined ||
-      args.state.working || args.state.operatorInput !== null
-    ) return
+      args.state.listeners.size > 0 ||
+      args.state.stepId !== undefined ||
+      args.state.working ||
+      args.state.operatorInput !== null
+    )
+      return
     threads.delete(args.threadId)
   }
 
@@ -122,9 +137,13 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
 
   const stableReplay = (state: ThreadState): readonly ChannelSignal[] => {
     if (state.replay !== undefined) return state.replay
-    if (!state.working && state.inFlight.length === 0 && state.operatorInput === null) return NOTHING_IN_FLIGHT
-    const held: ChannelSignal[] = state.working ? [WORKING_SIGNAL, ...state.inFlight] : [...state.inFlight]
-    if (state.operatorInput !== null) held.push({ type: 'operator-input', request: state.operatorInput })
+    if (!state.working && state.inFlight.length === 0 && state.operatorInput === null)
+      return NOTHING_IN_FLIGHT
+    const held: ChannelSignal[] = state.working
+      ? [WORKING_SIGNAL, ...state.inFlight]
+      : [...state.inFlight]
+    if (state.operatorInput !== null)
+      held.push({ type: 'operator-input', request: state.operatorInput })
     state.replay = Object.freeze(held)
     return state.replay
   }
@@ -231,7 +250,12 @@ export function createDeltaChannel(options: DeltaChannelOptions = {}): DeltaChan
           if (state === undefined) return
 
           const durable = durableAssistantEvent(events)
-          const ended = endStep({ threadId, state, end: endOf(durable), supersededBy: refOf(durable) })
+          const ended = endStep({
+            threadId,
+            state,
+            end: endOf(durable),
+            supersededBy: refOf(durable),
+          })
           if (!ended) notify({ state, signal: { type: 'events-appended' } })
         },
 

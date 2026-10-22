@@ -52,11 +52,16 @@ export class RegistryState {
 
   admitStart(start: () => Promise<StartedShellOutcome>): Promise<StartedShellOutcome> {
     if (this.closed || this.shutdownIntent !== undefined) {
-      return Promise.resolve({ ok: false, reason: 'this shell registry is closed and will never start another shell' })
+      return Promise.resolve({
+        ok: false,
+        reason: 'this shell registry is closed and will never start another shell',
+      })
     }
     const pending = Promise.resolve().then(start)
     this.pendingStarts.add(pending)
-    const remove = (): void => { this.pendingStarts.delete(pending) }
+    const remove = (): void => {
+      this.pendingStarts.delete(pending)
+    }
     void pending.then(remove, remove)
     return pending
   }
@@ -155,7 +160,10 @@ export class RegistryState {
   }
 }
 
-export async function withinDeadline(args: { promise: Promise<unknown>; ms: number }): Promise<boolean> {
+export async function withinDeadline(args: {
+  promise: Promise<unknown>
+  ms: number
+}): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const expired = new Promise<false>((resolve) => {
     timer = setTimeout(() => resolve(false), args.ms)

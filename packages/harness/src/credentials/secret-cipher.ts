@@ -20,9 +20,7 @@ export class SecretCipher {
     const cipher = createCipheriv(ALGORITHM, this.loadKey(), nonce)
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
 
-    return [nonce, cipher.getAuthTag(), ciphertext]
-      .map((part) => part.toString('base64'))
-      .join('.')
+    return [nonce, cipher.getAuthTag(), ciphertext].map((part) => part.toString('base64')).join('.')
   }
 
   decrypt(blob: string): string {

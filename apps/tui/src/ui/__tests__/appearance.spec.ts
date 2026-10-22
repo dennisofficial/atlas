@@ -10,12 +10,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { accentHex } from '../accents'
 import { appearanceOf, applyAppearance, SHIPPED_ACCENT } from '../appearance'
 import { imageRows, SHIPPED_IMAGE_ROWS } from '../image-rows-store'
-import {
-  applyFenceWrap,
-  EFenceWrap,
-  fenceWrap,
-  SHIPPED_FENCE_WRAP,
-} from '../fence-wrap-store'
+import { applyFenceWrap, EFenceWrap, fenceWrap, SHIPPED_FENCE_WRAP } from '../fence-wrap-store'
 import {
   applyComposerEdge,
   composerEdge,
@@ -76,7 +71,14 @@ describe('appearanceOf', () => {
 
 describe('applyAppearance', () => {
   it('moves the whole palette onto the chosen accent', () => {
-    applyAppearance({ accent: 'moss', density: SHIPPED_DENSITY, composer: SHIPPED_COMPOSER_EDGE, imageRows: SHIPPED_IMAGE_ROWS, fenceWrap: SHIPPED_FENCE_WRAP, logo: SHIPPED_LOGO })
+    applyAppearance({
+      accent: 'moss',
+      density: SHIPPED_DENSITY,
+      composer: SHIPPED_COMPOSER_EDGE,
+      imageRows: SHIPPED_IMAGE_ROWS,
+      fenceWrap: SHIPPED_FENCE_WRAP,
+      logo: SHIPPED_LOGO,
+    })
 
     expect(theme.accent).toBe(accentHex('moss'))
     expect(theme.codeInline).toBe(accentHex('moss'))
@@ -87,7 +89,11 @@ describe('applyAppearance', () => {
     applyAppearance({
       accent: SHIPPED_ACCENT,
       density: SHIPPED_DENSITY,
-      composer: EComposerEdge.Bordered, imageRows: SHIPPED_IMAGE_ROWS, fenceWrap: SHIPPED_FENCE_WRAP, logo: SHIPPED_LOGO })
+      composer: EComposerEdge.Bordered,
+      imageRows: SHIPPED_IMAGE_ROWS,
+      fenceWrap: SHIPPED_FENCE_WRAP,
+      logo: SHIPPED_LOGO,
+    })
     expect(composerEdge()).toBe(EComposerEdge.Bordered)
   })
 
@@ -95,12 +101,23 @@ describe('applyAppearance', () => {
     applyAppearance({
       accent: SHIPPED_ACCENT,
       density: EBlockDensity.Compact,
-      composer: SHIPPED_COMPOSER_EDGE, imageRows: SHIPPED_IMAGE_ROWS, fenceWrap: SHIPPED_FENCE_WRAP, logo: SHIPPED_LOGO })
+      composer: SHIPPED_COMPOSER_EDGE,
+      imageRows: SHIPPED_IMAGE_ROWS,
+      fenceWrap: SHIPPED_FENCE_WRAP,
+      logo: SHIPPED_LOGO,
+    })
     expect(blockDensity()).toBe(EBlockDensity.Compact)
   })
 
   it('repaints nothing when the look is already the one asked for', () => {
-    applyAppearance({ accent: 'moss', density: EBlockDensity.Compact, composer: SHIPPED_COMPOSER_EDGE, imageRows: SHIPPED_IMAGE_ROWS, fenceWrap: SHIPPED_FENCE_WRAP, logo: SHIPPED_LOGO })
+    applyAppearance({
+      accent: 'moss',
+      density: EBlockDensity.Compact,
+      composer: SHIPPED_COMPOSER_EDGE,
+      imageRows: SHIPPED_IMAGE_ROWS,
+      fenceWrap: SHIPPED_FENCE_WRAP,
+      logo: SHIPPED_LOGO,
+    })
 
     const before = paletteVersion()
     let repaints = 0
@@ -108,7 +125,14 @@ describe('applyAppearance', () => {
       repaints += 1
     })
 
-    applyAppearance({ accent: 'moss', density: EBlockDensity.Compact, composer: SHIPPED_COMPOSER_EDGE, imageRows: SHIPPED_IMAGE_ROWS, fenceWrap: SHIPPED_FENCE_WRAP, logo: SHIPPED_LOGO })
+    applyAppearance({
+      accent: 'moss',
+      density: EBlockDensity.Compact,
+      composer: SHIPPED_COMPOSER_EDGE,
+      imageRows: SHIPPED_IMAGE_ROWS,
+      fenceWrap: SHIPPED_FENCE_WRAP,
+      logo: SHIPPED_LOGO,
+    })
     unsubscribe()
 
     expect(paletteVersion()).toBe(before)

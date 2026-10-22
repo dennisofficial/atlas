@@ -22,7 +22,12 @@ export type Chunk =
   | { type: 'text-delta'; id: string; text: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'text-end'; id: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'reasoning-start'; id: string; providerMetadata?: ProviderOptions | undefined }
-  | { type: 'reasoning-delta'; id: string; text: string; providerMetadata?: ProviderOptions | undefined }
+  | {
+      type: 'reasoning-delta'
+      id: string
+      text: string
+      providerMetadata?: ProviderOptions | undefined
+    }
   | { type: 'reasoning-end'; id: string; providerMetadata?: ProviderOptions | undefined }
   | { type: 'tool-input-start'; callId: CallId; name: string }
   | { type: 'tool-input-delta'; callId: CallId; text: string }

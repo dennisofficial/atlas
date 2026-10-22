@@ -65,7 +65,12 @@ export async function executeRow({
       actual: null,
       scores: {},
       error: fault instanceof Error ? fault.message : String(fault),
-      timing: { preparationMs: 0, inferenceMs: 0, interpretationMs: 0, endToEndMs: now() - started },
+      timing: {
+        preparationMs: 0,
+        inferenceMs: 0,
+        interpretationMs: 0,
+        endToEndMs: now() - started,
+      },
     }
   }
 
@@ -80,7 +85,12 @@ export async function executeRow({
       actual: null,
       scores: {},
       error: `task output failed the feature output schema: ${outputParsed.error.issues[0]?.message ?? 'unknown'}`,
-      timing: { preparationMs: 0, inferenceMs: 0, interpretationMs: 0, endToEndMs: now() - started },
+      timing: {
+        preparationMs: 0,
+        inferenceMs: 0,
+        interpretationMs: 0,
+        endToEndMs: now() - started,
+      },
     }
   }
 
@@ -94,7 +104,12 @@ export async function executeRow({
       expected,
       actual: outputParsed.data,
       scores,
-      timing: { preparationMs: 0, inferenceMs: 0, interpretationMs: 0, endToEndMs: now() - started },
+      timing: {
+        preparationMs: 0,
+        inferenceMs: 0,
+        interpretationMs: 0,
+        endToEndMs: now() - started,
+      },
     }
   } catch (fault) {
     if (fault instanceof ScoringError) {
@@ -107,7 +122,12 @@ export async function executeRow({
         actual: outputParsed.data,
         scores: {},
         error: fault.message,
-        timing: { preparationMs: 0, inferenceMs: 0, interpretationMs: 0, endToEndMs: now() - started },
+        timing: {
+          preparationMs: 0,
+          inferenceMs: 0,
+          interpretationMs: 0,
+          endToEndMs: now() - started,
+        },
       }
     }
     throw fault
@@ -129,7 +149,8 @@ export async function executePlan({
   const results: ResultRow[] = []
   for (const row of rows) {
     const evalCase = byId.get(row.caseId)
-    if (evalCase === undefined) throw new TaskExecutionError(`no case for planned row ${row.caseId}`)
+    if (evalCase === undefined)
+      throw new TaskExecutionError(`no case for planned row ${row.caseId}`)
     results.push(await executeRow({ feature, evalCase, row, context }))
   }
   return results

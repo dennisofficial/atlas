@@ -75,7 +75,11 @@ describe('ContextBrowser', () => {
   it('loads a text file', async () => {
     const browser = await fixture({ 'plan.md': '# plan\n' })
 
-    expect(await browser.load('plan.md')).toEqual({ type: 'text', content: '# plan\n', truncated: false })
+    expect(await browser.load('plan.md')).toEqual({
+      type: 'text',
+      content: '# plan\n',
+      truncated: false,
+    })
   })
 
   it('refuses missing, directory, and binary paths', async () => {
@@ -141,7 +145,10 @@ describe('ContextBrowser', () => {
     roots.push(root)
     await writeFile(join(root, 'a'), Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0]))
     await writeFile(join(root, 'b'), Buffer.from('GIF89a0000', 'ascii'))
-    await writeFile(join(root, 'c'), Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP', 'ascii')]))
+    await writeFile(
+      join(root, 'c'),
+      Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP', 'ascii')]),
+    )
     const browser = new ContextBrowser({ root })
 
     expect(await browser.load('a')).toMatchObject({ mediaType: 'image/jpeg' })

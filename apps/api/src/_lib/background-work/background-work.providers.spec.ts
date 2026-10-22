@@ -20,13 +20,19 @@ describe('background work providers', () => {
   it('binds the Vercel implementation when VERCEL=1', () => {
     stubEnv('VERCEL', '1')
 
-    expect(backgroundWorkProvider()).toEqual({ provide: BackgroundWork, useClass: VercelBackgroundWork })
+    expect(backgroundWorkProvider()).toEqual({
+      provide: BackgroundWork,
+      useClass: VercelBackgroundWork,
+    })
   })
 
   it('binds the process implementation elsewhere', () => {
     stubEnv('VERCEL', '')
 
-    expect(backgroundWorkProvider()).toEqual({ provide: BackgroundWork, useClass: ProcessBackgroundWork })
+    expect(backgroundWorkProvider()).toEqual({
+      provide: BackgroundWork,
+      useClass: ProcessBackgroundWork,
+    })
   })
 
   it('hands the promise to waitUntil on Vercel', () => {

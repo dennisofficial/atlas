@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { App } from '../app'
 import { spokenIn, until, THREAD, REPLY, THINKING } from './app-fixture'
@@ -22,7 +21,9 @@ const WITHIN_MS = 20_000
  */
 describe('a rename that landed before the conversation mounted', () => {
   it('still heads the sidebar with the stored title', async () => {
-    const app = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     await app.threads.create({ id: THREAD })
     const opened = await spokenIn(app)
     await app.threads.rename({ threadId: THREAD, title: NAME })

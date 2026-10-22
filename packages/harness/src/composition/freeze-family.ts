@@ -24,5 +24,7 @@ export async function holdFamilyIntake(args: {
     for (const release of releases) release()
     throw error
   }
-  return () => { for (const release of releases.splice(0)) release() }
+  return () => {
+    for (const release of releases.splice(0)) release()
+  }
 }

@@ -1,16 +1,22 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@dltech/atlas-ui/components/field";
-import { RadioGroup, RadioGroupItem } from "@dltech/atlas-ui/components/radio-group";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@dltech/atlas-ui/components/field'
+import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
 
 const meta = {
-  title: "Components/Radio Group",
+  title: 'Components/Radio Group',
   component: RadioGroup,
-} satisfies Meta<typeof RadioGroup>;
+} satisfies Meta<typeof RadioGroup>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -32,7 +38,7 @@ export const Default: Story = {
       </RadioGroup>
     </FieldSet>
   ),
-};
+}
 
 export const Disabled: Story = {
   render: (args) => (
@@ -47,7 +53,7 @@ export const Disabled: Story = {
       </Field>
     </RadioGroup>
   ),
-};
+}
 
 export const Invalid: Story = {
   render: (args) => (
@@ -59,4 +65,4 @@ export const Invalid: Story = {
       <FieldDescription>Choose an approval mode to continue.</FieldDescription>
     </RadioGroup>
   ),
-};
+}

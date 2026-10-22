@@ -39,11 +39,17 @@ export class RemoteServiceRegistry extends ServiceRegistryPort {
     description: string
     cwd?: string | undefined
   }): Promise<StartedServiceOutcome> {
-    return { ok: false, reason: 'a cloud session starts services in its sandbox, not on this machine' }
+    return {
+      ok: false,
+      reason: 'a cloud session starts services in its sandbox, not on this machine',
+    }
   }
 
   stop(_args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome {
-    return { ok: false, reason: 'a cloud session stops services in its sandbox, not on this machine' }
+    return {
+      ok: false,
+      reason: 'a cloud session stops services in its sandbox, not on this machine',
+    }
   }
 
   async awaitEndings(_args: { ms: number }): Promise<number> {

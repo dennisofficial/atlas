@@ -65,7 +65,12 @@ describe('launch environment and injection', () => {
       launch: async (spec) => {
         seen.push(spec)
         const [executable, ...rest] = spec.cmd
-        const child = spawn(executable ?? '', rest, { detached: true, stdio: 'ignore', cwd: spec.cwd, env: spec.env })
+        const child = spawn(executable ?? '', rest, {
+          detached: true,
+          stdio: 'ignore',
+          cwd: spec.cwd,
+          env: spec.env,
+        })
         child.unref()
       },
     })
@@ -108,14 +113,24 @@ describe('launch environment and injection', () => {
 describe('deadlines', () => {
   test('timeoutMs ends the shell with the timeout cause even after the launcher is gone', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, timeoutMs: 300, tickMs: 50, command: 'sleep 300' })
+    const handle = await launchOrThrow({
+      shellDir,
+      timeoutMs: 300,
+      tickMs: 50,
+      command: 'sleep 300',
+    })
     await handle.detach()
     expect((await waitForExit({ shellDir }))?.cause).toBe(EExitCause.Timeout)
   })
 
   test('silenceMs ends a shell whose spool stops changing', async () => {
     const shellDir = await scratch()
-    const handle = await launchOrThrow({ shellDir, silenceMs: 400, tickMs: 50, command: 'echo once; sleep 300' })
+    const handle = await launchOrThrow({
+      shellDir,
+      silenceMs: 400,
+      tickMs: 50,
+      command: 'echo once; sleep 300',
+    })
     await handle.detach()
     expect((await waitForExit({ shellDir }))?.cause).toBe(EExitCause.Silence)
   })
@@ -153,7 +168,14 @@ describe('attach authentication and terminal-only handles', () => {
     await handle.exited
     const metaPath = join(shellDir, META_FILE)
     const meta = JSON.parse(await Bun.file(metaPath).text()) as Record<string, unknown>
-    await writeFile(metaPath, JSON.stringify({ ...meta, spoolPath: '/nonexistent/spool.out', socketPath: '/nonexistent/s' }))
+    await writeFile(
+      metaPath,
+      JSON.stringify({
+        ...meta,
+        spoolPath: '/nonexistent/spool.out',
+        socketPath: '/nonexistent/s',
+      }),
+    )
     const attached = await attachDurableShell({ shellDir, pollMs: 20 })
     if (!attached.ok) throw new Error(attached.reason)
     expect(await collect({ stream: attached.handle.stdout })).toBe('moved\n')
@@ -206,7 +228,10 @@ describe('fast children', () => {
     const results = await Promise.all(
       Array.from({ length: 12 }, async (_, index) => {
         const shellDir = await scratch()
-        const handle = await launchOrThrow({ shellDir, command: index % 2 === 0 ? 'true' : `echo n${index}; exit ${index}` })
+        const handle = await launchOrThrow({
+          shellDir,
+          command: index % 2 === 0 ? 'true' : `echo n${index}; exit ${index}`,
+        })
         const code = await Promise.race([
           handle.exited,
           new Promise<string>((resolve) => setTimeout(() => resolve('hung'), 8000)),

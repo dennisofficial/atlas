@@ -76,14 +76,18 @@ const runBurst = (): void => {
   const name = names[burst % names.length] ?? 'atlas'
   const startedAt = Date.now()
   const spinner = setInterval(() => {
-    process.stdout.write(`\rworking ${frames[frame % frames.length]}  (burst ${burst + 1}, ${name})  `)
+    process.stdout.write(
+      `\rworking ${frames[frame % frames.length]}  (burst ${burst + 1}, ${name})  `,
+    )
     write(frames[frame % frames.length] ?? '🌑', name)
     frame += 1
     if (Date.now() - startedAt >= workingSeconds * 1000) {
       clearInterval(spinner)
       holdNeedsYou(name, () => {
         write(idleGlyph, name)
-        process.stdout.write(` idle ${idleGlyph} — next burst in ${Math.max(0, cycleSeconds - workingSeconds - needsSeconds)}s\n`)
+        process.stdout.write(
+          ` idle ${idleGlyph} — next burst in ${Math.max(0, cycleSeconds - workingSeconds - needsSeconds)}s\n`,
+        )
       })
     }
   }, frameMs)

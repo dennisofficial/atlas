@@ -8,7 +8,14 @@ import { encodeSettingValue } from '@dltech/atlas-harness'
 
 import { EServeEvent } from '../serve-log'
 import { apiKeyAccount } from './cloud-state-fixture'
-import { accountStoreAt, apply, cleanupCloudState, cloudWith, secretsAt, tempHome } from './cloud-state-harness'
+import {
+  accountStoreAt,
+  apply,
+  cleanupCloudState,
+  cloudWith,
+  secretsAt,
+  tempHome,
+} from './cloud-state-harness'
 
 afterEach(cleanupCloudState)
 
@@ -19,7 +26,14 @@ describe('applyCloudState when the cloud never registers the token', () => {
       home,
       cloud: cloudWith({
         lease: {
-          accounts: [apiKeyAccount({ id: 'acc_or', provider: EAuthProvider.OpenRouter, apiKey: 'sk-or-fake', label: 'OR' })],
+          accounts: [
+            apiKeyAccount({
+              id: 'acc_or',
+              provider: EAuthProvider.OpenRouter,
+              apiKey: 'sk-or-fake',
+              label: 'OR',
+            }),
+          ],
           active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_or' }],
         },
         settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
@@ -44,9 +58,13 @@ describe('applyCloudState when the cloud never registers the token', () => {
     files.forEach((name, index) => {
       expect(readFileSync(join(home, name)).equals(before[index] ?? Buffer.alloc(0))).toBe(true)
     })
-    expect((await accountStoreAt(home).list()).map((account) => String(account.id))).toEqual(['acc_or'])
+    expect((await accountStoreAt(home).list()).map((account) => String(account.id))).toEqual([
+      'acc_or',
+    ])
     expect(secretsAt(home).read('TAVILY_API_KEY')).toBe('tvly-fake')
-    expect(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'))).toEqual({ [ESettingId.SidebarWidth]: 42 })
+    expect(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'))).toEqual({
+      [ESettingId.SidebarWidth]: 42,
+    })
     expect(clockMs).toBeLessThanOrEqual(60_000)
   })
 

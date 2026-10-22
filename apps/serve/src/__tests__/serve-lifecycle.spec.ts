@@ -11,8 +11,14 @@ import { createTurnDriver } from '../turn-driver'
 const threadId = toThreadId('lifecycle-owner')
 
 const quiet = (): RuntimeWork => ({
-  turnRunning: false, busy: false, childrenRunning: 0, shellsRunning: 0,
-  servicesRunning: 0, pendingInput: false, settlingWork: false, clientsAttached: 0,
+  turnRunning: false,
+  busy: false,
+  childrenRunning: 0,
+  shellsRunning: 0,
+  servicesRunning: 0,
+  pendingInput: false,
+  settlingWork: false,
+  clientsAttached: 0,
 })
 
 type CheckpointFake = {
@@ -24,16 +30,20 @@ type CheckpointFake = {
   finalizePark: () => Promise<void>
 }
 
-const fakeCheckpoint = (over: {
-  failOn?: ('parkBegin' | 'finalizePark')[]
-} = {}): CheckpointFake => {
+const fakeCheckpoint = (
+  over: { failOn?: ('parkBegin' | 'finalizePark')[] } = {},
+): CheckpointFake => {
   const calls: string[] = []
   const phases: ERuntimePhase[] = []
   let held: RuntimeCheckpoint | null = null
   const record = (phase: ERuntimePhase): RuntimeCheckpoint => {
     held = runtimeCheckpointSchema.parse({
-      threadId: String(threadId), runtimeId: 'runtime-1', sandboxSessionId: 'session-1',
-      revision: phases.length + 1, phase, reportedAt: '2026-10-01T00:00:00.000Z',
+      threadId: String(threadId),
+      runtimeId: 'runtime-1',
+      sandboxSessionId: 'session-1',
+      revision: phases.length + 1,
+      phase,
+      reportedAt: '2026-10-01T00:00:00.000Z',
       transcript: { head: phases.length + 1, count: phases.length + 1, digest: 'a'.repeat(64) },
     })
     return held
@@ -62,40 +72,76 @@ const fakeCheckpoint = (over: {
   }
 }
 
-const fixture = (over: {
-  work?: () => RuntimeWork
-  stop?: (() => Promise<void>) | undefined
-  checkpoint?: CheckpointFake
-  endProcesses?: ((args: { killedBy: KilledBy }) => Promise<void>) | undefined
-} = {}) => {
+const fixture = (
+  over: {
+    work?: () => RuntimeWork
+    stop?: (() => Promise<void>) | undefined
+    checkpoint?: CheckpointFake
+    endProcesses?: ((args: { killedBy: KilledBy }) => Promise<void>) | undefined
+  } = {},
+) => {
   const app = fakeServeApp({ threadId, root: '/workspace', intake: true })
   if (over.endProcesses !== undefined) app.endProcesses = over.endProcesses
   const driver = createTurnDriver({
-    app, threadId, onTurnStarted: () => undefined, onTurnEnded: () => undefined,
-    onOutcome: () => undefined, onFailure: () => undefined,
+    app,
+    threadId,
+    onTurnStarted: () => undefined,
+    onTurnEnded: () => undefined,
+    onOutcome: () => undefined,
+    onFailure: () => undefined,
   })
   const calls: string[] = []
   const checkpoint = over.checkpoint ?? fakeCheckpoint()
   const lifecycle = createServeLifecycle({
-    app, driver, threadId, checkpoint,
-    handlers: { park: () => { calls.push('parked') }, hangUp: () => { calls.push('hangup') } },
-    server: { stop: async () => { calls.push('server-stop') } },
-    bridge: { close: () => { calls.push('bridge-close') } },
-    log: ({ event }) => { calls.push(event) },
+    app,
+    driver,
+    threadId,
+    checkpoint,
+    handlers: {
+      park: () => {
+        calls.push('parked')
+      },
+      hangUp: () => {
+        calls.push('hangup')
+      },
+    },
+    server: {
+      stop: async () => {
+        calls.push('server-stop')
+      },
+    },
+    bridge: {
+      close: () => {
+        calls.push('bridge-close')
+      },
+    },
+    log: ({ event }) => {
+      calls.push(event)
+    },
     work: over.work ?? quiet,
-    haltIdle: () => { calls.push('halt-idle') },
+    haltIdle: () => {
+      calls.push('halt-idle')
+    },
     drainDeadlineMs: 100,
-    detach: () => { calls.push('detach') },
+    detach: () => {
+      calls.push('detach')
+    },
     stopSandbox: over.stop ?? (async () => undefined),
-    rearmIdle: () => { calls.push('rearm-idle') },
-    exit: () => { calls.push('exit') },
+    rearmIdle: () => {
+      calls.push('rearm-idle')
+    },
+    exit: () => {
+      calls.push('exit')
+    },
   })
   return { app, calls, checkpoint, lifecycle }
 }
 
 const gate = () => {
   let open = (): void => undefined
-  const done = new Promise<void>((resolve) => { open = resolve })
+  const done = new Promise<void>((resolve) => {
+    open = resolve
+  })
   return { done, open }
 }
 
@@ -104,11 +150,16 @@ describe('sandbox lifecycle ownership', () => {
     const held = gate()
     const checkpoint = fakeCheckpoint()
     const base = checkpoint.finalizePark
-    checkpoint.finalizePark = async () => { await base(); await held.done }
+    checkpoint.finalizePark = async () => {
+      await base()
+      await held.done
+    }
     const providerCalls: string[] = []
     const test = fixture({
       checkpoint,
-      stop: async () => { providerCalls.push('provider-stop') },
+      stop: async () => {
+        providerCalls.push('provider-stop')
+      },
     })
     const parking = test.lifecycle.park()
     for (let step = 0; step < 20 && !checkpoint.phases.includes(ERuntimePhase.Parked); step += 1) {
@@ -121,18 +172,28 @@ describe('sandbox lifecycle ownership', () => {
     await parking
     expect(providerCalls).toEqual(['provider-stop'])
     expect(checkpoint.phases).toEqual([ERuntimePhase.Parking, ERuntimePhase.Parked])
-    expect(checkpoint.calls.indexOf('park-begin')).toBeLessThan(checkpoint.calls.indexOf('finalize'))
+    expect(checkpoint.calls.indexOf('park-begin')).toBeLessThan(
+      checkpoint.calls.indexOf('finalize'),
+    )
     expect(test.calls.indexOf('parked')).toBeLessThan(test.calls.indexOf('server-stop'))
     expect(test.app.closed()).toBe(true)
     expect(test.calls.at(-1)).toBe('exit')
   })
 
-  for (const signal of ['busy', 'childrenRunning', 'shellsRunning', 'pendingInput', 'settlingWork']) {
+  for (const signal of [
+    'busy',
+    'childrenRunning',
+    'shellsRunning',
+    'pendingInput',
+    'settlingWork',
+  ]) {
     it(`refuses final park and reopens to serving when ${signal} became active after the idle check`, async () => {
       let stopped = false
       const test = fixture({
         work: () => ({ ...quiet(), [signal]: signal.endsWith('Running') ? 1 : true }),
-        stop: async () => { stopped = true },
+        stop: async () => {
+          stopped = true
+        },
       })
       await test.lifecycle.park()
       expect(stopped).toBe(false)
@@ -147,7 +208,9 @@ describe('sandbox lifecycle ownership', () => {
     let stopped = false
     const test = fixture({
       work: () => ({ ...quiet(), servicesRunning: 1, clientsAttached: 1 }),
-      stop: async () => { stopped = true },
+      stop: async () => {
+        stopped = true
+      },
     })
     await test.lifecycle.park()
     expect(stopped).toBe(false)
@@ -159,12 +222,19 @@ describe('sandbox lifecycle ownership', () => {
     const order: string[] = []
     const checkpoint = fakeCheckpoint()
     const baseFinalize = checkpoint.finalizePark
-    checkpoint.finalizePark = async () => { order.push('finalize'); await baseFinalize() }
+    checkpoint.finalizePark = async () => {
+      order.push('finalize')
+      await baseFinalize()
+    }
     const test = fixture({
       checkpoint,
       work: () => ({ ...quiet(), servicesRunning: 1, clientsAttached: 0 }),
-      endProcesses: async () => { order.push('endings') },
-      stop: async () => { order.push('provider-stop') },
+      endProcesses: async () => {
+        order.push('endings')
+      },
+      stop: async () => {
+        order.push('provider-stop')
+      },
     })
     await test.lifecycle.park()
     expect(order).toEqual(['endings', 'finalize', 'provider-stop'])
@@ -174,7 +244,10 @@ describe('sandbox lifecycle ownership', () => {
   it('never reopens admission after finalization even if all provider stop attempts fail, and re-arms the idle timer to retry', async () => {
     let attempts = 0
     const test = fixture({
-      stop: async () => { attempts += 1; throw new Error('provider unavailable') },
+      stop: async () => {
+        attempts += 1
+        throw new Error('provider unavailable')
+      },
     })
     await test.lifecycle.park()
     expect(attempts).toBe(3)
@@ -184,7 +257,9 @@ describe('sandbox lifecycle ownership', () => {
     expect(test.app.closed()).toBe(false)
     expect(test.calls).toContain('rearm-idle')
     expect(test.calls.filter((call) => call === 'serve.park-stop-failed')).toHaveLength(4)
-    expect(test.calls.lastIndexOf('serve.park-stop-failed')).toBeGreaterThan(test.calls.indexOf('rearm-idle'))
+    expect(test.calls.lastIndexOf('serve.park-stop-failed')).toBeGreaterThan(
+      test.calls.indexOf('rearm-idle'),
+    )
     await test.lifecycle.park()
     expect(attempts).toBe(6)
     test.app.intake?.dispose()
@@ -193,7 +268,10 @@ describe('sandbox lifecycle ownership', () => {
   it('exits instead of latching alive forever when the provider stop keeps failing across bounded re-park cycles', async () => {
     let attempts = 0
     const test = fixture({
-      stop: async () => { attempts += 1; throw new Error('provider unavailable') },
+      stop: async () => {
+        attempts += 1
+        throw new Error('provider unavailable')
+      },
     })
     await test.lifecycle.park()
     await test.lifecycle.park()
@@ -213,7 +291,9 @@ describe('sandbox lifecycle ownership', () => {
     let stopped = false
     const test = fixture({
       checkpoint: fakeCheckpoint({ failOn: ['parkBegin'] }),
-      stop: async () => { stopped = true },
+      stop: async () => {
+        stopped = true
+      },
     })
     await test.lifecycle.park()
     expect(stopped).toBe(false)
@@ -227,7 +307,9 @@ describe('sandbox lifecycle ownership', () => {
     let stopped = false
     const test = fixture({
       checkpoint: fakeCheckpoint({ failOn: ['finalizePark'] }),
-      stop: async () => { stopped = true },
+      stop: async () => {
+        stopped = true
+      },
     })
     await test.lifecycle.park()
     expect(stopped).toBe(false)
@@ -238,7 +320,9 @@ describe('sandbox lifecycle ownership', () => {
 
   it('reopens admission and re-arms idle when the pre-finalization park steps fail', async () => {
     const test = fixture({
-      endProcesses: async () => { throw new Error('processes refused') },
+      endProcesses: async () => {
+        throw new Error('processes refused')
+      },
       stop: async () => undefined,
     })
     await test.lifecycle.park()
@@ -254,11 +338,19 @@ describe('sandbox lifecycle ownership', () => {
     const order: string[] = []
     const checkpoint = fakeCheckpoint()
     const baseFinalize = checkpoint.finalizePark
-    checkpoint.finalizePark = async () => { order.push('finalize'); await baseFinalize() }
+    checkpoint.finalizePark = async () => {
+      order.push('finalize')
+      await baseFinalize()
+    }
     const test = fixture({
       checkpoint,
-      endProcesses: async ({ killedBy }) => { endings.push(killedBy); order.push('endings') },
-      stop: async () => { order.push('provider-stop') },
+      endProcesses: async ({ killedBy }) => {
+        endings.push(killedBy)
+        order.push('endings')
+      },
+      stop: async () => {
+        order.push('provider-stop')
+      },
     })
     await test.lifecycle.park()
     expect(endings).toEqual([EKilledBy.IdlePark])
@@ -270,14 +362,24 @@ describe('sandbox lifecycle ownership', () => {
     const order: string[] = []
     const checkpoint = fakeCheckpoint()
     const baseBegin = checkpoint.parkBegin
-    checkpoint.parkBegin = async (given) => { order.push('park-begin'); await baseBegin(given) }
+    checkpoint.parkBegin = async (given) => {
+      order.push('park-begin')
+      await baseBegin(given)
+    }
     const baseFinalize = checkpoint.finalizePark
-    checkpoint.finalizePark = async () => { order.push('finalize'); await baseFinalize() }
+    checkpoint.finalizePark = async () => {
+      order.push('finalize')
+      await baseFinalize()
+    }
     const test = fixture({
       checkpoint,
       work: () => ({ ...quiet(), turnRunning: true, servicesRunning: 1 }),
-      endProcesses: async () => { order.push('endings') },
-      stop: async () => { order.push('provider-stop') },
+      endProcesses: async () => {
+        order.push('endings')
+      },
+      stop: async () => {
+        order.push('provider-stop')
+      },
     })
     const baseAppend = test.app.log.append
     test.app.log.append = (given) => {
@@ -302,7 +404,9 @@ describe('sandbox lifecycle ownership', () => {
     const seen: string[] = []
     const unsubscribe = test.app.channel.subscribe({
       threadId,
-      listener: (signal) => { seen.push(signal.type) },
+      listener: (signal) => {
+        seen.push(signal.type)
+      },
     })
     await test.lifecycle.park()
     unsubscribe()
@@ -311,7 +415,11 @@ describe('sandbox lifecycle ownership', () => {
 
   it('still completes the park when the parked append rejects', async () => {
     let stopped = false
-    const test = fixture({ stop: async () => { stopped = true } })
+    const test = fixture({
+      stop: async () => {
+        stopped = true
+      },
+    })
     test.app.log.append = () => Promise.reject(new Error('disk full'))
     await test.lifecycle.park()
     expect(stopped).toBe(true)
@@ -322,7 +430,10 @@ describe('sandbox lifecycle ownership', () => {
   it('exits bounded after the park finalized, so a wake of the still-live sandbox boots a fresh serve', async () => {
     let attempts = 0
     const test = fixture({
-      stop: async () => { attempts += 1; throw new Error('provider unavailable') },
+      stop: async () => {
+        attempts += 1
+        throw new Error('provider unavailable')
+      },
     })
 
     for (let cycle = 0; cycle < PARK_STOP_CYCLE_LIMIT; cycle += 1) {

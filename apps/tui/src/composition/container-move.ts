@@ -172,7 +172,9 @@ export function updateMoveTransfer(args: {
       : held.map((transfer, index) => (index === heldAt ? next : transfer))
   return {
     ...move,
-    rows: move.rows.map((candidate, index) => (index === rowAt ? { ...candidate, transfers } : candidate)),
+    rows: move.rows.map((candidate, index) =>
+      index === rowAt ? { ...candidate, transfers } : candidate,
+    ),
   }
 }
 

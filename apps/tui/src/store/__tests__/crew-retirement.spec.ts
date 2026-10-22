@@ -1,12 +1,7 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import {
-  ECrewStanding,
-  crewStanding,
-  standingsOfCrew,
-  type CrewMember,
-} from '../crew-retirement'
+import { ECrewStanding, crewStanding, standingsOfCrew, type CrewMember } from '../crew-retirement'
 
 const ROOT = 'thr_root'
 
@@ -37,13 +32,18 @@ const standingOf = (args: {
 
 describe('crewStanding', () => {
   it('reads a running child as live however stale its other marks are', () => {
-    const stale = running({ deliveredAt: '2020-01-01T00:00:00.000Z', lastViewedAt: '2020-01-01T00:00:00.000Z' })
+    const stale = running({
+      deliveredAt: '2020-01-01T00:00:00.000Z',
+      lastViewedAt: '2020-01-01T00:00:00.000Z',
+    })
 
     expect(standingOf({ member: stale })).toBe(ECrewStanding.Live)
   })
 
   it('reads a blocked child as live', () => {
-    expect(standingOf({ member: member({ status: EAgentStatus.Blocked }) })).toBe(ECrewStanding.Live)
+    expect(standingOf({ member: member({ status: EAgentStatus.Blocked }) })).toBe(
+      ECrewStanding.Live,
+    )
   })
 
   it('settles a finished child whose result was delivered, with no waiting period', () => {
@@ -118,7 +118,9 @@ describe('crewStanding', () => {
   })
 
   it('settles a finished teammate once its pull request is no longer open', () => {
-    expect(standingOf({ member: member({ hasOpenPullRequest: false }) })).toBe(ECrewStanding.Settled)
+    expect(standingOf({ member: member({ hasOpenPullRequest: false }) })).toBe(
+      ECrewStanding.Settled,
+    )
   })
 })
 

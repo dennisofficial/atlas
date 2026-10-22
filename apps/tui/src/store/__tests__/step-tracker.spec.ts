@@ -108,9 +108,7 @@ describe('the step tracker', () => {
     tracker.absorb(textDelta({ stepId: stepOne, blockId: 'b1', text: 'unrelated' }))
     expect(tracker.live([]).at(0)?.calls.at(0)?.input).toBe(first?.input)
 
-    tracker.absorb(
-      toolInputDelta({ stepId: stepOne, callId: 'call-1', text: ' and two' }),
-    )
+    tracker.absorb(toolInputDelta({ stepId: stepOne, callId: 'call-1', text: ' and two' }))
     const grown = tracker.live([]).at(0)?.calls.at(0)
     expect(grown?.input).toEqual({ path: 'a', content: 'one and two' })
     expect(grown?.input).not.toBe(first?.input)

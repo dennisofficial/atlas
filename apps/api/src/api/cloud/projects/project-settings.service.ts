@@ -18,7 +18,8 @@ const assertPatch = (values: Record<string, string | null>): [string, string | n
     if (value !== null && typeof value !== 'string') {
       throw new BadRequestException(`the value for ${key} must be a string or null`)
     }
-    if (!PROJECT_SETTING_REGISTRY.has(key)) throw new BadRequestException(`unknown setting key: ${key}`)
+    if (!PROJECT_SETTING_REGISTRY.has(key))
+      throw new BadRequestException(`unknown setting key: ${key}`)
     if (value === null) continue
     const verdict = validateProjectSetting({ key, stored: value })
     if (!verdict.ok) throw new BadRequestException(verdict.reason)
@@ -35,7 +36,11 @@ export class ProjectSettingsService {
     const rows = await db.orm.public.ProjectSetting.where({ projectId: args.projectId })
       .orderBy((row) => row.key.asc())
       .all()
-    return rows.map((row) => ({ key: row.key, value: row.value, updatedAt: row.updatedAt.toISOString() }))
+    return rows.map((row) => ({
+      key: row.key,
+      value: row.value,
+      updatedAt: row.updatedAt.toISOString(),
+    }))
   }
 
   async patch(args: Scope & { values: Record<string, string | null> }): Promise<void> {

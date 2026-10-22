@@ -87,8 +87,7 @@ export class HttpTransport implements ServerTransport {
         headers: this.headers({ accept: 'application/json' }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
-    } catch {
-    }
+    } catch {}
   }
 
   private headers(args: { accept: string }): Record<string, string> {

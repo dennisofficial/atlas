@@ -16,14 +16,21 @@ import {
   type SkillSuggestionCandidate,
 } from '../suggestion'
 
-const candidate = (name: string, extra?: Partial<SkillSuggestionCandidate>): SkillSuggestionCandidate => ({
+const candidate = (
+  name: string,
+  extra?: Partial<SkillSuggestionCandidate>,
+): SkillSuggestionCandidate => ({
   name,
   description: `${name} description`,
   whenToUse: undefined,
   ...extra,
 })
 
-const gateAnswers = (acts: number, procedure: number, prose: number): Record<string, DecisionAnswer> => ({
+const gateAnswers = (
+  acts: number,
+  procedure: number,
+  prose: number,
+): Record<string, DecisionAnswer> => ({
   'gate::acts_on_user_system': { noul: acts },
   'gate::would_follow_documented_procedure': { noul: procedure },
   'gate::prose_suffices': { noul: prose },
@@ -68,7 +75,9 @@ describe('skillWideQuestions', () => {
 
 describe('skillGateScore', () => {
   it('means the three nouls with prose_suffices inverted', () => {
-    expect(skillGateScore({ answers: gateAnswers(0.9, 0.6, 0.3) })).toBeCloseTo((0.9 + 0.6 + 0.7) / 3)
+    expect(skillGateScore({ answers: gateAnswers(0.9, 0.6, 0.3) })).toBeCloseTo(
+      (0.9 + 0.6 + 0.7) / 3,
+    )
   })
 
   it('is undefined when a gate answer is missing', () => {
@@ -122,7 +131,10 @@ describe('skillRerankQuestions', () => {
 })
 
 describe('skillRerankWinner', () => {
-  const rerankAnswers = (choice: string, fits: Record<string, number>): Record<string, DecisionAnswer> => ({
+  const rerankAnswers = (
+    choice: string,
+    fits: Record<string, number>,
+  ): Record<string, DecisionAnswer> => ({
     [SKILL_SUGGEST_WHICH_KEY]: { choice },
     ...Object.fromEntries(Object.entries(fits).map(([name, noul]) => [`fits::${name}`, { noul }])),
   })

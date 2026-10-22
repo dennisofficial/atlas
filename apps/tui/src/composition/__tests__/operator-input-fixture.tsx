@@ -1,5 +1,9 @@
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
-import { RemoteTurnRunner, type OperatorInputRequest, type RemoteDeltaChannel } from '@dltech/atlas-harness'
+import {
+  RemoteTurnRunner,
+  type OperatorInputRequest,
+  type RemoteDeltaChannel,
+} from '@dltech/atlas-harness'
 import { useKeyboard } from '@opentui/react'
 import { testRender } from '@opentui/react/test-utils'
 import React, { act, useState } from 'react'
@@ -22,17 +26,18 @@ export const INPUT_REQUEST = {
   path: '/tmp/operator-input.txt',
 }
 export const SHIFT_ENTER_SEQUENCE = '\x1b[13;2u'
-export const MULTILINE = '  leading\n\n' + '  line with tabs\tand Unicode 界\r\n'.repeat(400) + '\ntrailing  \n'
+export const MULTILINE =
+  '  leading\n\n' + '  line with tabs\tand Unicode 界\r\n'.repeat(400) + '\ntrailing  \n'
 
-export async function mountInput(args: {
-  remote?: RemoteDeltaChannel['request']
-  cloud?: boolean
-} = {}) {
+export async function mountInput(
+  args: { remote?: RemoteDeltaChannel['request']; cloud?: boolean } = {},
+) {
   const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }) })
   if (args.remote !== undefined) Object.assign(app.channel, { request: args.remote })
-  const cloudRunner = args.cloud === true || args.remote !== undefined
-    ? new RemoteTurnRunner({ channel: fakeCloudChannel(), wake: async () => {} })
-    : null
+  const cloudRunner =
+    args.cloud === true || args.remote !== undefined
+      ? new RemoteTurnRunner({ channel: fakeCloudChannel(), wake: async () => {} })
+      : null
   let held: OperatorInputControl | null = null
   let composer: ReturnType<typeof useDraft> | null = null
   let changeThread: ((threadId: ThreadId) => void) | null = null
@@ -45,12 +50,18 @@ export async function mountInput(args: {
       app,
       threadId,
       cloudRunner,
-      onInterrupt: () => { interrupts++ },
+      onInterrupt: () => {
+        interrupts++
+      },
     })
     held = control
     const draft = useDraft('composer stays here')
     composer = draft
-    const tokens = useDraftTokens({ editor: draft.editor, read: async () => null, directory: '/tmp' })
+    const tokens = useDraftTokens({
+      editor: draft.editor,
+      read: async () => null,
+      directory: '/tmp',
+    })
     useComposerPaste({ overlaid: control.state !== null, tokens, handleAttachImage: () => false })
     const handleKey = useOverlayKeys({
       veil: { shown: false, dismiss: () => {}, keys: [] },
@@ -97,25 +108,57 @@ export async function mountInput(args: {
     app,
     setup,
     input: {
-      pasteBracketedText: async (text: string) => { await act(async () => { await setup.mockInput.pasteBracketedText(text) }) },
-      typeText: async (text: string) => { await act(async () => { await setup.mockInput.typeText(text) }) },
-      pressKey: (key: string, modifiers: { ctrl: boolean }) => { act(() => setup.mockInput.pressKey(key, modifiers)) },
-      pressEnter: () => { act(() => setup.mockInput.pressEnter()) },
-      pressShiftEnter: () => { act(() => setup.mockInput.pressKey(SHIFT_ENTER_SEQUENCE)) },
-      pressEscape: () => { act(() => setup.mockInput.pressEscape()) },
-      pressBackspace: () => { act(() => setup.mockInput.pressBackspace()) },
-      pressArrow: (direction: 'left' | 'right') => { act(() => setup.mockInput.pressArrow(direction)) },
+      pasteBracketedText: async (text: string) => {
+        await act(async () => {
+          await setup.mockInput.pasteBracketedText(text)
+        })
+      },
+      typeText: async (text: string) => {
+        await act(async () => {
+          await setup.mockInput.typeText(text)
+        })
+      },
+      pressKey: (key: string, modifiers: { ctrl: boolean }) => {
+        act(() => setup.mockInput.pressKey(key, modifiers))
+      },
+      pressEnter: () => {
+        act(() => setup.mockInput.pressEnter())
+      },
+      pressShiftEnter: () => {
+        act(() => setup.mockInput.pressKey(SHIFT_ENTER_SEQUENCE))
+      },
+      pressEscape: () => {
+        act(() => setup.mockInput.pressEscape())
+      },
+      pressBackspace: () => {
+        act(() => setup.mockInput.pressBackspace())
+      },
+      pressArrow: (direction: 'left' | 'right') => {
+        act(() => setup.mockInput.pressArrow(direction))
+      },
     },
     control,
     flush,
     interrupts: () => interrupts,
     composerText: () => composer?.editor.current?.plainText,
-    switchThread: (threadId: ThreadId) => { act(() => { changeThread?.(threadId) }) },
-    announce: (request: OperatorInputRequest = INPUT_REQUEST) => {
-      act(() => app.channel.publisherFor({ threadId: INPUT_THREAD }).operatorInput({ open: request }))
+    switchThread: (threadId: ThreadId) => {
+      act(() => {
+        changeThread?.(threadId)
+      })
     },
-    clear: () => { act(() => app.channel.publisherFor({ threadId: INPUT_THREAD }).operatorInput({ open: null })) },
-    done: async () => { await act(async () => { await teardown(setup) }) },
+    announce: (request: OperatorInputRequest = INPUT_REQUEST) => {
+      act(() =>
+        app.channel.publisherFor({ threadId: INPUT_THREAD }).operatorInput({ open: request }),
+      )
+    },
+    clear: () => {
+      act(() => app.channel.publisherFor({ threadId: INPUT_THREAD }).operatorInput({ open: null }))
+    },
+    done: async () => {
+      await act(async () => {
+        await teardown(setup)
+      })
+    },
   }
 }
 

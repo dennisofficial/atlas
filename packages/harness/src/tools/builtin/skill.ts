@@ -9,7 +9,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import {  portToken } from '../../container/injection'
 import { SkillRegistryPort } from '../../skills/port'
 import type { DiscoveredSkill } from '../../skills/skill'
 
@@ -97,7 +96,7 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
   override readonly pathFields = TAKES_NO_PATHS
   override readonly isConcurrencySafe = (): boolean => true
 
-  constructor( private readonly skills: SkillRegistryPort) {
+  constructor(private readonly skills: SkillRegistryPort) {
     super()
   }
 

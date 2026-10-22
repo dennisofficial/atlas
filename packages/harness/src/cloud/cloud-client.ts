@@ -24,7 +24,11 @@ import {
   githubTokenVia,
   pollGithubConnectVia,
 } from './cloud-github'
-import type { GithubConnectPollOutcome, GithubConnectTicket, GithubConnection } from './github-connect'
+import type {
+  GithubConnectPollOutcome,
+  GithubConnectTicket,
+  GithubConnection,
+} from './github-connect'
 
 export { CloudError } from './cloud-transport'
 
@@ -40,7 +44,12 @@ import {
   type CloudSetting,
 } from './cloud-resource-schemas'
 
-export type { BrokeredAccessToken, CloudMcpServer, CloudSecret, CloudSetting } from './cloud-resource-schemas'
+export type {
+  BrokeredAccessToken,
+  CloudMcpServer,
+  CloudSecret,
+  CloudSetting,
+} from './cloud-resource-schemas'
 
 export class CloudClient {
   private readonly url: string
@@ -110,10 +119,7 @@ export class CloudClient {
     return accountSchema.parse(body)
   }
 
-  async replaceAccountSecret(args: {
-    accountId: AccountId
-    secret: AccountSecret
-  }): Promise<void> {
+  async replaceAccountSecret(args: { accountId: AccountId; secret: AccountSecret }): Promise<void> {
     await this.request({
       method: 'PUT',
       path: `/v1/accounts/${encodeURIComponent(args.accountId)}/secret`,
@@ -121,10 +127,7 @@ export class CloudClient {
     })
   }
 
-  async setAccountStatus(args: {
-    accountId: AccountId
-    status: EAccountStatus
-  }): Promise<void> {
+  async setAccountStatus(args: { accountId: AccountId; status: EAccountStatus }): Promise<void> {
     await this.request({
       method: 'PATCH',
       path: `/v1/accounts/${encodeURIComponent(args.accountId)}/status`,
@@ -133,7 +136,10 @@ export class CloudClient {
   }
 
   async removeAccount(args: { accountId: AccountId }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/accounts/${encodeURIComponent(args.accountId)}` })
+    await this.request({
+      method: 'DELETE',
+      path: `/v1/accounts/${encodeURIComponent(args.accountId)}`,
+    })
   }
 
   async accessToken(args: {
@@ -151,10 +157,7 @@ export class CloudClient {
     return accessTokenResponseSchema.parse(body)
   }
 
-  async setActiveAccount(args: {
-    provider: EAuthProvider
-    accountId: AccountId
-  }): Promise<void> {
+  async setActiveAccount(args: { provider: EAuthProvider; accountId: AccountId }): Promise<void> {
     await this.request({
       method: 'PUT',
       path: '/v1/accounts/active',
@@ -231,7 +234,10 @@ export class CloudClient {
   }
 
   async deleteMcpServer(args: { name: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/mcp-servers/${encodeURIComponent(args.name)}` })
+    await this.request({
+      method: 'DELETE',
+      path: `/v1/mcp-servers/${encodeURIComponent(args.name)}`,
+    })
   }
 
   beginGithubConnect(): Promise<GithubConnectTicket> {
@@ -239,11 +245,17 @@ export class CloudClient {
   }
 
   pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
-    return pollGithubConnectVia({ request: (call) => this.request(call), deviceCode: args.deviceCode })
+    return pollGithubConnectVia({
+      request: (call) => this.request(call),
+      deviceCode: args.deviceCode,
+    })
   }
 
   dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
-    return dismissGithubAppInstallNoticeVia({ request: (call) => this.request(call), repoFullName: args.repoFullName })
+    return dismissGithubAppInstallNoticeVia({
+      request: (call) => this.request(call),
+      repoFullName: args.repoFullName,
+    })
   }
 
   githubConnection(): Promise<GithubConnection | null> {

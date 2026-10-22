@@ -142,7 +142,9 @@ async function listAllSandboxes(args: {
     cursor = page.pagination.next
     console.log(`  …${sandboxes.length} sandboxes so far`)
   }
-  console.log(`::warning::sandbox listing hit the ${MAX_PAGES}-page cap — results may be incomplete`)
+  console.log(
+    `::warning::sandbox listing hit the ${MAX_PAGES}-page cap — results may be incomplete`,
+  )
   return sandboxes
 }
 
@@ -155,11 +157,14 @@ async function deleteImage(args: {
   id: string
 }): Promise<void> {
   const query = `teamId=${args.teamId}&projectId=${args.projectId}`
-  const response = await fetch(`${args.api}/v1/vcr/repository/${args.repository}/images/${args.id}?${query}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${args.token}` },
-    signal: AbortSignal.timeout(30_000),
-  })
+  const response = await fetch(
+    `${args.api}/v1/vcr/repository/${args.repository}/images/${args.id}?${query}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${args.token}` },
+      signal: AbortSignal.timeout(30_000),
+    },
+  )
   if (!response.ok) {
     throw new Error(`DELETE image ${args.id} answered ${response.status}`)
   }
@@ -179,7 +184,12 @@ async function main(): Promise<number> {
   const scope = { api, token, teamId, projectId, repository, project: 'atlas' }
 
   const [images, sandboxes] = await Promise.all([listAllImages(scope), listAllSandboxes(scope)])
-  const plan = planPrune({ images, sandboxes, now: Date.now(), windowMs: WINDOW_DAYS * 24 * 60 * 60 * 1000 })
+  const plan = planPrune({
+    images,
+    sandboxes,
+    now: Date.now(),
+    windowMs: WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  })
 
   console.log(
     `${images.length} images, ${sandboxes.length} live sandboxes; keeping ${plan.keep.length}, pruning ${plan.delete.length}${dryRun ? ' (dry run)' : ''}`,

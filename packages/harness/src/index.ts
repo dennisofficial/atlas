@@ -17,7 +17,12 @@ export * from './models'
 export * from './operator-input'
 export * from './pending'
 export * from './intake'
-export { SleepPrevention, type PowerAssertionHandle, type PowerSource, type SleepPreventionDeps } from './power/sleep-prevention'
+export {
+  SleepPrevention,
+  type PowerAssertionHandle,
+  type PowerSource,
+  type SleepPreventionDeps,
+} from './power/sleep-prevention'
 export * from './providers'
 export * from './shells'
 export * from './services'
@@ -44,21 +49,34 @@ export { pingDocker } from './execution/docker/ping'
 export { DEFAULT_DOCKER_SOCKET } from './execution/docker/sandbox'
 export type { SandboxConfig } from './execution/docker/sandbox'
 export { DockerProcessPort } from './execution/docker/docker-process'
-export { ESandboxState, type SandboxStatus, type SandboxStatusListener } from './execution/docker/status'
+export {
+  ESandboxState,
+  type SandboxStatus,
+  type SandboxStatusListener,
+} from './execution/docker/status'
 export {
   ATLAS_HOME_MOUNTED_SUBTREES,
   mountedAtlasHomeSubtrees,
   sandboxConfigFromHost,
 } from './execution/docker/host-environment'
 export { EBuildContext } from './execution/image/build'
-export { EImageKind, resolveContainerConfig, type ContainerResolution, type ImageRef } from './execution/image/resolve'
+export {
+  EImageKind,
+  resolveContainerConfig,
+  type ContainerResolution,
+  type ImageRef,
+} from './execution/image/resolve'
 export type { BoundPort } from './execution/docker/ports'
 export { LocalProcessPort } from './execution/local-process'
 export { LocalFileSystemPort } from './execution/local-filesystem'
 export { LoginEnvProcessPort } from './execution/login-env-process'
 export { RoutedProcessPort } from './execution/routed-process'
 export * from './execution/session-environment'
-export { moveLocalPlacement, type LocalPlacementMove, type LocalPlacementResult } from './execution/local-placement-move'
+export {
+  moveLocalPlacement,
+  type LocalPlacementMove,
+  type LocalPlacementResult,
+} from './execution/local-placement-move'
 export { DockerFileSystemPort } from './execution/docker/docker-filesystem'
 export { RoutedFileSystemPort } from './execution/routed-filesystem'
 export * from './cloud/cloud-transport'

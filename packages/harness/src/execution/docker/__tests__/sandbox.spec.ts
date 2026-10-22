@@ -83,7 +83,11 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
   })
 
   it('runs start but not setup when reusing a container', async () => {
-    const config = { ...FAKE_CONFIG, setup: 'apt-get install -y git', start: 'docker compose up -d' }
+    const config = {
+      ...FAKE_CONFIG,
+      setup: 'apt-get install -y git',
+      start: 'docker compose up -d',
+    }
     const { engine: fake, execs } = fakeEngine({
       existing: {
         id: 'kept-1',
@@ -129,45 +133,55 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
       gpgAgentExtraSocket: '/Users/operator/.gnupg/S.gpg-agent.extra',
       gpgPubringPath: '/Users/operator/.gnupg/pubring.kbx',
     },
-  ])('reuses with a warning when a public identity file appears after creation: %j', async (identity) => {
-    const config = { ...FAKE_CONFIG, ...identity }
-    const { engine: fake } = fakeEngine({
-      existing: {
-        id: 'kept-1',
-        state: 'running',
-        mounts: systemMounts,
-        labels: labelsFor(config),
-      },
-    })
+  ])(
+    'reuses with a warning when a public identity file appears after creation: %j',
+    async (identity) => {
+      const config = { ...FAKE_CONFIG, ...identity }
+      const { engine: fake } = fakeEngine({
+        existing: {
+          id: 'kept-1',
+          state: 'running',
+          mounts: systemMounts,
+          labels: labelsFor(config),
+        },
+      })
 
-    const sandbox = await ensureSandbox({ engine: fake, config })
+      const sandbox = await ensureSandbox({ engine: fake, config })
 
-    expect(sandbox.created).toBe(false)
-    expect(sandbox.id).toBe('kept-1')
-    expect(sandbox.warnings.some((one) => one.includes('next recreate'))).toBe(true)
-  })
+      expect(sandbox.created).toBe(false)
+      expect(sandbox.id).toBe('kept-1')
+      expect(sandbox.warnings.some((one) => one.includes('next recreate'))).toBe(true)
+    },
+  )
 
   it.each([
     [],
     [{ source: '/repo/.git', destination: '/repo/.git', readOnly: true }],
     [{ source: '/other/.git', destination: '/repo/.git', readOnly: false }],
-  ])('recreates on missing, read-only or substituted Git metadata mounts: %j', async (...mounts) => {
-    const { engine, removals, creates } = fakeEngine({
-      existing: { id: 'kept-1', state: 'running', mounts: [...systemMounts, ...mounts] },
-    })
+  ])(
+    'recreates on missing, read-only or substituted Git metadata mounts: %j',
+    async (...mounts) => {
+      const { engine, removals, creates } = fakeEngine({
+        existing: { id: 'kept-1', state: 'running', mounts: [...systemMounts, ...mounts] },
+      })
 
-    const sandbox = await ensureSandbox({
-      engine,
-      config: { ...FAKE_CONFIG, mounts: [{ path: '/repo/.git', mode: EMountMode.ReadWrite }] },
-    })
+      const sandbox = await ensureSandbox({
+        engine,
+        config: { ...FAKE_CONFIG, mounts: [{ path: '/repo/.git', mode: EMountMode.ReadWrite }] },
+      })
 
-    expect(removals).toEqual(['kept-1'])
-    expect(creates).toHaveLength(1)
-    expect(sandbox.created).toBe(true)
-  })
+      expect(removals).toEqual(['kept-1'])
+      expect(creates).toHaveLength(1)
+      expect(sandbox.created).toBe(true)
+    },
+  )
 
   it('recreates a running container whose declared mounts drifted, warning that its shells died', async () => {
-    const { engine: fake, removals, creates } = fakeEngine({
+    const {
+      engine: fake,
+      removals,
+      creates,
+    } = fakeEngine({
       existing: { id: 'kept-1', state: 'running', mounts: systemMounts },
     })
 
@@ -186,7 +200,11 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
   })
 
   it('recreates mounts removed since creation the same way, while the container runs', async () => {
-    const { engine: fake, removals, creates } = fakeEngine({
+    const {
+      engine: fake,
+      removals,
+      creates,
+    } = fakeEngine({
       existing: {
         id: 'kept-1',
         state: 'running',
@@ -209,7 +227,11 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
   })
 
   it('recreates a stopped container whose declared mounts drifted, noting nothing live was lost', async () => {
-    const { engine: fake, removals, creates } = fakeEngine({
+    const {
+      engine: fake,
+      removals,
+      creates,
+    } = fakeEngine({
       existing: { id: 'stale-1', state: 'exited', mounts: systemMounts },
     })
 

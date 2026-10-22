@@ -47,10 +47,13 @@ export async function dropRewoundChildren({
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue
     const sessionDir = join(root, dir.name)
-    for (const meta of await readThreadMetas({ sessionDir, logPort })) located.push({ sessionDir, meta })
+    for (const meta of await readThreadMetas({ sessionDir, logPort }))
+      located.push({ sessionDir, meta })
   }
   for (const agentId of agentIds) {
-    const referenced = located.some(({ meta }) => meta.spawnerThreadId === agentId || meta.parentThreadId === agentId)
+    const referenced = located.some(
+      ({ meta }) => meta.spawnerThreadId === agentId || meta.parentThreadId === agentId,
+    )
     const found = located.find(({ meta }) => meta.id === agentId)
     if (found === undefined) continue
     if (referenced) {

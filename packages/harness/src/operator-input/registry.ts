@@ -26,19 +26,28 @@ type Open = {
   settling: boolean
 }
 
-export const OPERATOR_INPUT_CANCELLED = 'operator input request cancelled; if delivery had started, partial input may have reached the reader — restart the CLI with a fresh destination before requesting another value'
+export const OPERATOR_INPUT_CANCELLED =
+  'operator input request cancelled; if delivery had started, partial input may have reached the reader — restart the CLI with a fresh destination before requesting another value'
 
 export class InProcessOperatorInput implements OperatorInputPort {
   private readonly open = new Map<ThreadId, Open>()
 
-  constructor(private readonly deps: {
-    log: Pick<EventLogPort, 'append'>
-    ids: IdPort
-    channel: () => DeltaChannel | undefined
-    deliver: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>
-    writeShellInput?: ((args: { threadId: ThreadId; shellId: string; text: string }) => Promise<ShellInputOutcome>) | undefined
-    onListenerError?: ((cause: unknown) => void) | undefined
-  }) {}
+  constructor(
+    private readonly deps: {
+      log: Pick<EventLogPort, 'append'>
+      ids: IdPort
+      channel: () => DeltaChannel | undefined
+      deliver: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>
+      writeShellInput?:
+        | ((args: {
+            threadId: ThreadId
+            shellId: string
+            text: string
+          }) => Promise<ShellInputOutcome>)
+        | undefined
+      onListenerError?: ((cause: unknown) => void) | undefined
+    },
+  ) {}
 
   pending(args: { threadId: ThreadId }): OperatorInputPending | null {
     return this.open.get(args.threadId)?.request ?? null
@@ -47,7 +56,10 @@ export class InProcessOperatorInput implements OperatorInputPort {
   request(args: OperatorInputRequestArgs): Promise<OperatorInputAnswerOutcome> {
     if (args.signal.aborted) return Promise.resolve({ ok: false, reason: OPERATOR_INPUT_CANCELLED })
     if (this.open.has(args.threadId)) {
-      return Promise.resolve({ ok: false, reason: 'an operator input request is already pending for this thread' })
+      return Promise.resolve({
+        ok: false,
+        reason: 'an operator input request is already pending for this thread',
+      })
     }
     return new Promise((resolve) => {
       const request: OperatorInputPending = {
@@ -57,7 +69,9 @@ export class InProcessOperatorInput implements OperatorInputPort {
         ...(args.url === undefined ? {} : { url: args.url }),
       }
       const open: Open = {
-        request, args, resolve,
+        request,
+        args,
+        resolve,
         ready: Promise.resolve(),
         removeAbort: () => undefined,
         delivering: false,
@@ -82,7 +96,10 @@ export class InProcessOperatorInput implements OperatorInputPort {
         drafts: [{ type: 'operator-input-requested', ...request }],
       }).then(
         () => {
-          if (args.signal.aborted) { handleAbort(); return }
+          if (args.signal.aborted) {
+            handleAbort()
+            return
+          }
           this.publish({ threadId: args.threadId, request })
         },
         () => {
@@ -99,7 +116,10 @@ export class InProcessOperatorInput implements OperatorInputPort {
     threadId?: ThreadId | undefined
   }): Promise<OperatorInputAnswerOutcome> {
     const open = [...this.open.values()].find((entry) => entry.request.requestId === args.requestId)
-    if (open === undefined || (args.threadId !== undefined && args.threadId !== open.args.threadId)) {
+    if (
+      open === undefined ||
+      (args.threadId !== undefined && args.threadId !== open.args.threadId)
+    ) {
       return { ok: false, reason: 'that operator input request is no longer waiting for an answer' }
     }
     await open.ready
@@ -107,24 +127,33 @@ export class InProcessOperatorInput implements OperatorInputPort {
       return { ok: false, reason: 'that request was already answered or cancelled' }
     }
     open.delivering = true
-    const value = open.args.appendNewline && !args.value.endsWith('\n') ? `${args.value}\n` : args.value
+    const value =
+      open.args.appendNewline && !args.value.endsWith('\n') ? `${args.value}\n` : args.value
     let result: OperatorInputAnswerOutcome
     try {
-      result = open.args.shellId === undefined
-        ? await this.deps.deliver({
-          path: open.request.path, value,
-          threadId: open.args.threadId,
-          cwd: open.args.cwd,
-          signal: open.args.signal,
-        })
-        : await this.writeToShell({ shellId: open.args.shellId, threadId: open.args.threadId, value })
+      result =
+        open.args.shellId === undefined
+          ? await this.deps.deliver({
+              path: open.request.path,
+              value,
+              threadId: open.args.threadId,
+              cwd: open.args.cwd,
+              signal: open.args.signal,
+            })
+          : await this.writeToShell({
+              shellId: open.args.shellId,
+              threadId: open.args.threadId,
+              value,
+            })
     } catch {
       result = { ok: false, reason: 'operator input delivery failed' }
     }
     if (open.args.signal.aborted) result = { ok: false, reason: OPERATOR_INPUT_CANCELLED }
     const outcome = open.args.signal.aborted
       ? EOperatorInputOutcome.Cancelled
-      : result.ok ? EOperatorInputOutcome.Delivered : EOperatorInputOutcome.Undelivered
+      : result.ok
+        ? EOperatorInputOutcome.Delivered
+        : EOperatorInputOutcome.Undelivered
     return await this.settle({ open, outcome, result })
   }
 
@@ -136,8 +165,13 @@ export class InProcessOperatorInput implements OperatorInputPort {
     if (this.deps.writeShellInput === undefined) {
       return { ok: false, reason: 'this session cannot deliver operator input to a shell' }
     }
-    const written = await this.deps.writeShellInput({ threadId: args.threadId, shellId: args.shellId, text: args.value })
-    if (!written.ok) return { ok: false, reason: `delivery to shell ${args.shellId} failed: ${written.reason}` }
+    const written = await this.deps.writeShellInput({
+      threadId: args.threadId,
+      shellId: args.shellId,
+      text: args.value,
+    })
+    if (!written.ok)
+      return { ok: false, reason: `delivery to shell ${args.shellId} failed: ${written.reason}` }
     return { ok: true, bytes: Buffer.byteLength(args.value) }
   }
 
@@ -155,13 +189,21 @@ export class InProcessOperatorInput implements OperatorInputPort {
     try {
       await this.append({
         threadId: open.args.threadId,
-        drafts: [{
-          type: 'operator-input-resolved', requestId: open.request.requestId, outcome: args.outcome,
-          ...(result.ok ? { bytes: result.bytes } : {}),
-        }],
+        drafts: [
+          {
+            type: 'operator-input-resolved',
+            requestId: open.request.requestId,
+            outcome: args.outcome,
+            ...(result.ok ? { bytes: result.bytes } : {}),
+          },
+        ],
       })
     } catch {
-      result = { ok: false, reason: 'operator input settled but its outcome could not be recorded; do not resend this request' }
+      result = {
+        ok: false,
+        reason:
+          'operator input settled but its outcome could not be recorded; do not resend this request',
+      }
     }
     this.clear(open)
     open.resolve(result)
@@ -180,9 +222,14 @@ export class InProcessOperatorInput implements OperatorInputPort {
   }
 
   private publish(args: { threadId: ThreadId; request: OperatorInputPending | null }): void {
-    this.deps.channel()?.publisherFor({ threadId: args.threadId }).operatorInput({
-      open: args.request,
-      ...(this.deps.onListenerError === undefined ? {} : { onListenerError: this.deps.onListenerError }),
-    })
+    this.deps
+      .channel()
+      ?.publisherFor({ threadId: args.threadId })
+      .operatorInput({
+        open: args.request,
+        ...(this.deps.onListenerError === undefined
+          ? {}
+          : { onListenerError: this.deps.onListenerError }),
+      })
   }
 }

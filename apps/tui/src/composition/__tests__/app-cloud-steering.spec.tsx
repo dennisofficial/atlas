@@ -142,7 +142,11 @@ describe('steering a turn that runs in the cloud', () => {
       const recalled = await until({
         holds: async () => {
           const frame = await mounted.nextFrame()
-          return mounted.draftText() === STEER && !frame.includes('sending…') && !frame.includes(TAKE_BACK)
+          return (
+            mounted.draftText() === STEER &&
+            !frame.includes('sending…') &&
+            !frame.includes(TAKE_BACK)
+          )
         },
         within: 20_000,
       })
@@ -198,9 +202,7 @@ describe('steering a turn that runs in the cloud', () => {
     try {
       await startCloudTurn(mounted, bridge)
 
-      bridge.channel.pushPending([
-        { id: 'pending-1', text: STEER, reserved: false },
-      ])
+      bridge.channel.pushPending([{ id: 'pending-1', text: STEER, reserved: false }])
 
       const shown = await until({
         holds: async () => {
@@ -226,7 +228,10 @@ describe('steering a turn that runs in the cloud', () => {
       })
       expect(rowGone).toBe(true)
 
-      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-take-back') })
+      bridge.channel.endTurn({
+        status: ETurnStatus.Completed,
+        runId: toRunId('run-cloud-take-back'),
+      })
     } finally {
       await mounted.done()
     }
@@ -240,9 +245,7 @@ describe('steering a turn that runs in the cloud', () => {
     try {
       await startCloudTurn(mounted, bridge)
 
-      bridge.channel.pushPending([
-        { id: 'pending-1', text: STEER, reserved: false },
-      ])
+      bridge.channel.pushPending([{ id: 'pending-1', text: STEER, reserved: false }])
 
       const shown = await until({
         holds: async () => (await mounted.nextFrame()).includes(TAKE_BACK),
@@ -257,7 +260,10 @@ describe('steering a turn that runs in the cloud', () => {
       await mounted.frame()
       expect(mounted.draftText()).toBe('')
 
-      bridge.channel.endTurn({ status: ETurnStatus.Completed, runId: toRunId('run-cloud-too-late') })
+      bridge.channel.endTurn({
+        status: ETurnStatus.Completed,
+        runId: toRunId('run-cloud-too-late'),
+      })
     } finally {
       await mounted.done()
     }

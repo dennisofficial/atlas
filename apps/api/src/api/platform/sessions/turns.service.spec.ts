@@ -48,8 +48,16 @@ describe('TurnsService', () => {
   })
 
   it('forThread orders by start time', async () => {
-    await seedTurnRow({ runId: 'run_late', threadId: 'brn_one', startedAt: new Date('2026-09-15T02:00:00.000Z') })
-    await seedTurnRow({ runId: 'run_early', threadId: 'brn_one', startedAt: new Date('2026-09-15T00:00:00.000Z') })
+    await seedTurnRow({
+      runId: 'run_late',
+      threadId: 'brn_one',
+      startedAt: new Date('2026-09-15T02:00:00.000Z'),
+    })
+    await seedTurnRow({
+      runId: 'run_early',
+      threadId: 'brn_one',
+      startedAt: new Date('2026-09-15T00:00:00.000Z'),
+    })
 
     const turns = await service.forThread({ userId: USER_A, threadId: 'brn_one' })
     expect(turns.map((turn) => turn.runId)).toEqual(['run_early', 'run_late'])

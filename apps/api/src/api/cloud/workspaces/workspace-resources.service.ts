@@ -23,7 +23,9 @@ export class WorkspaceResourcesService {
     const rows = await db.orm.public.WorkspaceSecret.where({ organizationId: args.organizationId })
       .orderBy((row) => row.name.asc())
       .all()
-    const updaterIds = [...new Set(rows.flatMap((row) => (row.updatedById ? [row.updatedById] : [])))]
+    const updaterIds = [
+      ...new Set(rows.flatMap((row) => (row.updatedById ? [row.updatedById] : []))),
+    ]
     const users = await db.orm.public.User.select('id', 'name')
       .where((user) => user.id.in(updaterIds))
       .all()
@@ -44,7 +46,9 @@ export class WorkspaceResourcesService {
     })
   }
 
-  async setSecret(args: Scope & { name: string; value: string; kind?: ESecretKind | undefined }): Promise<void> {
+  async setSecret(
+    args: Scope & { name: string; value: string; kind?: ESecretKind | undefined },
+  ): Promise<void> {
     assertEnvName(args.name)
     await this.access.require({ ...args, write: true })
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })
@@ -74,7 +78,9 @@ export class WorkspaceResourcesService {
 
   async listMcpServers(args: Scope): Promise<McpServerDto[]> {
     await this.access.require({ ...args, write: false })
-    const rows = await db.orm.public.WorkspaceMcpServer.where({ organizationId: args.organizationId })
+    const rows = await db.orm.public.WorkspaceMcpServer.where({
+      organizationId: args.organizationId,
+    })
       .orderBy((row) => row.name.asc())
       .all()
     return rows.map((row) =>

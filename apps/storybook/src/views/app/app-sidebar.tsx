@@ -5,20 +5,20 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarRail,
-} from "@dltech/atlas-ui/components/sidebar";
+} from '@dltech/atlas-ui/components/sidebar'
 
-import type { AppThread } from "../../fixtures/app";
-import { AccountMenu } from "./account-menu";
-import { ShellBottomNav } from "./shell-bottom-nav";
-import { ShellTopBar } from "./shell-top-bar";
-import { ThreadList } from "./shell-thread-list";
-import type { EAppNav, ShellDemoState } from "./shell-types";
+import type { AppThread } from '../../fixtures/app'
+import { AccountMenu } from './account-menu'
+import { ShellBottomNav } from './shell-bottom-nav'
+import { ShellTopBar } from './shell-top-bar'
+import { ThreadList } from './shell-thread-list'
+import type { EAppNav, ShellDemoState } from './shell-types'
 
 export interface AppSidebarProps {
-  activeThreadId?: string;
-  activeNav: EAppNav;
-  demo?: ShellDemoState;
-  pendingThread?: AppThread;
+  activeThreadId?: string
+  activeNav: EAppNav
+  demo?: ShellDemoState
+  pendingThread?: AppThread
 }
 
 export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: AppSidebarProps) {
@@ -43,5 +43,5 @@ export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: A
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

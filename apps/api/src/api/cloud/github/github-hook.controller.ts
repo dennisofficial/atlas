@@ -65,7 +65,8 @@ export class GithubHookController {
     const payload = JSON.parse(rawBody.toString('utf8')) as unknown
     const outcome = await this.deliveries.handle({ event, payload })
 
-    if (!outcome.handled) this.logger.log(`unhandled github delivery event=${event} repo=${repoFullName}`)
+    if (!outcome.handled)
+      this.logger.log(`unhandled github delivery event=${event} repo=${repoFullName}`)
     return { received: true }
   }
 }

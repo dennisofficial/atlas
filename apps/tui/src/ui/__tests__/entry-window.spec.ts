@@ -48,47 +48,72 @@ describe('visibleSpan', () => {
   })
 
   it('covers exactly the entries intersecting the viewport', () => {
-    expect(visibleSpan({ tops, rows, scrollTop: 0, viewportRows: 15 })).toEqual({ start: 0, end: 2 })
-    expect(visibleSpan({ tops, rows, scrollTop: 10, viewportRows: 10 })).toEqual({ start: 1, end: 2 })
+    expect(visibleSpan({ tops, rows, scrollTop: 0, viewportRows: 15 })).toEqual({
+      start: 0,
+      end: 2,
+    })
+    expect(visibleSpan({ tops, rows, scrollTop: 10, viewportRows: 10 })).toEqual({
+      start: 1,
+      end: 2,
+    })
   })
 
   it('includes both entries when the viewport straddles a boundary', () => {
-    expect(visibleSpan({ tops, rows, scrollTop: 5, viewportRows: 10 })).toEqual({ start: 0, end: 2 })
+    expect(visibleSpan({ tops, rows, scrollTop: 5, viewportRows: 10 })).toEqual({
+      start: 0,
+      end: 2,
+    })
   })
 
   it('pins to the last entry when scrolled past the end', () => {
-    expect(visibleSpan({ tops, rows, scrollTop: 999, viewportRows: 10 })).toEqual({ start: 3, end: 4 })
+    expect(visibleSpan({ tops, rows, scrollTop: 999, viewportRows: 10 })).toEqual({
+      start: 3,
+      end: 4,
+    })
   })
 })
 
 describe('windowSpan', () => {
   it('widens the visible span by the margin on both sides', () => {
-    expect(windowSpan({ visible: { start: 100, end: 110 }, total: 1000, margin: 60, cap: 160 })).toEqual({
+    expect(
+      windowSpan({ visible: { start: 100, end: 110 }, total: 1000, margin: 60, cap: 160 }),
+    ).toEqual({
       start: 40,
       end: 170,
     })
   })
 
   it('clamps to the transcript edges', () => {
-    expect(windowSpan({ visible: { start: 0, end: 5 }, total: 1000, margin: 60, cap: 160 })).toEqual({
+    expect(
+      windowSpan({ visible: { start: 0, end: 5 }, total: 1000, margin: 60, cap: 160 }),
+    ).toEqual({
       start: 0,
       end: 65,
     })
-    expect(windowSpan({ visible: { start: 990, end: 1000 }, total: 1000, margin: 60, cap: 160 })).toEqual({
+    expect(
+      windowSpan({ visible: { start: 990, end: 1000 }, total: 1000, margin: 60, cap: 160 }),
+    ).toEqual({
       start: 930,
       end: 1000,
     })
   })
 
   it('caps the mounted count, centered on the visible span', () => {
-    const span = windowSpan({ visible: { start: 500, end: 520 }, total: 1000, margin: 500, cap: 160 })
+    const span = windowSpan({
+      visible: { start: 500, end: 520 },
+      total: 1000,
+      margin: 500,
+      cap: 160,
+    })
     expect(span.end - span.start).toBe(160)
     expect(span.start).toBeLessThanOrEqual(500)
     expect(span.end).toBeGreaterThanOrEqual(520)
   })
 
   it('never drops a visible span larger than the cap', () => {
-    expect(windowSpan({ visible: { start: 10, end: 300 }, total: 1000, margin: 60, cap: 160 })).toEqual({
+    expect(
+      windowSpan({ visible: { start: 10, end: 300 }, total: 1000, margin: 60, cap: 160 }),
+    ).toEqual({
       start: 10,
       end: 300,
     })
@@ -187,7 +212,14 @@ describe('sectionsOf', () => {
   it('bridges disjoint spans with a spacer for the gap', () => {
     const { rows, tops } = layoutOf([3, 5, 7, 11])
     expect(
-      sectionsOf({ tops, rows, spans: [{ start: 0, end: 1 }, { start: 3, end: 4 }] }),
+      sectionsOf({
+        tops,
+        rows,
+        spans: [
+          { start: 0, end: 1 },
+          { start: 3, end: 4 },
+        ],
+      }),
     ).toEqual([
       { kind: 'entries', span: { start: 0, end: 1 } },
       { kind: 'spacer', height: 12 },

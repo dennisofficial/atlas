@@ -2,11 +2,20 @@ import { PromptFragment } from '@dltech/atlas-core'
 
 import { SkillRegistryPort } from '../skills/port'
 import { GrillingCeremonyEnabledToken } from '../container/tokens'
-import { instanceCachingFactory, portToken, registeredPortToken, type DependencyContainer } from '../container/injection'
+import {
+  instanceCachingFactory,
+  portToken,
+  registeredPortToken,
+  type DependencyContainer,
+} from '../container/injection'
 import { DelegationFragment } from './fragments/agents'
 import { EnvelopeContractFragment } from './fragments/envelope-contract'
 import { ContextFolderFragment } from './fragments/context-folder'
-import { ExecutionLocationFragment, SessionPathsFragment, TodayFragment } from './fragments/environment'
+import {
+  ExecutionLocationFragment,
+  SessionPathsFragment,
+  TodayFragment,
+} from './fragments/environment'
 import { GrillingCeremonyFragment } from './fragments/grilling'
 import { AtlasIdentityFragment } from './fragments/identity'
 import { AnswerInTextFragment } from './fragments/models'

@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { CreateAccountDto, OauthAuthorityDto, SecretDto, SetActiveDto, SetStatusDto } from './accounts.dto'
+import type {
+  CreateAccountDto,
+  OauthAuthorityDto,
+  SecretDto,
+  SetActiveDto,
+  SetStatusDto,
+} from './accounts.dto'
 import type {
   AccountDto,
   AccountLeaseDto,
@@ -41,7 +47,9 @@ function toAuthority(dto: OauthAuthorityDto): OauthAuthority {
     ...(dto.generation === undefined ? {} : { generation: dto.generation }),
     ...(dto.refreshAfter === undefined ? {} : { refreshAfter: dto.refreshAfter }),
     ...(dto.authorizationId === undefined ? {} : { authorizationId: dto.authorizationId }),
-    ...(dto.previousAuthorizationId === undefined ? {} : { previousAuthorizationId: dto.previousAuthorizationId }),
+    ...(dto.previousAuthorizationId === undefined
+      ? {}
+      : { previousAuthorizationId: dto.previousAuthorizationId }),
   }
 }
 
@@ -49,9 +57,7 @@ function toAccountSecret(dto: SecretDto): AccountSecret {
   if (dto.kind === EAuthKind.Oauth) {
     const tokens = dto.tokens
     if (!tokens || tokens.accessToken.length === 0 || tokens.expiresAt.length === 0) {
-      throw new BadRequestException(
-        'oauth secrets require tokens.accessToken and tokens.expiresAt',
-      )
+      throw new BadRequestException('oauth secrets require tokens.accessToken and tokens.expiresAt')
     }
     return {
       kind: EAuthKind.Oauth,
@@ -160,7 +166,11 @@ export class AccountsService {
     await db.execute(statement)
   }
 
-  async setStatus(args: { userId: string; accountId: string; status: SetStatusDto }): Promise<void> {
+  async setStatus(args: {
+    userId: string
+    accountId: string
+    status: SetStatusDto
+  }): Promise<void> {
     await this.ownedRow(args)
     await db.orm.public.AgentAccount.where({ id: args.accountId }).update({
       status: args.status.status,

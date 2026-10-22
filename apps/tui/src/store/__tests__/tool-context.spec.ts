@@ -1,4 +1,11 @@
-import { EContextSlot, toCallId, toEventId, toRunId, toThreadId, type Event } from '@dltech/atlas-core'
+import {
+  EContextSlot,
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Event,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { toolRuns } from '../tool-runs'
@@ -55,7 +62,11 @@ const onlyCall = (events: readonly Event[]) => {
 
 describe('context a hook injected around a tool call', () => {
   it('attaches to the call whose result it followed', () => {
-    const call = onlyCall([called(1), resulted(1), loaded({ slot: 'gitState', content: '3 files dirty' })])
+    const call = onlyCall([
+      called(1),
+      resulted(1),
+      loaded({ slot: 'gitState', content: '3 files dirty' }),
+    ])
 
     expect(call.attachments).toHaveLength(1)
     expect(call.attachments[0]?.slot).toBe('gitState')
@@ -63,7 +74,11 @@ describe('context a hook injected around a tool call', () => {
   })
 
   it('attaches to the call it ran ahead of', () => {
-    const call = onlyCall([called(1), loaded({ slot: 'readBeforeWrite', content: 'read it first' }), resulted(1)])
+    const call = onlyCall([
+      called(1),
+      loaded({ slot: 'readBeforeWrite', content: 'read it first' }),
+      resulted(1),
+    ])
 
     expect(call.attachments[0]?.slot).toBe('readBeforeWrite')
   })
@@ -97,7 +112,11 @@ describe('context a hook injected around a tool call', () => {
     const call = onlyCall([
       called(1, 'read'),
       resulted(1, 'read'),
-      loaded({ slot: EContextSlot.NestedInstructions, key: '/repo/apps/api/CLAUDE.md', content: '# rules' }),
+      loaded({
+        slot: EContextSlot.NestedInstructions,
+        key: '/repo/apps/api/CLAUDE.md',
+        content: '# rules',
+      }),
     ])
 
     expect(call.attachments[0]?.name).toBe('/repo/apps/api/CLAUDE.md')

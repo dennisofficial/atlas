@@ -10,7 +10,10 @@ export const githubRepoOfOrigin = (originUrl: string): string | null => {
   return GITHUB_REPO_PATTERN.test(tail) ? tail : null
 }
 
-export const matchProject = (args: { projects: readonly Project[]; repo: string }): Project | undefined => {
+export const matchProject = (args: {
+  projects: readonly Project[]
+  repo: string
+}): Project | undefined => {
   const wanted = args.repo.toLowerCase()
   let best: Project | undefined
   for (const project of args.projects) {

@@ -43,9 +43,7 @@ describe('SettingsService', () => {
 
     const rows = await settings()
     expect(rows).toHaveLength(1)
-    expect(rows[0]?.updatedAt.getTime()).toBeGreaterThan(
-      updatedAtBefore?.getTime() ?? 0,
-    )
+    expect(rows[0]?.updatedAt.getTime()).toBeGreaterThan(updatedAtBefore?.getTime() ?? 0)
     expect((await service.list({ userId: USER_A }))[0]?.value).toBe('new-value')
   })
 
@@ -81,9 +79,9 @@ describe('SettingsService', () => {
     await expect(
       service.set({ userId: USER_A, key: 'k'.repeat(201), value: 'x' }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(
-      service.remove({ userId: USER_A, key: 'k'.repeat(201) }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.remove({ userId: USER_A, key: 'k'.repeat(201) })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
     expect(await settings()).toHaveLength(0)
   })
 

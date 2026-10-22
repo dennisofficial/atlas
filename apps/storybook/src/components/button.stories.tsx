@@ -1,29 +1,22 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 
 const meta = {
-  title: "Components/Button",
+  title: 'Components/Button',
   component: Button,
-  args: { children: "Button" },
-} satisfies Meta<typeof Button>;
+  args: { children: 'Button' },
+} satisfies Meta<typeof Button>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-const variants = [
-  "default",
-  "outline",
-  "secondary",
-  "ghost",
-  "destructive",
-  "link",
-] as const;
+const variants = ['default', 'outline', 'secondary', 'ghost', 'destructive', 'link'] as const
 
-const sizes = ["xs", "sm", "default", "lg"] as const;
+const sizes = ['xs', 'sm', 'default', 'lg'] as const
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const Variants: Story = {
   render: () => (
@@ -35,7 +28,7 @@ export const Variants: Story = {
       ))}
     </div>
   ),
-};
+}
 
 export const Sizes: Story = {
   render: () => (
@@ -47,4 +40,4 @@ export const Sizes: Story = {
       ))}
     </div>
   ),
-};
+}

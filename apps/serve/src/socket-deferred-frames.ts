@@ -5,7 +5,8 @@ import { EServeEvent, type ServeLog } from './serve-log'
 import type { SessionSocket } from './socket-session-types'
 import { isReadOnlyFrame } from './socket-state-requests'
 
-export const BETWEEN_PHASES_REFUSAL = 'the sandbox is between lifecycle phases; retry once it is serving'
+export const BETWEEN_PHASES_REFUSAL =
+  'the sandbox is between lifecycle phases; retry once it is serving'
 
 type Driven = { socket: SessionSocket; frame: ClientFrame }
 

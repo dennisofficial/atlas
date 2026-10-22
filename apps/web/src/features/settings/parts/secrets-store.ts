@@ -20,7 +20,12 @@ export function useLocalSecretsStore(args: {
     setSecrets((current) => {
       const existing = current.find((secret) => secret.key === entry.key)
       const next: LibrarySecret = existing
-        ? { ...existing, kind: entry.kind, value: entry.value || existing.value, updated: 'just now' }
+        ? {
+            ...existing,
+            kind: entry.kind,
+            value: entry.value || existing.value,
+            updated: 'just now',
+          }
         : { id: `new-${entry.key}`, ...entry, updated: 'just now', addedBy: args.currentMember }
       return [next, ...current.filter((secret) => secret.key !== entry.key)]
     })

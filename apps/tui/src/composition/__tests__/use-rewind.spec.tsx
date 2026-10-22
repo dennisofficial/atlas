@@ -175,10 +175,7 @@ describe('the rewind control', () => {
   })
 
   it('offers a compaction as a point of its own, with no composer text', async () => {
-    const { probe, flush, done } = await mounted([
-      { type: 'user-said', text: 'first' },
-      compaction,
-    ])
+    const { probe, flush, done } = await mounted([{ type: 'user-said', text: 'first' }, compaction])
 
     try {
       controlOf(probe).handleOpen()

@@ -13,7 +13,12 @@ import {
   type CompactionPort,
 } from '@dltech/atlas-harness'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 import type { ServeTurnDriver } from './turn-driver'
 
 export const isCompactionOp = (op: EClientRequest): boolean =>

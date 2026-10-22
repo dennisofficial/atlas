@@ -9,7 +9,12 @@ import {
   type PromptContext,
 } from '@dltech/atlas-core'
 
-import { createIsolatedContainer, portToken, registeredPortToken, resolveSet } from '../../container/injection'
+import {
+  createIsolatedContainer,
+  portToken,
+  registeredPortToken,
+  resolveSet,
+} from '../../container/injection'
 import { GrillingCeremonyEnabledToken } from '../../container/tokens'
 import { ExecutionLocationToken } from '../../composition/execution-location-state'
 import { SkillRegistryPort } from '../../skills/port'
@@ -61,7 +66,10 @@ describe('the builtin prompt', () => {
   it('keeps system text unchanged when the project directory changes', () => {
     const prompts = registered().resolve(registeredPortToken(PromptRegistry))
     const first = prompts.compile(CONTEXT)
-    const moved = prompts.compile({ ...CONTEXT, projectDirectory: `${CONTEXT.projectDirectory}/.atlas/worktrees/feature` })
+    const moved = prompts.compile({
+      ...CONTEXT,
+      projectDirectory: `${CONTEXT.projectDirectory}/.atlas/worktrees/feature`,
+    })
     expect(moved.blocks).toEqual(first.blocks)
     expect(first.blocks[0]?.text).not.toContain(CONTEXT.projectDirectory)
   })
@@ -69,7 +77,9 @@ describe('the builtin prompt', () => {
   it('compiles the stable execution topology without touching runtime execution state', () => {
     const container = registered()
     container.register(ExecutionLocationToken, {
-      useFactory: () => { throw new Error('runtime execution state belongs outside system text') },
+      useFactory: () => {
+        throw new Error('runtime execution state belongs outside system text')
+      },
     })
     const parts = container.resolve(registeredPortToken(PromptRegistry)).compile(CONTEXT).parts
     expect(parts.some((part) => part.id === 'environment.execution-location')).toBe(true)
@@ -106,7 +116,9 @@ describe('the builtin prompt', () => {
   it('joins measured fragments in registration order', () => {
     const prompt = compiled()
     expect(prompt.blocks).toEqual([{ text: prompt.parts.map((part) => part.text).join('\n\n') }])
-    expect(prompt.parts.map((part) => part.chars)).toEqual(prompt.parts.map((part) => part.text.length))
+    expect(prompt.parts.map((part) => part.chars)).toEqual(
+      prompt.parts.map((part) => part.text.length),
+    )
     expect(prompt.skipped).toEqual([
       { id: 'skills.listing', reason: ESkipReason.Empty },
       { id: 'models.answer-in-text', reason: ESkipReason.Condition },
@@ -118,21 +130,25 @@ describe('the builtin prompt', () => {
 describe('builtin registration', () => {
   it('selects every registered fragment in a reachable context', () => {
     const fragments = resolveSet({ container: registered(), token: portToken(PromptFragment) })
-    expect(deadFragmentIds({
-      fragments,
-      contexts: [
-        ...reachablePromptContexts({
-          agents: Object.values(EPromptAgent),
-          providerIds: ['anthropic-oauth'],
-          projectDirectory: '/prompt-primary-fixture',
-        }),
-        { ...CONTEXT, provider: { id: 'inference', modelId: 'kimi-k3-fast' } },
-      ],
-    })).toEqual([])
+    expect(
+      deadFragmentIds({
+        fragments,
+        contexts: [
+          ...reachablePromptContexts({
+            agents: Object.values(EPromptAgent),
+            providerIds: ['anthropic-oauth'],
+            projectDirectory: '/prompt-primary-fixture',
+          }),
+          { ...CONTEXT, provider: { id: 'inference', modelId: 'kimi-k3-fast' } },
+        ],
+      }),
+    ).toEqual([])
   })
 
   it('holds one registry per container', () => {
     const container = registered()
-    expect(container.resolve(registeredPortToken(PromptRegistry))).toBe(container.resolve(registeredPortToken(PromptRegistry)))
+    expect(container.resolve(registeredPortToken(PromptRegistry))).toBe(
+      container.resolve(registeredPortToken(PromptRegistry)),
+    )
   })
 })

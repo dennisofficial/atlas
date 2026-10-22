@@ -21,9 +21,7 @@ function capturedReporter(): { reporter: WarpReporter; writes: string[] } {
 
 describe('createWarpReporter', () => {
   it('is null outside Warp', () => {
-    expect(
-      createWarpReporter({ env: {}, write: () => undefined, host: 'mac.local' }),
-    ).toBeNull()
+    expect(createWarpReporter({ env: {}, write: () => undefined, host: 'mac.local' })).toBeNull()
     expect(
       createWarpReporter({
         env: { TERM_PROGRAM: 'iTerm.app' },
@@ -85,4 +83,3 @@ describe('WarpThreadOpenHook', () => {
     expect(writes).toEqual(['\x1b]7;file://mac.local/Users/dennis/atlas\x1b\\'])
   })
 })
-

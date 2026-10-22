@@ -74,7 +74,12 @@ describe('GithubDeliveryService fanout', () => {
     await waitFor(() => {
       expect(received).toHaveLength(1)
     })
-    expect(received[0]).toMatchObject({ prNumber: 42, mergeable: null, checksRunning: 0, checksPassed: 0 })
+    expect(received[0]).toMatchObject({
+      prNumber: 42,
+      mergeable: null,
+      checksRunning: 0,
+      checksPassed: 0,
+    })
 
     releaseFill(REST_FIELDS)
     await handled
@@ -165,7 +170,10 @@ describe('GithubDeliveryService fanout', () => {
     await advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch).toHaveLength(0)
-    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      headBranch: 'dennis/add-the-thing',
+    })
   })
 
   it('a pull_request with a deleted head repo never branch-routes', async () => {

@@ -13,12 +13,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [
-        "bin/**",
-        "dist/**",
-        ".next/**",
-        "storybook-static/**"
-      ]
+      "outputs": ["bin/**", "dist/**", ".next/**", "storybook-static/**"]
     }
   }
 }

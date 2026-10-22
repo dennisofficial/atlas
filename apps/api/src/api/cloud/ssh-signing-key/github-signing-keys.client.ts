@@ -35,7 +35,8 @@ function unexpected(args: { operation: string; status: number }): BadGatewayExce
   return new BadGatewayException(`github ${args.operation} failed with status ${args.status}`)
 }
 
-const isScopeRefusal = (status: number): boolean => status === 401 || status === 403 || status === 404
+const isScopeRefusal = (status: number): boolean =>
+  status === 401 || status === 403 || status === 404
 
 export class GithubSigningKeysClient {
   private readonly fetchFn: FetchFn
@@ -86,7 +87,8 @@ export class GithubSigningKeysClient {
       token: args.token,
     })
     if (isScopeRefusal(response.status)) throw new SigningScopeMissing()
-    if (!response.ok) throw unexpected({ operation: 'signing key listing', status: response.status })
+    if (!response.ok)
+      throw unexpected({ operation: 'signing key listing', status: response.status })
     const listed = await readJson(response)
     const match = Array.isArray(listed)
       ? listed.map(asRecord).find((entry) => sameKey({ listed: entry.key, wanted: args.key }))
@@ -122,5 +124,8 @@ export class GithubSigningKeysClient {
 
 function sameKey(args: { listed: unknown; wanted: string }): boolean {
   if (typeof args.listed !== 'string') return false
-  return args.listed.trim().split(/\s+/).slice(0, 2).join(' ') === args.wanted.trim().split(/\s+/).slice(0, 2).join(' ')
+  return (
+    args.listed.trim().split(/\s+/).slice(0, 2).join(' ') ===
+    args.wanted.trim().split(/\s+/).slice(0, 2).join(' ')
+  )
 }

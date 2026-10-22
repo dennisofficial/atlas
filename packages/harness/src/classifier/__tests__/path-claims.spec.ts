@@ -140,13 +140,17 @@ describe('a tool that declares it touches no path of its own', () => {
 describe('a tool that never said which paths it touches', () => {
   it('stays a candidate and keeps the blast signal that says so', () => {
     const tools = [declarationOf({ name: 'mystery', effect: EToolEffect.Destructive })]
-    const call = callTo({ name: 'mystery', input: { target: 'x' }, effect: EToolEffect.Destructive })
+    const call = callTo({
+      name: 'mystery',
+      input: { target: 'x' },
+      effect: EToolEffect.Destructive,
+    })
     const facts = factsInAWorktree()
 
     expect(candidacyOf({ tools, call, facts })).toBe(ECandidacy.Candidate)
-    expect(signalsFor({ evidence: evidenceOf({ tools, call, facts }) }).map((one) => one.id)).toContain(
-      'blast:undeclared-paths',
-    )
+    expect(
+      signalsFor({ evidence: evidenceOf({ tools, call, facts }) }).map((one) => one.id),
+    ).toContain('blast:undeclared-paths')
   })
 })
 

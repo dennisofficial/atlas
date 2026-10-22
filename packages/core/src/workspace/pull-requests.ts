@@ -30,8 +30,7 @@ const linked = (link: Link): LinkedPullRequest => ({
   linkedBy: link.threadId,
 })
 
-const identityOf = (link: { repo: string; number: number }): string =>
-  `${link.repo}#${link.number}`
+const identityOf = (link: { repo: string; number: number }): string => `${link.repo}#${link.number}`
 
 const fold = (links: readonly Link[], into: Map<string, LinkedPullRequest>): void => {
   for (const link of links) into.set(identityOf(link), linked(link))
@@ -44,7 +43,10 @@ const fold = (links: readonly Link[], into: Map<string, LinkedPullRequest>): voi
  */
 export function pullRequestsOf(events: readonly Event[]): readonly LinkedPullRequest[] {
   const byIdentity = new Map<string, LinkedPullRequest>()
-  fold(events.filter((event): event is Event & Link => event.type === 'pull-request-linked'), byIdentity)
+  fold(
+    events.filter((event): event is Event & Link => event.type === 'pull-request-linked'),
+    byIdentity,
+  )
   return [...byIdentity.values()]
 }
 
@@ -61,5 +63,3 @@ export function pullRequestsAfter(args: {
   fold(drafts, byIdentity)
   return [...byIdentity.values()]
 }
-
-

@@ -25,7 +25,12 @@ import type { TurnSpendTally } from '../ledger/record-turn-spend'
 import type { SettlePending } from './settle-pending'
 import { appendShellCompletionNudge } from './shell-completion'
 import { draftsFor, interruptedDrafts } from './step-drafts'
-import { oncePerTurnCompact, prepareStepAssembly, preparedFailureMessage, type StepPrepareDeps } from './step-prepare'
+import {
+  oncePerTurnCompact,
+  prepareStepAssembly,
+  preparedFailureMessage,
+  type StepPrepareDeps,
+} from './step-prepare'
 import { nudgeSilentStep, swallowedReport } from './turn-faults'
 import { committedSinceLastMessage, messageArrivedSince, settlePendingCall } from './turn-position'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
@@ -100,7 +105,11 @@ export async function runTrackedTurn(
     countTokens: deps.countTokens,
     hooks: deps.hooks,
     onContext: deps.onContext,
-    compact: oncePerTurnCompact({ compact: deps.compact, atPercent: deps.autoCompactAtPercent, position }),
+    compact: oncePerTurnCompact({
+      compact: deps.compact,
+      atPercent: deps.autoCompactAtPercent,
+      position,
+    }),
   }
 
   const interrupted = async (): Promise<TurnOutcome> => ({
@@ -132,7 +141,8 @@ export async function runTrackedTurn(
       settleAttempted: position.settleAttempted,
       signal: abortSignal,
     })
-    if (settled.kind === 'paused') return { status: ETurnStatus.Paused, runId, callId: settled.callId, reason: settled.reason }
+    if (settled.kind === 'paused')
+      return { status: ETurnStatus.Paused, runId, callId: settled.callId, reason: settled.reason }
     if (settled.kind === 'stalled') {
       return { status: ETurnStatus.Failed, runId, message: settled.message, cause: settled.cause }
     }
@@ -142,7 +152,13 @@ export async function runTrackedTurn(
       continue
     }
 
-    const intake = await appendPending({ drain: deps.drainPending, log, ids, threadId, signal: abortSignal })
+    const intake = await appendPending({
+      drain: deps.drainPending,
+      log,
+      ids,
+      threadId,
+      signal: abortSignal,
+    })
     if (!intake.ok) {
       if (abortSignal.aborted) return interrupted()
       throw intake.cause
@@ -168,10 +184,18 @@ export async function runTrackedTurn(
       continue
     }
 
-    if (!awaitsReply(owned) && !messageArrivedSince({ events: owned, seenThrough: position.seenThrough })) {
+    if (
+      !awaitsReply(owned) &&
+      !messageArrivedSince({ events: owned, seenThrough: position.seenThrough })
+    ) {
       const swallowed = position.committedCalls.at(-1)
       if (swallowed !== undefined) {
-        return { status: ETurnStatus.Failed, runId, message: swallowedReport(swallowed), cause: swallowed }
+        return {
+          status: ETurnStatus.Failed,
+          runId,
+          message: swallowedReport(swallowed),
+          cause: swallowed,
+        }
       }
       return { status: ETurnStatus.Idle, runId }
     }
@@ -199,16 +223,32 @@ export async function runTrackedTurn(
     let preparedThrough = position.seenThrough
 
     const prepareAttempt = async () => {
-      const retryIntake = await appendPending({ drain: deps.drainPending, log, ids, threadId, signal: abortSignal })
+      const retryIntake = await appendPending({
+        drain: deps.drainPending,
+        log,
+        ids,
+        threadId,
+        signal: abortSignal,
+      })
       if (!retryIntake.ok) throw retryIntake.cause
       const latest = await log.read({ threadId })
       preparedThrough = rowsOwnedBy({ events: latest, threadId }).at(-1)?.seq
-      const prepared = await prepareStepAssembly(preparedAssembly, { threadId, events: latest, step: position.modelSteps, previous: undefined })
+      const prepared = await prepareStepAssembly(preparedAssembly, {
+        threadId,
+        events: latest,
+        step: position.modelSteps,
+        previous: undefined,
+      })
       if (prepared.ok && 'assembled' in prepared) position.previous = prepared.assembled
       return prepared
     }
 
-    const prepared = await prepareStepAssembly(preparedAssembly, { threadId, events, step: position.modelSteps, previous: position.previous })
+    const prepared = await prepareStepAssembly(preparedAssembly, {
+      threadId,
+      events,
+      step: position.modelSteps,
+      previous: position.previous,
+    })
     if (!prepared.ok) {
       const { message, cause } = preparedFailureMessage(prepared)
       return { status: ETurnStatus.Failed, runId, message, cause }
@@ -285,7 +325,13 @@ export async function runTrackedTurn(
       continue
     }
 
-    const speech = await appendPending({ drain: deps.drainPending, log, ids, threadId, signal: abortSignal })
+    const speech = await appendPending({
+      drain: deps.drainPending,
+      log,
+      ids,
+      threadId,
+      signal: abortSignal,
+    })
     if (!speech.ok) {
       if (abortSignal.aborted) return interrupted()
       throw speech.cause

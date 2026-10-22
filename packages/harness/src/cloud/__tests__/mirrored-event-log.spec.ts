@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { toEventId, toRunId, type Event, type EventDraft, type EventEnvelope, type ThreadId } from '@dltech/atlas-core'
+import {
+  toEventId,
+  toRunId,
+  type Event,
+  type EventDraft,
+  type EventEnvelope,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { EServeFrame } from '@dltech/atlas-wire'
 
 import { EClientRequest } from '../channel-wire'
 import { MirroredEventLog } from '../mirrored-event-log'
 import { mirrorWriter, type MirrorWriter } from '../mirror-writer'
-import type { RemoteDeltaChannel } from '../remote-delta-channel'
 import type { MirrorLocalLog } from '../transcript-syncer'
 import { openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { OTHER_THREAD, readied, THREAD } from './remote-channel-fixture'
@@ -116,9 +122,9 @@ describe('MirroredEventLog', () => {
     await expect(
       log.append({ threadId, runId: toRunId('run_x'), drafts: [{ type: 'user-said', text: 'x' }] }),
     ).rejects.toThrow('the sandbox owns the transcript while the session runs there')
-    await expect(
-      log.replace({ threadId, runId: toRunId('run_x'), drafts: [] }),
-    ).rejects.toThrow('the sandbox owns the transcript while the session runs there')
+    await expect(log.replace({ threadId, runId: toRunId('run_x'), drafts: [] })).rejects.toThrow(
+      'the sandbox owns the transcript while the session runs there',
+    )
   })
 
   it('a kick after a remote append lands the delta, and a later local read shows it', async () => {
@@ -168,7 +174,9 @@ describe('a read for a thread the mirror does not own', () => {
     return { localCalls, requests, log }
   }
 
-  const childEvents = () => [remoteEvent({ threadId: OTHER_THREAD, seq: 1, text: 'from the child' })]
+  const childEvents = () => [
+    remoteEvent({ threadId: OTHER_THREAD, seq: 1, text: 'from the child' }),
+  ]
 
   it('readOwn issues ReadEvents with the own flag and returns the served events', async () => {
     const { localCalls, requests, log } = served({ events: childEvents() })
@@ -179,7 +187,11 @@ describe('a read for a thread the mirror does not own', () => {
       { op: EClientRequest.ReadEvents, params: { threadId: OTHER_THREAD, own: true } },
     ])
     expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({ id: 'remote-evt-1', type: 'user-said', text: 'from the child' })
+    expect(events[0]).toMatchObject({
+      id: 'remote-evt-1',
+      type: 'user-said',
+      text: 'from the child',
+    })
     expect(localCalls).toEqual([])
   })
 

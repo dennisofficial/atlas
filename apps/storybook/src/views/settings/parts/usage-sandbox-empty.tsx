@@ -1,4 +1,4 @@
-import { ServerIcon } from "lucide-react";
+import { ServerIcon } from 'lucide-react'
 
 import {
   Empty,
@@ -6,7 +6,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@dltech/atlas-ui/components/empty";
+} from '@dltech/atlas-ui/components/empty'
 
 export function UsageSandboxEmpty() {
   return (
@@ -21,5 +21,5 @@ export function UsageSandboxEmpty() {
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-  );
+  )
 }

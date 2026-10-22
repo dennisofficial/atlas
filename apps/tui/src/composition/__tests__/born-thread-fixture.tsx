@@ -7,7 +7,6 @@ import { ESettingId } from '@dltech/atlas-core'
 import { CloudClient } from '@dltech/atlas-harness'
 import { EShipBehavior, type Project } from '@dltech/atlas-wire'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
@@ -18,7 +17,12 @@ import { fakeApp, fakeCloud, fakeSignedOutCloud, scriptedModelPort, type FakeApp
 
 export const ACME_ORIGIN = 'https://github.com/acme/widgets.git'
 
-export const projectOf = (args: { id: string; name?: string; repo: string | null; updatedAt?: string }): Project => ({
+export const projectOf = (args: {
+  id: string
+  name?: string
+  repo: string | null
+  updatedAt?: string
+}): Project => ({
   id: args.id,
   name: args.name ?? args.id,
   repo: args.repo,
@@ -30,24 +34,38 @@ export const projectOf = (args: { id: string; name?: string; repo: string | null
   updatedAt: args.updatedAt ?? '2026-01-01T00:00:00.000Z',
 })
 
-export type CreatedProject = { name: string; repo: string | null; baseBranch: string | null; additionalRepos: unknown[] }
+export type CreatedProject = {
+  name: string
+  repo: string | null
+  baseBranch: string | null
+  additionalRepos: unknown[]
+}
 
 export type FakeProjectsApi = { client: CloudClient; created: CreatedProject[] }
 
 export const fakeProjectsApi = (
-  args: { projects?: readonly Project[]; listFails?: boolean; createFails?: boolean; listGate?: Promise<void> } = {},
+  args: {
+    projects?: readonly Project[]
+    listFails?: boolean
+    createFails?: boolean
+    listGate?: Promise<void>
+  } = {},
 ): FakeProjectsApi => {
-  const projects = args.projects ?? [projectOf({ id: 'proj-acme', name: 'widgets', repo: 'acme/widgets' })]
+  const projects = args.projects ?? [
+    projectOf({ id: 'proj-acme', name: 'widgets', repo: 'acme/widgets' }),
+  ]
   const created: CreatedProject[] = []
   const fetchFn = (async (_url: string, init?: RequestInit) => {
     if (init?.method === 'POST') {
-      if (args.createFails === true) return Response.json({ message: 'projects are read-only' }, { status: 400 })
+      if (args.createFails === true)
+        return Response.json({ message: 'projects are read-only' }, { status: 400 })
       const body = JSON.parse(String(init.body)) as CreatedProject
       created.push(body)
       return Response.json(projectOf({ id: 'proj-new', name: body.name, repo: body.repo }))
     }
     await args.listGate
-    if (args.listFails === true) return Response.json({ message: 'projects are down' }, { status: 400 })
+    if (args.listFails === true)
+      return Response.json({ message: 'projects are down' }, { status: 400 })
     return Response.json(projects)
   }) as unknown as typeof fetch
   return { client: new CloudClient({ url: 'https://cloud.test', token: 'test', fetchFn }), created }
@@ -56,7 +74,8 @@ export const fakeProjectsApi = (
 export const launchDirWith = (origin: string | null): string => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-born-thread-spec-'))
   if (origin === null) return dir
-  const git = (...gitArgs: string[]): void => void execFileSync('git', gitArgs, { cwd: dir, stdio: 'ignore' })
+  const git = (...gitArgs: string[]): void =>
+    void execFileSync('git', gitArgs, { cwd: dir, stdio: 'ignore' })
   git('init', '-q')
   git('remote', 'add', 'origin', origin)
   git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main')
@@ -80,7 +99,9 @@ export const bornThreadApp = (args: {
     settings: {
       values: {
         [ESettingId.Accent]: 'clay',
-        ...(args.vercel === true ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' } : {}),
+        ...(args.vercel === true
+          ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' }
+          : {}),
         ...(args.shape === undefined ? {} : { [ESettingId.PlacementChooserShape]: args.shape }),
       },
     },

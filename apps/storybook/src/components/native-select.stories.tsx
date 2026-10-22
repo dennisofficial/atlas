@@ -1,22 +1,22 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Field, FieldLabel } from "@dltech/atlas-ui/components/field";
+import { Field, FieldLabel } from '@dltech/atlas-ui/components/field'
 import {
   NativeSelect,
   NativeSelectOptGroup,
   NativeSelectOption,
-} from "@dltech/atlas-ui/components/native-select";
+} from '@dltech/atlas-ui/components/native-select'
 
 const meta = {
-  title: "Components/Native Select",
+  title: 'Components/Native Select',
   component: NativeSelect,
-  argTypes: { size: { control: "inline-radio", options: ["default", "sm"] } },
-  args: { size: "default" },
-} satisfies Meta<typeof NativeSelect>;
+  argTypes: { size: { control: 'inline-radio', options: ['default', 'sm'] } },
+  args: { size: 'default' },
+} satisfies Meta<typeof NativeSelect>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -30,7 +30,7 @@ export const Default: Story = {
       </NativeSelect>
     </Field>
   ),
-};
+}
 
 export const Grouped: Story = {
   render: (args) => (
@@ -44,7 +44,7 @@ export const Grouped: Story = {
       </NativeSelectOptGroup>
     </NativeSelect>
   ),
-};
+}
 
 export const Disabled: Story = {
   render: (args) => (
@@ -52,7 +52,7 @@ export const Disabled: Story = {
       <NativeSelectOption>claude-opus</NativeSelectOption>
     </NativeSelect>
   ),
-};
+}
 
 export const Invalid: Story = {
   render: (args) => (
@@ -60,4 +60,4 @@ export const Invalid: Story = {
       <NativeSelectOption value="">Select a model</NativeSelectOption>
     </NativeSelect>
   ),
-};
+}

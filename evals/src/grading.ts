@@ -10,7 +10,11 @@ export class ScoringError extends Error {
   readonly kind: EScoreErrorKind
   readonly evaluatorId: string
 
-  constructor({ kind, evaluatorId, message }: { kind: EScoreErrorKind; evaluatorId: string; message: string }) {
+  constructor({
+    kind,
+    evaluatorId,
+    message,
+  }: { kind: EScoreErrorKind; evaluatorId: string; message: string }) {
     super(message)
     this.name = 'ScoringError'
     this.kind = kind
@@ -18,7 +22,13 @@ export class ScoringError extends Error {
   }
 }
 
-export function validateGrade({ evaluatorId, grade }: { evaluatorId: string; grade: EvaluatorGrade }): number {
+export function validateGrade({
+  evaluatorId,
+  grade,
+}: {
+  evaluatorId: string
+  grade: EvaluatorGrade
+}): number {
   const score: unknown = grade.score
   if (typeof score !== 'number') {
     throw new ScoringError({

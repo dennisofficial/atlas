@@ -56,16 +56,29 @@ export async function assertOutputDirAbsent({ outputDir }: { outputDir: string }
   if (exists) throw new Error('output directory already exists')
 }
 
-const digestOrNull = (text: string | null): string | null => (text === null ? null : sha256Hex({ text }))
+const digestOrNull = (text: string | null): string | null =>
+  text === null ? null : sha256Hex({ text })
 
 type Verdict = { example: ExportedExample } | { rejection: Omit<ExportRejection, 'session'> }
 
-function ambiguityOf({ redacted, originalEvidenceIds }: { redacted: RedactedRecord; originalEvidenceIds: readonly string[] }): string | null {
+function ambiguityOf({
+  redacted,
+  originalEvidenceIds,
+}: {
+  redacted: RedactedRecord
+  originalEvidenceIds: readonly string[]
+}): string | null {
   const ids = redacted.scope.evidence.map((entry) => entry.id)
-  if (new Set(ids).size !== new Set(originalEvidenceIds).size) return 'redaction merged distinct evidence ids'
+  if (new Set(ids).size !== new Set(originalEvidenceIds).size)
+    return 'redaction merged distinct evidence ids'
   const { scope } = redacted
-  const rendered = renderScopeDiff({ path: redacted.path, before: scope.before, after: scope.after })
-  if (rendered !== scope.diff) return 'redacted diff no longer matches the redacted before and after text'
+  const rendered = renderScopeDiff({
+    path: redacted.path,
+    before: scope.before,
+    after: scope.after,
+  })
+  if (rendered !== scope.diff)
+    return 'redacted diff no longer matches the redacted before and after text'
   return null
 }
 
@@ -82,7 +95,13 @@ async function evaluateFile({
   try {
     rawText = await readFile(file.path, 'utf8')
   } catch {
-    return { rejection: { captureId: null, kind: EExportRejection.SchemaInvalid, detail: 'file is not readable' } }
+    return {
+      rejection: {
+        captureId: null,
+        kind: EExportRejection.SchemaInvalid,
+        detail: 'file is not readable',
+      },
+    }
   }
   const captureId = basename(file.path, '.json')
   const parsed = parseSinkRecord({ rawText, fileStem: captureId, threadId: file.threadId })
@@ -100,10 +119,15 @@ async function evaluateFile({
     })
   }
   const { redacted } = outcome
-  const ambiguity = ambiguityOf({ redacted, originalEvidenceIds: record.evidence.map((entry) => entry.id) })
-  if (ambiguity !== null) return rejected({ kind: EExportRejection.RedactionUnstable, detail: ambiguity })
+  const ambiguity = ambiguityOf({
+    redacted,
+    originalEvidenceIds: record.evidence.map((entry) => entry.id),
+  })
+  if (ambiguity !== null)
+    return rejected({ kind: EExportRejection.RedactionUnstable, detail: ambiguity })
   const reparseProblem = deps.reparse({ path: redacted.path, scope: redacted.scope })
-  if (reparseProblem !== null) return rejected({ kind: EExportRejection.AdapterMismatch, detail: reparseProblem })
+  if (reparseProblem !== null)
+    return rejected({ kind: EExportRejection.AdapterMismatch, detail: reparseProblem })
 
   const redactedDigests: ScopeDigests = {
     beforeSha256: digestOrNull(redacted.scope.before),
@@ -121,7 +145,10 @@ async function evaluateFile({
       path: redacted.path,
       policies: record.policies,
       scope: redacted.scope,
-      digests: { original: { beforeSha256: record.hashes.before, afterSha256: record.hashes.after }, redacted: redactedDigests },
+      digests: {
+        original: { beforeSha256: record.hashes.before, afterSha256: record.hashes.after },
+        redacted: redactedDigests,
+      },
       redaction: redacted.redaction,
     },
   }
@@ -151,7 +178,12 @@ export async function exportExamples({
     const session = basename(sessionDir)
     const files = await listExampleFiles({ sessionDir })
     if (files.length === 0) {
-      rejections.push({ session, captureId: null, kind: EExportRejection.NoExamples, detail: 'no captured examples found' })
+      rejections.push({
+        session,
+        captureId: null,
+        kind: EExportRejection.NoExamples,
+        detail: 'no captured examples found',
+      })
       continue
     }
     for (const file of files) {
@@ -161,7 +193,12 @@ export async function exportExamples({
         continue
       }
       if (seenCaptureIds.has(verdict.example.captureId)) {
-        rejections.push({ session, captureId: verdict.example.captureId, kind: EExportRejection.SchemaInvalid, detail: 'duplicate captureId' })
+        rejections.push({
+          session,
+          captureId: verdict.example.captureId,
+          kind: EExportRejection.SchemaInvalid,
+          detail: 'duplicate captureId',
+        })
         continue
       }
       seenCaptureIds.add(verdict.example.captureId)

@@ -68,7 +68,13 @@ export class PublishedBundlesService {
     const blob = await this.blobs.head({ pathname })
     if (blob === null) throw new BadRequestException('no uploaded bundle at this pathname')
     if (await db.orm.public.PublishedBundle.first({ pathname })) throw alreadyCommitted()
-    const data = { pathname, sha256, manifest: manifest.data, blobUrl: blob.url, sizeBytes: blob.size }
+    const data = {
+      pathname,
+      sha256,
+      manifest: manifest.data,
+      blobUrl: blob.url,
+      sizeBytes: blob.size,
+    }
     const row = await this.insertNextVersion({ userId: args.userId, data, retries: 1 })
     return summaryOf(row)
   }

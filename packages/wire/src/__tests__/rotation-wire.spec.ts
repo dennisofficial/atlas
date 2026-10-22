@@ -20,7 +20,11 @@ describe('rotation wire schemas', () => {
   })
 
   it('round-trips a rotate request with and without instructions', () => {
-    const withText = { threadId: threadIdWireSchema.parse('thread-1'), operationId: 'op-1', instructions: 'keep auth' }
+    const withText = {
+      threadId: threadIdWireSchema.parse('thread-1'),
+      operationId: 'op-1',
+      instructions: 'keep auth',
+    }
     const bare = { threadId: threadIdWireSchema.parse('thread-1'), operationId: 'op-2' }
 
     expect(rotateRequestParamsSchema.parse(JSON.parse(JSON.stringify(withText)))).toEqual(withText)
@@ -46,13 +50,22 @@ describe('rotation wire schemas', () => {
   })
 
   it('accepts a failed state with a null or absent reason', () => {
-    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Failed, reason: null }).success).toBe(true)
-    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Summarising }).success).toBe(true)
+    expect(
+      rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Failed, reason: null }).success,
+    ).toBe(true)
+    expect(
+      rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Summarising }).success,
+    ).toBe(true)
   })
 
   it('refuses a negative watermark and drops a stale successor field', () => {
-    expect(rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Done, watermarkSeq: -1 }).success).toBe(false)
-    expect(rotationStateWireSchema.parse({ phase: EWireRotationPhase.Done, successor: 'thread-2' })).toEqual({
+    expect(
+      rotationStateWireSchema.safeParse({ phase: EWireRotationPhase.Done, watermarkSeq: -1 })
+        .success,
+    ).toBe(false)
+    expect(
+      rotationStateWireSchema.parse({ phase: EWireRotationPhase.Done, successor: 'thread-2' }),
+    ).toEqual({
       phase: EWireRotationPhase.Done,
     })
   })
@@ -76,7 +89,10 @@ describe('the rotation-changed signal', () => {
     const frame: ServeFrame = {
       kind: EServeFrame.Signal,
       seq: 7,
-      signal: { type: 'rotation-changed', rotation: { phase: EWireRotationPhase.Failed, reason: 'no room' } },
+      signal: {
+        type: 'rotation-changed',
+        rotation: { phase: EWireRotationPhase.Failed, reason: 'no room' },
+      },
     }
 
     expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)

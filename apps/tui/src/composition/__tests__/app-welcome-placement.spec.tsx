@@ -16,7 +16,9 @@ describe('the welcome hero placement shape', () => {
     const mounted = await mountUnborn({ app: bornThreadApp({ shape: 'hero' }) })
 
     try {
-      expect(await mounted.frameHolds((frame) => frame.includes('· pod') && frame.includes(RUNNER_HINT))).toBe(true)
+      expect(
+        await mounted.frameHolds((frame) => frame.includes('· pod') && frame.includes(RUNNER_HINT)),
+      ).toBe(true)
     } finally {
       await mounted.done()
     }
@@ -31,7 +33,9 @@ describe('the welcome hero placement shape', () => {
       await mounted.command('hello from the hero')
 
       expect(
-        await mounted.frameHolds((frame) => !frame.includes(RUNNER_HINT) && !frame.includes('pod ▾')),
+        await mounted.frameHolds(
+          (frame) => !frame.includes(RUNNER_HINT) && !frame.includes('pod ▾'),
+        ),
       ).toBe(true)
     } finally {
       await mounted.done()
@@ -60,7 +64,9 @@ describe('the welcome hero placement shape', () => {
       await mounted.flipChip()
 
       expect(await mounted.frameHolds((frame) => frame.includes('· ☁ cloud'))).toBe(true)
-      expect(await until({ holds: async () => mounted.bridge.created.length === 0, within: 1_000 })).toBe(true)
+      expect(
+        await until({ holds: async () => mounted.bridge.created.length === 0, within: 1_000 }),
+      ).toBe(true)
     } finally {
       await mounted.done()
     }

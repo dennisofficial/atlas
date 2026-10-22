@@ -25,7 +25,11 @@ export function modelsWorthOffering(args: {
   reachable: readonly string[]
 }): ModelOffer {
   const ranked = args.reachable
-    .map((candidate, at) => ({ candidate, at, near: closeness({ candidate, typed: args.modelId }) }))
+    .map((candidate, at) => ({
+      candidate,
+      at,
+      near: closeness({ candidate, typed: args.modelId }),
+    }))
     .sort((left, right) => right.near - left.near || left.at - right.at)
     .map((entry) => entry.candidate)
 

@@ -57,7 +57,9 @@ export function parseCapabilities(result: McpJson | undefined): McpCapabilities 
     tools: capabilities['tools'] !== undefined,
     prompts: capabilities['prompts'] !== undefined,
     resources: capabilities['resources'] !== undefined,
-    ...(typeof envelope['instructions'] === 'string' ? { instructions: envelope['instructions'] } : {}),
+    ...(typeof envelope['instructions'] === 'string'
+      ? { instructions: envelope['instructions'] }
+      : {}),
   }
 }
 
@@ -65,7 +67,9 @@ const parseToolEntry = (entry: McpJson): McpToolInfo => {
   const raw = asRecord(entry) ?? {}
   return {
     name: typeof raw['name'] === 'string' ? raw['name'] : '',
-    ...(raw['description'] !== undefined ? { description: raw['description'] as unknown as string } : {}),
+    ...(raw['description'] !== undefined
+      ? { description: raw['description'] as unknown as string }
+      : {}),
     ...(raw['inputSchema'] !== undefined ? { inputSchema: raw['inputSchema'] } : {}),
     ...(raw['annotations'] !== undefined ? { annotations: raw['annotations'] } : {}),
   }
@@ -81,7 +85,9 @@ export function parseToolResult(result: McpJson | undefined): McpToolResult {
   const envelope = asRecord(result) ?? {}
   return {
     ...(envelope['content'] !== undefined ? { content: envelope['content'] } : {}),
-    ...(envelope['structuredContent'] !== undefined ? { structuredContent: envelope['structuredContent'] } : {}),
+    ...(envelope['structuredContent'] !== undefined
+      ? { structuredContent: envelope['structuredContent'] }
+      : {}),
     ...(typeof envelope['isError'] === 'boolean' ? { isError: envelope['isError'] } : {}),
   }
 }

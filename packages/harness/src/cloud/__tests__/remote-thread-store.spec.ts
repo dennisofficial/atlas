@@ -28,29 +28,30 @@ type ModelChangedListener = Parameters<RemoteDeltaChannel['onThreadModelChanged'
 
 const harness = (replies: Record<string, unknown>) => {
   const calls: Call[] = []
-  const pushes: { renamed: RenamedListener | undefined; modelChanged: ModelChangedListener | undefined } = {
+  const pushes: {
+    renamed: RenamedListener | undefined
+    modelChanged: ModelChangedListener | undefined
+  } = {
     renamed: undefined,
     modelChanged: undefined,
   }
-  const channel: Pick<
-    RemoteDeltaChannel,
-    'request' | 'onThreadRenamed' | 'onThreadModelChanged'
-  > = {
-    request: async (args: { op: EClientRequest; params: unknown }) => {
-      calls.push({ op: args.op, params: args.params })
-      const reply = replies[args.op]
-      if (reply instanceof Error) throw reply
-      return reply ?? {}
-    },
-    onThreadRenamed: (listener) => {
-      pushes.renamed = listener
-      return () => undefined
-    },
-    onThreadModelChanged: (listener) => {
-      pushes.modelChanged = listener
-      return () => undefined
-    },
-  }
+  const channel: Pick<RemoteDeltaChannel, 'request' | 'onThreadRenamed' | 'onThreadModelChanged'> =
+    {
+      request: async (args: { op: EClientRequest; params: unknown }) => {
+        calls.push({ op: args.op, params: args.params })
+        const reply = replies[args.op]
+        if (reply instanceof Error) throw reply
+        return reply ?? {}
+      },
+      onThreadRenamed: (listener) => {
+        pushes.renamed = listener
+        return () => undefined
+      },
+      onThreadModelChanged: (listener) => {
+        pushes.modelChanged = listener
+        return () => undefined
+      },
+    }
   return { store: new RemoteThreadStore({ channel }), calls, pushes }
 }
 
@@ -181,7 +182,9 @@ describe('RemoteThreadStore', () => {
 
   it('chooseModel does not fire its listeners when a retargeting request is refused', async () => {
     const { store } = harness({
-      [EClientRequest.SetThreadModel]: new Error('the sandbox refused the set-thread-model request'),
+      [EClientRequest.SetThreadModel]: new Error(
+        'the sandbox refused the set-thread-model request',
+      ),
     })
     const heard: unknown[] = []
     store.onModelChosen((chosen) => void heard.push(chosen))
@@ -194,7 +197,9 @@ describe('RemoteThreadStore', () => {
 
   it('chooseModel does not fire its listeners when the sandbox refuses the op', async () => {
     const { store } = harness({
-      [EClientRequest.SetThreadModel]: new Error('the sandbox refused the set-thread-model request'),
+      [EClientRequest.SetThreadModel]: new Error(
+        'the sandbox refused the set-thread-model request',
+      ),
     })
     const heard: unknown[] = []
     store.onModelChosen((chosen) => void heard.push(chosen))

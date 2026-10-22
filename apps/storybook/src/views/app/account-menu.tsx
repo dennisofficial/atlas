@@ -10,12 +10,9 @@ import {
   LogOut,
   Megaphone,
   Users,
-} from "lucide-react";
+} from 'lucide-react'
 
-import {
-  Avatar,
-  AvatarFallback,
-} from "@dltech/atlas-ui/components/avatar";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,14 +23,14 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
-import { Kbd, KbdGroup } from "@dltech/atlas-ui/components/kbd";
-import { SidebarMenuButton } from "@dltech/atlas-ui/components/sidebar";
+} from '@dltech/atlas-ui/components/dropdown-menu'
+import { Kbd, KbdGroup } from '@dltech/atlas-ui/components/kbd'
+import { SidebarMenuButton } from '@dltech/atlas-ui/components/sidebar'
 
-import { USER, WORKSPACE } from "../../fixtures/app";
+import { USER, WORKSPACE } from '../../fixtures/app'
 
 export interface AccountMenuProps {
-  defaultOpen?: boolean;
+  defaultOpen?: boolean
 }
 
 function Keys({ keys }: { keys: string[] }) {
@@ -43,11 +40,11 @@ function Keys({ keys }: { keys: string[] }) {
         <Kbd key={key}>{key}</Kbd>
       ))}
     </KbdGroup>
-  );
+  )
 }
 
 function External() {
-  return <ArrowUpRight className="ml-auto text-muted-foreground" />;
+  return <ArrowUpRight className="ml-auto text-muted-foreground" />
 }
 
 function WorkspaceTile() {
@@ -55,7 +52,7 @@ function WorkspaceTile() {
     <span className="flex size-4 items-center justify-center rounded-sm bg-primary font-display text-[10px] leading-none font-semibold text-primary-foreground">
       {WORKSPACE.initials}
     </span>
-  );
+  )
 }
 
 function UserAvatar() {
@@ -63,7 +60,7 @@ function UserAvatar() {
     <span className="flex size-4 items-center justify-center rounded-full bg-muted font-sans text-[8px] leading-none text-muted-foreground">
       {USER.initials}
     </span>
-  );
+  )
 }
 
 export function AccountMenu({ defaultOpen }: AccountMenuProps) {
@@ -80,12 +77,7 @@ export function AccountMenu({ defaultOpen }: AccountMenuProps) {
         <span className="flex-1 truncate">{USER.name}</span>
         <ChevronsUpDown className="ml-auto text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side="top"
-        align="start"
-        sideOffset={6}
-        className="w-60"
-      >
+      <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-60">
         <DropdownMenuGroup>
           <DropdownMenuItem>
             <LogOut />
@@ -119,12 +111,12 @@ export function AccountMenu({ defaultOpen }: AccountMenuProps) {
           <DropdownMenuItem>
             <Keyboard />
             Keymap
-            <Keys keys={["?"]} />
+            <Keys keys={['?']} />
           </DropdownMenuItem>
           <DropdownMenuItem>
             <Command />
             Command palette
-            <Keys keys={["⌘", "K"]} />
+            <Keys keys={['⌘', 'K']} />
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -132,7 +124,7 @@ export function AccountMenu({ defaultOpen }: AccountMenuProps) {
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Users />
-            Switch account
+              Switch account
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-52">
               <DropdownMenuItem>
@@ -152,15 +144,15 @@ export function AccountMenu({ defaultOpen }: AccountMenuProps) {
           <DropdownMenuItem>
             <WorkspaceTile />
             {WORKSPACE.name} settings
-            <Keys keys={["⌥", "⌘", ","]} />
+            <Keys keys={['⌥', '⌘', ',']} />
           </DropdownMenuItem>
           <DropdownMenuItem>
             <UserAvatar />
             Personal settings
-            <Keys keys={["⌘", ","]} />
+            <Keys keys={['⌘', ',']} />
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }

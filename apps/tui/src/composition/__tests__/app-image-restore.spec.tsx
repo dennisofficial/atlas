@@ -260,9 +260,7 @@ describe('a restored draft with a pasted block', () => {
         holds: async () => {
           await mounted.frame()
           const events = await mounted.app.log.read({ threadId: THREAD })
-          return events.some(
-            (event) => event.type === 'user-said' && event.text.includes('four'),
-          )
+          return events.some((event) => event.type === 'user-said' && event.text.includes('four'))
         },
         within: 20_000,
       })

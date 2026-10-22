@@ -34,13 +34,19 @@ export function rowSpans(args: {
   cells: number
 }): Span[] {
   const gap = ' '.repeat(COLUMN_GAP)
-  const labelCells = Math.max(MIN_LABEL_CELLS, args.cells - PREFIX_CELLS - SIZE_CELLS - TAG_CELLS - COLUMN_GAP * 2)
+  const labelCells = Math.max(
+    MIN_LABEL_CELLS,
+    args.cells - PREFIX_CELLS - SIZE_CELLS - TAG_CELLS - COLUMN_GAP * 2,
+  )
   const emphasised = args.current || args.hovered
 
   return [
     { text: `${args.current ? glyph.selected : ' '} `, fg: theme.accent },
     { text: args.selected ? '[x] ' : '[ ] ', fg: args.selected ? theme.accent : theme.dim },
-    { text: fit({ text: args.row.item.label, cells: labelCells }), fg: emphasised ? theme.bright : theme.body },
+    {
+      text: fit({ text: args.row.item.label, cells: labelCells }),
+      fg: emphasised ? theme.bright : theme.body,
+    },
     { text: `${gap}${formatSize(args.row.item.bytes).padStart(SIZE_CELLS)}`, fg: theme.meta },
     { text: `${gap}${args.row.status}`, fg: statusColour(args.row.status) },
     { text: ' '.repeat(Math.max(0, TAG_CELLS - args.row.status.length)) },

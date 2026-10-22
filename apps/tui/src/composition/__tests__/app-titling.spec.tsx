@@ -195,7 +195,9 @@ describe('naming a session from its opening message', () => {
       await setup.mockInput.typeText(OPENING)
       setup.mockInput.pressEnter()
 
-      expect(await until({ holds: async () => (await frame()).includes(NAME), within: WITHIN_MS })).toBe(true)
+      expect(
+        await until({ holds: async () => (await frame()).includes(NAME), within: WITHIN_MS }),
+      ).toBe(true)
 
       await setup.mockInput.typeText('/new')
       setup.mockInput.pressEnter()
@@ -214,7 +216,10 @@ describe('naming a session from its opening message', () => {
   it('heads the sidebar with the name once it lands', async () => {
     const app = naming(NAME)
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+      />,
       { width: 140, height: 40 },
     )
 
@@ -242,7 +247,10 @@ describe('naming a session from its opening message', () => {
   it('heads the composer with the handle the session resumes by, not the written name', async () => {
     const app = naming(NAME)
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+      />,
       { width: 140, height: 40 },
     )
 
@@ -278,7 +286,10 @@ describe('the fallback title while the titler is still answering', () => {
     })
     const app = fakeApp({ model: scriptedModelPort({ script }), names: NAME, titlerWait: gate })
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+      />,
       { width: 140, height: 40 },
     )
 
@@ -337,7 +348,10 @@ describe('the title while the opening turn is still running', () => {
     // moment it is committed, so the name must head the sidebar while the reply is mid-stream.
     const app = fakeApp({ model: scriptedModelPort({ script, perChunkMs: 40 }), names: NAME })
     const setup = await testRender(
-      <App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />,
+      <App
+        app={app}
+        opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+      />,
       { width: 140, height: 40 },
     )
 
@@ -396,7 +410,10 @@ describe('renaming a session with /rename', () => {
       mounted.pressEnter()
 
       expect(
-        await until({ holds: async () => (await mounted.frame()).includes(REPLY), within: WITHIN_MS }),
+        await until({
+          holds: async () => (await mounted.frame()).includes(REPLY),
+          within: WITHIN_MS,
+        }),
       ).toBe(true)
 
       await mounted.typeText('/rename')

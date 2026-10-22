@@ -7,10 +7,7 @@ import type { TurnDto, TurnTreeDto } from './sessions.types'
 
 const SUPERVISION_DEPTH_LIMIT = 2
 
-async function readSpawnedThreadIds(args: {
-  userId: string
-  threadId: string
-}): Promise<string[]> {
+async function readSpawnedThreadIds(args: { userId: string; threadId: string }): Promise<string[]> {
   const collected: string[] = []
   let frontier: string[] = [args.threadId]
 
@@ -68,7 +65,9 @@ export class TurnsService {
   async forThreadTree(args: { userId: string; threadId: string }): Promise<TurnTreeDto> {
     await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     const spawned = await readSpawnedThreadIds(args)
-    const rows = await db.orm.public.Turn.where((turn) => turn.threadId.in([args.threadId, ...spawned]))
+    const rows = await db.orm.public.Turn.where((turn) =>
+      turn.threadId.in([args.threadId, ...spawned]),
+    )
       .where({ userId: args.userId })
       .orderBy([(turn) => turn.startedAt.asc(), (turn) => turn.runId.asc()])
       .all()

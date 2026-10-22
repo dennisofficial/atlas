@@ -35,7 +35,8 @@ if (existsSync(out) && !process.argv.includes('--force')) {
 
 function run(command: string, args: string[], cwd: string): void {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
-  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} exited with ${result.status}`)
+  if (result.status !== 0)
+    throw new Error(`${command} ${args.join(' ')} exited with ${result.status}`)
 }
 
 const work = mkdtempSync(join(tmpdir(), 'atlas-dockerfile-grammar-'))

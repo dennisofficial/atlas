@@ -28,7 +28,12 @@ import { accountLeaseSchema } from '@dltech/atlas-wire'
 import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
-import { cloudConfigPathFor, exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
+import {
+  cloudConfigPathFor,
+  exportEnvSecrets,
+  mergeCloudMcpServers,
+  type CloudConfig,
+} from './cloud-config'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -46,7 +51,8 @@ const secretsResponseSchema = z.object({
   secrets: z.array(z.object({ name: z.string(), value: z.string() })),
 })
 
-const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 const isProviderKnown = (provider: string): provider is EAuthProvider =>
   Object.values<string>(EAuthProvider).includes(provider)
@@ -73,7 +79,10 @@ const writeVault = (args: {
   )
   fileVaultBackend(file).save({
     version: 2,
-    accounts: args.accounts.map((stored) => ({ ...accountOf(stored), secret: box.seal(stored.secret) })),
+    accounts: args.accounts.map((stored) => ({
+      ...accountOf(stored),
+      secret: box.seal(stored.secret),
+    })),
     active,
   })
 }
@@ -88,7 +97,9 @@ const writeSecrets = (args: {
       secret.value.length > 0 &&
       !CLIENT_HELD_SECRET_PREFIXES.some((prefix) => secret.name.startsWith(prefix)),
   )
-  const sealed = Object.fromEntries(leased.map((secret) => [secret.name, args.cipher.encrypt(secret.value)]))
+  const sealed = Object.fromEntries(
+    leased.map((secret) => [secret.name, args.cipher.encrypt(secret.value)]),
+  )
   writeAtomically({
     path: join(args.atlasHome, ATLAS_SECRETS_NAME),
     content: `${JSON.stringify({ version: SECRETS_VERSION, secrets: sealed }, null, 2)}\n`,
@@ -192,7 +203,8 @@ export const applyCloudState = async (args: {
     const secretCount = writeSecrets({ atlasHome: args.atlasHome, cipher, secrets: config.secrets })
     writeSettings({ atlasHome: args.atlasHome, settings: config.settings })
     mergeCloudMcpServers({ atlasHome: args.atlasHome, servers: config.mcpServers })
-    const exported = args.env === undefined ? 0 : exportEnvSecrets({ env: args.env, secrets: config.secrets })
+    const exported =
+      args.env === undefined ? 0 : exportEnvSecrets({ env: args.env, secrets: config.secrets })
     args.log({
       event: EServeEvent.CloudStateReady,
       accounts: accounts.length,

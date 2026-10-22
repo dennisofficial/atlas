@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   Pagination,
@@ -8,16 +8,16 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@dltech/atlas-ui/components/pagination";
+} from '@dltech/atlas-ui/components/pagination'
 
 const meta = {
-  title: "Components/Pagination",
+  title: 'Components/Pagination',
   component: Pagination,
-} satisfies Meta<typeof Pagination>;
+} satisfies Meta<typeof Pagination>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
@@ -49,4 +49,4 @@ export const Default: Story = {
       </PaginationContent>
     </Pagination>
   ),
-};
+}

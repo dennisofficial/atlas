@@ -4,35 +4,102 @@ export { MainWake, MAX_WAKE_ATTEMPTS } from './main-wake'
 export { composeHarness } from './compose'
 export { inProcessPortBindings, sharedPortBindings } from './port-bindings'
 export { flushSessionInput } from './flush-session-input'
-export type { HarnessApp, HarnessCloseRequest, HarnessSurfaceBinding, SessionTitler } from './harness-app'
-export { compactAt, compactTurn, ECompaction, ECompactScope, scopeOfArgument, summariseAt, type Compaction, type Summariser } from './compact-turn'
+export type {
+  HarnessApp,
+  HarnessCloseRequest,
+  HarnessSurfaceBinding,
+  SessionTitler,
+} from './harness-app'
+export {
+  compactAt,
+  compactTurn,
+  ECompaction,
+  ECompactScope,
+  scopeOfArgument,
+  summariseAt,
+  type Compaction,
+  type Summariser,
+} from './compact-turn'
 export { EUndo, undoTurn, type Undo } from './undo-turn'
 export { createTurnPolicyRunner } from './turn-policy-runner'
 export { TitlingTurnRunner } from './titling-turn-runner'
 export { createUsageTracker, type UsageTracker } from './usage-tracker'
-export { ESuppress, type TurnPolicy, type TurnPolicyState, type TurnPolicyListener } from '../loop/turn-policy'
+export {
+  ESuppress,
+  type TurnPolicy,
+  type TurnPolicyState,
+  type TurnPolicyListener,
+} from '../loop/turn-policy'
 export { DEFAULT_MODEL_REF, TLDR_MODEL_ID } from './config'
 export type { HarnessLaunch } from './config'
 export { imageLabelOf } from './container-label'
-export { createExecutionLocationState, type ExecutionLocationState } from './execution-location-state'
+export {
+  createExecutionLocationState,
+  type ExecutionLocationState,
+} from './execution-location-state'
 export * from './placement-controller'
 export * from './session-owner'
 export { holdFamilyIntake } from './freeze-family'
-export { defaultExecutionLocation, executionPinned, resolveExecutionLocation } from './execution-preference'
+export {
+  defaultExecutionLocation,
+  executionPinned,
+  resolveExecutionLocation,
+} from './execution-preference'
 export { faultInjected } from './fault-injection'
 export { instructionPlanOf, nestedInstructionPlanOf } from './instruction-plan'
-export { catalogueLabel, isRefReachable, knownRefs, modelCatalogue, providerAdapters, unanswerableRef, unmeasuredWindowWarning, type CatalogueProvider, type ModelCatalogue } from './model-catalogue'
-export { modelSettingProblemText, unreachableModelSettings, type ModelSettingProblem } from './model-setting-checks'
+export {
+  catalogueLabel,
+  isRefReachable,
+  knownRefs,
+  modelCatalogue,
+  providerAdapters,
+  unanswerableRef,
+  unmeasuredWindowWarning,
+  type CatalogueProvider,
+  type ModelCatalogue,
+} from './model-catalogue'
+export {
+  modelSettingProblemText,
+  unreachableModelSettings,
+  type ModelSettingProblem,
+} from './model-setting-checks'
 export { suggestedModelRef } from './model-suggestions'
 export { createUtilityModel } from './utility-model'
-export { defaultSelection, fallbackRef, launchSelection, modelPinned, rememberSettingModel, settingModelRef, storedModel, threadSelection } from './model-preference'
-export { heldChoice, selectableModel, type ModelChoice, type ModelSelection, type SelectableModel } from './model-selection'
-export { mcpBootNotice, mcpLayerOf, mcpRejectionNotice, mcpReport, mcpRow, NO_MCP_SERVERS } from './mcp-report'
+export {
+  defaultSelection,
+  fallbackRef,
+  launchSelection,
+  modelPinned,
+  rememberSettingModel,
+  settingModelRef,
+  storedModel,
+  threadSelection,
+} from './model-preference'
+export {
+  heldChoice,
+  selectableModel,
+  type ModelChoice,
+  type ModelSelection,
+  type SelectableModel,
+} from './model-selection'
+export {
+  mcpBootNotice,
+  mcpLayerOf,
+  mcpRejectionNotice,
+  mcpReport,
+  mcpRow,
+  NO_MCP_SERVERS,
+} from './mcp-report'
 export { reachableRootsFor } from './reachable-files'
 export { journalResume } from './resume-journal'
 export { resumeHint, type ActiveConversation } from './resume-hint'
 export { bindSandbox, type SandboxControl } from './sandbox-binding'
-export { createSandboxStatusState, type SandboxContainer, type SandboxLimits, type SandboxStatusState } from './sandbox-status-state'
+export {
+  createSandboxStatusState,
+  type SandboxContainer,
+  type SandboxLimits,
+  type SandboxStatusState,
+} from './sandbox-status-state'
 export { teardownSession, type TeardownSource } from './session-teardown'
 export { loadSettings, type SettingsBinding } from './settings-binding'
 export { bindSkillRegistry, liveSkillRegistry, SkillRegistryNotBound } from './skills-binding'

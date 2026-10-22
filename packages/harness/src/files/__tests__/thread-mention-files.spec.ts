@@ -22,13 +22,26 @@ const tree = (files: Record<string, string>): string => {
 }
 
 const eventOf = (body: Record<string, unknown>, seq: number): Event =>
-  ({ id: `ev-${seq}`, threadId, seq, runId: 'run-1', depth: 0, at: '2026-10-07T00:00:00.000Z', ...body }) as Event
+  ({
+    id: `ev-${seq}`,
+    threadId,
+    seq,
+    runId: 'run-1',
+    depth: 0,
+    at: '2026-10-07T00:00:00.000Z',
+    ...body,
+  }) as Event
 
 const reading = (args: { events: Event[]; workspace?: string | null }) => ({
   log: { readOwn: async () => args.events },
   threads: {
     find: async () => ({
-      id: threadId, head: 0, createdAt: '', updatedAt: '', repo: null, workspace: args.workspace ?? null,
+      id: threadId,
+      head: 0,
+      createdAt: '',
+      updatedAt: '',
+      repo: null,
+      workspace: args.workspace ?? null,
     }),
   },
 })
@@ -46,7 +59,10 @@ describe('threadMentionFiles', () => {
     events.push(eventOf({ type: 'worktree-entered', path: worktree, branch: 'b' }, 1))
     const inside = await open()
     expect((await inside.list('.')).map((entry) => entry.name)).toEqual(['worktree-only.txt'])
-    expect(await inside.load('worktree-only.txt')).toMatchObject({ type: EFileLoad.Text, content: 'tree' })
+    expect(await inside.load('worktree-only.txt')).toMatchObject({
+      type: EFileLoad.Text,
+      content: 'tree',
+    })
 
     events.push(eventOf({ type: 'worktree-exited', path: worktree, action: EWorktreeExit.Keep }, 2))
     expect((await (await open()).list('.')).map((entry) => entry.name)).toEqual(['launch-only.txt'])
@@ -94,7 +110,14 @@ describe('rebaseMentionReader', () => {
     const open = rebaseMentionReader({ reader: new FileBrowser({ root: '/nowhere' }), root: next })
     expect(await open.exists('new.txt')).toBe(true)
 
-    const remote = { list: async () => [], exists: async () => true, load: async () => { throw new Error('x') }, forget: () => undefined }
+    const remote = {
+      list: async () => [],
+      exists: async () => true,
+      load: async () => {
+        throw new Error('x')
+      },
+      forget: () => undefined,
+    }
     expect(rebaseMentionReader({ reader: remote, root: next })).toBe(remote)
   })
 })

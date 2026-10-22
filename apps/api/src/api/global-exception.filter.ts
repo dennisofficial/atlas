@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common'
+import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common'
 import { BaseExceptionFilter } from '@nestjs/core'
 import { databaseErrorCode, isNoRows, isUniqueViolation } from '@dltech/atlas-db'
 import { GithubUserReadFailed } from './cloud/github/github-user-reads'
@@ -40,14 +34,13 @@ const failure = ({
   code?: string
 }): HttpException =>
   new HttpException(
-    code === undefined
-      ? { statusCode: status, message }
-      : { statusCode: status, message, code },
+    code === undefined ? { statusCode: status, message } : { statusCode: status, message, code },
     status,
   )
 
 const databaseFailure = (exception: unknown): HttpException | undefined => {
-  if (isNoRows(exception)) return failure({ status: HttpStatus.NOT_FOUND, message: 'Resource not found' })
+  if (isNoRows(exception))
+    return failure({ status: HttpStatus.NOT_FOUND, message: 'Resource not found' })
   const code = databaseErrorCode(exception)
   if (code === undefined) return undefined
   if (isUniqueViolation(exception)) {

@@ -1,11 +1,11 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Sources } from "@dltech/atlas-ui/ai/sources";
+import { Sources } from '@dltech/atlas-ui/ai/sources'
 
-import { SOURCES } from "../fixtures/agent";
+import { SOURCES } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Sources",
+  title: 'AI/Sources',
   component: Sources,
   args: { sources: SOURCES },
   decorators: [
@@ -15,14 +15,14 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Sources>;
+} satisfies Meta<typeof Sources>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Collapsed: Story = {};
+export const Collapsed: Story = {}
 
-export const Open: Story = { args: { defaultOpen: true } };
+export const Open: Story = { args: { defaultOpen: true } }
 
-export const Deduped: Story = { args: { defaultOpen: true, sources: [...SOURCES, ...SOURCES] } };
+export const Deduped: Story = { args: { defaultOpen: true, sources: [...SOURCES, ...SOURCES] } }

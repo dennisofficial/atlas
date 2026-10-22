@@ -7,7 +7,8 @@ import { definitionsOfPage, ESettingPage } from '../definition'
 import { ATLAS_SETTINGS, ESettingId, SETTING_PAGES } from '../registry'
 import { ESettingKind } from '../value'
 
-const modelsRows = () => definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Models })
+const modelsRows = () =>
+  definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Models })
 
 describe('the models settings page', () => {
   it('sits between general and appearance', () => {
@@ -72,7 +73,9 @@ describe('agentTypeModelDefinitions', () => {
   })
 
   it('places teammates with the main model and inherits the main agent', () => {
-    const [definition] = agentTypeModelDefinitions({ types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }] })
+    const [definition] = agentTypeModelDefinitions({
+      types: [{ name: 'teammate', origin: EDefinitionOrigin.BuiltIn }],
+    })
 
     expect(definition?.id).toBe('agents.type.teammate')
     expect(definition?.page).toBe(ESettingPage.Models)
@@ -84,8 +87,16 @@ describe('agentTypeModelDefinitions', () => {
 
   it('retains provenance and scopes repository choices to project settings', () => {
     const types = [
-      { name: 'reviewer', origin: EDefinitionOrigin.Project, definedIn: '/repo/.atlas/agents/reviewer.md' },
-      { name: 'auditor', origin: EDefinitionOrigin.User, definedIn: '/home/.atlas/agents/auditor.md' },
+      {
+        name: 'reviewer',
+        origin: EDefinitionOrigin.Project,
+        definedIn: '/repo/.atlas/agents/reviewer.md',
+      },
+      {
+        name: 'auditor',
+        origin: EDefinitionOrigin.User,
+        definedIn: '/home/.atlas/agents/auditor.md',
+      },
       { name: 'builder', origin: EDefinitionOrigin.BuiltIn },
     ]
     const definitions = agentTypeModelDefinitions({ types })
@@ -105,11 +116,13 @@ describe('agentTypeModelDefinitions', () => {
 
   it('retains the overriding origin for display-only definitions', () => {
     const [definition] = agentTypeModelDefinitions({
-      types: [{
-        name: 'reviewer',
-        origin: EDefinitionOrigin.BuiltIn,
-        overriddenBy: EDefinitionOrigin.Project,
-      }],
+      types: [
+        {
+          name: 'reviewer',
+          origin: EDefinitionOrigin.BuiltIn,
+          overriddenBy: EDefinitionOrigin.Project,
+        },
+      ],
     })
 
     expect(definition?.agentType?.overriddenBy).toBe(EDefinitionOrigin.Project)

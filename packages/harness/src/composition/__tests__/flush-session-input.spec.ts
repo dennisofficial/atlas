@@ -17,17 +17,26 @@ describe('shared relocation and teardown input flush', () => {
     pending.forThread({ threadId: child }).enqueue({ text: 'operator child message' })
     const written: { threadId: string; drafts: readonly EventDraft[] }[] = []
     try {
-      expect(await flushSessionInput({
-        intake,
-        log: { append: async (args) => { written.push(args); return [] } },
-        ids: { nextRunId: () => toRunId('flush') },
-      })).toEqual([parent, child])
+      expect(
+        await flushSessionInput({
+          intake,
+          log: {
+            append: async (args) => {
+              written.push(args)
+              return []
+            },
+          },
+          ids: { nextRunId: () => toRunId('flush') },
+        }),
+      ).toEqual([parent, child])
       expect(written.map((entry) => entry.drafts)).toEqual([
         [{ type: 'user-said', text: 'operator parent message' }],
         [{ type: 'user-said', text: 'operator child message' }],
       ])
       expect(pending.waitingCount()).toBe(0)
-    } finally { intake.dispose() }
+    } finally {
+      intake.dispose()
+    }
   })
 
   it('releases the reservation without consuming queued messages after persistence failure', async () => {
@@ -36,15 +45,28 @@ describe('shared relocation and teardown input flush', () => {
     const intake = new MessageIntake({ sources: [operatorSource(pending)] })
     intake.suspend()
     try {
-      await expect(flushSessionInput({
-        intake, log: { append: async () => { throw new Error('disk full') } },
-        ids: { nextRunId: () => toRunId('flush') },
-      })).rejects.toThrow('disk full')
+      await expect(
+        flushSessionInput({
+          intake,
+          log: {
+            append: async () => {
+              throw new Error('disk full')
+            },
+          },
+          ids: { nextRunId: () => toRunId('flush') },
+        }),
+      ).rejects.toThrow('disk full')
       expect(pending.waitingCount()).toBe(1)
-      expect(await flushSessionInput({
-        intake, log: { append: async () => [] }, ids: { nextRunId: () => toRunId('retry') },
-      })).toEqual([parent])
+      expect(
+        await flushSessionInput({
+          intake,
+          log: { append: async () => [] },
+          ids: { nextRunId: () => toRunId('retry') },
+        }),
+      ).toEqual([parent])
       expect(pending.waitingCount()).toBe(0)
-    } finally { intake.dispose() }
+    } finally {
+      intake.dispose()
+    }
   })
 })

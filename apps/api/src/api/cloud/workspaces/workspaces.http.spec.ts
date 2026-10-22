@@ -56,7 +56,11 @@ describe('workspaces HTTP surface', () => {
   })
 
   it('lets a member read but forbids a plain member from writing', async () => {
-    await http().put(`${base}/secrets/API_KEY`).set(as('session-a')).send({ value: 's' }).expect(204)
+    await http()
+      .put(`${base}/secrets/API_KEY`)
+      .set(as('session-a'))
+      .send({ value: 's' })
+      .expect(204)
     const read = await http().get(`${base}/secrets`).set(as('session-b')).expect(200)
     expect(read.body.secrets).toHaveLength(1)
 
@@ -85,9 +89,9 @@ describe('workspaces HTTP surface', () => {
       .set(as('session-a'))
       .send({ value: 'topsecret', kind: 'env' })
       .expect(204)
-    expect((await db.orm.public.WorkspaceSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue).not.toContain(
-      'topsecret',
-    )
+    expect(
+      (await db.orm.public.WorkspaceSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue,
+    ).not.toContain('topsecret')
 
     const read = await http().get(`${base}/secrets`).set(as('session-a')).expect(200)
     expect(read.body.secrets[0]).toMatchObject({
@@ -97,7 +101,11 @@ describe('workspaces HTTP surface', () => {
       updatedBy: { userId: 'user-a', name: 'Ada' },
     })
 
-    await http().put(`${base}/secrets/bad-name`).set(as('session-a')).send({ value: 'v' }).expect(400)
+    await http()
+      .put(`${base}/secrets/bad-name`)
+      .set(as('session-a'))
+      .send({ value: 'v' })
+      .expect(400)
     await http().delete(`${base}/secrets/API_KEY`).set(as('session-a')).expect(204)
     expect(await db.orm.public.WorkspaceSecret.where((row) => row.id.neq('')).all()).toHaveLength(0)
   })
@@ -158,7 +166,9 @@ describe('workspaces HTTP surface', () => {
       .set(as('session-a'))
       .send({ values: { 'workspace.defaultRegion': null } })
       .expect(204)
-    expect(await db.orm.public.WorkspaceSetting.where((row) => row.id.neq('')).all()).toHaveLength(0)
+    expect(await db.orm.public.WorkspaceSetting.where((row) => row.id.neq('')).all()).toHaveLength(
+      0,
+    )
   })
 
   it('requires a session', async () => {

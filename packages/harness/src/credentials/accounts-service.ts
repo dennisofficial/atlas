@@ -48,13 +48,18 @@ export class AccountsService {
   private readonly accounts: AccountStorePort
   private readonly clients: OauthClients
   private readonly onOauthLogin: ((account: Account) => Promise<void>) | undefined
-  private readonly prepareOauthReplacement: ((args: { accountId: AccountId; secret: AccountSecret }) => Promise<AccountSecret>) | undefined
+  private readonly prepareOauthReplacement:
+    | ((args: { accountId: AccountId; secret: AccountSecret }) => Promise<AccountSecret>)
+    | undefined
 
   constructor(args: {
     accounts: AccountStorePort
     clients: OauthClients
     onOauthLogin?: (account: Account) => Promise<void>
-    prepareOauthReplacement?: (args: { accountId: AccountId; secret: AccountSecret }) => Promise<AccountSecret>
+    prepareOauthReplacement?: (args: {
+      accountId: AccountId
+      secret: AccountSecret
+    }) => Promise<AccountSecret>
   }) {
     this.accounts = args.accounts
     this.clients = args.clients
@@ -192,9 +197,10 @@ export class AccountsService {
   }
 
   private async replaceLocked(args: { held: Account; secret: AccountSecret }): Promise<Account> {
-    const secret = args.secret.kind === EAuthKind.Oauth && this.prepareOauthReplacement !== undefined
-      ? await this.prepareOauthReplacement({ accountId: args.held.id, secret: args.secret })
-      : args.secret
+    const secret =
+      args.secret.kind === EAuthKind.Oauth && this.prepareOauthReplacement !== undefined
+        ? await this.prepareOauthReplacement({ accountId: args.held.id, secret: args.secret })
+        : args.secret
     await this.accounts.replaceSecret({ accountId: args.held.id, secret })
     if (args.held.status !== EAccountStatus.Active) {
       await this.accounts.setStatus({ accountId: args.held.id, status: EAccountStatus.Active })

@@ -45,7 +45,10 @@ describe('RepoAccessChecker outbound timeout', () => {
     await advanceTimersByTimeAsync(8_000)
     await first
 
-    stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 200 })),
+    )
     await expect(subject.require(args)).resolves.toBe(true)
   })
 

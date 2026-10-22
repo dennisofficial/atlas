@@ -44,7 +44,13 @@ const resulted = (callId: string): EventDraft => ({
 })
 
 const exchange = (): Event[] =>
-  eventsFrom([said('clean the build'), replied('on it'), called('call-1'), resulted('call-1'), replied('done')])
+  eventsFrom([
+    said('clean the build'),
+    replied('on it'),
+    called('call-1'),
+    resulted('call-1'),
+    replied('done'),
+  ])
 
 describe('rewindTarget', () => {
   it('refuses a target that would leave a dispatched tool call unsettled for the next turn to dispatch again', () => {

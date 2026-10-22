@@ -86,7 +86,8 @@ const parsePullRequest = (raw: unknown): PullRequest | null => {
   ) {
     return null
   }
-  if (!Object.values(EPullRequestState).includes(pullRequest.state as EPullRequestState)) return null
+  if (!Object.values(EPullRequestState).includes(pullRequest.state as EPullRequestState))
+    return null
   if (!Object.values(EChecksState).includes(pullRequest.checks as EChecksState)) return null
 
   return {

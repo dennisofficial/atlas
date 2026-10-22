@@ -4,7 +4,10 @@ import { vi } from 'bun:test'
 
 import { EnvService } from '../src/_core/config/env/env.service'
 import { BackgroundWork } from '../src/_core/ports/background-work'
-import { SandboxCredentials, type ThreadSandboxCredentials } from '../src/_core/ports/sandbox-credentials'
+import {
+  SandboxCredentials,
+  type ThreadSandboxCredentials,
+} from '../src/_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import {
   GithubSandboxWakeService,
@@ -59,7 +62,9 @@ export function mirroredRecord(args: {
 }
 
 export async function seedParkedSandbox(
-  partial: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & { runtimeCheckpoint?: unknown } = {},
+  partial: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & {
+    runtimeCheckpoint?: unknown
+  } = {},
 ): Promise<void> {
   const threadId = partial.threadId ?? 'thr-1'
   const record = mirroredRecord({ threadId, phase: ERuntimePhase.Parked })

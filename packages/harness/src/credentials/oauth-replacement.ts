@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
-import { authorityOf, EAuthKind, type AccountId, type AccountSecret, type AccountStorePort } from '@dltech/atlas-core'
+import {
+  authorityOf,
+  EAuthKind,
+  type AccountId,
+  type AccountSecret,
+  type AccountStorePort,
+} from '@dltech/atlas-core'
 
 import type { CloudSession } from '../cloud/cloud-session'
 import type { OAuthConnectionsClient } from '../cloud/oauth-connections-client'
@@ -19,9 +25,12 @@ export async function prepareOauthReplacement(args: {
   const authority = held === undefined ? undefined : authorityOf(held.secret)
   if (authority === undefined || !sameUrl(authority.url, args.session.url)) return args.secret
 
-  let previousAuthorizationId = authority.previousAuthorizationId ?? authority.authorizationId ?? authority.connectionId
+  let previousAuthorizationId =
+    authority.previousAuthorizationId ?? authority.authorizationId ?? authority.connectionId
   try {
-    const current = await args.client(args.session).metadata({ connectionId: authority.connectionId })
+    const current = await args
+      .client(args.session)
+      .metadata({ connectionId: authority.connectionId })
     if (current.provider !== held?.provider) return args.secret
     previousAuthorizationId = current.authorizationId
   } catch (error) {

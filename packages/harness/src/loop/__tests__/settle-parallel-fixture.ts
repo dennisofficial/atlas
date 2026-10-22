@@ -29,7 +29,11 @@ export async function openLog(): Promise<AtlasHarness> {
   return harness
 }
 
-const declaring = (args: { name: string; effect: EToolEffect; safe: boolean }): ToolDeclaration => ({
+const declaring = (args: {
+  name: string
+  effect: EToolEffect
+  safe: boolean
+}): ToolDeclaration => ({
   name: args.name,
   description: `the ${args.name} tool`,
   effect: args.effect,
@@ -84,7 +88,12 @@ class TracingDispatcher extends ToolDispatcher {
     super()
   }
 
-  async dispatch({ call }: { call: DispatchableCall; signal: AbortSignal }): Promise<readonly EventDraft[]> {
+  async dispatch({
+    call,
+  }: {
+    call: DispatchableCall
+    signal: AbortSignal
+  }): Promise<readonly EventDraft[]> {
     const { trace } = this.args
     trace.started.push(String(call.callId))
     this.inFlight += 1
@@ -97,7 +106,13 @@ class TracingDispatcher extends ToolDispatcher {
 
     return (
       this.args.draftsFor?.(call) ?? [
-        { type: 'tool-result', callId: call.callId, name: call.name, output: 'done', modelText: 'done' },
+        {
+          type: 'tool-result',
+          callId: call.callId,
+          name: call.name,
+          output: 'done',
+          modelText: 'done',
+        },
       ]
     )
   }

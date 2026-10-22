@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -26,7 +31,10 @@ const globalNote = ({ name, body = 'fact. **Why:** x' }: { name: string; body?: 
   body,
 })
 
-const rowsOf = () => db.orm.public.Memory.where((row) => row.id.neq('')).orderBy((row) => row.createdAt.asc()).all()
+const rowsOf = () =>
+  db.orm.public.Memory.where((row) => row.id.neq(''))
+    .orderBy((row) => row.createdAt.asc())
+    .all()
 
 const waitForBlockedWriter = async (pool: Pool): Promise<void> => {
   for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -55,10 +63,15 @@ describe('MemoriesService', () => {
 
     expect([created.revision, rewritten.revision, third.revision]).toEqual([1, 2, 3])
     expect(await rowsOf()).toHaveLength(1)
-    expect(created).toMatchObject({ scope: 'global', project: null, name: 'deflate', type: 'reference' })
-    expect((await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })).body).toBe(
-      'newer body',
-    )
+    expect(created).toMatchObject({
+      scope: 'global',
+      project: null,
+      name: 'deflate',
+      type: 'reference',
+    })
+    expect(
+      (await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })).body,
+    ).toBe('newer body')
   })
 
   it('edit replaces the single occurrence and returns the next revision', async () => {
@@ -74,9 +87,9 @@ describe('MemoriesService', () => {
     })
 
     expect(edited.revision).toBe(2)
-    expect((await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })).body).toBe(
-      'alpha BETA gamma',
-    )
+    expect(
+      (await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })).body,
+    ).toBe('alpha BETA gamma')
   })
 
   it('edit with a stale revision is a 409 naming the current revision', async () => {
@@ -107,10 +120,20 @@ describe('MemoriesService', () => {
     await writer.query('SELECT 1 FROM "Memory" WHERE name = $1 FOR UPDATE', ['deflate'])
 
     const editing = service
-      .edit({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate', old: 'alpha', replacement: 'beta', revision: 1 })
+      .edit({
+        userId: USER_A,
+        scope: EMemoryScope.Global,
+        name: 'deflate',
+        old: 'alpha',
+        replacement: 'beta',
+        revision: 1,
+      })
       .catch((error: unknown) => error)
     await waitForBlockedWriter(database().pool)
-    await writer.query(`UPDATE "Memory" SET body = 'alpha two', revision = revision + 2 WHERE name = $1`, ['deflate'])
+    await writer.query(
+      `UPDATE "Memory" SET body = 'alpha two', revision = revision + 2 WHERE name = $1`,
+      ['deflate'],
+    )
     await writer.query('COMMIT')
     writer.release()
     const failure = await editing
@@ -127,7 +150,14 @@ describe('MemoriesService', () => {
     await service.put(globalNote({ name: 'deflate', body: 'aaa' }))
 
     const failure = await service
-      .edit({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate', old: 'aa', replacement: 'x', revision: 1 })
+      .edit({
+        userId: USER_A,
+        scope: EMemoryScope.Global,
+        name: 'deflate',
+        old: 'aa',
+        replacement: 'x',
+        revision: 1,
+      })
       .catch((error: unknown) => error)
 
     expect((failure as UnprocessableEntityException).getResponse()).toMatchObject({
@@ -140,7 +170,14 @@ describe('MemoriesService', () => {
     await service.put(globalNote({ name: 'deflate', body: 'alpha' }))
 
     const failure = await service
-      .edit({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate', old: 'zzz', replacement: 'x', revision: 1 })
+      .edit({
+        userId: USER_A,
+        scope: EMemoryScope.Global,
+        name: 'deflate',
+        old: 'zzz',
+        replacement: 'x',
+        revision: 1,
+      })
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(UnprocessableEntityException)
@@ -153,7 +190,14 @@ describe('MemoriesService', () => {
     await service.put(globalNote({ name: 'deflate', body: 'ab ab' }))
 
     const failure = await service
-      .edit({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate', old: 'ab', replacement: 'x', revision: 1 })
+      .edit({
+        userId: USER_A,
+        scope: EMemoryScope.Global,
+        name: 'deflate',
+        old: 'ab',
+        replacement: 'x',
+        revision: 1,
+      })
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(UnprocessableEntityException)
@@ -166,7 +210,14 @@ describe('MemoriesService', () => {
 
   it('edit and remove of a missing memory are 404', async () => {
     await expect(
-      service.edit({ userId: USER_A, scope: EMemoryScope.Global, name: 'nope', old: 'a', replacement: 'b', revision: 1 }),
+      service.edit({
+        userId: USER_A,
+        scope: EMemoryScope.Global,
+        name: 'nope',
+        old: 'a',
+        replacement: 'b',
+        revision: 1,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException)
     await expect(
       service.remove({ userId: USER_A, scope: EMemoryScope.Global, name: 'nope' }),
@@ -186,32 +237,65 @@ describe('MemoriesService', () => {
 
   it('list returns global rows plus the named project, newest first', async () => {
     await service.put(globalNote({ name: 'older' }))
-    await service.put({ ...globalNote({ name: 'widget-fact' }), scope: EMemoryScope.Project, project: PROJECT })
-    await service.put({ ...globalNote({ name: 'other-fact' }), scope: EMemoryScope.Project, project: 'acme/gadgets' })
+    await service.put({
+      ...globalNote({ name: 'widget-fact' }),
+      scope: EMemoryScope.Project,
+      project: PROJECT,
+    })
+    await service.put({
+      ...globalNote({ name: 'other-fact' }),
+      scope: EMemoryScope.Project,
+      project: 'acme/gadgets',
+    })
     await service.put(globalNote({ name: 'newest' }))
     await stampInOrder(['older', 'widget-fact', 'other-fact', 'newest'])
 
-    expect((await service.list({ userId: USER_A, project: PROJECT })).map((row) => row.name)).toEqual([
+    expect(
+      (await service.list({ userId: USER_A, project: PROJECT })).map((row) => row.name),
+    ).toEqual(['newest', 'widget-fact', 'older'])
+    expect((await service.list({ userId: USER_A })).map((row) => row.name)).toEqual([
       'newest',
-      'widget-fact',
       'older',
     ])
-    expect((await service.list({ userId: USER_A })).map((row) => row.name)).toEqual(['newest', 'older'])
   })
 
   it('isolates the same name across users and across projects', async () => {
     await service.put(globalNote({ name: 'shared', body: 'a-body' }))
     await service.put({ ...globalNote({ name: 'shared', body: 'b-body' }), userId: USER_B })
-    await service.put({ ...globalNote({ name: 'shared', body: 'p1' }), scope: EMemoryScope.Project, project: PROJECT })
-    await service.put({ ...globalNote({ name: 'shared', body: 'p2' }), scope: EMemoryScope.Project, project: 'acme/gadgets' })
+    await service.put({
+      ...globalNote({ name: 'shared', body: 'p1' }),
+      scope: EMemoryScope.Project,
+      project: PROJECT,
+    })
+    await service.put({
+      ...globalNote({ name: 'shared', body: 'p2' }),
+      scope: EMemoryScope.Project,
+      project: 'acme/gadgets',
+    })
 
-    expect((await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'shared' })).body).toBe('a-body')
-    expect((await service.get({ userId: USER_B, scope: EMemoryScope.Global, name: 'shared' })).body).toBe('b-body')
     expect(
-      (await service.get({ userId: USER_A, scope: EMemoryScope.Project, project: PROJECT, name: 'shared' })).body,
+      (await service.get({ userId: USER_A, scope: EMemoryScope.Global, name: 'shared' })).body,
+    ).toBe('a-body')
+    expect(
+      (await service.get({ userId: USER_B, scope: EMemoryScope.Global, name: 'shared' })).body,
+    ).toBe('b-body')
+    expect(
+      (
+        await service.get({
+          userId: USER_A,
+          scope: EMemoryScope.Project,
+          project: PROJECT,
+          name: 'shared',
+        })
+      ).body,
     ).toBe('p1')
     await expect(
-      service.get({ userId: USER_B, scope: EMemoryScope.Project, project: PROJECT, name: 'shared' }),
+      service.get({
+        userId: USER_B,
+        scope: EMemoryScope.Project,
+        project: PROJECT,
+        name: 'shared',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException)
     await expect(
       service.remove({ userId: USER_B, scope: EMemoryScope.Global, name: 'shared' }),
@@ -223,7 +307,9 @@ describe('MemoriesService', () => {
     await expect(
       service.put({ ...globalNote({ name: 'x' }), scope: EMemoryScope.Project }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(service.put({ ...globalNote({ name: 'x' }), project: PROJECT })).rejects.toBeInstanceOf(BadRequestException)
+    await expect(
+      service.put({ ...globalNote({ name: 'x' }), project: PROJECT }),
+    ).rejects.toBeInstanceOf(BadRequestException)
     expect(await rowsOf()).toHaveLength(0)
   })
 })
@@ -231,6 +317,8 @@ describe('MemoriesService', () => {
 async function stampInOrder(names: string[]): Promise<void> {
   const base = Date.parse('2026-10-01T00:00:00.000Z')
   for (const [index, name] of names.entries()) {
-    await db.orm.public.Memory.where({ name }).updateAndCount({ updatedAt: new Date(base + index * 1_000) })
+    await db.orm.public.Memory.where({ name }).updateAndCount({
+      updatedAt: new Date(base + index * 1_000),
+    })
   }
 }

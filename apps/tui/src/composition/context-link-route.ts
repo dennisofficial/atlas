@@ -14,7 +14,8 @@ export type ContextLinkRoute =
   | { kind: EContextLink.Context; path: string }
   | { kind: EContextLink.File; url: string }
 
-const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:https?|mailto|tel|sms|ftp|ssh|git|data|javascript):)/i
+const EXTERNAL =
+  /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:https?|mailto|tel|sms|ftp|ssh|git|data|javascript):)/i
 
 const FILE_SCHEME = 'file://'
 

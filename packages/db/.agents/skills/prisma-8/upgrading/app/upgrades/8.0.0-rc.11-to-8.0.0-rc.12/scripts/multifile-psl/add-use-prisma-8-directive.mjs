@@ -14,47 +14,47 @@
  * present`) for review. Running it twice is a no-op.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { glob } from 'node:fs/promises';
-import { argv, exit, stderr, stdout } from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs'
+import { glob } from 'node:fs/promises'
+import { argv, exit, stderr, stdout } from 'node:process'
+import { fileURLToPath } from 'node:url'
 
-const DIRECTIVE = /^(\s*\/\/ *use +)(prisma-8|prisma-next)( *)(?!\S)/;
+const DIRECTIVE = /^(\s*\/\/ *use +)(prisma-8|prisma-next)( *)(?!\S)/
 
 async function expand(patterns) {
-  const files = [];
+  const files = []
   for (const pattern of patterns) {
     for await (const match of glob(pattern, { exclude: ['**/node_modules/**', '**/dist/**'] })) {
-      files.push(match);
+      files.push(match)
     }
   }
-  return files;
+  return files
 }
 
 function addDirective(path) {
-  const original = readFileSync(path, 'utf8');
+  const original = readFileSync(path, 'utf8')
   if (DIRECTIVE.test(original)) {
-    stdout.write(`${path}: already present\n`);
-    return;
+    stdout.write(`${path}: already present\n`)
+    return
   }
-  writeFileSync(path, `// use prisma-8\n\n${original}`, 'utf8');
-  stdout.write(`${path}: added directive\n`);
+  writeFileSync(path, `// use prisma-8\n\n${original}`, 'utf8')
+  stdout.write(`${path}: added directive\n`)
 }
 
 async function main() {
-  const patterns = argv.slice(2);
+  const patterns = argv.slice(2)
   if (patterns.length === 0) {
-    stderr.write('usage: add-use-prisma-8-directive.mjs <file-or-glob> [...more]\n');
-    exit(1);
+    stderr.write('usage: add-use-prisma-8-directive.mjs <file-or-glob> [...more]\n')
+    exit(1)
   }
-  const files = await expand(patterns);
+  const files = await expand(patterns)
   if (files.length === 0) {
-    stderr.write('no files matched\n');
-    exit(1);
+    stderr.write('no files matched\n')
+    exit(1)
   }
-  for (const file of files) addDirective(file);
+  for (const file of files) addDirective(file)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  await main();
+  await main()
 }

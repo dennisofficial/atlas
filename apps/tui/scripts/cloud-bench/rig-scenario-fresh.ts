@@ -75,11 +75,19 @@ const waitForReady = async (args: { ctx: ScenarioContext; draft: Draft }): Promi
         lastError = messageOf(error)
         return false
       }
-      return userSaidCount({ events: lastEvents, text: PROMPT }) > 0 && assistantSaid({ events: lastEvents, word: REPLY_WORD })
+      return (
+        userSaidCount({ events: lastEvents, text: PROMPT }) > 0 &&
+        assistantSaid({ events: lastEvents, word: REPLY_WORD })
+      )
     },
   })
   args.draft.logs.push({ label: 'cloud transcript', text: transcriptLines(lastEvents) })
-  observe({ ctx: args.ctx, draft: args.draft, step: replied ? 'turn replied' : 'reply wait timed out', note: lastError ?? undefined })
+  observe({
+    ctx: args.ctx,
+    draft: args.draft,
+    step: replied ? 'turn replied' : 'reply wait timed out',
+    note: lastError ?? undefined,
+  })
   if (replied) {
     args.ctx.shared.set('turnRepliedAt', String(Date.now()))
     return
@@ -89,7 +97,12 @@ const waitForReady = async (args: { ctx: ScenarioContext; draft: Draft }): Promi
     rig.channel() === null
       ? 'no cloud channel was ever attached'
       : `${lastEvents.length} transcript events without a ${REPLY_WORD} reply${lastError === null ? '' : `; last read failed: ${lastError}`}`
-  fail({ draft: args.draft, step: 'wait for the READY turn', expected: `a ${REPLY_WORD} reply within ${REPLY_WITHIN_MS / 60_000} min`, observed })
+  fail({
+    draft: args.draft,
+    step: 'wait for the READY turn',
+    expected: `a ${REPLY_WORD} reply within ${REPLY_WITHIN_MS / 60_000} min`,
+    observed,
+  })
 }
 
 const WORKSPACE_FAILED = 'serve.workspace-failed'
@@ -97,7 +110,9 @@ const ROOT_DIRS = ['/opt', '/usr', '/etc', '/atlas'] as const
 
 const layoutScriptOf = (workspaceDir: string): string =>
   [
-    ...ROOT_DIRS.map((dir) => `if test -d ${dir}; then echo "dir ${dir} ok"; else echo "dir ${dir} MISSING"; fi`),
+    ...ROOT_DIRS.map(
+      (dir) => `if test -d ${dir}; then echo "dir ${dir} ok"; else echo "dir ${dir} MISSING"; fi`,
+    ),
     `git -C ${workspaceDir} remote get-url origin 2>/dev/null | sed 's/^/origin /'`,
     'true',
   ].join('; ')
@@ -108,25 +123,47 @@ const layoutMisses = async (ctx: ScenarioContext): Promise<{ out: string; misses
   const out = await ctx.probes
     .sh({ name: ctx.sandboxName(), script: layoutScriptOf(workspaceDir) })
     .catch((error: unknown) => `probe failed: ${messageOf(error)}`)
-  const misses = out.split('\n').filter((line) => line.includes('MISSING') || line.startsWith('probe failed'))
+  const misses = out
+    .split('\n')
+    .filter((line) => line.includes('MISSING') || line.startsWith('probe failed'))
   if (repo === undefined || repo === 'none') return { out, misses }
-  const origin = out.split('\n').find((line) => line.startsWith('origin '))?.slice('origin '.length).trim()
+  const origin = out
+    .split('\n')
+    .find((line) => line.startsWith('origin '))
+    ?.slice('origin '.length)
+    .trim()
   if (origin === repo) return { out, misses }
-  return { out, misses: [...misses, `${workspaceDir} origin ${origin ?? 'absent'}, expected ${repo}`] }
+  return {
+    out,
+    misses: [...misses, `${workspaceDir} origin ${origin ?? 'absent'}, expected ${repo}`],
+  }
 }
 
 const checkServingBox = async (args: { ctx: ScenarioContext; draft: Draft }): Promise<void> => {
   const name = args.ctx.sandboxName()
   const probe = await args.ctx.probes.box({ name, logLines: PROBE_LOG_LINES })
-  observe({ ctx: args.ctx, draft: args.draft, step: 'box probe', probe, note: probe.recordError ?? undefined })
-  args.draft.logs.push({ label: `serve log tail (${PROBE_LOG_LINES} lines)`, text: probe.logTail ?? '(not read: the box was not running)' })
+  observe({
+    ctx: args.ctx,
+    draft: args.draft,
+    step: 'box probe',
+    probe,
+    note: probe.recordError ?? undefined,
+  })
+  args.draft.logs.push({
+    label: `serve log tail (${PROBE_LOG_LINES} lines)`,
+    text: probe.logTail ?? '(not read: the box was not running)',
+  })
   const view = args.ctx.rig().channel()?.connection().state ?? 'no channel'
   const layout = await layoutMisses(args.ctx)
   args.draft.logs.push({ label: 'sandbox layout', text: layout.out })
   const misses = [
-    probe.record?.phase === ERuntimePhase.Serving ? null : `record phase ${probe.record?.phase ?? probe.recordError ?? 'unread'}`,
+    probe.record?.phase === ERuntimePhase.Serving
+      ? null
+      : `record phase ${probe.record?.phase ?? probe.recordError ?? 'unread'}`,
     view === EConnectionView.Connected ? null : `view ${view}`,
-    probe.version !== null && probe.protocol !== null ? null : `stamps ${stampsOf(probe) ?? 'missing'}`,
+    probe.version !== null && probe.protocol !== null
+      ? null
+      : `stamps ${stampsOf(probe) ?? 'missing'}`,
     probe.logTail?.includes(WORKSPACE_FAILED) === true ? `serve log has ${WORKSPACE_FAILED}` : null,
     ...layout.misses,
   ].filter((miss): miss is string => miss !== null)
@@ -143,15 +180,32 @@ const writeSentinel = async (args: { ctx: ScenarioContext; draft: Draft }): Prom
   const path = rigSentinelPath({ repo: args.ctx.shared.get('repo') })
   let sentinel: string
   try {
-    sentinel = (await args.ctx.probes.sh({ name: args.ctx.sandboxName(), script: sentinelScript(path) })).trim()
+    sentinel = (
+      await args.ctx.probes.sh({ name: args.ctx.sandboxName(), script: sentinelScript(path) })
+    ).trim()
   } catch (error) {
-    return fail({ draft: args.draft, step: 'write sentinel', expected: `${path} written`, observed: messageOf(error) })
+    return fail({
+      draft: args.draft,
+      step: 'write sentinel',
+      expected: `${path} written`,
+      observed: messageOf(error),
+    })
   }
   if (!SENTINEL_PATTERN.test(sentinel)) {
-    fail({ draft: args.draft, step: 'write sentinel', expected: 'a rig-<nanoseconds> value echoed back', observed: sentinel || '(empty)' })
+    fail({
+      draft: args.draft,
+      step: 'write sentinel',
+      expected: 'a rig-<nanoseconds> value echoed back',
+      observed: sentinel || '(empty)',
+    })
   }
   args.ctx.shared.set('sentinel', sentinel)
-  observe({ ctx: args.ctx, draft: args.draft, step: 'sentinel written', note: `${path} = ${sentinel}` })
+  observe({
+    ctx: args.ctx,
+    draft: args.draft,
+    step: 'sentinel written',
+    note: `${path} = ${sentinel}`,
+  })
 }
 
 async function runFresh(ctx: ScenarioContext): Promise<ScenarioEvidence> {

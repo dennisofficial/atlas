@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EPullRequestStateWire } from '@dltech/atlas-wire'
 
-import { EChecksState, EPullRequestLookup } from '../pure'
+import { EPullRequestLookup } from '../pure'
 import { createPullRequestService } from '../pull-request-service'
 import { aCheckout, aLink, pullRequestsAnswering, wasFound as found } from '../testing'
 

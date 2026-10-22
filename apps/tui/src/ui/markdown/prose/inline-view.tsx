@@ -27,13 +27,18 @@ function isSameSpan(
   previous: { node: InlineNode; ground: string; slab: string },
   next: { node: InlineNode; ground: string; slab: string },
 ): boolean {
-  return previous.node === next.node && previous.ground === next.ground && previous.slab === next.slab
+  return (
+    previous.node === next.node && previous.ground === next.ground && previous.slab === next.slab
+  )
 }
 
 function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): React.ReactNode {
   const { node } = props
   const href = hrefOf(node)
-  const hovered = useSyncExternalStore(subscribeLinkHover, () => href !== null && linkHoverUrl() === href)
+  const hovered = useSyncExternalStore(
+    subscribeLinkHover,
+    () => href !== null && linkHoverUrl() === href,
+  )
   const linkInk = hovered ? linkHoverStyle(theme.link) : { fg: theme.link }
 
   if (node.kind === EInline.Text) {
@@ -58,11 +63,7 @@ function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): R
   if (node.kind === EInline.Link) {
     return (
       <>
-        <span
-          {...linkInk}
-          attributes={TextAttributes.UNDERLINE}
-          link={{ url: node.href }}
-        >
+        <span {...linkInk} attributes={TextAttributes.UNDERLINE} link={{ url: node.href }}>
           {plain(node.label)}
         </span>
         <span fg={theme.hint}>{` ${node.host} ${LINK_ARROW}`}</span>

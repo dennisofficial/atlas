@@ -13,9 +13,14 @@ function fixture() {
   let pending: readonly EventDraft[] = [REPORT]
   let drains = 0
   const source = retainedSource({
-    drain: () => { drains += 1; const handed = pending; pending = []; return handed },
+    drain: () => {
+      drains += 1
+      const handed = pending
+      pending = []
+      return handed
+    },
     subscribe: () => () => undefined,
-    threadsAwaitingInput: () => pending.length > 0 ? [THREAD] : [],
+    threadsAwaitingInput: () => (pending.length > 0 ? [THREAD] : []),
     witness: () => pending,
   })
   return { source, drains: () => drains }
@@ -45,14 +50,29 @@ describe('drain-only source adapter', () => {
     first.release?.()
     const stored: EventDraft[] = []
     const log: EventLogPort = {
-      append: async ({ drafts }) => { stored.push(...drafts); return [] },
-      read: async () => [], readOwn: async () => [], head: async () => 0,
-      refresh: async () => undefined, replace: async () => [],
+      append: async ({ drafts }) => {
+        stored.push(...drafts)
+        return []
+      },
+      read: async () => [],
+      readOwn: async () => [],
+      head: async () => 0,
+      refresh: async () => undefined,
+      replace: async () => [],
     }
     intake.suspend()
     await teardownSession({
-      sources: [{ closeAll: async () => undefined, threadsAwaitingNotice: () => [], drainNotifications: () => [] }],
-      log, ids: new RandomIds(), intake, stopSandbox: async () => undefined,
+      sources: [
+        {
+          closeAll: async () => undefined,
+          threadsAwaitingNotice: () => [],
+          drainNotifications: () => [],
+        },
+      ],
+      log,
+      ids: new RandomIds(),
+      intake,
+      stopSandbox: async () => undefined,
     })
     expect(stored).toEqual([REPORT])
     expect(intake.threadsWithPendingInput()).toEqual([])

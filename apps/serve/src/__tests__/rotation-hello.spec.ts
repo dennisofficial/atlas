@@ -75,7 +75,11 @@ describe('hello admission', () => {
       buffer: createFrameBuffer({ capacity: 16 }),
       inFlight: () => [],
       liveStepId: () => null,
-      driver: { ...driver, run: (options?: { resume?: boolean | undefined }) => void runs.push(options?.resume === true) },
+      driver: {
+        ...driver,
+        run: (options?: { resume?: boolean | undefined }) =>
+          void runs.push(options?.resume === true),
+      },
       files: { list: async () => [] },
       refusal: () => null,
       log: () => undefined,
@@ -89,10 +93,16 @@ describe('hello admission', () => {
       terminate: () => undefined,
     } as unknown as SessionSocket
     gated.open({ socket: gatedSocket })
-    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: true }) })
+    gated.message({
+      socket: gatedSocket,
+      message: encodeFrame({ kind: EClientFrame.Run, resume: true }),
+    })
     expect(runs).toEqual([true])
     closed = true
-    gated.message({ socket: gatedSocket, message: encodeFrame({ kind: EClientFrame.Run, resume: false }) })
+    gated.message({
+      socket: gatedSocket,
+      message: encodeFrame({ kind: EClientFrame.Run, resume: false }),
+    })
     await Bun.sleep(0)
     expect(runs).toEqual([true])
     expect(gatedSent).toEqual([])
@@ -153,7 +163,12 @@ describe('hello admission', () => {
       handlers.open({ socket })
       handlers.message({
         socket,
-        message: encodeFrame({ kind: EClientFrame.Hello, threadId: served, channelCursor: null, lastEventSeq: 0 }),
+        message: encodeFrame({
+          kind: EClientFrame.Hello,
+          threadId: served,
+          channelCursor: null,
+          lastEventSeq: 0,
+        }),
       })
       await Bun.sleep(0)
       return { socket, sent }
@@ -174,7 +189,9 @@ describe('hello admission', () => {
     await Bun.sleep(0)
 
     const second = await attach()
-    const frames = second.sent.map((payload) => JSON.parse(payload) as { kind: string; signal?: { type: string } })
+    const frames = second.sent.map(
+      (payload) => JSON.parse(payload) as { kind: string; signal?: { type: string } },
+    )
     const ready = frames.findIndex((frame) => frame.kind === EServeFrame.Ready)
     const repaint = frames.findIndex((frame) => frame.signal?.type === 'rotation-changed')
     expect(ready).toBeGreaterThanOrEqual(0)

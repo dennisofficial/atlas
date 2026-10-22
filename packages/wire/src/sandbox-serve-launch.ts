@@ -54,7 +54,11 @@ const serveDriftedFor = (args: {
   stamps: InstalledStamps
   desiredVersion: string | undefined
 }): boolean => {
-  if (args.stamps.protocol !== UNSTAMPED_PROTOCOL && args.stamps.protocol !== CHANNEL_PROTOCOL_VERSION) return true
+  if (
+    args.stamps.protocol !== UNSTAMPED_PROTOCOL &&
+    args.stamps.protocol !== CHANNEL_PROTOCOL_VERSION
+  )
+    return true
   if (args.desiredVersion === undefined) return false
   return args.stamps.version !== undefined && args.stamps.version !== args.desiredVersion
 }
@@ -160,7 +164,9 @@ export function createServeLauncher(args?: {
   return async ({ sandbox, token, cloudUrl, desiredVersion }) => {
     if (await serveAlive(sandbox)) {
       if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
-        throw new Error('atlas serve is already running under a different token; refusing to rotate its live credentials')
+        throw new Error(
+          'atlas serve is already running under a different token; refusing to rotate its live credentials',
+        )
       }
       const stamps = await installedStampsOf(sandbox)
       const drifted = serveDriftedFor({ stamps, desiredVersion })

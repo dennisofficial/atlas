@@ -52,7 +52,9 @@ const FILTER_PLACEHOLDER = 'type to filter'
  * reports it as `super`; OpenTUI's default keymap binds nothing to it, so a single-line field
  * answers it against the whole value.
  */
-const FILTER_BINDINGS: KeyBinding[] = [{ name: 'backspace', super: true, action: 'delete-to-line-start' }]
+const FILTER_BINDINGS: KeyBinding[] = [
+  { name: 'backspace', super: true, action: 'delete-to-line-start' },
+]
 
 const GUTTER = ' '.repeat(2)
 
@@ -159,10 +161,7 @@ function ThreadLine(props: {
 
   return (
     <box flexDirection="column" flexShrink={0}>
-      <DrawerLine
-        press={props.press}
-        {...(band === undefined ? {} : { band })}
-      >
+      <DrawerLine press={props.press} {...(band === undefined ? {} : { band })}>
         <text>
           <Spans
             spans={clipSpans({
@@ -172,10 +171,7 @@ function ThreadLine(props: {
           />
         </text>
       </DrawerLine>
-      <DrawerLine
-        press={props.press}
-        {...(band === undefined ? {} : { band })}
-      >
+      <DrawerLine press={props.press} {...(band === undefined ? {} : { band })}>
         <text>
           <Spans
             spans={clipSpans({

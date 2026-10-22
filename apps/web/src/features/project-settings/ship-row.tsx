@@ -1,6 +1,12 @@
 'use client'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@dltech/atlas-ui/components/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@dltech/atlas-ui/components/select'
 import { EShipBehavior } from '@dltech/atlas-wire/web'
 
 import { shipOptionsOf } from './data/project-mapping'

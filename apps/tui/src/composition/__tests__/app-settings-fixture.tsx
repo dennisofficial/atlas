@@ -1,6 +1,5 @@
 import { ESettingId, toThreadId, type SettingsDocument } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 import { grammarsReady, settle } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
 import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
@@ -40,7 +39,13 @@ export async function landed(setup: Mounted): Promise<void> {
 }
 
 export async function opened(app: FakeApp): Promise<Mounted> {
-  const setup = await testRender(<App app={app} opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }} />, WIDE)
+  const setup = await testRender(
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: true }}
+    />,
+    WIDE,
+  )
   await setup.flush()
   await settle(250)
   await setup.flush()

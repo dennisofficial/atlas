@@ -70,7 +70,10 @@ export async function ensureRealDirectory(path: string): Promise<void> {
   }
 }
 
-export async function ensureRealDirectories(args: { root: string; segments: readonly string[] }): Promise<string> {
+export async function ensureRealDirectories(args: {
+  root: string
+  segments: readonly string[]
+}): Promise<string> {
   let current = args.root
   for (const segment of args.segments) {
     current = join(current, segment)
@@ -92,7 +95,11 @@ export async function writeFileExclusive(args: { path: string; bytes: Uint8Array
   }
 }
 
-export async function replaceFile(args: { path: string; bytes: Uint8Array; digest: string }): Promise<void> {
+export async function replaceFile(args: {
+  path: string
+  bytes: Uint8Array
+  digest: string
+}): Promise<void> {
   const staging = `${args.path}.${process.pid}.${crypto.randomUUID()}.tmp`
   try {
     await writeFileExclusive({ path: staging, bytes: args.bytes })

@@ -3,7 +3,10 @@ import type { ThreadId } from '@dltech/atlas-core'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
 export const registerInBackground = (args: {
-  options: Pick<LocalCloudBridgeOptions, 'registration' | 'sendRegistration' | 'onRegistrationFailed'>
+  options: Pick<
+    LocalCloudBridgeOptions,
+    'registration' | 'sendRegistration' | 'onRegistrationFailed'
+  >
   threadId: ThreadId
   token: string
   serveUrl: string

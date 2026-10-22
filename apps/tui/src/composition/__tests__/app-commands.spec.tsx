@@ -42,7 +42,13 @@ async function opened(app: FakeApp, args: { started?: boolean } = {}): Promise<M
   const setup = await testRender(
     <App
       app={app}
-      opened={{ threadId: THREAD, events: [], turns: [], name: null, started: args.started ?? true }}
+      opened={{
+        threadId: THREAD,
+        events: [],
+        turns: [],
+        name: null,
+        started: args.started ?? true,
+      }}
       createBridge={() => fakeBridge()}
       preflightBirth={async () => null}
     />,

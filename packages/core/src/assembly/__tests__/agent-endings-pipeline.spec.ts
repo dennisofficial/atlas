@@ -60,7 +60,8 @@ const textsOf = (assembled: ReturnType<typeof assembledFrom>['assembled']): read
 
 const endingBlocksOf = (
   assembled: ReturnType<typeof assembledFrom>['assembled'],
-): readonly string[] => textsOf(assembled).filter((text) => text.startsWith('<system-notice kind="agents-ended"'))
+): readonly string[] =>
+  textsOf(assembled).filter((text) => text.startsWith('<system-notice kind="agents-ended"'))
 
 const CONVERSATION: readonly EventDraft[] = [
   { type: 'user-said', text: 'find every caller of assemble' },
@@ -107,7 +108,13 @@ describe('a bare tool call answering a delegate report', () => {
   const CALLED_AFTER_ENDING: readonly EventDraft[] = [
     ...CONVERSATION,
     ended(),
-    { type: 'tool-called', callId: toCallId('call-1'), name: 'read', input: { path: 'a.ts' }, ordinal: 0 },
+    {
+      type: 'tool-called',
+      callId: toCallId('call-1'),
+      name: 'read',
+      input: { path: 'a.ts' },
+      ordinal: 0,
+    },
     { type: 'tool-result', callId: toCallId('call-1'), name: 'read', output: 'export {}' },
   ]
 

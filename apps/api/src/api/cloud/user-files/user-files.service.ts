@@ -92,11 +92,19 @@ export class UserFilesService {
   }): Promise<UserFileDto[]> {
     const tree = assertValidTree(args.tree)
     const since = args.sinceRevision
-    const files = db.orm.public.UserFile.select('path', 'revision', 'contentHash', 'tombstonedAt').where({
+    const files = db.orm.public.UserFile.select(
+      'path',
+      'revision',
+      'contentHash',
+      'tombstonedAt',
+    ).where({
       userId: args.userId,
       tree,
     })
-    const rows = await (since === undefined ? files : files.where((file) => file.revision.gt(since)))
+    const rows = await (since === undefined
+      ? files
+      : files.where((file) => file.revision.gt(since))
+    )
       .orderBy((file) => file.revision.asc())
       .all()
     return rows.map((row) => toMetaDto(row))
@@ -181,7 +189,8 @@ export class UserFilesService {
         content: args.content,
       })
     } catch (failure) {
-      if (!isUniqueViolation(failure) || violatedConstraint(failure) !== USER_FILE_KEY_CONSTRAINT) throw failure
+      if (!isUniqueViolation(failure) || violatedConstraint(failure) !== USER_FILE_KEY_CONSTRAINT)
+        throw failure
       throw await this.currentConflict({ key: args.key })
     }
   }
@@ -189,7 +198,11 @@ export class UserFilesService {
   private async replaceRevision(args: {
     key: { userId: string; tree: string; path: string }
     baseRevision: number
-    data: { contentHash: string; content: Uint8Array<ArrayBuffer> | null; tombstonedAt: Date | null }
+    data: {
+      contentHash: string
+      content: Uint8Array<ArrayBuffer> | null
+      tombstonedAt: Date | null
+    }
     currentRevision: number
     currentHash: string
   }): Promise<void> {

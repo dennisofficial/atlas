@@ -1,6 +1,5 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
-
 export class TaskListFragment extends PromptFragment {
   readonly id = 'plan.task-list'
 

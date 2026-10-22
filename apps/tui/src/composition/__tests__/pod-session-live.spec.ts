@@ -29,7 +29,8 @@ import {
 } from './pod-session-live-fixture'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
-const enabled = process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
+const enabled =
+  process.env.ATLAS_LIVE_DOCKER === '1' && (await pingDocker({ socketPath: SOCKET })) === undefined
 const describeLive = enabled ? describe : describe.skip
 
 const THREAD = toThreadId(`brn_tui_pod_session_${process.pid}`)
@@ -39,7 +40,15 @@ const MARKER_PATH = '/atlas/workspaces/workspace/pod-marker.txt'
 const POLL_MS = 500
 const PARK_TIMEOUT_MS = 10 * 60_000
 
-const waitFor = async ({ what, until, timeoutMs }: { what: string; until: () => Promise<boolean>; timeoutMs: number }) => {
+const waitFor = async ({
+  what,
+  until,
+  timeoutMs,
+}: {
+  what: string
+  until: () => Promise<boolean>
+  timeoutMs: number
+}) => {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (await until()) return
@@ -67,7 +76,9 @@ describeLive('a multi-turn session in a local pod', () => {
       const app = fakeApp({
         pods: true,
         model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
-        cloud: fakeCloud({ session: { url: `http://127.0.0.1:${leaseApi.port}`, token: 'live-session', email: null } }),
+        cloud: fakeCloud({
+          session: { url: `http://127.0.0.1:${leaseApi.port}`, token: 'live-session', email: null },
+        }),
       })
       const options = livePodBridgeOptionsFor(app)
       const bridge = createLocalPodBridge({
@@ -77,7 +88,9 @@ describeLive('a multi-turn session in a local pod', () => {
       })
       const engine = new DockerEngine({ socketPath: SOCKET })
       const podIds = async (): Promise<string[]> =>
-        (await engine.listContainers({ labels: { [podThreadLabel]: THREAD }, all: true })).map((pod) => pod.id)
+        (await engine.listContainers({ labels: { [podThreadLabel]: THREAD }, all: true })).map(
+          (pod) => pod.id,
+        )
       const attachments: CloudAttachment[] = []
 
       try {
@@ -122,18 +135,24 @@ describeLive('a multi-turn session in a local pod', () => {
 
         const first = await runner.say({ threadId: THREAD, text: WRITE_TRIGGER })
         expect(first.status).toBe(ETurnStatus.Completed)
-        expect(await dockerCli({ socket: SOCKET, args: ['exec', podId, 'cat', MARKER_PATH] })).toBe(MARKER)
+        expect(await dockerCli({ socket: SOCKET, args: ['exec', podId, 'cat', MARKER_PATH] })).toBe(
+          MARKER,
+        )
 
         const parked = await fetch(`${born.sandbox.url}/v1/park`, {
           method: 'POST',
-          headers: { authorization: `Bearer ${born.sandbox.token}`, 'content-type': 'application/json' },
+          headers: {
+            authorization: `Bearer ${born.sandbox.token}`,
+            'content-type': 'application/json',
+          },
           body: JSON.stringify({ reason: 'pod-session-live' }),
         })
         expect(parked.status).toBe(200)
         await waitFor({
           what: 'the pod to exit',
           timeoutMs: PARK_TIMEOUT_MS,
-          until: async () => (await bridge.sandboxes.find({ threadId: THREAD }))?.state === 'parked',
+          until: async () =>
+            (await bridge.sandboxes.find({ threadId: THREAD }))?.state === 'parked',
         })
         expect((await engine.inspectContainer({ id: podId })).state.running).toBe(false)
 

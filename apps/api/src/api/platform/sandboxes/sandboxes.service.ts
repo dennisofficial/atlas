@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ownedSandbox } from './ownership'
@@ -13,11 +9,7 @@ import { SandboxEndpointService } from './sandbox-endpoint'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
-import type {
-  SandboxAttachmentDto,
-  SandboxListEntryDto,
-  SandboxStatusDto,
-} from './sandboxes.types'
+import type { SandboxAttachmentDto, SandboxListEntryDto, SandboxStatusDto } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
@@ -76,7 +68,9 @@ export class SandboxesService {
       tokenHash: minted.tokenHash,
       sealedToken: this.cipher.encrypt(minted.token),
       rotated: true,
-      ...(args.gitToken === undefined ? {} : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
+      ...(args.gitToken === undefined
+        ? {}
+        : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
     return {
@@ -179,7 +173,10 @@ export class SandboxesService {
     }
   }
 
-  async park(args: { row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>; reason: string }): Promise<void> {
+  async park(args: {
+    row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>
+    reason: string
+  }): Promise<void> {
     await this.notifyParked(args)
     await this.vercel.stop({ threadId: args.row.threadId, name: args.row.name })
     await db.orm.public.CloudSandbox.where({ threadId: args.row.threadId }).update({
@@ -205,5 +202,4 @@ export class SandboxesService {
       )
     }
   }
-
 }

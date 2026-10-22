@@ -1,6 +1,14 @@
 import { pullImageOrFail } from './image-pull'
 import { parseBoundPorts, type BoundPort, type PortBinding } from './ports'
-import { asLabels, asNumber, asRecord, asString, raw, request, EngineRequestFailed } from './engine-http'
+import {
+  asLabels,
+  asNumber,
+  asRecord,
+  asString,
+  raw,
+  request,
+  EngineRequestFailed,
+} from './engine-http'
 import { DockerImages } from './engine-images'
 
 export { EngineRequestFailed } from './engine-http'
@@ -111,7 +119,9 @@ export class DockerEngine {
   }
 
   async inspectContainer(args: { id: string }): Promise<ContainerDetails> {
-    const body = asRecord(await this.request({ method: 'GET', path: `/containers/${args.id}/json` }))
+    const body = asRecord(
+      await this.request({ method: 'GET', path: `/containers/${args.id}/json` }),
+    )
     const state = asRecord(body.State)
     const config = asRecord(body.Config)
     const hostConfig = asRecord(body.HostConfig)
@@ -147,12 +157,13 @@ export class DockerEngine {
     name: string
     body: CreateContainerBody
   }): Promise<{ id: string; warnings: readonly string[] }> {
-    const create = () => this.request({
-      method: 'POST',
-      path: '/containers/create',
-      query: { name: args.name },
-      body: args.body,
-    })
+    const create = () =>
+      this.request({
+        method: 'POST',
+        path: '/containers/create',
+        query: { name: args.name },
+        body: args.body,
+      })
     const body = asRecord(
       await create().catch(async (error: unknown) => {
         if (
@@ -164,7 +175,12 @@ export class DockerEngine {
         }
         await pullImageOrFail({
           image: args.body.Image,
-          pull: () => this.raw({ method: 'POST', path: '/images/create', query: { fromImage: args.body.Image } }),
+          pull: () =>
+            this.raw({
+              method: 'POST',
+              path: '/images/create',
+              query: { fromImage: args.body.Image },
+            }),
         })
         return create()
       }),

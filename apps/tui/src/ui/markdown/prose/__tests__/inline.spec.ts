@@ -139,7 +139,8 @@ describe('file path mentions', () => {
 
   it('links only the slash-joined mentions that resolve, leaving the rest inline', () => {
     bindPathLinks({
-      resolve: (mention) => (mention.path === 'apps/tui/inline.ts' ? { path: '/r/apps/tui/inline.ts' } : null),
+      resolve: (mention) =>
+        mention.path === 'apps/tui/inline.ts' ? { path: '/r/apps/tui/inline.ts' } : null,
     })
     const nodes = nodesOf('see apps/tui/inline.ts but not foo/bar/baz here')
     expect(nodes.some((n) => n.kind === EInline.FilePath)).toBe(true)
@@ -160,9 +161,9 @@ describe('file path mentions', () => {
     expect(nodesOf('why is @src/mentionable.ts broken').every((n) => n.kind === EInline.Text)).toBe(
       true,
     )
-    expect(nodesOf('<summary>An html block</summary>').every((n) => n.kind !== EInline.FilePath)).toBe(
-      true,
-    )
+    expect(
+      nodesOf('<summary>An html block</summary>').every((n) => n.kind !== EInline.FilePath),
+    ).toBe(true)
     expect(nodesOf('</details>').every((n) => n.kind !== EInline.FilePath)).toBe(true)
   })
 

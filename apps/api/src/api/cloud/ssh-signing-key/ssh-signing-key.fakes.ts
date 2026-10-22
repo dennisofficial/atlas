@@ -14,7 +14,9 @@ export function response(args: { status: number; body?: unknown }): GithubHttpRe
   }
 }
 
-export type GithubRoute = (call: GithubCall) => GithubHttpResponse | undefined | Promise<GithubHttpResponse | undefined>
+export type GithubRoute = (
+  call: GithubCall,
+) => GithubHttpResponse | undefined | Promise<GithubHttpResponse | undefined>
 
 export function createFakeGithub() {
   const calls: GithubCall[] = []

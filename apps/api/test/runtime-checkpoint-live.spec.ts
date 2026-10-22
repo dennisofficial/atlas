@@ -10,7 +10,10 @@ import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'bun:test'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { SandboxCheckpointController } from '../src/api/platform/sandboxes/sandbox-checkpoint.controller'
-import { SandboxTokenGuard, type SandboxAuthenticatedRequest } from '../src/api/platform/sandboxes/sandbox-token.guard'
+import {
+  SandboxTokenGuard,
+  type SandboxAuthenticatedRequest,
+} from '../src/api/platform/sandboxes/sandbox-token.guard'
 import { hashSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
 
 describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
@@ -54,8 +57,10 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   }
 
   function put(body: object) {
-    return http().put(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('authorization', `Bearer ${token}`).send(body)
+    return http()
+      .put(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('authorization', `Bearer ${token}`)
+      .send(body)
   }
 
   async function expectPersisted(expected: RuntimeCheckpoint): Promise<void> {
@@ -69,23 +74,31 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [SandboxCheckpointController] })
-      .overrideGuard(SessionAuthGuard).useValue({
+      .overrideGuard(SessionAuthGuard)
+      .useValue({
         canActivate(context: ExecutionContext): boolean {
           const req = context.switchToHttp().getRequest<AuthenticatedRequest>()
           const userId = req.headers['x-live-user']
           if (userId !== ownerId && userId !== foreignId) throw new UnauthorizedException()
-          req.auth = { userId, sessionId: runId, email: `${userId}@checkpoint.invalid`, activeOrganizationId: null }
+          req.auth = {
+            userId,
+            sessionId: runId,
+            email: `${userId}@checkpoint.invalid`,
+            activeOrganizationId: null,
+          }
           return true
         },
       })
-      .overrideGuard(SandboxTokenGuard).useValue({
+      .overrideGuard(SandboxTokenGuard)
+      .useValue({
         canActivate(context: ExecutionContext): boolean {
           const req = context.switchToHttp().getRequest<SandboxAuthenticatedRequest>()
           if (req.headers.authorization !== `Bearer ${token}`) throw new UnauthorizedException()
           req.sandbox = { threadId: fixture.threadId, userId: ownerId }
           return true
         },
-      }).compile()
+      })
+      .compile()
     app = module.createNestApplication()
     app.enableVersioning({ type: VersioningType.URI })
     await app.listen(0, '127.0.0.1')
@@ -98,11 +111,24 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     const at = new Date('2026-10-01T00:00:00.000Z')
     await seedUser({ db, id: ownerId })
     await seedUser({ db, id: foreignId })
-    await db.orm.public.Thread.create({ id: threadId, userId: ownerId, createdAt: at, updatedAt: at })
+    await db.orm.public.Thread.create({
+      id: threadId,
+      userId: ownerId,
+      createdAt: at,
+      updatedAt: at,
+    })
     await db.orm.public.CloudSandbox.create({
-      id: sandboxId, threadId, userId: ownerId, sandboxId: `provider-${sandboxId}`,
-      name: sandboxId, region: 'iad1', state: 'running', tokenHash: hashSessionToken(token),
-      lastActivityAt: at, createdAt: at, updatedAt: at,
+      id: sandboxId,
+      threadId,
+      userId: ownerId,
+      sandboxId: `provider-${sandboxId}`,
+      name: sandboxId,
+      region: 'iad1',
+      state: 'running',
+      tokenHash: hashSessionToken(token),
+      lastActivityAt: at,
+      createdAt: at,
+      updatedAt: at,
     })
   })
 
@@ -111,11 +137,15 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   })
 
   it('returns null for a missing checkpoint and does not disclose another owner’s row', async () => {
-    const owner = await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('x-live-user', ownerId).expect(200)
+    const owner = await http()
+      .get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('x-live-user', ownerId)
+      .expect(200)
     expect(owner.body).toEqual({ checkpoint: null })
-    await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('x-live-user', foreignId).expect(404)
+    await http()
+      .get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('x-live-user', foreignId)
+      .expect(404)
     const row = await storedSandbox()
     expect(row.runtimeCheckpoint).toBeNull()
     expect(row.runtimeCheckpointRevision).toBeNull()
@@ -130,41 +160,56 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     await expectPersisted(parked)
     const stored = await storedSandbox()
 
-    const refused = [running, parked,
+    const refused = [
+      running,
+      parked,
       checkpoint({ revision: 2, digest: 'f'.repeat(64) }),
-      checkpoint({ revision: 2, phase: ERuntimePhase.Parked, digest: 'e'.repeat(64) })]
+      checkpoint({ revision: 2, phase: ERuntimePhase.Parked, digest: 'e'.repeat(64) }),
+    ]
     for (const report of refused) {
       expect((await put(report).expect(200)).body).toEqual({ checkpoint: parked })
       await expectPersisted(parked)
       const unchanged = await storedSandbox()
       expect(unchanged.updatedAt).toEqual(stored.updatedAt)
     }
-    const owner = await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('x-live-user', ownerId).expect(200)
+    const owner = await http()
+      .get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('x-live-user', ownerId)
+      .expect(200)
     expect(owner.body).toEqual({ checkpoint: parked })
-    await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('x-live-user', foreignId).expect(404)
+    await http()
+      .get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('x-live-user', foreignId)
+      .expect(404)
   })
 
   it('atomically keeps the highest of 20 concurrent scrambled reports, including its exact digest and phase', async () => {
     const revisions = [11, 4, 18, 1, 15, 8, 3, 19, 6, 13, 2, 17, 10, 5, 20, 7, 16, 9, 14, 12]
-    const reports = revisions.map(revision => checkpoint({
-      revision, phase: revision === 20 ? ERuntimePhase.Parked : ERuntimePhase.Serving,
-    }))
-    await Promise.all(reports.map(report => put(report).expect(200)))
-    const highest = reports.find(report => report.revision === 20)
+    const reports = revisions.map((revision) =>
+      checkpoint({
+        revision,
+        phase: revision === 20 ? ERuntimePhase.Parked : ERuntimePhase.Serving,
+      }),
+    )
+    await Promise.all(reports.map((report) => put(report).expect(200)))
+    const highest = reports.find((report) => report.revision === 20)
     if (highest === undefined) throw new Error('Highest revision fixture is missing')
     await expectPersisted(highest)
-    const owner = await http().get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .set('x-live-user', ownerId).expect(200)
+    const owner = await http()
+      .get(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .set('x-live-user', ownerId)
+      .expect(200)
     expect(owner.body).toEqual({ checkpoint: highest })
   })
 
   it('rejects invalid payloads without writing a checkpoint', async () => {
     const valid = checkpoint({ revision: 1 })
     const invalid = [
-      { phase: 'running' }, { ...valid, revision: 0 }, { ...valid, revision: 1.5 },
-      { ...valid, phase: 'hibernated' }, { ...valid, threadId: `brn_foreign_${runId}` },
+      { phase: 'running' },
+      { ...valid, revision: 0 },
+      { ...valid, revision: 1.5 },
+      { ...valid, phase: 'hibernated' },
+      { ...valid, threadId: `brn_foreign_${runId}` },
       { ...valid, transcript: { ...valid.transcript, digest: 'not-a-digest' } },
       { ...valid, unexpected: true },
     ]
@@ -177,12 +222,18 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
 
   it('allows the sandbox principal only on its own thread route', async () => {
     const foreignThread = `brn_foreign_${runId}`
-    await http().put(`/v1/sandboxes/${foreignThread}/checkpoint`)
-      .set('authorization', `Bearer ${token}`).send({ ...checkpoint({ revision: 1 }), threadId: foreignThread })
+    await http()
+      .put(`/v1/sandboxes/${foreignThread}/checkpoint`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ ...checkpoint({ revision: 1 }), threadId: foreignThread })
       .expect(401)
-    await http().put(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
-      .send(checkpoint({ revision: 1 })).expect(401)
+    await http()
+      .put(`/v1/sandboxes/${fixture.threadId}/checkpoint`)
+      .send(checkpoint({ revision: 1 }))
+      .expect(401)
     expect((await put(checkpoint({ revision: 1 })).expect(200)).body.checkpoint.revision).toBe(1)
-    expect(await db.orm.public.CloudSandbox.where({ threadId: foreignThread }).all()).toHaveLength(0)
+    expect(await db.orm.public.CloudSandbox.where({ threadId: foreignThread }).all()).toHaveLength(
+      0,
+    )
   })
 })

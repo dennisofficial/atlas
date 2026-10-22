@@ -14,21 +14,48 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'find and fix it' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'searching' }] },
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'grep', input: { pattern: 'todo' }, ordinal: 0 },
-      { type: 'tool-called', callId: toCallId('call-2'), name: 'glob', input: { pattern: '*.ts' }, ordinal: 1 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'grep',
+        input: { pattern: 'todo' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-2'),
+        name: 'glob',
+        input: { pattern: '*.ts' },
+        ordinal: 1,
+      },
       { type: 'tool-result', callId: toCallId('call-1'), name: 'grep', output: 'a.ts:1: todo' },
       { type: 'tool-result', callId: toCallId('call-2'), name: 'glob', output: 'a.ts' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'now editing' }] },
-      { type: 'tool-called', callId: toCallId('call-3'), name: 'bash', input: { command: 'rm a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-3'),
+        name: 'bash',
+        input: { command: 'rm a.ts' },
+        ordinal: 0,
+      },
       { type: 'tool-denied', callId: toCallId('call-3'), name: 'bash', reason: 'destructive' },
-      { type: 'tool-called', callId: toCallId('call-4'), name: 'write', input: { path: 'a.ts' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-4'),
+        name: 'write',
+        input: { path: 'a.ts' },
+        ordinal: 0,
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
 
     expect(assembled.messages).toEqual([
       {
-        message: { role: 'user', content: [{ type: 'text', text: operatorSaidAs('find and fix it') }] },
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: operatorSaidAs('find and fix it') }],
+        },
         origin: { eventId: toEventId('event-1'), seq: 1 },
       },
       {
@@ -36,8 +63,18 @@ describe('messagesFromEvents pairing every call with a result', () => {
           role: 'assistant',
           content: [
             { type: 'text', text: 'searching' },
-            { type: 'tool-call', toolCallId: 'call-1', toolName: 'grep', input: { pattern: 'todo' } },
-            { type: 'tool-call', toolCallId: 'call-2', toolName: 'glob', input: { pattern: '*.ts' } },
+            {
+              type: 'tool-call',
+              toolCallId: 'call-1',
+              toolName: 'grep',
+              input: { pattern: 'todo' },
+            },
+            {
+              type: 'tool-call',
+              toolCallId: 'call-2',
+              toolName: 'glob',
+              input: { pattern: '*.ts' },
+            },
           ],
         },
         origin: { eventId: toEventId('event-2'), seq: 2 },
@@ -67,7 +104,12 @@ describe('messagesFromEvents pairing every call with a result', () => {
           role: 'assistant',
           content: [
             { type: 'text', text: 'now editing' },
-            { type: 'tool-call', toolCallId: 'call-3', toolName: 'bash', input: { command: 'rm a.ts' } },
+            {
+              type: 'tool-call',
+              toolCallId: 'call-3',
+              toolName: 'bash',
+              input: { command: 'rm a.ts' },
+            },
           ],
         },
         origin: { eventId: toEventId('event-7'), seq: 7 },
@@ -89,7 +131,9 @@ describe('messagesFromEvents pairing every call with a result', () => {
       {
         message: {
           role: 'assistant',
-          content: [{ type: 'tool-call', toolCallId: 'call-4', toolName: 'write', input: { path: 'a.ts' } }],
+          content: [
+            { type: 'tool-call', toolCallId: 'call-4', toolName: 'write', input: { path: 'a.ts' } },
+          ],
         },
         origin: { eventId: toEventId('event-10'), seq: 10 },
       },
@@ -101,7 +145,10 @@ describe('messagesFromEvents pairing every call with a result', () => {
               type: 'tool-result',
               toolCallId: 'call-4',
               toolName: 'write',
-              output: { type: 'error-text', value: 'This tool call did not complete and produced no result.' },
+              output: {
+                type: 'error-text',
+                value: 'This tool call did not complete and produced no result.',
+              },
             },
           ],
         },
@@ -114,11 +161,35 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'find them' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'searching' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'grep', input: { pattern: 'a' }, ordinal: 0 },
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'glob', input: { pattern: 'b' }, ordinal: 1 },
-      { type: 'tool-result', callId: toCallId('call-0'), name: 'grep', output: 'hit', modelText: 'hit' },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'grep',
+        input: { pattern: 'a' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'glob',
+        input: { pattern: 'b' },
+        ordinal: 1,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-0'),
+        name: 'grep',
+        output: 'hit',
+        modelText: 'hit',
+      },
       { type: 'user-said', text: 'actually stop' },
-      { type: 'tool-result', callId: toCallId('call-1'), name: 'glob', output: 'b.ts', modelText: 'b.ts' },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'glob',
+        output: 'b.ts',
+        modelText: 'b.ts',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -130,16 +201,21 @@ describe('messagesFromEvents pairing every call with a result', () => {
       'user',
     ])
     const results = assembled.messages[2]?.message.content
-    expect(results?.map((part) => (part.type === 'tool-result' ? part.toolCallId : undefined))).toEqual([
-      'call-0',
-      'call-1',
-    ])
+    expect(
+      results?.map((part) => (part.type === 'tool-result' ? part.toolCallId : undefined)),
+    ).toEqual(['call-0', 'call-1'])
   })
 
   it('synthesises a result for a call that never settled, which the API demands', async () => {
     const events = log([
       { type: 'assistant-said', parts: [{ type: 'text', text: 'reading' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'a' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'read',
+        input: { path: 'a' },
+        ordinal: 0,
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -154,9 +230,21 @@ describe('messagesFromEvents pairing every call with a result', () => {
 
   it('never leaves a tool call unanswered, whatever order the log puts events in', () => {
     const call = (id: string, ordinal: number) =>
-      ({ type: 'tool-called', callId: toCallId(id), name: 'read', input: { path: id }, ordinal }) as const
+      ({
+        type: 'tool-called',
+        callId: toCallId(id),
+        name: 'read',
+        input: { path: id },
+        ordinal,
+      }) as const
     const result = (id: string) =>
-      ({ type: 'tool-result', callId: toCallId(id), name: 'read', output: 'x', modelText: 'x' }) as const
+      ({
+        type: 'tool-result',
+        callId: toCallId(id),
+        name: 'read',
+        output: 'x',
+        modelText: 'x',
+      }) as const
     const said = { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] } as const
     const asked = { type: 'user-said', text: 'go' } as const
 
@@ -181,9 +269,9 @@ describe('messagesFromEvents pairing every call with a result', () => {
 
         const next = messages[index + 1]?.message
         expect(next?.role).toBe('tool')
-        expect(next?.content.flatMap((part) => (part.type === 'tool-result' ? [part.toolCallId] : []))).toEqual(
-          calls,
-        )
+        expect(
+          next?.content.flatMap((part) => (part.type === 'tool-result' ? [part.toolCallId] : [])),
+        ).toEqual(calls)
       })
 
       const roles = messages.map((entry) => entry.message.role)
@@ -194,7 +282,7 @@ describe('messagesFromEvents pairing every call with a result', () => {
     }
   })
 
-  it('keeps one turn\'s results together whatever the log interleaves between them', () => {
+  it("keeps one turn's results together whatever the log interleaves between them", () => {
     const interlopers: EventDraft[] = [
       { type: 'context-loaded', slot: 'project', key: 'CLAUDE.md', content: 'rules' },
       { type: 'nudge', text: 'keep going', lifetimeSteps: 1 },
@@ -206,11 +294,35 @@ describe('messagesFromEvents pairing every call with a result', () => {
     for (const interloper of interlopers) {
       const events = log([
         { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
-        { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'a' }, ordinal: 0 },
-        { type: 'tool-called', callId: toCallId('call-1'), name: 'read', input: { path: 'b' }, ordinal: 1 },
-        { type: 'tool-result', callId: toCallId('call-0'), name: 'read', output: 'a', modelText: 'a' },
+        {
+          type: 'tool-called',
+          callId: toCallId('call-0'),
+          name: 'read',
+          input: { path: 'a' },
+          ordinal: 0,
+        },
+        {
+          type: 'tool-called',
+          callId: toCallId('call-1'),
+          name: 'read',
+          input: { path: 'b' },
+          ordinal: 1,
+        },
+        {
+          type: 'tool-result',
+          callId: toCallId('call-0'),
+          name: 'read',
+          output: 'a',
+          modelText: 'a',
+        },
         interloper,
-        { type: 'tool-result', callId: toCallId('call-1'), name: 'read', output: 'b', modelText: 'b' },
+        {
+          type: 'tool-result',
+          callId: toCallId('call-1'),
+          name: 'read',
+          output: 'b',
+          modelText: 'b',
+        },
       ])
 
       const messages = messagesFromEvents()(empty, contextFor({ events })).messages
@@ -232,9 +344,27 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'go' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'a' }, ordinal: 0 },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'b' }, ordinal: 1 },
-      { type: 'tool-result', callId: toCallId('call-0'), name: 'read', output: 'a', modelText: 'a' },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'read',
+        input: { path: 'a' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'read',
+        input: { path: 'b' },
+        ordinal: 1,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-0'),
+        name: 'read',
+        output: 'a',
+        modelText: 'a',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -258,11 +388,35 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'clean up' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'on it' }] },
-      { type: 'tool-called', callId: toCallId('bash_419'), name: 'bash', input: { command: 'first' }, ordinal: 0 },
-      { type: 'tool-result', callId: toCallId('bash_419'), name: 'bash', output: 'first done', modelText: 'first done' },
+      {
+        type: 'tool-called',
+        callId: toCallId('bash_419'),
+        name: 'bash',
+        input: { command: 'first' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('bash_419'),
+        name: 'bash',
+        output: 'first done',
+        modelText: 'first done',
+      },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'finishing the cleanup' }] },
-      { type: 'tool-called', callId: toCallId('bash_419'), name: 'bash', input: { command: 'second' }, ordinal: 0 },
-      { type: 'tool-result', callId: toCallId('bash_419'), name: 'bash', output: 'second done', modelText: 'second done' },
+      {
+        type: 'tool-called',
+        callId: toCallId('bash_419'),
+        name: 'bash',
+        input: { command: 'second' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('bash_419'),
+        name: 'bash',
+        output: 'second done',
+        modelText: 'second done',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))
@@ -301,10 +455,28 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'go' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'first' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'a' }, ordinal: 0 },
-      { type: 'tool-result', callId: toCallId('call-0'), name: 'read', output: 'a', modelText: 'a' },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'read',
+        input: { path: 'a' },
+        ordinal: 0,
+      },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-0'),
+        name: 'read',
+        output: 'a',
+        modelText: 'a',
+      },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'second' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'read', input: { path: 'a' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'read',
+        input: { path: 'a' },
+        ordinal: 0,
+      },
       { type: 'user-said', text: 'go on' },
     ])
 
@@ -325,7 +497,10 @@ describe('messagesFromEvents pairing every call with a result', () => {
     expect(assembled.messages[4]?.message.content[0]).toMatchObject({
       type: 'tool-result',
       toolCallId: 'call-0~2',
-      output: { type: 'error-text', value: 'This tool call did not complete and produced no result.' },
+      output: {
+        type: 'error-text',
+        value: 'This tool call did not complete and produced no result.',
+      },
     })
     expect(exchangeFaults(assembled)).toEqual([])
   })
@@ -334,9 +509,21 @@ describe('messagesFromEvents pairing every call with a result', () => {
     const events = log([
       { type: 'user-said', text: 'go' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
-      { type: 'tool-called', callId: toCallId('call-0'), name: 'bash', input: { command: 'x' }, ordinal: 0 },
+      {
+        type: 'tool-called',
+        callId: toCallId('call-0'),
+        name: 'bash',
+        input: { command: 'x' },
+        ordinal: 0,
+      },
       { type: 'tool-denied', callId: toCallId('call-0'), name: 'bash', reason: 'needs approval' },
-      { type: 'tool-result', callId: toCallId('call-0'), name: 'bash', output: 'ran', modelText: 'ran' },
+      {
+        type: 'tool-result',
+        callId: toCallId('call-0'),
+        name: 'bash',
+        output: 'ran',
+        modelText: 'ran',
+      },
     ])
 
     const assembled = messagesFromEvents()(empty, contextFor({ events }))

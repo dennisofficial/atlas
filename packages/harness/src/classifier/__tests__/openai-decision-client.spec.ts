@@ -33,7 +33,11 @@ describe('OpenAiDecisionClient', () => {
         }),
       ),
     )
-    expect(outcome).toEqual({ ok: true, answers: { danger: { noul: 0.9 } }, model: 'gpt-6-luna-2026' })
+    expect(outcome).toEqual({
+      ok: true,
+      answers: { danger: { noul: 0.9 } },
+      model: 'gpt-6-luna-2026',
+    })
   })
 
   it('reports a non-200 as a fault carrying the status', async () => {

@@ -124,7 +124,14 @@ describe('pausing a stepping child', () => {
     const paused = await pausing
     expect(paused).toEqual([child])
     const events = await entry.harness.log.readOwn({ threadId: child })
-    expect(events.some((event) => event.type === 'agent-ended' && event.agentId === descendant && event.status === EAgentStatus.Failed)).toBe(true)
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'agent-ended' &&
+          event.agentId === descendant &&
+          event.status === EAgentStatus.Failed,
+      ),
+    ).toBe(true)
   })
 
   it('pauses descendants and persists each outcome in the actual parent log', async () => {
@@ -135,10 +142,14 @@ describe('pausing a stepping child', () => {
     const paused = await entry.supervisor.pauseChildren({ threadId: entry.parent })
     expect(paused).toEqual(expect.arrayContaining([child, grandchild]))
     expect(paused).toHaveLength(2)
-    for (const [owner, agentId] of [[entry.parent, child], [child, grandchild]] as const) {
+    for (const [owner, agentId] of [
+      [entry.parent, child],
+      [child, grandchild],
+    ] as const) {
       const events = await entry.harness.log.readOwn({ threadId: owner })
-      expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === agentId))
-        .toEqual([expect.objectContaining({ status: EAgentStatus.Paused, killedBy: undefined })])
+      expect(
+        events.filter((event) => event.type === 'agent-ended' && event.agentId === agentId),
+      ).toEqual([expect.objectContaining({ status: EAgentStatus.Paused, killedBy: undefined })])
     }
   })
 
@@ -149,7 +160,14 @@ describe('pausing a stepping child', () => {
     const sibling = await spawn({ entry, threadId: entry.parent, agentType: 'explore' })
     const pausing = entry.supervisor.pauseChildren({ threadId: entry.parent })
     let ended = false
-    void pausing.then(() => { ended = true }, () => { ended = true })
+    void pausing.then(
+      () => {
+        ended = true
+      },
+      () => {
+        ended = true
+      },
+    )
     entry.runners.started[0]?.fail(new Error('child model failed'))
     await Bun.sleep(1)
     expect(ended).toBe(false)
@@ -158,7 +176,14 @@ describe('pausing a stepping child', () => {
     expect(ended).toBe(true)
     expect(paused).toEqual([sibling])
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
-    expect(events.some((event) => event.type === 'agent-ended' && event.agentId === first && event.status === EAgentStatus.Failed)).toBe(true)
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'agent-ended' &&
+          event.agentId === first &&
+          event.status === EAgentStatus.Failed,
+      ),
+    ).toBe(true)
   })
 
   it('keeps a terminal ending whose first append failed so the pause flush persists it', async () => {
@@ -179,8 +204,9 @@ describe('pausing a stepping child', () => {
     await pausing
     await entry.supervisor.pauseChildren({ threadId: entry.parent })
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
-    expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === child))
-      .toEqual([expect.objectContaining({ status: EAgentStatus.Finished })])
+    expect(
+      events.filter((event) => event.type === 'agent-ended' && event.agentId === child),
+    ).toEqual([expect.objectContaining({ status: EAgentStatus.Finished })])
   })
 
   it('returns already-paused descendants after a failed persistence attempt', async () => {
@@ -196,11 +222,14 @@ describe('pausing a stepping child', () => {
       }
       return append(args)
     }
-    await expect(entry.supervisor.pauseChildren({ threadId: entry.parent })).rejects.toThrow('pause storage unavailable')
+    await expect(entry.supervisor.pauseChildren({ threadId: entry.parent })).rejects.toThrow(
+      'pause storage unavailable',
+    )
     expect(await entry.supervisor.pauseChildren({ threadId: entry.parent })).toEqual([child])
     const events = await entry.harness.log.readOwn({ threadId: entry.parent })
-    expect(events.filter((event) => event.type === 'agent-ended' && event.agentId === child))
-      .toEqual([expect.objectContaining({ status: EAgentStatus.Paused })])
+    expect(
+      events.filter((event) => event.type === 'agent-ended' && event.agentId === child),
+    ).toEqual([expect.objectContaining({ status: EAgentStatus.Paused })])
   })
 
   it('waits for the halt at the seam without attributing a stop', async () => {

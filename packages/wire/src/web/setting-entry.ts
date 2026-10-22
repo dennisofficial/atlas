@@ -37,5 +37,8 @@ export const validateAgainst = (args: {
   }
   const parsed = entry.schema.safeParse(decodeSettingValue(args.stored))
   if (parsed.success) return { ok: true }
-  return { ok: false, reason: `invalid value for ${args.key}: ${parsed.error.issues[0]?.message ?? 'rejected'}` }
+  return {
+    ok: false,
+    reason: `invalid value for ${args.key}: ${parsed.error.issues[0]?.message ?? 'rejected'}`,
+  }
 }

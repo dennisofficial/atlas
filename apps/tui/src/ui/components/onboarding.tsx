@@ -42,7 +42,11 @@ function Row(props: {
   const band = props.selected ? theme.hoverBg : click.wash.bg
 
   return (
-    <box flexShrink={0} {...(band === undefined ? {} : { backgroundColor: band })} {...click.handlers}>
+    <box
+      flexShrink={0}
+      {...(band === undefined ? {} : { backgroundColor: band })}
+      {...click.handlers}
+    >
       <text>
         <Spans
           spans={clipSpans({

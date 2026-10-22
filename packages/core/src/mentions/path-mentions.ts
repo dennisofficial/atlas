@@ -37,7 +37,11 @@ export function parseLineSuffix(raw: string): { path: string; line?: number } {
   return { path: raw.slice(0, raw.length - suffix[0].length), line: Number(line) }
 }
 
-export function resolveMentionAgainst(args: { mention: string; root: string; home: string }): string {
+export function resolveMentionAgainst(args: {
+  mention: string
+  root: string
+  home: string
+}): string {
   if (args.mention.startsWith('/')) return args.mention
   if (args.mention.startsWith('~')) return expandHome({ path: args.mention, home: args.home })
   const root = args.root.endsWith('/') ? args.root.slice(0, -1) : args.root

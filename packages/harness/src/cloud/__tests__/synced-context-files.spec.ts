@@ -34,10 +34,14 @@ const fakeMirror = (): FakeMirror => {
     },
     subscribe: (listener) => {
       mirror.listeners.add(listener)
-      return () => { mirror.listeners.delete(listener) }
+      return () => {
+        mirror.listeners.delete(listener)
+      }
     },
     current: () => undefined,
-    emit: () => { for (const listener of [...mirror.listeners]) listener() },
+    emit: () => {
+      for (const listener of [...mirror.listeners]) listener()
+    },
   }
   return mirror
 }
@@ -88,7 +92,11 @@ describe('SyncedContextFiles', () => {
       { name: 'plan.md', isDirectory: false },
     ])
     expect(await files.list('notes')).toEqual([{ name: 'a.md', isDirectory: false }])
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: 'the plan', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: 'the plan',
+      truncated: false,
+    })
     expect(mirror.converges).toBe(3)
   })
 
@@ -97,7 +105,11 @@ describe('SyncedContextFiles', () => {
     await write('plan.md', 'the plan')
     mirror.failConverge = true
 
-    expect(await files.load('plan.md')).toEqual({ type: 'text', content: 'the plan', truncated: false })
+    expect(await files.load('plan.md')).toEqual({
+      type: 'text',
+      content: 'the plan',
+      truncated: false,
+    })
   })
 
   it('falls back to the remote when the local copy is missing', async () => {
@@ -114,10 +126,18 @@ describe('SyncedContextFiles', () => {
   it('keeps the local refusal when the remote cannot answer either', async () => {
     const { files } = await setup()
     const unreachable = new SyncedContextFiles({
-      local: { list: async () => [], load: async () => ({ type: 'refused', reason: 'missing' }), subscribe: () => () => undefined },
+      local: {
+        list: async () => [],
+        load: async () => ({ type: 'refused', reason: 'missing' }),
+        subscribe: () => () => undefined,
+      },
       remote: {
-        list: async () => { throw new Error('parked') },
-        load: async () => { throw new Error('parked') },
+        list: async () => {
+          throw new Error('parked')
+        },
+        load: async () => {
+          throw new Error('parked')
+        },
         subscribe: () => () => undefined,
       },
       mirror: fakeMirror(),
@@ -131,7 +151,9 @@ describe('SyncedContextFiles', () => {
   it('notifies subscribers when the mirror emits, until unsubscribed', async () => {
     const { files, mirror } = await setup()
     let heard = 0
-    const stop = files.subscribe(() => { heard += 1 })
+    const stop = files.subscribe(() => {
+      heard += 1
+    })
 
     mirror.emit()
     expect(heard).toBe(1)

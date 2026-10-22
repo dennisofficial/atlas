@@ -200,9 +200,7 @@ function DerivedTranscript(props: {
                   outputTokens: turn.completed.outputTokens,
                 })}
             {...(props.onRetry === undefined ? {} : { onRetry: props.onRetry })}
-            {...(props.onDismissFailure === undefined
-              ? {}
-              : { onDismiss: props.onDismissFailure })}
+            {...(props.onDismissFailure === undefined ? {} : { onDismiss: props.onDismissFailure })}
           />
         ) : null}
 

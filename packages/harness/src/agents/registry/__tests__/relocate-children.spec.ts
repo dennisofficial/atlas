@@ -16,7 +16,7 @@ import type { TurnOutcome } from '../../../loop/turn-outcome'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import type { ChildRunnerSource } from '../child-runner'
 import { AgentSupervisor } from '../supervisor'
-import { agentTypeNamed, finished, interrupted, loggedOfType, settled } from './fixtures'
+import { agentTypeNamed, finished, interrupted, loggedOfType } from './fixtures'
 
 type HeldRun = {
   threadId: ThreadId
@@ -198,7 +198,11 @@ describe('relocating a stepping child', () => {
       .drainNotifications({ threadId: entry.parent })
       .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
     expect(unlogged.map((draft) => draft.killedBy)).toEqual([EKilledBy.ContainerSwitch])
-    const logged = await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })
+    const logged = await loggedOfType({
+      harness: entry.harness,
+      threadId: entry.parent,
+      type: 'agent-ended',
+    })
     expect(logged.at(-1)?.status).toBe(EAgentStatus.Finished)
   })
 })

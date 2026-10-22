@@ -4,11 +4,7 @@ import { DrainStateService } from '../../platform/health/drain-state.service'
 import { EPrFrameKind, type PrFrame } from './github-pr-fanout.frame'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { PrFrameBus } from './github-pr-fanout.transport'
-import {
-  EPrEventKind,
-  type GithubPrEventDto,
-  type GithubPrStateDto,
-} from './github-realtime.types'
+import { EPrEventKind, type GithubPrEventDto, type GithubPrStateDto } from './github-realtime.types'
 
 const EVENT: GithubPrEventDto = {
   id: 'evt_1',
@@ -180,7 +176,9 @@ describe('GithubPrFanoutService over a bus', () => {
     fanout.openStream({ userId: 'usr_a', handler: (state) => received.push(state) })
 
     bus.receive({ raw: 'not json' })
-    bus.receive({ raw: JSON.stringify({ kind: 'state', userIds: ['usr_a'], payload: { nope: 1 } }) })
+    bus.receive({
+      raw: JSON.stringify({ kind: 'state', userIds: ['usr_a'], payload: { nope: 1 } }),
+    })
     bus.receive({ raw: JSON.stringify({ kind: 'mystery', userIds: ['usr_a'] }) })
     bus.receive({
       raw: JSON.stringify({ kind: EPrFrameKind.State, userIds: ['usr_a'], payload: STATE }),

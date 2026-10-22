@@ -9,10 +9,7 @@ import {
   selectService,
 } from '../services-model'
 
-const service = (over: {
-  serviceId: string
-  status?: EServiceStatus
-}): ServiceSnapshot => ({
+const service = (over: { serviceId: string; status?: EServiceStatus }): ServiceSnapshot => ({
   serviceId: over.serviceId,
   command: 'bun run dev',
   description: 'bun run dev',

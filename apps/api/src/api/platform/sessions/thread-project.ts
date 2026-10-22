@@ -3,7 +3,10 @@ import { db } from '@dltech/atlas-db'
 
 export const THREAD_PROJECT_NOT_FOUND = 'project not found'
 
-export const projectReachableBy = async (args: { userId: string; projectId: string }): Promise<boolean> => {
+export const projectReachableBy = async (args: {
+  userId: string
+  projectId: string
+}): Promise<boolean> => {
   const project = await db.orm.public.Project.where({ id: args.projectId })
     .select('ownerUserId', 'organizationId')
     .first()

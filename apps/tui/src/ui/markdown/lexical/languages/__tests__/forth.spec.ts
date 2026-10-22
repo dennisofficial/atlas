@@ -132,10 +132,7 @@ describe('forth lexical highlighting', () => {
   })
 
   it('reads a printed string from the dot-quote word to the closing quote', () => {
-    expect(textFor({ spec, source, group: 'string' })).toEqual([
-      '." result: "',
-      'abort" negative"',
-    ])
+    expect(textFor({ spec, source, group: 'string' })).toEqual(['." result: "', 'abort" negative"'])
   })
 
   it('stops an unclosed printed string at the end of its line', () => {

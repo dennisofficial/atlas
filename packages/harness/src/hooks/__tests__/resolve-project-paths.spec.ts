@@ -45,7 +45,8 @@ const callTo = (name: string, input: unknown): ToolCall => ({
 })
 
 const inputOf = async (input: unknown, name = 'read'): Promise<unknown> => {
-  const call = name === 'read' && typeof input === 'string' ? callReading(input) : callTo(name, input)
+  const call =
+    name === 'read' && typeof input === 'string' ? callReading(input) : callTo(name, input)
   const outcome = await hook().run({
     call,
     projectDirectory: ROOT,

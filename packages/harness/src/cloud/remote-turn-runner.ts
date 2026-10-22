@@ -1,4 +1,10 @@
-import { eventBodySchema, type EventDraft, type SaidFile, type SaidImage, type ThreadId } from '@dltech/atlas-core'
+import {
+  eventBodySchema,
+  type EventDraft,
+  type SaidFile,
+  type SaidImage,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { TurnRunner, type PauseSignal, type TurnOutcome } from '../loop'
 import type { PendingSaid } from '../pending/pending-queue'
@@ -67,7 +73,11 @@ export class RemoteTurnRunner extends TurnRunner {
 
   private handleConnection(connection: ConnectionView): void {
     const { state } = connection
-    if (state === EConnectionView.Waking || state === EConnectionView.Updating || state === EConnectionView.Parked) {
+    if (
+      state === EConnectionView.Waking ||
+      state === EConnectionView.Updating ||
+      state === EConnectionView.Parked
+    ) {
       if (this.waiters.length === 0) return
       this.held = true
       if (state === EConnectionView.Parked) this.ensureAttached().catch(() => undefined)
@@ -159,9 +169,11 @@ export class RemoteTurnRunner extends TurnRunner {
 
   private needsAttachment(): boolean {
     const state = this.channel.connection().state
-    return state === EConnectionView.Parked ||
+    return (
+      state === EConnectionView.Parked ||
       state === EConnectionView.Waking ||
       state === EConnectionView.Disconnected
+    )
   }
 
   runTurn(args: {
@@ -212,7 +224,9 @@ export class RemoteTurnRunner extends TurnRunner {
         try {
           args.fire()
         } catch (error) {
-          this.detachAll(error instanceof Error ? error.message : 'the turn frame could not be sent')
+          this.detachAll(
+            error instanceof Error ? error.message : 'the turn frame could not be sent',
+          )
         }
       })
     } finally {

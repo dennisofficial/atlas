@@ -44,9 +44,13 @@ const signInFor = (mcp: RegisteredMcp): McpSignIn | undefined => {
 
   return async ({ serverName }) => {
     const status = mcp.store.servers().find((server) => server.spec.name === serverName)
-    if (status === undefined) return { ok: false, detail: `no MCP server named '${serverName}' is configured` }
+    if (status === undefined)
+      return { ok: false, detail: `no MCP server named '${serverName}' is configured` }
     if (status.spec.transport?.kind !== 'http')
-      return { ok: false, detail: `'${serverName}' is not an HTTP server, so it has no OAuth sign-in` }
+      return {
+        ok: false,
+        detail: `'${serverName}' is not an HTTP server, so it has no OAuth sign-in`,
+      }
 
     const challenge = mcp.store.challengeOf({ serverId: serverName })
     const result = await authenticate({
@@ -55,10 +59,14 @@ const signInFor = (mcp: RegisteredMcp): McpSignIn | undefined => {
     })
 
     if (result.outcome === EMcpAuthOutcome.NeedsClientRegistration)
-      return { ok: false, detail: `'${serverName}' does not support OAuth sign-in: ${result.reason}` }
+      return {
+        ok: false,
+        detail: `'${serverName}' does not support OAuth sign-in: ${result.reason}`,
+      }
 
     await mcp.store.reconnect({ serverId: serverName })
-    const verb = result.outcome === EMcpAuthOutcome.Refreshed ? 'refreshed the token for' : 'signed in to'
+    const verb =
+      result.outcome === EMcpAuthOutcome.Refreshed ? 'refreshed the token for' : 'signed in to'
     return { ok: true, detail: `${verb} '${serverName}'` }
   }
 }

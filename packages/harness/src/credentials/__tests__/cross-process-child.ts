@@ -81,7 +81,11 @@ const refresh = async (): Promise<void> => {
           if (job.blockOn !== undefined) await reach(job.blockOn)
           record('redeem-end')
 
-          return { accessToken: 'fake-rotated', refreshToken: 'fake-rotated-refresh', expiresAt: '2026-10-05T14:00:00.000Z' }
+          return {
+            accessToken: 'fake-rotated',
+            refreshToken: 'fake-rotated-refresh',
+            expiresAt: '2026-10-05T14:00:00.000Z',
+          }
         },
       },
     },

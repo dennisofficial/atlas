@@ -4,12 +4,7 @@ import {
   upstreamOf,
   type Worktree,
 } from '../../workspace/worktrees'
-import {
-  hideWorktreeHome,
-  isUnder,
-  lookupWorktree,
-  type RepositoryView,
-} from './worktree-support'
+import { hideWorktreeHome, isUnder, lookupWorktree, type RepositoryView } from './worktree-support'
 
 export type AdoptedWorktree = {
   path: string

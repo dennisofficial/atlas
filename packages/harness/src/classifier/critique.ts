@@ -10,7 +10,8 @@ export enum ECritique {
 }
 
 export type Critique =
-  { kind: ECritique.Written; text: string } | { kind: ECritique.Unreachable; fault: string }
+  | { kind: ECritique.Written; text: string }
+  | { kind: ECritique.Unreachable; fault: string }
 
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)

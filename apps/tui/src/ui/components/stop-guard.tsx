@@ -48,11 +48,7 @@ function Running(props: { running: readonly StopGuardRow[]; cells: number }): Re
     <box flexDirection="column" flexShrink={0}>
       <Gap />
       {props.running.map((row) => (
-        <Line
-          key={row.id}
-          spans={runningSpans({ row, cells: props.cells })}
-          cells={props.cells}
-        />
+        <Line key={row.id} spans={runningSpans({ row, cells: props.cells })} cells={props.cells} />
       ))}
     </box>
   )

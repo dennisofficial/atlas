@@ -88,7 +88,11 @@ describe('sandbox link and park survival', () => {
   it('heartbeat from a sandbox re-points the link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
     await sandboxRow()
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     await service.heartbeat({
       userId: 'usr_1',

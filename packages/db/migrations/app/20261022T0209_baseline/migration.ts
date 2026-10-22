@@ -1,6 +1,8 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract';
-import endContract from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract'
+import endContract from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract.json' with {
+  type: 'json',
+}
 import {
   Migration,
   MigrationCLI,
@@ -9,10 +11,10 @@ import {
   lit,
   primaryKey,
   sql,
-} from '@prisma/orm-postgres/migration';
+} from '@prisma/orm-postgres/migration'
 
 export default class M extends Migration<never, End> {
-  override readonly endContractJson = endContract;
+  override readonly endContractJson = endContract
 
   override get operations() {
     return [
@@ -1731,8 +1733,8 @@ export default class M extends Migration<never, End> {
           onUpdate: 'cascade',
         },
       }),
-    ];
+    ]
   }
 }
 
-MigrationCLI.run(import.meta.url, M);
+MigrationCLI.run(import.meta.url, M)

@@ -5,7 +5,8 @@ import { dirname, resolve } from 'node:path'
 
 import type { Plugin } from 'vite'
 
-const FILE_IMPORT = /import\(\s*(["'])([^"']+)\1(?:\s+as\s+string)?\s*,\s*\{\s*with:\s*\{\s*type:\s*(["'])file\3\s*\}\s*\}\s*\)/g
+const FILE_IMPORT =
+  /import\(\s*(["'])([^"']+)\1(?:\s+as\s+string)?\s*,\s*\{\s*with:\s*\{\s*type:\s*(["'])file\3\s*\}\s*\}\s*\)/g
 
 // Bun's `import(path, { with: { type: 'file' } })` resolves to the file's path; Vite's module
 // runner would load the asset as a module instead. https://bun.sh/docs/bundler/loaders#file
@@ -16,8 +17,10 @@ export function bunFileImports(): Plugin {
     transform(code, id) {
       if (!code.includes("type: 'file'") && !code.includes('type: "file"')) return null
       const from = dirname(id.split('?')[0] ?? id)
-      const out = code.replace(FILE_IMPORT, (_match, _quote, specifier: string) =>
-        `Promise.resolve({ default: ${JSON.stringify(resolve(from, specifier))} })`,
+      const out = code.replace(
+        FILE_IMPORT,
+        (_match, _quote, specifier: string) =>
+          `Promise.resolve({ default: ${JSON.stringify(resolve(from, specifier))} })`,
       )
       return out === code ? null : { code: out, map: null }
     },
@@ -38,11 +41,17 @@ export function bunBuiltins(): Plugin {
     enforce: 'pre',
     transform(code, id) {
       if (!code.includes('bun:') || id.startsWith(BUN_BUILTIN_PREFIX)) return null
-      const out = code.replace(BUN_BUILTIN_SPECIFIER, (_match, lead: string, quote: string, specifier: string) => `${lead}${quote}atlas-bun-builtin:${specifier}${quote}`)
+      const out = code.replace(
+        BUN_BUILTIN_SPECIFIER,
+        (_match, lead: string, quote: string, specifier: string) =>
+          `${lead}${quote}atlas-bun-builtin:${specifier}${quote}`,
+      )
       return out === code ? null : { code: out, map: null }
     },
     resolveId(id) {
-      return id.startsWith('atlas-bun-builtin:') ? `${BUN_BUILTIN_PREFIX}${id.slice('atlas-bun-builtin:'.length)}` : null
+      return id.startsWith('atlas-bun-builtin:')
+        ? `${BUN_BUILTIN_PREFIX}${id.slice('atlas-bun-builtin:'.length)}`
+        : null
     },
     load(id) {
       if (!id.startsWith(BUN_BUILTIN_PREFIX)) return null

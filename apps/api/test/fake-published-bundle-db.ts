@@ -1,7 +1,9 @@
 import { db, type Pool } from '@dltech/atlas-db'
 
 export const bundlesOf = () =>
-  db.orm.public.PublishedBundle.where((row) => row.id.neq('')).orderBy((row) => row.version.asc()).all()
+  db.orm.public.PublishedBundle.where((row) => row.id.neq(''))
+    .orderBy((row) => row.version.asc())
+    .all()
 
 export async function waitForBlockedInsert(pool: Pool): Promise<void> {
   for (let attempt = 0; attempt < 200; attempt += 1) {

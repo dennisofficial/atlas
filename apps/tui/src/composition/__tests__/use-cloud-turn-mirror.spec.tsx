@@ -17,12 +17,20 @@ const ANSWER = 'The packages are migrated.'
 
 const STEP = toStepId('cloud-mirror#1')
 
-const FINAL: { type: 'assistant-said'; parts: { type: 'text'; text: string }[]; interrupted?: boolean } = {
+const FINAL: {
+  type: 'assistant-said'
+  parts: { type: 'text'; text: string }[]
+  interrupted?: boolean
+} = {
   type: 'assistant-said',
   parts: [{ type: 'text', text: ANSWER }],
 }
 
-const INTERRUPTED = { ...FINAL, parts: [{ type: 'text' as const, text: 'Surveying the' }], interrupted: true }
+const INTERRUPTED = {
+  ...FINAL,
+  parts: [{ type: 'text' as const, text: 'Surveying the' }],
+  interrupted: true,
+}
 
 const arrange = async (args: { hold: boolean; inFlight: boolean }) => {
   const app = fakeApp({
@@ -61,8 +69,17 @@ describe('a parent that completes while its child still runs', () => {
 
     rig.sandboxAppends(FINAL)
     rig.wired.signal({ type: 'step-started', stepId: STEP })
-    rig.wired.signal({ type: 'chunk', stepId: STEP, chunk: { type: 'text-delta', id: 'a', text: ANSWER } })
-    rig.wired.signal({ type: 'step-ended', stepId: STEP, end: EStepEnd.Completed, supersededBy: null })
+    rig.wired.signal({
+      type: 'chunk',
+      stepId: STEP,
+      chunk: { type: 'text-delta', id: 'a', text: ANSWER },
+    })
+    rig.wired.signal({
+      type: 'step-ended',
+      stepId: STEP,
+      end: EStepEnd.Completed,
+      supersededBy: null,
+    })
     rig.wired.end(ETurnStatus.Completed)
     await rig.entered
 
@@ -86,7 +103,10 @@ describe('a parent that completes while its child still runs', () => {
 
     rig.sandboxAppends(INTERRUPTED)
     rig.wired.interrupted()
-    await screen.until((frame) => frame.includes(RESUME_HINT), 'the resume hint after the mirror caught up')
+    await screen.until(
+      (frame) => frame.includes(RESUME_HINT),
+      'the resume hint after the mirror caught up',
+    )
 
     screen.conversation().handleResume?.()
     await screen.until(() => runs(rig).length > 0, 'the resume run reaching the sandbox')

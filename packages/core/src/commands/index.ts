@@ -1,4 +1,10 @@
-export { commandLineOf, mentionSpans, MAX_CHAINED_COMMANDS, type CommandLine, type Mention } from './mention'
+export {
+  commandLineOf,
+  mentionSpans,
+  MAX_CHAINED_COMMANDS,
+  type CommandLine,
+  type Mention,
+} from './mention'
 export {
   activeQuery,
   commandCandidates,

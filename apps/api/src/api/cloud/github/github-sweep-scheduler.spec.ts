@@ -9,7 +9,9 @@ afterEach(() => {
   else process.env.VERCEL = SAVED_VERCEL
 })
 
-async function loadRealtimeModuleProviders(args: { vercel: string | undefined }): Promise<unknown[]> {
+async function loadRealtimeModuleProviders(args: {
+  vercel: string | undefined
+}): Promise<unknown[]> {
   if (args.vercel === undefined) delete process.env.VERCEL
   else process.env.VERCEL = args.vercel
   freshLoads += 1

@@ -36,9 +36,7 @@ export class GithubPrDiscussionDeliveryService {
     })
   }
 
-  async handlePullRequestReview(
-    payload: GithubPullRequestReviewWebhookPayload,
-  ): Promise<void> {
+  async handlePullRequestReview(payload: GithubPullRequestReviewWebhookPayload): Promise<void> {
     if (payload.action !== 'submitted') return
     if (!RECORDED_REVIEW_STATES.has(payload.review.state)) return
     await this.recordToSubscribers({
@@ -55,9 +53,7 @@ export class GithubPrDiscussionDeliveryService {
     })
   }
 
-  async handleReviewComment(
-    payload: GithubPullRequestReviewCommentWebhookPayload,
-  ): Promise<void> {
+  async handleReviewComment(payload: GithubPullRequestReviewCommentWebhookPayload): Promise<void> {
     if (payload.action !== 'created') return
     await this.recordToSubscribers({
       repoFullName: payload.repository.full_name,

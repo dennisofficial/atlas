@@ -93,7 +93,11 @@ function clusterGroups(groups: readonly LineGroup[]): LineGroup[][] {
   for (const group of groups) {
     const current = clusters.at(-1)
     const previous = current?.at(-1)
-    if (current === undefined || previous === undefined || group.from - previous.to - 1 > CONTEXT_LINES * 2) {
+    if (
+      current === undefined ||
+      previous === undefined ||
+      group.from - previous.to - 1 > CONTEXT_LINES * 2
+    ) {
       clusters.push([group])
       continue
     }
@@ -168,7 +172,10 @@ export function renderUnifiedDiff(args: {
   let delta = 0
   for (const cluster of clusters) {
     hunks.push(renderHunk({ oldLines, cluster, delta, oldTerminated, newTerminated }))
-    delta = cluster.reduce((total, group) => total + group.lines.length - (group.to - group.from + 1), delta)
+    delta = cluster.reduce(
+      (total, group) => total + group.lines.length - (group.to - group.from + 1),
+      delta,
+    )
   }
 
   return `${header}\n${hunks.join('\n')}\n`

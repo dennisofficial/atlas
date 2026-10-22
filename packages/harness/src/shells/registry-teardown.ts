@@ -1,6 +1,12 @@
 import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
 
-import { EShellShutdownIntent, KILL_SETTLE_MS, withinDeadline, type RegistryState, type Tracked } from './registry-entries'
+import {
+  EShellShutdownIntent,
+  KILL_SETTLE_MS,
+  withinDeadline,
+  type RegistryState,
+  type Tracked,
+} from './registry-entries'
 
 const GIVE_UP_SETTLE_MS = 30_000
 
@@ -91,13 +97,13 @@ async function stopAllShells(args: { state: RegistryState; killedBy: EKilledBy }
   const held = [...state.tracked.values()]
   for (const entry of held) entry.shell.kill(args.killedBy)
   const deaths = await Promise.all(
-    held.map((entry) =>
-      withinDeadline({ promise: entry.shell.exited, ms: GIVE_UP_SETTLE_MS }),
-    ),
+    held.map((entry) => withinDeadline({ promise: entry.shell.exited, ms: GIVE_UP_SETTLE_MS })),
   )
   const stragglers = held.filter((_, index) => deaths[index] !== true)
   if (stragglers.length > 0) {
-    throw new Error(`shells have not stopped: ${stragglers.map((entry) => entry.shell.shellId).join(', ')}`)
+    throw new Error(
+      `shells have not stopped: ${stragglers.map((entry) => entry.shell.shellId).join(', ')}`,
+    )
   }
   await settleEndings(state)
   await release({ state, held })

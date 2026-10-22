@@ -60,9 +60,7 @@ export function TeammateSidebar(props: {
       {...(props.onSelectSubagent === undefined
         ? {}
         : { onSelectSubagent: props.onSelectSubagent })}
-      {...(props.naming === undefined || props.naming === null
-        ? {}
-        : { naming: props.naming })}
+      {...(props.naming === undefined || props.naming === null ? {} : { naming: props.naming })}
       {...(props.back === undefined ? {} : { back: props.back })}
     />
   )

@@ -11,11 +11,15 @@ describe('contractDrift', () => {
   })
 
   it('is behind when the marker is an older contract this build knows how to migrate from', () => {
-    expect(contractDrift({ expected: 'h2', marker: 'h1', graph: GRAPH })).toBe(EContractDrift.Behind)
+    expect(contractDrift({ expected: 'h2', marker: 'h1', graph: GRAPH })).toBe(
+      EContractDrift.Behind,
+    )
   })
 
   it('is behind when the database has no marker at all', () => {
-    expect(contractDrift({ expected: 'h2', marker: null, graph: GRAPH })).toBe(EContractDrift.Behind)
+    expect(contractDrift({ expected: 'h2', marker: null, graph: GRAPH })).toBe(
+      EContractDrift.Behind,
+    )
   })
 
   it('is ahead when the marker is a contract this build has never seen, an ordinary deploy window', () => {

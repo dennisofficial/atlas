@@ -124,12 +124,17 @@ describe('a send on a cloud thread', () => {
     app.log.append = ((args: { drafts: readonly EventDraft[] }) => {
       appends.push([...args.drafts])
       return Promise.reject(
-        new Error('the sandbox owns the transcript while the session runs there — reads only over the channel'),
+        new Error(
+          'the sandbox owns the transcript while the session runs there — reads only over the channel',
+        ),
       )
     }) as typeof app.log.append
 
     const probe: Probe = { driver: null }
-    const setup = await testRender(<DriverProbe app={app} probe={probe} />, { width: 60, height: 6 })
+    const setup = await testRender(<DriverProbe app={app} probe={probe} />, {
+      width: 60,
+      height: 6,
+    })
     await setup.flush()
 
     try {

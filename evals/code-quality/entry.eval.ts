@@ -26,12 +26,30 @@ export type EntryDependencies = {
   deadlineMs: number
 }
 
-export type EnvelopedInput = { caseId: string; trialId: string; variantId: string; input: CodeQualityInput }
+export type EnvelopedInput = {
+  caseId: string
+  trialId: string
+  variantId: string
+  input: CodeQualityInput
+}
 
-const rowKey = ({ caseId, trialId, variantId }: { caseId: string; trialId: string; variantId: string }): string =>
-  `${caseId}::${trialId}::${variantId}`
+const rowKey = ({
+  caseId,
+  trialId,
+  variantId,
+}: {
+  caseId: string
+  trialId: string
+  variantId: string
+}): string => `${caseId}::${trialId}::${variantId}`
 
-function findRowByContent({ rows, state }: { rows: readonly EntryRow[]; state: string }): EntryRow | undefined {
+function findRowByContent({
+  rows,
+  state,
+}: {
+  rows: readonly EntryRow[]
+  state: string
+}): EntryRow | undefined {
   const parsed = JSON.parse(state) as { scope?: { before?: string | null; after?: string | null } }
   const before = parsed.scope?.before ?? null
   const after = parsed.scope?.after ?? null
@@ -41,7 +59,13 @@ function findRowByContent({ rows, state }: { rows: readonly EntryRow[]; state: s
   })
 }
 
-export function registerCodeQualityEval({ deps, rows }: { deps: EntryDependencies; rows: readonly EntryRow[] }): void {
+export function registerCodeQualityEval({
+  deps,
+  rows,
+}: {
+  deps: EntryDependencies
+  rows: readonly EntryRow[]
+}): void {
   const decide = createDecisionCaller({
     mode: deps.mode,
     ...(deps.mode === ERunMode.Fake
@@ -50,15 +74,29 @@ export function registerCodeQualityEval({ deps, rows }: { deps: EntryDependencie
             const row = findRowByContent({ rows, state: request.state })
             const key = row === undefined ? '' : rowKey(row)
             const answers = deps.answers?.[key]
-            if (answers === undefined) throw new Error(`fake transport has no answers for row ${key}`)
+            if (answers === undefined)
+              throw new Error(`fake transport has no answers for row ${key}`)
             return { answers, model: request.model }
           },
         }
       : {}),
     ...(deps.liveConfig === undefined ? {} : { liveConfig: deps.liveConfig }),
   })
-  const runner = ({ input, model, deadlineMs }: { input: CodeQualityInput; model: string; deadlineMs: number }) =>
-    runCodeQualityTask({ input, model, deadlineMs, deps: { decide, resolvePolicies: resolveEvalPolicies } })
+  const runner = ({
+    input,
+    model,
+    deadlineMs,
+  }: {
+    input: CodeQualityInput
+    model: string
+    deadlineMs: number
+  }) =>
+    runCodeQualityTask({
+      input,
+      model,
+      deadlineMs,
+      deps: { decide, resolvePolicies: resolveEvalPolicies },
+    })
   const feature = createCodeQualityFeature({ runner })
 
   evalite<EnvelopedInput, CodeQualityOutput, SrpExpected>(feature.id, {
@@ -94,7 +132,11 @@ export function registerCodeQualityEval({ deps, rows }: { deps: EntryDependencie
         if (!evaluator.applies({ input: envelope.input, expected: typedExpected })) {
           return { score: 0, metadata: { notApplicable: true } }
         }
-        const grade = evaluator.grade({ input: envelope.input, expected: typedExpected, actual: output })
+        const grade = evaluator.grade({
+          input: envelope.input,
+          expected: typedExpected,
+          actual: output,
+        })
         if (!Number.isFinite(grade.score) || grade.score < 0 || grade.score > 1) {
           throw new ScoringError({
             kind: EScoreErrorKind.OutOfRange,
@@ -102,7 +144,10 @@ export function registerCodeQualityEval({ deps, rows }: { deps: EntryDependencie
             message: `evaluator ${evaluator.id} produced a non-finite or out-of-range score`,
           })
         }
-        return { score: grade.score, ...(grade.difference === undefined ? {} : { metadata: { difference: grade.difference } }) }
+        return {
+          score: grade.score,
+          ...(grade.difference === undefined ? {} : { metadata: { difference: grade.difference } }),
+        }
       },
     })),
   })

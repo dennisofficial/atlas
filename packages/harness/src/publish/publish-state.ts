@@ -30,7 +30,10 @@ export async function loadPublishState(args: { atlasHome: string }): Promise<Pub
   }
 }
 
-export async function savePublishState(args: { atlasHome: string; state: PublishState }): Promise<void> {
+export async function savePublishState(args: {
+  atlasHome: string
+  state: PublishState
+}): Promise<void> {
   await writeFileAtomically({
     path: publishStateFile(args),
     content: `${JSON.stringify(args.state, null, 2)}\n`,

@@ -35,7 +35,9 @@ export async function verdictTimingByUser(args: {
   const resolved = new Map<string, PrVerdictTiming>()
   if (args.userIds.length === 0) return resolved
 
-  const rows = await db.orm.public.UserSetting.where((setting) => setting.userId.in([...args.userIds]))
+  const rows = await db.orm.public.UserSetting.where((setting) =>
+    setting.userId.in([...args.userIds]),
+  )
     .where({ key: VERDICT_TIMING_SETTING_KEY })
     .all()
   const byUser = new Map(rows.map((row) => [row.userId, row.value]))

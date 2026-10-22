@@ -24,7 +24,10 @@ export async function consumeDaemonProgress(args: {
   }
 }
 
-export async function pullImageOrFail(args: { image: string; pull: () => Promise<Response> }): Promise<void> {
+export async function pullImageOrFail(args: {
+  image: string
+  pull: () => Promise<Response>
+}): Promise<void> {
   try {
     await consumeDaemonProgress({ response: await args.pull(), what: `Pulling ${args.image}` })
   } catch (cause) {

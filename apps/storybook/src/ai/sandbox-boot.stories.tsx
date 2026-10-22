@@ -1,8 +1,8 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Chat, ChatItem } from "@dltech/atlas-ui/ai/chat";
-import { UserMessage } from "@dltech/atlas-ui/ai/message";
-import { SandboxBoot } from "@dltech/atlas-ui/ai/sandbox-boot";
+import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
+import { UserMessage } from '@dltech/atlas-ui/ai/message'
+import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 
 import {
   CLONE_FAILS_SNAPSHOT,
@@ -10,7 +10,7 @@ import {
   READY_SNAPSHOT,
   RUNNING_SNAPSHOT,
   useBootSimulation,
-} from "./sandbox-boot.fixtures";
+} from './sandbox-boot.fixtures'
 
 function BootInChat(props: Parameters<typeof SandboxBoot>[0]) {
   return (
@@ -24,19 +24,19 @@ function BootInChat(props: Parameters<typeof SandboxBoot>[0]) {
         <SandboxBoot {...props} />
       </ChatItem>
     </Chat>
-  );
+  )
 }
 
 function LiveBoot({ outcome }: { outcome: EBootOutcome }) {
-  const { retry, ...boot } = useBootSimulation(outcome);
-  return <BootInChat {...boot} onRetry={retry} />;
+  const { retry, ...boot } = useBootSimulation(outcome)
+  return <BootInChat {...boot} onRetry={retry} />
 }
 
 const meta = {
-  title: "AI/Sandbox Boot",
+  title: 'AI/Sandbox Boot',
   component: SandboxBoot,
   args: { ...RUNNING_SNAPSHOT },
-  parameters: { layout: "padded" },
+  parameters: { layout: 'padded' },
   decorators: [
     (Story) => (
       <div className="w-[40rem] max-w-full">
@@ -45,26 +45,26 @@ const meta = {
     ),
   ],
   render: (args) => <BootInChat {...args} />,
-} satisfies Meta<typeof SandboxBoot>;
+} satisfies Meta<typeof SandboxBoot>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Running: Story = {};
+export const Running: Story = {}
 
 export const Ready: Story = {
   args: { ...READY_SNAPSHOT },
-};
+}
 
 export const CloneFails: Story = {
   args: { ...CLONE_FAILS_SNAPSHOT, onRetry: () => {} },
-};
+}
 
 export const Live: Story = {
   render: () => <LiveBoot outcome={EBootOutcome.Ready} />,
-};
+}
 
 export const LiveCloneFails: Story = {
   render: () => <LiveBoot outcome={EBootOutcome.CloneFails} />,
-};
+}

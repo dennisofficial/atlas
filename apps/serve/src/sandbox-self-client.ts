@@ -16,7 +16,9 @@ export async function postSandboxSelf(args: {
     body: JSON.stringify(args.body),
   })
   if (!response.ok) {
-    throw new Error(`the control plane answered ${response.status}: ${await response.text().catch(() => '')}`)
+    throw new Error(
+      `the control plane answered ${response.status}: ${await response.text().catch(() => '')}`,
+    )
   }
   return response
 }

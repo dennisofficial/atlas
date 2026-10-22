@@ -67,13 +67,19 @@ export function policyFixture(overrides: Partial<QualityPolicy> = {}): QualityPo
       focus: { type: 'choice', instructions: 'which evidence', criteria: { 'ev-1': 'run' } },
     }),
     interpret: ({ scope, answers }) =>
-      assessmentFixture({ policyId: id, scopeId: scope.id, rawAnswers: answers as Record<string, DecisionAnswer> }),
+      assessmentFixture({
+        policyId: id,
+        scopeId: scope.id,
+        rawAnswers: answers as Record<string, DecisionAnswer>,
+      }),
     guidance: () => 'split it',
     ...overrides,
   }
 }
 
-export function reviewFixture(overrides: Partial<CodeQualityReviewedBody> = {}): CodeQualityReviewedBody {
+export function reviewFixture(
+  overrides: Partial<CodeQualityReviewedBody> = {},
+): CodeQualityReviewedBody {
   return {
     type: 'code-quality-reviewed',
     callId: toCallId('call-1'),

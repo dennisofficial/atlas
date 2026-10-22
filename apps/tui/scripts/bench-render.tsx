@@ -1,5 +1,3 @@
-import React from 'react'
-
 import {
   ATLAS_SETTINGS,
   AccountUsagePort,
@@ -35,7 +33,12 @@ import { App } from '../src/composition/app'
 import type { AtlasApp } from '../src/composition/compose'
 import { DEFAULT_MODEL_REF, EOpenMode } from '../src/composition/config'
 import { noticePortBinding } from '../src/composition/notice-binding'
-import { createExecutionLocationState, createSessionOwner, ERuntimeKind, type SessionRuntime } from '@dltech/atlas-harness'
+import {
+  createExecutionLocationState,
+  createSessionOwner,
+  ERuntimeKind,
+  type SessionRuntime,
+} from '@dltech/atlas-harness'
 import { createSandboxStatusState } from '@dltech/atlas-harness'
 import { createPathResolver } from '@dltech/atlas-harness'
 import { heldChoice } from '@dltech/atlas-harness'
@@ -103,8 +106,18 @@ const benchApp = (args: {
 
   return {
     pods: false,
-    config: { model: undefined, open: { mode: EOpenMode.New }, cwd: args.root, executionLocation: undefined },
-    launch: { cwd: args.root, command: 'atlas-dev', model: undefined, executionLocation: undefined },
+    config: {
+      model: undefined,
+      open: { mode: EOpenMode.New },
+      cwd: args.root,
+      executionLocation: undefined,
+    },
+    launch: {
+      cwd: args.root,
+      command: 'atlas-dev',
+      model: undefined,
+      executionLocation: undefined,
+    },
     command: 'atlas-dev',
     journalResume: () => {},
     workspace,
@@ -166,7 +179,11 @@ const benchApp = (args: {
     mcp: () => [],
     mcpSignIn: undefined,
     threadOpened: async () => {},
-    sandbox: { noteBash: () => {}, stop: async () => false, prepareWorkspace: async () => undefined },
+    sandbox: {
+      noteBash: () => {},
+      stop: async () => false,
+      prepareWorkspace: async () => undefined,
+    },
     containerStatus: createSandboxStatusState({ image: 'unused', label: 'unused' }),
     executionLocation,
     sessionOwner: createSessionOwner<SessionRuntime>({

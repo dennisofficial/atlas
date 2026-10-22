@@ -20,7 +20,10 @@ export const DRAIN_SEAL_POLL_MS = 5_000
 
 export type DrainSealBudget = { deadlineMs: number; pollMs: number }
 
-const DEFAULT_SEAL_BUDGET: DrainSealBudget = { deadlineMs: DRAIN_SEAL_DEADLINE_MS, pollMs: DRAIN_SEAL_POLL_MS }
+const DEFAULT_SEAL_BUDGET: DrainSealBudget = {
+  deadlineMs: DRAIN_SEAL_DEADLINE_MS,
+  pollMs: DRAIN_SEAL_POLL_MS,
+}
 
 export type ServeDrain = (args: {
   sandbox: Sandbox
@@ -38,7 +41,9 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 const verifyReceipt = (args: { sandbox: Sandbox; receipt: SandboxRotationReceipt }): void => {
   if (args.receipt.sandboxSessionId !== args.sandbox.currentSession().sessionId) {
-    throw new Error('the preparation receipt belongs to another sandbox session — nothing was destroyed')
+    throw new Error(
+      'the preparation receipt belongs to another sandbox session — nothing was destroyed',
+    )
   }
 }
 
@@ -53,7 +58,10 @@ const parsedRecordOf = (text: string): unknown => {
 const hasPreparedReceipt = async (sandbox: Sandbox): Promise<boolean> => {
   const probe = await sandbox.runCommand({
     cmd: 'sh',
-    args: ['-c', `cat ${SANDBOX_HOME_PATH}/${RUNTIME_CHECKPOINT_RELATIVE_PATH} 2>/dev/null || true`],
+    args: [
+      '-c',
+      `cat ${SANDBOX_HOME_PATH}/${RUNTIME_CHECKPOINT_RELATIVE_PATH} 2>/dev/null || true`,
+    ],
     timeoutMs: 15_000,
   })
   const text = (await probe.stdout()).trim()
@@ -63,7 +71,10 @@ const hasPreparedReceipt = async (sandbox: Sandbox): Promise<boolean> => {
   return parsed.data.receipt.sandboxSessionId === sandbox.currentSession().sessionId
 }
 
-const requestDrain = async (args: { sandbox: Sandbox; url: string }): Promise<DrainAnswer | undefined> => {
+const requestDrain = async (args: {
+  sandbox: Sandbox
+  url: string
+}): Promise<DrainAnswer | undefined> => {
   const body = JSON.stringify({ reason: DRAIN_REASON })
   const run = await args.sandbox
     .runCommand({
@@ -86,7 +97,11 @@ const requestDrain = async (args: { sandbox: Sandbox; url: string }): Promise<Dr
   return { status, body: text.slice(0, split) }
 }
 
-const awaitSeal = async (args: { sandbox: Sandbox; requestedAt: number; budget: DrainSealBudget }): Promise<void> => {
+const awaitSeal = async (args: {
+  sandbox: Sandbox
+  requestedAt: number
+  budget: DrainSealBudget
+}): Promise<void> => {
   const deadline = args.requestedAt + args.budget.deadlineMs
   while (!(await hasPreparedReceipt(args.sandbox).catch(() => false))) {
     const remainingMs = deadline - Date.now()
@@ -101,7 +116,9 @@ const awaitSeal = async (args: { sandbox: Sandbox; requestedAt: number; budget: 
 
 const confirmAnswer = async (args: { sandbox: Sandbox; answer: DrainAnswer }): Promise<void> => {
   if (args.answer.status !== '200') {
-    throw new Error(`the serve did not confirm preparation (HTTP ${args.answer.status}) — nothing was destroyed`)
+    throw new Error(
+      `the serve did not confirm preparation (HTTP ${args.answer.status}) — nothing was destroyed`,
+    )
   }
   const reply = sandboxDrainReplySchema.parse(JSON.parse(args.answer.body))
   verifyReceipt({ sandbox: args.sandbox, receipt: reply.receipt })

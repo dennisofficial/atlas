@@ -29,7 +29,8 @@ const CHROME = PANEL_INSET + PANEL_PAD
 
 const MAX_ROWS = 20
 
-const plural = (many: number): string => `${many.toLocaleString('en-US')} ${many === 1 ? 'line' : 'lines'}`
+const plural = (many: number): string =>
+  `${many.toLocaleString('en-US')} ${many === 1 ? 'line' : 'lines'}`
 
 function Header(props: { path: string; lines: number }): React.ReactNode {
   return (

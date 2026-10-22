@@ -6,7 +6,12 @@ import { EWorktreeExit } from '@dltech/atlas-core'
 
 import { readMetaSync, threadMetaSchema } from '../../store/sessions/meta'
 import { threadMetaFile } from '../../store/sessions/paths'
-import { ensureFamilyOwnership, presentFamilyCheckouts, readFamilyOwnership, writeFamilyOwnership } from '../family-ownership'
+import {
+  ensureFamilyOwnership,
+  presentFamilyCheckouts,
+  readFamilyOwnership,
+  writeFamilyOwnership,
+} from '../family-ownership'
 import {
   addLinked,
   appendTo,
@@ -34,7 +39,12 @@ describe('the ownership inventory file', () => {
 
   it('round-trips and replaces atomically', async () => {
     const root = await tempRoot()
-    const ownership = { version: 1 as const, rootId: 'r', primaryRepository: '/p', checkouts: [{ id: 'a', path: '/p/w', claimedBy: 'r' }] }
+    const ownership = {
+      version: 1 as const,
+      rootId: 'r',
+      primaryRepository: '/p',
+      checkouts: [{ id: 'a', path: '/p/w', claimedBy: 'r' }],
+    }
     await writeFamilyOwnership({ sessionDir: root, ownership })
     expect(await readFamilyOwnership({ sessionDir: root })).toEqual(ownership)
     await writeFamilyOwnership({ sessionDir: root, ownership: { ...ownership, checkouts: [] } })
@@ -57,7 +67,11 @@ describe('tracking a family through the event log', () => {
     const rootId = await startRoot({ fx })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'one' })
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
-    await appendTo({ fx, threadId: rootId, drafts: [exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo }), nudge()] })
+    await appendTo({
+      fx,
+      threadId: rootId,
+      drafts: [exited({ path: wt, action: EWorktreeExit.Keep, returnTo: fx.repo }), nudge()],
+    })
 
     const sessionDir = sessionDirOf({ fx, rootId })
     const ownership = await readFamilyOwnership({ sessionDir })
@@ -104,7 +118,9 @@ describe('tracking a family through the event log', () => {
     expect(await presentFamilyCheckouts({ ownership: first })).toEqual([])
 
     await appendTo({ fx, threadId: rootId, drafts: [nudge()] })
-    expect(await presentFamilyCheckouts({ ownership: (await readFamilyOwnership({ sessionDir }))! })).toEqual([])
+    expect(
+      await presentFamilyCheckouts({ ownership: (await readFamilyOwnership({ sessionDir }))! }),
+    ).toEqual([])
 
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
     const second = (await readFamilyOwnership({ sessionDir }))!
@@ -135,7 +151,9 @@ describe('tracking a family through the event log', () => {
     const child = await spawnChild({ fx, parent: rootId, workspace: wt })
     await appendTo({ fx, threadId: child, drafts: [nudge()] })
     const ownership = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
-    expect(ownership.checkouts.map((checkout) => [checkout.path, checkout.claimedBy])).toEqual([[wt, child]])
+    expect(ownership.checkouts.map((checkout) => [checkout.path, checkout.claimedBy])).toEqual([
+      [wt, child],
+    ])
   })
 
   it('serializes concurrent teammate entries without losing either', async () => {
@@ -145,7 +163,10 @@ describe('tracking a family through the event log', () => {
     const b = await spawnChild({ fx, parent: rootId })
     const wtA = await addLinked({ repo: fx.repo, root: fx.root, name: 'ta' })
     const wtB = await addLinked({ repo: fx.repo, root: fx.root, name: 'tb' })
-    await Promise.all([appendTo({ fx, threadId: a, drafts: [entered({ path: wtA })] }), appendTo({ fx, threadId: b, drafts: [entered({ path: wtB })] })])
+    await Promise.all([
+      appendTo({ fx, threadId: a, drafts: [entered({ path: wtA })] }),
+      appendTo({ fx, threadId: b, drafts: [entered({ path: wtB })] }),
+    ])
     const ownership = (await readFamilyOwnership({ sessionDir: sessionDirOf({ fx, rootId }) }))!
     expect(ownership.checkouts.map((checkout) => checkout.path).sort()).toEqual([wtA, wtB].sort())
   })
@@ -159,12 +180,19 @@ describe('sessions that are not git workspaces', () => {
     const sessionDir = sessionDirOf({ fx, rootId: plain.id })
     expect(await readFamilyOwnership({ sessionDir })).toBeNull()
     expect(await ensureFamilyOwnership({ sessionDir, registry: fx.registry })).toBeNull()
-    expect(await ensureFamilyOwnership({ sessionDir: join(fx.root, 'nowhere'), registry: fx.registry })).toBeNull()
+    expect(
+      await ensureFamilyOwnership({ sessionDir: join(fx.root, 'nowhere'), registry: fx.registry }),
+    ).toBeNull()
   })
 
   it('refuses to inspect a primary repository that git cannot read', async () => {
     const root = await tempRoot()
-    const ownership = { version: 1 as const, rootId: 'r', primaryRepository: join(root, 'gone'), checkouts: [{ id: 'a', path: join(root, 'w'), claimedBy: 'r' }] }
+    const ownership = {
+      version: 1 as const,
+      rootId: 'r',
+      primaryRepository: join(root, 'gone'),
+      checkouts: [{ id: 'a', path: join(root, 'w'), claimedBy: 'r' }],
+    }
     await expect(presentFamilyCheckouts({ ownership })).rejects.toThrow()
   })
 })
@@ -175,7 +203,10 @@ describe('thread meta stays untouched by tracking', () => {
     const rootId = await startRoot({ fx })
     const wt = await addLinked({ repo: fx.repo, root: fx.root, name: 'meta' })
     await appendTo({ fx, threadId: rootId, drafts: [entered({ path: wt })] })
-    const meta = readMetaSync({ file: threadMetaFile({ sessionDir: sessionDirOf({ fx, rootId }), threadId: rootId }), schema: threadMetaSchema })
+    const meta = readMetaSync({
+      file: threadMetaFile({ sessionDir: sessionDirOf({ fx, rootId }), threadId: rootId }),
+      schema: threadMetaSchema,
+    })
     expect(meta?.workspace).toBe(fx.repo)
   })
 })

@@ -34,10 +34,9 @@ export type ChildModelDeps = {
   wake?: WakeSignal | undefined
 }
 
-export function childModelSelection(args: ChildModelDeps): (request: {
-  agentType: AgentType
-  spawnedBy: ThreadId
-}) => Promise<ThreadModel> {
+export function childModelSelection(
+  args: ChildModelDeps,
+): (request: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel> {
   const liveSetting = (id: string): string | undefined => {
     const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
     const ref = parseRef(held)
@@ -85,7 +84,11 @@ async function savedChildModel(args: {
   return saved.model
 }
 
-const portFor = (args: ChildModelDeps, ref: ModelRef, effort: (typeof EFFORT_LADDER)[number]): ModelPort => {
+const portFor = (
+  args: ChildModelDeps,
+  ref: ModelRef,
+  effort: (typeof EFFORT_LADDER)[number],
+): ModelPort => {
   const card = args.models.cardFor(ref)
   const adapter = args.models.adapterFor(ref.providerId)
   if (card === undefined || adapter === undefined) throw unanswerableRef(refKey(ref))
@@ -105,7 +108,10 @@ const portFor = (args: ChildModelDeps, ref: ModelRef, effort: (typeof EFFORT_LAD
  * is running right now, resolved lazily so a mid-session switch is followed. Absent when the
  * child already runs that model — there is nowhere to fall to.
  */
-const parentModelFor = (args: ChildModelDeps, childRef: ModelRef): (() => ModelPort | undefined) => {
+const parentModelFor = (
+  args: ChildModelDeps,
+  childRef: ModelRef,
+): (() => ModelPort | undefined) => {
   return () => {
     const choice = args.model.choice()
     if (refKey(choice.ref) === refKey(childRef)) return undefined
@@ -113,10 +119,9 @@ const parentModelFor = (args: ChildModelDeps, childRef: ModelRef): (() => ModelP
   }
 }
 
-export function childModelSource(args: ChildModelDeps): (request: {
-  agentType: AgentType
-  threadId: ThreadId
-}) => Promise<ModelPort> {
+export function childModelSource(
+  args: ChildModelDeps,
+): (request: { agentType: AgentType; threadId: ThreadId }) => Promise<ModelPort> {
   return async ({ agentType, threadId }) => {
     const saved = await savedChildModel({ deps: args, agentType, threadId })
     const ref = parseRef(saved.ref)

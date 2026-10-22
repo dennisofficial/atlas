@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,12 +35,17 @@ describe('a compiled binary carrying the supervisor script', () => {
   let binary: string
 
   beforeAll(async () => {
-    workspace = await mkdtemp(join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'atlas-embedded-supervisor-'))
+    workspace = await mkdtemp(
+      join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'atlas-embedded-supervisor-'),
+    )
     await mkdir(join(workspace, 'src', 'shells'), { recursive: true })
     await mkdir(join(workspace, 'src', 'store'), { recursive: true })
     await mkdir(join(workspace, 'bin'), { recursive: true })
 
-    await copyFile(join(import.meta.dirname, '..', 'supervisor-launch.ts'), join(workspace, 'src', 'shells', 'supervisor-launch.ts'))
+    await copyFile(
+      join(import.meta.dirname, '..', 'supervisor-launch.ts'),
+      join(workspace, 'src', 'shells', 'supervisor-launch.ts'),
+    )
     await writeFile(join(workspace, 'src', 'shells', 'supervisor-bundle.ts'), BUNDLE_STUB)
     await writeFile(join(workspace, 'src', 'store', 'paths.ts'), PATHS_STUB)
     await writeFile(join(workspace, 'src', 'main.ts'), ENTRY)
@@ -60,7 +74,9 @@ describe('a compiled binary carrying the supervisor script', () => {
     expect(ran.stderr.toString()).toBe('')
     expect(ran.exitCode).toBe(0)
 
-    const launcher: { script: string; host: string[]; docker: string[] } = JSON.parse(ran.stdout.toString())
+    const launcher: { script: string; host: string[]; docker: string[] } = JSON.parse(
+      ran.stdout.toString(),
+    )
     expect(await readFile(launcher.script, 'utf8')).toBe(STUB_SUPERVISOR)
     expect(launcher.script.startsWith(join(home, 'bin'))).toBe(true)
     expect(launcher.host).toEqual([await realpath(binary), SHELL_SUPERVISE_FLAG])

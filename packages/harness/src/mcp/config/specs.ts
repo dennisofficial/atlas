@@ -19,7 +19,10 @@ const stdioTransportSchema = z.strictObject({
 
 const httpTransportSchema = z.strictObject({
   kind: z.literal('http'),
-  url: z.url({ protocol: /^https?$/, error: 'an http server url must start with http:// or https://' }),
+  url: z.url({
+    protocol: /^https?$/,
+    error: 'an http server url must start with http:// or https://',
+  }),
   headers: z.record(z.string(), z.string()).optional(),
 })
 
@@ -75,13 +78,31 @@ const compatEntryToNative = (entry: Record<string, unknown>): Record<string, unk
   if (entry[MCP_TRANSPORT_FIELD] !== undefined) return entry
 
   const { [COMPAT_TYPE_FIELD]: type, command, args, env, url, headers, ...rest } = entry
-  const kind = typeof type === 'string' ? type : command !== undefined ? 'stdio' : url !== undefined ? 'http' : undefined
+  const kind =
+    typeof type === 'string'
+      ? type
+      : command !== undefined
+        ? 'stdio'
+        : url !== undefined
+          ? 'http'
+          : undefined
 
   if (kind === 'stdio') {
-    return { ...rest, [MCP_TRANSPORT_FIELD]: { kind, command, ...(args !== undefined ? { args } : {}), ...(env !== undefined ? { env } : {}) } }
+    return {
+      ...rest,
+      [MCP_TRANSPORT_FIELD]: {
+        kind,
+        command,
+        ...(args !== undefined ? { args } : {}),
+        ...(env !== undefined ? { env } : {}),
+      },
+    }
   }
   if (kind === 'http') {
-    return { ...rest, [MCP_TRANSPORT_FIELD]: { kind, url, ...(headers !== undefined ? { headers } : {}) } }
+    return {
+      ...rest,
+      [MCP_TRANSPORT_FIELD]: { kind, url, ...(headers !== undefined ? { headers } : {}) },
+    }
   }
   return entry
 }

@@ -26,7 +26,9 @@ async function dropRewoundChildren(args: {
 }): Promise<void> {
   if (args.agentIds.length === 0) return
 
-  const referenced = await args.tx.orm.public.Thread.where((thread) => thread.id.in([...args.agentIds]))
+  const referenced = await args.tx.orm.public.Thread.where((thread) =>
+    thread.id.in([...args.agentIds]),
+  )
     .where({ userId: args.userId })
     .where((thread) => or(thread.forks.some(), thread.spawned.some()))
     .select('id')
@@ -34,7 +36,9 @@ async function dropRewoundChildren(args: {
   const referencedIds = new Set(referenced.map((row) => row.id))
 
   if (referencedIds.size > 0) {
-    await args.tx.orm.public.Thread.where((thread) => thread.id.in([...referencedIds])).updateAndCount({
+    await args.tx.orm.public.Thread.where((thread) =>
+      thread.id.in([...referencedIds]),
+    ).updateAndCount({
       spawnerThreadId: null,
       agentType: null,
     })
@@ -114,7 +118,10 @@ export class ThreadsHistoryService {
       })
 
       if (args.draft.mode === 'copy') {
-        const rows = await tx.orm.public.Event.where({ threadId: args.threadId, userId: args.userId })
+        const rows = await tx.orm.public.Event.where({
+          threadId: args.threadId,
+          userId: args.userId,
+        })
           .where((event) => event.seq.lte(args.draft.seq))
           .orderBy((event) => event.seq.asc())
           .all()

@@ -1,4 +1,9 @@
-import { CHANNEL_PROTOCOL_VERSION, EServeFrame, SERVE_CAPABILITIES, type ServeFrame } from '@dltech/atlas-harness'
+import {
+  CHANNEL_PROTOCOL_VERSION,
+  EServeFrame,
+  SERVE_CAPABILITIES,
+  type ServeFrame,
+} from '@dltech/atlas-harness'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { pendingEntriesOf } from './requests'
@@ -24,7 +29,10 @@ export function createSocketGreeter(args: {
   attached: Set<SessionSocket>
   send: (args: { socket: SessionSocket; frame: ServeFrame }) => void
   forSocket: (args: { socket: SessionSocket; frame: ServeFrame }) => ServeFrame
-  drive: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ClientFrame }) => void
+  drive: (args: {
+    socket: SessionSocket
+    frame: import('@dltech/atlas-harness').ClientFrame
+  }) => void
   log: ServeLog
   rotation: () => RotationStateWire | undefined
 }) {
@@ -34,10 +42,12 @@ export function createSocketGreeter(args: {
     const { socket, hello, head } = greeting
     const cursor = hello.channelCursor
     const resumed = cursor !== null && buffer.holds(cursor)
-    if (!resumed) send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
+    if (!resumed)
+      send({ socket, frame: { kind: EServeFrame.Reload, sinceEventSeq: hello.lastEventSeq } })
     const backfill = resumed && cursor !== null ? buffer.after(cursor) : inFlight()
     const rewritten =
-      (!resumed && args.historyGeneration() > 0) || backfill.some((frame) => frame.kind === EServeFrame.Reload)
+      (!resumed && args.historyGeneration() > 0) ||
+      backfill.some((frame) => frame.kind === EServeFrame.Reload)
     send({
       socket,
       frame: {
@@ -76,7 +86,14 @@ export function createSocketGreeter(args: {
     socket.data.alias = reloadedMidStep === null ? null : args.aliaser.next(reloadedMidStep)
     for (const frame of backfill) send({ socket, frame: args.forSocket({ socket, frame }) })
     if (operatorInput !== undefined)
-      send({ socket, frame: operatorInputSnapshot({ operatorInput, threadId: threadId(), seq: buffer.nextSeq() }) })
+      send({
+        socket,
+        frame: operatorInputSnapshot({
+          operatorInput,
+          threadId: threadId(),
+          seq: buffer.nextSeq(),
+        }),
+      })
     args.attached.add(socket)
     socket.data.greeted = true
     for (const frame of socket.data.held.splice(0)) args.drive({ socket, frame })

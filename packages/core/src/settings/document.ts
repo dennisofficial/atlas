@@ -37,10 +37,7 @@ export function withSetting(args: {
   return { values: { ...args.document.values, [args.id]: args.value } }
 }
 
-export function withoutSetting(args: {
-  document: SettingsDocument
-  id: string
-}): SettingsDocument {
+export function withoutSetting(args: { document: SettingsDocument; id: string }): SettingsDocument {
   const values = { ...args.document.values }
   delete values[args.id]
   return { values }

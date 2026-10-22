@@ -4,32 +4,32 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+} from '@dltech/atlas-ui/components/select'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import type { SelectOption } from "../../../fixtures/settings-workspace";
+import type { SelectOption } from '../../../fixtures/settings-workspace'
 
 export function WorkspaceSelect({
   value,
   options,
   onChange,
   label,
-  size = "default",
+  size = 'default',
   className,
 }: {
-  value: string;
-  options: SelectOption[];
-  onChange: (value: string) => void;
-  label: string;
-  size?: "sm" | "default";
-  className?: string;
+  value: string
+  options: SelectOption[]
+  onChange: (value: string) => void
+  label: string
+  size?: 'sm' | 'default'
+  className?: string
 }) {
   const handleValueChange = (next: string | null) => {
-    if (next !== null) onChange(next);
-  };
+    if (next !== null) onChange(next)
+  }
   return (
     <Select items={options} value={value} onValueChange={handleValueChange}>
-      <SelectTrigger size={size} aria-label={label} className={cn("w-64", className)}>
+      <SelectTrigger size={size} aria-label={label} className={cn('w-64', className)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false}>
@@ -40,5 +40,5 @@ export function WorkspaceSelect({
         ))}
       </SelectContent>
     </Select>
-  );
+  )
 }

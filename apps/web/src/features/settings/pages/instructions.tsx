@@ -82,11 +82,16 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="font-mono text-sm font-medium">Global ATLAS.md</h2>
             <p className="text-sm text-muted-foreground">
-              Loaded into every thread on every project, before the project&apos;s ATLAS.md, AGENTS.md
-              and CLAUDE.md.
+              Loaded into every thread on every project, before the project&apos;s ATLAS.md,
+              AGENTS.md and CLAUDE.md.
             </p>
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label="Copy instructions" onClick={handleCopy}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Copy instructions"
+            onClick={handleCopy}
+          >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </Button>
         </div>

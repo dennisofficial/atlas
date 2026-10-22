@@ -7,11 +7,7 @@ import { join } from 'node:path'
 
 import { DockerEngine } from '../engine'
 import { hostSandboxEnvironment, sandboxConfigFromHost } from '../host-environment'
-import {
-  DEFAULT_DOCKER_SOCKET,
-  DEFAULT_SANDBOX_IMAGE,
-  ensureSandbox,
-} from '../sandbox'
+import { DEFAULT_DOCKER_SOCKET, DEFAULT_SANDBOX_IMAGE, ensureSandbox } from '../sandbox'
 import { runSandboxScript } from '../sandbox-scripts'
 import { removeTestSandboxes } from './docker-test-cleanup'
 import { describeLiveDocker } from './live-docker'
@@ -60,7 +56,7 @@ describeDocker('github auth against a live daemon', () => {
       const sandbox = await ensureSandbox({ engine, config })
       const script = [
         'set -eu',
-        "test \"$(git config credential.https://github.com.helper)\" = '!gh auth git-credential'",
+        'test "$(git config credential.https://github.com.helper)" = \'!gh auth git-credential\'',
         "git config --get-all url.https://github.com/.insteadOf | grep -qx 'git@github.com:'",
         "printf 'protocol=https\\nhost=github.com\\n\\n' | git credential fill | grep -q '^username='",
         'git init -b main .',

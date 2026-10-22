@@ -1,4 +1,10 @@
-import { EKilledBy, EShellStatus, type ClockPort, type PortExposure, type ThreadId } from '@dltech/atlas-core'
+import {
+  EKilledBy,
+  EShellStatus,
+  type ClockPort,
+  type PortExposure,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { bootId } from './boot'
@@ -44,9 +50,11 @@ export type OpenSpec = {
   finished?: ShellExit | undefined
 }
 
-export const NO_LAUNCHER = 'no durable shell launcher is configured, so background shells cannot start'
+export const NO_LAUNCHER =
+  'no durable shell launcher is configured, so background shells cannot start'
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export class ShellLifecycle {
   constructor(private readonly deps: LifecycleDeps) {}
@@ -62,15 +70,17 @@ export class ShellLifecycle {
     if (launcher === undefined) return { ok: false, reason: NO_LAUNCHER }
 
     const launched = await Promise.resolve()
-      .then(() => launcher.launch({
-        threadId: args.threadId,
-        command: args.command,
-        description: args.description,
-        cwd: args.cwd ?? this.deps.root,
-        timeoutMs: args.timeoutMs,
-        outputLimitBytes: args.outputLimitBytes,
-        silenceMs: this.deps.silenceMs,
-      }))
+      .then(() =>
+        launcher.launch({
+          threadId: args.threadId,
+          command: args.command,
+          description: args.description,
+          cwd: args.cwd ?? this.deps.root,
+          timeoutMs: args.timeoutMs,
+          outputLimitBytes: args.outputLimitBytes,
+          silenceMs: this.deps.silenceMs,
+        }),
+      )
       .catch((error: unknown) => ({ ok: false as const, reason: messageOf(error) }))
     if (!launched.ok) return launched
 

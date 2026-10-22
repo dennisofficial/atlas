@@ -40,7 +40,11 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
   it('heartbeat pushes the expiry out five minutes', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     await db.orm.public.GithubSubscription.where({ id: dto.id }).update({
       expiresAt: new Date(Date.now() - 60_000),
     })
@@ -52,7 +56,11 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
   it('heartbeat on a subscription owned by someone else 404s', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
 
     await expect(
       service.heartbeat({ userId: 'usr_2', subscriptionId: dto.id }),
@@ -61,7 +69,11 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
   it('unsubscribe removes the row and marks the repo idle when nothing live remains', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     await seedRepoHook({ createdBy: 'usr_1' })
 
     await service.unsubscribe({ userId: 'usr_1', subscriptionId: dto.id })
@@ -72,7 +84,11 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
   it('unsubscribe keeps the repo active while another subscription is live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    const dto = await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    const dto = await service.subscribe({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
     await seedSubscription({ id: 'sub-other', userId: 'usr_2', prNumber: 7 })
     await seedRepoHook({ createdBy: 'usr_1' })
 
@@ -93,7 +109,12 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
     const service = serviceWith({ token: 'ghu_1' })
     const past = new Date(Date.now() - 60_000)
     await seedSubscription({ id: 'sub-1', userId: 'usr_1', prNumber: 42, branch: '#42' })
-    await seedSubscription({ id: 'sub-2', userId: 'usr_1', prNumber: null, branch: 'dennis/fresh-branch' })
+    await seedSubscription({
+      id: 'sub-2',
+      userId: 'usr_1',
+      prNumber: null,
+      branch: 'dennis/fresh-branch',
+    })
     await seedSubscription({
       id: 'sub-3',
       userId: 'usr_1',

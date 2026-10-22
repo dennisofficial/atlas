@@ -74,7 +74,10 @@ const parseProtectedResourceMetadata = (raw: unknown): ProtectedResourceMetadata
   }
 }
 
-const fetchJson = async (args: { url: string; fetch: OAuthFetch }): Promise<unknown | undefined> => {
+const fetchJson = async (args: {
+  url: string
+  fetch: OAuthFetch
+}): Promise<unknown | undefined> => {
   const response = await args.fetch(args.url, { headers: { accept: 'application/json' } })
   if (!response.ok) return undefined
   return (await response.json()) as unknown
@@ -127,7 +130,9 @@ const enforceSecureEndpoint = (endpoint: string): void => {
   })
 }
 
-const parseAuthorizationServerMetadata = (raw: unknown): AuthorizationServerMetadata | undefined => {
+const parseAuthorizationServerMetadata = (
+  raw: unknown,
+): AuthorizationServerMetadata | undefined => {
   if (typeof raw !== 'object' || raw === null) return undefined
   const body = raw as {
     authorization_endpoint?: unknown

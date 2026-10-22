@@ -1,11 +1,11 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { ETestStatus, TestResults } from "@dltech/atlas-ui/ai/test-results";
+import { ETestStatus, TestResults } from '@dltech/atlas-ui/ai/test-results'
 
-import { TEST_SUITES } from "../fixtures/agent";
+import { TEST_SUITES } from '../fixtures/agent'
 
 const meta = {
-  title: "AI/Test Results",
+  title: 'AI/Test Results',
   component: TestResults,
   args: { suites: TEST_SUITES },
   decorators: [
@@ -15,13 +15,13 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof TestResults>;
+} satisfies Meta<typeof TestResults>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const WithFailure: Story = {};
+export const WithFailure: Story = {}
 
 export const AllPassing: Story = {
   args: {
@@ -30,6 +30,6 @@ export const AllPassing: Story = {
       tests: suite.tests.map((test) => ({ ...test, status: ETestStatus.Passed })),
     })),
   },
-};
+}
 
-export const Collapsed: Story = { args: { defaultOpen: false } };
+export const Collapsed: Story = { args: { defaultOpen: false } }

@@ -4,7 +4,9 @@ import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'
 
 const secret = process.env.SECRET_KEY
 if (!secret || secret.length < 32) {
-  throw new Error('SECRET_KEY must be set to at least 32 characters — run through the env:inject script')
+  throw new Error(
+    'SECRET_KEY must be set to at least 32 characters — run through the env:inject script',
+  )
 }
 
 const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? '')

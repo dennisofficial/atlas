@@ -5,7 +5,12 @@ import {
 } from '@dltech/atlas-harness'
 import type { ContextBrowser } from '@dltech/atlas-harness'
 
-import { answeredRequest, refusedRequest, type ReplyFrame, type RequestFrame } from './request-reply'
+import {
+  answeredRequest,
+  refusedRequest,
+  type ReplyFrame,
+  type RequestFrame,
+} from './request-reply'
 
 export const isContextOp = (op: EClientRequest): boolean =>
   op === EClientRequest.ListContextFiles || op === EClientRequest.ReadContextFile
@@ -19,7 +24,10 @@ export async function answerContextRead(args: {
   if (args.frame.op === EClientRequest.ListContextFiles) {
     const parsed = listContextFilesParamsSchema.safeParse(args.frame.params ?? {})
     if (!parsed.success) {
-      return refusedRequest({ replyTo: args.frame.id, message: 'list-context-files wants { directory? }' })
+      return refusedRequest({
+        replyTo: args.frame.id,
+        message: 'list-context-files wants { directory? }',
+      })
     }
     const entries = await args.context.list(parsed.data.directory)
     return answeredRequest({ replyTo: args.frame.id, data: { entries } })

@@ -2,7 +2,15 @@ import { readFile, stat } from 'node:fs/promises'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { EShellStatus } from '@dltech/atlas-core'
-import { closeRegistries, endedDraft, job, openRegistry, recorded, settle, THREAD } from './shell-registry-fixture'
+import {
+  closeRegistries,
+  endedDraft,
+  job,
+  openRegistry,
+  recorded,
+  settle,
+  THREAD,
+} from './shell-registry-fixture'
 
 const CAP_BYTES = 64 * 1024
 
@@ -11,7 +19,10 @@ afterEach(closeRegistries)
 describe('a durable shell’s output cap', () => {
   it('bounds the append-only spool in the kernel and records a confirmed SIGXFSZ overflow', async () => {
     const { registry, log } = openRegistry()
-    const started = await registry.start({ ...job({ command: 'exec yes y' }), outputLimitBytes: CAP_BYTES })
+    const started = await registry.start({
+      ...job({ command: 'exec yes y' }),
+      outputLimitBytes: CAP_BYTES,
+    })
     if (!started.ok) throw new Error(started.reason)
     await settle({ registry, shellId: started.snapshot.shellId })
     await recorded({ log })

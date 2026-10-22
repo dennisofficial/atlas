@@ -40,7 +40,11 @@ export async function teardownSession(args: {
 }): Promise<void> {
   const failures: unknown[] = []
   const attempt = async (action: () => Promise<unknown>): Promise<void> => {
-    try { await action() } catch (error) { failures.push(error) }
+    try {
+      await action()
+    } catch (error) {
+      failures.push(error)
+    }
   }
   try {
     await closeOwnedSources({
@@ -63,7 +67,8 @@ export async function teardownSession(args: {
           const prepared = source.prepareNotifications?.({ threadId })
           try {
             const drafts = prepared?.drafts ?? source.drainNotifications({ threadId })
-            if (drafts.length > 0) await args.log.append({ threadId, runId: args.ids.nextRunId(), drafts })
+            if (drafts.length > 0)
+              await args.log.append({ threadId, runId: args.ids.nextRunId(), drafts })
             prepared?.acknowledge()
           } finally {
             prepared?.release?.()
@@ -75,7 +80,8 @@ export async function teardownSession(args: {
     await attempt(args.stopSandbox)
   }
   if (failures.length === 1) throw failures[0]
-  if (failures.length > 1) throw new AggregateError(failures, 'could not persist every session ending')
+  if (failures.length > 1)
+    throw new AggregateError(failures, 'could not persist every session ending')
 }
 
 async function closeOwnedSources(args: {
@@ -90,10 +96,17 @@ async function closeOwnedSources(args: {
     await Promise.all(args.sources.map((source) => args.attempt(() => source.closeAll())))
     return
   }
-  const units = await liveUnitsAcrossThreads({ log: args.log, sources: args.sources, logPort: args.logPort })
+  const units = await liveUnitsAcrossThreads({
+    log: args.log,
+    sources: args.sources,
+    logPort: args.logPort,
+  })
   warnForUnitsLostByRegistries({ units, ownedKinds, logPort: args.logPort })
   const leftovers = args.sources.filter(
-    (source) => source !== ownedKinds.agents && source !== ownedKinds.shells && source !== ownedKinds.services,
+    (source) =>
+      source !== ownedKinds.agents &&
+      source !== ownedKinds.shells &&
+      source !== ownedKinds.services,
   )
   const ordered: readonly (TeardownSource | undefined)[] = [
     ownedKinds.agents,
@@ -171,7 +184,11 @@ function warnForUnitsLostByRegistries(args: {
   const { logPort } = args
   if (logPort === undefined) return
   const live = liveUnitIdsPerKind(args.units)
-  const kinds: readonly { kind: EOwnedUnitKind; source: TeardownSource | undefined; ids: ReadonlySet<string> }[] = [
+  const kinds: readonly {
+    kind: EOwnedUnitKind
+    source: TeardownSource | undefined
+    ids: ReadonlySet<string>
+  }[] = [
     { kind: EOwnedUnitKind.Agent, source: args.ownedKinds.agents, ids: live.agents },
     { kind: EOwnedUnitKind.Shell, source: args.ownedKinds.shells, ids: live.shells },
     { kind: EOwnedUnitKind.Service, source: args.ownedKinds.services, ids: live.services },

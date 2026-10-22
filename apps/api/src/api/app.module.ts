@@ -41,9 +41,7 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     }),
     ThrottlerModule.forRootAsync({
       inject: [EnvService],
-      useFactory: (env: EnvService) => [
-        { ttl: 60_000, limit: env.get('RATE_LIMIT_PER_MINUTE') },
-      ],
+      useFactory: (env: EnvService) => [{ ttl: 60_000, limit: env.get('RATE_LIMIT_PER_MINUTE') }],
     }),
     ...sweepScheduleImports(),
     CryptoModule,

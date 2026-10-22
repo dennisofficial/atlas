@@ -1,11 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  lstat,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { writeSupervisorBundle } from '../supervisor-bundle'
-import { SHELL_SUPERVISE_FLAG, prepareSupervisorLauncher, supervisorCommand } from '../supervisor-launch'
+import {
+  SHELL_SUPERVISE_FLAG,
+  prepareSupervisorLauncher,
+  supervisorCommand,
+} from '../supervisor-launch'
 
 const SCRIPT = 'console.log("supervised", process.argv.slice(2).join(","))\n'
 
@@ -21,8 +35,16 @@ describe('prepareSupervisorLauncher', () => {
   })
 
   it('materializes the script under the home bin directory, content-addressed and idempotent', async () => {
-    const first = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: false })
-    const second = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: false })
+    const first = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: false,
+    })
+    const second = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: false,
+    })
 
     expect(first.script).toBe(second.script)
     expect(first.script.startsWith(join(home, 'bin') + '/')).toBe(true)
@@ -31,35 +53,59 @@ describe('prepareSupervisorLauncher', () => {
   })
 
   it('writes a new file when the script changes instead of overwriting one a supervisor may be running', async () => {
-    const one = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: false })
-    const two = await prepareSupervisorLauncher({ home, source: async () => `${SCRIPT}//v2\n`, embedded: false })
+    const one = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: false,
+    })
+    const two = await prepareSupervisorLauncher({
+      home,
+      source: async () => `${SCRIPT}//v2\n`,
+      embedded: false,
+    })
 
     expect(two.script).not.toBe(one.script)
     expect(await readFile(one.script, 'utf8')).toBe(SCRIPT)
   })
 
   it('launches a source checkout host-side with the running Bun and the script', async () => {
-    const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: false })
+    const launcher = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: false,
+    })
 
     expect(launcher.host).toEqual([process.execPath, launcher.script])
   })
 
   it('launches a compiled binary host-side by re-executing itself, needing no Bun on the host', async () => {
-    const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: true })
+    const launcher = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: true,
+    })
 
     expect(launcher.host).toEqual([process.execPath, SHELL_SUPERVISE_FLAG])
   })
 
   it('always launches Docker with the sandbox Bun and the shared script path', async () => {
     for (const embedded of [true, false]) {
-      const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded })
+      const launcher = await prepareSupervisorLauncher({
+        home,
+        source: async () => SCRIPT,
+        embedded,
+      })
 
       expect(launcher.docker).toEqual(['bun', launcher.script])
     }
   })
 
   it('appends the config path to the prefix for the chosen runtime', async () => {
-    const launcher = await prepareSupervisorLauncher({ home, source: async () => SCRIPT, embedded: true })
+    const launcher = await prepareSupervisorLauncher({
+      home,
+      source: async () => SCRIPT,
+      embedded: true,
+    })
 
     expect(supervisorCommand({ launcher, docker: false, configPath: '/c.json' })).toEqual([
       process.execPath,
@@ -137,7 +183,9 @@ describe('supervisor bundle', () => {
   let directory: string
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'atlas-supervisor-bundle-'))
+    directory = await mkdtemp(
+      join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'atlas-supervisor-bundle-'),
+    )
   })
 
   afterEach(async () => {
@@ -146,7 +194,10 @@ describe('supervisor bundle', () => {
 
   it('bundles an entry with its dependencies inlined so it runs with no node_modules', async () => {
     const entry = join(import.meta.dirname, 'supervisor-bundle-entry.ts')
-    const outfile = await writeSupervisorBundle({ entry, outfile: join(directory, 'out', 'sup.js') })
+    const outfile = await writeSupervisorBundle({
+      entry,
+      outfile: join(directory, 'out', 'sup.js'),
+    })
 
     expect(await readFile(outfile, 'utf8')).not.toContain('from "zod"')
     const ran = Bun.spawnSync({ cmd: [process.execPath, outfile, 'a', 'b'], cwd: '/' })

@@ -1,30 +1,23 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CheckIcon } from "lucide-react";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { CheckIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Spinner } from "@dltech/atlas-ui/components/spinner";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
-const variants = [
-  "default",
-  "secondary",
-  "destructive",
-  "outline",
-  "ghost",
-  "link",
-] as const;
+const variants = ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link'] as const
 
 const meta = {
-  title: "Components/Badge",
+  title: 'Components/Badge',
   component: Badge,
-  argTypes: { variant: { control: "select", options: variants } },
-  args: { children: "Badge", variant: "default" },
-} satisfies Meta<typeof Badge>;
+  argTypes: { variant: { control: 'select', options: variants } },
+  args: { children: 'Badge', variant: 'default' },
+} satisfies Meta<typeof Badge>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
-export const Default: Story = {};
+export const Default: Story = {}
 
 export const Variants: Story = {
   render: () => (
@@ -36,7 +29,7 @@ export const Variants: Story = {
       ))}
     </div>
   ),
-};
+}
 
 export const WithIcon: Story = {
   render: () => (
@@ -51,4 +44,4 @@ export const WithIcon: Story = {
       </Badge>
     </div>
   ),
-};
+}

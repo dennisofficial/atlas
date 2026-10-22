@@ -38,9 +38,13 @@ export class MessageIntake {
   private readonly listeners = new Set<() => void>()
   private fallback: ((args: { threadId: ThreadId }) => IntakeDriver | undefined) | undefined
 
-  constructor(args: { sources: readonly IntakeSource[]; submit?: ((args: SubmittedInput) => void) | undefined }) {
+  constructor(args: {
+    sources: readonly IntakeSource[]
+    submit?: ((args: SubmittedInput) => void) | undefined
+  }) {
     this.sources = args.sources
-    this.submitInput = args.submit ?? args.sources.find((source) => source.submit !== undefined)?.submit
+    this.submitInput =
+      args.submit ?? args.sources.find((source) => source.submit !== undefined)?.submit
     this.unsubscribe = args.sources.map((source) => source.subscribe(() => this.changed()))
   }
 
@@ -93,7 +97,10 @@ export class MessageIntake {
     this.changed()
   }
 
-  async prepare(args: { threadId: ThreadId; signal?: AbortSignal | undefined }): Promise<InputBatch> {
+  async prepare(args: {
+    threadId: ThreadId
+    signal?: AbortSignal | undefined
+  }): Promise<InputBatch> {
     args.signal?.throwIfAborted()
     if (this.closed) throw new Error('message intake is closed')
     for (;;) {
@@ -104,7 +111,9 @@ export class MessageIntake {
       if (this.closed) throw new Error('message intake is closed')
     }
     let releaseReservation = (): void => undefined
-    const done = new Promise<void>((resolve) => { releaseReservation = resolve })
+    const done = new Promise<void>((resolve) => {
+      releaseReservation = resolve
+    })
     const reservation = { done, finish: releaseReservation }
     this.preparing.set(args.threadId, reservation)
     this.announceIfBusyChanged()
@@ -156,9 +165,13 @@ export class MessageIntake {
   }
 
   threadsWithPendingInput(): readonly ThreadId[] {
-    return [...new Set(this.sources.flatMap((source) => [...(
-      source.threadsWithPendingInput?.() ?? source.threadsAwaitingInput()
-    )]))]
+    return [
+      ...new Set(
+        this.sources.flatMap((source) => [
+          ...(source.threadsWithPendingInput?.() ?? source.threadsAwaitingInput()),
+        ]),
+      ),
+    ]
   }
 
   changed(): void {
@@ -213,22 +226,34 @@ export class MessageIntake {
     }
     for (const threadId of awaiting) {
       const driver = this.drivers.get(threadId) ?? this.fallback?.({ threadId })
-      if (driver === undefined || driver.blocked() || this.waking.has(threadId) || this.heldDrivers.has(threadId)) continue
+      if (
+        driver === undefined ||
+        driver.blocked() ||
+        this.waking.has(threadId) ||
+        this.heldDrivers.has(threadId)
+      )
+        continue
       const witness = this.sources.map((source) => source.witness?.({ threadId }) ?? source)
       const prior = this.attempts.get(threadId)
-      const count = prior !== undefined && prior.witness.every((value, index) => value === witness[index])
-        ? prior.count : 0
+      const count =
+        prior !== undefined && prior.witness.every((value, index) => value === witness[index])
+          ? prior.count
+          : 0
       if (count >= MAX_WAKE_ATTEMPTS) continue
       this.waking.add(threadId)
       this.announceIfBusyChanged()
-      void Promise.resolve().then(() => {
-        if (driver.blocked() || this.closed || this.suspended || this.heldDrivers.has(threadId)) return
-        this.attempts.set(threadId, { witness, count: count + 1 })
-        return driver.wake()
-      }).catch(() => undefined).finally(() => {
-        this.waking.delete(threadId)
-        this.changed()
-      })
+      void Promise.resolve()
+        .then(() => {
+          if (driver.blocked() || this.closed || this.suspended || this.heldDrivers.has(threadId))
+            return
+          this.attempts.set(threadId, { witness, count: count + 1 })
+          return driver.wake()
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          this.waking.delete(threadId)
+          this.changed()
+        })
     }
   }
 }

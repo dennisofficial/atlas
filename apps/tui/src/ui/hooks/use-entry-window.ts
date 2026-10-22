@@ -239,14 +239,11 @@ export function useEntryWindow(args: {
     setSpans((prev) => (sameSpans(prev, next) ? prev : next))
   }, [args.scroller, selectionPin])
 
-  const offsetOfKey = useCallback(
-    (key: string): number | null => {
-      const index = live.current.entries.findIndex((entry) => entry.key === key)
-      if (index < 0) return null
-      return layoutLive.current.tops[index] ?? null
-    },
-    [],
-  )
+  const offsetOfKey = useCallback((key: string): number | null => {
+    const index = live.current.entries.findIndex((entry) => entry.key === key)
+    if (index < 0) return null
+    return layoutLive.current.tops[index] ?? null
+  }, [])
 
   /**
    * Keep the given entry at the same offset from the viewport top across the layout change the

@@ -1,14 +1,18 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/4b21b92c0047588b00bd27a37dd0bef377d3846e2da0d39381d0f597e551d345/contract';
-import endContract from '../../snapshots/4b21b92c0047588b00bd27a37dd0bef377d3846e2da0d39381d0f597e551d345/contract.json' with { type: 'json' };
-import type { Contract as Start } from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract';
-import startContract from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract.json' with { type: 'json' };
-import { Migration, MigrationCLI, col, sql } from '@prisma/orm-postgres/migration';
-import { backfillProjectOwnership, orphanCleanups, uniqueGuards } from './data-steps';
+import type { Contract as End } from '../../snapshots/4b21b92c0047588b00bd27a37dd0bef377d3846e2da0d39381d0f597e551d345/contract'
+import endContract from '../../snapshots/4b21b92c0047588b00bd27a37dd0bef377d3846e2da0d39381d0f597e551d345/contract.json' with {
+  type: 'json',
+}
+import type { Contract as Start } from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract'
+import startContract from '../../snapshots/61df0a50bbb3c9d17ab1dec28c5abe4475eb2769cb4d4a43a1620b17085f4221/contract.json' with {
+  type: 'json',
+}
+import { Migration, MigrationCLI, col, sql } from '@prisma/orm-postgres/migration'
+import { backfillProjectOwnership, orphanCleanups, uniqueGuards } from './data-steps'
 
 export default class M extends Migration<Start, End> {
-  override readonly startContractJson = startContract;
-  override readonly endContractJson = endContract;
+  override readonly startContractJson = startContract
+  override readonly endContractJson = endContract
 
   override get operations() {
     return [
@@ -857,8 +861,8 @@ export default class M extends Migration<Start, End> {
           onUpdate: 'cascade',
         },
       }),
-    ];
+    ]
   }
 }
 
-MigrationCLI.run(import.meta.url, M);
+MigrationCLI.run(import.meta.url, M)

@@ -1,7 +1,7 @@
-import { Badge } from "@dltech/atlas-ui/components/badge";
+import { Badge } from '@dltech/atlas-ui/components/badge'
 
-import { EWorkspaceRole, WORKSPACE_MEMBERSHIPS } from "../../../fixtures/settings-account";
-import { SettingsCard, SettingsRow, Mono } from "../settings-layout";
+import { EWorkspaceRole, WORKSPACE_MEMBERSHIPS } from '../../../fixtures/settings-account'
+import { SettingsCard, SettingsRow, Mono } from '../settings-layout'
 
 export function AccountWorkspacesCard() {
   return (
@@ -17,7 +17,7 @@ export function AccountWorkspacesCard() {
           title={
             <>
               {workspace.name}
-              <Badge variant={workspace.role === EWorkspaceRole.Owner ? "default" : "secondary"}>
+              <Badge variant={workspace.role === EWorkspaceRole.Owner ? 'default' : 'secondary'}>
                 {workspace.role}
               </Badge>
             </>
@@ -30,5 +30,5 @@ export function AccountWorkspacesCard() {
         />
       ))}
     </SettingsCard>
-  );
+  )
 }

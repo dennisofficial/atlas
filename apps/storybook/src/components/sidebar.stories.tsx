@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import {
   Sidebar,
@@ -21,25 +21,25 @@ import {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
-} from "@dltech/atlas-ui/components/sidebar";
+} from '@dltech/atlas-ui/components/sidebar'
 
-import { primaryNav, recentSessions, secondaryNav } from "./sidebar.fixtures";
+import { primaryNav, recentSessions, secondaryNav } from './sidebar.fixtures'
 
 const meta = {
-  title: "Components/Sidebar",
+  title: 'Components/Sidebar',
   component: Sidebar,
-  parameters: { layout: "fullscreen" },
+  parameters: { layout: 'fullscreen' },
   argTypes: {
-    variant: { control: "inline-radio", options: ["sidebar", "floating", "inset"] },
-    collapsible: { control: "inline-radio", options: ["offcanvas", "icon", "none"] },
-    side: { control: "inline-radio", options: ["left", "right"] },
+    variant: { control: 'inline-radio', options: ['sidebar', 'floating', 'inset'] },
+    collapsible: { control: 'inline-radio', options: ['offcanvas', 'icon', 'none'] },
+    side: { control: 'inline-radio', options: ['left', 'right'] },
   },
-  args: { variant: "sidebar", collapsible: "icon", side: "left" },
-} satisfies Meta<typeof Sidebar>;
+  args: { variant: 'sidebar', collapsible: 'icon', side: 'left' },
+} satisfies Meta<typeof Sidebar>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -123,11 +123,13 @@ export const Default: Story = {
           <SidebarTrigger />
           <span className="text-sm font-medium">Sessions</span>
         </header>
-        <div className="p-4 text-sm text-muted-foreground">Select a session to see its transcript.</div>
+        <div className="p-4 text-sm text-muted-foreground">
+          Select a session to see its transcript.
+        </div>
       </SidebarInset>
     </SidebarProvider>
   ),
-};
+}
 
 export const Loading: Story = {
   render: (args) => (
@@ -150,4 +152,4 @@ export const Loading: Story = {
       </Sidebar>
     </SidebarProvider>
   ),
-};
+}

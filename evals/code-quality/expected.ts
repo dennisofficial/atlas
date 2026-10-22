@@ -30,9 +30,17 @@ export const srpExpectedSchema: z.ZodType<SrpExpected> = z.discriminatedUnion('k
   z.object({ kind: z.literal(ESrpExpectationKind.Abstain) }),
 ])
 
-const inputEvidenceSchema = z.object({ scope: z.object({ evidence: z.array(z.object({ id: z.string() })) }) })
+const inputEvidenceSchema = z.object({
+  scope: z.object({ evidence: z.array(z.object({ id: z.string() })) }),
+})
 
-export function expectedEvidenceProblem({ expected, input }: { expected: unknown; input: unknown }): string | null {
+export function expectedEvidenceProblem({
+  expected,
+  input,
+}: {
+  expected: unknown
+  input: unknown
+}): string | null {
   const decoded = srpExpectedSchema.safeParse(expected)
   if (!decoded.success) return 'expected fails the SRP schema'
   if (decoded.data.kind === ESrpExpectationKind.Abstain) return null
@@ -40,7 +48,7 @@ export function expectedEvidenceProblem({ expected, input }: { expected: unknown
   if (!supplied.success) return 'input has no valid evidence candidates'
   const ids = decoded.data.fields.evidenceIds
   if (new Set(ids).size !== ids.length) return 'expected evidence ids are not unique'
-  const available = new Set(supplied.data.scope.evidence.map(entry => entry.id))
-  const unknown = ids.find(id => !available.has(id))
+  const available = new Set(supplied.data.scope.evidence.map((entry) => entry.id))
+  const unknown = ids.find((id) => !available.has(id))
   return unknown === undefined ? null : `expected evidence ${unknown} is not supplied by the input`
 }

@@ -15,7 +15,9 @@ it('reports the reason when a saved child model cannot build a runner', async ()
       clock: harness.clock,
       agentTypes: [agentTypeNamed({ name: 'explore' })],
       launchDirectory: '/launch',
-      runners: async () => { throw new Error('no provider adapter can answer for inference/kimi-k3-fast') },
+      runners: async () => {
+        throw new Error('no provider adapter can answer for inference/kimi-k3-fast')
+      },
     })
     const child = await supervisor.spawn({
       threadId: parent,

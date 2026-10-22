@@ -12,7 +12,8 @@ const ASSISTANT_SAID = 'assistant-said'
 const TEXT_PART = 'text'
 const LINE_PREVIEW_CHARS = 160
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
 
 export function bodyOf(event: unknown): TranscriptBody | null {
   if (!isRecord(event)) return null
@@ -58,7 +59,10 @@ export async function transcriptOf(args: { rig: RigApp }): Promise<readonly Tran
 export const assistantTextOf = (parts: unknown): string => {
   if (!Array.isArray(parts)) return ''
   return parts
-    .filter((part): part is { type: string; text: string } => isRecord(part) && part.type === TEXT_PART && typeof part.text === 'string')
+    .filter(
+      (part): part is { type: string; text: string } =>
+        isRecord(part) && part.type === TEXT_PART && typeof part.text === 'string',
+    )
     .map((part) => part.text)
     .join('')
 }
@@ -73,7 +77,11 @@ export function userSaidCount(args: { events: readonly unknown[]; text: string }
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-export function assistantSaid(args: { events: readonly unknown[]; word: string; afterIndex?: number | undefined }): boolean {
+export function assistantSaid(args: {
+  events: readonly unknown[]
+  word: string
+  afterIndex?: number | undefined
+}): boolean {
   const pattern = new RegExp(`\\b${escapeRegExp(args.word)}\\b`, 'i')
   const from = args.afterIndex === undefined ? 0 : args.afterIndex + 1
   return args.events.slice(from).some((event) => {

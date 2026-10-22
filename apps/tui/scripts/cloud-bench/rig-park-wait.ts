@@ -1,13 +1,23 @@
 import { EConnectionView } from '@dltech/atlas-harness'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 
-import { EVerdict, type Observation, ScenarioFailed, type ScenarioEvidence, type ScenarioFailure } from './rig-evidence'
+import {
+  EVerdict,
+  type Observation,
+  ScenarioFailed,
+  type ScenarioEvidence,
+  type ScenarioFailure,
+} from './rig-evidence'
 import type { ChannelWatch } from './rig-observer'
 import type { BoxProbe, Probes } from './rig-probes'
 
 export const PARK_POLL_MS = 15_000
 export const PARK_WITHIN_MS = 8 * 60_000
-export const PARKED_PROVIDERS: ReadonlySet<string> = new Set(['stopped', 'snapshotting', 'stopping'])
+export const PARKED_PROVIDERS: ReadonlySet<string> = new Set([
+  'stopped',
+  'snapshotting',
+  'stopping',
+])
 
 const PARK_LOG_LINES = 60
 const DRIVER_TAIL_LINES = 40
@@ -48,7 +58,8 @@ export class EvidencedScenarioFailed extends ScenarioFailed {
   }
 }
 
-export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+export const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const stampsOf = (probe: BoxProbe): string | null =>
   probe.version === null ? null : `${probe.version} / protocol ${probe.protocol ?? '?'}`
@@ -72,11 +83,30 @@ const pollOnce = async (args: {
   const view = args.ctx.rig().channel()?.connection().state ?? null
   const phase = args.watch.lastPhase()
   try {
-    const probe = await args.ctx.probes.box({ name: args.ctx.sandboxName(), logLines: PARK_LOG_LINES })
-    const observation = { at, step, view, phase, stamps: stampsOf(probe), provider: probe.provider, note: probeNoteOf(probe) }
+    const probe = await args.ctx.probes.box({
+      name: args.ctx.sandboxName(),
+      logLines: PARK_LOG_LINES,
+    })
+    const observation = {
+      at,
+      step,
+      view,
+      phase,
+      stamps: stampsOf(probe),
+      provider: probe.provider,
+      note: probeNoteOf(probe),
+    }
     return { observation, probe }
   } catch (error) {
-    const observation = { at, step, view, phase, stamps: null, provider: null, note: `probe failed: ${messageOf(error)}` }
+    const observation = {
+      at,
+      step,
+      view,
+      phase,
+      stamps: null,
+      provider: null,
+      note: `probe failed: ${messageOf(error)}`,
+    }
     return { observation, probe: null }
   }
 }
@@ -131,21 +161,36 @@ export function standardLogs(args: {
 }): { label: string; text: string }[] {
   const phases = args.watch
     .checkpoints()
-    .map((checkpoint) => `${checkpoint.reportedAt} ${checkpoint.phase} (revision ${checkpoint.revision})`)
+    .map(
+      (checkpoint) =>
+        `${checkpoint.reportedAt} ${checkpoint.phase} (revision ${checkpoint.revision})`,
+    )
   return [
     { label: 'view timeline', text: args.watch.views().join(' → ') },
-    { label: 'checkpoint phases', text: phases.length === 0 ? '(no checkpoint observed)' : phases.join('\n') },
-    { label: 'serve log tail', text: args.logTail ?? '(never read: the box was not running at any probe)' },
+    {
+      label: 'checkpoint phases',
+      text: phases.length === 0 ? '(no checkpoint observed)' : phases.join('\n'),
+    },
+    {
+      label: 'serve log tail',
+      text: args.logTail ?? '(never read: the box was not running at any probe)',
+    },
     {
       label: `driver lines (last ${DRIVER_TAIL_LINES})`,
-      text: args.driverLines.length === 0 ? '(none)' : args.driverLines.slice(-DRIVER_TAIL_LINES).join('\n'),
+      text:
+        args.driverLines.length === 0
+          ? '(none)'
+          : args.driverLines.slice(-DRIVER_TAIL_LINES).join('\n'),
     },
   ]
 }
 
 export const criteriaText = (criteria: readonly Criterion[]): string =>
   criteria
-    .map((criterion) => `${criterion.held ? '✓' : '✗'} ${criterion.name} — expected ${criterion.expected}; observed ${criterion.observed}`)
+    .map(
+      (criterion) =>
+        `${criterion.held ? '✓' : '✗'} ${criterion.name} — expected ${criterion.expected}; observed ${criterion.observed}`,
+    )
     .join('\n')
 
 export function concluded(args: {
@@ -161,5 +206,8 @@ export function concluded(args: {
     expected: misses.map((miss) => `${miss.name}: ${miss.expected}`).join('; '),
     observed: misses.map((miss) => `${miss.name}: ${miss.observed}`).join('; '),
   }
-  throw new EvidencedScenarioFailed({ failure, evidence: { ...args.evidence, logs, verdict: EVerdict.Fail, failure } })
+  throw new EvidencedScenarioFailed({
+    failure,
+    evidence: { ...args.evidence, logs, verdict: EVerdict.Fail, failure },
+  })
 }

@@ -19,7 +19,13 @@ async function opened(app: FakeApp): Promise<Mounted> {
   const setup = await testRender(
     <App
       app={app}
-      opened={{ threadId: toThreadId('opened-thread'), events: [], turns: [], name: null, started: true }}
+      opened={{
+        threadId: toThreadId('opened-thread'),
+        events: [],
+        turns: [],
+        name: null,
+        started: true,
+      }}
     />,
     WIDE,
   )

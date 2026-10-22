@@ -119,7 +119,9 @@ describe('the clock the working line reads', () => {
 
   it('is not thinking until a reasoning block opens', () => {
     expect(started().clock.reasoning).toBe(false)
-    expect(absorbing([chunk({ type: 'text-delta', id: 't', text: 'hi' })]).clock.reasoning).toBe(false)
+    expect(absorbing([chunk({ type: 'text-delta', id: 't', text: 'hi' })]).clock.reasoning).toBe(
+      false,
+    )
   })
 
   it('is thinking only while the reasoning block is open', () => {
@@ -177,12 +179,22 @@ describe('the clock the working line reads', () => {
       chunk({
         type: 'finish',
         reason: EFinishReason.ToolCalls,
-        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+        usage: {
+          inputTokens: 30_000,
+          outputTokens: 400,
+          cacheReadTokens: 28_000,
+          cacheWriteTokens: 0,
+        },
       }),
       chunk({
         type: 'finish',
         reason: EFinishReason.Stop,
-        usage: { inputTokens: 31_500, outputTokens: 120, cacheReadTokens: 30_000, cacheWriteTokens: 0 },
+        usage: {
+          inputTokens: 31_500,
+          outputTokens: 120,
+          cacheReadTokens: 30_000,
+          cacheWriteTokens: 0,
+        },
       }),
     ])
 
@@ -197,7 +209,11 @@ describe('the clock the working line reads', () => {
     const progress = absorbing([chunk({ type: 'text-delta', id: 't', text: 'hi' })])
 
     expect(
-      turnAdvanced({ progress, signal: chunk({ type: 'finish', reason: EFinishReason.Stop }), now: 0 }),
+      turnAdvanced({
+        progress,
+        signal: chunk({ type: 'finish', reason: EFinishReason.Stop }),
+        now: 0,
+      }),
     ).toBe(progress)
   })
 
@@ -206,7 +222,12 @@ describe('the clock the working line reads', () => {
       chunk({
         type: 'finish',
         reason: EFinishReason.ToolCalls,
-        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+        usage: {
+          inputTokens: 30_000,
+          outputTokens: 400,
+          cacheReadTokens: 28_000,
+          cacheWriteTokens: 0,
+        },
       }),
     ])
 
@@ -230,7 +251,12 @@ describe('the clock the working line reads', () => {
       chunk({
         type: 'finish',
         reason: EFinishReason.Stop,
-        usage: { inputTokens: 30_000, outputTokens: 400, cacheReadTokens: 28_000, cacheWriteTokens: 0 },
+        usage: {
+          inputTokens: 30_000,
+          outputTokens: 400,
+          cacheReadTokens: 28_000,
+          cacheWriteTokens: 0,
+        },
       }),
     ])
 
@@ -337,7 +363,9 @@ describe('what the transcript is shown while a turn is in flight', () => {
   it('keeps a failure the channel reported without a reason when nothing else knows one', () => {
     const unexplained: TranscriptModel = { ...EMPTY_TRANSCRIPT, failure: { message: null } }
 
-    expect(transcriptOfTurn({ model: unexplained, working: false, failure: null })).toBe(unexplained)
+    expect(transcriptOfTurn({ model: unexplained, working: false, failure: null })).toBe(
+      unexplained,
+    )
   })
 })
 
@@ -352,9 +380,14 @@ describe('what a turn outcome tells the user', () => {
   })
 
   it('passes a failure through in the words the loop used', () => {
-    expect(stoppageOf({ status: ETurnStatus.Failed, runId, message: 'overloaded_error', cause: undefined })).toBe(
-      'overloaded_error',
-    )
+    expect(
+      stoppageOf({
+        status: ETurnStatus.Failed,
+        runId,
+        message: 'overloaded_error',
+        cause: undefined,
+      }),
+    ).toBe('overloaded_error')
   })
 
   it('says what a paused turn is waiting on rather than dropping the pause', () => {

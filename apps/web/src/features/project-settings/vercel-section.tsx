@@ -42,13 +42,21 @@ function VercelForm({
         footer={
           <>
             <UnsavedHint visible={dirty} />
-            <Button size="sm" disabled={disabled || !dirty || saving} onClick={() => void handleSave()}>
+            <Button
+              size="sm"
+              disabled={disabled || !dirty || saving}
+              onClick={() => void handleSave()}
+            >
               Save
             </Button>
           </>
         }
       >
-        <SettingsRow title="Vercel project ID" htmlFor="sandbox-vercel-project-id" description={DESCRIPTION}>
+        <SettingsRow
+          title="Vercel project ID"
+          htmlFor="sandbox-vercel-project-id"
+          description={DESCRIPTION}
+        >
           <Input
             id="sandbox-vercel-project-id"
             className="font-mono"

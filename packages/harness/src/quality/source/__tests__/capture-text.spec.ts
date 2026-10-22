@@ -1,11 +1,21 @@
 import { EQualitySkipReason } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_CAPTURE_SOURCE_BYTES, captureText, captureUnavailableFault, makeChange } from '../capture-text'
+import {
+  MAX_CAPTURE_SOURCE_BYTES,
+  captureText,
+  captureUnavailableFault,
+  makeChange,
+} from '../capture-text'
 
 describe('captureText', () => {
   it('returns exact text when the strict decode matches', () => {
-    const result = captureText({ path: '/p/a.ts', text: 'const a = 1\n', strict: 'const a = 1\n', changed: true })
+    const result = captureText({
+      path: '/p/a.ts',
+      text: 'const a = 1\n',
+      strict: 'const a = 1\n',
+      changed: true,
+    })
     expect(result).toEqual({ ok: true, text: 'const a = 1\n' })
   })
 

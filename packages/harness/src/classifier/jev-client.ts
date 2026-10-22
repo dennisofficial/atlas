@@ -56,7 +56,9 @@ export class JevDecisionClient implements DecisionPort {
               retry: { maxRetries: 0 },
             })
             return (request, options) =>
-              client.systemOne(request, { ...(options?.signal === undefined ? {} : { signal: options.signal }) })
+              client.systemOne(request, {
+                ...(options?.signal === undefined ? {} : { signal: options.signal }),
+              })
           }
         : () => deps.systemOne as JevSystemOne
   }
@@ -72,7 +74,11 @@ export class JevDecisionClient implements DecisionPort {
 
     try {
       const result = await this.systemOneFor(config)(
-        { state: args.state, questions: args.questions as Questions, model: args.model ?? this.model ?? JEV_MODEL },
+        {
+          state: args.state,
+          questions: args.questions as Questions,
+          model: args.model ?? this.model ?? JEV_MODEL,
+        },
         { signal: args.signal },
       )
       const parsed = jevAnswersSchema.safeParse(result)

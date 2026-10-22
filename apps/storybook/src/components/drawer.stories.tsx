@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Drawer,
   DrawerClose,
@@ -10,20 +10,20 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@dltech/atlas-ui/components/drawer";
+} from '@dltech/atlas-ui/components/drawer'
 
 const meta = {
-  title: "Components/Drawer",
+  title: 'Components/Drawer',
   component: Drawer,
   argTypes: {
-    swipeDirection: { control: "inline-radio", options: ["down", "up", "left", "right"] },
+    swipeDirection: { control: 'inline-radio', options: ['down', 'up', 'left', 'right'] },
   },
-  args: { swipeDirection: "down" },
-} satisfies Meta<typeof Drawer>;
+  args: { swipeDirection: 'down' },
+} satisfies Meta<typeof Drawer>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -32,7 +32,9 @@ export const Default: Story = {
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>3 files changed</DrawerTitle>
-          <DrawerDescription>Review the edits before they are committed to the session branch.</DrawerDescription>
+          <DrawerDescription>
+            Review the edits before they are committed to the session branch.
+          </DrawerDescription>
         </DrawerHeader>
         <DrawerFooter>
           <Button>Commit</Button>
@@ -41,7 +43,7 @@ export const Default: Story = {
       </DrawerContent>
     </Drawer>
   ),
-};
+}
 
 export const WithSwipeHandle: Story = {
   render: (args) => (
@@ -55,4 +57,4 @@ export const WithSwipeHandle: Story = {
       </DrawerContent>
     </Drawer>
   ),
-};
+}

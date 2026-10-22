@@ -101,7 +101,13 @@ describe('suggestedModelRef', () => {
     const openaiOnly = { ...base, reachable: (providerId: string) => providerId === 'openai' }
 
     expect(
-      refKey(suggestedModelRef({ id: ESettingId.ModelId, settled: settledOver({}), catalogue: openaiOnly })),
+      refKey(
+        suggestedModelRef({
+          id: ESettingId.ModelId,
+          settled: settledOver({}),
+          catalogue: openaiOnly,
+        }),
+      ),
     ).toBe('openai/gpt-5-codex')
   })
 })

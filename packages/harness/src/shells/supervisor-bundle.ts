@@ -4,10 +4,11 @@ import { dirname, join } from 'node:path'
 const HARNESS_ROOT = join(import.meta.dirname, '..', '..')
 const SUPERVISOR_ENTRY = join(import.meta.dirname, 'durable', 'supervisor-main.ts')
 
-export const supervisorBundleFile = (): string =>
-  join(HARNESS_ROOT, 'bin', 'atlas-supervisor.js')
+export const supervisorBundleFile = (): string => join(HARNESS_ROOT, 'bin', 'atlas-supervisor.js')
 
-export async function bundleSupervisorSource(args?: { entry?: string | undefined }): Promise<string> {
+export async function bundleSupervisorSource(args?: {
+  entry?: string | undefined
+}): Promise<string> {
   const result = await Bun.build({
     entrypoints: [args?.entry ?? SUPERVISOR_ENTRY],
     target: 'bun',
@@ -19,7 +20,10 @@ export async function bundleSupervisorSource(args?: { entry?: string | undefined
   return await output.text()
 }
 
-export async function writeSupervisorBundle(args?: { outfile?: string | undefined; entry?: string | undefined }): Promise<string> {
+export async function writeSupervisorBundle(args?: {
+  outfile?: string | undefined
+  entry?: string | undefined
+}): Promise<string> {
   const outfile = args?.outfile ?? supervisorBundleFile()
   const text = await bundleSupervisorSource({ entry: args?.entry })
   await mkdir(dirname(outfile), { recursive: true })

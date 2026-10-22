@@ -6,8 +6,7 @@ import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { SecretsService } from './secrets.service'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -84,9 +83,9 @@ describe('SecretsService', () => {
     await expect(
       service.set({ userId: USER_A, name: 'n'.repeat(201), value: 'x' }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    await expect(
-      service.remove({ userId: USER_A, name: 'n'.repeat(201) }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(service.remove({ userId: USER_A, name: 'n'.repeat(201) })).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
     expect(await secrets()).toHaveLength(0)
   })
 })

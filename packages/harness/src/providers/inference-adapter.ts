@@ -1,4 +1,7 @@
-import { createOpenAICompatible, type OpenAICompatibleProviderSettings } from '@ai-sdk/openai-compatible'
+import {
+  createOpenAICompatible,
+  type OpenAICompatibleProviderSettings,
+} from '@ai-sdk/openai-compatible'
 import type { LanguageModelV4, SharedV4ProviderOptions } from '@ai-sdk/provider'
 
 import {

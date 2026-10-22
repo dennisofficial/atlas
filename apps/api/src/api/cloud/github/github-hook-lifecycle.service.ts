@@ -31,10 +31,7 @@ export class GithubHookLifecycleService {
     private readonly installations: GithubAppInstallationsService,
   ) {}
 
-  async ensureHook(args: {
-    userId: string
-    repoFullName: string
-  }): Promise<EnsureHookResult> {
+  async ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }
@@ -64,7 +61,9 @@ export class GithubHookLifecycleService {
   async handleSweep(): Promise<void> {
     const now = new Date()
     const idleCutoff = new Date(now.getTime() - IDLE_DELETE_AFTER_MS)
-    const candidates = await db.orm.public.GithubRepoHook.where((hook) => hook.idleSince.lt(idleCutoff))
+    const candidates = await db.orm.public.GithubRepoHook.where((hook) =>
+      hook.idleSince.lt(idleCutoff),
+    )
       .where({ status: ERepoHookStatus.Active })
       .all()
     for (const candidate of candidates) {
@@ -192,7 +191,8 @@ export class GithubHookLifecycleService {
       })
       return result.outcome === 'adopted' ? 'existing' : 'created'
     } catch (failure) {
-      if (isUniqueViolation({ error: failure, constraint: REPO_HOOK_PRIMARY_KEY })) return 'existing'
+      if (isUniqueViolation({ error: failure, constraint: REPO_HOOK_PRIMARY_KEY }))
+        return 'existing'
       throw failure
     }
   }

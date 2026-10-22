@@ -16,10 +16,7 @@ const WIDTH = 45
 
 const PROSE = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor'
 
-function Probe(props: {
-  text: string
-  capture: (draft: DraftControls) => void
-}): React.ReactNode {
+function Probe(props: { text: string; capture: (draft: DraftControls) => void }): React.ReactNode {
   const draft = useDraft(props.text)
   props.capture(draft)
   return <Composer draft={draft} width={WIDTH} />

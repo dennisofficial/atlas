@@ -1,4 +1,7 @@
-import type { WorkspaceVercelCredential, WorkspaceVercelCredentialUpsert } from '@dltech/atlas-wire/web'
+import type {
+  WorkspaceVercelCredential,
+  WorkspaceVercelCredentialUpsert,
+} from '@dltech/atlas-wire/web'
 import { workspaceVercelCredentialUpsertSchema } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
@@ -31,7 +34,11 @@ export class WorkspaceVercelService {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues[0]?.message ?? 'invalid vercel credential')
     }
-    await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: true })
+    await this.access.require({
+      userId: args.userId,
+      organizationId: args.organizationId,
+      write: true,
+    })
     await this.upsert({ ...args, input: parsed.data })
   }
 
@@ -42,12 +49,17 @@ export class WorkspaceVercelService {
     }).deleteAndCount()
   }
 
-  async openToken(args: { organizationId: string }): Promise<{ token: string; teamId: string } | null> {
+  async openToken(args: {
+    organizationId: string
+  }): Promise<{ token: string; teamId: string } | null> {
     const row = await db.orm.public.WorkspaceVercelCredential.first({
       organizationId: args.organizationId,
     })
     if (row === null) return null
-    return { token: openSecretValue({ cipher: this.cipher, sealed: row.sealedToken }), teamId: row.teamId }
+    return {
+      token: openSecretValue({ cipher: this.cipher, sealed: row.sealedToken }),
+      teamId: row.teamId,
+    }
   }
 
   private async upsert(args: Scope & { input: WorkspaceVercelCredentialUpsert }): Promise<void> {

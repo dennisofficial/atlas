@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Field, FieldError, FieldLabel } from "@dltech/atlas-ui/components/field";
+import { Field, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import {
   Select,
   SelectContent,
@@ -10,16 +10,16 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
+} from '@dltech/atlas-ui/components/select'
 
 const meta = {
-  title: "Components/Select",
+  title: 'Components/Select',
   component: Select,
-} satisfies Meta<typeof Select>;
+} satisfies Meta<typeof Select>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 function Options() {
   return (
@@ -36,15 +36,15 @@ function Options() {
         <SelectItem value="gpt5-mini">gpt-5-mini</SelectItem>
       </SelectGroup>
     </SelectContent>
-  );
+  )
 }
 
 const items = [
-  { value: "opus", label: "claude-opus" },
-  { value: "sonnet", label: "claude-sonnet" },
-  { value: "gpt5", label: "gpt-5" },
-  { value: "gpt5-mini", label: "gpt-5-mini" },
-];
+  { value: 'opus', label: 'claude-opus' },
+  { value: 'sonnet', label: 'claude-sonnet' },
+  { value: 'gpt5', label: 'gpt-5' },
+  { value: 'gpt5-mini', label: 'gpt-5-mini' },
+]
 
 export const Default: Story = {
   render: (args) => (
@@ -55,7 +55,7 @@ export const Default: Story = {
       <Options />
     </Select>
   ),
-};
+}
 
 export const Small: Story = {
   render: (args) => (
@@ -66,7 +66,7 @@ export const Small: Story = {
       <Options />
     </Select>
   ),
-};
+}
 
 export const Disabled: Story = {
   render: (args) => (
@@ -77,7 +77,7 @@ export const Disabled: Story = {
       <Options />
     </Select>
   ),
-};
+}
 
 export const Invalid: Story = {
   render: (args) => (
@@ -92,4 +92,4 @@ export const Invalid: Story = {
       <FieldError>Choose a model.</FieldError>
     </Field>
   ),
-};
+}

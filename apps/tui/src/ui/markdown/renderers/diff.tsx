@@ -1,5 +1,4 @@
 import { createTextAttributes, type StyleDefinitionInput } from '@opentui/core'
-import React from 'react'
 
 import type { FencedBlockView, FencedRenderer } from '../registry'
 import { codeTheme, type DiffPalette } from '../themes/index'

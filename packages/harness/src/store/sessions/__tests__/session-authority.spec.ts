@@ -51,8 +51,14 @@ describe('JsonlSessionAuthority reads', () => {
 
     expect(await authority.activeMainOf({ sessionId: main.id })).toBe(main.id)
     expect(await authority.mainGenerationOf({ threadId: main.id })).toBe(1)
-    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: true, generation: 1 })
-    expect(await authority.fenceMainThread({ threadId: main.id, generation: 1 })).toEqual({ allowed: true, generation: 1 })
+    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({
+      allowed: true,
+      generation: 1,
+    })
+    expect(await authority.fenceMainThread({ threadId: main.id, generation: 1 })).toEqual({
+      allowed: true,
+      generation: 1,
+    })
   })
 
   it('answers undefined for a session that does not exist', async () => {
@@ -61,7 +67,10 @@ describe('JsonlSessionAuthority reads', () => {
 
     expect(await authority.activeMainOf({ sessionId: 'spec-404' })).toBeUndefined()
     expect(await authority.mainGenerationOf({ threadId: toThreadId('spec-404') })).toBeUndefined()
-    expect(await authority.fenceMainThread({ threadId: toThreadId('spec-404') })).toEqual({ allowed: false, activeMain: null })
+    expect(await authority.fenceMainThread({ threadId: toThreadId('spec-404') })).toEqual({
+      allowed: false,
+      activeMain: null,
+    })
   })
 
   it('fences a stale generation without mutating', async () => {
@@ -73,7 +82,10 @@ describe('JsonlSessionAuthority reads', () => {
       allowed: false,
       activeMain: main.id,
     })
-    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({ allowed: true, generation: 1 })
+    expect(await authority.fenceMainThread({ threadId: main.id })).toEqual({
+      allowed: true,
+      generation: 1,
+    })
   })
 
   it('refuses a thread that is not the session main at all', async () => {
@@ -82,7 +94,10 @@ describe('JsonlSessionAuthority reads', () => {
     const main = await threads.create({})
     const child = await threads.create({ agent: { spawnedBy: main.id, type: 'explore' } })
 
-    expect(await authority.fenceMainThread({ threadId: child.id })).toEqual({ allowed: false, activeMain: main.id })
+    expect(await authority.fenceMainThread({ threadId: child.id })).toEqual({
+      allowed: false,
+      activeMain: main.id,
+    })
     expect(await authority.mainGenerationOf({ threadId: child.id })).toBeUndefined()
   })
 })
@@ -99,8 +114,14 @@ describe('JsonlSessionAuthority with a committed active main', () => {
 
     const reopened = openStore({ home }).authority
     expect(await reopened.activeMainOf({ sessionId: main.id })).toBe(successor.id)
-    expect(await reopened.fenceMainThread({ threadId: main.id })).toEqual({ allowed: false, activeMain: successor.id })
-    expect(await reopened.fenceMainThread({ threadId: successor.id })).toEqual({ allowed: true, generation: 1 })
+    expect(await reopened.fenceMainThread({ threadId: main.id })).toEqual({
+      allowed: false,
+      activeMain: successor.id,
+    })
+    expect(await reopened.fenceMainThread({ threadId: successor.id })).toEqual({
+      allowed: true,
+      generation: 1,
+    })
   })
 })
 
@@ -136,7 +157,10 @@ describe('session meta written by a rotating Atlas', () => {
     const main = await threads.create({})
     const file = sessionMetaFile({ sessionDir: sessionDirectory({ home, sessionId: main.id }) })
     const meta = readMetaSync({ file, schema: sessionMetaSchema })
-    await writeMeta({ file, meta: { ...meta, activeMainThreadId: 'old-successor', rotation: OLD_ROTATION } })
+    await writeMeta({
+      file,
+      meta: { ...meta, activeMainThreadId: 'old-successor', rotation: OLD_ROTATION },
+    })
 
     const parsed = readMetaSync({ file, schema: sessionMetaSchema })
     expect(parsed?.id).toBe(main.id)

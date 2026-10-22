@@ -49,7 +49,8 @@ export type ResolvedSandboxConfig = z.infer<typeof resolvedSandboxConfigSchema>
 
 export const PROVISIONING_ONLY_PREFIX = 'sandbox.vercel'
 
-export const isProvisioningOnlyName = (name: string): boolean => name.startsWith(PROVISIONING_ONLY_PREFIX)
+export const isProvisioningOnlyName = (name: string): boolean =>
+  name.startsWith(PROVISIONING_ONLY_PREFIX)
 
 export const workspaceVercelCredentialSchema = z.object({
   configured: z.boolean(),

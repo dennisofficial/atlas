@@ -1,11 +1,11 @@
 export enum EAppNav {
-  Threads = "threads",
-  Activity = "activity",
-  Projects = "projects",
+  Threads = 'threads',
+  Activity = 'activity',
+  Projects = 'projects',
 }
 
 export interface ShellDemoState {
-  threadCardId?: string;
-  projectCardId?: string;
-  accountMenuOpen?: boolean;
+  threadCardId?: string
+  projectCardId?: string
+  accountMenuOpen?: boolean
 }

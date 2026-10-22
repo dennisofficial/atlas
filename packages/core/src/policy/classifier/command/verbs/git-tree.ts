@@ -4,7 +4,6 @@ import {
   pathTargets,
   readOnly,
   refTargets,
-  routine,
   sketch,
   subverbOf,
   verbOf,

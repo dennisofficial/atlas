@@ -7,12 +7,17 @@ import { FILE, createRig, nudgesOf, policyNamed, recordsOf, scopeNamed } from '.
 
 type Sink = Pick<QualityExampleSink, 'record'>
 
-function recordingSink({ fail = false }: { fail?: boolean } = {}): { sink: Sink; scopes: QualityScope[] } {
+function recordingSink({ fail = false }: { fail?: boolean } = {}): {
+  sink: Sink
+  scopes: QualityScope[]
+} {
   const scopes: QualityScope[] = []
   const sink: Sink = {
     record: async (args) => {
       scopes.push(args.scope)
-      return fail ? { ok: false, fault: 'disk full' } : { ok: true, relativePath: `threads/t/quality/examples/${args.scope.id}.json` }
+      return fail
+        ? { ok: false, fault: 'disk full' }
+        : { ok: true, relativePath: `threads/t/quality/examples/${args.scope.id}.json` }
     },
   }
   return { sink, scopes }
@@ -30,7 +35,9 @@ describe('switches off', () => {
 
   it('reports capture enabled for either switch', () => {
     expect(createRig({ settings: { 'quality.enabled': true } }).engine.captureEnabled()).toBe(true)
-    expect(createRig({ settings: { 'quality.recordExamples': true } }).engine.captureEnabled()).toBe(true)
+    expect(
+      createRig({ settings: { 'quality.recordExamples': true } }).engine.captureEnabled(),
+    ).toBe(true)
   })
 })
 
@@ -56,7 +63,10 @@ describe('record-only mode', () => {
   })
 
   it('surfaces a recording fault without failing the review', async () => {
-    const rig = createRig({ settings: { 'quality.recordExamples': true }, examples: recordingSink({ fail: true }).sink })
+    const rig = createRig({
+      settings: { 'quality.recordExamples': true },
+      examples: recordingSink({ fail: true }).sink,
+    })
     const [record] = recordsOf(await rig.review())
     expect(record?.reason).toBe(EQualitySkipReason.Disabled)
     expect(record?.detail).toBe('disk full')
@@ -70,8 +80,13 @@ describe('record-only mode', () => {
     })
     const drafts = await rig.review()
     const records = recordsOf(drafts)
-    expect(records.map((record) => record.status).sort()).toEqual([EQualityReviewStatus.Completed, EQualityReviewStatus.OperationalError])
-    expect(records.find((record) => record.status === EQualityReviewStatus.Completed)?.evidencePath).toBeUndefined()
+    expect(records.map((record) => record.status).sort()).toEqual([
+      EQualityReviewStatus.Completed,
+      EQualityReviewStatus.OperationalError,
+    ])
+    expect(
+      records.find((record) => record.status === EQualityReviewStatus.Completed)?.evidencePath,
+    ).toBeUndefined()
     expect(nudgesOf(drafts)).toHaveLength(1)
   })
 
@@ -90,11 +105,18 @@ describe('coverage records', () => {
     const rig = createRig()
     const drafts = await rig.review({
       changes: [],
-      captureFaults: [{ path: FILE, reason: EQualitySkipReason.SourceUnavailable, detail: 'unreadable' }],
+      captureFaults: [
+        { path: FILE, reason: EQualitySkipReason.SourceUnavailable, detail: 'unreadable' },
+      ],
     })
     const [record] = recordsOf(drafts)
     expect(drafts).toHaveLength(1)
-    expect(record).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.SourceUnavailable, detail: 'unreadable', path: 'src/a.ts' })
+    expect(record).toMatchObject({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.SourceUnavailable,
+      detail: 'unreadable',
+      path: 'src/a.ts',
+    })
     expect(record?.scope).toBeUndefined()
     expect(rig.decisionCalls).toHaveLength(0)
   })
@@ -102,22 +124,35 @@ describe('coverage records', () => {
   it('turns preparation diagnostics into skipped records with no findings', async () => {
     const rig = createRig({
       scopes: [],
-      skipped: [{ path: 'src/a.ts', reason: EQualitySkipReason.InvalidSyntax, detail: 'parse error' }],
+      skipped: [
+        { path: 'src/a.ts', reason: EQualitySkipReason.InvalidSyntax, detail: 'parse error' },
+      ],
     })
     const drafts = await rig.review()
     const [record] = recordsOf(drafts)
-    expect(record).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.InvalidSyntax, findings: [] })
+    expect(record).toMatchObject({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.InvalidSyntax,
+      findings: [],
+    })
     expect(nudgesOf(drafts)).toHaveLength(0)
   })
 
   it('rejects an outside-workspace path without calling the source adapter', async () => {
     const rig = createRig()
-    const drafts = await rig.review({ changes: [{ path: '/etc/passwd', before: null, after: 'x' }] })
-    expect(recordsOf(drafts)[0]).toMatchObject({ status: EQualityReviewStatus.Skipped, reason: EQualitySkipReason.OutsideWorkspace })
+    const drafts = await rig.review({
+      changes: [{ path: '/etc/passwd', before: null, after: 'x' }],
+    })
+    expect(recordsOf(drafts)[0]).toMatchObject({
+      status: EQualityReviewStatus.Skipped,
+      reason: EQualitySkipReason.OutsideWorkspace,
+    })
     expect(rig.sourceCalls).toHaveLength(0)
     expect(rig.decisionCalls).toHaveLength(0)
 
-    const parent = await rig.review({ changes: [{ path: '../elsewhere/b.ts', before: null, after: 'x' }] })
+    const parent = await rig.review({
+      changes: [{ path: '../elsewhere/b.ts', before: null, after: 'x' }],
+    })
     expect(recordsOf(parent)[0]?.reason).toBe(EQualitySkipReason.OutsideWorkspace)
   })
 
@@ -136,7 +171,10 @@ describe('coverage records', () => {
     const records = recordsOf(drafts)
     expect(records).toHaveLength(2)
     for (const record of records) {
-      expect(record).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.WorkspaceUnidentified })
+      expect(record).toMatchObject({
+        status: EQualityReviewStatus.OperationalError,
+        reason: EQualitySkipReason.WorkspaceUnidentified,
+      })
     }
     expect(rig.identityCalls).toHaveLength(1)
     expect(rig.sourceCalls).toHaveLength(0)
@@ -145,10 +183,17 @@ describe('coverage records', () => {
 
   it('asks for the namespace once per review, passing the thread and project', async () => {
     const rig = createRig()
-    await rig.review({ changes: [{ path: FILE, before: null, after: 'x' }, { path: '/repo/src/b.ts', before: null, after: 'y' }] })
+    await rig.review({
+      changes: [
+        { path: FILE, before: null, after: 'x' },
+        { path: '/repo/src/b.ts', before: null, after: 'y' },
+      ],
+    })
     expect(rig.identityCalls).toHaveLength(1)
     expect(rig.identityCalls[0]).toMatchObject({ projectDirectory: '/repo' })
-    expect(rig.sourceCalls.every((args) => args.workspaceNamespace === 'git@host:org/repo.git#.')).toBe(true)
+    expect(
+      rig.sourceCalls.every((args) => args.workspaceNamespace === 'git@host:org/repo.git#.'),
+    ).toBe(true)
   })
 })
 
@@ -175,7 +220,9 @@ describe('regressions from review', () => {
     })
     const drafts = await rig.review()
     const records = recordsOf(drafts)
-    expect(records.some((record) => record.reason === EQualitySkipReason.ScopeIdentityUncertain)).toBe(true)
+    expect(
+      records.some((record) => record.reason === EQualitySkipReason.ScopeIdentityUncertain),
+    ).toBe(true)
     const reviewed = records.find((record) => record.status === EQualityReviewStatus.Completed)
     expect(reviewed?.assessments.map((assessment) => assessment.policyId)).toEqual(['srp'])
   })
@@ -199,6 +246,9 @@ describe('regressions from review', () => {
     })
     const drafts = await rig.review()
     const [record] = recordsOf(drafts)
-    expect(record).toMatchObject({ status: EQualityReviewStatus.OperationalError, reason: EQualitySkipReason.ReviewDeadline })
+    expect(record).toMatchObject({
+      status: EQualityReviewStatus.OperationalError,
+      reason: EQualitySkipReason.ReviewDeadline,
+    })
   })
 })

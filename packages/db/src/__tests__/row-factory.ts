@@ -1,13 +1,17 @@
 import contractJson from '../prisma/schema/contract.json' with { type: 'json' }
 
 type Column = { codecId: string; nullable: boolean; default?: unknown; many?: unknown }
-type ForeignKey = { source: { columns: string[] }; target: { tableName: string; columns: string[] } }
+type ForeignKey = {
+  source: { columns: string[] }
+  target: { tableName: string; columns: string[] }
+}
 type Table = { columns: Record<string, Column>; foreignKeys: ForeignKey[] }
 
 export const TIMESTAMP_CODEC = 'pg/timestamptz-date@1'
 
 const tables: Record<string, Table> = contractJson.storage.namespaces.public.entries.table
-const models: Record<string, { storage: { table: string } }> = contractJson.domain.namespaces.public.models
+const models: Record<string, { storage: { table: string } }> =
+  contractJson.domain.namespaces.public.models
 
 export function modelOfTable(table: string): string {
   const found = Object.entries(models).find(([, model]) => model.storage.table === table)
@@ -19,7 +23,15 @@ const OVERRIDES: Record<string, Record<string, unknown>> = {
   Project: { ownerUserId: 'User' },
 }
 
-function literalFor({ column, name, table }: { column: Column; name: string; table: string }): unknown {
+function literalFor({
+  column,
+  name,
+  table,
+}: {
+  column: Column
+  name: string
+  table: string
+}): unknown {
   if (column.codecId === TIMESTAMP_CODEC) return new Date('2026-10-22T02:02:04.222Z')
   if (column.codecId === 'pg/int4@1' || column.codecId === 'pg/int8@1') return 1
   if (column.codecId === 'pg/bool@1') return false
@@ -34,8 +46,12 @@ function dependenciesOf(table: string): string[] {
   const required = own.foreignKeys.filter((key) =>
     key.source.columns.some((column) => own.columns[column]?.nullable === false),
   )
-  const overridden = Object.values(OVERRIDES[table] ?? {}).filter((value) => typeof value === 'string')
-  return [...required.map((key) => key.target.tableName), ...overridden].filter((name) => name !== table)
+  const overridden = Object.values(OVERRIDES[table] ?? {}).filter(
+    (value) => typeof value === 'string',
+  )
+  return [...required.map((key) => key.target.tableName), ...overridden].filter(
+    (name) => name !== table,
+  )
 }
 
 export function tableOrder(): string[] {
@@ -57,12 +73,19 @@ export function timestampColumns(table: string): string[] {
     .map(([name]) => name)
 }
 
-export function rowFor({ table, keys }: { table: string; keys: Map<string, Record<string, unknown>> }) {
+export function rowFor({
+  table,
+  keys,
+}: {
+  table: string
+  keys: Map<string, Record<string, unknown>>
+}) {
   const own = tables[table]
   if (own === undefined) throw new Error(`no table ${table}`)
   const row: Record<string, unknown> = {}
   for (const [name, column] of Object.entries(own.columns)) {
-    if (column.nullable && column.default === undefined && column.codecId !== TIMESTAMP_CODEC) continue
+    if (column.nullable && column.default === undefined && column.codecId !== TIMESTAMP_CODEC)
+      continue
     row[name] = literalFor({ column, name, table })
   }
   for (const key of own.foreignKeys) {

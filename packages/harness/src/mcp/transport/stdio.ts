@@ -44,7 +44,8 @@ export class StdioTransport implements ServerTransport {
   constructor(private readonly spec: StdioTransportSpec) {}
 
   connect(): Promise<McpCapabilities> {
-    if (this.child !== undefined) return Promise.reject(new Error('the transport is already connected'))
+    if (this.child !== undefined)
+      return Promise.reject(new Error('the transport is already connected'))
     if (this.closed) return Promise.reject(new Error('the transport is closed'))
 
     this.child = Bun.spawn({
@@ -131,9 +132,11 @@ export class StdioTransport implements ServerTransport {
     }
     drain().catch(() => undefined)
 
-    void this.child?.exited.then(() => {
-      this.rejectAll(new Error('the child exited before it could answer'))
-    }).catch(() => undefined)
+    void this.child?.exited
+      .then(() => {
+        this.rejectAll(new Error('the child exited before it could answer'))
+      })
+      .catch(() => undefined)
   }
 
   private lines(buffer: string): string {

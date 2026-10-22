@@ -46,8 +46,22 @@ if (!API_KEY) {
 }
 
 const VOCABULARY = [
-  'resolve', 'handler', 'registry', 'threshold', 'adapter', 'boundary', 'transcript', 'directory',
-  'annotate', 'sequence', 'fragment', 'assemble', 'credential', 'partition', 'listener', 'checkpoint',
+  'resolve',
+  'handler',
+  'registry',
+  'threshold',
+  'adapter',
+  'boundary',
+  'transcript',
+  'directory',
+  'annotate',
+  'sequence',
+  'fragment',
+  'assemble',
+  'credential',
+  'partition',
+  'listener',
+  'checkpoint',
 ]
 
 // A fresh seed means text nobody has ever sent, so round 1 is a true cold start and no earlier run
@@ -64,9 +78,7 @@ const buildPrefix = (seed, count) => {
 }
 
 const bigBlock = (text) =>
-  has('cache-control')
-    ? [{ type: 'text', text, cache_control: { type: 'ephemeral' } }]
-    : text
+  has('cache-control') ? [{ type: 'text', text, cache_control: { type: 'ephemeral' } }] : text
 
 const cachedOf = (usage) =>
   usage?.prompt_tokens_details?.cached_tokens ??
@@ -102,7 +114,10 @@ const ask = async ({ prefix, cacheKey, round }) => {
   if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 300)}`)
 
   const payload = await res.json()
-  if (has('raw')) console.log(`      upstream=${payload.provider ?? 'n/a'} usage=${JSON.stringify(payload.usage)}`)
+  if (has('raw'))
+    console.log(
+      `      upstream=${payload.provider ?? 'n/a'} usage=${JSON.stringify(payload.usage)}`,
+    )
 
   const usage = payload.usage ?? {}
   return { prompt: usage.prompt_tokens ?? 0, cached: cachedOf(usage), latency }
@@ -123,7 +138,7 @@ const main = async () => {
       const pct = prompt === 0 ? 0 : (100 * cached) / prompt
       console.log(
         `  ${String(round).padStart(2)}  prompt ${String(prompt).padStart(7)}` +
-        `  cached ${String(cached).padStart(7)}  ${pct.toFixed(1).padStart(5)}%  ${latency}ms`,
+          `  cached ${String(cached).padStart(7)}  ${pct.toFixed(1).padStart(5)}%  ${latency}ms`,
       )
     } catch (error) {
       console.log(`  ${String(round).padStart(2)}  failed: ${error.message}`)
@@ -135,7 +150,9 @@ const main = async () => {
   const prompt = rows.reduce((s, r) => s + r.prompt, 0)
   const cached = rows.reduce((s, r) => s + r.cached, 0)
   const zeros = rows.filter((r) => r.cached === 0).length
-  console.log(`  summary: ${((100 * cached) / prompt).toFixed(1)}% cached, ${zeros} of ${rows.length} returned zero\n`)
+  console.log(
+    `  summary: ${((100 * cached) / prompt).toFixed(1)}% cached, ${zeros} of ${rows.length} returned zero\n`,
+  )
 }
 
 await main()

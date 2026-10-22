@@ -2,7 +2,13 @@ import { EThreadMessageState } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { fakeBoot, messagesWith, sandboxRows, seedThread, serviceWith } from './sandbox-provisioning.fixture'
+import {
+  fakeBoot,
+  messagesWith,
+  sandboxRows,
+  seedThread,
+  serviceWith,
+} from './sandbox-provisioning.fixture'
 import { NOT_RUNNING_MESSAGE, SEND_PENDING_MESSAGE } from './thread-messages.service'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
@@ -10,7 +16,9 @@ const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
 
 type PendingSend = { sendId: string; text: string }
 
-async function seedRow(partial: { wakeClaim?: Date | null; pendingSend?: PendingSend } = {}): Promise<void> {
+async function seedRow(
+  partial: { wakeClaim?: Date | null; pendingSend?: PendingSend } = {},
+): Promise<void> {
   const at = new Date()
   await db.orm.public.CloudSandbox.create({
     id: 'sbx-1',
@@ -46,7 +54,12 @@ describe('ThreadMessagesService', () => {
     const { service, serve } = messagesWith({ endpoint: ENDPOINT })
 
     expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Delivered })
-    expect(serve).toHaveBeenCalledWith({ ...ENDPOINT, threadId: 'thr-1', sendId: 'snd-1', text: 'hello' })
+    expect(serve).toHaveBeenCalledWith({
+      ...ENDPOINT,
+      threadId: 'thr-1',
+      sendId: 'snd-1',
+      text: 'hello',
+    })
   })
 
   it('answers 502 when delivery to a running sandbox fails', async () => {
@@ -55,7 +68,7 @@ describe('ThreadMessagesService', () => {
     await expect(service.send(ARGS)).rejects.toMatchObject({ status: 502 })
   })
 
-  it('does not send to another user\'s thread', async () => {
+  it("does not send to another user's thread", async () => {
     const { service, serve } = messagesWith({ endpoint: ENDPOINT })
 
     await expect(service.send({ ...ARGS, userId: 'usr-2' })).rejects.toThrow('thread not found')
@@ -102,7 +115,12 @@ describe('ThreadMessagesService', () => {
     release()
     await service.settle()
 
-    expect(messages.serve).toHaveBeenCalledWith({ ...ENDPOINT, threadId: 'thr-1', sendId: 'snd-1', text: 'hello' })
+    expect(messages.serve).toHaveBeenCalledWith({
+      ...ENDPOINT,
+      threadId: 'thr-1',
+      sendId: 'snd-1',
+      text: 'hello',
+    })
     expect(await stored()).toBeNull()
   })
 

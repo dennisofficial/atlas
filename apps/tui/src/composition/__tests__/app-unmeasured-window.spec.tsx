@@ -46,9 +46,11 @@ describe('launching on a model with no card', () => {
     const setup = await mounted(withNoCard(appWith()))
 
     try {
-      expect(currentNotices().map((notice) => notice.text).join('\n')).toContain(
-        'Auto-compact and the context meter are off',
-      )
+      expect(
+        currentNotices()
+          .map((notice) => notice.text)
+          .join('\n'),
+      ).toContain('Auto-compact and the context meter are off')
     } finally {
       await teardown(setup)
     }
@@ -71,9 +73,11 @@ describe('launching on a model with no card', () => {
     const setup = await mounted(appWith())
 
     try {
-      expect(currentNotices().map((notice) => notice.text).join('\n')).not.toContain(
-        'Auto-compact',
-      )
+      expect(
+        currentNotices()
+          .map((notice) => notice.text)
+          .join('\n'),
+      ).not.toContain('Auto-compact')
     } finally {
       await teardown(setup)
     }

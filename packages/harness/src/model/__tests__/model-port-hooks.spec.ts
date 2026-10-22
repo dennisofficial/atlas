@@ -51,8 +51,16 @@ describe('BeforeRequest', () => {
       model,
       hooks: new HookChain({
         beforeRequest: [
-          { name: 'observed', order: { stage: EStage.Observe, nudge: 0 }, run: instructing('observed') },
-          { name: 'guarded', order: { stage: EStage.Guard, nudge: 0 }, run: instructing('guarded') },
+          {
+            name: 'observed',
+            order: { stage: EStage.Observe, nudge: 0 },
+            run: instructing('observed'),
+          },
+          {
+            name: 'guarded',
+            order: { stage: EStage.Guard, nudge: 0 },
+            run: instructing('guarded'),
+          },
         ],
       }),
     })
@@ -70,10 +78,12 @@ const dropsLeaks: OnChunk = async (chunk) => {
   return chunk
 }
 
-const recordingInto = (seen: Chunk[]): OnChunk => async (chunk) => {
-  seen.push(chunk)
-  return chunk
-}
+const recordingInto =
+  (seen: Chunk[]): OnChunk =>
+  async (chunk) => {
+    seen.push(chunk)
+    return chunk
+  }
 
 describe('OnChunk', () => {
   it('drops a chunk a hook returned null for, and never lets a later hook see it', async () => {
@@ -83,14 +93,20 @@ describe('OnChunk', () => {
       model: interruptibleModel({ head: 'safe ', tail: 'sk-leak', chunkDelayInMs: 0 }),
       hooks: new HookChain({
         onChunk: [
-          { name: 'transcript-log', order: { stage: EStage.Observe, nudge: 0 }, run: recordingInto(logged) },
+          {
+            name: 'transcript-log',
+            order: { stage: EStage.Observe, nudge: 0 },
+            run: recordingInto(logged),
+          },
           { name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: dropsLeaks },
         ],
       }),
     })
 
     expect(result.parts).toEqual([{ type: 'text', text: 'safe ' }])
-    expect(logged.flatMap((chunk) => (chunk.type === 'text-delta' ? [chunk.text] : []))).toEqual(['safe '])
+    expect(logged.flatMap((chunk) => (chunk.type === 'text-delta' ? [chunk.text] : []))).toEqual([
+      'safe ',
+    ])
   })
 
   it('runs before the ChunkFilter the caller supplied, so a dropped chunk never reaches the UI', async () => {
@@ -103,11 +119,15 @@ describe('OnChunk', () => {
     await step({
       model: interruptibleModel({ head: 'safe ', tail: 'sk-leak', chunkDelayInMs: 0 }),
       hooks: new HookChain({
-        onChunk: [{ name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: dropsLeaks }],
+        onChunk: [
+          { name: 'secret-redaction', order: { stage: EStage.Guard, nudge: 0 }, run: dropsLeaks },
+        ],
       }),
       onChunk: publish,
     })
 
-    expect(published.flatMap((chunk) => (chunk.type === 'text-delta' ? [chunk.text] : []))).toEqual(['safe '])
+    expect(published.flatMap((chunk) => (chunk.type === 'text-delta' ? [chunk.text] : []))).toEqual(
+      ['safe '],
+    )
   })
 })

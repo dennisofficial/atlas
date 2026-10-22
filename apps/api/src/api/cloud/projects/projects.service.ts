@@ -66,7 +66,9 @@ export class ProjectsService {
   ) {}
 
   async list(args: { userId: string }): Promise<Project[]> {
-    const memberships = await db.orm.public.Member.select('organizationId').where({ userId: args.userId }).all()
+    const memberships = await db.orm.public.Member.select('organizationId')
+      .where({ userId: args.userId })
+      .all()
     const organizationIds = memberships.map((member) => member.organizationId)
     const rows = await db.orm.public.Project.where((project) =>
       or(project.ownerUserId.eq(args.userId), project.organizationId.in(organizationIds)),
@@ -112,7 +114,11 @@ export class ProjectsService {
   async remove(args: { userId: string; projectId: string }): Promise<void> {
     const row = await this.editable(args)
     if (row.organizationId !== null) {
-      await this.access.require({ userId: args.userId, organizationId: row.organizationId, write: true })
+      await this.access.require({
+        userId: args.userId,
+        organizationId: row.organizationId,
+        write: true,
+      })
     }
     await db.orm.public.Project.where({ id: args.projectId }).delete()
   }
@@ -133,7 +139,11 @@ export class ProjectsService {
     organizationId: string | null | undefined
   }): Promise<void> {
     if (args.organizationId === undefined || args.organizationId === null) return
-    await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: false })
+    await this.access.require({
+      userId: args.userId,
+      organizationId: args.organizationId,
+      write: false,
+    })
   }
 
   async editable(args: { userId: string; projectId: string }): Promise<Row<'Project'>> {

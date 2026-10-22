@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EChecksState, EPullRequestState, pullRequestBadge, type PullRequest } from '@dltech/atlas-harness'
+import {
+  EChecksState,
+  EPullRequestState,
+  pullRequestBadge,
+  type PullRequest,
+} from '@dltech/atlas-harness'
 
 import { justifySpans } from '../../../ui/components/sidebar/cells'
 import type { SidebarRowSplit } from '../../../ui/sidebar-section'
@@ -12,18 +17,16 @@ const WIDE = 200
 
 const NOW = 0
 
-const withChecks = (tally: {
-  running: number
-  passed: number
-  failed: number
-}): PullRequest => ({
+const withChecks = (tally: { running: number; passed: number; failed: number }): PullRequest => ({
   number: 12,
   state: EPullRequestState.Open,
   url: 'https://github.com/o/r/pull/12',
   title: 'a change',
   checks: tally.failed > 0 ? EChecksState.Failing : EChecksState.None,
   tally,
-  mergeable: null, comments: [], reviews: [],
+  mergeable: null,
+  comments: [],
+  reviews: [],
 })
 
 const splitAt = (args: { pullRequest: PullRequest; cells: number }): SidebarRowSplit =>

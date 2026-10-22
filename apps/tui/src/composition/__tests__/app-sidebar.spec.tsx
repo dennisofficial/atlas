@@ -28,10 +28,13 @@ const DRAFT = 'the composer row'
 
 const WIDE = 140
 
-
 const hexOf = (colour: { r: number; g: number; b: number }): string =>
   [colour.r, colour.g, colour.b]
-    .map((channel) => Math.round(channel * 255).toString(16).padStart(2, '0'))
+    .map((channel) =>
+      Math.round(channel * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
     .join('')
 
 function groundsAcross(args: { frame: CapturedFrame; needle: string }): string[] {
@@ -88,7 +91,9 @@ async function resizeTo(args: {
 
 describe('the sidebar', () => {
   it('docks beside the transcript on a wide terminal', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 140,
       height: 40,
@@ -236,7 +241,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('stays hidden on a narrow terminal until ctrl+b opens it as an overlay', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 90,
       height: 30,
@@ -264,7 +271,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('meets the sidebar edge, the composer panel giving up no gutter', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: WIDE,
       height: 40,
@@ -288,7 +297,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('holds the sidebar docked on a wide terminal, where ctrl+b is not bound', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 140,
       height: 40,
@@ -309,7 +320,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('closes the overlay on escape', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: NARROW,
       height: 40,
@@ -335,7 +348,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('dims what it floats over, so the sidebar reads as covering the transcript', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: NARROW,
       height: 40,
@@ -386,7 +401,9 @@ describe('the sidebar', () => {
    * and never reaches the screen. Reading it back is what tells the two apart.
    */
   it('keeps the floating sidebar inside a terminal narrower than the sidebar', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: 30,
       height: 40,
@@ -407,7 +424,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('comes back on widening after a narrow peek was opened and closed', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: NARROW,
       height: 40,
@@ -434,7 +453,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('folds away when the terminal narrows under a docked sidebar', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: WIDE,
       height: 40,
@@ -456,7 +477,9 @@ describe('the sidebar', () => {
   }, 60_000)
 
   it('lays the transcript out beside the sidebar once a narrow peek is widened', async () => {
-    const app: FakeApp = fakeApp({ model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }) })
+    const app: FakeApp = fakeApp({
+      model: scriptedModelPort({ script: { thinking: THINKING, reply: REPLY } }),
+    })
     const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
       width: NARROW,
       height: 40,

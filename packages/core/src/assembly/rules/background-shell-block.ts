@@ -29,8 +29,10 @@ type OutputPointer = {
   outputEnd?: number | undefined
 }
 
-const pathOf = (args: { event: OutputPointer; context: ShellEventContext | undefined }): string | undefined =>
-  args.event.outputPath ?? args.context?.started?.outputPath
+const pathOf = (args: {
+  event: OutputPointer
+  context: ShellEventContext | undefined
+}): string | undefined => args.event.outputPath ?? args.context?.started?.outputPath
 
 const outputPathNote = (args: { path: string; event: OutputPointer }): string => {
   const { path, event } = args
@@ -50,7 +52,10 @@ function cappedTail(output: string): string[] {
   ]
 }
 
-const alreadyEnded = (args: { event: { shellId: string; command: string; description?: string | undefined }; ended: NonNullable<ShellEventContext['endedBefore']> }): string =>
+const alreadyEnded = (args: {
+  event: { shellId: string; command: string; description?: string | undefined }
+  ended: NonNullable<ShellEventContext['endedBefore']>
+}): string =>
   `Background shell ${args.event.shellId} ${shellLabel(args.event)} had already ended before this was recorded: it ${shellEnding(args.ended)}. Its ending appears earlier in this conversation. The shell is not running, there is nothing to wait for, and no further input or check-in can reach it.`
 
 export function backgroundShellBlock(
@@ -58,7 +63,8 @@ export function backgroundShellBlock(
   context?: ShellEventContext,
 ): string {
   const path = pathOf({ event, context })
-  const printed = path === undefined ? 'Everything it printed follows' : 'The end of what it printed follows'
+  const printed =
+    path === undefined ? 'Everything it printed follows' : 'The end of what it printed follows'
   const headline = `Background shell ${event.shellId} ${shellLabel(event)} ${shellEnding(event)}. ${printed}; it has not been read yet.`
 
   const sections = [headline]
@@ -72,7 +78,9 @@ export function backgroundShellBlock(
   if (path === undefined) {
     sections.push(event.output.trimEnd() === '' ? PRINTED_NOTHING : event.output.trimEnd())
     if (event.remainingCharacters > 0) {
-      sections.push(remainingNote({ characters: event.remainingCharacters, shellId: event.shellId }))
+      sections.push(
+        remainingNote({ characters: event.remainingCharacters, shellId: event.shellId }),
+      )
     }
   } else {
     sections.push(...cappedTail(event.output))
@@ -94,7 +102,10 @@ export function backgroundShellAwaitingInputBlock(
 ): string {
   const ended = context?.endedBefore
   if (ended !== undefined) {
-    return systemNotice({ kind: 'background-shell-awaiting-input', content: alreadyEnded({ event, ended }) })
+    return systemNotice({
+      kind: 'background-shell-awaiting-input',
+      content: alreadyEnded({ event, ended }),
+    })
   }
 
   const supported = event.inputSupported === true
@@ -108,7 +119,9 @@ export function backgroundShellAwaitingInputBlock(
   if (path === undefined) {
     sections.push(event.output.trimEnd() === '' ? PRINTED_NOTHING : event.output.trimEnd())
     if (event.remainingCharacters > 0) {
-      sections.push(remainingNote({ characters: event.remainingCharacters, shellId: event.shellId }))
+      sections.push(
+        remainingNote({ characters: event.remainingCharacters, shellId: event.shellId }),
+      )
     }
   } else {
     sections.push(...cappedTail(event.output))
@@ -131,8 +144,7 @@ const coverageNote = (pattern: string): string =>
 const WATCH_DISARMED =
   'The watch has stopped: this shell matched the most lines a watch is allowed to carry, so no further matches will be reported. That says nothing about the shell itself.'
 
-const matchedLineCount = (count: number): string =>
-  count === 1 ? '1 line' : `${count} lines`
+const matchedLineCount = (count: number): string => (count === 1 ? '1 line' : `${count} lines`)
 
 export function backgroundShellMatchedBlock(
   event: EventOfType<'background-shell-matched'>,
@@ -141,7 +153,10 @@ export function backgroundShellMatchedBlock(
   const headline = `Background shell ${event.shellId} ${shellLabel(event)}: watch matched ${matchedLineCount(event.matchCount)}.`
 
   const ended = context?.endedBefore
-  const sections = [headline, ended === undefined ? MATCH_IS_A_SNAPSHOT : alreadyEnded({ event, ended })]
+  const sections = [
+    headline,
+    ended === undefined ? MATCH_IS_A_SNAPSHOT : alreadyEnded({ event, ended }),
+  ]
 
   sections.push(event.lines.trimEnd() === '' ? MATCHED_NOTHING : event.lines.trimEnd())
 
@@ -167,7 +182,10 @@ export function backgroundShellStillRunningBlock(
 ): string {
   const ended = context?.endedBefore
   if (ended !== undefined) {
-    return systemNotice({ kind: 'background-shell-still-running', content: alreadyEnded({ event, ended }) })
+    return systemNotice({
+      kind: 'background-shell-still-running',
+      content: alreadyEnded({ event, ended }),
+    })
   }
 
   const headline = `Background shell ${event.shellId} ${shellLabel(event)} has been running for ${elapsedPhrase(event.runningForMs)} and has not ended. ${STILL_RUNNING_NOT_ENDED}`
@@ -184,7 +202,9 @@ export function backgroundShellStillRunningBlock(
   if (tail !== '') sections.push(`Its most recent output:\n${tail}`)
 
   sections.push(stillRunningExits(event.shellId))
-  sections.push(`These check-ins repeat every ${elapsedPhrase(event.checkInMs)} for as long as the shell runs.`)
+  sections.push(
+    `These check-ins repeat every ${elapsedPhrase(event.checkInMs)} for as long as the shell runs.`,
+  )
 
   return systemNotice({ kind: 'background-shell-still-running', content: sections.join('\n\n') })
 }

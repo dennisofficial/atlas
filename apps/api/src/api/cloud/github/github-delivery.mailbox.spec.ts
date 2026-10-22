@@ -67,7 +67,7 @@ describe('GithubDeliveryService discussion mailbox', () => {
     })
     expect((await prEventRows()).find((row) => row.userId === 'usr-b')?.deliveredAt).toBeNull()
     expect(
-      ((await prEventRows())[0]?.payload as Record<string, unknown>).headSha,
+      ((await prEventRows())[0]?.payload as Record<string, unknown> | undefined)?.headSha,
     ).toBeUndefined()
     expect(received).toHaveLength(1)
     expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
@@ -82,7 +82,10 @@ describe('GithubDeliveryService discussion mailbox', () => {
       payload: {
         action: 'created',
         issue: { number: 42, html_url: 'https://github.com/compai/app/issues/42' },
-        comment: { body: 'not a pr', html_url: 'https://github.com/compai/app/issues/42#issuecomment-2' },
+        comment: {
+          body: 'not a pr',
+          html_url: 'https://github.com/compai/app/issues/42#issuecomment-2',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },
@@ -96,7 +99,10 @@ describe('GithubDeliveryService discussion mailbox', () => {
           html_url: 'https://github.com/compai/app/pull/42',
           pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
         },
-        comment: { body: 'edited', html_url: 'https://github.com/compai/app/pull/42#issuecomment-3' },
+        comment: {
+          body: 'edited',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-3',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },
@@ -147,7 +153,11 @@ describe('GithubDeliveryService discussion mailbox', () => {
       payload: {
         action: 'submitted',
         pull_request: PULL_REQUEST_PAYLOAD.pull_request,
-        review: { state: 'dismissed', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-9' },
+        review: {
+          state: 'dismissed',
+          body: null,
+          html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-9',
+        },
         sender: { login: 'reviewer' },
         repository: { full_name: 'compai/app' },
       },
@@ -157,7 +167,11 @@ describe('GithubDeliveryService discussion mailbox', () => {
       payload: {
         action: 'edited',
         pull_request: PULL_REQUEST_PAYLOAD.pull_request,
-        review: { state: 'approved', body: null, html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1' },
+        review: {
+          state: 'approved',
+          body: null,
+          html_url: 'https://github.com/compai/app/pull/42#pullrequestreview-1',
+        },
         sender: { login: 'reviewer' },
         repository: { full_name: 'compai/app' },
       },
@@ -232,7 +246,10 @@ describe('GithubDeliveryService discussion mailbox', () => {
           html_url: 'https://github.com/compai/app/pull/42',
           pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
         },
-        comment: { body: 'hello', html_url: 'https://github.com/compai/app/pull/42#issuecomment-5' },
+        comment: {
+          body: 'hello',
+          html_url: 'https://github.com/compai/app/pull/42#issuecomment-5',
+        },
         sender: { login: 'dennis' },
         repository: { full_name: 'compai/app' },
       },

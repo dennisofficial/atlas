@@ -18,7 +18,9 @@ export async function migrateDeployWithRetry({
     const exitCode = await run()
     if (exitCode === 0) return 0
     if (attempt < attempts) {
-      log(`prisma db migrate exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`)
+      log(
+        `prisma db migrate exited ${exitCode} (attempt ${attempt}/${attempts}); retrying in ${backoffMs / 1000}s`,
+      )
       await sleep(backoffMs)
     }
   }
@@ -27,14 +29,22 @@ export async function migrateDeployWithRetry({
 
 function runPrismaDbMigrate() {
   return new Promise((resolve) => {
-    const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate'], { cwd: DB_PACKAGE, stdio: 'inherit' })
+    const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate'], {
+      cwd: DB_PACKAGE,
+      stdio: 'inherit',
+    })
     child.on('error', () => resolve(1))
     child.on('close', (code) => resolve(code ?? 1))
   })
 }
 
-const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href
+const isMain =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href
 if (isMain) {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-  process.exitCode = await migrateDeployWithRetry({ run: runPrismaDbMigrate, sleep, log: console.error })
+  process.exitCode = await migrateDeployWithRetry({
+    run: runPrismaDbMigrate,
+    sleep,
+    log: console.error,
+  })
 }

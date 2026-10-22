@@ -67,7 +67,11 @@ describe('a resume run frame against the on-disk event log', () => {
       runId: toRunId('disk-seed'),
       drafts: [
         { type: 'user-said', text: 'build the thing' },
-        { type: 'assistant-said', parts: [{ type: 'text', text: 'partway through' }], interrupted: true },
+        {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'partway through' }],
+          interrupted: true,
+        },
       ],
     })
 

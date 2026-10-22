@@ -3,12 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  EAccountOrigin,
-  EAuthKind,
-  EAuthProvider,
-  type ClockPort,
-} from '@dltech/atlas-core'
+import { EAccountOrigin, EAuthKind, EAuthProvider, type ClockPort } from '@dltech/atlas-core'
 
 import { memoryAccountStore } from '../../credentials/account-store'
 import { BrokeredCredentialPort } from '../../credentials/brokered-credential-port'

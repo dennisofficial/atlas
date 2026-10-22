@@ -28,17 +28,25 @@ const embeddedSupervisorText: SupervisorScriptSource = async () => {
 
 let bundled: Promise<string> | undefined
 
-const defaultScriptSource = (embedded: boolean): SupervisorScriptSource => async () => {
-  if (embedded) return await embeddedSupervisorText()
-  bundled ??= bundleSupervisorSource().catch((error: unknown) => {
-    bundled = undefined
-    throw error
-  })
-  return await bundled
-}
+const defaultScriptSource =
+  (embedded: boolean): SupervisorScriptSource =>
+  async () => {
+    if (embedded) return await embeddedSupervisorText()
+    bundled ??= bundleSupervisorSource().catch((error: unknown) => {
+      bundled = undefined
+      throw error
+    })
+    return await bundled
+  }
 
-const hostPrefix = (args: { embedded: boolean; script: string; sourceEntry?: string | undefined }): readonly string[] =>
-  args.embedded ? [process.execPath, SHELL_SUPERVISE_FLAG] : [process.execPath, args.sourceEntry ?? args.script]
+const hostPrefix = (args: {
+  embedded: boolean
+  script: string
+  sourceEntry?: string | undefined
+}): readonly string[] =>
+  args.embedded
+    ? [process.execPath, SHELL_SUPERVISE_FLAG]
+    : [process.execPath, args.sourceEntry ?? args.script]
 
 const BIN_DIRECTORY_MODE = 0o700
 const SCRIPT_MODE = 0o600
@@ -99,12 +107,22 @@ export async function prepareSupervisorLauncher(args: {
   const text = await (args.source ?? defaultScriptSource(embedded))()
   const script = await materialize({ home: args.home, text })
 
-  const sourceEntry = args.source === undefined ? join(import.meta.dirname, 'durable', 'supervisor-main.ts') : undefined
-  return { script, host: hostPrefix({ embedded, script, sourceEntry }), docker: [DOCKER_BUN, script] }
+  const sourceEntry =
+    args.source === undefined
+      ? join(import.meta.dirname, 'durable', 'supervisor-main.ts')
+      : undefined
+  return {
+    script,
+    host: hostPrefix({ embedded, script, sourceEntry }),
+    docker: [DOCKER_BUN, script],
+  }
 }
 
 export const supervisorCommand = (args: {
   launcher: SupervisorLauncher
   docker: boolean
   configPath: string
-}): readonly string[] => [...(args.docker ? args.launcher.docker : args.launcher.host), args.configPath]
+}): readonly string[] => [
+  ...(args.docker ? args.launcher.docker : args.launcher.host),
+  args.configPath,
+]

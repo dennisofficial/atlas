@@ -1,4 +1,11 @@
-import type { EAgentRestart, EExecutionLocation, EKilledBy, EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type {
+  EAgentRestart,
+  EExecutionLocation,
+  EKilledBy,
+  SaidFile,
+  SaidImage,
+  ThreadId,
+} from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentType } from '../types'
@@ -47,7 +54,11 @@ export abstract class AgentRegistryPort {
     via?: EAgentRestart | undefined
   }): Promise<AgentOutcome>
   abstract wake(args: { agentId: ThreadId }): Promise<AgentOutcome>
-  abstract stop(args: { agentId: ThreadId; threadId: ThreadId; by: EKilledBy }): Promise<AgentOutcome>
+  abstract stop(args: {
+    agentId: ThreadId
+    threadId: ThreadId
+    by: EKilledBy
+  }): Promise<AgentOutcome>
   abstract relocateChildren(args: RelocateChildrenArgs): Promise<readonly ThreadId[]>
   abstract stopChildren(args: { threadId: ThreadId; by: EKilledBy }): Promise<readonly ThreadId[]>
   abstract pauseChildren(args: { threadId: ThreadId }): Promise<readonly ThreadId[]>

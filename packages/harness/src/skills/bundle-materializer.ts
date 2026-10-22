@@ -25,7 +25,9 @@ const STAGING_PREFIX = '.staging-'
 
 export class BundleResourceCorrupt extends Error {
   constructor(args: { path: string }) {
-    super(`embedded resource ${args.path} does not match the digest recorded when the binary was built`)
+    super(
+      `embedded resource ${args.path} does not match the digest recorded when the binary was built`,
+    )
   }
 }
 
@@ -49,7 +51,8 @@ const planOf = (entry: EmbeddedSkillEntry): readonly Planned[] => {
       digest: file.digest,
       bytes: async () => {
         const bytes = await file.read()
-        if (digestOfBytes(bytes) !== file.digest) throw new BundleResourceCorrupt({ path: file.path })
+        if (digestOfBytes(bytes) !== file.digest)
+          throw new BundleResourceCorrupt({ path: file.path })
         return bytes
       },
     }
@@ -81,7 +84,8 @@ const repair = async (args: {
 }): Promise<void> => {
   await ensureRealDirectory(args.digestDirectory)
   await ensureRealDirectory(args.directory)
-  for (const parent of parentsOf(args.planned)) await ensureParent({ directory: args.directory, relative: parent })
+  for (const parent of parentsOf(args.planned))
+    await ensureParent({ directory: args.directory, relative: parent })
   await mapLimited({
     items: args.planned,
     run: async (file) => {
@@ -93,7 +97,11 @@ const repair = async (args: {
   })
 }
 
-const stage = async (args: { cache: string; directory: string; planned: readonly Planned[] }): Promise<string> => {
+const stage = async (args: {
+  cache: string
+  directory: string
+  planned: readonly Planned[]
+}): Promise<string> => {
   const staging = join(args.cache, `${STAGING_PREFIX}${process.pid}-${crypto.randomUUID()}`)
   const skill = join(staging, basename(args.directory))
   await mkdir(skill, { recursive: true, mode: 0o700 })
@@ -165,7 +173,9 @@ export async function materializeSkillBundle(args: {
   const running = inflight.get(key)
   if (running !== undefined) return running
 
-  const started = run({ entry: args.entry, name: args.name, root }).finally(() => inflight.delete(key))
+  const started = run({ entry: args.entry, name: args.name, root }).finally(() =>
+    inflight.delete(key),
+  )
   inflight.set(key, started)
   return started
 }

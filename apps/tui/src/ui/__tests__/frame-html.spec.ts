@@ -30,7 +30,7 @@ const frame = (text: string, attributes = TextAttributes.NONE): FrameForHtml => 
 
 describe('escapeHtml', () => {
   it('escapes every markup-significant character', () => {
-    expect(escapeHtml(`<a href="x">&'\"</a>`)).toBe(
+    expect(escapeHtml(`<a href="x">&'"</a>`)).toBe(
       '&lt;a href=&quot;x&quot;&gt;&amp;&#39;&quot;&lt;/a&gt;',
     )
   })

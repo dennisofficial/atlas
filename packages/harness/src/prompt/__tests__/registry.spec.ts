@@ -188,8 +188,8 @@ describe('dead prose', () => {
   const contexts = reachablePromptContexts({
     agents: Object.values(EPromptAgent),
     providerIds: ['anthropic-oauth'],
-          projectDirectory: '/w',
-        })
+    projectDirectory: '/w',
+  })
 
   const idsThatAreDead = (fragments: readonly PromptFragment[]): readonly string[] =>
     deadFragmentIds({ fragments, contexts })

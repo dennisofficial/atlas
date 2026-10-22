@@ -32,8 +32,10 @@ export async function connect(args: { port: number; token: string }): Promise<Te
   ])
 
   const frames: ServeFrame[] = []
-  const waiters: { predicate: (frame: ServeFrame) => boolean; settle: (frame: ServeFrame) => void }[] =
-    []
+  const waiters: {
+    predicate: (frame: ServeFrame) => boolean
+    settle: (frame: ServeFrame) => void
+  }[] = []
 
   let onClosed = (code: number): void => void code
   const closed = new Promise<number>((resolve) => {

@@ -85,7 +85,10 @@ describe('a background shell holds a sleep assertion', async () => {
     const registry = openWithPrevention(prevention)
 
     const started = await registry.start(job({ command: 'sleep 30' }))
-    if (!started.ok) throw new Error(`shell failed to start: ${'reason' in started ? started.reason : JSON.stringify(started)}`)
+    if (!started.ok)
+      throw new Error(
+        `shell failed to start: ${'reason' in started ? started.reason : JSON.stringify(started)}`,
+      )
     expect(prevention.held).toBe(1)
 
     const killed = registry.kill({

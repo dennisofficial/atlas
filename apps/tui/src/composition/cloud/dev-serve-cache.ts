@@ -1,4 +1,14 @@
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type { DevServeBinary } from '@dltech/atlas-wire'
@@ -27,8 +37,11 @@ const isMeta = (value: unknown): value is DevServeMeta => {
 export const devServeBinaryNameOf = (target: ELinuxServeTarget): string =>
   `${BINARY_NAME_PREFIX}${target.slice(TARGET_PREFIX.length)}`
 
-const binaryPathOf = (args: { root: string; inputKey: string; target: ELinuxServeTarget }): string =>
-  join(args.root, args.inputKey, devServeBinaryNameOf(args.target))
+const binaryPathOf = (args: {
+  root: string
+  inputKey: string
+  target: ELinuxServeTarget
+}): string => join(args.root, args.inputKey, devServeBinaryNameOf(args.target))
 
 const metaPathOf = (args: { root: string; inputKey: string }): string =>
   join(args.root, args.inputKey, META_NAME)
@@ -133,7 +146,10 @@ export async function pruneDevServeCache(args: {
       })),
   )
   const newestFirst = cached.sort((a, b) => b.usedAt - a.usedAt).map((entry) => entry.name)
-  const kept = new Set([args.current, ...newestFirst.filter((name) => name !== args.current).slice(0, args.keep - 1)])
+  const kept = new Set([
+    args.current,
+    ...newestFirst.filter((name) => name !== args.current).slice(0, args.keep - 1),
+  ])
   const evicted = newestFirst.filter((name) => !kept.has(name))
 
   const staleStaging: string[] = []

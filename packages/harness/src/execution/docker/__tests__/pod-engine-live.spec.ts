@@ -6,7 +6,8 @@ import { uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
@@ -43,7 +44,11 @@ describeDocker('DockerPodEngine against a live daemon', () => {
     await engine.startContainer({ id: created.id })
 
     await pods.writeFile({ id: created.id, path: '/data/hello.txt', content })
-    const read = await pods.execSh({ id: created.id, script: 'cat /data/hello.txt', timeoutMs: 30_000 })
+    const read = await pods.execSh({
+      id: created.id,
+      script: 'cat /data/hello.txt',
+      timeoutMs: 30_000,
+    })
     expect(read.exitCode).toBe(0)
     expect(await read.stdout()).toBe(content)
 
@@ -51,10 +56,18 @@ describeDocker('DockerPodEngine against a live daemon', () => {
       id: created.id,
       resources: { nanoCpus: 1e9, memoryReservationBytes: 256 * 1024 * 1024 },
     })
-    const cpuMax = await pods.execSh({ id: created.id, script: 'cat /sys/fs/cgroup/cpu.max', timeoutMs: 30_000 })
+    const cpuMax = await pods.execSh({
+      id: created.id,
+      script: 'cat /sys/fs/cgroup/cpu.max',
+      timeoutMs: 30_000,
+    })
     expect((await cpuMax.stdout()).trim()).toBe('100000 100000')
     expect((await engine.inspectContainer({ id: created.id })).hostConfig.nanoCpus).toBe(1e9)
-    const memoryLow = await pods.execSh({ id: created.id, script: 'cat /sys/fs/cgroup/memory.low', timeoutMs: 30_000 })
+    const memoryLow = await pods.execSh({
+      id: created.id,
+      script: 'cat /sys/fs/cgroup/memory.low',
+      timeoutMs: 30_000,
+    })
     expect((await memoryLow.stdout()).trim()).toBe(String(256 * 1024 * 1024))
 
     await engine.removeContainer({ id: created.id })

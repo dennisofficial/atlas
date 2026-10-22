@@ -137,7 +137,10 @@ function settledSegments(prefix: string): readonly MarkdownSegment[] {
   for (const entry of settledCache) {
     if (!prefix.startsWith(entry.body)) continue
     if (longest === undefined || entry.body.length > longest.body.length) longest = entry
-    if (entry.sealable && (longestSealable === undefined || entry.body.length > longestSealable.body.length)) {
+    if (
+      entry.sealable &&
+      (longestSealable === undefined || entry.body.length > longestSealable.body.length)
+    ) {
       longestSealable = entry
     }
   }
@@ -166,7 +169,12 @@ function joinSeam(args: {
 }): readonly MarkdownSegment[] {
   const last = args.settled.at(-1)
   const first = args.live[0]
-  if (last === undefined || last.kind !== 'prose' || first === undefined || first.kind !== 'prose') {
+  if (
+    last === undefined ||
+    last.kind !== 'prose' ||
+    first === undefined ||
+    first.kind !== 'prose'
+  ) {
     return [...args.settled, ...args.live]
   }
   return [

@@ -11,7 +11,11 @@ export type ScopeMatch =
   | { kind: EScopeMatchKind.Matched; before: ParsedDeclaration; after: ParsedDeclaration }
   | { kind: EScopeMatchKind.Created; after: ParsedDeclaration }
   | { kind: EScopeMatchKind.Deleted; before: ParsedDeclaration }
-  | { kind: EScopeMatchKind.Ambiguous; before: readonly ParsedDeclaration[]; after: readonly ParsedDeclaration[] }
+  | {
+      kind: EScopeMatchKind.Ambiguous
+      before: readonly ParsedDeclaration[]
+      after: readonly ParsedDeclaration[]
+    }
 
 function sameIdentity(args: { before: ParsedDeclaration; after: ParsedDeclaration }): boolean {
   return (
@@ -40,7 +44,9 @@ export function matchScopes(args: {
   }
 
   for (const before of args.before) {
-    const candidates = args.after.filter((after) => !usedAfter.has(after) && sameIdentity({ before, after }))
+    const candidates = args.after.filter(
+      (after) => !usedAfter.has(after) && sameIdentity({ before, after }),
+    )
     const only = candidates.length === 1 ? candidates[0] : undefined
     if (only !== undefined) pair(before, only)
   }
@@ -70,14 +76,21 @@ export function matchScopes(args: {
       const before = group.before[index]
       const after = group.after[index]
       if (before === undefined || after === undefined) continue
-      const afterCandidates = group.after.filter((candidate) => candidate.position === before.position)
-      const beforeCandidates = group.before.filter((candidate) => candidate.position === after.position)
+      const afterCandidates = group.after.filter(
+        (candidate) => candidate.position === before.position,
+      )
+      const beforeCandidates = group.before.filter(
+        (candidate) => candidate.position === after.position,
+      )
       if (afterCandidates.length === 1 && beforeCandidates.length === 1) {
         unambiguousPairs.push({ before, after })
       }
     }
 
-    if (unambiguousPairs.length > 0 && unambiguousPairs.length * 2 === group.before.length + group.after.length) {
+    if (
+      unambiguousPairs.length > 0 &&
+      unambiguousPairs.length * 2 === group.before.length + group.after.length
+    ) {
       for (const found of unambiguousPairs) pair(found.before, found.after)
       continue
     }

@@ -1,6 +1,11 @@
 import type { Assembled } from './assembled'
 import type { Annotator, Rule, RuleContext } from './rule'
-import { EAssemblyStage, ERuleFailurePolicy, type AssemblyTrace, type AssemblyTraceStep } from './trace'
+import {
+  EAssemblyStage,
+  ERuleFailurePolicy,
+  type AssemblyTrace,
+  type AssemblyTraceStep,
+} from './trace'
 
 export type AssemblyRun = { assembled: Assembled; trace: AssemblyTrace }
 
@@ -77,7 +82,9 @@ export function assemble({
       input: current,
       onRuleFailure,
     })
-    trace.push(traceStep({ stage: EAssemblyStage.Annotator, name: annotator.annotatorName, outcome, ctx }))
+    trace.push(
+      traceStep({ stage: EAssemblyStage.Annotator, name: annotator.annotatorName, outcome, ctx }),
+    )
     current = outcome.assembled
   }
 

@@ -28,15 +28,18 @@ export function expandPathEnvironment(args: {
   }
 
   const unset = new Set<string>()
-  path = path.replace(ENV_REFERENCE, (reference, braced: string | undefined, bare: string | undefined) => {
-    const name = braced ?? bare ?? ''
-    const value = env[name]
-    if (value === undefined) {
-      unset.add(name)
-      return reference
-    }
-    return value
-  })
+  path = path.replace(
+    ENV_REFERENCE,
+    (reference, braced: string | undefined, bare: string | undefined) => {
+      const name = braced ?? bare ?? ''
+      const value = env[name]
+      if (value === undefined) {
+        unset.add(name)
+        return reference
+      }
+      return value
+    },
+  )
 
   if (unset.size > 0) {
     const names = [...unset].map((name) => `$${name}`)
@@ -55,7 +58,10 @@ export function resolveToolPath(args: {
   path: string
   env?: NodeJS.ProcessEnv
 }): ToolPathResolution {
-  const expanded = expandPathEnvironment({ path: args.path, ...(args.env === undefined ? {} : { env: args.env }) })
+  const expanded = expandPathEnvironment({
+    path: args.path,
+    ...(args.env === undefined ? {} : { env: args.env }),
+  })
   if (!expanded.ok) return expanded
   if (isAbsolute(expanded.path)) return { ok: true, path: resolve(expanded.path), anchored: false }
   return { ok: true, path: resolve(args.projectDirectory, expanded.path), anchored: true }

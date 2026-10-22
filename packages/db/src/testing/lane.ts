@@ -7,7 +7,9 @@ export function laneUrl(): URL {
     throw new Error(`test databases must be local; refusing ${url.hostname}`)
   }
   if (!url.pathname.slice(1).startsWith('atlas_test')) {
-    throw new Error(`the test lane database must be named atlas_test*; got ${url.pathname.slice(1)}`)
+    throw new Error(
+      `the test lane database must be named atlas_test*; got ${url.pathname.slice(1)}`,
+    )
   }
   return url
 }

@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   CheckIcon,
   CopyIcon,
@@ -9,53 +9,48 @@ import {
   RefreshCcwIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-} from "lucide-react";
+} from 'lucide-react'
 
-import { Bubble, BubbleContent } from "#components/bubble";
-import { Button } from "#components/button";
-import { Marker, MarkerContent, MarkerIcon } from "#components/marker";
-import {
-  Message,
-  MessageContent,
-  MessageFooter,
-  MessageHeader,
-} from "#components/message";
-import { Tooltip, TooltipContent, TooltipTrigger } from "#components/tooltip";
+import { Bubble, BubbleContent } from '#components/bubble'
+import { Button } from '#components/button'
+import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
+import { Message, MessageContent, MessageFooter, MessageHeader } from '#components/message'
+import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 
 export enum EFeedback {
-  Good = "good",
-  Bad = "bad",
+  Good = 'good',
+  Bad = 'bad',
 }
 
 export interface MessageAttachment {
-  id: string;
-  label: string;
+  id: string
+  label: string
 }
 
 export interface UserMessageProps {
-  children: ReactNode;
-  author?: string;
-  timestamp?: string;
-  attachments?: MessageAttachment[];
-  onEdit?: () => void;
+  children: ReactNode
+  author?: string
+  timestamp?: string
+  attachments?: MessageAttachment[]
+  onEdit?: () => void
 }
 
 export interface AgentMessageProps {
-  children: ReactNode;
-  author?: string;
-  timestamp?: string;
-  streaming?: boolean;
-  copyText?: string;
-  feedback?: EFeedback;
-  onFeedback?: (feedback: EFeedback) => void;
-  onRetry?: () => void;
+  children: ReactNode
+  author?: string
+  timestamp?: string
+  streaming?: boolean
+  copyText?: string
+  feedback?: EFeedback
+  onFeedback?: (feedback: EFeedback) => void
+  onRetry?: () => void
 }
 
 interface ActionButtonProps {
-  label: string;
-  pressed?: boolean;
-  onClick?: () => void;
-  children: ReactNode;
+  label: string
+  pressed?: boolean
+  onClick?: () => void
+  children: ReactNode
 }
 
 function ActionButton({ label, pressed, onClick, children }: ActionButtonProps) {
@@ -76,42 +71,40 @@ function ActionButton({ label, pressed, onClick, children }: ActionButtonProps) 
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
-  );
+  )
 }
 
 function CopyAction({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!copied) return undefined;
-    const timeout = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
+    if (!copied) return undefined
+    const timeout = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(timeout)
+  }, [copied])
 
   const handleCopy = () => {
     navigator.clipboard
       .writeText(text)
       .then(() => setCopied(true))
-      .catch(() => {});
-  };
+      .catch(() => {})
+  }
 
   return (
-    <ActionButton label={copied ? "Copied" : "Copy"} onClick={handleCopy}>
+    <ActionButton label={copied ? 'Copied' : 'Copy'} onClick={handleCopy}>
       {copied ? <CheckIcon /> : <CopyIcon />}
     </ActionButton>
-  );
+  )
 }
 
-function Meta({ author, timestamp }: Pick<UserMessageProps, "author" | "timestamp">) {
-  if (!author && !timestamp) return null;
+function Meta({ author, timestamp }: Pick<UserMessageProps, 'author' | 'timestamp'>) {
+  if (!author && !timestamp) return null
   return (
     <MessageHeader className="gap-2 px-0">
       {author ? <span>{author}</span> : null}
-      {timestamp ? (
-        <span className="font-normal tabular-nums">{timestamp}</span>
-      ) : null}
+      {timestamp ? <span className="font-normal tabular-nums">{timestamp}</span> : null}
     </MessageHeader>
-  );
+  )
 }
 
 export function UserMessage({
@@ -149,7 +142,7 @@ export function UserMessage({
         ) : null}
       </MessageContent>
     </Message>
-  );
+  )
 }
 
 export function AgentMessage({
@@ -162,7 +155,7 @@ export function AgentMessage({
   onFeedback,
   onRetry,
 }: AgentMessageProps) {
-  const hasActions = Boolean(copyText || onFeedback || onRetry);
+  const hasActions = Boolean(copyText || onFeedback || onRetry)
 
   return (
     <Message>
@@ -207,7 +200,7 @@ export function AgentMessage({
         ) : null}
       </MessageContent>
     </Message>
-  );
+  )
 }
 
 export function HarnessMessage({ children }: { children: ReactNode }) {
@@ -216,5 +209,5 @@ export function HarnessMessage({ children }: { children: ReactNode }) {
       <MarkerIcon />
       <MarkerContent>{children}</MarkerContent>
     </Marker>
-  );
+  )
 }

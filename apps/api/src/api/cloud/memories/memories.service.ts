@@ -43,12 +43,19 @@ function storedKeyOf(args: MemoryKey): StoredKey {
 }
 
 const bumpRevisionStatement = (args: { key: StoredKey; fields: MemoryFields }) =>
-  db.raw.sql`UPDATE "Memory" SET description = ${args.fields.description}, type = ${args.fields.type}, body = ${args.fields.body}, revision = revision + 1, "updatedAt" = now() WHERE "userId" = ${args.key.userId} AND scope = ${args.key.scope} AND project = ${args.key.project} AND name = ${args.key.name} RETURNING id`
+  db.raw
+    .sql`UPDATE "Memory" SET description = ${args.fields.description}, type = ${args.fields.type}, body = ${args.fields.body}, revision = revision + 1, "updatedAt" = now() WHERE "userId" = ${args.key.userId} AND scope = ${args.key.scope} AND project = ${args.key.project} AND name = ${args.key.name} RETURNING id`
     .returnsRow({ id: 'pg/text@1' })
     .build()
 
-const guardedBodyStatement = (args: { id: string; userId: string; revision: number; body: string }) =>
-  db.raw.sql`UPDATE "Memory" SET body = ${args.body}, revision = revision + 1, "updatedAt" = now() WHERE id = ${args.id} AND "userId" = ${args.userId} AND revision = ${args.revision} RETURNING id`
+const guardedBodyStatement = (args: {
+  id: string
+  userId: string
+  revision: number
+  body: string
+}) =>
+  db.raw
+    .sql`UPDATE "Memory" SET body = ${args.body}, revision = revision + 1, "updatedAt" = now() WHERE id = ${args.id} AND "userId" = ${args.userId} AND revision = ${args.revision} RETURNING id`
     .returnsRow({ id: 'pg/text@1' })
     .build()
 
@@ -78,7 +85,10 @@ function toEntry(row: Row<'Memory'>): MemoryEntry {
   return memoryEntrySchema.parse({ ...toSummary(row), body: row.body })
 }
 
-function matchStartsOf(args: { text: string; needle: string }): { first: number; another: boolean } {
+function matchStartsOf(args: { text: string; needle: string }): {
+  first: number
+  another: boolean
+} {
   const first = args.text.indexOf(args.needle)
   return { first, another: first >= 0 && args.text.indexOf(args.needle, first + 1) >= 0 }
 }
@@ -147,7 +157,9 @@ export class MemoriesService {
     return row
   }
 
-  async edit(args: MemoryKey & { old: string; replacement: string; revision: number }): Promise<MemorySummary> {
+  async edit(
+    args: MemoryKey & { old: string; replacement: string; revision: number },
+  ): Promise<MemorySummary> {
     const key = storedKeyOf(args)
     return db.transaction(async (tx) => {
       const row = await firstOf({ tx, key })
@@ -170,14 +182,17 @@ export class MemoriesService {
       }
       const body = replaceOnce({ text: row.body, old: args.old, replacement: args.replacement })
       if (body.length > MAX_MEMORY_BODY_CHARS) {
-        throw new BadRequestException(`a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`)
+        throw new BadRequestException(
+          `a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`,
+        )
       }
       const updated = await tx.query(
         guardedBodyStatement({ id: row.id, userId: key.userId, revision: row.revision, body }),
       )
       const fresh = await firstOf({ tx, key })
       if (fresh === null) throw new NotFoundException('no such memory')
-      if (updated.length === 0) throw staleRevision({ expected: args.revision, current: fresh.revision })
+      if (updated.length === 0)
+        throw staleRevision({ expected: args.revision, current: fresh.revision })
       return toSummary(fresh)
     })
   }

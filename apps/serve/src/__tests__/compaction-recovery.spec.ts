@@ -50,7 +50,8 @@ const signalSeqs = (frames: readonly ServeFrame[]): number[] =>
   frames.flatMap((frame) => (frame.kind === EServeFrame.Signal ? [frame.seq] : []))
 
 const expectContiguous = (seqs: readonly number[]): void => {
-  for (let index = 1; index < seqs.length; index += 1) expect(seqs[index]).toBe((seqs[index - 1] ?? 0) + 1)
+  for (let index = 1; index < seqs.length; index += 1)
+    expect(seqs[index]).toBe((seqs[index - 1] ?? 0) + 1)
 }
 
 describe('compaction broadcast survives disconnect and greet', () => {
@@ -59,7 +60,10 @@ describe('compaction broadcast survives disconnect and greet', () => {
     const actor = await attachMirrored({ port: served.handle.port })
     const watcher = await attachMirrored({ port: served.handle.port })
     pushSignals(served, 2)
-    await until({ what: 'the watcher to see the signals', condition: () => signalSeqs(watcher.frames).length === 2 })
+    await until({
+      what: 'the watcher to see the signals',
+      condition: () => signalSeqs(watcher.frames).length === 2,
+    })
     const headBefore = (await watcher.synced()).at(-1)!.seq
 
     watcher.drop()
@@ -99,7 +103,8 @@ describe('compaction broadcast survives disconnect and greet', () => {
     probe.release()
     await eventually({
       what: 'the compaction to commit without its requester',
-      probe: async () => (await serverEvents(served)).some((event) => event.type === 'history-compacted'),
+      probe: async () =>
+        (await serverEvents(served)).some((event) => event.type === 'history-compacted'),
     })
     expect(seqTypes(await serverEvents(served))).not.toEqual(before)
 
@@ -131,7 +136,8 @@ describe('compaction broadcast survives disconnect and greet', () => {
     )
     await eventually({
       what: 'the compaction to commit',
-      probe: async () => (await serverEvents(served)).some((event) => event.type === 'history-compacted'),
+      probe: async () =>
+        (await serverEvents(served)).some((event) => event.type === 'history-compacted'),
     })
     await until({
       what: 'the lost frames to have been sent',
@@ -152,7 +158,10 @@ describe('compaction broadcast survives disconnect and greet', () => {
   })
 
   it('tells a client whose cursor aged out of the ring to reload and never vouches its log', async () => {
-    const served = await startRecoveryServe({ summariser: probeSummariser().summariser, bufferSize: 2 })
+    const served = await startRecoveryServe({
+      summariser: probeSummariser().summariser,
+      bufferSize: 2,
+    })
     const actor = await attachMirrored({ port: served.handle.port })
     const watcher = await attachMirrored({ port: served.handle.port })
     pushSignals(served, 1)
@@ -195,7 +204,9 @@ describe('compaction broadcast survives disconnect and greet', () => {
     const ready = await raw.waitFor((frame) => frame.kind === EServeFrame.Ready)
     expect(ready).toMatchObject({ kind: EServeFrame.Ready, transcriptCurrent: false })
     await raw.waitFor((frame) => frame.kind === EServeFrame.Reload)
-    await raw.waitFor((frame) => frame.kind === EServeFrame.Signal && frame.signal.type === 'events-appended')
+    await raw.waitFor(
+      (frame) => frame.kind === EServeFrame.Signal && frame.signal.type === 'events-appended',
+    )
     expect(signalSeqs(raw.frames)).toEqual([2])
     raw.close()
   })
@@ -216,7 +227,9 @@ describe('compaction broadcast survives disconnect and greet', () => {
       protocol: CHANNEL_PROTOCOL_VERSION,
     })
 
-    expect(await raw.waitFor((frame) => frame.kind === EServeFrame.Ready)).toMatchObject({ transcriptCurrent: false })
+    expect(await raw.waitFor((frame) => frame.kind === EServeFrame.Ready)).toMatchObject({
+      transcriptCurrent: false,
+    })
     raw.close()
   })
 
@@ -235,7 +248,9 @@ describe('compaction broadcast survives disconnect and greet', () => {
       lastEventSeq: head,
       protocol: CHANNEL_PROTOCOL_VERSION,
     })
-    expect(await raw.waitFor((frame) => frame.kind === EServeFrame.Ready)).toMatchObject({ transcriptCurrent: true })
+    expect(await raw.waitFor((frame) => frame.kind === EServeFrame.Ready)).toMatchObject({
+      transcriptCurrent: true,
+    })
     raw.close()
   })
 })
@@ -259,7 +274,10 @@ describe('the frame buffer holds a reload without a sequence gap', () => {
     roomy.pushLifecycle({ kind: EServeFrame.Reload, sinceEventSeq: 0 })
     roomy.push({ type: 'events-appended' })
     expect(roomy.holds(0)).toBe(true)
-    expect(roomy.after(0).map((frame) => frame.kind)).toEqual([EServeFrame.Reload, EServeFrame.Signal])
+    expect(roomy.after(0).map((frame) => frame.kind)).toEqual([
+      EServeFrame.Reload,
+      EServeFrame.Signal,
+    ])
 
     const tight = createFrameBuffer({ capacity: 1 })
     tight.push({ type: 'context-changed' })

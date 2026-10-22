@@ -18,11 +18,21 @@ describe('what a turn was billed, summed over its steps', () => {
   it('sums every step, because each one is billed the whole prompt it sent', () => {
     const first = addUsage({
       billed: NOTHING_BILLED,
-      step: step({ inputTokens: 1_000, outputTokens: 50, cacheReadTokens: 800, cacheWriteTokens: 200 }),
+      step: step({
+        inputTokens: 1_000,
+        outputTokens: 50,
+        cacheReadTokens: 800,
+        cacheWriteTokens: 200,
+      }),
     })
     const second = addUsage({
       billed: first,
-      step: step({ inputTokens: 1_400, outputTokens: 30, cacheReadTokens: 1_000, cacheWriteTokens: 0 }),
+      step: step({
+        inputTokens: 1_400,
+        outputTokens: 30,
+        cacheReadTokens: 1_000,
+        cacheWriteTokens: 0,
+      }),
     })
 
     expect(second).toEqual({
@@ -34,7 +44,9 @@ describe('what a turn was billed, summed over its steps', () => {
   })
 
   it('treats a step that reported no cache tiers as having read and written nothing', () => {
-    expect(addUsage({ billed: NOTHING_BILLED, step: step({ inputTokens: 12, outputTokens: 3 }) })).toEqual({
+    expect(
+      addUsage({ billed: NOTHING_BILLED, step: step({ inputTokens: 12, outputTokens: 3 }) }),
+    ).toEqual({
       inputTokens: 12,
       outputTokens: 3,
       cacheReadTokens: 0,
@@ -43,7 +55,10 @@ describe('what a turn was billed, summed over its steps', () => {
   })
 
   it('leaves the tally alone when a step reported nothing at all', () => {
-    const one = addUsage({ billed: NOTHING_BILLED, step: step({ inputTokens: 7, outputTokens: 2 }) })
+    const one = addUsage({
+      billed: NOTHING_BILLED,
+      step: step({ inputTokens: 7, outputTokens: 2 }),
+    })
     expect(addUsage({ billed: one, step: undefined })).toEqual(one)
   })
 

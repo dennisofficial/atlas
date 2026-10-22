@@ -1,15 +1,15 @@
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, Trash2Icon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@dltech/atlas-ui/components/field";
-import { Input } from "@dltech/atlas-ui/components/input";
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@dltech/atlas-ui/components/field'
+import { Input } from '@dltech/atlas-ui/components/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@dltech/atlas-ui/components/select";
+} from '@dltech/atlas-ui/components/select'
 import {
   Sheet,
   SheetContent,
@@ -17,9 +17,9 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "@dltech/atlas-ui/components/sheet";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+} from '@dltech/atlas-ui/components/sheet'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import {
   EMemoryType,
@@ -28,33 +28,28 @@ import {
   MEMORY_MAX_DESCRIPTION_CHARS,
   MEMORY_TYPE_OPTIONS,
   type MemoryEntry,
-} from "../../../fixtures/settings-memory";
-import { Mono } from "../settings-layout";
-import { useDraft } from "../use-draft";
-import { MemoryTypeBadge } from "./memory-row";
+} from '../../../fixtures/settings-memory'
+import { Mono } from '../settings-layout'
+import { useDraft } from '../use-draft'
+import { MemoryTypeBadge } from './memory-row'
 
 export enum EMemorySheetMode {
-  View = "view",
-  Edit = "edit",
+  View = 'view',
+  Edit = 'edit',
 }
 
-type MemoryDraft = Pick<MemoryEntry, "description" | "type" | "body">;
+type MemoryDraft = Pick<MemoryEntry, 'description' | 'type' | 'body'>
 
 function CharCounter({ count, max }: { count: number; max: number }) {
   return (
-    <Mono
-      className={cn(
-        "self-end text-muted-foreground",
-        count > max && "text-destructive",
-      )}
-    >
-      {count.toLocaleString("en-US")} / {max.toLocaleString("en-US")}
+    <Mono className={cn('self-end text-muted-foreground', count > max && 'text-destructive')}>
+      {count.toLocaleString('en-US')} / {max.toLocaleString('en-US')}
     </Mono>
-  );
+  )
 }
 
 function isMemoryType(value: string): value is EMemoryType {
-  return Object.values(EMemoryType).some((type) => type === value);
+  return Object.values(EMemoryType).some((type) => type === value)
 }
 
 function MemoryView({
@@ -62,9 +57,9 @@ function MemoryView({
   onEdit,
   onDelete,
 }: {
-  entry: MemoryEntry;
-  onEdit: () => void;
-  onDelete: () => void;
+  entry: MemoryEntry
+  onEdit: () => void
+  onDelete: () => void
 }) {
   return (
     <>
@@ -94,7 +89,7 @@ function MemoryView({
         </Button>
       </SheetFooter>
     </>
-  );
+  )
 }
 
 function MemoryEdit({
@@ -103,38 +98,35 @@ function MemoryEdit({
   onCancel,
   onDelete,
 }: {
-  entry: MemoryEntry;
-  onSave: (entry: MemoryEntry) => void;
-  onCancel: () => void;
-  onDelete: () => void;
+  entry: MemoryEntry
+  onSave: (entry: MemoryEntry) => void
+  onCancel: () => void
+  onDelete: () => void
 }) {
   const draft = useDraft<MemoryDraft>({
     description: entry.description,
     type: entry.type,
     body: entry.body,
-  });
-  const patch = (next: Partial<MemoryDraft>) => draft.setValue({ ...draft.value, ...next });
+  })
+  const patch = (next: Partial<MemoryDraft>) => draft.setValue({ ...draft.value, ...next })
 
   const handleTypeChange = (next: string | null) => {
-    if (next !== null && isMemoryType(next)) patch({ type: next });
-  };
-  const descriptionLength = draft.value.description.length;
-  const bodyLength = draft.value.body.length;
-  const descriptionTooLong = descriptionLength > MEMORY_MAX_DESCRIPTION_CHARS;
-  const bodyTooLong = bodyLength > MEMORY_MAX_BODY_CHARS;
+    if (next !== null && isMemoryType(next)) patch({ type: next })
+  }
+  const descriptionLength = draft.value.description.length
+  const bodyLength = draft.value.body.length
+  const descriptionTooLong = descriptionLength > MEMORY_MAX_DESCRIPTION_CHARS
+  const bodyTooLong = bodyLength > MEMORY_MAX_BODY_CHARS
   const canSave =
-    draft.dirty &&
-    draft.value.description.trim().length > 0 &&
-    !descriptionTooLong &&
-    !bodyTooLong;
+    draft.dirty && draft.value.description.trim().length > 0 && !descriptionTooLong && !bodyTooLong
   const handleSave = () => {
     onSave({
       ...entry,
       ...draft.value,
       revision: entry.revision + 1,
       updatedAt: new Date().toISOString(),
-    });
-  };
+    })
+  }
 
   return (
     <>
@@ -147,12 +139,7 @@ function MemoryEdit({
       <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-4">
         <Field>
           <FieldLabel htmlFor="memory-name">Name</FieldLabel>
-          <Input
-            id="memory-name"
-            readOnly
-            value={entry.name}
-            className="font-mono text-xs"
-          />
+          <Input id="memory-name" readOnly value={entry.name} className="font-mono text-xs" />
           <FieldDescription>
             The name is the memory's identity; to rename, create a new memory and delete this one.
           </FieldDescription>
@@ -169,7 +156,11 @@ function MemoryEdit({
         </Field>
         <Field>
           <FieldLabel htmlFor="memory-type">Type</FieldLabel>
-          <Select items={MEMORY_TYPE_OPTIONS} value={draft.value.type} onValueChange={handleTypeChange}>
+          <Select
+            items={MEMORY_TYPE_OPTIONS}
+            value={draft.value.type}
+            onValueChange={handleTypeChange}
+          >
             <SelectTrigger id="memory-type" className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -210,7 +201,7 @@ function MemoryEdit({
         </div>
       </SheetFooter>
     </>
-  );
+  )
 }
 
 export function MemorySheet({
@@ -221,20 +212,20 @@ export function MemorySheet({
   onSave,
   onDelete,
 }: {
-  entry: MemoryEntry | null;
-  mode: EMemorySheetMode;
-  onModeChange: (mode: EMemorySheetMode) => void;
-  onClose: () => void;
-  onSave: (entry: MemoryEntry) => void;
-  onDelete: (entry: MemoryEntry) => void;
+  entry: MemoryEntry | null
+  mode: EMemorySheetMode
+  onModeChange: (mode: EMemorySheetMode) => void
+  onClose: () => void
+  onSave: (entry: MemoryEntry) => void
+  onDelete: (entry: MemoryEntry) => void
 }) {
   const handleOpenChange = (open: boolean) => {
-    if (!open) onClose();
-  };
+    if (!open) onClose()
+  }
   const handleSave = (next: MemoryEntry) => {
-    onSave(next);
-    onModeChange(EMemorySheetMode.View);
-  };
+    onSave(next)
+    onModeChange(EMemorySheetMode.View)
+  }
   return (
     <Sheet open={entry !== null} onOpenChange={handleOpenChange}>
       <SheetContent initialFocus={false} className="data-[side=right]:sm:max-w-xl">
@@ -256,5 +247,5 @@ export function MemorySheet({
         ) : null}
       </SheetContent>
     </Sheet>
-  );
+  )
 }

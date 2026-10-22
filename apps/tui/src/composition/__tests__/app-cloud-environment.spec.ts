@@ -18,9 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { cloudEnvironmentOf, telemetryEnvironmentOf } from '../app'
 
 const resolutionWith = (values: Record<string, unknown>) => {
-  const layers: SettingsLayerInput[] = [
-    { layer: ESettingsLayer.User, origin: 'user', values },
-  ]
+  const layers: SettingsLayerInput[] = [{ layer: ESettingsLayer.User, origin: 'user', values }]
   return resolveSettings({ definitions: ATLAS_SETTINGS, layers })
 }
 
@@ -55,9 +53,7 @@ describe('cloudEnvironmentOf', () => {
   })
 
   it('omits an empty decision URL rather than handing the sandbox an empty string', () => {
-    const env = cloudEnvironmentOf(
-      resolutionWith({ [ESettingId.DecisionsUrl]: '' }),
-    )
+    const env = cloudEnvironmentOf(resolutionWith({ [ESettingId.DecisionsUrl]: '' }))
 
     expect(env).not.toHaveProperty('ATLAS_DECISIONS_URL')
   })

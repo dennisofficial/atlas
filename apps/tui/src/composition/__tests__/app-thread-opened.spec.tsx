@@ -58,7 +58,13 @@ describe('the app announcing which directory an opened conversation stands in', 
     const setup = await testRender(
       <App
         app={app}
-        opened={{ threadId: toThreadId('fresh'), events: [], turns: [], name: null, started: false }}
+        opened={{
+          threadId: toThreadId('fresh'),
+          events: [],
+          turns: [],
+          name: null,
+          started: false,
+        }}
       />,
       WIDE,
     )
@@ -79,7 +85,13 @@ describe('the app announcing which directory an opened conversation stands in', 
     const setup = await testRender(
       <App
         app={app}
-        opened={{ threadId: toThreadId('opened-thread'), events: [], turns: [], name: null, started: true }}
+        opened={{
+          threadId: toThreadId('opened-thread'),
+          events: [],
+          turns: [],
+          name: null,
+          started: true,
+        }}
       />,
       WIDE,
     )

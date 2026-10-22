@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { db, or } from '@dltech/atlas-db'
 import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'

@@ -90,7 +90,9 @@ describe('a step whose prompt would overflow the window', () => {
 
     expect(asked).toBe(1)
     expect(outcome.status).toBe(ETurnStatus.Completed)
-    expect((await harness.log.read({ threadId: thread.id })).some((e) => e.type === 'history-compacted')).toBe(true)
+    expect(
+      (await harness.log.read({ threadId: thread.id })).some((e) => e.type === 'history-compacted'),
+    ).toBe(true)
   }, 30_000)
 
   it('names the thread the turn is running, not whichever thread was written to last', async () => {

@@ -26,7 +26,8 @@ export function bindServeDrain(args: {
   const resumeChildren = new Set<string>(args.owed.children.map(String))
   const owedParent = args.owed.parent
   const collectObligations = async (): Promise<void> => {
-    const pending = args.app.intake?.threadsWithPendingInput() ?? args.app.pending?.threadsAwaitingInput() ?? []
+    const pending =
+      args.app.intake?.threadsWithPendingInput() ?? args.app.pending?.threadsAwaitingInput() ?? []
     pendingParent ||= pending.includes(args.threadId)
     for (const threadId of pending) if (threadId !== args.threadId) resumeChildren.add(threadId)
   }
@@ -48,7 +49,11 @@ export function bindServeDrain(args: {
       await args.whenMutationsSettled()
       await collectObligations()
       if (args.app.intake !== undefined) {
-        const written = await flushSessionInput({ intake: args.app.intake, log: args.app.log, ids: args.app.ids })
+        const written = await flushSessionInput({
+          intake: args.app.intake,
+          log: args.app.log,
+          ids: args.app.ids,
+        })
         pendingParent ||= written.includes(args.threadId)
       }
       if ((args.app.pending?.waitingCount() ?? 0) > 0) {

@@ -93,7 +93,11 @@ describe('dismissing a transient failure', () => {
     }
   })
 
-  const reportedFailures: readonly (StepFailure | null)[] = [null, { message: null }, { message: 'the turn failed' }]
+  const reportedFailures: readonly (StepFailure | null)[] = [
+    null,
+    { message: null },
+    { message: 'the turn failed' },
+  ]
   for (const reported of reportedFailures) {
     it(`offers dismissal only when the visible failure is transient: ${JSON.stringify(reported)}`, async () => {
       let notice: ReturnType<typeof useFailureNotice> | null = null

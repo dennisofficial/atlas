@@ -45,7 +45,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
 
   it('polls an expired subscription whose sandbox is inside the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',
@@ -73,7 +73,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
 
   it('skips an expired subscription whose sandbox fell out of the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const { service } = serviceWith({ tokens: { 'usr_1': 'ghu_1' }, readPullRequest })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedCloudSandbox({
       id: 'sbx_row_1',
       threadId: 'thr_1',

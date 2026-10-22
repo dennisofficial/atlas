@@ -234,7 +234,8 @@ describe('project-scoped writes against real files', () => {
       expect(service.set({ id: repairId, value: 'openai/gpt-5' })).toEqual({ ok: true })
 
       const repaired = JSON.parse(readFileSync(tornFile, 'utf8'))
-      const preservedId = tornLayer === ESettingsLayer.User ? ESettingId.Accent : ESettingId.SidebarWidth
+      const preservedId =
+        tornLayer === ESettingsLayer.User ? ESettingId.Accent : ESettingId.SidebarWidth
       expect(repaired[preservedId]).toBe(tornLayer === ESettingsLayer.User ? 'moss' : 50)
       expect(repaired[repairId]).toBe('openai/gpt-5')
     }

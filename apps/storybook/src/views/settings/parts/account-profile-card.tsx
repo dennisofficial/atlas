@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode } from 'react'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
   DialogClose,
@@ -11,17 +11,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@dltech/atlas-ui/components/dialog";
-import { Input } from "@dltech/atlas-ui/components/input";
-import { Label } from "@dltech/atlas-ui/components/label";
+} from '@dltech/atlas-ui/components/dialog'
+import { Input } from '@dltech/atlas-ui/components/input'
+import { Label } from '@dltech/atlas-ui/components/label'
 
-import { CURRENT_USER } from "../../../fixtures/settings";
-import { SettingsCard, Mono } from "../settings-layout";
+import { CURRENT_USER } from '../../../fixtures/settings'
+import { SettingsCard, Mono } from '../settings-layout'
 
 type Profile = {
-  name: string;
-  email: string;
-};
+  name: string
+  email: string
+}
 
 function initialsOf(name: string) {
   return name
@@ -29,7 +29,7 @@ function initialsOf(name: string) {
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
-    .join("");
+    .join('')
 }
 
 function ProfileField({ label, children }: { label: string; children: ReactNode }) {
@@ -40,30 +40,30 @@ function ProfileField({ label, children }: { label: string; children: ReactNode 
       </span>
       <span className="truncate text-sm">{children}</span>
     </div>
-  );
+  )
 }
 
 function EditProfileDialog({
   profile,
   onSave,
 }: {
-  profile: Profile;
-  onSave: (next: Profile) => void;
+  profile: Profile
+  onSave: (next: Profile) => void
 }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(profile);
-  const dirty = draft.name.trim() !== profile.name || draft.email.trim() !== profile.email;
-  const valid = draft.name.trim().length > 0 && draft.email.includes("@");
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(profile)
+  const dirty = draft.name.trim() !== profile.name || draft.email.trim() !== profile.email
+  const valid = draft.name.trim().length > 0 && draft.email.includes('@')
 
   const handleOpenChange = (next: boolean) => {
-    if (next) setDraft(profile);
-    setOpen(next);
-  };
+    if (next) setDraft(profile)
+    setOpen(next)
+  }
 
   const handleSave = () => {
-    onSave({ name: draft.name.trim(), email: draft.email.trim() });
-    setOpen(false);
-  };
+    onSave({ name: draft.name.trim(), email: draft.email.trim() })
+    setOpen(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -103,14 +103,14 @@ function EditProfileDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 export function AccountProfileCard() {
   const [profile, setProfile] = useState<Profile>({
     name: CURRENT_USER.name,
     email: CURRENT_USER.email,
-  });
+  })
 
   return (
     <SettingsCard>
@@ -125,12 +125,12 @@ export function AccountProfileCard() {
             <Mono>{CURRENT_USER.githubLogin}</Mono>
           </ProfileField>
           <ProfileField label="Threads">
-            <Mono>{CURRENT_USER.threadCount.toLocaleString("en-US")}</Mono>
+            <Mono>{CURRENT_USER.threadCount.toLocaleString('en-US')}</Mono>
           </ProfileField>
           <ProfileField label="Member since">{CURRENT_USER.joined}</ProfileField>
         </div>
         <EditProfileDialog profile={profile} onSave={setProfile} />
       </div>
     </SettingsCard>
-  );
+  )
 }

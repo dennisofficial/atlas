@@ -16,7 +16,9 @@ export async function resolveUserLayerRoots(args: {
 export const userLayerArchiveKey = (args: { tree: EUserLayerTree; key: string }): string =>
   `${USER_LAYER_ARCHIVE_PREFIX}${args.tree}/${args.key}`
 
-export async function scanUserLayer(roots: UserLayerRootsArgs): Promise<readonly UserLayerArchiveFile[]> {
+export async function scanUserLayer(
+  roots: UserLayerRootsArgs,
+): Promise<readonly UserLayerArchiveFile[]> {
   const files: UserLayerArchiveFile[] = []
   for (const layout of userLayerTrees(roots)) {
     for (const [key, path] of await layout.scan()) files.push({ tree: layout.tree, key, path })
@@ -35,7 +37,10 @@ export function sandboxUserLayerTrees(args: {
   })
 }
 
-export function userLayerTargetOf(args: { archiveKey: string; trees: readonly TreeLayout[] }): string | null {
+export function userLayerTargetOf(args: {
+  archiveKey: string
+  trees: readonly TreeLayout[]
+}): string | null {
   if (!args.archiveKey.startsWith(USER_LAYER_ARCHIVE_PREFIX)) return null
   const rest = args.archiveKey.slice(USER_LAYER_ARCHIVE_PREFIX.length)
   const slash = rest.indexOf('/')

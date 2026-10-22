@@ -19,7 +19,12 @@ const malformed = (args: { path: string; what: string }): CloudError =>
     message: `The Atlas Cloud API answered ${args.path} with a body that is not ${args.what}.`,
   })
 
-const parsed = <T>(args: { schema: z.ZodType<T>; body: unknown; path: string; what: string }): T => {
+const parsed = <T>(args: {
+  schema: z.ZodType<T>
+  body: unknown
+  path: string
+  what: string
+}): T => {
   const result = args.schema.safeParse(args.body)
   if (!result.success) throw malformed({ path: args.path, what: args.what })
   return result.data
@@ -40,12 +45,27 @@ export class PublishedBundleClient {
   async requestUpload(): Promise<PublishedBundleUpload> {
     const path = `${BUNDLES_PATH}/uploads`
     const body = await this.transport.request({ method: 'POST', path, retry: false })
-    return parsed({ schema: publishedBundleUploadSchema, body, path, what: 'a bundle upload grant' })
+    return parsed({
+      schema: publishedBundleUploadSchema,
+      body,
+      path,
+      what: 'a bundle upload grant',
+    })
   }
 
   async commit(args: PublishedBundleCommit): Promise<PublishedBundleSummary> {
-    const body = await this.transport.request({ method: 'POST', path: BUNDLES_PATH, body: args, retry: false })
-    return parsed({ schema: publishedBundleSummarySchema, body, path: BUNDLES_PATH, what: 'a bundle summary' })
+    const body = await this.transport.request({
+      method: 'POST',
+      path: BUNDLES_PATH,
+      body: args,
+      retry: false,
+    })
+    return parsed({
+      schema: publishedBundleSummarySchema,
+      body,
+      path: BUNDLES_PATH,
+      what: 'a bundle summary',
+    })
   }
 
   async current(): Promise<PublishedBundleCurrent | null> {

@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import type { Renderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React, { act, useState } from 'react'
+import { act, useState } from 'react'
 
 import type { ToolCall } from '../../../../store'
 import { applyTranscriptCovered } from '../../../covered-store'
@@ -21,7 +21,14 @@ const call = {
   callId: 'image-source',
   name: 'read',
   input: { path: '/missing/shot.png' },
-  output: { path: '/missing/shot.png', mediaType: 'image/png', width: 16, height: 32, byteLength: picture.length, inlined: true },
+  output: {
+    path: '/missing/shot.png',
+    mediaType: 'image/png',
+    width: 16,
+    height: 32,
+    byteLength: picture.length,
+    inlined: true,
+  },
   image: { mediaType: 'image/png', data: Buffer.from(picture).toString('base64') },
   settled: true,
   failed: false,

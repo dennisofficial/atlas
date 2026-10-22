@@ -1,6 +1,5 @@
 import type { SecretsPort } from '@dltech/atlas-core'
 
-
 export class MemorySecretsStore implements SecretsPort {
   private held: Record<string, string>
 

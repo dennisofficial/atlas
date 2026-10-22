@@ -42,10 +42,15 @@ describe('validateGrade', () => {
     expect(error).toMatchObject({ kind: EScoreErrorKind.OutOfRange, evaluatorId: 'range' })
   })
 
-  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])('rejects non-finite score %p', (score) => {
-    const error = capture({ run: () => validateGrade({ evaluatorId: 'finite', grade: { score } }) })
-    expect(error).toMatchObject({ kind: EScoreErrorKind.NonFinite, evaluatorId: 'finite' })
-  })
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects non-finite score %p',
+    (score) => {
+      const error = capture({
+        run: () => validateGrade({ evaluatorId: 'finite', grade: { score } }),
+      })
+      expect(error).toMatchObject({ kind: EScoreErrorKind.NonFinite, evaluatorId: 'finite' })
+    },
+  )
 
   it('rejects a grade with no numeric score', () => {
     const grade = JSON.parse('{}')
@@ -57,7 +62,12 @@ describe('validateGrade', () => {
 describe('gradeRow', () => {
   it('returns a map of evaluator id to score', () => {
     const feature = createCalculatorFeature({ evaluate: () => 0 })
-    const scores = gradeRow({ feature, input: { a: 1, b: 2, op: 'add' }, expected: { result: 3 }, actual: { result: 3 } })
+    const scores = gradeRow({
+      feature,
+      input: { a: 1, b: 2, op: 'add' },
+      expected: { result: 3 },
+      actual: { result: 3 },
+    })
     expect(scores).toEqual({ 'exact-match': 1 })
   })
 
@@ -66,10 +76,17 @@ describe('gradeRow', () => {
       evaluators: [
         { id: 'always', applies: () => true, grade: () => ({ score: 1 }) },
         { id: 'never', applies: () => false, grade: () => ({ score: 1 }) },
-        { id: 'positive-only', applies: ({ expected }) => expected > 0, grade: () => ({ score: 0.5 }) },
+        {
+          id: 'positive-only',
+          applies: ({ expected }) => expected > 0,
+          grade: () => ({ score: 0.5 }),
+        },
       ],
     })
-    expect(gradeRow({ feature, input: 0, expected: 1, actual: 1 })).toEqual({ always: 1, 'positive-only': 0.5 })
+    expect(gradeRow({ feature, input: 0, expected: 1, actual: 1 })).toEqual({
+      always: 1,
+      'positive-only': 0.5,
+    })
     expect(gradeRow({ feature, input: 0, expected: -1, actual: 1 })).toEqual({ always: 1 })
   })
 
@@ -89,7 +106,9 @@ describe('gradeRow', () => {
   })
 
   it('throws a ScoringError for an invalid grade from an evaluator', () => {
-    const feature = numberFeature({ evaluators: [{ id: 'bad', applies: () => true, grade: () => ({ score: 2 }) }] })
+    const feature = numberFeature({
+      evaluators: [{ id: 'bad', applies: () => true, grade: () => ({ score: 2 }) }],
+    })
     const error = capture({ run: () => gradeRow({ feature, input: 0, expected: 0, actual: 0 }) })
     expect(error).toMatchObject({ kind: EScoreErrorKind.OutOfRange, evaluatorId: 'bad' })
   })

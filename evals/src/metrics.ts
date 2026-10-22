@@ -13,8 +13,13 @@ export type PrecisionRecall = {
 
 export type RatioMetric = { value: number | null; numerator: number; denominator: number }
 
-const ratioOrNull = ({ numerator, denominator }: { numerator: number; denominator: number }): number | null =>
-  denominator === 0 ? null : numerator / denominator
+const ratioOrNull = ({
+  numerator,
+  denominator,
+}: {
+  numerator: number
+  denominator: number
+}): number | null => (denominator === 0 ? null : numerator / denominator)
 
 export function confusionCounts({ rows }: { rows: readonly ConfusionRow[] }): ConfusionCounts {
   const counts: ConfusionCounts = { tp: 0, fp: 0, tn: 0, fn: 0 }
@@ -36,8 +41,18 @@ export function precisionRecallF1({ counts }: { counts: ConfusionCounts }): Prec
   return { precision, recall, f1, fpr }
 }
 
-export function exactMatchAccuracy({ matches, total }: { matches: number; total: number }): RatioMetric {
-  return { value: ratioOrNull({ numerator: matches, denominator: total }), numerator: matches, denominator: total }
+export function exactMatchAccuracy({
+  matches,
+  total,
+}: {
+  matches: number
+  total: number
+}): RatioMetric {
+  return {
+    value: ratioOrNull({ numerator: matches, denominator: total }),
+    numerator: matches,
+    denominator: total,
+  }
 }
 
 export function meanScore({ values }: { values: readonly number[] }): number | null {
@@ -45,7 +60,13 @@ export function meanScore({ values }: { values: readonly number[] }): number | n
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-const nearestRank = ({ sorted, percentile }: { sorted: readonly number[]; percentile: number }): number | null => {
+const nearestRank = ({
+  sorted,
+  percentile,
+}: {
+  sorted: readonly number[]
+  percentile: number
+}): number | null => {
   const rank = Math.max(1, Math.ceil(percentile * sorted.length))
   return sorted[rank - 1] ?? null
 }

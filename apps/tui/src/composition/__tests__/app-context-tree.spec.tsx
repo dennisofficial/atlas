@@ -26,59 +26,93 @@ describe('the context tree in a conversation', () => {
     await writeFile(join(root, 'notes', 'plan.md'), 'nested plan')
     await writeFile(join(root, 'notes', 'deep', 'decision.md'), 'deep decision')
     const app = fakeApp({ model: scriptedModelPort({ script: { thinking: '', reply: 'done' } }) })
-    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, { width: 140, height: 38 })
-    const frame = async () => { await setup.flush(); return setup.captureCharFrame() }
-    const sidebar = async () => (await frame()).split('\n').map((line) => line.slice(98)).join('\n')
+    const setup = await testRender(<App app={app} opened={await spokenIn(app)} />, {
+      width: 140,
+      height: 38,
+    })
+    const frame = async () => {
+      await setup.flush()
+      return setup.captureCharFrame()
+    }
+    const sidebar = async () =>
+      (await frame())
+        .split('\n')
+        .map((line) => line.slice(98))
+        .join('\n')
     const click = async (text: string) => {
       const lines = (await frame()).split('\n')
       const row = lines.findIndex((line) => line.includes(text))
       expect(row).toBeGreaterThanOrEqual(0)
-      await act(async () => { await setup.mockMouse.click((lines[row] ?? '').indexOf(text), row) })
+      await act(async () => {
+        await setup.mockMouse.click((lines[row] ?? '').indexOf(text), row)
+      })
       await setup.flush()
     }
     const press = async (name: 'right' | 'left' | 'escape' | 'tab') => {
       await act(async () => {
-        if (name === 'escape') { setup.mockInput.pressEscape(); await new Promise((resolve) => setTimeout(resolve, 60)) }
-        else if (name === 'tab') setup.mockInput.pressTab()
+        if (name === 'escape') {
+          setup.mockInput.pressEscape()
+          await new Promise((resolve) => setTimeout(resolve, 60))
+        } else if (name === 'tab') setup.mockInput.pressTab()
         else setup.mockInput.pressArrow(name)
       })
       await setup.flush()
     }
     try {
-      expect(await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 })).toBe(true)
-      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(2)
+      expect(
+        await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 }),
+      ).toBe(true)
+      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(
+        2,
+      )
       expect(await sidebar()).not.toContain('↑↓')
-      await act(async () => { await setup.mockInput.typeText('keep the draft') })
+      await act(async () => {
+        await setup.mockInput.typeText('keep the draft')
+      })
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft')
       await click('deep')
       expect(await sidebar()).not.toContain('decision.md')
       expect(editorIn(setup.renderer.root)?.focused).toBe(true)
-      await act(async () => { await setup.mockInput.typeText(' and more') })
+      await act(async () => {
+        await setup.mockInput.typeText(' and more')
+      })
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft and more')
       await press('tab')
       await press('right')
       expect(editorIn(setup.renderer.root)?.plainText).toBe('keep the draft and more')
       await click('notes')
-      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(1)
+      expect((await sidebar()).split('\n').filter((line) => line.includes('plan.md'))).toHaveLength(
+        1,
+      )
       expect(await sidebar()).not.toContain('deep')
       await click('notes')
-      expect(await until({ holds: async () => (await sidebar()).includes('deep'), within: 5000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await sidebar()).includes('deep'), within: 5000 }),
+      ).toBe(true)
       expect(await sidebar()).not.toContain('decision.md')
       await click('deep')
-      expect(await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await sidebar()).includes('decision.md'), within: 5000 }),
+      ).toBe(true)
       await click('decision.md')
-      expect(await until({ holds: async () => (await frame()).includes('deep decision'), within: 5000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await frame()).includes('deep decision'), within: 5000 }),
+      ).toBe(true)
       expect(await frame()).toContain('notes/deep/decision.md')
       await press('escape')
       expect(await frame()).not.toContain('notes/deep/decision.md')
       expect(await frame()).toContain('keep the draft and more')
       await writeFile(join(root, 'notes', 'new.md'), 'new file')
-      expect(await until({ holds: async () => (await sidebar()).includes('new.md'), within: 5000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await sidebar()).includes('new.md'), within: 5000 }),
+      ).toBe(true)
       expect(await sidebar()).toContain('plan.md')
       await click('deep')
       const savedFile = join(sessionDir, 'context-folders.json')
       const saved = async () => readFile(savedFile, 'utf8').catch(() => '')
-      expect(await until({ holds: async () => (await saved()).includes('notes/deep'), within: 5000 })).toBe(true)
+      expect(
+        await until({ holds: async () => (await saved()).includes('notes/deep'), within: 5000 }),
+      ).toBe(true)
     } finally {
       await teardown(setup)
       await app.close()

@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
   EKilledBy,
-  EServiceStatus,
   toThreadId,
   type ClockPort,
   type ProcessHandle,

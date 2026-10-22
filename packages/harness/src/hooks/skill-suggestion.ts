@@ -9,7 +9,6 @@ import {
   type EventOfType,
   type HookOrder,
   type SkillSuggestionCandidate,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { suggestSkill } from '../skills/suggest'
@@ -60,7 +59,10 @@ export class SkillSuggestionHook extends BeforeTurnHook {
     if (request === '') return {}
     if (this.suggested.get(threadId) === said.id) return {}
 
-    const candidates = this.skills.all().filter((skill) => skill.modelInvocable).map(candidateOf)
+    const candidates = this.skills
+      .all()
+      .filter((skill) => skill.modelInvocable)
+      .map(candidateOf)
     if (candidates.length === 0) return {}
 
     const suggestion = await suggestSkill({

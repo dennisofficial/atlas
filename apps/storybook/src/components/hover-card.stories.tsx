@@ -1,21 +1,21 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { Avatar, AvatarFallback } from "@dltech/atlas-ui/components/avatar";
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@dltech/atlas-ui/components/hover-card";
+} from '@dltech/atlas-ui/components/hover-card'
 
 const meta = {
-  title: "Components/Hover Card",
+  title: 'Components/Hover Card',
   component: HoverCard,
-} satisfies Meta<typeof HoverCard>;
+} satisfies Meta<typeof HoverCard>
 
-export default meta;
+export default meta
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
@@ -36,4 +36,4 @@ export const Default: Story = {
       </HoverCardContent>
     </HoverCard>
   ),
-};
+}

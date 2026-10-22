@@ -20,7 +20,9 @@ const tails = new Map<string, Promise<unknown>>()
 const activeReleases = new Set<Release>()
 process.once('exit', () => {
   for (const release of activeReleases) {
-    try { release() } catch {}
+    try {
+      release()
+    } catch {}
   }
 })
 
@@ -147,9 +149,14 @@ export const fileVaultLocks = (
 ): VaultLocks => {
   const directory = resolve(`${file}.locks`)
   const pollMs = options?.pollMs ?? POLL_MS
-  const sleep = options?.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)))
+  const sleep =
+    options?.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)))
 
-  const locked = <T>(args: { path: string; timeoutMs: number; run: () => Promise<T> }): Promise<T> =>
+  const locked = <T>(args: {
+    path: string
+    timeoutMs: number
+    run: () => Promise<T>
+  }): Promise<T> =>
     exclusive({
       key: args.path,
       enter: () => acquireFile({ path: args.path, timeoutMs: args.timeoutMs, pollMs, sleep }),

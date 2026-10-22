@@ -1,6 +1,10 @@
 import { contractStorageHash, databaseErrorCode, db } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
-import { contractDrift, EContractDrift, shippedMigrationGraph } from '../../../_lib/migrations/contract-drift'
+import {
+  contractDrift,
+  EContractDrift,
+  shippedMigrationGraph,
+} from '../../../_lib/migrations/contract-drift'
 
 export enum EMigrationState {
   Level = 'level',
@@ -25,7 +29,11 @@ export class MigrationStateService {
     const marker = await this.markerHash()
     if (marker === undefined) return { state: EMigrationState.Unknown, pending: [] }
 
-    const drift = contractDrift({ expected: contractStorageHash, marker, graph: shippedMigrationGraph() })
+    const drift = contractDrift({
+      expected: contractStorageHash,
+      marker,
+      graph: shippedMigrationGraph(),
+    })
     if (drift === EContractDrift.Behind) {
       return { state: EMigrationState.Behind, pending: [`contract ${contractStorageHash}`] }
     }

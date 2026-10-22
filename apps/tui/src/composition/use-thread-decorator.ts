@@ -91,13 +91,18 @@ export function useThreadDecorator(args: {
                 const matches = matchingThreads(current)
                 const seen = new Set(
                   matches
-                    .slice(Math.max(0, current.index - ENRICH_WINDOW), current.index + ENRICH_WINDOW + 1)
+                    .slice(
+                      Math.max(0, current.index - ENRICH_WINDOW),
+                      current.index + ENRICH_WINDOW + 1,
+                    )
                     .map((row) => row.threadId),
                 )
                 return rows.filter((row) => seen.has(row.threadId))
               })()
 
-        const due = visible.filter((row) => decorated.current.get(row.threadId) !== signatureOf(row))
+        const due = visible.filter(
+          (row) => decorated.current.get(row.threadId) !== signatureOf(row),
+        )
         if (due.length > 0) {
           for (const row of due) decorated.current.set(row.threadId, signatureOf(row))
           paintChips(chipsHandle.current.sync({ rows: due }), gen)
@@ -106,7 +111,9 @@ export function useThreadDecorator(args: {
 
       const cloudRows = rows.filter((row) => row.location === EExecutionLocation.Cloud)
       const sandboxes = findSandbox?.() ?? null
-      const dueCloud = cloudRows.filter((row) => decorated.current.get(`sandbox:${row.threadId}`) === undefined)
+      const dueCloud = cloudRows.filter(
+        (row) => decorated.current.get(`sandbox:${row.threadId}`) === undefined,
+      )
       if (dueCloud.length === 0 || sandboxes === null) return
 
       for (const row of dueCloud) decorated.current.set(`sandbox:${row.threadId}`, 'asked')

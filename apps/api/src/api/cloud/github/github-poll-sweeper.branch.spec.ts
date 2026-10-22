@@ -26,7 +26,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -43,7 +43,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
     const { service, fanout } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -76,7 +76,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const findOpenPrForBranch = vi.fn(async () => null)
     const { service } = serviceWith({
-      tokens: { 'usr_1': 'ghu_1' },
+      tokens: { usr_1: 'ghu_1' },
       readPullRequest,
       findOpenPrForBranch,
     })
@@ -92,7 +92,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
 
   it('a poll for a known pr reaches a branch subscriber of the same repo', async () => {
     vi.useFakeTimers()
-    const { service, fanout } = serviceWith({ tokens: { 'usr_1': 'ghu_1' } })
+    const { service, fanout } = serviceWith({ tokens: { usr_1: 'ghu_1' } })
     await seedSubscription()
     await seedSubscriptionRow({
       id: 'sub-branch',

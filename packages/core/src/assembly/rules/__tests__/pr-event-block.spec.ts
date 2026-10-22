@@ -44,7 +44,12 @@ describe('handing a PR event to the model', () => {
 
   it('carries the review state beside the author', () => {
     const block = prEventBlock(
-      eventOf({ kind: EPrEventKind.Review, authorLogin: 'octocat', reviewState: EPrReviewState.ChangesRequested, body: 'see inline' }),
+      eventOf({
+        kind: EPrEventKind.Review,
+        authorLogin: 'octocat',
+        reviewState: EPrReviewState.ChangesRequested,
+        body: 'see inline',
+      }),
     )
 
     expect(block).toContain('review from octocat (changes_requested) — see inline.')
@@ -71,8 +76,12 @@ describe('handing a PR event to the model', () => {
 
   it('names the tip a verdict belongs to by its first seven characters', () => {
     const sha = '0123456789abcdef'
-    const green = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: sha }))
-    const failed = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, headSha: sha }))
+    const green = prEventBlock(
+      eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: sha }),
+    )
+    const failed = prEventBlock(
+      eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, headSha: sha }),
+    )
 
     expect(green).toContain('checks green on 0123456.')
     expect(failed).toContain(`checks failed on 0123456. ${URL}`)
@@ -80,7 +89,9 @@ describe('handing a PR event to the model', () => {
 
   it('leaves the tip off a verdict whose sha is absent or shorter than seven characters', () => {
     const absent = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }))
-    const short = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'abc123' }))
+    const short = prEventBlock(
+      eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'abc123' }),
+    )
 
     expect(absent).toContain('checks green.')
     expect(short).toContain('checks green.')

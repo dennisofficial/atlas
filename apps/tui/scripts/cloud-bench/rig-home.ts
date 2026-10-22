@@ -52,7 +52,16 @@ export const NO_REMOTE_REPO = 'none'
 const initRemoteless = async (workspace: string): Promise<void> => {
   const steps: readonly (readonly string[])[] = [
     ['init', '--initial-branch=main'],
-    ['-c', 'user.name=Atlas Rig', '-c', 'user.email=rig@atlas.dev', 'commit', '--allow-empty', '-m', 'rig base'],
+    [
+      '-c',
+      'user.name=Atlas Rig',
+      '-c',
+      'user.email=rig@atlas.dev',
+      'commit',
+      '--allow-empty',
+      '-m',
+      'rig base',
+    ],
   ]
   for (const step of steps) {
     const run = await runGit({ args: step, cwd: workspace })
@@ -62,7 +71,10 @@ const initRemoteless = async (workspace: string): Promise<void> => {
 
 const cloneInto = async (args: { repo: string; workspace: string }): Promise<void> => {
   if (args.repo === NO_REMOTE_REPO) return initRemoteless(args.workspace)
-  const cloned = await runGit({ args: ['clone', '--depth', '1', args.repo, args.workspace], cwd: tmpdir() })
+  const cloned = await runGit({
+    args: ['clone', '--depth', '1', args.repo, args.workspace],
+    cwd: tmpdir(),
+  })
   if (!cloned.ok) throw new Error(`git clone of ${args.repo} failed: ${cloned.stderr.trim()}`)
 }
 
@@ -102,9 +114,18 @@ export async function prepareRigEnv(args: { repo: string }): Promise<RigEnv> {
     })
     const credentials = requireVercelCredentials({ settings: loaded.service, secrets })
     const cloudUrl =
-      new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }).read()?.url ?? ''
+      new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }).read()?.url ??
+      ''
 
-    return { home, workspace: cloneTarget, settings: loaded, secrets, credentials, cloudUrl, cleanup }
+    return {
+      home,
+      workspace: cloneTarget,
+      settings: loaded,
+      secrets,
+      credentials,
+      cloudUrl,
+      cleanup,
+    }
   } catch (error) {
     await cleanup().catch(() => undefined)
     throw error

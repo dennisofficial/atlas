@@ -38,7 +38,8 @@ export const DEFAULT_RETRY_CEILING_DELAY_MS = 8_000
  */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 
-const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500
 
@@ -68,7 +69,13 @@ const noteRetry = (args: {
     source: 'cloud.transport',
     message: `${args.method} ${args.path} failed (${args.cause}) — retrying in ${Math.round(args.delayMs)}ms`,
     threadId: args.log?.threadId,
-    data: { method: args.method, path: args.path, cause: args.cause, attempt: args.attempt, delayMs: Math.round(args.delayMs) },
+    data: {
+      method: args.method,
+      path: args.path,
+      cause: args.cause,
+      attempt: args.attempt,
+      delayMs: Math.round(args.delayMs),
+    },
   }
   args.log?.port.record(entry)
 }
@@ -175,11 +182,24 @@ export const cloudRequest = async (args: {
       const reason = cause instanceof Error ? cause.message : String(cause)
       if (attemptsLeft) {
         const delayMs = backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn })
-        noteRetry({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt, delayMs })
+        noteRetry({
+          log: args.log,
+          method: args.method,
+          path: args.path,
+          cause: `network: ${reason}`,
+          attempt,
+          delayMs,
+        })
         await sleep(delayMs)
         continue
       }
-      noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt })
+      noteGiveUp({
+        log: args.log,
+        method: args.method,
+        path: args.path,
+        cause: `network: ${reason}`,
+        attempt,
+      })
       throw new CloudError({
         status: 0,
         message: `The Atlas Cloud API at ${args.url} could not be reached: ${reason}.`,
@@ -194,7 +214,14 @@ export const cloudRequest = async (args: {
         afterMs === undefined
           ? backoffDelayMs({ attempt, baseDelayMs, ceilingDelayMs, randomFn })
           : Math.min(afterMs, ceilingDelayMs)
-      noteRetry({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt, delayMs })
+      noteRetry({
+        log: args.log,
+        method: args.method,
+        path: args.path,
+        cause: `status ${response.status}`,
+        attempt,
+        delayMs,
+      })
       await sleep(delayMs)
       continue
     }
@@ -206,7 +233,13 @@ export const cloudRequest = async (args: {
     if (!response.ok) {
       const detail = detailFrom(parsed)
       if (isRetryableStatus(response.status)) {
-        noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt })
+        noteGiveUp({
+          log: args.log,
+          method: args.method,
+          path: args.path,
+          cause: `status ${response.status}`,
+          attempt,
+        })
       }
       throw new CloudError({
         status: response.status,
@@ -259,7 +292,13 @@ export const cloudRawRequest = async (args: {
       })
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : String(cause)
-      noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `network: ${reason}`, attempt })
+      noteGiveUp({
+        log: args.log,
+        method: args.method,
+        path: args.path,
+        cause: `network: ${reason}`,
+        attempt,
+      })
       throw new CloudError({
         status: 0,
         message: `The Atlas Cloud API at ${args.url} could not be reached: ${reason}.`,
@@ -277,7 +316,14 @@ export const cloudRawRequest = async (args: {
               randomFn: Math.random,
             })
           : Math.min(afterMs, DEFAULT_RETRY_CEILING_DELAY_MS)
-      noteRetry({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt, delayMs })
+      noteRetry({
+        log: args.log,
+        method: args.method,
+        path: args.path,
+        cause: `status ${response.status}`,
+        attempt,
+        delayMs,
+      })
       await sleep(delayMs)
       continue
     }
@@ -288,7 +334,13 @@ export const cloudRawRequest = async (args: {
       const failure = safeJson(await response.text())
       const detail = detailFrom(failure)
       if (isRetryableStatus(response.status)) {
-        noteGiveUp({ log: args.log, method: args.method, path: args.path, cause: `status ${response.status}`, attempt })
+        noteGiveUp({
+          log: args.log,
+          method: args.method,
+          path: args.path,
+          cause: `status ${response.status}`,
+          attempt,
+        })
       }
       throw new CloudError({
         status: response.status,

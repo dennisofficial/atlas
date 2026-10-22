@@ -11,9 +11,7 @@ import {
   type SkillSuggestionCandidate,
 } from '@dltech/atlas-core'
 
-export type SkillSuggestion =
-  | { ok: true; name: string | undefined }
-  | { ok: false; fault: string }
+export type SkillSuggestion = { ok: true; name: string | undefined } | { ok: false; fault: string }
 
 export async function suggestSkill(args: {
   decisions: DecisionPort
@@ -32,7 +30,8 @@ export async function suggestSkill(args: {
   if (!wide.ok) return wide
 
   const gate = skillGateScore({ answers: wide.answers })
-  if (gate === undefined) return { ok: false, fault: 'the wide ranking came back without its gate answers' }
+  if (gate === undefined)
+    return { ok: false, fault: 'the wide ranking came back without its gate answers' }
   if (gate < SKILL_SUGGEST_GATE_THRESHOLD) return { ok: true, name: undefined }
 
   const shortlist = skillShortlist({ answers: wide.answers, limit: SKILL_SUGGEST_SHORTLIST })

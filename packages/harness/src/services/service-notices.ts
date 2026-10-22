@@ -110,9 +110,7 @@ export class ServiceNoticeQueue {
 
   dropServices({ serviceIds }: { serviceIds: readonly string[] }): void {
     if (this.queued.length === 0 || serviceIds.length === 0) return
-    this.settle(
-      this.queued.filter((notice) => !serviceIds.includes(notice.snapshot.serviceId)),
-    )
+    this.settle(this.queued.filter((notice) => !serviceIds.includes(notice.snapshot.serviceId)))
   }
 
   /**

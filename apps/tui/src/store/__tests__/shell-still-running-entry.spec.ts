@@ -7,18 +7,17 @@ import { isExpandable } from '../expandable'
 import { EEntryKind, type BackgroundShellStillRunningEntry } from '../transcript-model'
 import { log } from './fixture'
 
-const shellStillRunning = (over: Record<string, unknown> = {}) =>
-  ({
-    type: 'background-shell-still-running' as const,
-    shellId: 'bash_27',
-    command: 'bash /tmp/cubic-poll-371.sh 43',
-    description: 'Poll cubic round on head 43db0f7c',
-    runningForMs: 806_000,
-    silentForMs: 26_000,
-    checkInMs: 300_000,
-    tail: '40 pending no-check\n',
-    ...over,
-  })
+const shellStillRunning = (over: Record<string, unknown> = {}) => ({
+  type: 'background-shell-still-running' as const,
+  shellId: 'bash_27',
+  command: 'bash /tmp/cubic-poll-371.sh 43',
+  description: 'Poll cubic round on head 43db0f7c',
+  runningForMs: 806_000,
+  silentForMs: 26_000,
+  checkInMs: 300_000,
+  tail: '40 pending no-check\n',
+  ...over,
+})
 
 const onlyStillRunningEntry = (events: readonly Event[]): BackgroundShellStillRunningEntry => {
   const entry = durableEntries({ events }).find(
@@ -64,10 +63,7 @@ describe('a background shell check-in in the transcript', () => {
 
   it('never folds into the message a human typed beside it', () => {
     const entries = durableEntries({
-      events: log([
-        { type: 'user-said', text: 'how is the poll doing' },
-        shellStillRunning(),
-      ]),
+      events: log([{ type: 'user-said', text: 'how is the poll doing' }, shellStillRunning()]),
     })
 
     expect(entries.map((entry) => entry.kind)).toEqual([

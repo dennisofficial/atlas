@@ -52,7 +52,9 @@ export function createMutationTracker(args: { changed?: (() => void) | undefined
     },
     whenSettled: (): Promise<void> => {
       if (open.size === 0) return Promise.resolve()
-      return new Promise((resolve) => { waiters.add(resolve) })
+      return new Promise((resolve) => {
+        waiters.add(resolve)
+      })
     },
     active: (): boolean => open.size > 0,
   }
@@ -68,14 +70,23 @@ export function routeStateRequest(args: {
   const { socket, frame, send, pending } = args
 
   if (frame.op === EClientRequest.ReadRuntimeCheckpoint) {
-    send({ socket, frame: answeredRequest({ replyTo: frame.id, data: { checkpoint: args.checkpoint?.() ?? null } }) })
+    send({
+      socket,
+      frame: answeredRequest({
+        replyTo: frame.id,
+        data: { checkpoint: args.checkpoint?.() ?? null },
+      }),
+    })
     return true
   }
 
   if (!isPendingOp(frame.op)) return false
 
   if (pending === undefined) {
-    send({ socket, frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no pending queue' }) })
+    send({
+      socket,
+      frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no pending queue' }),
+    })
     return true
   }
   void answerTakeBackPending({ frame, pending })

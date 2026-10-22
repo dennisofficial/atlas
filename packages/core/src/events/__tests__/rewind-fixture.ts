@@ -30,7 +30,13 @@ export const startedInBackground = (callId: string): EventDraft => ({
   input: { command: 'npm test', runInBackground: true },
   ordinal: 0,
 })
-export const backgrounded = ({ callId, shellId }: { callId: string; shellId: string }): EventDraft => ({
+export const backgrounded = ({
+  callId,
+  shellId,
+}: {
+  callId: string
+  shellId: string
+}): EventDraft => ({
   type: 'tool-result',
   callId: toCallId(callId),
   name: 'bash',
@@ -42,7 +48,13 @@ export const shellStarted = (shellId: string): EventDraft => ({
   command: 'npm test',
   description: 'run the tests',
 })
-export const shellEnded = ({ shellId, output }: { shellId: string; output: string }): EventDraft => ({
+export const shellEnded = ({
+  shellId,
+  output,
+}: {
+  shellId: string
+  output: string
+}): EventDraft => ({
   type: 'background-shell-ended',
   shellId,
   command: 'npm test',

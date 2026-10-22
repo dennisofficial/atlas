@@ -46,7 +46,10 @@ const ready = (app: FakeApp): Session => ({
   credentialNotice: null,
 })
 
-async function mount(session: Promise<Session>, onAbandon = (): void => undefined): Promise<Mounted> {
+async function mount(
+  session: Promise<Session>,
+  onAbandon = (): void => undefined,
+): Promise<Mounted> {
   const progress = createBootProgress()
   progress.report(EBootStep.Opening)
 

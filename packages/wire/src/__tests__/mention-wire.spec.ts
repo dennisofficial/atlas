@@ -20,18 +20,30 @@ describe('mention wire schemas', () => {
   })
 
   it('wants exactly a thread and a directory or path', () => {
-    expect(listMentionFilesParamsSchema.safeParse({ threadId: 't', directory: 'src' }).success).toBe(true)
+    expect(
+      listMentionFilesParamsSchema.safeParse({ threadId: 't', directory: 'src' }).success,
+    ).toBe(true)
     expect(listMentionFilesParamsSchema.safeParse({ threadId: 't' }).success).toBe(false)
-    expect(listMentionFilesParamsSchema.safeParse({ threadId: '', directory: 'src' }).success).toBe(false)
-    expect(listMentionFilesParamsSchema.safeParse({ threadId: 't', directory: 'src', extra: 1 }).success).toBe(false)
+    expect(listMentionFilesParamsSchema.safeParse({ threadId: '', directory: 'src' }).success).toBe(
+      false,
+    )
+    expect(
+      listMentionFilesParamsSchema.safeParse({ threadId: 't', directory: 'src', extra: 1 }).success,
+    ).toBe(false)
     expect(mentionFileExistsParamsSchema.safeParse({ threadId: 't', path: 'a' }).success).toBe(true)
-    expect(mentionFileExistsParamsSchema.safeParse({ threadId: 't', directory: 'a' }).success).toBe(false)
+    expect(mentionFileExistsParamsSchema.safeParse({ threadId: 't', directory: 'a' }).success).toBe(
+      false,
+    )
     expect(readMentionFileParamsSchema.safeParse({ path: 'a' }).success).toBe(false)
-    expect(readMentionFileParamsSchema.safeParse({ threadId: 't', path: 'a', more: true }).success).toBe(false)
+    expect(
+      readMentionFileParamsSchema.safeParse({ threadId: 't', path: 'a', more: true }).success,
+    ).toBe(false)
   })
 
   it('parses each reply strictly', () => {
-    expect(listMentionFilesReplySchema.parse({ entries: [{ name: 'a', isDirectory: false }] }).entries).toHaveLength(1)
+    expect(
+      listMentionFilesReplySchema.parse({ entries: [{ name: 'a', isDirectory: false }] }).entries,
+    ).toHaveLength(1)
     expect(listMentionFilesReplySchema.safeParse({ entries: [{ name: 'a' }] }).success).toBe(false)
     expect(mentionFileExistsReplySchema.parse({ exists: true })).toEqual({ exists: true })
     expect(mentionFileExistsReplySchema.safeParse({ exists: 'yes' }).success).toBe(false)
@@ -45,8 +57,17 @@ describe('mention wire schemas', () => {
     for (const file of [text, listing, refused]) {
       expect(readMentionFileReplySchema.parse({ file }).file).toEqual(file)
     }
-    expect(readMentionFileReplySchema.safeParse({ file: { type: 'text', content: 'x', truncated: false } }).success).toBe(false)
-    expect(readMentionFileReplySchema.safeParse({ file: { type: 'image', path: 'a', data: '' } }).success).toBe(false)
-    expect(readMentionFileReplySchema.safeParse({ file: { ...refused, extra: 1 } }).success).toBe(false)
+    expect(
+      readMentionFileReplySchema.safeParse({
+        file: { type: 'text', content: 'x', truncated: false },
+      }).success,
+    ).toBe(false)
+    expect(
+      readMentionFileReplySchema.safeParse({ file: { type: 'image', path: 'a', data: '' } })
+        .success,
+    ).toBe(false)
+    expect(readMentionFileReplySchema.safeParse({ file: { ...refused, extra: 1 } }).success).toBe(
+      false,
+    )
   })
 })

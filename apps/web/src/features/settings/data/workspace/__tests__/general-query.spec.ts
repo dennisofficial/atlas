@@ -19,7 +19,8 @@ const ready = (data: string): CloudQuery<string> => ({
   reload: () => undefined,
 })
 
-const build = ({ details, settings }: { details: string; settings: string }) => `${details}+${settings}`
+const build = ({ details, settings }: { details: string; settings: string }) =>
+  `${details}+${settings}`
 
 describe('combineGeneralQueries', () => {
   it('retry reloads both queries when the details query failed', () => {
@@ -49,7 +50,12 @@ describe('combineGeneralQueries', () => {
   })
 
   it('builds once both are ready', () => {
-    const combined = combineGeneralQueries({ details: ready('d'), settings: ready('s'), reload: () => undefined, build })
+    const combined = combineGeneralQueries({
+      details: ready('d'),
+      settings: ready('s'),
+      reload: () => undefined,
+      build,
+    })
     expect(combined).toMatchObject({ state: EQueryState.Ready, data: 'd+s' })
   })
 })

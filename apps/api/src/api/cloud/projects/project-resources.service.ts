@@ -52,7 +52,9 @@ export class ProjectResourcesService {
     }))
   }
 
-  async setSecret(args: Scope & { name: string; value: string; kind?: ESecretKind | undefined }): Promise<void> {
+  async setSecret(
+    args: Scope & { name: string; value: string; kind?: ESecretKind | undefined },
+  ): Promise<void> {
     assertEnvName(args.name)
     await this.projects.read(args)
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })

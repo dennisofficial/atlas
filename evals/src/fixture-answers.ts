@@ -22,7 +22,11 @@ const decisionAnswerShape = z.object({
 
 export const fixtureAnswersSchema = z.record(z.string(), z.record(z.string(), decisionAnswerShape))
 
-export async function loadFixtureAnswers({ path }: { path: string }): Promise<Record<string, Record<string, unknown>>> {
+export async function loadFixtureAnswers({
+  path,
+}: {
+  path: string
+}): Promise<Record<string, Record<string, unknown>>> {
   let text: string
   try {
     text = await readFile(path, 'utf8')

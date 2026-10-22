@@ -9,7 +9,10 @@ export type SyncedEntry = { revision: number; contentHash: string }
 
 const stateFileSchema = z.object({
   deviceId: z.string().min(1),
-  trees: z.record(z.string(), z.record(z.string(), z.object({ revision: z.number(), contentHash: z.string() }))),
+  trees: z.record(
+    z.string(),
+    z.record(z.string(), z.object({ revision: z.number(), contentHash: z.string() })),
+  ),
 })
 
 export class UserLayerState {
@@ -25,7 +28,10 @@ export class UserLayerState {
     try {
       const parsed = stateFileSchema.parse(JSON.parse(await readFile(args.file, 'utf8')))
       const trees = new Map(
-        Object.entries(parsed.trees).map(([tree, entries]) => [tree, new Map(Object.entries(entries))]),
+        Object.entries(parsed.trees).map(([tree, entries]) => [
+          tree,
+          new Map(Object.entries(entries)),
+        ]),
       )
       return new UserLayerState(args.file, parsed.deviceId, trees)
     } catch {
@@ -60,7 +66,10 @@ export class UserLayerState {
     const trees = Object.fromEntries(
       [...this.trees].map(([tree, entries]) => [tree, Object.fromEntries(entries)]),
     )
-    await writeFileAtomically({ path: this.file, content: JSON.stringify({ deviceId: this.deviceId, trees }, null, 2) })
+    await writeFileAtomically({
+      path: this.file,
+      content: JSON.stringify({ deviceId: this.deviceId, trees }, null, 2),
+    })
     this.dirty = false
   }
 }

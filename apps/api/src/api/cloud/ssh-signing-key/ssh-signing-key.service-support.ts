@@ -86,4 +86,6 @@ export async function resetWorld(): Promise<SshSigningKeyService> {
 }
 
 export const deletedIds = (): string[] =>
-  github.calls.filter((call) => call.method === 'DELETE').map((call) => call.url.split('/').pop() ?? '')
+  github.calls
+    .filter((call) => call.method === 'DELETE')
+    .map((call) => call.url.split('/').pop() ?? '')

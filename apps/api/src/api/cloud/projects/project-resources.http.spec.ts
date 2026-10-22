@@ -14,7 +14,12 @@ import { ProjectsController } from './projects.controller'
 import { ProjectsService } from './projects.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
-const BODY = { name: 'atlas', repo: 'dennisofficial/atlas', baseBranch: 'main', additionalRepos: [] }
+const BODY = {
+  name: 'atlas',
+  repo: 'dennisofficial/atlas',
+  baseBranch: 'main',
+  additionalRepos: [],
+}
 
 describe('project resources HTTP surface', () => {
   useTestDatabase()
@@ -117,9 +122,9 @@ describe('project resources HTTP surface', () => {
     expect(listed.body.secrets).toEqual([
       expect.objectContaining({ name: 'DATABASE_URL', kind: 'env', value: 'postgres://x' }),
     ])
-    expect((await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue).not.toContain(
-      'postgres://x',
-    )
+    expect(
+      (await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue,
+    ).not.toContain('postgres://x')
 
     await http().delete(`/v1/projects/${id}/secrets/DATABASE_URL`).set(as('session-a')).expect(204)
     const after = await http().get(`/v1/projects/${id}/secrets`).set(as('session-a')).expect(200)
@@ -139,7 +144,10 @@ describe('project resources HTTP surface', () => {
       .send({})
       .expect(400)
 
-    const listed = await http().get(`/v1/projects/${id}/mcp-servers`).set(as('session-a')).expect(200)
+    const listed = await http()
+      .get(`/v1/projects/${id}/mcp-servers`)
+      .set(as('session-a'))
+      .expect(200)
     expect(listed.body.servers).toEqual([
       expect.objectContaining({
         name: 'linear',
@@ -153,7 +161,11 @@ describe('project resources HTTP surface', () => {
     const id = await createAs('session-a')
     const as_b = as('session-b')
     await http().get(`/v1/projects/${id}/sandbox`).set(as_b).expect(404)
-    await http().put(`/v1/projects/${id}/sandbox`).set(as_b).send({ vcpus: 2, setupScript: '' }).expect(404)
+    await http()
+      .put(`/v1/projects/${id}/sandbox`)
+      .set(as_b)
+      .send({ vcpus: 2, setupScript: '' })
+      .expect(404)
     await http().get(`/v1/projects/${id}/secrets`).set(as_b).expect(404)
     await http().put(`/v1/projects/${id}/secrets/A`).set(as_b).send({ value: 'v' }).expect(404)
     await http().delete(`/v1/projects/${id}/secrets/A`).set(as_b).expect(404)
@@ -166,7 +178,9 @@ describe('project resources HTTP surface', () => {
     await http().delete(`/v1/projects/${id}/mcp-servers/x`).set(as_b).expect(404)
     await http().get(`/v1/projects/missing/sandbox`).set(as('session-a')).expect(404)
     expect(await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all()).toHaveLength(0)
-    expect(await db.orm.public.ProjectMcpServer.where((row) => row.id.neq('')).all()).toHaveLength(0)
+    expect(await db.orm.public.ProjectMcpServer.where((row) => row.id.neq('')).all()).toHaveLength(
+      0,
+    )
   })
 
   it('requires a session', async () => {

@@ -125,7 +125,9 @@ describe('environment injection at the default pipeline', () => {
     expect(last?.message.role).toBe('user')
     expect(textsOf(assembled).at(-1)).toContain('Project directory')
     expect(last?.origin.eventId).toBe(events.at(-1)?.id)
-    expect(before === undefined ? '' : textsOfEntry(before.message)).not.toContain('Project directory')
+    expect(before === undefined ? '' : textsOfEntry(before.message)).not.toContain(
+      'Project directory',
+    )
   })
 })
 

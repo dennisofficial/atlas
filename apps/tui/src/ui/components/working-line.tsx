@@ -37,10 +37,22 @@ export function WorkingLine(props: {
 }): React.ReactNode {
   const { retry } = props
   const onReconnect = props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined
-  useKeyBindings(onReconnect === undefined ? [] : [{
-    chord: 'ctrl+r', hint: 'reconnect', layer: EKeyLayer.Block, group: EKeyGroup.Turn, run: onReconnect,
-  }])
-  const reconnect = useClickRegion(props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined)
+  useKeyBindings(
+    onReconnect === undefined
+      ? []
+      : [
+          {
+            chord: 'ctrl+r',
+            hint: 'reconnect',
+            layer: EKeyLayer.Block,
+            group: EKeyGroup.Turn,
+            run: onReconnect,
+          },
+        ],
+  )
+  const reconnect = useClickRegion(
+    props.verb === EWorkingVerb.Disconnected ? props.onReconnect : undefined,
+  )
 
   if (retry !== null && retry !== undefined && !props.interrupting) {
     return (
@@ -55,10 +67,15 @@ export function WorkingLine(props: {
   if (verb === EWorkingVerb.Disconnected) {
     return (
       <box flexDirection="column">
-        <text {...reconnect.handlers} {...(reconnect.hovered ? { backgroundColor: theme.hoverBg } : {})}>
+        <text
+          {...reconnect.handlers}
+          {...(reconnect.hovered ? { backgroundColor: theme.hoverBg } : {})}
+        >
           <span fg={theme.warn}>○ disconnected</span>
           {props.lastSeenAt === null || props.lastSeenAt === undefined ? null : (
-            <span fg={theme.dim}>{` · transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
+            <span
+              fg={theme.dim}
+            >{` · transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
           )}
           {props.onReconnect === undefined ? null : (
             <>
@@ -75,9 +92,10 @@ export function WorkingLine(props: {
   if (verb === EWorkingVerb.Reconnecting) {
     const since = props.since ?? null
     const doing = sentenceCase(props.reconnectingAs ?? EWorkingVerb.Reconnecting)
-    const label = since === null
-      ? `${doing} for ${formatElapsed(props.elapsedMs)}`
-      : (): string => `${doing} for ${formatElapsed(Math.max(0, Date.now() - since))}`
+    const label =
+      since === null
+        ? `${doing} for ${formatElapsed(props.elapsedMs)}`
+        : (): string => `${doing} for ${formatElapsed(Math.max(0, Date.now() - since))}`
     return (
       <box flexDirection="column">
         <ShimmerLine label={label} base={theme.warn} />
@@ -107,8 +125,7 @@ export function WorkingLine(props: {
     )
   }
 
-  const tokens =
-    props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens · ` : ''
+  const tokens = props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens · ` : ''
   const label = `${verb} for ${formatElapsed(props.elapsedMs)} (${tokens}esc to interrupt)`
 
   return (

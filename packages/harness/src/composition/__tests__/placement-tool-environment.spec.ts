@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EHarnessPlacement, EToolEnvironment, toThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EHarnessPlacement,
+  EToolEnvironment,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { PlacementBusy, PlacementController } from '../placement-controller'
 import { fakePlacementStore } from './placement-store-fake'
@@ -20,13 +25,22 @@ describe('placement tool environment', () => {
     const placement = setup(EExecutionLocation.Host)
     await placement.activate({ threadId: THREAD })
 
-    const docker = await placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker })
-    expect(docker.placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Docker })
+    const docker = await placement.setToolEnvironment({
+      threadId: THREAD,
+      target: EExecutionLocation.Docker,
+    })
+    expect(docker.placement).toEqual({
+      harness: EHarnessPlacement.Host,
+      tools: EToolEnvironment.Docker,
+    })
     expect(docker.revision).toBe(1)
     expect(placement.of(THREAD)).toBe(EExecutionLocation.Docker)
     expect(placement.current()).toBe(EExecutionLocation.Docker)
 
-    const host = await placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Host })
+    const host = await placement.setToolEnvironment({
+      threadId: THREAD,
+      target: EExecutionLocation.Host,
+    })
     expect(host.revision).toBe(2)
     expect(placement.of(THREAD)).toBe(EExecutionLocation.Host)
   })
@@ -35,9 +49,9 @@ describe('placement tool environment', () => {
     const placement = setup(EExecutionLocation.Host)
     await placement.activate({ threadId: THREAD })
 
-    await expect(placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Cloud })).rejects.toThrow(
-      'cloud harnesses cannot change',
-    )
+    await expect(
+      placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Cloud }),
+    ).rejects.toThrow('cloud harnesses cannot change')
     expect(placement.of(THREAD)).toBe(EExecutionLocation.Host)
   })
 
@@ -45,9 +59,9 @@ describe('placement tool environment', () => {
     const placement = setup(EExecutionLocation.Cloud)
     await placement.activate({ threadId: THREAD })
 
-    await expect(placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker })).rejects.toThrow(
-      'cloud harnesses cannot change',
-    )
+    await expect(
+      placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker }),
+    ).rejects.toThrow('cloud harnesses cannot change')
     expect(placement.of(THREAD)).toBe(EExecutionLocation.Cloud)
   })
 
@@ -55,10 +69,13 @@ describe('placement tool environment', () => {
     const placement = setup(EExecutionLocation.Host)
     await placement.activate({ threadId: THREAD })
 
-    const first = placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker })
-    await expect(placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker })).rejects.toBeInstanceOf(
-      PlacementBusy,
-    )
+    const first = placement.setToolEnvironment({
+      threadId: THREAD,
+      target: EExecutionLocation.Docker,
+    })
+    await expect(
+      placement.setToolEnvironment({ threadId: THREAD, target: EExecutionLocation.Docker }),
+    ).rejects.toBeInstanceOf(PlacementBusy)
     await first
     expect(placement.of(THREAD)).toBe(EExecutionLocation.Docker)
   })

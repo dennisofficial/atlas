@@ -33,7 +33,9 @@ const settingsFake = (): SettingsFake => {
     const path = String(input).slice(URL.length)
     const method = init?.method ?? 'GET'
     const body =
-      typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : undefined
+      typeof init?.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined
     fake.calls.push({ method, path, body })
 
     const reply = (status: number, payload?: unknown) =>
@@ -98,7 +100,9 @@ describe('CloudSettingsStore while signed out', () => {
   })
 
   it('refuses writes with a sign-in message', async () => {
-    const failure = await store.set({ key: 'sandbox.image', value: 'img' }).catch((error: unknown) => error)
+    const failure = await store
+      .set({ key: 'sandbox.image', value: 'img' })
+      .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(CloudError)
     expect((failure as CloudError).status).toBe(0)
@@ -212,25 +216,28 @@ describe('CloudSettingsStore writes', () => {
 })
 
 describe('CloudSettingsStore when the cloud answers badly', () => {
-  it.each([401, 402, 403])('ends the session on a %i: cache dropped, session cleared, error rethrown', async (status) => {
-    signIn()
-    fake.remote.set('sandbox.image', 'img-1')
-    await store.refresh()
+  it.each([401, 402, 403])(
+    'ends the session on a %i: cache dropped, session cleared, error rethrown',
+    async (status) => {
+      signIn()
+      fake.remote.set('sandbox.image', 'img-1')
+      await store.refresh()
 
-    nowMs += CLOUD_SETTINGS_TTL_MS + 1
-    fake.status = status
-    const failure = await store.refresh().catch((error: unknown) => error)
+      nowMs += CLOUD_SETTINGS_TTL_MS + 1
+      fake.status = status
+      const failure = await store.refresh().catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(CloudError)
-    expect((failure as CloudError).status).toBe(status)
-    expect(store.signedIn()).toBe(false)
+      expect(failure).toBeInstanceOf(CloudError)
+      expect((failure as CloudError).status).toBe(status)
+      expect(store.signedIn()).toBe(false)
 
-    fake.status = 200
-    fake.remote.set('sandbox.image', 'img-2')
-    await store.refresh()
+      fake.status = 200
+      fake.remote.set('sandbox.image', 'img-2')
+      await store.refresh()
 
-    expect(store.values()).toEqual({})
-  })
+      expect(store.values()).toEqual({})
+    },
+  )
 
   it('serves the stale snapshot through an outage', async () => {
     signIn()

@@ -54,10 +54,14 @@ export class GithubAppHookController {
   @Get('callback')
   @Public()
   @Header('content-type', 'text/html; charset=utf-8')
-  async handleInstalled(@Query('installation_id') installationId: string | undefined): Promise<string> {
+  async handleInstalled(
+    @Query('installation_id') installationId: string | undefined,
+  ): Promise<string> {
     const id = installationId === undefined ? null : Number(installationId)
     const installation =
-      id === null || !Number.isInteger(id) ? null : await this.installations.read({ installationId: BigInt(id) })
+      id === null || !Number.isInteger(id)
+        ? null
+        : await this.installations.read({ installationId: BigInt(id) })
     return installLandingPage({ accountLogin: installation?.accountLogin ?? null })
   }
 

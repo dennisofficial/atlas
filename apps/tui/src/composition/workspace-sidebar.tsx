@@ -34,8 +34,13 @@ export function WorkspaceSidebar(props: {
 }): React.ReactNode {
   const { agentView, shells, services, naming, overlay, contextBrowser } = props
   const tree = contextBrowser.tree
-  const context = { rows: tree.rows, levels: tree.levels, opened: tree.opened,
-    loading: tree.loading, onActivate: tree.handleActivate }
+  const context = {
+    rows: tree.rows,
+    levels: tree.levels,
+    opened: tree.opened,
+    loading: tree.loading,
+    onActivate: tree.handleActivate,
+  }
   const width = overlay
     ? floatingSidebarWidth({ width: props.width, sidebarWidth: props.sidebarWidth })
     : props.sidebarWidth

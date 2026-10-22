@@ -8,8 +8,7 @@ import { GithubDeviceClient } from './github-device-client'
 import { GithubService } from './github.service'
 import { EGithubPollStatus } from './github.types'
 
-const HEX_KEY =
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const USER_A = 'user-a'
 
@@ -59,8 +58,7 @@ describe('GithubService scopes', () => {
   })
 
   it('poll reports only the scopes that are actually missing', async () => {
-    fetchImpl = async () =>
-      jsonResponse({ access_token: 'gho_partial', scope: 'repo read:org' })
+    fetchImpl = async () => jsonResponse({ access_token: 'gho_partial', scope: 'repo read:org' })
 
     const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
 
@@ -92,7 +90,10 @@ describe('GithubService scopes', () => {
 
   it('poll refuses a grant holding only write:ssh_signing_key', async () => {
     fetchImpl = async () =>
-      jsonResponse({ access_token: 'gho_write', scope: 'repo read:org admin:repo_hook write:ssh_signing_key' })
+      jsonResponse({
+        access_token: 'gho_write',
+        scope: 'repo read:org admin:repo_hook write:ssh_signing_key',
+      })
 
     const result = await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
 
@@ -137,6 +138,8 @@ describe('GithubService scopes', () => {
       login: 'octocat',
       scopes: ['admin:repo_hook', 'admin:ssh_signing_key', 'read:org', 'repo'],
     })
-    expect((await connectionRows())[0]?.scopes).toBe('admin:repo_hook,admin:ssh_signing_key,read:org,repo')
+    expect((await connectionRows())[0]?.scopes).toBe(
+      'admin:repo_hook,admin:ssh_signing_key,read:org,repo',
+    )
   })
 })

@@ -1,9 +1,6 @@
 import { and, or, type Row } from '@dltech/atlas-db'
 import type { CheckTarget } from './github-pr-state-fields'
-import type {
-  GithubBranchRouting,
-  GithubPrStateDto,
-} from './github-realtime.types'
+import type { GithubBranchRouting, GithubPrStateDto } from './github-realtime.types'
 import type {
   GithubCheckRunWebhookPayload,
   GithubCheckSuiteWebhookPayload,
@@ -29,7 +26,9 @@ type SubscriberFields = LiveFields & {
   branch: { eq(value: string): Condition; neq(value: string): Condition }
 }
 
-export function subscriptionLiveWhere(args: { now: Date }): (subscription: LiveFields) => Condition {
+export function subscriptionLiveWhere(args: {
+  now: Date
+}): (subscription: LiveFields) => Condition {
   return (subscription) => subscription.liveUntil.gt(args.now)
 }
 

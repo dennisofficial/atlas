@@ -45,13 +45,23 @@ describe('intake reservations', () => {
   it('structurally releases failed commits so the next commit can retry', async () => {
     const { pending, intake } = fixture()
     intake.submit({ threadId: THREAD, text: 'do not lose this' })
-    await expect(intake.commit({
-      threadId: THREAD, append: async () => { throw new Error('disk unavailable') },
-    })).rejects.toThrow('disk unavailable')
+    await expect(
+      intake.commit({
+        threadId: THREAD,
+        append: async () => {
+          throw new Error('disk unavailable')
+        },
+      }),
+    ).rejects.toThrow('disk unavailable')
     expect(pending.forThread({ threadId: THREAD }).takeBackLast()?.text).toBe('do not lose this')
     intake.submit({ threadId: THREAD, text: 'retried' })
     const stored: unknown[] = []
-    await intake.commit({ threadId: THREAD, append: async (drafts) => { stored.push(...drafts) } })
+    await intake.commit({
+      threadId: THREAD,
+      append: async (drafts) => {
+        stored.push(...drafts)
+      },
+    })
     expect(stored).toHaveLength(1)
     expect(pending.waitingCount()).toBe(0)
     intake.dispose()
@@ -61,7 +71,16 @@ describe('intake reservations', () => {
     const { intake } = fixture()
     let busy = false
     let wakes = 0
-    intake.register({ threadId: THREAD, driver: { blocked: () => busy, wake: () => { wakes += 1; busy = true } } })
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => busy,
+        wake: () => {
+          wakes += 1
+          busy = true
+        },
+      },
+    })
     const release = intake.hold({ threadId: THREAD })
     intake.submit({ threadId: THREAD, text: 'explicit start' })
     await flush()
@@ -76,7 +95,15 @@ describe('intake reservations', () => {
   it('suspends new wakes at teardown without blocking pending input persistence', async () => {
     const { intake } = fixture()
     let wakes = 0
-    intake.register({ threadId: THREAD, driver: { blocked: () => false, wake: () => { wakes += 1 } } })
+    intake.register({
+      threadId: THREAD,
+      driver: {
+        blocked: () => false,
+        wake: () => {
+          wakes += 1
+        },
+      },
+    })
     intake.suspend()
     intake.submit({ threadId: THREAD, text: 'accepted before close' })
     await flush()
@@ -97,8 +124,9 @@ describe('intake reservations', () => {
     intake.submit({ threadId: THREAD, text: 'peer instruction', via: EMessageOrigin.PeerAgent })
     expect(queue.takeBackLast()).toBeNull()
     const batch = await intake.prepare({ threadId: THREAD })
-    expect(batch.drafts.map((draft) => draft.type === 'user-said' ? draft.via : null)).toEqual([
-      EMessageOrigin.ParentAgent, EMessageOrigin.PeerAgent,
+    expect(batch.drafts.map((draft) => (draft.type === 'user-said' ? draft.via : null))).toEqual([
+      EMessageOrigin.ParentAgent,
+      EMessageOrigin.PeerAgent,
     ])
     batch.acknowledge()
     intake.dispose()

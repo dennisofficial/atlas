@@ -76,7 +76,11 @@ export type HandleArgs = {
   livenessMs?: number | undefined
 }
 
-export async function readStatus({ shellDir }: { shellDir: string }): Promise<ShellStatus | undefined> {
+export async function readStatus({
+  shellDir,
+}: {
+  shellDir: string
+}): Promise<ShellStatus | undefined> {
   const read = await readJsonFile({ path: join(shellDir, STATUS_FILE), schema: statusSchema })
   return read.ok ? read.value : undefined
 }
@@ -86,12 +90,17 @@ export function createHandle(args: HandleArgs): DurableShellHandle {
   const spoolPath = join(shellDir, SPOOL_FILE)
   const pollMs = args.pollMs ?? DEFAULT_POLL_MS
   const livenessMs = args.livenessMs ?? LIVENESS_CHECK_MS
-  const leaseMode = args.leaseMode ?? (args.transport === undefined ? ELeaseMode.Socket : ELeaseMode.File)
+  const leaseMode =
+    args.leaseMode ?? (args.transport === undefined ? ELeaseMode.Socket : ELeaseMode.File)
   const controllable = args.terminal === undefined && args.lostReason === undefined
   const waker = controllable ? createWaker({ directory: shellDir, pollMs }) : inertWaker()
   const requester =
     controllable && args.transport === undefined && meta !== undefined && args.token !== undefined
-      ? createSocketRequester({ socketPath: meta.socketPath, token: args.token, identity: args.identity })
+      ? createSocketRequester({
+          socketPath: meta.socketPath,
+          token: args.token,
+          identity: args.identity,
+        })
       : undefined
 
   let outcome: ShellOutcome | undefined
@@ -162,7 +171,10 @@ export function createHandle(args: HandleArgs): DurableShellHandle {
     if ((await supervisorLive()) !== false) return undefined
     latest = (await readStatus({ shellDir })) ?? latest
     if (latest?.exit !== undefined) return { kind: 'exited', exit: latest.exit }
-    return { kind: 'lost', reason: 'the supervisor is gone without recording an exit; the shell may still be running' }
+    return {
+      kind: 'lost',
+      reason: 'the supervisor is gone without recording an exit; the shell may still be running',
+    }
   }
 
   const monitor = async (): Promise<void> => {
@@ -183,7 +195,9 @@ export function createHandle(args: HandleArgs): DurableShellHandle {
     sequence += 1
     await mkdir(dirname(leaseFile), { recursive: true, mode: 0o700 }).catch(() => undefined)
     if (outcome !== undefined) return
-    await writeFileAtomic({ path: leaseFile, data: String(sequence), mode: 0o600 }).catch(() => undefined)
+    await writeFileAtomic({ path: leaseFile, data: String(sequence), mode: 0o600 }).catch(
+      () => undefined,
+    )
   }
 
   if (args.terminal !== undefined) finish({ kind: 'exited', exit: args.terminal })
@@ -230,7 +244,11 @@ export function createHandle(args: HandleArgs): DurableShellHandle {
       pid: args.pid,
       identity: args.identity,
       phase:
-        outcome?.kind === 'lost' ? 'lost' : outcome?.kind === 'exited' ? EShellPhase.Exited : (latest?.phase ?? EShellPhase.Running),
+        outcome?.kind === 'lost'
+          ? 'lost'
+          : outcome?.kind === 'exited'
+            ? EShellPhase.Exited
+            : (latest?.phase ?? EShellPhase.Running),
       spoolOffset: spool.offset(),
       exit: outcome?.kind === 'exited' ? outcome.exit : undefined,
       lostReason: outcome?.kind === 'lost' ? outcome.reason : undefined,

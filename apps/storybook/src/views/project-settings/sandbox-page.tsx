@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { ArrowUpRightIcon } from "lucide-react";
+import { useState } from 'react'
+import { ArrowUpRightIcon } from 'lucide-react'
 
-import { Badge } from "@dltech/atlas-ui/components/badge";
-import { Button } from "@dltech/atlas-ui/components/button";
-import { Label } from "@dltech/atlas-ui/components/label";
-import { RadioGroup, RadioGroupItem } from "@dltech/atlas-ui/components/radio-group";
-import { Textarea } from "@dltech/atlas-ui/components/textarea";
-import { cn } from "@dltech/atlas-ui/lib/utils";
+import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Label } from '@dltech/atlas-ui/components/label'
+import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
+import { Textarea } from '@dltech/atlas-ui/components/textarea'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import {
   DEFAULT_SANDBOX_SIZE,
   SANDBOX_SIZES,
   SETUP_SCRIPT,
   type SandboxSize,
-} from "../../fixtures/project-settings";
+} from '../../fixtures/project-settings'
 import {
   ERowLayout,
   FileChip,
@@ -21,20 +21,20 @@ import {
   SettingsRow,
   SettingsSection,
   UnsavedHint,
-} from "./settings-layout";
-import { VercelSection } from "./vercel-section";
+} from './settings-layout'
+import { VercelSection } from './vercel-section'
 
 function SizeCard({ size }: { size: SandboxSize }) {
-  const id = `sandbox-size-${size.id}`;
-  const disabled = size.unavailableReason !== undefined;
+  const id = `sandbox-size-${size.id}`
+  const disabled = size.unavailableReason !== undefined
   return (
     <Label
       htmlFor={id}
       className={cn(
-        "flex cursor-pointer flex-col items-stretch gap-3 rounded-lg border bg-card p-3 font-normal transition-colors",
-        "hover:bg-muted/50 has-data-checked:border-primary has-data-checked:bg-primary/5",
-        "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-        disabled && "cursor-not-allowed opacity-50 hover:bg-card",
+        'flex cursor-pointer flex-col items-stretch gap-3 rounded-lg border bg-card p-3 font-normal transition-colors',
+        'hover:bg-muted/50 has-data-checked:border-primary has-data-checked:bg-primary/5',
+        'has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
+        disabled && 'cursor-not-allowed opacity-50 hover:bg-card',
       )}
     >
       <span className="flex items-center justify-between gap-2">
@@ -50,18 +50,20 @@ function SizeCard({ size }: { size: SandboxSize }) {
         <span className="font-semibold">{size.pricePerHour}</span>
         <span className="text-muted-foreground">/hour</span>
       </span>
-      {disabled ? <span className="text-xs text-muted-foreground">{size.unavailableReason}</span> : null}
+      {disabled ? (
+        <span className="text-xs text-muted-foreground">{size.unavailableReason}</span>
+      ) : null}
     </Label>
-  );
+  )
 }
 
 function SizePicker() {
-  const [saved, setSaved] = useState(DEFAULT_SANDBOX_SIZE);
-  const [selected, setSelected] = useState(DEFAULT_SANDBOX_SIZE);
-  const dirty = selected !== saved;
+  const [saved, setSaved] = useState(DEFAULT_SANDBOX_SIZE)
+  const [selected, setSelected] = useState(DEFAULT_SANDBOX_SIZE)
+  const dirty = selected !== saved
   const handleValueChange = (value: unknown) => {
-    if (typeof value === "string") setSelected(value);
-  };
+    if (typeof value === 'string') setSelected(value)
+  }
   return (
     <SettingsSection
       title="Sandbox size"
@@ -91,7 +93,7 @@ function SizePicker() {
         </div>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }
 
 function DocsBadge() {
@@ -100,13 +102,13 @@ function DocsBadge() {
       Docs
       <ArrowUpRightIcon data-icon="inline-end" />
     </Badge>
-  );
+  )
 }
 
 function SetupScript() {
-  const [saved, setSaved] = useState(SETUP_SCRIPT);
-  const [script, setScript] = useState(SETUP_SCRIPT);
-  const dirty = script !== saved;
+  const [saved, setSaved] = useState(SETUP_SCRIPT)
+  const [script, setScript] = useState(SETUP_SCRIPT)
+  const dirty = script !== saved
   return (
     <SettingsSection
       title="Setup script"
@@ -131,8 +133,8 @@ function SetupScript() {
           }
           description={
             <>
-              Overrides <FileChip>setup</FileChip> in <FileChip>.atlas/container.json</FileChip> when
-              both are set.
+              Overrides <FileChip>setup</FileChip> in <FileChip>.atlas/container.json</FileChip>{' '}
+              when both are set.
             </>
           }
           layout={ERowLayout.Stacked}
@@ -147,7 +149,7 @@ function SetupScript() {
         </SettingsRow>
       </SettingsCard>
     </SettingsSection>
-  );
+  )
 }
 
 export function SandboxPage({ vercelEnabled = true }: { vercelEnabled?: boolean }) {
@@ -157,5 +159,5 @@ export function SandboxPage({ vercelEnabled = true }: { vercelEnabled?: boolean 
       <SetupScript />
       <VercelSection enabled={vercelEnabled} />
     </>
-  );
+  )
 }

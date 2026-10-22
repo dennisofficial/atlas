@@ -111,7 +111,8 @@ describe('GithubSubscriptionsService branch catch-up', () => {
   })
 
   it('never adopts a different user’s remembered PR for the same branch', async () => {
-    const findOpenPrForBranch = vi.fn<GithubUserReads['findOpenPrForBranch']>()
+    const findOpenPrForBranch = vi
+      .fn<GithubUserReads['findOpenPrForBranch']>()
       .mockResolvedValueOnce({ number: 42 })
       .mockResolvedValue(null)
     const readPullRequest = vi.fn<GithubUserReads['readPullRequest']>(async () => REST_FIELDS)

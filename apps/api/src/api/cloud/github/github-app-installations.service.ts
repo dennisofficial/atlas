@@ -45,13 +45,15 @@ export class GithubAppInstallationsService {
         accountLogin: installation.account.login,
         accountType: installation.account.type,
         repos: payload.repositories.map((repo) => repo.full_name),
-        suspendedAt: installation.suspended_at === null ? null : new Date(installation.suspended_at),
+        suspendedAt:
+          installation.suspended_at === null ? null : new Date(installation.suspended_at),
       },
       update: {
         accountLogin: installation.account.login,
         accountType: installation.account.type,
         repos: payload.repositories.map((repo) => repo.full_name),
-        suspendedAt: installation.suspended_at === null ? null : new Date(installation.suspended_at),
+        suspendedAt:
+          installation.suspended_at === null ? null : new Date(installation.suspended_at),
       },
     })
   }

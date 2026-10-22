@@ -54,7 +54,11 @@ describe('verdictTimingByUser', () => {
   })
 
   it('ignores settings rows under other keys', async () => {
-    await seedUserSetting({ userId: 'usr-a', key: 'sandbox.image', value: 'atlas-setting:v1:"img"' })
+    await seedUserSetting({
+      userId: 'usr-a',
+      key: 'sandbox.image',
+      value: 'atlas-setting:v1:"img"',
+    })
 
     const resolved = await verdictTimingByUser({ userIds: ['usr-a'] })
 

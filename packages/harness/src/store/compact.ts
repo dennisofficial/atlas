@@ -22,7 +22,14 @@ export enum ECompactionFailure {
 }
 
 export type CompactionOutcome =
-  | { ok: true; anchor: ECompactionAnchor; fromSeq: number; throughSeq: number; replaced: number; summary: string }
+  | {
+      ok: true
+      anchor: ECompactionAnchor
+      fromSeq: number
+      throughSeq: number
+      replaced: number
+      summary: string
+    }
   | { ok: false; failure: ECompactionFailure; reason: string; refusal?: ECompactionRefusal }
 
 export type Summarise = (args: {

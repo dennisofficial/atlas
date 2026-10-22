@@ -15,7 +15,13 @@ export type ParsedArgs = {
 
 const listKeys = new Set(['--session-dir'])
 
-export function parseArgs({ argv, spec }: { argv: readonly string[]; spec: Record<string, 'flag' | 'value'> }): ParsedArgs {
+export function parseArgs({
+  argv,
+  spec,
+}: {
+  argv: readonly string[]
+  spec: Record<string, 'flag' | 'value'>
+}): ParsedArgs {
   const flags: Record<string, true> = {}
   const values: Record<string, string> = {}
   const lists: Record<string, string[]> = {}
@@ -30,7 +36,8 @@ export function parseArgs({ argv, spec }: { argv: readonly string[]; spec: Recor
       continue
     }
     const value = argv[index + 1]
-    if (value === undefined || value.startsWith('--')) throw new ArgParseError(`argument "${arg}" needs a value`)
+    if (value === undefined || value.startsWith('--'))
+      throw new ArgParseError(`argument "${arg}" needs a value`)
     if (listKeys.has(arg)) {
       const existing = lists[arg] ?? []
       existing.push(value)
@@ -54,11 +61,18 @@ export function parseTrials({ args }: { args: ParsedArgs }): number {
   const raw = args.values['--trials']
   if (raw === undefined) return 1
   const trials = Number(raw)
-  if (!Number.isInteger(trials) || trials < 1) throw new ArgParseError(`--trials must be a positive integer, got "${raw}"`)
+  if (!Number.isInteger(trials) || trials < 1)
+    throw new ArgParseError(`--trials must be a positive integer, got "${raw}"`)
   return trials
 }
 
-export function resolveRunMode({ args, env }: { args: ParsedArgs; env: Record<string, string | undefined> }): ERunMode {
+export function resolveRunMode({
+  args,
+  env,
+}: {
+  args: ParsedArgs
+  env: Record<string, string | undefined>
+}): ERunMode {
   if (args.flags['--live'] === true && args.flags['--fake'] === true) {
     throw new ArgParseError('--fake and --live are mutually exclusive')
   }
@@ -71,7 +85,10 @@ export function resolveRunMode({ args, env }: { args: ParsedArgs; env: Record<st
   return ERunMode.Fake
 }
 
-export function resolveModel({ args, defaultModel }: { args: ParsedArgs; defaultModel: string }): { requested: string; promotable: boolean } {
+export function resolveModel({ args, defaultModel }: { args: ParsedArgs; defaultModel: string }): {
+  requested: string
+  promotable: boolean
+} {
   const override = args.values['--model']
   if (override === undefined) return { requested: defaultModel, promotable: true }
   return { requested: override, promotable: override === defaultModel }

@@ -37,10 +37,7 @@ const linkedFrom = (body: string): LinkedPullRequestDto | null => {
 
 type ForkLink = { parentThreadId: string; forkSeq: number } | null
 
-async function referenceLink(args: {
-  reader: SessionReader
-  threadId: string
-}): Promise<ForkLink> {
+async function referenceLink(args: { reader: SessionReader; threadId: string }): Promise<ForkLink> {
   const link = await args.reader.orm.public.Thread.where({ id: args.threadId })
     .select('parentThreadId', 'forkSeq', 'forkMode')
     .first()
@@ -58,10 +55,14 @@ export async function threadWorktree(args: {
   let upTo = args.upTo
 
   for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
-    const scoped = args.reader.orm.public.Event.where((event) => event.type.in(WORKTREE_EVENT_TYPES))
-      .where({ threadId })
+    const scoped = args.reader.orm.public.Event.where((event) =>
+      event.type.in(WORKTREE_EVENT_TYPES),
+    ).where({ threadId })
     const bound = upTo
-    const latest = await (bound === undefined ? scoped : scoped.where((event) => event.seq.lte(bound)))
+    const latest = await (bound === undefined
+      ? scoped
+      : scoped.where((event) => event.seq.lte(bound))
+    )
       .select('type', 'body')
       .orderBy((event) => event.seq.desc())
       .first()
@@ -90,7 +91,10 @@ export async function threadPullRequests(args: {
   for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
     const scoped = args.reader.orm.public.Event.where({ threadId, type: PULL_REQUEST_EVENT_TYPE })
     const bound = upTo
-    const rows = await (bound === undefined ? scoped : scoped.where((event) => event.seq.lte(bound)))
+    const rows = await (bound === undefined
+      ? scoped
+      : scoped.where((event) => event.seq.lte(bound))
+    )
       .select('body')
       .orderBy((event) => event.seq.asc())
       .all()

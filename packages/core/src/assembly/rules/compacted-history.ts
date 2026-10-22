@@ -7,7 +7,11 @@ import { defineRule, type Rule } from '../rule'
 const COMPACTION_PREFACE = 'Earlier turns of this conversation, compacted to save context:'
 
 const compactionBlock = (summary: string): string =>
-  systemContext({ slot: 'compaction', key: 'summary', content: `${COMPACTION_PREFACE}\n\n${summary}` })
+  systemContext({
+    slot: 'compaction',
+    key: 'summary',
+    content: `${COMPACTION_PREFACE}\n\n${summary}`,
+  })
 
 const summaryMessage = (watermark: CompactionWatermark): AssembledMessage => ({
   message: { role: 'user', content: [{ type: 'text', text: compactionBlock(watermark.summary) }] },
@@ -50,8 +54,7 @@ export function compactedHistory(): Rule {
 
       return watermarks.reduce((assembled, watermark) => {
         const kept = assembled.messages.filter(
-          (entry) =>
-            spared.has(entry.origin.seq) || !covered({ watermark, seq: entry.origin.seq }),
+          (entry) => spared.has(entry.origin.seq) || !covered({ watermark, seq: entry.origin.seq }),
         )
 
         return {

@@ -54,7 +54,12 @@ describe('ObservingToolDispatcher', () => {
     const telemetry = new RecordingTelemetry()
     const dispatcher = new ObservingToolDispatcher({
       inner: new StubDispatcher([
-        { type: 'tool-denied', callId: 'call_1' as never, name: 'write', reason: 'Refusing to write to /Users/dennis/x.ts' },
+        {
+          type: 'tool-denied',
+          callId: 'call_1' as never,
+          name: 'write',
+          reason: 'Refusing to write to /Users/dennis/x.ts',
+        },
       ]),
       telemetry,
     })
@@ -86,7 +91,13 @@ describe('ObservingToolDispatcher', () => {
     const telemetry = new RecordingTelemetry()
     const dispatcher = new ObservingToolDispatcher({
       inner: new StubDispatcher([
-        { type: 'tool-result', callId: 'call_1' as never, name: 'enter_worktree', output: undefined, error: { message: 'boom' } },
+        {
+          type: 'tool-result',
+          callId: 'call_1' as never,
+          name: 'enter_worktree',
+          output: undefined,
+          error: { message: 'boom' },
+        },
       ]),
       telemetry,
     })
@@ -102,7 +113,12 @@ describe('ObservingToolDispatcher', () => {
   it('stays silent without a telemetry port', async () => {
     const dispatcher = new ObservingToolDispatcher({
       inner: new StubDispatcher([
-        { type: 'tool-denied', callId: 'call_1' as never, name: 'write', reason: 'Refusing to write to /x' },
+        {
+          type: 'tool-denied',
+          callId: 'call_1' as never,
+          name: 'write',
+          reason: 'Refusing to write to /x',
+        },
       ]),
     })
 

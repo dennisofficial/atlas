@@ -8,7 +8,14 @@ import { EGrantScope } from '../../policy/classifier/grant'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
 import { EJudgment } from '../../policy/classifier/verdict'
 import { EKilledBy } from '../../shells/status'
-import { EDecision, EMessageOrigin, EPrEventKind, EPrReviewState, EPrVerdict, type EventDraft } from '../body'
+import {
+  EDecision,
+  EMessageOrigin,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+  type EventDraft,
+} from '../body'
 import type { EventEnvelope } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
 import { eventBodySchema, eventEnvelopeSchema } from '../schema'
@@ -17,7 +24,13 @@ const bodies: EventDraft[] = [
   { type: 'user-said', text: 'hello' },
   { type: 'user-said', text: 'carry on', via: EMessageOrigin.ParentAgent },
   { type: 'assistant-said', parts: [{ type: 'text', text: 'hi' }], interrupted: true },
-  { type: 'tool-called', callId: toCallId('call-1'), name: 'read_file', input: { path: '/a' }, ordinal: 0 },
+  {
+    type: 'tool-called',
+    callId: toCallId('call-1'),
+    name: 'read_file',
+    input: { path: '/a' },
+    ordinal: 0,
+  },
   { type: 'tool-result', callId: toCallId('call-1'), name: 'read_file', output: 'contents' },
   { type: 'tool-denied', callId: toCallId('call-1'), name: 'read_file', reason: 'no' },
   { type: 'approval-requested', callId: toCallId('call-1'), reason: 'writes' },
@@ -201,7 +214,14 @@ const bodies: EventDraft[] = [
     reason: 'the operator chose to stop being asked about this',
   },
   { type: 'permission-revoked', grantId: 'grant-1' },
-  { type: 'loop-watch-verdict', consulted: true, looping: true, probability: 0.82, loopStartSeq: 14, steps: 9 },
+  {
+    type: 'loop-watch-verdict',
+    consulted: true,
+    looping: true,
+    probability: 0.82,
+    loopStartSeq: 14,
+    steps: 9,
+  },
   {
     type: 'loop-watch-verdict',
     consulted: true,
@@ -225,7 +245,9 @@ describe('eventBodySchema', () => {
         {
           type: 'reasoning',
           text: 'thinking',
-          providerOptions: { anthropic: { signature: 'sig-abc', extra: { nested: [1, true, null] } } },
+          providerOptions: {
+            anthropic: { signature: 'sig-abc', extra: { nested: [1, true, null] } },
+          },
         },
       ],
     }
@@ -274,7 +296,9 @@ describe('eventBodySchema', () => {
   it('rejects a PR event with a non-positive PR number or an empty url', () => {
     const base = { type: 'pr-event', repo: 'github.com/owner/repo', kind: EPrEventKind.Verdict }
 
-    expect(eventBodySchema.safeParse({ ...base, prNumber: 0, url: 'https://x' }).success).toBe(false)
+    expect(eventBodySchema.safeParse({ ...base, prNumber: 0, url: 'https://x' }).success).toBe(
+      false,
+    )
     expect(eventBodySchema.safeParse({ ...base, prNumber: 1, url: '' }).success).toBe(false)
   })
 
@@ -301,7 +325,12 @@ describe('eventBodySchema', () => {
 
   it('rejects a call with no ordinal', () => {
     expect(() =>
-      eventBodySchema.parse({ type: 'tool-called', callId: 'call-1', name: 'read_file', input: {} }),
+      eventBodySchema.parse({
+        type: 'tool-called',
+        callId: 'call-1',
+        name: 'read_file',
+        input: {},
+      }),
     ).toThrow()
   })
 
@@ -375,7 +404,13 @@ describe('eventBodySchema', () => {
 
   it('rejects a watchdog verdict whose probability leaves the calibrated range', () => {
     expect(() =>
-      eventBodySchema.parse({ type: 'loop-watch-verdict', consulted: true, looping: false, probability: 1.2, steps: 3 }),
+      eventBodySchema.parse({
+        type: 'loop-watch-verdict',
+        consulted: true,
+        looping: false,
+        probability: 1.2,
+        steps: 3,
+      }),
     ).toThrow()
   })
 
@@ -442,7 +477,12 @@ describe('eventEnvelopeSchema', () => {
   })
 
   it('round-trips a nested run, keeping the parent run and the depth', () => {
-    const nested: EventEnvelope = { ...root, runId: toRunId('run-2'), parentRunId: toRunId('run-1'), depth: 1 }
+    const nested: EventEnvelope = {
+      ...root,
+      runId: toRunId('run-2'),
+      parentRunId: toRunId('run-1'),
+      depth: 1,
+    }
 
     expect(eventEnvelopeSchema.parse(JSON.parse(JSON.stringify(nested)))).toEqual(nested)
   })

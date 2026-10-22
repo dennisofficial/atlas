@@ -55,7 +55,12 @@ export type RecordFacts = {
   evidencePath?: string | undefined
 }
 
-export function buildRecord({ scope, assessments = [], findings = [], ...facts }: RecordFacts): CodeQualityReviewedBody {
+export function buildRecord({
+  scope,
+  assessments = [],
+  findings = [],
+  ...facts
+}: RecordFacts): CodeQualityReviewedBody {
   return {
     type: 'code-quality-reviewed',
     ...facts,
@@ -81,7 +86,13 @@ export function validateItem({ item }: { item: ReviewItem }): ReviewItem {
   return { record: replacement, notifiable: [] }
 }
 
-function evidenceLabels({ assessment, scope }: { assessment: QualityAssessment; scope: QualityScope }): readonly string[] {
+function evidenceLabels({
+  assessment,
+  scope,
+}: {
+  assessment: QualityAssessment
+  scope: QualityScope
+}): readonly string[] {
   const labels = new Map(scope.evidence.map((evidence) => [evidence.id, evidence.label]))
   return assessment.evidenceIds.flatMap((id) => labels.get(id) ?? [])
 }
@@ -110,7 +121,9 @@ export function renderNudge({ items }: { items: readonly ReviewItem[] }): string
   }
   if (byPolicy.size === 0) return undefined
 
-  const sections = [...byPolicy.values()].map((group) => `${group.title}\n${group.lines.join('\n')}`)
+  const sections = [...byPolicy.values()].map(
+    (group) => `${group.title}\n${group.lines.join('\n')}`,
+  )
   const written = `${[...paths].join(', ')} ${paths.size === 1 ? 'was' : 'were'} written successfully`
   return [
     `Code quality note: ${written}. This advisory review is not a failure and nothing was reverted.`,

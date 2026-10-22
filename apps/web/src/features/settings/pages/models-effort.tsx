@@ -65,7 +65,9 @@ function ModelsEditor({
         title="Presets"
         description="Set every role at once. Editing a role switches this to Custom."
         actions={
-          activePreset ? null : <span className="font-mono text-xs text-muted-foreground">Custom</span>
+          activePreset ? null : (
+            <span className="font-mono text-xs text-muted-foreground">Custom</span>
+          )
         }
       >
         <ToggleGroup

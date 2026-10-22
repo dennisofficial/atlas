@@ -22,7 +22,10 @@ const releaseTagOf = (version: string | undefined): string =>
 const installScriptUrlOf = (version: string | undefined): string =>
   `https://raw.githubusercontent.com/${RELEASE_REPOSITORY}/${releaseTagOf(version)}/install.sh`
 
-export const serveInstallScript = (args: { version: string | undefined; arch?: EServeArch }): string => {
+export const serveInstallScript = (args: {
+  version: string | undefined
+  arch?: EServeArch
+}): string => {
   const version = args.version ?? ''
   const asset = `atlas-serve-linux-${args.arch ?? EServeArch.X64}`
   const tag = releaseTagOf(args.version)

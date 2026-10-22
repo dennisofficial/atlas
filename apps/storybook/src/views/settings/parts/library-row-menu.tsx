@@ -1,26 +1,26 @@
-import { EllipsisIcon } from "lucide-react";
+import { EllipsisIcon } from 'lucide-react'
 
-import { Button } from "@dltech/atlas-ui/components/button";
+import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@dltech/atlas-ui/components/dropdown-menu";
+} from '@dltech/atlas-ui/components/dropdown-menu'
 
 export type LibraryMenuAction = {
-  label: string;
-  onSelect: () => void;
-  destructive?: boolean;
-};
+  label: string
+  onSelect: () => void
+  destructive?: boolean
+}
 
 export function LibraryRowMenu({
   label,
   actions,
 }: {
-  label: string;
-  actions: LibraryMenuAction[];
+  label: string
+  actions: LibraryMenuAction[]
 }) {
   return (
     <DropdownMenu>
@@ -34,7 +34,7 @@ export function LibraryRowMenu({
           <span key={action.label} className="contents">
             {action.destructive ? <DropdownMenuSeparator /> : null}
             <DropdownMenuItem
-              variant={action.destructive ? "destructive" : "default"}
+              variant={action.destructive ? 'destructive' : 'default'}
               onClick={action.onSelect}
             >
               {action.label}
@@ -43,5 +43,5 @@ export function LibraryRowMenu({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }

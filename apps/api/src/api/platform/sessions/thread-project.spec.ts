@@ -11,8 +11,16 @@ describe('thread project reachability', () => {
   beforeEach(async () => {
     await seedUsers('owner', 'member', 'stranger')
     await seedOrganization({ db, id: 'org_1', memberIds: ['member'] })
-    await db.orm.public.Project.create({ id: 'prj_personal', name: 'personal', ownerUserId: 'owner' })
-    await db.orm.public.Project.create({ id: 'prj_workspace', name: 'workspace', organizationId: 'org_1' })
+    await db.orm.public.Project.create({
+      id: 'prj_personal',
+      name: 'personal',
+      ownerUserId: 'owner',
+    })
+    await db.orm.public.Project.create({
+      id: 'prj_workspace',
+      name: 'workspace',
+      organizationId: 'org_1',
+    })
   })
 
   it('reaches a personal project only as its owner', async () => {

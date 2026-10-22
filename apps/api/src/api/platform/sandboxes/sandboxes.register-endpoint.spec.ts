@@ -67,7 +67,9 @@ describe('the client-provisioned register path endpoints', () => {
       clientToken: CLIENT_TOKEN,
       serveUrl: SERVE_URL,
     })
-    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({ state: ESandboxState.Parked })
+    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({
+      state: ESandboxState.Parked,
+    })
 
     const status = await service.status({ userId: USER_A, threadId: THREAD })
 
@@ -83,7 +85,9 @@ describe('the client-provisioned register path endpoints', () => {
       clientToken: CLIENT_TOKEN,
       serveUrl: SERVE_URL,
     })
-    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({ state: ESandboxState.Parked })
+    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({
+      state: ESandboxState.Parked,
+    })
 
     expect(await service.runningEndpoint({ userId: USER_A, threadId: THREAD })).toBeNull()
     expect(client.inspect).not.toHaveBeenCalled()

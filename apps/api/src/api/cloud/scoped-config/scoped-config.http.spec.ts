@@ -34,21 +34,49 @@ describe('GET /v1/sandboxes/self/config', () => {
     await seedWorkspace({ id: ORG, members: [{ userId: 'user-a', role: 'owner' }] })
     await seedProject({ id: PROJECT, ownerUserId: 'user-a', organizationId: ORG })
     await seedThread({ db, id: THREAD, userId: 'user-a', projectId: PROJECT })
-    await db.orm.public.WorkspaceSetting.create({ id: 'w1', organizationId: ORG, key: KEY, value: setting('low') })
+    await db.orm.public.WorkspaceSetting.create({
+      id: 'w1',
+      organizationId: ORG,
+      key: KEY,
+      value: setting('low'),
+    })
     await db.orm.public.UserSetting.createAll([
       { id: 'u1', userId: 'user-a', key: KEY, value: setting('medium') },
       { id: 'u2', userId: 'user-a', key: 'sandbox.vercelTeamId', value: setting('team_user') },
     ])
     await db.orm.public.ProjectSetting.createAll([
       { id: 'p1', projectId: PROJECT, key: KEY, value: setting('high') },
-      { id: 'p2', projectId: PROJECT, key: 'sandbox.vercelProjectId', value: setting('prj_vercel') },
+      {
+        id: 'p2',
+        projectId: PROJECT,
+        key: 'sandbox.vercelProjectId',
+        value: setting('prj_vercel'),
+      },
     ])
-    await db.orm.public.WorkspaceSecret.create({ id: 's1', organizationId: ORG, name: 'API', kind: 'secret', sealedValue: seal('ws') })
+    await db.orm.public.WorkspaceSecret.create({
+      id: 's1',
+      organizationId: ORG,
+      name: 'API',
+      kind: 'secret',
+      sealedValue: seal('ws'),
+    })
     await db.orm.public.UserSecret.createAll([
       { id: 's2', userId: 'user-a', name: 'API', kind: 'secret', sealedValue: seal('user') },
-      { id: 's3', userId: 'user-a', name: 'sandbox.vercelToken', kind: 'secret', sealedValue: seal('vtok_user') },
+      {
+        id: 's3',
+        userId: 'user-a',
+        name: 'sandbox.vercelToken',
+        kind: 'secret',
+        sealedValue: seal('vtok_user'),
+      },
     ])
-    await db.orm.public.ProjectSecret.create({ id: 's4', projectId: PROJECT, name: 'API', kind: 'env', sealedValue: seal('proj') })
+    await db.orm.public.ProjectSecret.create({
+      id: 's4',
+      projectId: PROJECT,
+      name: 'API',
+      kind: 'env',
+      sealedValue: seal('proj'),
+    })
     await db.orm.public.WorkspaceVercelCredential.create({
       organizationId: ORG,
       sealedToken: seal('vtok_workspace'),
@@ -70,19 +98,31 @@ describe('GET /v1/sandboxes/self/config', () => {
 
   it('lets the project beat user and workspace for one key, and never carries vercel values', async () => {
     await seedAllScopes()
-    const response = await http().get('/v1/sandboxes/self/config').set(as(SANDBOX_TOKEN)).expect(200)
+    const response = await http()
+      .get('/v1/sandboxes/self/config')
+      .set(as(SANDBOX_TOKEN))
+      .expect(200)
 
     expect(response.body.settings).toEqual({ [KEY]: setting('high') })
     expect(response.body.provenance[`setting:${KEY}`]).toBe('project')
     expect(response.body.secrets).toEqual([{ name: 'API', value: 'proj', kind: 'env' }])
     const body = JSON.stringify(response.body)
-    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_vercel']) expect(body).not.toContain(leaked)
+    for (const leaked of ['vercel', 'vtok', 'team_', 'prj_vercel'])
+      expect(body).not.toContain(leaked)
   })
 
   it('resolves user + defaults when the thread has no project', async () => {
     await seedThread({ db, id: THREAD, userId: 'user-a' })
-    await db.orm.public.UserSetting.create({ id: 'u1', userId: 'user-a', key: KEY, value: setting('medium') })
-    const response = await http().get('/v1/sandboxes/self/config').set(as(SANDBOX_TOKEN)).expect(200)
+    await db.orm.public.UserSetting.create({
+      id: 'u1',
+      userId: 'user-a',
+      key: KEY,
+      value: setting('medium'),
+    })
+    const response = await http()
+      .get('/v1/sandboxes/self/config')
+      .set(as(SANDBOX_TOKEN))
+      .expect(200)
     expect(response.body.settings).toEqual({ [KEY]: setting('medium') })
     expect(response.body.provenance[`setting:${KEY}`]).toBe('user')
   })
@@ -109,8 +149,13 @@ describe('GET /v1/sandboxes/self/config', () => {
     await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
       gap: EVercelCredentialGap.WorkspaceCredential,
     })
-    await db.orm.public.Project.where({ id: PROJECT }).update({ organizationId: null, ownerUserId: 'user-a' })
-    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toBeInstanceOf(VercelNotConfiguredError)
+    await db.orm.public.Project.where({ id: PROJECT }).update({
+      organizationId: null,
+      ownerUserId: 'user-a',
+    })
+    await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toBeInstanceOf(
+      VercelNotConfiguredError,
+    )
     await expect(scoped.vercelCredentials({ projectId: PROJECT })).rejects.toMatchObject({
       gap: EVercelCredentialGap.ProjectWorkspace,
     })
@@ -118,7 +163,9 @@ describe('GET /v1/sandboxes/self/config', () => {
 
   it('keeps vercel keys for the provisioning resolve only', async () => {
     await seedAllScopes()
-    const full = await app.get(ScopedConfigService).resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
+    const full = await app
+      .get(ScopedConfigService)
+      .resolveWithProvisioning({ userId: 'user-a', projectId: PROJECT })
     expect(full.settings['sandbox.vercelProjectId']).toBe(setting('prj_vercel'))
   })
 })

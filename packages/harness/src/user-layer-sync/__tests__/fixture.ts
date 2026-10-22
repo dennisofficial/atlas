@@ -4,12 +4,21 @@ import { dirname, join } from 'node:path'
 
 import { LogPort, NoticePort, type LogEntry, type NoticePost } from '@dltech/atlas-core'
 
-import { UserFileConflict, type UserFileContent, type UserFileMeta } from '../../cloud/user-files-client'
+import {
+  UserFileConflict,
+  type UserFileContent,
+  type UserFileMeta,
+} from '../../cloud/user-files-client'
 import type { UserLayerSyncClient } from '../client'
 import { createUserLayerSync } from '../factory'
 import { sha256Hex } from '../local-file'
 
-type Row = { revision: number; contentHash: string; content: Uint8Array | null; tombstonedAt: string | null }
+type Row = {
+  revision: number
+  contentHash: string
+  content: Uint8Array | null
+  tombstonedAt: string | null
+}
 
 export class FakeUserFilesServer {
   readonly rows = new Map<string, Row>()
@@ -25,7 +34,9 @@ export class FakeUserFilesServer {
 
   text(args: { tree: string; path: string }): string | undefined {
     const content = this.row(args)?.content
-    return content === null || content === undefined ? undefined : Buffer.from(content).toString('utf8')
+    return content === null || content === undefined
+      ? undefined
+      : Buffer.from(content).toString('utf8')
   }
 
   clientFor(): UserLayerSyncClient {
@@ -35,7 +46,12 @@ export class FakeUserFilesServer {
         for (const [key, row] of this.rows) {
           const [tree, path] = key.split('\0')
           if (tree !== args.tree || path === undefined) continue
-          files.push({ path, revision: row.revision, contentHash: row.contentHash, tombstonedAt: row.tombstonedAt })
+          files.push({
+            path,
+            revision: row.revision,
+            contentHash: row.contentHash,
+            tombstonedAt: row.tombstonedAt,
+          })
         }
         return files
       },
@@ -43,21 +59,39 @@ export class FakeUserFilesServer {
         args.paths.flatMap((path): UserFileContent[] => {
           const row = this.row({ tree: args.tree, path })
           if (row === undefined) return []
-          return [{ path, revision: row.revision, contentHash: row.contentHash, tombstonedAt: row.tombstonedAt, content: row.content }]
+          return [
+            {
+              path,
+              revision: row.revision,
+              contentHash: row.contentHash,
+              tombstonedAt: row.tombstonedAt,
+              content: row.content,
+            },
+          ]
         }),
       putUserFile: async (args) => {
         const existing = this.row(args)
         this.assertBase({ existing, baseRevision: args.baseRevision })
         this.puts.push(`${args.tree}/${args.path}`)
         const revision = args.baseRevision + 1
-        this.rows.set(this.key(args), { revision, contentHash: args.contentHash, content: args.content, tombstonedAt: null })
+        this.rows.set(this.key(args), {
+          revision,
+          contentHash: args.contentHash,
+          content: args.content,
+          tombstonedAt: null,
+        })
         return { revision }
       },
       deleteUserFile: async (args) => {
         const existing = this.row(args)
         this.assertBase({ existing, baseRevision: args.baseRevision })
         const revision = args.baseRevision + 1
-        this.rows.set(this.key(args), { revision, contentHash: '', content: null, tombstonedAt: new Date().toISOString() })
+        this.rows.set(this.key(args), {
+          revision,
+          contentHash: '',
+          content: null,
+          tombstonedAt: new Date().toISOString(),
+        })
         return { revision }
       },
     }
@@ -86,7 +120,8 @@ export class RecordingNotice extends NoticePort {
   }
 }
 
-export const scratchDirectory = (prefix: string): Promise<string> => mkdtemp(join(tmpdir(), `${prefix}-`))
+export const scratchDirectory = (prefix: string): Promise<string> =>
+  mkdtemp(join(tmpdir(), `${prefix}-`))
 
 export async function writeAt(args: { path: string; content: string }): Promise<void> {
   await mkdir(dirname(args.path), { recursive: true })
@@ -95,7 +130,8 @@ export async function writeAt(args: { path: string; content: string }): Promise<
 
 export const readAt = (path: string): Promise<string> => readFile(path, 'utf8')
 
-export const namesIn = (directory: string): Promise<string[]> => readdir(directory).then((names) => names.sort())
+export const namesIn = (directory: string): Promise<string[]> =>
+  readdir(directory).then((names) => names.sort())
 
 export type Device = {
   atlasHome: string
@@ -120,13 +156,27 @@ export async function makeDevice(args: {
   await mkdir(home, { recursive: true })
   const log = new RecordingLog()
   const client = args.client ?? args.server.clientFor()
-  const engine = createUserLayerSync({ atlasHome, home, client, log, notice: args.notice, debounceMs: args.debounceMs ?? 20 })
+  const engine = createUserLayerSync({
+    atlasHome,
+    home,
+    client,
+    log,
+    notice: args.notice,
+    debounceMs: args.debounceMs ?? 20,
+  })
   const deviceId = async (): Promise<string> =>
-    (JSON.parse(await readAt(join(atlasHome, 'sync', 'user-layer-sync.json'))) as { deviceId: string }).deviceId
+    (
+      JSON.parse(await readAt(join(atlasHome, 'sync', 'user-layer-sync.json'))) as {
+        deviceId: string
+      }
+    ).deviceId
   return { atlasHome, home, log, engine, client, deviceId }
 }
 
-export async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 3_000): Promise<void> {
+export async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs = 3_000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (await condition()) return

@@ -134,7 +134,12 @@ const AloneBlock = React.memo(function AloneBlock(props: {
   const noticeText = notice === null ? '' : qualityNoticeText(notice).text
   const room = Math.max(
     8,
-    props.inner - 2 - reading.note.length - elapsedCellsOf({ call, separator }) - GAP - [...noticeText].length,
+    props.inner -
+      2 -
+      reading.note.length -
+      elapsedCellsOf({ call, separator }) -
+      GAP -
+      [...noticeText].length,
   )
   const label = tailOfPath({ path: said, cells: room })
   const pad = ' '.repeat(Math.max(0, room - [...label].length))
@@ -155,8 +160,7 @@ const AloneBlock = React.memo(function AloneBlock(props: {
    * argument lands.
    */
   const dictating =
-    running &&
-    (reading.detail === EDetail.Created || reading.detail === EDetail.Terminal)
+    running && (reading.detail === EDetail.Created || reading.detail === EDetail.Terminal)
 
   return (
     <box flexDirection="column" marginBottom={1} width={props.inner} flexShrink={0}>

@@ -122,7 +122,9 @@ export async function refreshTransferredFamily({
 
     const gone = roster
       .states()
-      .filter((child) => child.spawnedBy === owner && !named.has(child.agentId) && !isStepping(child))
+      .filter(
+        (child) => child.spawnedBy === owner && !named.has(child.agentId) && !isStepping(child),
+      )
       .map((child) => child.agentId)
     if (gone.length > 0) {
       forgetRemovedChildren({ roster, notices, threadId: owner, agentIds: gone })

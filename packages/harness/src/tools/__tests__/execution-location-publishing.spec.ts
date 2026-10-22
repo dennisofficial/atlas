@@ -6,7 +6,12 @@ import type { ChannelSignal } from '../../channel'
 import { createDeltaChannel } from '../../channel'
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
-import { portToken, registeredPortToken, resolveSet, type DependencyContainer } from '../../container/injection'
+import {
+  portToken,
+  registeredPortToken,
+  resolveSet,
+  type DependencyContainer,
+} from '../../container/injection'
 import {
   DeltaChannelToken,
   DockerEngineToken,
@@ -46,7 +51,9 @@ afterEach(async () => {
   }
 })
 
-const open = async (args: { withChannel: boolean }): Promise<Opened & { signals: ChannelSignal[] }> => {
+const open = async (args: {
+  withChannel: boolean
+}): Promise<Opened & { signals: ChannelSignal[] }> => {
   const container = createHarnessContainer()
   container.register(WorkspaceRoot, { useValue: '/tmp/atlas-publishing-spec' })
   container.register(WorktreeDirectoryToken, { useValue: () => '.atlas/worktrees' })
@@ -56,7 +63,9 @@ const open = async (args: { withChannel: boolean }): Promise<Opened & { signals:
   container.register(registeredPortToken(EventLogPort), { useValue: fixture.log })
   container.register(registeredPortToken(ThreadStorePort), { useValue: fixture.threads })
   container.register(registeredPortToken(AgentRegistryPort), { useValue: new UnstaffedAgents() })
-  container.register(registeredPortToken(ServiceRegistryPort), { useValue: new UnstaffedServices() })
+  container.register(registeredPortToken(ServiceRegistryPort), {
+    useValue: new UnstaffedServices(),
+  })
   container.register(registeredPortToken(ShellRegistryPort), { useValue: new UnstaffedShells() })
   container.register(DockerEngineToken, { useValue: liveEngine })
 

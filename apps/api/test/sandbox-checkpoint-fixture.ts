@@ -35,16 +35,17 @@ export const storedRow = (
     ...partial,
   })
 
-export const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint => ({
-  threadId: THREAD,
-  runtimeId: 'runtime-abc',
-  sandboxSessionId: 'sandbox-session-xyz',
-  revision: 3,
-  phase: ERuntimePhase.Serving,
-  reportedAt: '2026-10-01T12:00:00.000Z',
-  transcript: { head: 41, count: 40, digest: 'b'.repeat(64) },
-  ...overrides,
-}) as RuntimeCheckpoint
+export const checkpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
+  ({
+    threadId: THREAD,
+    runtimeId: 'runtime-abc',
+    sandboxSessionId: 'sandbox-session-xyz',
+    revision: 3,
+    phase: ERuntimePhase.Serving,
+    reportedAt: '2026-10-01T12:00:00.000Z',
+    transcript: { head: 41, count: 40, digest: 'b'.repeat(64) },
+    ...overrides,
+  }) as RuntimeCheckpoint
 
 export const validCheckpoint = (overrides: Record<string, unknown> = {}): RuntimeCheckpoint =>
   runtimeCheckpointSchema.parse(checkpoint(overrides))

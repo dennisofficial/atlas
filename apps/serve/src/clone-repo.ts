@@ -31,7 +31,8 @@ export async function cloneAdditionalRepos(args: {
 }): Promise<string | null> {
   const { git, files, cwd, credentialed } = args
   for (const { repo, branch } of args.repos) {
-    if (!isBesideWorkspace({ cwd, repo })) return `${repo}: it cannot be cloned beside the workspace`
+    if (!isBesideWorkspace({ cwd, repo }))
+      return `${repo}: it cannot be cloned beside the workspace`
     const target = additionalRepoDirOf({ cwd, repo })
 
     const remoteUrl = githubCloneUrlOf(repo)

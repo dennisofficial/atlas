@@ -68,7 +68,9 @@ export class PrEventNoticeQueue {
     if (!this.queued.some((notice) => notice.threadId === from)) return
 
     this.settle(
-      this.queued.map((notice) => (notice.threadId === from ? { ...notice, threadId: to } : notice)),
+      this.queued.map((notice) =>
+        notice.threadId === from ? { ...notice, threadId: to } : notice,
+      ),
     )
   }
 

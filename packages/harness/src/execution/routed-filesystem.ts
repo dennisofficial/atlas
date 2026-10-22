@@ -63,11 +63,7 @@ export class RoutedFileSystemPort extends AgentFileSystemPort {
     return this.portFor(args.threadId).mkdir(args)
   }
 
-  rename(args: {
-    from: string
-    to: string
-    threadId?: ThreadId | undefined
-  }): Promise<void> {
+  rename(args: { from: string; to: string; threadId?: ThreadId | undefined }): Promise<void> {
     return this.portFor(args.threadId).rename(args)
   }
 

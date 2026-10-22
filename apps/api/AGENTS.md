@@ -265,7 +265,7 @@ House dotenvx conventions (see the `env-conventions` skill): encrypted per-tier 
 `envs/`, `.env.keys` and `.env.personal` git-ignored, key parity across tiers enforced by
 `test/env-alignment.spec.ts`, which also fails on any tier line that is not a comment, a blank or an
 `encrypted:` assignment (an unquoted multi-line value lands as bare lines that dotenvx never
-encrypts). The repo pre-commit hook (`.githooks/pre-commit`, wired by the root `postinstall`) runs
+encrypts). The repo pre-commit hook (`lefthook.yml`, installed by the root `postinstall`) runs
 `dotenvx ext precommit` and `scripts/check-env-tiers.ts`. Add a variable in lockstep: the right `sections/*.ts` Joi rule +
 interface field, then the key line in every tier file (commented with a recognized reason where
 a tier does not supply it), then `dotenvx set` to fill values in place. Typed access is

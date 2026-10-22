@@ -14,11 +14,7 @@ import {
 import { z } from 'zod'
 
 import { atlasDirectory } from '../store/paths'
-import {
-  hasListedModel,
-  ModelsResponseSchema,
-  toCodexModelCards,
-} from './codex-models-response'
+import { hasListedModel, ModelsResponseSchema, toCodexModelCards } from './codex-models-response'
 
 // openai/codex codex-rs/core/src/models_manager (manager.rs, cache.rs): the picker is fetched from
 // GET /models?client_version=<X.Y.Z>, cached in $CODEX_HOME/models_cache.json for 300s, revalidated

@@ -34,7 +34,10 @@ const reasonOf = async (request: Request): Promise<string | null> => {
   return typeof reason === 'string' && reason.length > 0 ? reason : null
 }
 
-const reasonedPost = async (args: { request: Request; token: string }): Promise<string | Response> => {
+const reasonedPost = async (args: {
+  request: Request
+  token: string
+}): Promise<string | Response> => {
   if (args.request.method !== 'POST') return new Response('method not allowed', { status: 405 })
   const offered = bearerToken(args.request.headers.get('authorization'))
   if (!tokenMatches({ expected: args.token, offered })) return unauthorized()
@@ -63,7 +66,9 @@ export function startSessionServer(args: {
     bootFailure = args.reason
     for (const socket of [...held]) {
       held.delete(socket)
-      socket.send(JSON.stringify({ kind: 'error', message: `the serve could not boot: ${args.reason}` }))
+      socket.send(
+        JSON.stringify({ kind: 'error', message: `the serve could not boot: ${args.reason}` }),
+      )
       socket.close(BOOT_FAILED_CLOSE, 'the serve could not boot')
     }
   }
@@ -113,10 +118,13 @@ export function startSessionServer(args: {
         try {
           return Response.json(await drain({ reason }))
         } catch (failure) {
-          return Response.json({
-            ok: false,
-            message: failure instanceof Error ? failure.message : String(failure),
-          }, { status: 503 })
+          return Response.json(
+            {
+              ok: false,
+              message: failure instanceof Error ? failure.message : String(failure),
+            },
+            { status: 503 },
+          )
         }
       }
 

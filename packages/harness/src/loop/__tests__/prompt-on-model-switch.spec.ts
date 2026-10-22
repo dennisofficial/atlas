@@ -78,12 +78,17 @@ const systemFor = (args: {
     launchDirectory: PROJECT_DIRECTORY,
   })
 
-  return assemble({ ...pipeline, ctx: ctxFor(args.provider) }).assembled.system.map((block) => block.text)
+  return assemble({ ...pipeline, ctx: ctxFor(args.provider) }).assembled.system.map(
+    (block) => block.text,
+  )
 }
 
 describe('a model switch, seen through the pipeline the composition root built once', () => {
   it('emits the fragments the newly selected model calls for, without a new pipeline', () => {
-    const registry = new InMemoryPromptRegistry([new IdentityFragment(), new NarrowContextFragment()])
+    const registry = new InMemoryPromptRegistry([
+      new IdentityFragment(),
+      new NarrowContextFragment(),
+    ])
     let provider: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
     let model: PromptModel = OPUS_WINDOW
 

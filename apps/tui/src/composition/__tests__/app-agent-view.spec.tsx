@@ -64,7 +64,10 @@ async function seed(app: FakeApp): Promise<void> {
 async function opened(app: FakeApp): Promise<Mounted> {
   const events = await app.log.read({ threadId: THREAD })
   const setup = await testRender(
-    <App app={app} opened={{ threadId: THREAD, events, turns: [], name: 'the parent', started: true }} />,
+    <App
+      app={app}
+      opened={{ threadId: THREAD, events, turns: [], name: 'the parent', started: true }}
+    />,
     WIDE,
   )
   await setup.flush()

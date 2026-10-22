@@ -41,7 +41,10 @@ describe('PrSubscriptionClient', () => {
       })) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
-    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+    const outcome = await client.subscribe({
+      repoFullName: 'dennisofficial/atlas',
+      branch: 'dennis/realtime-smoke',
+    })
 
     expect(outcome.id).toBe('sub_1')
     expect(outcome.state?.prNumber).toBe(837)
@@ -55,7 +58,10 @@ describe('PrSubscriptionClient', () => {
       })) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
-    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+    const outcome = await client.subscribe({
+      repoFullName: 'dennisofficial/atlas',
+      branch: 'dennis/realtime-smoke',
+    })
 
     expect(outcome.branch).toBe('dennis/realtime-smoke')
   })
@@ -68,7 +74,10 @@ describe('PrSubscriptionClient', () => {
       })) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
-    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+    const outcome = await client.subscribe({
+      repoFullName: 'dennisofficial/atlas',
+      branch: 'dennis/realtime-smoke',
+    })
 
     expect(outcome.branch).toBeNull()
   })
@@ -89,7 +98,10 @@ describe('PrSubscriptionClient', () => {
       )) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
-    const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'dennis/realtime-smoke' })
+    const outcome = await client.subscribe({
+      repoFullName: 'dennisofficial/atlas',
+      branch: 'dennis/realtime-smoke',
+    })
 
     expect(outcome.state).toBeNull()
     expect(outcome.branch).toBe('dennis/realtime-smoke')
@@ -140,7 +152,10 @@ describe('PrSubscriptionClient heartbeat', () => {
     let calls = 0
     globalThis.fetch = (async () => {
       calls += 1
-      return new Response('{"message":"gone"}', { status: 404, headers: { 'content-type': 'application/json' } })
+      return new Response('{"message":"gone"}', {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
     }) as unknown as typeof fetch
 
     const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
@@ -259,7 +274,10 @@ describe('PrSubscriptionClient subscribe retry', () => {
     const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'b' })
 
     expect(outcome.pollBacked).toBe(true)
-    expect(outcome.recommendAppInstall).toEqual({ installUrl: 'https://github.com/apps/atlas/installations/new', repoFullName: 'dennisofficial/atlas' })
+    expect(outcome.recommendAppInstall).toEqual({
+      installUrl: 'https://github.com/apps/atlas/installations/new',
+      repoFullName: 'dennisofficial/atlas',
+    })
   })
 
   it('omits the recommendation when the response carries none', async () => {

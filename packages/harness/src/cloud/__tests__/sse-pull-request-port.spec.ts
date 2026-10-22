@@ -4,11 +4,12 @@ import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-core'
 
 import { EPullRequestLookup, EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import { SsePullRequestPort } from '../sse-pull-requests'
-import type { SubscriptionPrState } from '../pr-subscription-client'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
 const ports: SsePullRequestPort[] = []
-const createPort = (args: ConstructorParameters<typeof SsePullRequestPort>[0]): SsePullRequestPort => {
+const createPort = (
+  args: ConstructorParameters<typeof SsePullRequestPort>[0],
+): SsePullRequestPort => {
   const port = new SsePullRequestPort(args)
   ports.push(port)
   return port

@@ -1,5 +1,12 @@
 import { ERunExitCode, ERunStatus } from './results'
-import type { BaselineComparison, ComparisonVerdict, LoadedRun, MetricGate, RunSummary, TimingStats } from './results'
+import type {
+  BaselineComparison,
+  ComparisonVerdict,
+  LoadedRun,
+  MetricGate,
+  RunSummary,
+  TimingStats,
+} from './results'
 
 export type RunEvaluation = {
   exitCode: ERunExitCode
@@ -11,19 +18,33 @@ export type RunComparison = BaselineComparison & { verdict: ComparisonVerdict }
 
 const MAX_FAILURE_LINES = 10
 
-const formatValue = ({ value }: { value: number | null }): string => (value === null ? 'n/a' : value.toFixed(3))
+const formatValue = ({ value }: { value: number | null }): string =>
+  value === null ? 'n/a' : value.toFixed(3)
 
 const formatDelta = ({ value }: { value: number | null }): string => {
   if (value === null) return 'n/a'
   return `${value >= 0 ? '+' : ''}${value.toFixed(3)}`
 }
 
-const formatMs = ({ value }: { value: number | null }): string => (value === null ? 'n/a' : `${Math.round(value)}ms`)
+const formatMs = ({ value }: { value: number | null }): string =>
+  value === null ? 'n/a' : `${Math.round(value)}ms`
 
-const baselineValueFor = ({ summary, metricId }: { summary: RunSummary; metricId: string }): number | null =>
+const baselineValueFor = ({
+  summary,
+  metricId,
+}: {
+  summary: RunSummary
+  metricId: string
+}): number | null =>
   summary.baselineComparison?.deltas.find((delta) => delta.metricId === metricId)?.baseline ?? null
 
-const gateRegressionNotes = ({ summary, gates }: { summary: RunSummary; gates: readonly MetricGate[] }): string[] => {
+const gateRegressionNotes = ({
+  summary,
+  gates,
+}: {
+  summary: RunSummary
+  gates: readonly MetricGate[]
+}): string[] => {
   const notes: string[] = []
   for (const gate of gates) {
     const candidate = summary.metrics.find((metric) => metric.id === gate.metricId)?.value ?? null
@@ -38,58 +59,120 @@ const gateRegressionNotes = ({ summary, gates }: { summary: RunSummary; gates: r
 
 const executionNotes = ({ summary }: { summary: RunSummary }): string[] => {
   const notes: string[] = []
-  if (summary.operationalFailures > 0) notes.push(`${summary.operationalFailures} operational failure(s)`)
+  if (summary.operationalFailures > 0)
+    notes.push(`${summary.operationalFailures} operational failure(s)`)
   if (summary.completed !== summary.planned.rows) {
     notes.push(`completed ${summary.completed} of ${summary.planned.rows} planned rows`)
   }
   return notes
 }
 
-export function evaluateRun({ summary, gates }: { summary: RunSummary; gates: readonly MetricGate[] }): RunEvaluation {
+export function evaluateRun({
+  summary,
+  gates,
+}: {
+  summary: RunSummary
+  gates: readonly MetricGate[]
+}): RunEvaluation {
   const failureExit = ERunExitCode.ExecutionOrIntegrityFailure
-  if (summary.status === ERunStatus.IntegrityFailure || summary.status === ERunStatus.ExecutionFailure) {
+  if (
+    summary.status === ERunStatus.IntegrityFailure ||
+    summary.status === ERunStatus.ExecutionFailure
+  ) {
     return { exitCode: failureExit, status: summary.status, notes: [...summary.failureNotes] }
   }
   const execution = executionNotes({ summary })
-  if (execution.length > 0) return { exitCode: failureExit, status: ERunStatus.ExecutionFailure, notes: execution }
+  if (execution.length > 0)
+    return { exitCode: failureExit, status: ERunStatus.ExecutionFailure, notes: execution }
   const regressions = gateRegressionNotes({ summary, gates })
   if (regressions.length > 0) {
-    return { exitCode: ERunExitCode.QualityRegression, status: ERunStatus.QualityRegression, notes: regressions }
+    return {
+      exitCode: ERunExitCode.QualityRegression,
+      status: ERunStatus.QualityRegression,
+      notes: regressions,
+    }
   }
   return { exitCode: ERunExitCode.Success, status: ERunStatus.Complete, notes: [] }
 }
 
-const identityDifferences = ({ baseline, candidate }: { baseline: RunSummary; candidate: RunSummary }): string[] => {
+const identityDifferences = ({
+  baseline,
+  candidate,
+}: {
+  baseline: RunSummary
+  candidate: RunSummary
+}): string[] => {
   const fields: { name: string; baseline: string; candidate: string }[] = [
-    { name: 'datasetVersion', baseline: baseline.datasetVersion, candidate: candidate.datasetVersion },
+    {
+      name: 'datasetVersion',
+      baseline: baseline.datasetVersion,
+      candidate: candidate.datasetVersion,
+    },
     { name: 'datasetHash', baseline: baseline.datasetHash, candidate: candidate.datasetHash },
     { name: 'featureId', baseline: baseline.featureId, candidate: candidate.featureId },
-    { name: 'model.requested', baseline: baseline.model.requested, candidate: candidate.model.requested },
+    {
+      name: 'model.requested',
+      baseline: baseline.model.requested,
+      candidate: candidate.model.requested,
+    },
     { name: 'mode', baseline: baseline.mode, candidate: candidate.mode },
-    { name: 'enabledPolicyIds', baseline: [...baseline.enabledPolicyIds].sort().join(','), candidate: [...candidate.enabledPolicyIds].sort().join(',') },
+    {
+      name: 'enabledPolicyIds',
+      baseline: [...baseline.enabledPolicyIds].sort().join(','),
+      candidate: [...candidate.enabledPolicyIds].sort().join(','),
+    },
     { name: 'batchMode', baseline: baseline.batchMode, candidate: candidate.batchMode },
-    { name: 'model.resolved', baseline: baseline.model.resolved ?? 'unresolved', candidate: candidate.model.resolved ?? 'unresolved' },
+    {
+      name: 'model.resolved',
+      baseline: baseline.model.resolved ?? 'unresolved',
+      candidate: candidate.model.resolved ?? 'unresolved',
+    },
   ]
   return fields
     .filter((field) => field.baseline !== field.candidate)
     .map((field) => `${field.name} (${field.baseline} vs ${field.candidate})`)
 }
 
-const metricDeltas = ({ baseline, candidate }: { baseline: RunSummary; candidate: RunSummary }): BaselineComparison['deltas'] =>
+const metricDeltas = ({
+  baseline,
+  candidate,
+}: {
+  baseline: RunSummary
+  candidate: RunSummary
+}): BaselineComparison['deltas'] =>
   candidate.metrics.map((metric) => {
     const baselineValue = baseline.metrics.find((entry) => entry.id === metric.id)?.value ?? null
-    const delta = baselineValue === null || metric.value === null ? null : metric.value - baselineValue
+    const delta =
+      baselineValue === null || metric.value === null ? null : metric.value - baselineValue
     return { metricId: metric.id, baseline: baselineValue, candidate: metric.value, delta }
   })
 
-export function comparisonExitCode({ comparison, candidate }: { comparison: RunComparison; candidate: LoadedRun }): ERunExitCode {
-  if (!comparison.comparable || candidate.summary.status !== ERunStatus.Complete) return ERunExitCode.ExecutionOrIntegrityFailure
-  return comparison.verdict.regressionNotes.length > 0 ? ERunExitCode.QualityRegression : ERunExitCode.Success
+export function comparisonExitCode({
+  comparison,
+  candidate,
+}: {
+  comparison: RunComparison
+  candidate: LoadedRun
+}): ERunExitCode {
+  if (!comparison.comparable || candidate.summary.status !== ERunStatus.Complete)
+    return ERunExitCode.ExecutionOrIntegrityFailure
+  return comparison.verdict.regressionNotes.length > 0
+    ? ERunExitCode.QualityRegression
+    : ERunExitCode.Success
 }
 
-export function compareRuns({ baseline, candidate }: { baseline: LoadedRun; candidate: LoadedRun }): RunComparison {
+export function compareRuns({
+  baseline,
+  candidate,
+}: {
+  baseline: LoadedRun
+  candidate: LoadedRun
+}): RunComparison {
   const baselineInvocationId = baseline.summary.invocationId
-  const differences = identityDifferences({ baseline: baseline.summary, candidate: candidate.summary })
+  const differences = identityDifferences({
+    baseline: baseline.summary,
+    candidate: candidate.summary,
+  })
   if (differences.length > 0) {
     const mismatchReason = `mismatched ${differences.join(', ')}`
     return {
@@ -103,14 +186,27 @@ export function compareRuns({ baseline, candidate }: { baseline: LoadedRun; cand
   const deltas = metricDeltas({ baseline: baseline.summary, candidate: candidate.summary })
   const regressionNotes = deltas
     .filter((entry) => entry.delta !== null && entry.delta < 0)
-    .map((entry) => `${entry.metricId}: ${formatValue({ value: entry.baseline })} -> ${formatValue({ value: entry.candidate })}`)
-  const promotable = candidate.summary.status === ERunStatus.Complete && candidate.summary.promotable && regressionNotes.length === 0
-  return { baselineInvocationId, comparable: true, deltas, verdict: { promotable, regressionNotes } }
+    .map(
+      (entry) =>
+        `${entry.metricId}: ${formatValue({ value: entry.baseline })} -> ${formatValue({ value: entry.candidate })}`,
+    )
+  const promotable =
+    candidate.summary.status === ERunStatus.Complete &&
+    candidate.summary.promotable &&
+    regressionNotes.length === 0
+  return {
+    baselineInvocationId,
+    comparable: true,
+    deltas,
+    verdict: { promotable, regressionNotes },
+  }
 }
 
 const metricLines = ({ summary }: { summary: RunSummary }): string[] =>
   summary.metrics.map((metric) => {
-    const delta = summary.baselineComparison?.deltas.find((entry) => entry.metricId === metric.id)?.delta
+    const delta = summary.baselineComparison?.deltas.find(
+      (entry) => entry.metricId === metric.id,
+    )?.delta
     const suffix = delta === undefined ? '' : ` (${formatDelta({ value: delta })} vs baseline)`
     return `  ${metric.id}: ${formatValue({ value: metric.value })} [${metric.numerator}/${metric.denominator}]${suffix}`
   })

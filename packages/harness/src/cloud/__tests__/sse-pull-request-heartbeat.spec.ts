@@ -67,44 +67,66 @@ const createApi = () => {
         subscribes += 1
         subscriptionLive = true
         ids += 1
-        return Response.json({
-          id: `sub_${ids}`,
-          repoFullName: 'owner/repo',
-          prNumber: current.prNumber,
-          branch: 'feature',
-          pollBacked: false,
-          expiresAt: '2026-09-30T03:00:00Z',
-          state: current,
-        }, { status: 201 })
+        return Response.json(
+          {
+            id: `sub_${ids}`,
+            repoFullName: 'owner/repo',
+            prNumber: current.prNumber,
+            branch: 'feature',
+            pollBacked: false,
+            expiresAt: '2026-09-30T03:00:00Z',
+            state: current,
+          },
+          { status: 201 },
+        )
       }
       if (path.endsWith('/prs/stream')) {
         streamAttempts += 1
         activeStreams += 1
-        return new Response(new ReadableStream<Uint8Array>({
-          start(controller) {
-            streams.add(controller)
-            controller.enqueue(new TextEncoder().encode(': connected\n\n'))
-            request.signal.addEventListener('abort', () => {
-              activeStreams -= 1
-              streams.delete(controller)
-              controller.close()
-            }, { once: true })
-          },
-        }), { headers: { 'content-type': 'text/event-stream' } })
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              streams.add(controller)
+              controller.enqueue(new TextEncoder().encode(': connected\n\n'))
+              request.signal.addEventListener(
+                'abort',
+                () => {
+                  activeStreams -= 1
+                  streams.delete(controller)
+                  controller.close()
+                },
+                { once: true },
+              )
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        )
       }
       return Response.json({})
     },
   })
   return {
     session: { url: `http://127.0.0.1:${server.port}`, token: 'static-token', email: null },
-    setState: (value: SubscriptionPrState) => { current = value },
-    expireSubscription: () => { subscriptionLive = false },
-    failNextHeartbeats: (count: number) => { heartbeatFailures = count },
-    revoke: () => { authAccepted = false },
-    recover: () => { authAccepted = true },
+    setState: (value: SubscriptionPrState) => {
+      current = value
+    },
+    expireSubscription: () => {
+      subscriptionLive = false
+    },
+    failNextHeartbeats: (count: number) => {
+      heartbeatFailures = count
+    },
+    revoke: () => {
+      authAccepted = false
+    },
+    recover: () => {
+      authAccepted = true
+    },
     push: (value: SubscriptionPrState) => {
       for (const stream of streams) {
-        stream.enqueue(new TextEncoder().encode(`event: pr-state\ndata: ${JSON.stringify(value)}\n\n`))
+        stream.enqueue(
+          new TextEncoder().encode(`event: pr-state\ndata: ${JSON.stringify(value)}\n\n`),
+        )
       }
     },
     heartbeats: () => heartbeats,
@@ -149,8 +171,10 @@ const waitFor = async (condition: () => boolean): Promise<void> => {
   if (!condition()) throw new Error('condition did not arrive in time')
 }
 
-const hasState = (expected: EPullRequestState) => (reading: PullRequestReading): boolean =>
-  reading.lookup === EPullRequestLookup.Found && reading.pullRequest.state === expected
+const hasState =
+  (expected: EPullRequestState) =>
+  (reading: PullRequestReading): boolean =>
+    reading.lookup === EPullRequestLookup.Found && reading.pullRequest.state === expected
 
 const hasFailures = (reading: PullRequestReading): boolean =>
   reading.lookup === EPullRequestLookup.Found && reading.pullRequest.tally.failed === 1
@@ -238,8 +262,11 @@ describe('SsePullRequestPort heartbeat failure catch-up', () => {
     api.revoke()
     await clock.advance(TICK_WINDOW_MS)
 
-    const unavailable = await feed.next((reading) => reading.lookup === EPullRequestLookup.Unavailable)
-    if (unavailable.lookup !== EPullRequestLookup.Unavailable) throw new Error('expected unavailable')
+    const unavailable = await feed.next(
+      (reading) => reading.lookup === EPullRequestLookup.Unavailable,
+    )
+    if (unavailable.lookup !== EPullRequestLookup.Unavailable)
+      throw new Error('expected unavailable')
     expect(unavailable.retryable).toBe(true)
     await waitFor(() => api!.activeStreams() === 0)
     expect(api.streamAttempts()).toBe(1)

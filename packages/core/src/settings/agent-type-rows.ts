@@ -29,7 +29,8 @@ export function agentTypeModelDefinitions(args: {
     kind: ESettingKind.Model,
     fallback: '',
     unsetLabel: isTeammateType(type.name) ? 'follow main agent' : 'follow sub-agents',
-    writeLayer: type.origin === EDefinitionOrigin.Project ? ESettingsLayer.Project : ESettingsLayer.User,
+    writeLayer:
+      type.origin === EDefinitionOrigin.Project ? ESettingsLayer.Project : ESettingsLayer.User,
     agentType: type,
   }))
 }

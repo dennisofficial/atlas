@@ -29,7 +29,11 @@ import { ReadTool } from '../../tools/builtin/read'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { InMemoryToolRegistry } from '../../tools/registry'
 import { HookChain } from '../registry'
-import { closeRegistries, localShellAdapter, openRegistry } from '../../shells/__tests__/shell-registry-fixture'
+import {
+  closeRegistries,
+  localShellAdapter,
+  openRegistry,
+} from '../../shells/__tests__/shell-registry-fixture'
 import { registerBuiltinHooks } from '../register-hooks'
 import { ResolveProjectPathsHook } from '../resolve-project-paths'
 import { ATLAS_SHELL_DIR_ENV, threadEnvironmentFrom } from '../thread-environment'
@@ -40,7 +44,12 @@ const TEAMMATE = toThreadId('thread-teammate')
 const STRANGER = toThreadId('thread-stranger')
 
 const ROOT = '/Users/dev/project'
-const RESERVED = [ATLAS_SESSION_DIR_ENV, ATLAS_THREAD_DIR_ENV, ATLAS_CONTEXT_DIR_ENV, ATLAS_SHELL_DIR_ENV]
+const RESERVED = [
+  ATLAS_SESSION_DIR_ENV,
+  ATLAS_THREAD_DIR_ENV,
+  ATLAS_CONTEXT_DIR_ENV,
+  ATLAS_SHELL_DIR_ENV,
+]
 
 let home = ''
 let sessionDir = ''
@@ -67,10 +76,22 @@ afterEach(async () => {
 
 const threadDirOf = (threadId: ThreadId): string => threadDataDirectory({ sessionDir, threadId })
 
-const hookWith = (tools: ConstructorParameters<typeof ResolveProjectPathsHook>[0] = [new ReadTool()]) =>
-  new ResolveProjectPathsHook(tools, { threadEnvironment: threadEnvironmentFrom({ sessions: registry }) })
+const hookWith = (
+  tools: ConstructorParameters<typeof ResolveProjectPathsHook>[0] = [new ReadTool()],
+) =>
+  new ResolveProjectPathsHook(tools, {
+    threadEnvironment: threadEnvironmentFrom({ sessions: registry }),
+  })
 
-const callOf = ({ name, input, threadId }: { name: string; input: unknown; threadId: ThreadId }): ToolCall => ({
+const callOf = ({
+  name,
+  input,
+  threadId,
+}: {
+  name: string
+  input: unknown
+  threadId: ThreadId
+}): ToolCall => ({
   callId: toCallId('call-1'),
   name,
   input,
@@ -122,19 +143,26 @@ describe('per-thread session directory expansion in file tool paths', () => {
     const threads = [MAIN, CHILD, TEAMMATE, MAIN, CHILD, TEAMMATE]
 
     const outcomes = await Promise.all(
-      threads.map((threadId) => runOn({ hook, call: readingAs('$ATLAS_THREAD_DIR/notes.md', threadId) })),
+      threads.map((threadId) =>
+        runOn({ hook, call: readingAs('$ATLAS_THREAD_DIR/notes.md', threadId) }),
+      ),
     )
 
-    expect(outcomes.map((outcome) => (outcome.decision === EBeforeToolDecision.Allow ? outcome.input : null))).toEqual(
-      threads.map((threadId) => ({ path: `${threadDirOf(threadId)}/notes.md` })),
-    )
+    expect(
+      outcomes.map((outcome) =>
+        outcome.decision === EBeforeToolDecision.Allow ? outcome.input : null,
+      ),
+    ).toEqual(threads.map((threadId) => ({ path: `${threadDirOf(threadId)}/notes.md` })))
     expect(process.env[ATLAS_THREAD_DIR_ENV]).toBe(saved.get(ATLAS_THREAD_DIR_ENV))
   })
 
   it('merges the reserved values over the rest of the environment without mutating process.env', async () => {
     process.env['ATLAS_SPEC_OTHER'] = '/var/spec'
     try {
-      const outcome = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_SPEC_OTHER/$ATLAS_THREAD_DIR/x', MAIN) })
+      const outcome = await runOn({
+        hook: hookWith(),
+        call: readingAs('$ATLAS_SPEC_OTHER/$ATLAS_THREAD_DIR/x', MAIN),
+      })
       expect(outcome.decision).toBe(EBeforeToolDecision.Allow)
       expect(process.env[ATLAS_SESSION_DIR_ENV]).toBe(saved.get(ATLAS_SESSION_DIR_ENV))
     } finally {
@@ -146,15 +174,27 @@ describe('per-thread session directory expansion in file tool paths', () => {
     process.env[ATLAS_THREAD_DIR_ENV] = '/tmp/spoofed'
     process.env[ATLAS_SESSION_DIR_ENV] = '/tmp/spoofed-session'
 
-    const outcome = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_THREAD_DIR/foo', MAIN) })
-    const unregistered = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_THREAD_DIR/foo', STRANGER) })
+    const outcome = await runOn({
+      hook: hookWith(),
+      call: readingAs('$ATLAS_THREAD_DIR/foo', MAIN),
+    })
+    const unregistered = await runOn({
+      hook: hookWith(),
+      call: readingAs('$ATLAS_THREAD_DIR/foo', STRANGER),
+    })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: `${threadDirOf(MAIN)}/foo` } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: `${threadDirOf(MAIN)}/foo` },
+    })
     expect(unregistered.decision).toBe(EBeforeToolDecision.Deny)
   })
 
   it('denies with an explicit reason when the thread belongs to no session', async () => {
-    const outcome = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_THREAD_DIR/foo', STRANGER) })
+    const outcome = await runOn({
+      hook: hookWith(),
+      call: readingAs('$ATLAS_THREAD_DIR/foo', STRANGER),
+    })
 
     if (outcome.decision !== EBeforeToolDecision.Deny) throw new Error('expected a denial')
     expect(outcome.reason).toContain('$ATLAS_THREAD_DIR/foo')
@@ -176,17 +216,23 @@ describe('per-thread session directory expansion in file tool paths', () => {
 
   it('does no lookup for paths that do not reference a session variable', async () => {
     let lookups = 0
-    const hook = new ResolveProjectPathsHook([new ReadTool(), new BashTool(openRegistry({ adapter: localShellAdapter }).registry)], {
-      threadEnvironment: async () => {
-        lookups += 1
-        return undefined
+    const hook = new ResolveProjectPathsHook(
+      [new ReadTool(), new BashTool(openRegistry({ adapter: localShellAdapter }).registry)],
+      {
+        threadEnvironment: async () => {
+          lookups += 1
+          return undefined
+        },
       },
-    })
+    )
 
     await runOn({ hook, call: readingAs('src/main.ts', MAIN) })
     await runOn({ hook, call: readingAs('/etc/hosts', MAIN) })
     await runOn({ hook, call: readingAs('~/notes.md', MAIN) })
-    await runOn({ hook, call: callOf({ name: 'bash', input: { command: 'echo $ATLAS_THREAD_DIR' }, threadId: MAIN }) })
+    await runOn({
+      hook,
+      call: callOf({ name: 'bash', input: { command: 'echo $ATLAS_THREAD_DIR' }, threadId: MAIN }),
+    })
 
     expect(lookups).toBe(0)
   })
@@ -195,7 +241,10 @@ describe('per-thread session directory expansion in file tool paths', () => {
     const bash = new BashTool(openRegistry({ adapter: localShellAdapter }).registry)
     const input = { command: 'ls $ATLAS_THREAD_DIR', workdir: '$ATLAS_THREAD_DIR/work' }
 
-    const outcome = await runOn({ hook: hookWith([bash]), call: callOf({ name: 'bash', input, threadId: CHILD }) })
+    const outcome = await runOn({
+      hook: hookWith([bash]),
+      call: callOf({ name: 'bash', input, threadId: CHILD }),
+    })
 
     expect(outcome).toEqual({
       decision: EBeforeToolDecision.Allow,
@@ -206,22 +255,37 @@ describe('per-thread session directory expansion in file tool paths', () => {
   it('never expands ATLAS_SHELL_DIR for a file tool, even when the process environment has it', async () => {
     process.env[ATLAS_SHELL_DIR_ENV] = '/tmp/some-shell'
 
-    const outcome = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_SHELL_DIR/spool.out', MAIN) })
+    const outcome = await runOn({
+      hook: hookWith(),
+      call: readingAs('$ATLAS_SHELL_DIR/spool.out', MAIN),
+    })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: '$ATLAS_SHELL_DIR/spool.out' } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: '$ATLAS_SHELL_DIR/spool.out' },
+    })
   })
 
   it('leaves a path through an unset variable alone so the tool still refuses it', async () => {
     const outcome = await runOn({ hook: hookWith(), call: readingAs('$ATLAS_SPEC_UNSET/x', MAIN) })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: '$ATLAS_SPEC_UNSET/x' } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: '$ATLAS_SPEC_UNSET/x' },
+    })
   })
 
   it('keeps the global environment when no resolver is supplied', async () => {
     process.env[ATLAS_THREAD_DIR_ENV] = '/tmp/global-thread'
-    const outcome = await runOn({ hook: new ResolveProjectPathsHook([new ReadTool()]), call: readingAs('$ATLAS_THREAD_DIR/f', MAIN) })
+    const outcome = await runOn({
+      hook: new ResolveProjectPathsHook([new ReadTool()]),
+      call: readingAs('$ATLAS_THREAD_DIR/f', MAIN),
+    })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: '/tmp/global-thread/f' } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: '/tmp/global-thread/f' },
+    })
   })
 })
 
@@ -244,7 +308,9 @@ describe('dispatching a file tool through the hook chain', () => {
       projectDirectory: ROOT,
       events: [],
     })
-    const draft = drafts.find((candidate) => candidate.type === 'tool-result' || candidate.type === 'tool-denied')
+    const draft = drafts.find(
+      (candidate) => candidate.type === 'tool-result' || candidate.type === 'tool-denied',
+    )
     if (draft?.type === 'tool-result') return draft.error?.message ?? draft.modelText ?? ''
     if (draft?.type === 'tool-denied') return `denied: ${draft.reason}`
     return ''
@@ -259,16 +325,24 @@ describe('dispatching a file tool through the hook chain', () => {
     plant(CHILD, 'child secret\n')
     plant(TEAMMATE, 'teammate secret\n')
 
-    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: CHILD })).toContain('child secret')
-    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: TEAMMATE })).toContain('teammate secret')
+    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: CHILD })).toContain(
+      'child secret',
+    )
+    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: TEAMMATE })).toContain(
+      'teammate secret',
+    )
   })
 
   it('reports the denial for an unregistered thread instead of reading anything', async () => {
-    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: STRANGER })).toContain('denied:')
+    expect(await dispatch({ path: '$ATLAS_THREAD_DIR/foo', threadId: STRANGER })).toContain(
+      'denied:',
+    )
   })
 
   it('still reaches the tool refusal for an unset variable', async () => {
-    expect(await dispatch({ path: '$ATLAS_SPEC_UNSET/foo', threadId: CHILD })).toContain('not set in the agent')
+    expect(await dispatch({ path: '$ATLAS_SPEC_UNSET/foo', threadId: CHILD })).toContain(
+      'not set in the agent',
+    )
   })
 
   it('leaves a directly invoked file tool on the global environment', async () => {
@@ -297,20 +371,33 @@ describe('registering the hook', () => {
     const hook = container
       .resolveAll(portToken(BeforeToolHook))
       .find((candidate) => candidate.name === 'resolveProjectPaths')
-    if (!(hook instanceof ResolveProjectPathsHook)) throw new Error('resolveProjectPaths was not registered')
+    if (!(hook instanceof ResolveProjectPathsHook))
+      throw new Error('resolveProjectPaths was not registered')
     return hook
   }
 
   it('wires the shared session registry so registered threads resolve per thread', async () => {
-    const outcome = await runOn({ hook: resolved({ withRegistry: true }), call: readingAs('$ATLAS_THREAD_DIR/foo', TEAMMATE) })
+    const outcome = await runOn({
+      hook: resolved({ withRegistry: true }),
+      call: readingAs('$ATLAS_THREAD_DIR/foo', TEAMMATE),
+    })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: `${threadDirOf(TEAMMATE)}/foo` } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: `${threadDirOf(TEAMMATE)}/foo` },
+    })
   })
 
   it('falls back to the global environment when the container has no session registry', async () => {
     process.env[ATLAS_THREAD_DIR_ENV] = '/tmp/global-thread'
-    const outcome = await runOn({ hook: resolved({ withRegistry: false }), call: readingAs('$ATLAS_THREAD_DIR/foo', TEAMMATE) })
+    const outcome = await runOn({
+      hook: resolved({ withRegistry: false }),
+      call: readingAs('$ATLAS_THREAD_DIR/foo', TEAMMATE),
+    })
 
-    expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input: { path: '/tmp/global-thread/foo' } })
+    expect(outcome).toEqual({
+      decision: EBeforeToolDecision.Allow,
+      input: { path: '/tmp/global-thread/foo' },
+    })
   })
 })

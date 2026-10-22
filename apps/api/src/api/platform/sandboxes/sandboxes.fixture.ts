@@ -28,16 +28,21 @@ export const cipher = new SecretCipherService({
 } as unknown as EnvService)
 
 const stubClient = () => ({
-  inspect: vi.fn(async (): Promise<{ state: ESandboxState; url?: string }> => ({
-    state: ESandboxState.Parked,
-  })),
+  inspect: vi.fn(
+    async (): Promise<{ state: ESandboxState; url?: string }> => ({
+      state: ESandboxState.Parked,
+    }),
+  ),
   stop: vi.fn(async () => undefined),
   notifyParked: vi.fn(async () => undefined),
 })
 
 export type StubClient = ReturnType<typeof stubClient>
 
-export async function prepareSandboxes(): Promise<{ client: StubClient; service: SandboxesService }> {
+export async function prepareSandboxes(): Promise<{
+  client: StubClient
+  service: SandboxesService
+}> {
   await seedUsers(USER_A, USER_B)
   await seedThreadRow({ id: THREAD, workspace: '/repo', repo: '/repo', executionLocation: 'cloud' })
   const client = stubClient()

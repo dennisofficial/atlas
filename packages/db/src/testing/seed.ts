@@ -4,10 +4,23 @@ export async function seedUser({ db, id }: { db: Db; id: string }) {
   return db.orm.public.User.create({ id, name: id, email: `${id}@test.local` })
 }
 
-export async function seedOrganization({ db, id, memberIds }: { db: Db; id: string; memberIds: string[] }) {
+export async function seedOrganization({
+  db,
+  id,
+  memberIds,
+}: {
+  db: Db
+  id: string
+  memberIds: string[]
+}) {
   const organization = await db.orm.public.Organization.create({ id, name: id, slug: id })
   for (const userId of memberIds) {
-    await db.orm.public.Member.create({ id: `${id}_${userId}`, role: 'owner', organizationId: id, userId })
+    await db.orm.public.Member.create({
+      id: `${id}_${userId}`,
+      role: 'owner',
+      organizationId: id,
+      userId,
+    })
   }
   return organization
 }

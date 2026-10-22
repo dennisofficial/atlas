@@ -16,7 +16,11 @@ type Call = { url: string; headers: Headers; body: unknown }
 const fakeFetch = (reply: () => Response) => {
   const calls: Call[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), headers: new Headers(init?.headers), body: JSON.parse(String(init?.body)) })
+    calls.push({
+      url: String(input),
+      headers: new Headers(init?.headers),
+      body: JSON.parse(String(init?.body)),
+    })
     return reply()
   }) as unknown as typeof fetch
   return { calls, fetchFn }
@@ -27,7 +31,12 @@ const controlPlaneUrl = 'https://api.example.com'
 describe('apiPortExposer', () => {
   it('posts the port with the serve token and answers the url', async () => {
     const { calls, fetchFn } = fakeFetch(() => Response.json({ url: 'https://sb-1.vercel.run' }))
-    const exposer = apiPortExposer({ controlPlaneUrl, token: 'serve-token', clientVersion: '1.2.3', fetchFn })
+    const exposer = apiPortExposer({
+      controlPlaneUrl,
+      token: 'serve-token',
+      clientVersion: '1.2.3',
+      fetchFn,
+    })
 
     const outcome = await new ServeProcessPort(exposer).exposePort({ containerPort: 3000 })
 
@@ -45,7 +54,12 @@ describe('apiPortExposer', () => {
 
   it('turns a non-2xx answer into a refusal carrying the status and body', async () => {
     const { fetchFn } = fakeFetch(() => new Response('port limit reached', { status: 409 }))
-    const exposer = apiPortExposer({ controlPlaneUrl, token: 'serve-token', clientVersion: 'dev', fetchFn })
+    const exposer = apiPortExposer({
+      controlPlaneUrl,
+      token: 'serve-token',
+      clientVersion: 'dev',
+      fetchFn,
+    })
 
     const outcome = await new ServeProcessPort(exposer).exposePort({ containerPort: 3000 })
 

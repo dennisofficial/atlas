@@ -1,4 +1,3 @@
-
 import { toCallId, toThreadId } from '../../../events/ids'
 import { EToolEffect, type ToolCall } from '../../../tools/tool'
 import { adjudicate, EConsultation, type Consultation, type JudgedDraft } from '../adjudicate'
@@ -31,8 +30,8 @@ const signalOf = (args: {
   id: `probe:${args.severity}`,
   subject: 'worktree:eng-412-sidebar',
   detail: 'the sibling worktree carries three uncommitted changes',
-  ungrantable: args.ungrantable ?? false,  unverified: false,
-
+  ungrantable: args.ungrantable ?? false,
+  unverified: false,
 })
 
 export const NOTE = signalOf({ severity: ESeverity.Note })
@@ -40,10 +39,7 @@ export const SERIOUS = signalOf({ severity: ESeverity.Serious })
 export const SERIOUS_UNGRANTABLE = signalOf({ severity: ESeverity.Serious, ungrantable: true })
 export const GRAVE = signalOf({ severity: ESeverity.Grave })
 
-export const triageOver = (args: {
-  triage: ETriage
-  standing: readonly RiskSignal[]
-}): Triage => ({
+export const triageOver = (args: { triage: ETriage; standing: readonly RiskSignal[] }): Triage => ({
   triage: args.triage,
   standing: args.standing,
   cleared: [],

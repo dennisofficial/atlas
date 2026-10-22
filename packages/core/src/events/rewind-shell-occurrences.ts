@@ -26,7 +26,10 @@ type LegacyLaunch = StartDetails & {
 export const recordOf = (input: unknown): Record<string, unknown> | undefined =>
   typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : undefined
 
-export const stringOf = (record: Record<string, unknown> | undefined, key: string): string | undefined => {
+export const stringOf = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined => {
   const value = record?.[key]
   return typeof value === 'string' ? value : undefined
 }
@@ -45,7 +48,8 @@ const legacyLaunchesOf = (events: readonly Event[]): LegacyLaunch[] => {
   const calls = new Map<CallId, EventOfType<'tool-called'>>()
   const launches: LegacyLaunch[] = []
   for (const event of events) {
-    if (event.type === 'tool-called' && event.name === 'bash' && runsInBackground(event.input)) calls.set(event.callId, event)
+    if (event.type === 'tool-called' && event.name === 'bash' && runsInBackground(event.input))
+      calls.set(event.callId, event)
     if (event.type !== 'tool-result') continue
     const call = calls.get(event.callId)
     const shellId = stringOf(recordOf(event.output), 'shellId')
@@ -62,8 +66,9 @@ const legacyLaunchesOf = (events: readonly Event[]): LegacyLaunch[] => {
 }
 
 export function shellOccurrences(events: readonly Event[]): ShellOccurrence[] {
-  const starts = events.filter((event): event is EventOfType<'background-shell-started'> =>
-    event.type === 'background-shell-started',
+  const starts = events.filter(
+    (event): event is EventOfType<'background-shell-started'> =>
+      event.type === 'background-shell-started',
   )
   const launches = legacyLaunchesOf(events)
   const claimed = new Set<EventId>()
@@ -84,24 +89,28 @@ export function shellOccurrences(events: readonly Event[]): ShellOccurrence[] {
     return false
   })
 
-  const modern = starts.map((start): ShellOccurrence => ({
-    startId: start.id,
-    seq: start.seq,
-    cutSeq: start.seq,
-    shellId: start.shellId,
-    bootId: start.bootId,
-    command: start.command,
-    description: start.description,
-  }))
-  const legacy = unpaired.map((launch): ShellOccurrence => ({
-    startId: launch.startId,
-    seq: launch.callSeq,
-    cutSeq: launch.resultSeq,
-    shellId: launch.shellId,
-    bootId: undefined,
-    command: launch.command,
-    description: launch.description,
-  }))
+  const modern = starts.map(
+    (start): ShellOccurrence => ({
+      startId: start.id,
+      seq: start.seq,
+      cutSeq: start.seq,
+      shellId: start.shellId,
+      bootId: start.bootId,
+      command: start.command,
+      description: start.description,
+    }),
+  )
+  const legacy = unpaired.map(
+    (launch): ShellOccurrence => ({
+      startId: launch.startId,
+      seq: launch.callSeq,
+      cutSeq: launch.resultSeq,
+      shellId: launch.shellId,
+      bootId: undefined,
+      command: launch.command,
+      description: launch.description,
+    }),
+  )
   return [...modern, ...legacy].sort((a, b) => a.seq - b.seq)
 }
 

@@ -43,19 +43,31 @@ export const textDelta = (args: { stepId: StepId; blockId: string; text: string 
   chunk: { type: 'text-delta', id: args.blockId, text: args.text },
 })
 
-export const reasoningDelta = (args: { stepId: StepId; blockId: string; text: string }): StepSignal => ({
+export const reasoningDelta = (args: {
+  stepId: StepId
+  blockId: string
+  text: string
+}): StepSignal => ({
   type: 'chunk',
   stepId: args.stepId,
   chunk: { type: 'reasoning-delta', id: args.blockId, text: args.text },
 })
 
-export const toolInputStart = (args: { stepId: StepId; callId: string; name: string }): StepSignal => ({
+export const toolInputStart = (args: {
+  stepId: StepId
+  callId: string
+  name: string
+}): StepSignal => ({
   type: 'chunk',
   stepId: args.stepId,
   chunk: { type: 'tool-input-start', callId: toCallId(args.callId), name: args.name },
 })
 
-export const toolInputDelta = (args: { stepId: StepId; callId: string; text: string }): StepSignal => ({
+export const toolInputDelta = (args: {
+  stepId: StepId
+  callId: string
+  text: string
+}): StepSignal => ({
   type: 'chunk',
   stepId: args.stepId,
   chunk: { type: 'tool-input-delta', callId: toCallId(args.callId), text: args.text },

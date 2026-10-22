@@ -26,7 +26,11 @@ const stoppedProbe = (provider: string): BoxProbe => ({
   logTail: null,
 })
 
-type Script = { probes: readonly (BoxProbe | Error)[]; phases: readonly (string | null)[]; views: readonly string[] }
+type Script = {
+  probes: readonly (BoxProbe | Error)[]
+  phases: readonly (string | null)[]
+  views: readonly string[]
+}
 
 const rigged = (script: Script) => {
   let poll = 0
@@ -133,7 +137,11 @@ describe('waitForPark', () => {
   })
 
   test('a missing channel reads as no view rather than throwing', async () => {
-    const { ctx, watch } = rigged({ probes: [stoppedProbe('stopped')], phases: ['parked'], views: ['parked'] })
+    const { ctx, watch } = rigged({
+      probes: [stoppedProbe('stopped')],
+      phases: ['parked'],
+      views: ['parked'],
+    })
     const detached: ParkWaitContext = { ...ctx, rig: () => ({ channel: () => null }) }
 
     const result = await waitForPark({ ctx: detached, watch, within: 5_000, every: 5 })

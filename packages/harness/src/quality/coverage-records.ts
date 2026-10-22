@@ -63,7 +63,11 @@ export function retirementItem({
   path,
   previous,
   ...base
-}: CoverageBase & { scope: QualityScope; path: string; previous: readonly QualityFinding[] }): ReviewItem {
+}: CoverageBase & {
+  scope: QualityScope
+  path: string
+  previous: readonly QualityFinding[]
+}): ReviewItem {
   const step = applyAssessments({ previous, assessments: [], afterHash: null, scopeDeleted: true })
   const record = buildRecord({
     ...base,

@@ -80,7 +80,11 @@ export type BootStepSink = (events: readonly BootStepEvent[]) => Promise<void>
 
 export type BootReporter = {
   report: (event: BootStepEvent) => Promise<void>
-  track: <T>(args: { step: EBootStep; detail?: string | undefined; work: () => Promise<T> }) => Promise<T>
+  track: <T>(args: {
+    step: EBootStep
+    detail?: string | undefined
+    work: () => Promise<T>
+  }) => Promise<T>
 }
 
 const failureText = (failure: unknown): string =>

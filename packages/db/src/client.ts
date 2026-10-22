@@ -19,7 +19,8 @@ let sharedDbInstance: Db | undefined
 export function sharedPool(): Pool {
   if (sharedPoolInstance !== undefined) return sharedPoolInstance
   const connectionString = process.env.DATABASE_URL
-  if (!connectionString) throw new Error('DATABASE_URL is not set — run through the env:inject script')
+  if (!connectionString)
+    throw new Error('DATABASE_URL is not set — run through the env:inject script')
   sharedPoolInstance = createPool(connectionString)
   return sharedPoolInstance
 }

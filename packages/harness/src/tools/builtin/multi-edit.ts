@@ -37,7 +37,7 @@ const description = [
   'Apply several edits to one file in a single call.',
   'A relative path resolves against the project directory.',
   pathEnvironmentNote,
-  'Each edit follows the edit tool\'s rules: oldString must match the file exactly, including indentation, and must be unique unless that edit\'s replaceAll is true.',
+  "Each edit follows the edit tool's rules: oldString must match the file exactly, including indentation, and must be unique unless that edit's replaceAll is true.",
   'Edits apply in array order, each against the result of the ones before it, and the file is written once — if any edit fails, nothing is written.',
   'Prefer this over consecutive edit calls when changing several places in the same file. To create a file, use write.',
 ].join(' ')
@@ -48,7 +48,12 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
   override readonly pathFields: readonly DeclaredPathField[] = [
-    { field: 'path', presence: EPathPresence.Required, form: EPathForm.Absolute, content: EContentAccess.Amends },
+    {
+      field: 'path',
+      presence: EPathPresence.Required,
+      form: EPathForm.Absolute,
+      content: EContentAccess.Amends,
+    },
   ]
 
   constructor(
@@ -91,7 +96,12 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
         if (capture) {
           const read = await this.files.readTextForEdit({ path, threadId })
           raw = read.text
-          const captured = captureText({ path, text: read.text, strict: read.strict, changed: true })
+          const captured = captureText({
+            path,
+            text: read.text,
+            strict: read.strict,
+            changed: true,
+          })
           if (!captured.ok) captureFault = captured.diagnostic
           else before = captured.text
         } else {

@@ -1,11 +1,6 @@
 import { resolveShadowing } from '@dltech/atlas-core'
 
-import {
-  CompatMcpSource,
-  type LoadedMcpSpec,
-  type McpRejection,
-  type McpSource,
-} from './sources'
+import { CompatMcpSource, type LoadedMcpSpec, type McpRejection, type McpSource } from './sources'
 
 export type ResolvedMcpSpecs = {
   specs: readonly LoadedMcpSpec[]
@@ -29,9 +24,7 @@ export async function resolveMcpSpecs(args: {
   )
 
   const definitions = reads.flatMap(({ source, read }) =>
-    isCompatSource(source)
-      ? read.specs.filter((spec) => !nativeNames.has(spec.name))
-      : read.specs,
+    isCompatSource(source) ? read.specs.filter((spec) => !nativeNames.has(spec.name)) : read.specs,
   )
 
   const specs = resolveShadowing({ definitions, nameOf: (spec) => spec.name })

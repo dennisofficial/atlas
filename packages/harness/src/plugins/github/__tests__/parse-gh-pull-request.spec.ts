@@ -46,7 +46,9 @@ describe('parseGhPullRequest', () => {
   })
 
   it('reads the head sha from headRefOid, and an absent one as empty', () => {
-    expect(parseGhPullRequest({ ...OPEN_WITH_ROLLUP, headRefOid: '0123456789abcdef' })?.headSha).toBe('0123456789abcdef')
+    expect(
+      parseGhPullRequest({ ...OPEN_WITH_ROLLUP, headRefOid: '0123456789abcdef' })?.headSha,
+    ).toBe('0123456789abcdef')
     expect(parseGhPullRequest(OPEN_WITH_ROLLUP)?.headSha).toBe('')
   })
 
@@ -243,7 +245,7 @@ describe('parseGhPullRequest', () => {
     )
   })
 
-  it('reads mergeable from gh\'s uppercase enum, unknown as null', () => {
+  it("reads mergeable from gh's uppercase enum, unknown as null", () => {
     const read = (mergeable: unknown) =>
       parseGhPullRequest({ ...OPEN_WITH_ROLLUP, mergeable })?.mergeable
 

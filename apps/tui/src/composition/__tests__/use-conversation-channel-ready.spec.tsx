@@ -52,10 +52,10 @@ describe('a conversation whose cloud channel is down', () => {
       executionLocation: EExecutionLocation.Cloud,
     }
     const probe: Probe = { conversation: null }
-    const setup = await testRender(
-      <ConversationProbe app={app} opened={opened} probe={probe} />,
-      { width: 80, height: 8 },
-    )
+    const setup = await testRender(<ConversationProbe app={app} opened={opened} probe={probe} />, {
+      width: 80,
+      height: 8,
+    })
     try {
       await setup.flush()
       const conversation = probe.conversation
@@ -112,12 +112,36 @@ describe('a conversation whose cloud channel is down', () => {
 
 describe.each([
   { name: 'no cloud session at all (local)', connection: undefined, ready: true },
-  { name: 'connected', connection: { state: EConnectionView.Connected, detail: null }, ready: true },
-  { name: 'parked, which wakes on send', connection: { state: EConnectionView.Parked, detail: null }, ready: true },
-  { name: 'waking, which holds the send', connection: { state: EConnectionView.Waking, detail: null }, ready: true },
-  { name: 'updating, which holds the send', connection: { state: EConnectionView.Updating, detail: null }, ready: true },
-  { name: 'reconnecting', connection: { state: EConnectionView.Reconnecting, detail: null }, ready: false },
-  { name: 'disconnected', connection: { state: EConnectionView.Disconnected, detail: null }, ready: false },
+  {
+    name: 'connected',
+    connection: { state: EConnectionView.Connected, detail: null },
+    ready: true,
+  },
+  {
+    name: 'parked, which wakes on send',
+    connection: { state: EConnectionView.Parked, detail: null },
+    ready: true,
+  },
+  {
+    name: 'waking, which holds the send',
+    connection: { state: EConnectionView.Waking, detail: null },
+    ready: true,
+  },
+  {
+    name: 'updating, which holds the send',
+    connection: { state: EConnectionView.Updating, detail: null },
+    ready: true,
+  },
+  {
+    name: 'reconnecting',
+    connection: { state: EConnectionView.Reconnecting, detail: null },
+    ready: false,
+  },
+  {
+    name: 'disconnected',
+    connection: { state: EConnectionView.Disconnected, detail: null },
+    ready: false,
+  },
   { name: 'detached', connection: { state: EConnectionView.Detached, detail: null }, ready: false },
 ])('a channel that is $name', ({ connection, ready }) => {
   it(`takes turns: ${ready}`, () => {

@@ -11,7 +11,11 @@ function nameDistance(a: string, b: string): number {
     const current: number[] = [row]
     for (let column = 1; column <= b.length; column++) {
       const substitution = (previous[column - 1] ?? 0) + (a[row - 1] === b[column - 1] ? 0 : 1)
-      current[column] = Math.min((previous[column] ?? 0) + 1, (current[column - 1] ?? 0) + 1, substitution)
+      current[column] = Math.min(
+        (previous[column] ?? 0) + 1,
+        (current[column - 1] ?? 0) + 1,
+        substitution,
+      )
     }
     previous = current
   }
@@ -49,7 +53,9 @@ async function closestEntriesOf({
     }))
     .sort((a, b) => a.distance - b.distance || a.label.localeCompare(b.label))
     .slice(0, MAX_SUGGESTIONS)
-    .map(({ label }) => (label.length > MAX_ENTRY_LENGTH ? `${label.slice(0, MAX_ENTRY_LENGTH)}…` : label))
+    .map(({ label }) =>
+      label.length > MAX_ENTRY_LENGTH ? `${label.slice(0, MAX_ENTRY_LENGTH)}…` : label,
+    )
 }
 
 export async function missingPathReason(args: {

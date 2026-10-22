@@ -65,7 +65,13 @@ const readIdentity = ({ input }: { input: unknown }): PlannedRow | undefined => 
   return { caseId, trialId }
 }
 
-const isStartedAfter = ({ startedAt, startedAfter }: { startedAt: string; startedAfter: string }): boolean => {
+const isStartedAfter = ({
+  startedAt,
+  startedAfter,
+}: {
+  startedAt: string
+  startedAfter: string
+}): boolean => {
   const startedMs = Date.parse(startedAt)
   const afterMs = Date.parse(startedAfter)
   if (Number.isFinite(startedMs) && Number.isFinite(afterMs)) return startedMs >= afterMs
@@ -95,22 +101,36 @@ const checkRowIdentities = ({
     if (!plannedKeys.has(key)) unknown.add(describeIdentity(identity))
   })
   for (const index of unreadable) {
-    problems.push({ kind: EIntegrityProblem.ExtraRow, detail: `result ${index} has no caseId/trialId input envelope` })
+    problems.push({
+      kind: EIntegrityProblem.ExtraRow,
+      detail: `result ${index} has no caseId/trialId input envelope`,
+    })
   }
   for (const identity of unknown) {
     problems.push({ kind: EIntegrityProblem.ExtraRow, detail: `unplanned row ${identity}` })
   }
   for (const planned of plannedRows) {
     const count = seenCounts.get(identityKey(planned)) ?? 0
-    if (count === 0) problems.push({ kind: EIntegrityProblem.MissingRow, detail: `missing row ${describeIdentity(planned)}` })
+    if (count === 0)
+      problems.push({
+        kind: EIntegrityProblem.MissingRow,
+        detail: `missing row ${describeIdentity(planned)}`,
+      })
     if (count > 1) {
-      problems.push({ kind: EIntegrityProblem.DuplicateRow, detail: `row ${describeIdentity(planned)} appears ${count} times` })
+      problems.push({
+        kind: EIntegrityProblem.DuplicateRow,
+        detail: `row ${describeIdentity(planned)} appears ${count} times`,
+      })
     }
   }
   return problems
 }
 
-const checkResultFields = ({ results }: { results: RawExportShape['evals'][number]['results'] }): IntegrityProblem[] => {
+const checkResultFields = ({
+  results,
+}: {
+  results: RawExportShape['evals'][number]['results']
+}): IntegrityProblem[] => {
   const problems: IntegrityProblem[] = []
   results.forEach((result, index) => {
     for (const entry of result.scores) {
@@ -142,7 +162,9 @@ export function validateRawExport({
 }): IntegrityReport {
   const schemaResult = rawExportSchema.safeParse(parsed)
   if (!schemaResult.success) {
-    const detail = schemaResult.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
+    const detail = schemaResult.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join('; ')
     return { ok: false, problems: [{ kind: EIntegrityProblem.InvalidSchema, detail }] }
   }
   const { run, evals } = schemaResult.data
@@ -155,7 +177,10 @@ export function validateRawExport({
     })
   }
   if (run.runType !== 'full') {
-    problems.push({ kind: EIntegrityProblem.OnlyFiltered, detail: `run type is "${run.runType}", expected "full"` })
+    problems.push({
+      kind: EIntegrityProblem.OnlyFiltered,
+      detail: `run type is "${run.runType}", expected "full"`,
+    })
   }
   problems.push(...checkRowIdentities({ results, plannedRows }))
   problems.push(...checkResultFields({ results }))

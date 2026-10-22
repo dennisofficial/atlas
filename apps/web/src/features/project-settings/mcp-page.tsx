@@ -85,9 +85,7 @@ function ServersEmpty() {
           <PlugIcon />
         </EmptyMedia>
         <EmptyTitle>No project MCP servers</EmptyTitle>
-        <EmptyDescription>
-          Add one here to share it with everyone on this project.
-        </EmptyDescription>
+        <EmptyDescription>Add one here to share it with everyone on this project.</EmptyDescription>
       </EmptyHeader>
     </Empty>
   )

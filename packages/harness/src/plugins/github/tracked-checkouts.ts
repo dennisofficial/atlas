@@ -45,7 +45,8 @@ export function createTrackedCheckouts(): TrackedCheckouts {
       const previous = visibleKey
       if (visible !== undefined) visibleKey = visible === null ? null : checkoutKey(visible)
       if (visibleKey !== null && !held.has(visibleKey)) visibleKey = null
-      if (visibleKey === null && visible === undefined) visibleKey = held.keys().next().value ?? null
+      if (visibleKey === null && visible === undefined)
+        visibleKey = held.keys().next().value ?? null
 
       return { gained, lost, lostCheckouts, visibleChanged: previous !== visibleKey }
     },

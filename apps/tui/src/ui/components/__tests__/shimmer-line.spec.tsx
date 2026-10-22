@@ -26,9 +26,19 @@ describe('a shimmer line left running', () => {
     let renders = 0
     const Counted = (props: { elapsedMs: number; outputTokens: number }): React.ReactNode => {
       renders += 1
-      return <WorkingLine elapsedMs={props.elapsedMs} outputTokens={props.outputTokens} interrupting={false} verb={EWorkingVerb.Thinking} />
+      return (
+        <WorkingLine
+          elapsedMs={props.elapsedMs}
+          outputTokens={props.outputTokens}
+          interrupting={false}
+          verb={EWorkingVerb.Thinking}
+        />
+      )
     }
-    const setup = await testRender(<Counted elapsedMs={1000} outputTokens={100} />, { width: 100, height: 10 })
+    const setup = await testRender(<Counted elapsedMs={1000} outputTokens={100} />, {
+      width: 100,
+      height: 10,
+    })
     mounted.push(setup)
     globalThis.IS_REACT_ACT_ENVIRONMENT = false
     await setup.flush()
@@ -76,7 +86,13 @@ describe('a shimmer line left running', () => {
         elapsedMs={1000}
         outputTokens={0}
         interrupting={false}
-        retry={{ attempt: 2, maxAttempts: 5, delayMs: 30_000, reason: ERetryReason.RateLimited, startedAt: Date.now() }}
+        retry={{
+          attempt: 2,
+          maxAttempts: 5,
+          delayMs: 30_000,
+          reason: ERetryReason.RateLimited,
+          startedAt: Date.now(),
+        }}
       />,
       { width: 100, height: 10 },
     )

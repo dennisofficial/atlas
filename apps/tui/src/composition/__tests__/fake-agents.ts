@@ -59,7 +59,9 @@ export type FakeAgents = AgentRegistryPort & {
  * A held roster and a change listener, exactly as the supervisor keeps them: the sidebar reads
  * these on every render, so a listing derived per call would spin React.
  */
-export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined } = {}): FakeAgents {
+export function fakeAgentRegistry(
+  args: { threads?: FakeThreadStore | undefined } = {},
+): FakeAgents {
   const stopped: { agentId: string; by: EKilledBy }[] = []
   const paused: { agentId: string }[] = []
   const said: { agentId: ThreadId; threadId: ThreadId; text: string }[] = []
@@ -263,7 +265,12 @@ export function fakeAgentRegistry(args: { threads?: FakeThreadStore | undefined 
       const steppingIds = new Set(stepping.map((one) => one.agentId))
       const next = children.map((one) =>
         steppingIds.has(one.agentId)
-          ? { ...one, status: EAgentStatus.Stopped, killedBy: by, endedAt: '2026-01-01T00:01:00.000Z' }
+          ? {
+              ...one,
+              status: EAgentStatus.Stopped,
+              killedBy: by,
+              endedAt: '2026-01-01T00:01:00.000Z',
+            }
           : one,
       )
       const halted = next.filter((one) => steppingIds.has(one.agentId))

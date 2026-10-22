@@ -63,8 +63,9 @@ describe('meterBand', () => {
 
 describe('isPressured', () => {
   it('is true for every band above normal', () => {
-    expect([EMeterBand.Warn, EMeterBand.Hot, EMeterBand.Red, EMeterBand.Spent].map(isPressured))
-      .toEqual([true, true, true, true])
+    expect(
+      [EMeterBand.Warn, EMeterBand.Hot, EMeterBand.Red, EMeterBand.Spent].map(isPressured),
+    ).toEqual([true, true, true, true])
   })
 
   it('is false where there is nothing to say', () => {

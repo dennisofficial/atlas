@@ -25,7 +25,9 @@ async function withLaneLock<T>(work: (client: pg.Client) => Promise<T>): Promise
 }
 
 async function databaseNames(client: pg.Client): Promise<string[]> {
-  const found = await client.query<{ datname: string }>("SELECT datname FROM pg_database WHERE datname LIKE 'atlas_test_%'")
+  const found = await client.query<{ datname: string }>(
+    "SELECT datname FROM pg_database WHERE datname LIKE 'atlas_test_%'",
+  )
   return found.rows.map((row) => row.datname)
 }
 
@@ -42,7 +44,9 @@ async function buildTemplate({ client, name }: { client: pg.Client; name: string
   const building = `${name}_build`
   await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(building)}`)
   await client.query(`CREATE DATABASE ${quoteIdent(building)}`)
-  const target = new pg.Client({ connectionString: databaseUrl({ lane: laneUrl(), name: building }) })
+  const target = new pg.Client({
+    connectionString: databaseUrl({ lane: laneUrl(), name: building }),
+  })
   await target.connect()
   try {
     await applyMigrations(target)
@@ -75,7 +79,9 @@ let ready: Promise<void> | undefined
 export function ensureTestDatabase(): Promise<void> {
   const expected = databaseUrl({ lane: laneUrl(), name: runDatabaseName() })
   if (process.env.DATABASE_URL !== expected) {
-    throw new Error('DATABASE_URL is not the run test database; preload @dltech/atlas-db/testing/env first')
+    throw new Error(
+      'DATABASE_URL is not the run test database; preload @dltech/atlas-db/testing/env first',
+    )
   }
   ready ??= createRunDatabase()
   return ready

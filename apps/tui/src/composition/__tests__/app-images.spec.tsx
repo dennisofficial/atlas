@@ -345,7 +345,6 @@ describe('a screenshot pasted into the draft', () => {
       await mounted.done()
     }
   }, 60_000)
-
 })
 
 describe('a block of pasted text', () => {
@@ -363,9 +362,7 @@ describe('a block of pasted text', () => {
         holds: async () => {
           await mounted.frame()
           const events = await mounted.app.log.read({ threadId: THREAD })
-          return events.some(
-            (event) => event.type === 'user-said' && event.text.includes('five'),
-          )
+          return events.some((event) => event.type === 'user-said' && event.text.includes('five'))
         },
         within: 20_000,
       })

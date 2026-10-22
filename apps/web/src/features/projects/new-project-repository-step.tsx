@@ -37,7 +37,8 @@ function RecentTiles({ repos, draft, patch }: PickerProps) {
       <ul className="grid grid-cols-2 gap-2">
         {repos.slice(0, RECENT_REPO_COUNT).map((repo) => {
           const selected = draft.repo === repo.fullName
-          const handleClick = () => patch({ repo: repo.fullName, repoQuery: repo.fullName, branch: null })
+          const handleClick = () =>
+            patch({ repo: repo.fullName, repoQuery: repo.fullName, branch: null })
           return (
             <li key={repo.fullName}>
               <button
@@ -55,7 +56,9 @@ function RecentTiles({ repos, draft, patch }: PickerProps) {
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   {repo.isPrivate ? <LockIcon aria-label="Private" className="size-3" /> : null}
-                  {repo.pushedAt ? `Updated ${relativeTime({ from: repo.pushedAt })}` : 'Not pushed yet'}
+                  {repo.pushedAt
+                    ? `Updated ${relativeTime({ from: repo.pushedAt })}`
+                    : 'Not pushed yet'}
                 </span>
               </button>
             </li>

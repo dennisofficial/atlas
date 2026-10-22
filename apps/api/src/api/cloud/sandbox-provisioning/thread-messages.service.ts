@@ -43,7 +43,9 @@ export class ThreadMessagesService {
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
     if (endpoint !== null) {
       await this.serve({ ...endpoint, threadId, sendId, text }).catch((failure: unknown) => {
-        this.logger.warn(`delivering a message to thread ${threadId} failed: ${failureText(failure)}`)
+        this.logger.warn(
+          `delivering a message to thread ${threadId} failed: ${failureText(failure)}`,
+        )
         throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
       })
       return { state: EThreadMessageState.Delivered }
@@ -54,7 +56,8 @@ export class ThreadMessagesService {
       throw new ConflictException(NOT_RUNNING_MESSAGE)
     }
     const held = pendingOf(row)
-    if (held !== undefined && held.sendId !== sendId) throw new ConflictException(SEND_PENDING_MESSAGE)
+    if (held !== undefined && held.sendId !== sendId)
+      throw new ConflictException(SEND_PENDING_MESSAGE)
     if (held === undefined) {
       await db.orm.public.CloudSandbox.where({ threadId }).update({ pendingSend: { sendId, text } })
     }
@@ -78,7 +81,9 @@ export class ThreadMessagesService {
         .build()
       await db.execute(clear)
     } catch (failure) {
-      this.logger.warn(`draining the pending message of thread ${threadId} failed: ${failureText(failure)}`)
+      this.logger.warn(
+        `draining the pending message of thread ${threadId} failed: ${failureText(failure)}`,
+      )
     }
   }
 }

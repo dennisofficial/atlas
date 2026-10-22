@@ -32,7 +32,7 @@ const selectorSymbol: LexRule = pattern({
 const literalArrayOpener: LexRule = pattern({ match: /#[([]/, group: 'string.special.symbol' })
 
 const binarySelectorSymbol: LexRule = pattern({
-  match: /#[-+*\/\\~<>=&|@%,?!]+/,
+  match: /#[-+*/\\~<>=&|@%,?!]+/,
   group: 'string.special.symbol',
 })
 

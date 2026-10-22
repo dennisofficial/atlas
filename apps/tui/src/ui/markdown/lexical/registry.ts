@@ -10,7 +10,10 @@ const scannersByFiletype = new Map<string, Scanner>()
 for (const spec of LEXICAL_LANGUAGES) {
   for (const key of [spec.filetype, ...(spec.aliases ?? [])]) {
     const claimed = specsByKey.get(key)
-    if (claimed) throw new Error(`lexical language "${key}" claimed by both ${claimed.filetype} and ${spec.filetype}`)
+    if (claimed)
+      throw new Error(
+        `lexical language "${key}" claimed by both ${claimed.filetype} and ${spec.filetype}`,
+      )
     specsByKey.set(key, spec)
   }
 }

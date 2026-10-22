@@ -54,7 +54,8 @@ describe('suffixCompactionTarget', () => {
     expect(suffixCompactionTarget({ events, fromSeq: 2 })).toEqual({
       allowed: false,
       refusal: ECompactionRefusal.NothingToCompact,
-      reason: 'summarising from 2 would replace one event with a summary of it, which saves nothing',
+      reason:
+        'summarising from 2 would replace one event with a summary of it, which saves nothing',
     })
   })
 

@@ -137,9 +137,9 @@ describe('a composer that was given mention spans', () => {
       typed: ' and more prose',
     })
 
-    expect(foregroundOf({ spans, row, text: 'and more prose' })?.equals(parseColor(theme.link))).toBe(
-      false,
-    )
+    expect(
+      foregroundOf({ spans, row, text: 'and more prose' })?.equals(parseColor(theme.link)),
+    ).toBe(false)
     expect(foregroundOf({ spans, row, text: '@a.ts' })?.equals(parseColor(theme.link))).toBe(true)
   })
 

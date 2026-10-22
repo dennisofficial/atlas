@@ -174,8 +174,16 @@ describe('GithubDeliveryService fill', () => {
     await service.handle({ event: 'check_suite', payload: CHECK_SUITE_PAYLOAD })
 
     expect(pushes).toHaveBeenCalledTimes(1)
-    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
-    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, checksRunning: 1, mergeable: null })
+    expect(pushes.mock.calls[0]?.[0].state).toMatchObject({
+      prNumber: 42,
+      checksRunning: 1,
+      mergeable: null,
+    })
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      checksRunning: 1,
+      mergeable: null,
+    })
   })
 
   it('ignores unknown events and handles ping without touching state', async () => {

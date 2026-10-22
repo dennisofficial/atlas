@@ -42,7 +42,11 @@ const byKind = (scopes: readonly QualityScope[], kind: EQualityScopeKind) =>
 
 describe('prepareQualityScopes gating', () => {
   it('skips declaration files', () => {
-    const result = prepare({ path: `${PROJECT}/a.d.ts`, before: null, after: 'declare const a: number\n' })
+    const result = prepare({
+      path: `${PROJECT}/a.d.ts`,
+      before: null,
+      after: 'declare const a: number\n',
+    })
     expect(result.scopes).toHaveLength(0)
     expect(result.skipped[0]?.reason).toBe(EQualitySkipReason.DeclarationOnly)
   })
@@ -58,18 +62,30 @@ describe('prepareQualityScopes gating', () => {
   })
 
   it('skips oversized sources', () => {
-    const result = prepare({ path: `${PROJECT}/a.ts`, before: null, after: 'x'.repeat(1024 * 1024 + 1) })
+    const result = prepare({
+      path: `${PROJECT}/a.ts`,
+      before: null,
+      after: 'x'.repeat(1024 * 1024 + 1),
+    })
     expect(result.skipped[0]?.reason).toBe(EQualitySkipReason.OversizedSource)
   })
 
   it('skips invalid syntax with InvalidSyntax', () => {
-    const result = prepare({ path: `${PROJECT}/broken.ts`, before: null, after: 'function broken( {' })
+    const result = prepare({
+      path: `${PROJECT}/broken.ts`,
+      before: null,
+      after: 'function broken( {',
+    })
     expect(result.scopes).toHaveLength(0)
     expect(result.skipped[0]?.reason).toBe(EQualitySkipReason.InvalidSyntax)
   })
 
   it('emits no scopes for an unchanged file', () => {
-    const result = prepare({ path: `${PROJECT}/a.ts`, before: 'const a = 1\n', after: 'const a = 1\n' })
+    const result = prepare({
+      path: `${PROJECT}/a.ts`,
+      before: 'const a = 1\n',
+      after: 'const a = 1\n',
+    })
     expect(result.scopes).toHaveLength(0)
     expect(result.skipped).toHaveLength(0)
   })
@@ -144,7 +160,12 @@ describe('prepareQualityScopes scopes', () => {
     const before = 'function greet() { return 1 }\n'
     const renamed = 'function salute() { return 1 }\n'
     const first = prepare({ path: `${PROJECT}/a.ts`, before: null, after: before })
-    const second = prepare({ path: `${PROJECT}/a.ts`, before, after: renamed, previousScopes: first.scopes })
+    const second = prepare({
+      path: `${PROJECT}/a.ts`,
+      before,
+      after: renamed,
+      previousScopes: first.scopes,
+    })
 
     const salute = second.scopes.find((scope) => scope.name === 'salute')
     const greet = first.scopes.find((scope) => scope.name === 'greet')
@@ -185,7 +206,10 @@ describe('prepareQualityScopes scopes', () => {
     const result = prepare({ path: `${PROJECT}/a.ts`, before, after })
 
     expect(result.scopes.map((scope) => scope.kind)).toEqual([EQualityScopeKind.Module])
-    expect(result.scopes[0]?.dependencyContext).toEqual(["import { a } from 'a'", "import { b } from 'b'"])
+    expect(result.scopes[0]?.dependencyContext).toEqual([
+      "import { a } from 'a'",
+      "import { b } from 'b'",
+    ])
   })
 
   it('never reads the current disk: captured strings are the whole input', async () => {
@@ -212,8 +236,10 @@ describe('prepareQualityScopes scopes', () => {
   })
 
   it('matches an edited overload signature without delete/create splitting', () => {
-    const before = 'function f(x: string): void\nfunction f(x: number): void\nfunction f(x: unknown) { return }\n'
-    const after = 'function f(x: string): void\nfunction f(x: number): void\nfunction f(x: unknown) { throw new Error() }\n'
+    const before =
+      'function f(x: string): void\nfunction f(x: number): void\nfunction f(x: unknown) { return }\n'
+    const after =
+      'function f(x: string): void\nfunction f(x: number): void\nfunction f(x: unknown) { throw new Error() }\n'
     const result = prepare({ path: `${PROJECT}/a.ts`, before, after })
 
     const functions = byKind(result.scopes, EQualityScopeKind.Function)
@@ -251,7 +277,12 @@ describe('prepareQualityScopes scopes', () => {
     const before = 'class G {\n  greet() { return 1 }\n}\n'
     const renamed = 'class G {\n  salute() { return 1 }\n}\n'
     const first = prepare({ path: `${PROJECT}/a.ts`, before: null, after: before })
-    const second = prepare({ path: `${PROJECT}/a.ts`, before, after: renamed, previousScopes: first.scopes })
+    const second = prepare({
+      path: `${PROJECT}/a.ts`,
+      before,
+      after: renamed,
+      previousScopes: first.scopes,
+    })
 
     const greet = first.scopes.find((scope) => scope.name === 'greet')
     const salute = second.scopes.find((scope) => scope.name === 'salute')

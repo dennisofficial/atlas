@@ -30,7 +30,10 @@ describe('GithubSandboxWakeService eligibility', () => {
 
   it('ignores sandboxes whose mirrored record is serving, even if the legacy column says parked', async () => {
     const serving = mirroredRecord({ phase: ERuntimePhase.Serving })
-    await seedParkedSandbox({ runtimeCheckpoint: serving, runtimeCheckpointRevision: serving.revision })
+    await seedParkedSandbox({
+      runtimeCheckpoint: serving,
+      runtimeCheckpointRevision: serving.revision,
+    })
     await seedSubscription()
     const { boot, calls } = fakeBoot()
 
@@ -42,7 +45,10 @@ describe('GithubSandboxWakeService eligibility', () => {
 
   it('never wakes a sandbox still parking', async () => {
     const parking = mirroredRecord({ phase: ERuntimePhase.Parking })
-    await seedParkedSandbox({ runtimeCheckpoint: parking, runtimeCheckpointRevision: parking.revision })
+    await seedParkedSandbox({
+      runtimeCheckpoint: parking,
+      runtimeCheckpointRevision: parking.revision,
+    })
     await seedSubscription()
     const { boot, calls } = fakeBoot()
 

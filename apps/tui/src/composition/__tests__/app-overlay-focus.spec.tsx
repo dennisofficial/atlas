@@ -80,9 +80,9 @@ describe('overlay focus arbitration', () => {
       await settle(150)
       await setup.flush()
 
-      expect(
-        await until({ holds: async () => composer?.focused === true, within: 2_000 }),
-      ).toBe(true)
+      expect(await until({ holds: async () => composer?.focused === true, within: 2_000 })).toBe(
+        true,
+      )
     } finally {
       await teardown(setup)
       restoreHome()

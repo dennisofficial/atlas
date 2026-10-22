@@ -20,7 +20,12 @@ export async function seed(db: Db): Promise<void> {
     conflictOn: { id: SEED_IDS.organization },
   })
   await db.orm.public.Member.upsert({
-    create: { id: SEED_IDS.member, role: 'owner', organizationId: SEED_IDS.organization, userId: SEED_IDS.user },
+    create: {
+      id: SEED_IDS.member,
+      role: 'owner',
+      organizationId: SEED_IDS.organization,
+      userId: SEED_IDS.user,
+    },
     update: { role: 'owner' },
     conflictOn: { organizationId: SEED_IDS.organization, userId: SEED_IDS.user },
   })

@@ -50,8 +50,8 @@ const source = [
   'end',
   '',
   'calc = Calculator.new(2)',
-  'grade = \'A\'',
-  'bullet = \'\\u2022\'',
+  "grade = 'A'",
+  "bullet = '\\u2022'",
   'puts "#{grade}#{bullet} #{calc.multiply(5, 3)}"',
   'puts add(2, 3)',
   '',
@@ -132,7 +132,9 @@ describe('crystal lexical highlighting', () => {
   })
 
   it('reads a declaration keyword crystal added to ruby', () => {
-    expect(groupsIn({ spec, source: 'abstract struct Point\nend' })).toEqual(new Set(['keyword', 'type']))
+    expect(groupsIn({ spec, source: 'abstract struct Point\nend' })).toEqual(
+      new Set(['keyword', 'type']),
+    )
   })
 
   it('reads the question-mark and bang macro forms as keywords', () => {
@@ -145,12 +147,9 @@ describe('crystal lexical highlighting', () => {
   })
 
   it('reads a typed numeric literal whole, suffix included', () => {
-    expect(textFor({ spec, source: 'n = 1_i64 + 2u8 * 1.5_f32 - 0xFF_i32', group: 'number' })).toEqual([
-      '1_i64',
-      '2u8',
-      '1.5_f32',
-      '0xFF_i32',
-    ])
+    expect(
+      textFor({ spec, source: 'n = 1_i64 + 2u8 * 1.5_f32 - 0xFF_i32', group: 'number' }),
+    ).toEqual(['1_i64', '2u8', '1.5_f32', '0xFF_i32'])
   })
 
   it('stops a numeric literal at a range operator', () => {

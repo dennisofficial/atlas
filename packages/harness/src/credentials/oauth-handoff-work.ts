@@ -11,11 +11,13 @@ export class OauthHandoffWork {
   private readonly running = new Map<AccountId, Promise<StoredAccount | undefined>>()
   private readonly startedAt = new Map<AccountId, number>()
 
-  constructor(private readonly args: {
-    handoff: OauthHandoff
-    clock: ClockPort
-    onFailure?: ((error: CredentialError) => void) | undefined
-  }) {}
+  constructor(
+    private readonly args: {
+      handoff: OauthHandoff
+      clock: ClockPort
+      onFailure?: ((error: CredentialError) => void) | undefined
+    },
+  ) {}
 
   enqueue(args: { accountId: AccountId; session: CloudSession }): void {
     if (this.running.has(args.accountId)) return
@@ -23,10 +25,17 @@ export class OauthHandoffWork {
     const previous = this.startedAt.get(args.accountId)
     if (previous !== undefined && now - previous < RETRY_INTERVAL_MS) return
     this.startedAt.set(args.accountId, now)
-    const work = this.args.handoff.transfer(args).catch((error: unknown) => {
-      try { this.args.onFailure?.(credentialErrorOf(error)) } catch {}
-      return undefined
-    }).finally(() => { this.running.delete(args.accountId) })
+    const work = this.args.handoff
+      .transfer(args)
+      .catch((error: unknown) => {
+        try {
+          this.args.onFailure?.(credentialErrorOf(error))
+        } catch {}
+        return undefined
+      })
+      .finally(() => {
+        this.running.delete(args.accountId)
+      })
     this.running.set(args.accountId, work)
   }
 }

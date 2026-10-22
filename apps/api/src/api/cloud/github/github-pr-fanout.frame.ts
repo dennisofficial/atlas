@@ -1,9 +1,5 @@
 import { z } from 'zod'
-import {
-  EPrEventKind,
-  type GithubPrEventDto,
-  type GithubPrStateDto,
-} from './github-realtime.types'
+import { EPrEventKind, type GithubPrEventDto, type GithubPrStateDto } from './github-realtime.types'
 
 export const PR_FRAME_CHANNEL = 'atlas:github-pr'
 

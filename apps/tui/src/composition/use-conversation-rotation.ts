@@ -1,12 +1,21 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { EConnectionView, PendingQueue, PendingSaid, RemoteTurnRunner } from '@dltech/atlas-harness'
+import type {
+  EConnectionView,
+  PendingQueue,
+  PendingSaid,
+  RemoteTurnRunner,
+} from '@dltech/atlas-harness'
 
 import type { Rotating } from '../ui/components/rotating-line'
 import type { AtlasApp } from './compose'
 import type { SendArgs } from './conversation-types'
 import type { QueuedSettled } from './commands'
 import { useRotation } from './use-rotation'
-import { useSendMessage, useTakeBackPending, type ConversationSending } from './use-conversation-send'
+import {
+  useSendMessage,
+  useTakeBackPending,
+  type ConversationSending,
+} from './use-conversation-send'
 import type { TurnDriver } from './turn-driver-types'
 
 export type ConversationRotation = {

@@ -251,7 +251,9 @@ export function createUpstreamPipe(args: {
       )
       queued.splice(0, queued.length, ...kept)
 
-      const unsent = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame.id] : [])))
+      const unsent = new Set(
+        queued.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame.id] : [])),
+      )
       for (const [id, frame] of [...redrivable]) {
         if (unsent.has(id) || !waiting.has(id)) continue
         queued.push(frame)
@@ -259,7 +261,9 @@ export function createUpstreamPipe(args: {
 
       // A socket that took the bytes locally can still drop the frame before serve commits it, so a
       // send is re-driven until the ack lands — serve dedupes the sendId of one that did commit.
-      const unacked = new Set(queued.flatMap((frame) => (frame.kind === EClientFrame.Send ? [frame.sendId] : [])))
+      const unacked = new Set(
+        queued.flatMap((frame) => (frame.kind === EClientFrame.Send ? [frame.sendId] : [])),
+      )
       for (const [sendId, frame] of [...pendingAcks]) {
         if (unacked.has(sendId)) continue
         queued.push(frame)

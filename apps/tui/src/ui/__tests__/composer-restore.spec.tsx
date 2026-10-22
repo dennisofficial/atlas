@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 
 import type { TextareaRenderable } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import React from 'react'
 
 import { insertToken, liveTokens, substitutePastedTokens } from '../composer-tokens'
 import { adoptToken, planRestoredTokens, restoredDraft } from '../composer-restore'
@@ -97,7 +96,11 @@ describe('planRestoredTokens', () => {
 
     expect(plan.text).toBe(text)
     expect(plan.pastes).toEqual([
-      { start: 4, end: 4 + '[Pasted text #1 +5 lines]'.length, content: 'one\ntwo\nthree\nfour\nfive' },
+      {
+        start: 4,
+        end: 4 + '[Pasted text #1 +5 lines]'.length,
+        content: 'one\ntwo\nthree\nfour\nfive',
+      },
     ])
   })
 
@@ -312,4 +315,3 @@ describe('adoptToken', () => {
     }
   })
 })
-

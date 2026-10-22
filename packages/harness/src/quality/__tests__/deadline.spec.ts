@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { QualityDeadlineError, createQualityBudget, settleReview, settleUnderBudget } from '../deadline'
+import {
+  QualityDeadlineError,
+  createQualityBudget,
+  settleReview,
+  settleUnderBudget,
+} from '../deadline'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -35,7 +40,10 @@ describe('createQualityBudget', () => {
 describe('settleUnderBudget', () => {
   it('returns the completed value', async () => {
     const budget = createQualityBudget({ signal: new AbortController().signal, budgetMs: 100 })
-    expect(await settleUnderBudget({ signal: budget.signal, work: async () => 7 })).toEqual({ kind: 'completed', value: 7 })
+    expect(await settleUnderBudget({ signal: budget.signal, work: async () => 7 })).toEqual({
+      kind: 'completed',
+      value: 7,
+    })
     budget.dispose()
   })
 
@@ -56,11 +64,16 @@ describe('settleUnderBudget', () => {
   it('settles as aborted for an operator abort and never starts work on a dead signal', async () => {
     const operator = new AbortController()
     const budget = createQualityBudget({ signal: operator.signal, budgetMs: 500 })
-    const pending = settleUnderBudget({ signal: budget.signal, work: () => new Promise<never>(() => {}) })
+    const pending = settleUnderBudget({
+      signal: budget.signal,
+      work: () => new Promise<never>(() => {}),
+    })
     operator.abort()
     expect(await pending).toEqual({ kind: 'aborted' })
     let started = false
-    expect(await settleUnderBudget({ signal: budget.signal, work: async () => (started = true) })).toEqual({ kind: 'aborted' })
+    expect(
+      await settleUnderBudget({ signal: budget.signal, work: async () => (started = true) }),
+    ).toEqual({ kind: 'aborted' })
     expect(started).toBe(false)
     budget.dispose()
   })
@@ -84,7 +97,10 @@ describe('settleReview', () => {
     const result = await settleReview({
       budget,
       graceMs: 50,
-      work: (signal) => new Promise<string>((resolve) => signal.addEventListener('abort', () => resolve('records'))),
+      work: (signal) =>
+        new Promise<string>((resolve) =>
+          signal.addEventListener('abort', () => resolve('records')),
+        ),
     })
     expect(result).toEqual({ kind: 'completed', value: 'records', afterDeadline: true })
     budget.dispose()
@@ -93,7 +109,11 @@ describe('settleReview', () => {
   it('falls back to deadline once the grace window passes for a review that ignores its signal', async () => {
     const budget = createQualityBudget({ signal: new AbortController().signal, budgetMs: 10 })
     const started = Date.now()
-    const result = await settleReview({ budget, graceMs: 15, work: () => new Promise<never>(() => {}) })
+    const result = await settleReview({
+      budget,
+      graceMs: 15,
+      work: () => new Promise<never>(() => {}),
+    })
     expect(result.kind).toBe('deadline')
     expect(Date.now() - started).toBeLessThan(200)
     budget.dispose()

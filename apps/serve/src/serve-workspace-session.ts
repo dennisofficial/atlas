@@ -18,9 +18,11 @@ export function createServeWorkspaceSession(args: {
   const { app, threadId, log, settling, note } = args
   const adoptingApp = {
     ...app,
-    adoptChildren: (given: { threadId: ThreadId }) => app.adoptChildren({
-      ...given, ...(args.resumeChildren === undefined ? {} : { resumeChildren: args.resumeChildren }),
-    }),
+    adoptChildren: (given: { threadId: ThreadId }) =>
+      app.adoptChildren({
+        ...given,
+        ...(args.resumeChildren === undefined ? {} : { resumeChildren: args.resumeChildren }),
+      }),
   }
   let starting = Promise.resolve()
   let pendingStart: Promise<void> | null = null
@@ -44,13 +46,18 @@ export function createServeWorkspaceSession(args: {
       })
     const captured = starting
     pendingStart = captured
-    const finished = (): void => { if (pendingStart === captured) pendingStart = null }
+    const finished = (): void => {
+      if (pendingStart === captured) pendingStart = null
+    }
     void captured.then(finished, finished)
     return captured
   }
   if (args.deferStartChildren !== true) {
     void startChildren().catch((error: unknown) => {
-      log({ event: EServeEvent.ChildAdoptionFailed, reason: error instanceof Error ? error.message : String(error) })
+      log({
+        event: EServeEvent.ChildAdoptionFailed,
+        reason: error instanceof Error ? error.message : String(error),
+      })
     })
   }
   return { startChildren, whenStarted: () => starting }

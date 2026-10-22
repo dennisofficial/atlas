@@ -27,7 +27,12 @@ type PendingNoticeRun = {
 
 type PendingRun =
   | { kind: EPendingKind.Sending; id: string; text: string; failed: boolean }
-  | { kind: EPendingKind.Operator; id: string; said: readonly string[]; editable?: boolean | undefined }
+  | {
+      kind: EPendingKind.Operator
+      id: string
+      said: readonly string[]
+      editable?: boolean | undefined
+    }
   | PendingNoticeRun
 
 export function pendingRuns(rows: readonly PendingRow[]): readonly PendingRun[] {
@@ -47,7 +52,12 @@ export function pendingRuns(rows: readonly PendingRow[]): readonly PendingRun[] 
         continue
       }
 
-      runs.push({ kind: EPendingKind.Operator, id: row.id, said: [row.text], ...(editable ? {} : { editable: false }) })
+      runs.push({
+        kind: EPendingKind.Operator,
+        id: row.id,
+        said: [row.text],
+        ...(editable ? {} : { editable: false }),
+      })
       continue
     }
 
@@ -108,7 +118,14 @@ export function PendingBlock(props: {
           )
         }
         if (run.kind === EPendingKind.Operator) {
-          return <UserBlock key={run.id} said={run.said} width={props.width} takeBack={run.editable !== false} />
+          return (
+            <UserBlock
+              key={run.id}
+              said={run.said}
+              width={props.width}
+              takeBack={run.editable !== false}
+            />
+          )
         }
         return (
           <NoticeBlock

@@ -4,19 +4,17 @@ import { toCallId, type EventDraft } from '@dltech/atlas-core'
 
 import type { DispatchableCall, ToolDispatcher } from '../../tools/dispatch'
 import { createSettlePending } from '../settle-pending'
-import {
-  branchWithCalls,
-  discardOpened,
-  openLog,
-  scriptedDispatch,
-} from './settle-pending-fixture'
+import { branchWithCalls, discardOpened, openLog, scriptedDispatch } from './settle-pending-fixture'
 
 afterEach(discardOpened)
 
 describe('settling the calls a step left pending', () => {
   it('appends what dispatch returns and reports no pause', async () => {
     const harness = await openLog()
-    const { threadId } = await branchWithCalls({ harness, calls: [{ callId: 'call-1', name: 'edit' }] })
+    const { threadId } = await branchWithCalls({
+      harness,
+      calls: [{ callId: 'call-1', name: 'edit' }],
+    })
     const seen: DispatchableCall[] = []
     const settle = createSettlePending({ log: harness.log, dispatch: scriptedDispatch({ seen }) })
 
@@ -67,7 +65,15 @@ describe('settling the calls a step left pending', () => {
         seen,
         draftsFor: (call) => {
           controller.abort()
-          return [{ type: 'tool-result', callId: call.callId, name: call.name, output: 'done', modelText: 'done' }]
+          return [
+            {
+              type: 'tool-result',
+              callId: call.callId,
+              name: call.name,
+              output: 'done',
+              modelText: 'done',
+            },
+          ]
         },
       }),
     })
@@ -95,7 +101,10 @@ describe('settling the calls a step left pending', () => {
         { type: 'tool-called', callId: toCallId('call-2'), name: 'read', input: {}, ordinal: 1 },
       ],
     })
-    const settle = createSettlePending({ log: harness.log, dispatch: scriptedDispatch({ seen: [] }) })
+    const settle = createSettlePending({
+      log: harness.log,
+      dispatch: scriptedDispatch({ seen: [] }),
+    })
 
     await settle({ threadId, signal: new AbortController().signal })
 
@@ -110,7 +119,6 @@ describe('settling the calls a step left pending', () => {
     expect(emittingRun).not.toBe(laterRun)
   })
 })
-
 
 describe('carrying the project directory across tool calls', () => {
   const directoriesSeen = (seen: { projectDirectory: string }[]): readonly string[] =>
@@ -145,7 +153,10 @@ describe('carrying the project directory across tool calls', () => {
 
   it('starts at the project directory when nothing has moved', async () => {
     const harness = await openLog()
-    const { threadId } = await branchWithCalls({ harness, calls: [{ callId: 'call_1', name: 'bash' }] })
+    const { threadId } = await branchWithCalls({
+      harness,
+      calls: [{ callId: 'call_1', name: 'bash' }],
+    })
     const seen: { projectDirectory: string }[] = []
 
     const settle = createSettlePending({
@@ -162,13 +173,19 @@ describe('carrying the project directory across tool calls', () => {
     const harness = await openLog()
     const { threadId } = await branchWithCalls({
       harness,
-      calls: [{ callId: 'call_1', name: 'bash' }, { callId: 'call_2', name: 'bash' }],
+      calls: [
+        { callId: 'call_1', name: 'bash' },
+        { callId: 'call_2', name: 'bash' },
+      ],
     })
     const seen: { projectDirectory: string }[] = []
 
     const settle = createSettlePending({
       log: harness.log,
-      dispatch: recordingDispatch({ seen, moves: new Map([['call_1', '/project/.claude/worktrees/topic']]) }),
+      dispatch: recordingDispatch({
+        seen,
+        moves: new Map([['call_1', '/project/.claude/worktrees/topic']]),
+      }),
       launchDirectory: '/project',
     })
     await settle({ threadId, signal: new AbortController().signal })
@@ -186,7 +203,12 @@ describe('carrying the project directory across tool calls', () => {
       threadId,
       runId,
       drafts: [
-        { type: 'worktree-entered', path: '/project/.claude/worktrees/topic', branch: 'topic', base: 'origin/main' },
+        {
+          type: 'worktree-entered',
+          path: '/project/.claude/worktrees/topic',
+          branch: 'topic',
+          base: 'origin/main',
+        },
       ],
     })
     const seen: { projectDirectory: string }[] = []

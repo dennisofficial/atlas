@@ -18,7 +18,9 @@ const resolved = {
     { name: 'DATABASE_URL', value: 'postgres://proj', kind: 'env' },
     { name: 'ATLAS_MODEL', value: 'hijack/attempt', kind: 'env' },
   ],
-  mcpServers: [{ name: 'docs', spec: { transport: { kind: 'http', url: 'https://docs.example.com/mcp' } } }],
+  mcpServers: [
+    { name: 'docs', spec: { transport: { kind: 'http', url: 'https://docs.example.com/mcp' } } },
+  ],
   provenance: { [`setting:${ESettingId.SidebarWidth}`]: 'project' },
 }
 
@@ -33,17 +35,26 @@ describe('applyCloudState against the scoped config endpoint', () => {
       '/v1/account-lease',
       '/v1/sandboxes/self/config',
     ])
-    const configRequest = cloud.requests.find((request) => request.path === '/v1/sandboxes/self/config')
+    const configRequest = cloud.requests.find(
+      (request) => request.path === '/v1/sandboxes/self/config',
+    )
     expect(configRequest?.search).toBe('?projectId=proj%201')
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).toContain(ESettingId.SidebarWidth)
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).not.toContain('legacy')
     expect(secretsAt(home).read('TAVILY_API_KEY')).toBe('tvly-scoped')
     expect(secretsAt(home).read('DATABASE_URL')).toBe('postgres://proj')
 
-    const mcp = await new FileMcpSource({ file: join(home, 'mcp.json'), origin: EDefinitionOrigin.User }).load()
+    const mcp = await new FileMcpSource({
+      file: join(home, 'mcp.json'),
+      origin: EDefinitionOrigin.User,
+    }).load()
     expect(mcp.rejections).toEqual([])
     expect(mcp.specs.map((spec) => spec.name)).toEqual(['docs'])
-    expect(lines[0]).toMatchObject({ event: EServeEvent.CloudStateReady, settings: 1, mcpServers: 1 })
+    expect(lines[0]).toMatchObject({
+      event: EServeEvent.CloudStateReady,
+      settings: 1,
+      mcpServers: 1,
+    })
   })
 
   it('exports env-kind entries to the process env, never secret-kind or ATLAS_* names, and never overrides', async () => {
@@ -81,6 +92,8 @@ describe('applyCloudState against the scoped config endpoint', () => {
   it('omits the projectId query when there is no project', async () => {
     const cloud = cloudWith({ config: resolved })
     await apply({ home: tempHome(), cloud })
-    expect(cloud.requests.find((request) => request.path === '/v1/sandboxes/self/config')?.search).toBe('')
+    expect(
+      cloud.requests.find((request) => request.path === '/v1/sandboxes/self/config')?.search,
+    ).toBe('')
   })
 })

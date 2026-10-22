@@ -53,13 +53,17 @@ const requestOf = (args: {
     : new Request(String(args.input), args.init)
 
 const controlPlane = (args: { leaseStatus: number }): typeof fetch =>
-  Object.assign(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    const request = requestOf({ input, init })
-    const isLease = request.method === 'GET' && new URL(request.url).pathname === '/v1/ssh-signing-key'
-    if (!isLease) return new Response(null, { status: 204 })
-    if (args.leaseStatus === 200) return Response.json(lease)
-    return new Response(null, { status: args.leaseStatus })
-  }, { preconnect: () => undefined })
+  Object.assign(
+    async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      const request = requestOf({ input, init })
+      const isLease =
+        request.method === 'GET' && new URL(request.url).pathname === '/v1/ssh-signing-key'
+      if (!isLease) return new Response(null, { status: 204 })
+      if (args.leaseStatus === 200) return Response.json(lease)
+      return new Response(null, { status: args.leaseStatus })
+    },
+    { preconnect: () => undefined },
+  )
 
 const start = async (args: {
   env: Record<string, string | undefined>

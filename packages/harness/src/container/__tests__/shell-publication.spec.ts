@@ -11,7 +11,6 @@ import {
   ProcessPort,
   toThreadId,
   type LogEntry,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { createDeltaChannel } from '../../channel/delta-channel'

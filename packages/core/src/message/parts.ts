@@ -3,7 +3,11 @@ import type { ProviderOptions } from '../provider'
 
 export type TextPart = { type: 'text'; text: string; providerOptions?: ProviderOptions | undefined }
 
-export type ReasoningPart = { type: 'reasoning'; text: string; providerOptions?: ProviderOptions | undefined }
+export type ReasoningPart = {
+  type: 'reasoning'
+  text: string
+  providerOptions?: ProviderOptions | undefined
+}
 
 export type ImagePart = {
   type: 'image'
@@ -47,4 +51,10 @@ export type ToolResultPart = {
   providerOptions?: ProviderOptions | undefined
 }
 
-export type MessagePart = TextPart | ImagePart | FilePart | ReasoningPart | ToolCallPart | ToolResultPart
+export type MessagePart =
+  | TextPart
+  | ImagePart
+  | FilePart
+  | ReasoningPart
+  | ToolCallPart
+  | ToolResultPart

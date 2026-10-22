@@ -68,7 +68,8 @@ describe('startServe', () => {
     halt.open()
     await client.waitFor(
       (frame) =>
-        frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.RelocationPaused,
+        frame.kind === EServeFrame.TurnEnded &&
+        frame.outcome.status === ETurnStatus.RelocationPaused,
     )
   })
 
@@ -93,7 +94,8 @@ describe('startServe', () => {
     client.send({ kind: EClientFrame.Resume })
 
     await client.waitFor(
-      (frame) => frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.Completed,
+      (frame) =>
+        frame.kind === EServeFrame.TurnEnded && frame.outcome.status === ETurnStatus.Completed,
     )
     expect(resumed).toBe(true)
   })

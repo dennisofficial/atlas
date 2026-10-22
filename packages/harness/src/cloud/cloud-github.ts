@@ -17,7 +17,9 @@ type Request = (args: {
 }) => Promise<unknown>
 
 export const beginGithubConnectVia = async (request: Request): Promise<GithubConnectTicket> =>
-  githubConnectTicketSchema.parse(await request({ method: 'POST', path: '/v1/github/connect/begin' }))
+  githubConnectTicketSchema.parse(
+    await request({ method: 'POST', path: '/v1/github/connect/begin' }),
+  )
 
 export const pollGithubConnectVia = async (args: {
   request: Request
@@ -43,7 +45,9 @@ export const dismissGithubAppInstallNoticeVia = async (args: {
 }
 
 export const githubConnectionVia = async (request: Request): Promise<GithubConnection | null> => {
-  const parsed = githubStateResponseSchema.parse(await request({ method: 'GET', path: '/v1/github' }))
+  const parsed = githubStateResponseSchema.parse(
+    await request({ method: 'GET', path: '/v1/github' }),
+  )
   if (!parsed.connected) return null
   return { login: parsed.login, scopes: parsed.scopes, connectedAt: parsed.connectedAt }
 }

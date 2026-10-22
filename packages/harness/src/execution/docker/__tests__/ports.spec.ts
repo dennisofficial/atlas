@@ -99,12 +99,16 @@ describe('sandboxCreateBody networking', () => {
 })
 
 const SOCKET = '/var/run/docker.sock'
-const describeDocker = (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
+const describeDocker =
+  (await dockerUnavailableReason(SOCKET)) === undefined ? describe : describe.skip
 const engine = new DockerEngine({ socketPath: SOCKET })
 
 const sweep = (): Promise<void> => removeTestSandboxes({ engine, prefix: PREFIX })
 
-const fetchViaProxy = (args: { hostPort: number; host: string }): Promise<{ status: number; body: string }> =>
+const fetchViaProxy = (args: {
+  hostPort: number
+  host: string
+}): Promise<{ status: number; body: string }> =>
   new Promise((resolve, reject) => {
     const request = get(
       {
@@ -235,9 +239,10 @@ describeDocker('the expose proxy against a live daemon', () => {
 
     let info = { status: 0, body: '' }
     for (let attempt = 0; attempt < 100 && info.status === 0; attempt += 1) {
-      info = await fetchViaProxy({ hostPort: outcome.exposure.hostPort, host: 'sandbox.localhost' }).catch(
-        () => ({ status: 0, body: '' }),
-      )
+      info = await fetchViaProxy({
+        hostPort: outcome.exposure.hostPort,
+        host: 'sandbox.localhost',
+      }).catch(() => ({ status: 0, body: '' }))
       if (info.status === 0) await Bun.sleep(100)
     }
     expect(info.status).toBe(200)

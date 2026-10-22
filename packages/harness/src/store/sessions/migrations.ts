@@ -91,7 +91,8 @@ function migrationContext({
         .filter((line) => line !== '')
         .map((line) => JSON.parse(line) as unknown),
     writeLines: ({ file, lines }) => {
-      const text = lines.length === 0 ? '' : `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`
+      const text =
+        lines.length === 0 ? '' : `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`
       writeFileAtomicSync({ file, text })
     },
     stampFormat: ({ format }) => {

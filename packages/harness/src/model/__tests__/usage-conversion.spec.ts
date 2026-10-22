@@ -36,7 +36,12 @@ describe('the usage a finished step reports', () => {
   it('carries the cache tiers, which bill at rates the prompt total cannot express', () => {
     const chunk = toCoreChunk(
       finishPart(
-        usageOf({ inputTokens: 41_000, outputTokens: 900, cacheReadTokens: 39_000, cacheWriteTokens: 1_500 }),
+        usageOf({
+          inputTokens: 41_000,
+          outputTokens: 900,
+          cacheReadTokens: 39_000,
+          cacheWriteTokens: 1_500,
+        }),
       ),
     )
 
@@ -54,7 +59,14 @@ describe('the usage a finished step reports', () => {
 
   it('keeps the prompt total whole, since the tiers are a breakdown within it', () => {
     const chunk = toCoreChunk(
-      finishPart(usageOf({ inputTokens: 1_000, outputTokens: 10, cacheReadTokens: 900, cacheWriteTokens: 50 })),
+      finishPart(
+        usageOf({
+          inputTokens: 1_000,
+          outputTokens: 10,
+          cacheReadTokens: 900,
+          cacheWriteTokens: 50,
+        }),
+      ),
     )
 
     expect(usageOfChunk(chunk)?.inputTokens).toBe(1_000)
@@ -68,7 +80,9 @@ describe('the usage a finished step reports', () => {
 
   it('reports a cache tier of zero as zero, which is not the same as never reported', () => {
     const chunk = toCoreChunk(
-      finishPart(usageOf({ inputTokens: 12, outputTokens: 3, cacheReadTokens: 0, cacheWriteTokens: 0 })),
+      finishPart(
+        usageOf({ inputTokens: 12, outputTokens: 3, cacheReadTokens: 0, cacheWriteTokens: 0 }),
+      ),
     )
 
     expect(usageOfChunk(chunk)).toEqual({
@@ -80,6 +94,9 @@ describe('the usage a finished step reports', () => {
   })
 
   it('reports no usage at all when every count is missing', () => {
-    expect(toCoreChunk(finishPart(usageOf({})))).toEqual({ type: 'finish', reason: EFinishReason.Stop })
+    expect(toCoreChunk(finishPart(usageOf({})))).toEqual({
+      type: 'finish',
+      reason: EFinishReason.Stop,
+    })
   })
 })
