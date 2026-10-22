@@ -25,7 +25,7 @@ it('carries owed and pending continuation obligations into the seal, even when s
   app.pending?.forThread({ threadId }).enqueue({ text: 'continue parent' })
   app.pending?.forThread({ threadId: childId }).enqueue({ text: 'continue the finished child' })
   let retired = false
-  let sealed: RuntimeCheckpoint | null = null
+  const sealed: RuntimeCheckpoint | null = null
   let resume: RotationResume | undefined
   const drain = bindServeDrain({
     app,

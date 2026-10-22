@@ -6,6 +6,9 @@ const VALID_ENV = {
   SECRET_KEY: 'a-secret-key-with-at-least-32-characters',
   SECRETS_ENCRYPTION_KEY: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
   TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
+  GOOGLE_CLIENT_ID: 'test-google-client-id.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+  RESEND_API_KEY: 're_test_fixture_not_a_real_key',
 }
 
 function validate(env: Record<string, string>) {
@@ -27,6 +30,9 @@ describe('envConfigValidation', () => {
     expect(error?.message).toContain('SECRET_KEY')
     expect(error?.message).toContain('SECRETS_ENCRYPTION_KEY')
     expect(error?.message).toContain('TRIGGER_SECRET_KEY')
+    expect(error?.message).toContain('GOOGLE_CLIENT_ID')
+    expect(error?.message).toContain('GOOGLE_CLIENT_SECRET')
+    expect(error?.message).toContain('RESEND_API_KEY')
   })
 
   it('rejects a short SECRET_KEY', () => {
