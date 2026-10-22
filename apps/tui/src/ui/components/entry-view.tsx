@@ -1,6 +1,8 @@
+import { EReportKind } from '@dltech/atlas-core'
 import React from 'react'
 
 import { EEntryKind, type TranscriptEntry } from '../../store'
+import { agentReportNeedsAttention } from '../../store/agent-ended-line'
 import { theme } from '../theme'
 import type { EMark } from '../tool-marks'
 import { AssistantBlock } from './blocks/assistant-block'
@@ -188,6 +190,7 @@ function DerivedEntryView(props: {
           text={entry.text}
           body={entry.report}
           failed={entry.failed}
+          quiet={entry.quiet === true}
           width={props.width}
           openHint={AGENT_REPORT_HINT}
           silentNote={REPORTED_NOTHING}
@@ -202,9 +205,11 @@ function DerivedEntryView(props: {
           text={entry.text}
           body={entry.report}
           failed={false}
+          quiet={entry.reportKind === EReportKind.Progress}
+          attention={agentReportNeedsAttention(entry.reportKind)}
           width={props.width}
           openHint={AGENT_REPORT_HINT}
-          expanded={props.expanded ?? true}
+          expanded={props.expanded ?? entry.reportKind !== EReportKind.Progress}
           {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
         />
       )

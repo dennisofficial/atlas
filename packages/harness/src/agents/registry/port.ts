@@ -2,6 +2,7 @@ import type {
   EAgentRestart,
   EExecutionLocation,
   EKilledBy,
+  EReportKind,
   SaidFile,
   SaidImage,
   ThreadId,
@@ -47,7 +48,11 @@ export abstract class AgentRegistryPort {
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
   }): Promise<AgentOutcome>
-  abstract reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome>
+  abstract reportToParent(args: {
+    threadId: ThreadId
+    text: string
+    kind?: EReportKind | undefined
+  }): Promise<AgentOutcome>
   abstract resume(args: {
     agentId: ThreadId
     threadId: ThreadId

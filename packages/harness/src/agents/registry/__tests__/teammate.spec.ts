@@ -139,7 +139,7 @@ describe('spawning a teammate', () => {
       agentTypes: [TEAMMATE, BUILDER],
       runners: runners.source,
       launchDirectory: '/launch',
-      hasLiveWork: () => true,
+      liveWork: () => 'bash "bun test"',
     })
     const parent = (await harness.threads.create({})).id
 
@@ -182,7 +182,7 @@ describe('spawning a teammate', () => {
       agentTypes: [TEAMMATE, BUILDER],
       runners: runners.source,
       launchDirectory: '/launch',
-      hasLiveWork: () => true,
+      liveWork: () => 'bash "bun test"',
     })
     const parent = (await harness.threads.create({})).id
 
@@ -206,7 +206,7 @@ describe('spawning a teammate', () => {
       agentTypes: [TEAMMATE, BUILDER],
       runners: fakeRunners().source,
       launchDirectory: '/launch',
-      hasLiveWork: () => true,
+      liveWork: () => 'bash "bun test"',
     })
     const recovered = await reopened.recordLostAgents({ threadId: parent })
     expect(recovered.settled).toHaveLength(0)

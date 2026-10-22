@@ -61,10 +61,15 @@ const lineOf = (event: Event): string | undefined => {
     return `harness: ${clip(event.text, RESULT_CLIP)}`
   }
   if (event.type === 'agent-ended') {
+    if (event.relayed === false) {
+      const waiting = event.waitingOn === undefined ? '' : ` (waiting on ${event.waitingOn})`
+      return `sub-agent "${clip(event.intent, 120)}" paused${waiting}`
+    }
     return `sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
   }
   if (event.type === 'agent-reported') {
-    return `teammate "${clip(event.intent, 120)}" reported: ${clip(event.prose, 160)}`
+    const kind = event.kind === undefined ? '' : ` (${event.kind})`
+    return `teammate "${clip(event.intent, 120)}" reported${kind}: ${clip(event.prose, 160)}`
   }
   if (event.type === 'background-shell-ended') {
     const exit = event.exitCode === undefined ? '' : `, exit ${event.exitCode}`

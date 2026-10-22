@@ -1,7 +1,9 @@
 import {
   EAgentRestart,
   EMessageOrigin,
+  reportWakesParent,
   saidBody,
+  type EReportKind,
   type EventDraft,
   type EventLogPort,
   type IdPort,
@@ -182,7 +184,7 @@ export async function sayToPeer(args: SaidArgs & SayChannels): Promise<AgentOutc
 }
 
 export async function reportToParent(
-  args: { threadId: ThreadId; text: string } & SayChannels,
+  args: { threadId: ThreadId; text: string; kind?: EReportKind | undefined } & SayChannels,
 ): Promise<AgentOutcome> {
   const caller = args.roster.find(args.threadId)
   if (caller === undefined || !isTeammateType(caller.agentType)) {
@@ -195,9 +197,12 @@ export async function reportToParent(
     agentType: caller.agentType,
     intent: caller.intent,
     prose: args.text,
+    ...(args.kind === undefined ? {} : { kind: args.kind }),
   }
   const recorded = await args.journal.record({ threadId: caller.spawnedBy, draft })
   if (!recorded.recorded) return { ok: false, reason: reportNotRecorded(recorded.cause) }
+
+  if (!reportWakesParent(args.kind)) return { ok: true, snapshot: snapshotOf(caller) }
 
   args.notices.queue({
     threadId: caller.spawnedBy,

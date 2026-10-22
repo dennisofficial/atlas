@@ -226,10 +226,14 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   }
 
   override hasRunningFor({ threadId }: { threadId: ThreadId }): boolean {
-    return [...this.tracked.values()].some(
-      (entry) =>
-        entry.threadId === threadId && entry.service.snapshot().status === EServiceStatus.Running,
-    )
+    return this.runningFor({ threadId }).length > 0
+  }
+
+  override runningFor({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {
+    return [...this.tracked.values()]
+      .filter((entry) => entry.threadId === threadId)
+      .map((entry) => entry.service.snapshot())
+      .filter((snapshot) => snapshot.status === EServiceStatus.Running)
   }
 
   drainNotifications({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {

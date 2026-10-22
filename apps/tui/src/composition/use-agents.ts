@@ -105,6 +105,7 @@ const crewMembersOf = (args: {
     deliveredAt: snapshot.deliveredAt ?? null,
     lastViewedAt: lastVisitOf({ visits: args.visits, id: snapshot.agentId }),
     holdingShells: args.shellBusy.has(snapshot.agentId),
+    waitingOn: snapshot.waitingOn,
     hasOpenPullRequest: hasOpenPullRequest({ snapshot, pullRequestOf: args.pullRequestOf }),
   }))
 

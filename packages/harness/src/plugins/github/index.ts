@@ -8,10 +8,12 @@ import {
   AtlasHomeToken,
   ClientVersionToken,
   CloudSessionStoreToken,
+  LiveWorkSourcesToken,
   ServeSessionToken,
   WorkspaceRoot,
 } from '../../container/tokens'
 
+import type { LiveWorkSources } from '../../agents/registry/live-work-sources'
 import { ThreadStorePort } from '../../store/thread-store'
 import { NativePlugin, type PluginContribution } from '../plugin'
 import { AppInstallRecommendationSink, MutableAppInstallSink } from './app-install-sink'
@@ -27,6 +29,7 @@ import { createPrEventRouting, type PrEventRouting } from './pr-event-routing'
 import { PrEventNoticeQueue, prEventIntakeSource } from './pr-event-queue'
 import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
 import { CachedPullRequestPort } from './pull-request-cache-port'
+import { pendingCiSource } from './pending-ci-source'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
 import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
@@ -65,6 +68,7 @@ export default class GithubPlugin extends NativePlugin {
       cacheDirectory: string
       log: LogPort | null
       threads: ThreadStorePort | null
+      liveWork?: LiveWorkSources | null
     },
   ) {
     super()
@@ -146,6 +150,10 @@ export default class GithubPlugin extends NativePlugin {
     })
     const transitions = createPullRequestTransitions({ service, tracker: tracking.tracker })
     const blockCiWatch = new BlockCiWatchBeforeToolHook({ pullRequests: service })
+
+    const unregisterLiveWork = this.args.liveWork?.register(
+      pendingCiSource({ service, tracker: tracking.tracker }),
+    )
 
     const prEvents = new PrEventNoticeQueue()
     routing = createPrEventRouting({
@@ -285,6 +293,7 @@ export default class GithubPlugin extends NativePlugin {
       projections: [links.projection, cloudCheckout],
       intakeSources: [prEventIntakeSource(prEvents)],
       dispose: () => {
+        unregisterLiveWork?.()
         if (raw instanceof FailoverPullRequestPort) raw.dispose()
         cached?.dispose()
         service.dispose()
@@ -309,6 +318,9 @@ export function registerPlugin({ container }: { container: DependencyContainer }
           : null,
         threads: container.isRegistered(registeredPortToken(ThreadStorePort), true)
           ? resolver.resolve(registeredPortToken(ThreadStorePort))
+          : null,
+        liveWork: container.isRegistered(LiveWorkSourcesToken, true)
+          ? resolver.resolve(LiveWorkSourcesToken)
           : null,
       }),
   })

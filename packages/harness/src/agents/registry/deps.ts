@@ -18,11 +18,13 @@ export type IntakeChanged = Pick<MessageIntake, 'changed' | 'prepare'>
 export type IntakeSubmit = Pick<MessageIntake, 'changed' | 'submit' | 'hold' | 'commit'>
 
 /**
- * Whether a thread still has work that can wake it again — live shells, services or child agents.
- * A teammate whose turn ends with none of these will never speak again unless someone messages it,
- * so its ending is relayed to the parent rather than recorded quietly.
+ * What the thread itself still holds that can wake it again — a shell, a service, pending CI —
+ * worded for a reader ("bash \"bun test\""), or undefined when it holds nothing. The supervisor
+ * widens this across the thread's sub-agents; a teammate whose subtree holds nothing will never
+ * speak again unless someone messages it, so its ending is relayed to the parent rather than
+ * recorded quietly.
  */
-export type HasLiveWork = (threadId: ThreadId) => boolean
+export type LiveWorkProbe = (threadId: ThreadId) => string | undefined
 
 /**
  * A finished child never drains again, so its pending service and shell notices move to the
@@ -45,7 +47,7 @@ export type SupervisorDeps = {
   telemetry?: TelemetryPort | undefined
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
-  hasLiveWork?: HasLiveWork | undefined
+  liveWork?: LiveWorkProbe | undefined
   inheritOrphanedNotices?: InheritOrphanedNotices | undefined
   /** Fired when a child's ending is recorded, so live wiring can hand back what ending orphans (its worktree claim). */
   onChildEnded?: ((threadId: ThreadId) => void) | undefined

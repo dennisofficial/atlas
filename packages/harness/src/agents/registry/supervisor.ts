@@ -1,5 +1,6 @@
 import {
   EKilledBy,
+  type EReportKind,
   NoopExecutionLocationSink,
   type EExecutionLocation,
   type EventLogPort,
@@ -33,6 +34,7 @@ import {
 import { unknownAgent } from './reasons'
 import { reportToParent, say, sayToPeer } from './say'
 import { AgentRoster } from './roster'
+import { SubtreeLiveWork } from './subtree-live-work'
 import { ChildSpawner } from './spawn-child'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
@@ -41,7 +43,8 @@ export class AgentSupervisor extends AgentRegistryPort {
   private readonly log: EventLogPort
   private readonly ids: IdPort
   private readonly agentTypes: readonly AgentType[]
-  private readonly roster = new AgentRoster()
+  private readonly roster: AgentRoster
+  private readonly subtree: SubtreeLiveWork
   private readonly notices = new AgentNoticeQueue()
   private readonly journal: AgentJournal
   private readonly delivery: NoticeDelivery
@@ -60,6 +63,11 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.ids = args.ids
     this.agentTypes = args.agentTypes
     this.sink = args.sink ?? new NoopExecutionLocationSink()
+    this.roster = new AgentRoster({ waitingOn: (child) => this.subtree.waitingOn(child) })
+    this.subtree = new SubtreeLiveWork({
+      roster: this.roster,
+      own: args.liveWork ?? (() => undefined),
+    })
     this.journal = new AgentJournal({ log: args.log, ids: args.ids })
     this.steps = new ChildSteps({
       runners: args.runners,
@@ -68,7 +76,7 @@ export class AgentSupervisor extends AgentRegistryPort {
       journal: this.journal,
       clock: args.clock,
       ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
-      ...(args.hasLiveWork === undefined ? {} : { hasLiveWork: args.hasLiveWork }),
+      waitingOn: (child) => this.subtree.waitingOn(child),
       ...(args.inheritOrphanedNotices === undefined
         ? {}
         : { inheritOrphanedNotices: args.inheritOrphanedNotices }),
@@ -176,7 +184,11 @@ export class AgentSupervisor extends AgentRegistryPort {
     })
   }
 
-  reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
+  reportToParent(args: {
+    threadId: ThreadId
+    text: string
+    kind?: EReportKind | undefined
+  }): Promise<AgentOutcome> {
     return reportToParent({
       ...args,
       log: this.log,
@@ -226,13 +238,13 @@ export class AgentSupervisor extends AgentRegistryPort {
     return { ok: true, snapshot: snapshotOf(child) }
   }
 
+  refreshWaiting(): void {
+    this.roster.changed()
+  }
+
   list({ threadId }: { threadId: ThreadId }): readonly AgentSnapshot[] {
     void this.hydrate({ threadId })
     return this.roster.list(threadId)
-  }
-
-  someChild(threadId: ThreadId, where: (child: ChildState) => boolean): boolean {
-    return this.roster.states().some((child) => child.spawnedBy === threadId && where(child))
   }
 
   async removeChildren({

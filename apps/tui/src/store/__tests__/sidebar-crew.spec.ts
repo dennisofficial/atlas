@@ -456,3 +456,23 @@ describe('grouping the crew into tiers', () => {
     expect(tiers.subagents).toEqual([untyped])
   })
 })
+
+describe('a child waiting on something', () => {
+  it('reads as waiting on it rather than done', () => {
+    const [row] = rows({ status: EAgentStatus.Finished, waitingOn: 'CI on #1366' })
+
+    expect(row?.state).toBe('waiting on CI on #1366')
+    expect(row ? crewRowReading(row) : null).toBe(ESubagentReading.Live)
+    expect(row ? isSubagentWorking(row) : null).toBe(true)
+  })
+
+  it('keeps the running reading while it is running', () => {
+    const [row] = rows({ status: EAgentStatus.Running, waitingOn: 'CI on #1366' })
+
+    expect(row?.state).not.toContain('waiting on')
+  })
+
+  it('reads a child with nothing to wait on as before', () => {
+    expect(rows({ status: EAgentStatus.Finished })[0]?.state).toBe('')
+  })
+})
