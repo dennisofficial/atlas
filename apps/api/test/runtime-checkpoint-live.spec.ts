@@ -61,7 +61,7 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   async function expectPersisted(expected: RuntimeCheckpoint): Promise<void> {
     const row = await storedSandbox()
     expect(row.runtimeCheckpointRevision).toBe(expected.revision)
-    expect(row.runtimeCheckpoint).toEqual(expected)
+    expect<unknown>(row.runtimeCheckpoint).toEqual(expected)
     expect(row.state).toBe('running')
     expect(row.sandboxId).toBe(`provider-${fixture.sandboxId}`)
     expect(row.lastActivityAt).toEqual(new Date('2026-10-01T00:00:00.000Z'))

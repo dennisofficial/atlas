@@ -13,6 +13,7 @@ import {
 import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { DevServeInstallRefusedError } from './github-sandbox-wake-installer'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
 const DEV_PIN = 'dev-0123456789ab'
 
@@ -24,12 +25,12 @@ describe('GithubSandboxWakeService with a dev serve pin', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    unstubAllGlobals()
   })
 
   it('boots the dev pin exactly, with no release lookup', async () => {
     const releaseCheck = releaseArtifactCheck(false)
-    vi.stubGlobal('fetch', releaseCheck)
+    stubGlobal('fetch', releaseCheck)
     await seedParkedSandbox({ serveVersion: DEV_PIN })
     await seedSubscription()
     const { boot, calls } = fakeBoot()

@@ -23,6 +23,7 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { advanceTimersByTimeAsync, waitFor } from '../../../../test/fake-timers'
 
 const PULL_REQUEST_PAYLOAD = {
   action: 'opened',
@@ -260,7 +261,7 @@ describe('GithubDeliveryService', () => {
     fanout.openStream({ userId: 'usr-c', handler: (state) => receivedC.push(state) })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(receivedA).toHaveLength(2)
     expect((receivedA[0] as { prNumber: number }).prNumber).toBe(42)
@@ -293,7 +294,7 @@ describe('GithubDeliveryService', () => {
     const handled = service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     await entered
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(received).toHaveLength(1)
     })
     expect(received[0]).toMatchObject({ prNumber: 42, mergeable: null, checksRunning: 0, checksPassed: 0 })
@@ -301,7 +302,7 @@ describe('GithubDeliveryService', () => {
     releaseFill(REST_FIELDS)
     await handled
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(received).toHaveLength(2)
     })
     expect(received[1]).toMatchObject({ prNumber: 42, mergeable: true, checksPassed: 2 })
@@ -370,7 +371,7 @@ describe('GithubDeliveryService', () => {
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received).toHaveLength(2)
   })
@@ -398,7 +399,7 @@ describe('GithubDeliveryService', () => {
     fanout.openStream({ userId: 'usr-other', handler: (state) => receivedOther.push(state) })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(received.length).toBeGreaterThan(0)
     expect(received[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
@@ -415,7 +416,7 @@ describe('GithubDeliveryService', () => {
     const pushes = vi.spyOn(fanout, 'push')
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     const userIdSets = pushes.mock.calls.map((call) => [...call[0].userIds].sort().join(','))
     expect(userIdSets.every((ids) => ids === 'usr-branch,usr-number')).toBe(true)
@@ -443,7 +444,7 @@ describe('GithubDeliveryService', () => {
       },
     }
     await service.handle({ event: 'pull_request', payload: forkPayload })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch).toHaveLength(0)
     expect((await prStateRows())[0]).toMatchObject({ prNumber: 42, headBranch: 'dennis/add-the-thing' })
@@ -469,7 +470,7 @@ describe('GithubDeliveryService', () => {
       },
     }
     await service.handle({ event: 'pull_request', payload: orphanPayload })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch).toHaveLength(0)
   })
@@ -499,7 +500,7 @@ describe('GithubDeliveryService', () => {
     fanout.openStream({ userId: 'usr-branch', handler: (state) => receivedBranch.push(state) })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(receivedBranch.length).toBeGreaterThan(0)
   })
@@ -550,7 +551,7 @@ describe('GithubDeliveryService', () => {
         body: 'ship it',
       },
     })
-    await vi.waitFor(async () => {
+    await waitFor(async () => {
       const delivered = new Map((await prEventRows()).map((row) => [row.userId, row]))
       expect(delivered.get('usr-a')?.deliveredAt).not.toBeNull()
     })

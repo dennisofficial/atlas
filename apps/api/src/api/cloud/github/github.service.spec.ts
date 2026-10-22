@@ -111,7 +111,7 @@ describe('GithubService', () => {
   ])('poll maps the %s error to %s', async (error, status) => {
     fetchImpl = async () => jsonResponse({ error })
 
-    await expect(
+    await expect<unknown>(
       service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' }),
     ).resolves.toEqual({ status })
     expect(await connectionRows()).toHaveLength(0)

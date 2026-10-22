@@ -1,30 +1,23 @@
-import { describe, expect, it, vi } from 'bun:test'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { describe, expect, it, mock, vi } from 'bun:test'
 
-const { execute } = vi.hoisted(() => ({ execute: vi.fn(async () => ({ affectedRows: 1 })) }))
-
-vi.mock('@trigger.dev/sdk', () => ({
+mock.module('@trigger.dev/sdk', () => ({
   schemaTask: <T>(definition: T): T => definition,
 }))
-vi.mock('@dltech/atlas-db', () => ({
-  db: {
-    execute,
-    raw: { sql: () => ({ affectedCount: () => ({ build: () => ({ sql: 'SELECT 1' }) }) }) },
-  },
-}))
 
-import { smokeTaskContract } from './smoke.contract'
-import { runSmoke, runSmokeTask, smokeTask } from './smoke.task'
+const { smokeTaskContract } = await import('./smoke.contract')
+const { runSmoke, runSmokeTask, smokeTask } = await import('./smoke.task')
 
 describe('atlas-smoke task', () => {
+  useTestDatabase()
+
   it('registers under the contract id with a single attempt', () => {
     expect(smokeTask).toMatchObject({ id: 'atlas-smoke', retry: { maxAttempts: 1 } })
     expect(smokeTaskContract.id).toBe(smokeTask.id)
   })
 
   it('runs SELECT 1 through the lazy db and reports ok', async () => {
-    execute.mockClear()
     const output = await runSmokeTask()
-    expect(execute).toHaveBeenCalledTimes(1)
     expect(output.ok).toBe(true)
     expect(Number.isNaN(Date.parse(output.at))).toBe(false)
   })

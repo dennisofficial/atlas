@@ -189,6 +189,7 @@ describe('MemoriesService', () => {
     await service.put({ ...globalNote({ name: 'widget-fact' }), scope: EMemoryScope.Project, project: PROJECT })
     await service.put({ ...globalNote({ name: 'other-fact' }), scope: EMemoryScope.Project, project: 'acme/gadgets' })
     await service.put(globalNote({ name: 'newest' }))
+    await stampInOrder(['older', 'widget-fact', 'other-fact', 'newest'])
 
     expect((await service.list({ userId: USER_A, project: PROJECT })).map((row) => row.name)).toEqual([
       'newest',
@@ -226,3 +227,10 @@ describe('MemoriesService', () => {
     expect(await rowsOf()).toHaveLength(0)
   })
 })
+
+async function stampInOrder(names: string[]): Promise<void> {
+  const base = Date.parse('2026-10-01T00:00:00.000Z')
+  for (const [index, name] of names.entries()) {
+    await db.orm.public.Memory.where({ name }).updateAndCount({ updatedAt: new Date(base + index * 1_000) })
+  }
+}

@@ -25,7 +25,7 @@ describe('SettingsService', () => {
     expect(stored?.id).toMatch(/^set_/)
     expect(stored?.value).toBe('img-1')
 
-    expect(await service.list({ userId: USER_A })).toEqual([
+    expect<unknown>(await service.list({ userId: USER_A })).toEqual([
       {
         key: 'sandbox.image',
         value: 'img-1',

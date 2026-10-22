@@ -7,6 +7,7 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -40,7 +41,7 @@ function serviceWith(args: {
     shouldRecommend: async () => false,
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  vi.stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
+  stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
   return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
@@ -50,7 +51,7 @@ describe('GithubSubscriptionsService branch catch-up', () => {
   beforeEach(async () => {
     await ensureUsers('usr_1', 'usr_2')
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it.each([
     { mergedState: 'merged', mergeable: false },

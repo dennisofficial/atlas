@@ -10,6 +10,7 @@ import {
   seedSubscription,
   serviceWith,
 } from '../../../../test/github-sandbox-wake-fixture'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService background work', () => {
   useTestDatabase()
@@ -62,7 +63,7 @@ describe('GithubSandboxWakeService background work', () => {
     void background.kept[0]?.then(() => {
       lookupDone = true
     })
-    await vi.advanceTimersByTimeAsync(10)
+    await advanceTimersByTimeAsync(10)
     expect(lookupDone).toBe(false)
 
     release()

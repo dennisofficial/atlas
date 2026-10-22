@@ -9,7 +9,7 @@ import {
 import { HttpAdapterHost } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import type { MockInstance } from 'bun:test'
+import type { Mock } from 'bun:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { GithubUserReadFailed } from './cloud/github/github-user-reads'
 import { GlobalExceptionFilter } from './global-exception.filter'
@@ -69,7 +69,7 @@ class ThrowingController {
 
 describe('GlobalExceptionFilter', () => {
   let app: INestApplication
-  let errorLog: MockInstance<Logger['error']>
+  let errorLog: Mock<Logger['error']>
 
   beforeEach(async () => {
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)

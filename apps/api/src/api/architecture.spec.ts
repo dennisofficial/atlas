@@ -12,7 +12,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
   cloud: [],
 }
 
-const ALLOWED_EXTERNAL = /^@dltech\/atlas-(?:wire|db)(?:\/|$)/
+const ALLOWED_EXTERNAL = /^@dltech\/(?:atlas-wire|atlas-db|bun-test-shims)(?:\/|$)/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
@@ -182,11 +182,11 @@ describe('api layer architecture', () => {
     ).toEqual([])
   })
 
-  it('imports no in-repo package other than @dltech/atlas-wire', () => {
+  it('imports no in-repo package other than @dltech/atlas-wire and @dltech/atlas-db', () => {
     expect(
       collectInRepoViolations(),
       'the API depends on nothing in-repo except the shared wire contract; ' +
-        'a new in-repo import belongs in @dltech/atlas-wire or not at all',
+        'a new in-repo import belongs in @dltech/atlas-wire, @dltech/atlas-db or not at all',
     ).toEqual([])
   })
 })

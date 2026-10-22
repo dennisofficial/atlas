@@ -70,7 +70,7 @@ describe('SandboxProvisioningService', () => {
 
     expect(reply).toEqual({ state: ESandboxProvisionState.NotConfigured, error: failure.message })
     expect(failure.message).toContain('Workspace → Secrets')
-    expect(await bootStepEvents()).toEqual([
+    expect<unknown>(await bootStepEvents()).toEqual([
       { runId: BOOT_RUN_ID, step: 'provision', state: 'error', error: failure.message },
     ])
     expect(await sandboxRows()).toHaveLength(0)

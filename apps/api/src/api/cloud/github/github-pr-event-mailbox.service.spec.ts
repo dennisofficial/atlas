@@ -1,11 +1,12 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, prEventRows, seedPrEvent } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { waitFor } from '../../../../test/fake-timers'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -45,7 +46,7 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Comment,
       payload: { url: 'https://github.com/compai/app/pull/42#issuecomment-1', authorLogin: 'dennis', body: 'hi' },
     })
-    await vi.waitFor(async () => {
+    await waitFor(async () => {
       expect((await prEventRows()).every((row) => row.deliveredAt !== null)).toBe(true)
     })
 
@@ -70,7 +71,7 @@ describe('GithubPrEventMailboxService', () => {
       kind: EPrEventKind.Verdict,
       payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc' },
     })
-    await vi.waitFor(async () => {
+    await waitFor(async () => {
       expect((await prEventRows()).find((row) => row.userId === 'usr-a')?.deliveredAt).not.toBeNull()
     })
 

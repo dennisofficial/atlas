@@ -13,6 +13,7 @@ import {
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
+import { advanceTimersByTimeAsync } from './fake-timers'
 
 export const SECRETS_KEY = 'a'.repeat(64)
 
@@ -184,7 +185,7 @@ export async function settleLookups(): Promise<void> {
 
 export async function advanceDebounce(): Promise<void> {
   await settleLookups()
-  await vi.advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
+  await advanceTimersByTimeAsync(WAKE_DEBOUNCE_MS + 1)
 }
 
 export async function flushDebounce(): Promise<void> {

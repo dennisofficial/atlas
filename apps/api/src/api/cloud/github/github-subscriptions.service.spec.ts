@@ -18,6 +18,7 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -57,7 +58,7 @@ function serviceWith(args: {
     shouldRecommend: args.shouldRecommend ?? (async () => false),
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  vi.stubGlobal('fetch', args.fetchImpl ?? okFetch)
+  stubGlobal('fetch', args.fetchImpl ?? okFetch)
   return new GithubSubscriptionsService(github, reads, hooks, installNotice)
 }
 
@@ -68,7 +69,7 @@ describe('GithubSubscriptionsService', () => {
     await ensureUsers('usr_1', 'usr_2')
   })
 
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })

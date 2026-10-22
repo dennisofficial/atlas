@@ -25,6 +25,8 @@ import { sandboxStateOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE_MS, WAKE_FAILURE_BACKOFF_MS } from './github-sandbox-wake.service'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 describe('GithubSandboxWakeService', () => {
   useTestDatabase()
@@ -34,7 +36,7 @@ describe('GithubSandboxWakeService', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    unstubAllGlobals()
   })
 
   it('resumes a parked sandbox with its stored token and leaves the token columns alone', async () => {
@@ -182,7 +184,7 @@ describe('GithubSandboxWakeService', () => {
     for (let i = 0; i < 6; i += 1) {
       wake.notifyEvent(PR_EVENT)
       await settleLookups()
-      await vi.advanceTimersByTimeAsync(1_000)
+      await advanceTimersByTimeAsync(1_000)
     }
     await flushDebounce()
 
@@ -266,7 +268,7 @@ describe('GithubSandboxWakeService', () => {
 
   it('boots a release pin with no release artifact without any HEAD-check, leaving the launcher to decide', async () => {
     const releaseCheck = releaseArtifactCheck(false)
-    vi.stubGlobal('fetch', releaseCheck)
+    stubGlobal('fetch', releaseCheck)
     await seedParkedSandbox({ serveVersion: '9.9.9' })
     await seedSubscription()
     const { boot, calls } = fakeBoot()
@@ -282,7 +284,7 @@ describe('GithubSandboxWakeService', () => {
 
   it('boots the pinned version exactly while GitHub is unreachable', async () => {
     const offline = vi.fn(async () => Promise.reject(new Error('offline')))
-    vi.stubGlobal('fetch', offline)
+    stubGlobal('fetch', offline)
     await seedParkedSandbox({ serveVersion: '1.92.6' })
     await seedSubscription()
     const { boot, calls } = fakeBoot()
@@ -331,7 +333,7 @@ describe('GithubSandboxWakeService', () => {
 
       wake.notifyEvent(PR_EVENT)
       await settleLookups()
-      await vi.advanceTimersByTimeAsync(1)
+      await advanceTimersByTimeAsync(1)
       expect(calls).toHaveLength(0)
       expect(vi.getTimerCount()).toBeGreaterThan(timersBefore)
 
@@ -375,7 +377,7 @@ describe('GithubSandboxWakeService', () => {
       const settling = wake.settle().then(() => {
         settled = true
       })
-      await vi.advanceTimersByTimeAsync(0)
+      await advanceTimersByTimeAsync(0)
       expect(settled).toBe(false)
 
       gate.release()

@@ -31,7 +31,7 @@ describe('SecretsService', () => {
     expect(stored?.id).toMatch(/^sec_/)
     expect(stored?.sealedValue).not.toContain('sk-search-1')
 
-    expect(await service.list({ userId: USER_A })).toEqual([
+    expect<unknown>(await service.list({ userId: USER_A })).toEqual([
       {
         name: 'web.searchKey',
         value: 'sk-search-1',

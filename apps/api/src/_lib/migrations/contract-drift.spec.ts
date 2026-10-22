@@ -1,6 +1,7 @@
 import { contractStorageHash } from '@dltech/atlas-db'
-import { afterEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { contractDrift, EContractDrift, shippedMigrationGraph } from './contract-drift'
+import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
 const GRAPH = ['h0', 'h1', 'h2']
 
@@ -23,14 +24,14 @@ describe('contractDrift', () => {
 })
 
 describe('shippedMigrationGraph', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => unstubAllGlobals())
 
   it('reads the committed migration graph, which reaches the emitted contract', () => {
     expect(shippedMigrationGraph()).toContain(contractStorageHash)
   })
 
   it('uses the build-time inlined graph when the bundle defines it', () => {
-    vi.stubGlobal('__ATLAS_MIGRATION_GRAPH__', ['inlined'])
+    stubGlobal('__ATLAS_MIGRATION_GRAPH__', ['inlined'])
     expect(shippedMigrationGraph()).toEqual(['inlined'])
   })
 })

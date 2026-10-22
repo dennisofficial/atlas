@@ -21,6 +21,7 @@ import type { GithubUserReads } from './github-user-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -83,7 +84,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -177,7 +178,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -264,7 +265,7 @@ describe('GithubPollSweeperService', () => {
     fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(findOpenPrForBranch).toHaveBeenCalledWith({
       token: 'ghu_1',
@@ -315,7 +316,7 @@ describe('GithubPollSweeperService', () => {
     const pushes = vi.spyOn(fanout, 'push')
 
     await service.handlePoll()
-    await vi.advanceTimersByTimeAsync(1_100)
+    await advanceTimersByTimeAsync(1_100)
 
     expect(pushes).toHaveBeenCalled()
     expect([...pushes.mock.calls[0]![0].userIds].sort()).toEqual(['usr_1', 'usr_2'])
