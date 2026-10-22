@@ -31,6 +31,9 @@ jobs:
 
       - run: bun install
 
+      - name: lint and format
+        run: bun run lint
+
       # The VCR image-push token doubles as the turbo cache token — same comp-ai team
       # scope. Absent on fork PRs, which then simply run uncached.
       - name: enable turbo remote cache
