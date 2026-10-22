@@ -96,6 +96,7 @@ export * from './workspace/atlas-home'
 export * from './workspace/telemetry-policy'
 
 export * from './agents/kind'
+export * from './agents/report'
 export * from './agents/restart'
 export * from './agents/start'
 export * from './agents/status'

@@ -94,6 +94,7 @@ export const agentSnapshotWireSchema = z.object({
     .object({ tokens: z.number().int().nonnegative(), window: z.number().int().nonnegative() })
     .optional(),
   model: providerIdentitySchema.optional(),
+  waitingOn: z.string().optional(),
 })
 
 export type AgentSnapshotWire = z.infer<typeof agentSnapshotWireSchema>

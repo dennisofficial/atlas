@@ -1,3 +1,4 @@
+import type { EReportKind } from '../agents/report'
 import type { EAgentRestart } from '../agents/restart'
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
@@ -256,6 +257,10 @@ export type EventBody =
       failureCause?: string | undefined
       turns: number
       toolCalls: number
+      /** False when the child still owned live work, so the ending was recorded without waking the parent. */
+      relayed?: boolean | undefined
+      /** For an unrelayed ending: what still holds the child open, e.g. "CI on #1366". */
+      waitingOn?: string | undefined
     }
   | {
       type: 'agent-restarted'
@@ -270,6 +275,7 @@ export type EventBody =
       agentType: string
       intent: string
       prose: string
+      kind?: EReportKind | undefined
     }
   | {
       type: 'history-compacted'
