@@ -1,7 +1,6 @@
 import {
   decodeClientFrame,
   EClientFrame,
-  EClientRequest,
   encodeFrame,
   EServeFrame,
   type ChannelSocketHandlers,
