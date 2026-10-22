@@ -15,7 +15,7 @@ export async function recordBootSteps(args: {
       threadId: args.threadId,
       step: step.step,
       state: step.state,
-      error: step.error ?? step.detail ?? null,
+      error: step.error ?? null,
     })
   }
 }
