@@ -1,4 +1,8 @@
-import { sandboxExposePortRequestSchema, sandboxSelfStopRequestSchema } from '@dltech/atlas-wire'
+import {
+  bootStepsPostSchema,
+  sandboxExposePortRequestSchema,
+  sandboxSelfStopRequestSchema,
+} from '@dltech/atlas-wire'
 import type { SandboxExposePortReply } from '@dltech/atlas-wire'
 import {
   BadRequestException,
@@ -14,6 +18,7 @@ import {
 import { db } from '@dltech/atlas-db'
 import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
 import { SandboxTokenGuard } from './sandbox-token.guard'
+import { recordBootSteps } from './sandbox-boot-steps'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 type SandboxIdentity = { threadId: string; name: string }
@@ -45,6 +50,19 @@ export class SandboxSelfController {
     if (!parsed.success) throw new BadRequestException(parsed.error.message)
     const sandbox = await this.identityOf(request)
     await this.vercel.stopSession({ ...sandbox, sessionId: parsed.data.sessionId })
+  }
+
+  @Post('boot-steps')
+  @HttpCode(204)
+  async handleBootSteps(
+    @Req() request: SandboxAuthenticatedRequest,
+    @Body() body: unknown,
+  ): Promise<void> {
+    const parsed = bootStepsPostSchema.safeParse(body)
+    if (!parsed.success) throw new BadRequestException(parsed.error.message)
+    if (request.sandbox === undefined)
+      throw new UnauthorizedException('a sandbox session token is required')
+    await recordBootSteps({ threadId: request.sandbox.threadId, steps: parsed.data.steps })
   }
 
   private async identityOf(request: SandboxAuthenticatedRequest): Promise<SandboxIdentity> {
