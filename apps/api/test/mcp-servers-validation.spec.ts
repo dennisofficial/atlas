@@ -2,7 +2,9 @@ import type { INestApplication } from '@nestjs/common'
 import { ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
@@ -10,9 +12,8 @@ import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { McpServersController } from '../src/api/cloud/mcp-servers/mcp-servers.controller'
 import { McpServersService } from '../src/api/cloud/mcp-servers/mcp-servers.service'
 
-vi.mock('../src/db', () => ({ db: {} }))
-
 describe('McpServersController validation (in-process)', () => {
+  useTestDatabase()
   let app: INestApplication
 
   beforeAll(async () => {
@@ -51,6 +52,10 @@ describe('McpServersController validation (in-process)', () => {
       }),
     )
     await app.init()
+  })
+
+  beforeEach(async () => {
+    await seedUser({ db, id: 'test-user' })
   })
 
   afterAll(async () => {

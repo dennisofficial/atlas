@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { validateCloudSetting } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { CloudSettingModel } from '../../../db'
-import { db } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import type { SettingDto } from './settings.types'
 
 const MAX_KEY_LENGTH = 200
@@ -45,17 +44,15 @@ function assertPatchShape(values: Record<string, string | null>): [string, strin
 @Injectable()
 export class SettingsService {
   async list(args: { userId: string }): Promise<SettingDto[]> {
-    const rows = await db.cloudSetting.findMany({
-      where: { userId: args.userId },
-      orderBy: { key: 'asc' },
-    })
+    const rows = await db.orm.public.UserSetting.where({ userId: args.userId })
+      .orderBy((row) => row.key.asc())
+      .all()
     return rows.map((row) => toSettingDto(row))
   }
 
   async set(args: { userId: string; key: string; value: string }): Promise<void> {
     assertValidKey(args.key)
-    await db.cloudSetting.upsert({
-      where: { userId_key: { userId: args.userId, key: args.key } },
+    await db.orm.public.UserSetting.upsert({
       create: {
         id: `set_${randomUUID()}`,
         key: args.key,
@@ -63,33 +60,35 @@ export class SettingsService {
         userId: args.userId,
       },
       update: { value: args.value },
+      conflictOn: { userId: args.userId, key: args.key },
     })
   }
 
   async patch(args: { userId: string; values: Record<string, string | null> }): Promise<void> {
     const entries = assertPatchShape(args.values)
-    await db.$transaction(
-      entries.map(([key, value]) =>
-        value === null
-          ? db.cloudSetting.deleteMany({ where: { userId: args.userId, key } })
-          : db.cloudSetting.upsert({
-              where: { userId_key: { userId: args.userId, key } },
-              create: { id: `set_${randomUUID()}`, key, value, userId: args.userId },
-              update: { value },
-            }),
-      ),
-    )
+    const { userId } = args
+    await db.transaction(async (tx) => {
+      for (const [key, value] of entries) {
+        if (value === null) {
+          await tx.orm.public.UserSetting.where({ userId, key }).deleteAndCount()
+          continue
+        }
+        await tx.orm.public.UserSetting.upsert({
+          create: { id: `set_${randomUUID()}`, key, value, userId },
+          update: { value },
+          conflictOn: { userId, key },
+        })
+      }
+    })
   }
 
   async remove(args: { userId: string; key: string }): Promise<void> {
     assertValidKey(args.key)
-    await db.cloudSetting.deleteMany({
-      where: { userId: args.userId, key: args.key },
-    })
+    await db.orm.public.UserSetting.where({ userId: args.userId, key: args.key }).deleteAndCount()
   }
 }
 
-function toSettingDto(row: CloudSettingModel): SettingDto {
+function toSettingDto(row: Row<'UserSetting'>): SettingDto {
   return {
     key: row.key,
     value: row.value,

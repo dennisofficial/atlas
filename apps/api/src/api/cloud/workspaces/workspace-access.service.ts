@@ -1,13 +1,14 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 
 const WRITER_ROLES = ['owner', 'admin']
 
 @Injectable()
 export class WorkspaceAccessService {
   async require(args: { userId: string; organizationId: string; write: boolean }): Promise<void> {
-    const member = await db.member.findFirst({
-      where: { organizationId: args.organizationId, userId: args.userId },
+    const member = await db.orm.public.Member.first({
+      organizationId: args.organizationId,
+      userId: args.userId,
     })
     if (member === null) throw new NotFoundException('workspace not found')
     if (!args.write) return

@@ -1,67 +1,9 @@
 import { createHash } from 'node:crypto'
 import { BadRequestException, ConflictException } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Prisma, type PrismaClient } from '../../../generated/prisma/client'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { UserFilesService } from './user-files.service'
-
-interface UserFileRow {
-  id: string
-  userId: string
-  tree: string
-  path: string
-  revision: number
-  contentHash: string
-  content: Uint8Array | null
-  tombstonedAt: Date | null
-}
-
-type RowKey = { userId: string; tree: string; path: string }
-type FindManyArgs = {
-  where: { userId: string; tree: string; revision?: { gt: number }; path?: { in: string[] } }
-}
-
-const fake = vi.hoisted(() => {
-  const rows: UserFileRow[] = []
-  const findManyCalls: unknown[] = []
-  const state = { createFailure: undefined as unknown }
-
-  const matches = (row: UserFileRow, key: RowKey) =>
-    row.userId === key.userId && row.tree === key.tree && row.path === key.path
-
-  const db = {
-    userFile: {
-      findMany: async (args: FindManyArgs) => {
-        findManyCalls.push(args)
-        return rows
-          .filter((row) => row.userId === args.where.userId && row.tree === args.where.tree)
-          .filter((row) => args.where.revision === undefined || row.revision > args.where.revision.gt)
-          .filter((row) => args.where.path === undefined || args.where.path.in.includes(row.path))
-          .sort((a, b) => a.revision - b.revision)
-      },
-      findUnique: async (args: { where: { userId_tree_path: RowKey } }) =>
-        rows.find((row) => matches(row, args.where.userId_tree_path)) ?? null,
-      create: async (args: { data: Omit<UserFileRow, 'id' | 'tombstonedAt'> }) => {
-        if (state.createFailure !== undefined) throw state.createFailure
-        const row = { ...args.data, id: `uf_${rows.length}`, tombstonedAt: null }
-        rows.push(row)
-        return row
-      },
-      updateMany: async (args: {
-        where: RowKey & { revision: number }
-        data: Partial<UserFileRow>
-      }) => {
-        const row = rows.find((candidate) => matches(candidate, args.where))
-        if (row === undefined || row.revision !== args.where.revision) return { count: 0 }
-        Object.assign(row, args.data)
-        return { count: 1 }
-      },
-    },
-  }
-
-  return { db, rows, findManyCalls, state }
-})
-
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
@@ -90,12 +32,12 @@ async function conflictOf(attempt: Promise<unknown>): Promise<ConflictException>
 }
 
 describe('UserFilesService', () => {
+  const database = useTestDatabase()
+  const rowsOf = () => db.orm.public.UserFile.where((row) => row.id.neq('')).orderBy((row) => row.path.asc()).all()
   let service: UserFilesService
 
-  beforeEach(() => {
-    fake.rows.length = 0
-    fake.findManyCalls.length = 0
-    fake.state.createFailure = undefined
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new UserFilesService()
   })
 
@@ -103,15 +45,16 @@ describe('UserFilesService', () => {
     it('creates revision 1 when the file is new and baseRevision is 0', async () => {
       expect(await service.put(putArgs({ text: 'one', baseRevision: 0 }))).toEqual({ revision: 1 })
 
-      expect(fake.rows[0]).toMatchObject({ revision: 1, contentHash: hashOf('one') })
-      expect(Buffer.from(fake.rows[0]?.content ?? []).toString()).toBe('one')
+      const rows = await rowsOf()
+      expect(rows[0]).toMatchObject({ revision: 1, contentHash: hashOf('one') })
+      expect(Buffer.from(rows[0]?.content ?? []).toString()).toBe('one')
     })
 
     it('refuses a create whose baseRevision claims the file already exists', async () => {
       const conflict = await conflictOf(service.put(putArgs({ text: 'one', baseRevision: 3 })))
 
       expect(conflict.getResponse()).toMatchObject({ currentRevision: 0, contentHash: '' })
-      expect(fake.rows).toHaveLength(0)
+      expect(await rowsOf()).toHaveLength(0)
     })
 
     it('rejects a stale second writer with the current revision and hash', async () => {
@@ -124,26 +67,24 @@ describe('UserFilesService', () => {
         currentRevision: 2,
         contentHash: hashOf('two'),
       })
-      expect(fake.rows[0]?.contentHash).toBe(hashOf('two'))
+      expect((await rowsOf())[0]?.contentHash).toBe(hashOf('two'))
     })
 
     it('rejects a create that loses the insert race with the winner state', async () => {
-      await service.put(putArgs({ text: 'one', baseRevision: 0 }))
-      fake.rows.length = 1
-      fake.state.createFailure = new Prisma.PrismaClientKnownRequestError('dup', {
-        code: 'P2002',
-        clientVersion: 'test',
-        meta: { target: ['userId', 'tree', 'path'] },
-      })
-      vi.spyOn(fake.db.userFile, 'findUnique')
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(fake.rows[0] ?? null)
+      const original = db.orm.public.UserFile.first.bind(db.orm.public.UserFile)
+      const winner = putArgs({ text: 'one', baseRevision: 0 })
+      const lookup = vi
+        .spyOn(db.orm.public.UserFile, 'first')
+        .mockImplementationOnce(async () => {
+          await service.put(winner)
+          return null
+        })
+        .mockImplementation(original)
 
-      const conflict = await conflictOf(
-        service.put(putArgs({ text: 'racer', baseRevision: 0 })),
-      )
+      const conflict = await conflictOf(service.put(putArgs({ text: 'racer', baseRevision: 0 })))
 
-      expect(conflict.getResponse()).toMatchObject({ currentRevision: 1 })
+      expect(lookup).toHaveBeenCalled()
+      expect(conflict.getResponse()).toMatchObject({ currentRevision: 1, contentHash: hashOf('one') })
     })
 
     it('bumps the revision, stores the hash and clears a tombstone on a matching base', async () => {
@@ -152,7 +93,7 @@ describe('UserFilesService', () => {
 
       expect(await service.put(putArgs({ text: 'back', baseRevision: 2 }))).toEqual({ revision: 3 })
 
-      expect(fake.rows[0]).toMatchObject({
+      expect((await rowsOf())[0]).toMatchObject({
         revision: 3,
         contentHash: hashOf('back'),
         tombstonedAt: null,
@@ -174,9 +115,10 @@ describe('UserFilesService', () => {
 
       expect(await service.remove({ ...target, baseRevision: 1 })).toEqual({ revision: 2 })
 
-      expect(fake.rows).toHaveLength(1)
-      expect(fake.rows[0]).toMatchObject({ revision: 2, contentHash: '', content: null })
-      expect(fake.rows[0]?.tombstonedAt).toBeInstanceOf(Date)
+      const rows = await rowsOf()
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ revision: 2, contentHash: '', content: null })
+      expect(rows[0]?.tombstonedAt).toBeInstanceOf(Date)
     })
 
     it('rejects a stale baseRevision with the current revision', async () => {
@@ -186,7 +128,7 @@ describe('UserFilesService', () => {
       const conflict = await conflictOf(service.remove({ ...target, baseRevision: 1 }))
 
       expect(conflict.getResponse()).toMatchObject({ currentRevision: 2 })
-      expect(fake.rows[0]?.tombstonedAt).toBeNull()
+      expect((await rowsOf())[0]?.tombstonedAt).toBeNull()
     })
   })
 
@@ -209,13 +151,13 @@ describe('UserFilesService', () => {
       await service.put(putArgs({ text: 'mine', baseRevision: 0, userId: USER_A }))
 
       expect(await service.list({ userId: USER_B, tree: 'skills' })).toEqual([])
-      await service.getMany({ userId: USER_B, tree: 'skills', paths: ['review/SKILL.md'] })
-
-      expect(fake.findManyCalls.at(-2)).toMatchObject({ where: { userId: USER_B } })
-      expect(fake.findManyCalls.at(-1)).toMatchObject({ where: { userId: USER_B } })
       expect(
         await service.getMany({ userId: USER_B, tree: 'skills', paths: ['review/SKILL.md'] }),
       ).toEqual([])
+      expect(await service.list({ userId: USER_A, tree: 'skills' })).toHaveLength(1)
+      expect(
+        await service.getMany({ userId: USER_A, tree: 'skills', paths: ['review/SKILL.md'] }),
+      ).toHaveLength(1)
     })
   })
 
@@ -254,7 +196,7 @@ describe('UserFilesService', () => {
       await expect(
         service.remove({ userId: USER_A, tree: 'skills', path, baseRevision: 1 }),
       ).rejects.toBeInstanceOf(BadRequestException)
-      expect(fake.rows).toHaveLength(0)
+      expect(await rowsOf()).toHaveLength(0)
     })
 
     it('rejects an unknown tree', async () => {
@@ -272,7 +214,7 @@ describe('UserFilesService', () => {
     it('accepts nested paths', async () => {
       await service.put(putArgs({ text: 'x', baseRevision: 0, path: 'a/b/c.md' }))
 
-      expect(fake.rows[0]?.path).toBe('a/b/c.md')
+      expect((await rowsOf())[0]?.path).toBe('a/b/c.md')
     })
   })
 })

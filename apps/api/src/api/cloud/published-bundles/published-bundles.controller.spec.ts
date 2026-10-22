@@ -2,17 +2,13 @@ import type { INestApplication } from '@nestjs/common'
 import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import type { PrismaClient } from '../../../generated/prisma/client'
-
-vi.mock('../../../db', async () => {
-  const { sharedPublishedBundleDb } = await import('../../../../test/fake-published-bundle-db.js')
-  return { db: sharedPublishedBundleDb.db as unknown as PrismaClient }
-})
-
-import { sharedPublishedBundleDb as fake } from '../../../../test/fake-published-bundle-db.js'
+import { seedSessionUsers } from '../web-settings.fake-db'
+import { bundlesOf, waitForBlockedInsert } from '../../../../test/fake-published-bundle-db'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
@@ -32,6 +28,7 @@ const bearerOf = (req: { headers: { authorization?: string } }): string =>
   (req.headers.authorization ?? '').replace(/^Bearer /i, '')
 
 describe('published bundles HTTP surface', () => {
+  const database = useTestDatabase()
   let app: INestApplication
   const blobs = new FakeBundleBlobStore()
   const http = () => request(app.getHttpServer())
@@ -50,7 +47,7 @@ describe('published bundles HTTP surface', () => {
       .send({ pathname: await upload(token), sha256: SHA, manifest: MANIFEST, ...overrides })
 
   beforeEach(async () => {
-    fake.reset()
+    await seedSessionUsers()
     blobs.reset()
     const module = await Test.createTestingModule({
       controllers: [PublishedBundlesController],
@@ -126,12 +123,30 @@ describe('published bundles HTTP surface', () => {
     })
 
     it('retries once when the version collides', async () => {
-      fake.collideNextVersion()
+      const pathname = await upload('session-a')
+      const rival = await database().pool.connect()
+      await rival.query('BEGIN')
+      await rival.query(
+        `INSERT INTO "PublishedBundle" (id, "userId", version, pathname, "blobUrl", sha256, "sizeBytes", manifest) VALUES ('rival', 'user-a', 1, 'bundles/user-a/rival.tar.gz', 'https://blob.test/rival', $1, 1, '{}')`,
+        [SHA],
+      )
 
-      const res = await commit('session-a')
+      const committing = http()
+        .post('/v1/published-bundles')
+        .set(as('session-a'))
+        .send({ pathname, sha256: SHA, manifest: MANIFEST })
+        .then((response) => response)
+      try {
+        await waitForBlockedInsert(database().pool)
+      } finally {
+        await rival.query('COMMIT')
+        rival.release()
+      }
+      const res = await committing
 
       expect(res.status).toBe(201)
-      expect(res.body.version).toBe(1)
+      expect(res.body.version).toBe(2)
+      expect((await bundlesOf()).map((bundle) => bundle.version)).toEqual([1, 2])
     })
 
     it('rejects a pathname outside the caller prefix', async () => {
@@ -142,7 +157,7 @@ describe('published bundles HTTP surface', () => {
         .set(as('session-a'))
         .send({ pathname: foreign, sha256: SHA, manifest: MANIFEST })
         .expect(400)
-      expect(fake.bundles).toHaveLength(0)
+      expect(await bundlesOf()).toHaveLength(0)
     })
 
     it('rejects a pathname with no uploaded blob', async () => {
@@ -156,14 +171,14 @@ describe('published bundles HTTP surface', () => {
     it('rejects a pathname that is already committed', async () => {
       const first = await commit('session-a')
       expect(first.status).toBe(201)
-      const pathname = fake.bundles[0]?.pathname
+      const pathname = (await bundlesOf())[0]?.pathname
 
       await http()
         .post('/v1/published-bundles')
         .set(as('session-a'))
         .send({ pathname, sha256: SHA, manifest: MANIFEST })
         .expect(409)
-      expect(fake.bundles).toHaveLength(1)
+      expect(await bundlesOf()).toHaveLength(1)
     })
 
     it('rejects a bad manifest and a bad body', async () => {
@@ -171,7 +186,7 @@ describe('published bundles HTTP surface', () => {
       expect((await commit('session-a', { manifest: {} })).status).toBe(400)
       expect((await commit('session-a', { sha256: 'xyz' })).status).toBe(400)
       expect((await commit('session-a', { manifest: undefined })).status).toBe(400)
-      expect(fake.bundles).toHaveLength(0)
+      expect(await bundlesOf()).toHaveLength(0)
     })
 
     it('refuses a pod bearer', async () => {
@@ -194,7 +209,7 @@ describe('published bundles HTTP surface', () => {
 
       expect(res.headers['cache-control']).toBe('no-store')
       expect(res.body).toMatchObject({ version: 2, sha256: SHA, sizeBytes: 1234, manifest: MANIFEST })
-      expect(res.body.downloadUrl).toBe(`https://blob.test/get/${fake.bundles[1]?.pathname}?sig=1`)
+      expect(res.body.downloadUrl).toBe(`https://blob.test/get/${(await bundlesOf())[1]?.pathname}?sig=1`)
     })
 
     it("serves the user's own pod", async () => {

@@ -1,26 +1,25 @@
 import type { INestApplication } from '@nestjs/common'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
-
-vi.mock('../../../db', async () => {
-  const { sharedWebSettingsDb } = await import('../web-settings.fake-db')
-  return { db: sharedWebSettingsDb.db }
-})
 
 import request from 'supertest'
 import { as, buildSessionApp } from '../session-test-app'
-import { sharedWebSettingsDb as fake } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../web-settings.fake-db'
 import { SecretsController } from '../secrets/secrets.controller'
 import { SecretsService } from '../secrets/secrets.service'
 import { SettingsController } from './settings.controller'
 import { SettingsService } from './settings.service'
 
 describe('personal settings and secrets HTTP surface', () => {
+  useTestDatabase()
+  const settings = () => db.orm.public.UserSetting.where((row) => row.id.neq('')).all()
   let app: INestApplication
   const http = () => request(app.getHttpServer())
 
   beforeEach(async () => {
-    fake.reset()
+    await seedSessionUsers()
     app = await buildSessionApp({
       controllers: [SettingsController, SecretsController],
       providers: [SettingsService, SecretsService],
@@ -49,7 +48,7 @@ describe('personal settings and secrets HTTP surface', () => {
         .send({ values: { [key]: encodeSettingValue(value) } })
         .expect(400)
     }
-    expect(fake.tables.cloudSetting.rows).toHaveLength(3)
+    expect(await settings()).toHaveLength(3)
   })
 
   it('PUT passes an unknown key through untouched', async () => {
@@ -78,7 +77,7 @@ describe('personal settings and secrets HTTP surface', () => {
       })
       .expect(204)
 
-    const keys = fake.tables.cloudSetting.rows.map((row) => row.key)
+    const keys = (await settings()).map((row) => row.key)
     expect(keys).toEqual(['web.appearance.density'])
   })
 
@@ -93,7 +92,7 @@ describe('personal settings and secrets HTTP surface', () => {
         },
       })
       .expect(400)
-    expect(fake.tables.cloudSetting.rows).toHaveLength(0)
+    expect(await settings()).toHaveLength(0)
   })
 
   it('PATCH rejects an empty patch, more than 100 keys, and a non-string value', async () => {

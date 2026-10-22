@@ -3,8 +3,7 @@ import { projectRepoSchema } from '@dltech/atlas-wire'
 import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { z } from 'zod'
-import type { ProjectModel } from '../../../db'
-import { db } from '../../../db'
+import { db, or, type Row } from '@dltech/atlas-db'
 import { GithubService } from '../github/github.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 import type { SaveProjectDto } from './projects.dto'
@@ -14,7 +13,7 @@ export const PROJECT_NOT_FOUND = 'project not found'
 
 const repoListSchema = z.array(projectRepoSchema)
 
-const reposOf = (row: ProjectModel): ProjectRepo[] => {
+const reposOf = (row: Row<'Project'>): ProjectRepo[] => {
   const parsed = repoListSchema.safeParse(row.additionalRepos)
   return parsed.success ? parsed.data : []
 }
@@ -23,7 +22,7 @@ const shipBehaviorOf = (stored: string): EShipBehavior =>
   Object.values(EShipBehavior).find((candidate) => candidate === stored) ??
   EShipBehavior.OpenPullRequest
 
-function toProject(row: ProjectModel): Project {
+function toProject(row: Row<'Project'>): Project {
   return {
     id: row.id,
     name: row.name,
@@ -53,6 +52,12 @@ function columnsOf(input: SaveProjectDto) {
   }
 }
 
+function ownershipOf(args: { userId: string; organizationId: string | null | undefined }) {
+  if (args.organizationId === undefined) return {}
+  if (args.organizationId === null) return { organizationId: null, ownerUserId: args.userId }
+  return { organizationId: args.organizationId, ownerUserId: null }
+}
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -61,24 +66,31 @@ export class ProjectsService {
   ) {}
 
   async list(args: { userId: string }): Promise<Project[]> {
-    const rows = await db.project.findMany({
-      where: { userId: args.userId },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const memberships = await db.orm.public.Member.select('organizationId').where({ userId: args.userId }).all()
+    const organizationIds = memberships.map((member) => member.organizationId)
+    const rows = await db.orm.public.Project.where((project) =>
+      or(project.ownerUserId.eq(args.userId), project.organizationId.in(organizationIds)),
+    )
+      .orderBy((project) => project.updatedAt.desc())
+      .all()
     return rows.map((row) => toProject(row))
   }
 
   async create(args: { userId: string; input: SaveProjectDto }): Promise<Project> {
     const columns = columnsOf(args.input)
     await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })
-    const row = await db.project.create({
-      data: { userId: args.userId, ...columns, organizationId: args.input.organizationId ?? null },
+    const organizationId = args.input.organizationId ?? null
+    const row = await db.orm.public.Project.create({
+      ...columns,
+      organizationId,
+      ownerUserId: organizationId === null ? args.userId : null,
+      createdById: args.userId,
     })
     return toProject(row)
   }
 
   async read(args: { userId: string; projectId: string }): Promise<Project> {
-    return toProject(await this.owned(args))
+    return toProject(await this.editable(args))
   }
 
   async replace(args: {
@@ -87,26 +99,23 @@ export class ProjectsService {
     input: SaveProjectDto
   }): Promise<Project> {
     const columns = columnsOf(args.input)
-    await this.owned(args)
+    await this.editable(args)
     await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })
-    const organization =
-      args.input.organizationId === undefined ? {} : { organizationId: args.input.organizationId }
-    const row = await db.project.update({
-      where: { id: args.projectId },
-      data: { ...columns, ...organization },
+    const row = await db.orm.public.Project.where({ id: args.projectId }).update({
+      ...columns,
+      ...ownershipOf({ userId: args.userId, organizationId: args.input.organizationId }),
     })
+    if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
     return toProject(row)
   }
 
   async remove(args: { userId: string; projectId: string }): Promise<void> {
-    const { count } = await db.project.deleteMany({
-      where: { id: args.projectId, userId: args.userId },
-    })
-    if (count === 0) throw new NotFoundException(PROJECT_NOT_FOUND)
+    await this.editable(args)
+    await db.orm.public.Project.where({ id: args.projectId }).delete()
   }
 
   async workspace(args: { userId: string; projectId: string }): Promise<ProjectWorkspace> {
-    const row = await this.owned(args)
+    const row = await this.editable(args)
     return {
       projectId: row.id,
       repo: row.repo,
@@ -124,11 +133,16 @@ export class ProjectsService {
     await this.access.require({ userId: args.userId, organizationId: args.organizationId, write: false })
   }
 
-  private async owned(args: { userId: string; projectId: string }): Promise<ProjectModel> {
-    const row = await db.project.findFirst({
-      where: { id: args.projectId, userId: args.userId },
-    })
+  async editable(args: { userId: string; projectId: string }): Promise<Row<'Project'>> {
+    const row = await db.orm.public.Project.first({ id: args.projectId })
     if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
+    if (row.ownerUserId === args.userId) return row
+    if (row.organizationId === null) throw new NotFoundException(PROJECT_NOT_FOUND)
+    const member = await db.orm.public.Member.first({
+      organizationId: row.organizationId,
+      userId: args.userId,
+    })
+    if (member === null) throw new NotFoundException(PROJECT_NOT_FOUND)
     return row
   }
 }

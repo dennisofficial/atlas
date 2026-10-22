@@ -1,75 +1,24 @@
 import { BadRequestException } from '@nestjs/common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { SecretsService } from './secrets.service'
 
 const HEX_KEY =
   'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
-interface SecretEntryRow {
-  id: string
-  name: string
-  sealedValue: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-type SecretCreate = Omit<SecretEntryRow, 'createdAt' | 'updatedAt'>
-
-const fake = vi.hoisted(() => {
-  const secrets: SecretEntryRow[] = []
-
-  const findByKey = (key: { userId: string; name: string }) =>
-    secrets.find((row) => row.userId === key.userId && row.name === key.name)
-
-  const db = {
-    secretEntry: {
-      findMany: async (args: { where: { userId: string } }) =>
-        secrets
-          .filter((row) => row.userId === args.where.userId)
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      upsert: async (args: {
-        where: { userId_name: { userId: string; name: string } }
-        create: SecretCreate
-        update: { sealedValue: string }
-      }) => {
-        const existing = findByKey(args.where.userId_name)
-        if (existing) {
-          existing.sealedValue = args.update.sealedValue
-          existing.updatedAt = new Date()
-          return existing
-        }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
-        secrets.push(row)
-        return row
-      },
-      deleteMany: async (args: { where: { userId: string; name: string } }) => {
-        const kept = secrets.filter(
-          (row) => !(row.userId === args.where.userId && row.name === args.where.name),
-        )
-        const count = secrets.length - kept.length
-        secrets.splice(0, secrets.length, ...kept)
-        return { count }
-      },
-    },
-  }
-
-  return { db, secrets }
-})
-
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
-
 const USER_A = 'user-a'
 const USER_B = 'user-b'
 
 describe('SecretsService', () => {
+  const database = useTestDatabase()
+  const secrets = () => db.orm.public.UserSecret.where((row) => row.id.neq('')).all()
   let service: SecretsService
 
-  beforeEach(() => {
-    fake.secrets.length = 0
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new SecretsService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
     )
@@ -78,7 +27,7 @@ describe('SecretsService', () => {
   it('set seals the value and list returns it decrypted', async () => {
     await service.set({ userId: USER_A, name: 'web.searchKey', value: 'sk-search-1' })
 
-    const stored = fake.secrets[0]
+    const stored = (await secrets())[0]
     expect(stored?.id).toMatch(/^sec_/)
     expect(stored?.sealedValue).not.toContain('sk-search-1')
 
@@ -93,12 +42,13 @@ describe('SecretsService', () => {
 
   it('set upserts an existing name and bumps updatedAt', async () => {
     await service.set({ userId: USER_A, name: 'web.searchKey', value: 'old-value' })
-    const sealedBefore = fake.secrets[0]?.sealedValue
+    const sealedBefore = (await secrets())[0]?.sealedValue
 
     await service.set({ userId: USER_A, name: 'web.searchKey', value: 'new-value' })
 
-    expect(fake.secrets).toHaveLength(1)
-    expect(fake.secrets[0]?.sealedValue).not.toBe(sealedBefore)
+    const rows = await secrets()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.sealedValue).not.toBe(sealedBefore)
     expect((await service.list({ userId: USER_A }))[0]?.value).toBe('new-value')
   })
 
@@ -123,7 +73,7 @@ describe('SecretsService', () => {
     await service.remove({ userId: USER_A, name: 'web.searchKey' })
     await service.remove({ userId: USER_A, name: 'never-existed' })
 
-    expect(fake.secrets).toHaveLength(1)
+    expect(await secrets()).toHaveLength(1)
     expect((await service.list({ userId: USER_B }))[0]?.value).toBe('sk-search-2')
   })
 
@@ -137,6 +87,6 @@ describe('SecretsService', () => {
     await expect(
       service.remove({ userId: USER_A, name: 'n'.repeat(201) }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    expect(fake.secrets).toHaveLength(0)
+    expect(await secrets()).toHaveLength(0)
   })
 })

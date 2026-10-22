@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { validateWorkspaceSetting, WORKSPACE_SETTING_REGISTRY } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import type { SettingDto } from '../settings/settings.types'
 import { WorkspaceAccessService } from './workspace-access.service'
 
@@ -13,10 +13,9 @@ export class WorkspaceSettingsService {
 
   async list(args: { userId: string; organizationId: string }): Promise<SettingDto[]> {
     await this.access.require({ ...args, write: false })
-    const rows = await db.workspaceSetting.findMany({
-      where: { organizationId: args.organizationId },
-      orderBy: { key: 'asc' },
-    })
+    const rows = await db.orm.public.WorkspaceSetting.where({ organizationId: args.organizationId })
+      .orderBy((row) => row.key.asc())
+      .all()
     return rows.map((row) => ({
       key: row.key,
       value: row.value,
@@ -44,16 +43,18 @@ export class WorkspaceSettingsService {
       }
     }
     const { organizationId } = args
-    await db.$transaction(
-      entries.map(([key, value]) =>
-        value === null
-          ? db.workspaceSetting.deleteMany({ where: { organizationId, key } })
-          : db.workspaceSetting.upsert({
-              where: { organizationId_key: { organizationId, key } },
-              create: { id: `wset_${randomUUID()}`, organizationId, key, value },
-              update: { value },
-            }),
-      ),
-    )
+    await db.transaction(async (tx) => {
+      for (const [key, value] of entries) {
+        if (value === null) {
+          await tx.orm.public.WorkspaceSetting.where({ organizationId, key }).deleteAndCount()
+          continue
+        }
+        await tx.orm.public.WorkspaceSetting.upsert({
+          create: { id: `wset_${randomUUID()}`, organizationId, key, value },
+          update: { value },
+          conflictOn: { organizationId, key },
+        })
+      }
+    })
   }
 }

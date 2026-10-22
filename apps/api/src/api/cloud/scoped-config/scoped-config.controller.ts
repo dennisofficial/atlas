@@ -4,7 +4,7 @@ import { SkipThrottle } from '@nestjs/throttler'
 import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import { SandboxReachable } from '../../../_core/decorators/sandbox-reachable.decorator'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { db } from '../../../db'
+import { db } from '@dltech/atlas-db'
 import { SessionOrSandboxGuard } from '../../platform/sessions/session-or-sandbox.guard'
 import { ScopedConfigService } from './scoped-config.service'
 
@@ -30,9 +30,8 @@ export class ScopedConfigController {
   ): Promise<ResolvedSandboxConfig> {
     const userId = request.auth?.userId
     if (userId === undefined) throw new UnauthorizedException('a sandbox session token is required')
-    const thread = await db.thread.findUnique({
-      where: { id: machineThreadOf(request) },
-      select: { projectId: true },
+    const thread = await db.orm.public.Thread.select('projectId').first({
+      id: machineThreadOf(request),
     })
     const given = requestedProjectId === undefined || requestedProjectId.length === 0 ? null : requestedProjectId
     return this.scoped.resolveForPod({ userId, projectId: thread?.projectId ?? given })

@@ -1,78 +1,27 @@
 import { BadRequestException } from '@nestjs/common'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrismaClient } from '../../../generated/prisma/client'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { SettingsService } from './settings.service'
-
-interface CloudSettingRow {
-  id: string
-  key: string
-  value: string
-  createdAt: Date
-  updatedAt: Date
-  userId: string
-}
-
-type SettingCreate = Omit<CloudSettingRow, 'createdAt' | 'updatedAt'>
-
-const fake = vi.hoisted(() => {
-  const settings: CloudSettingRow[] = []
-
-  const findByKey = (key: { userId: string; key: string }) =>
-    settings.find((row) => row.userId === key.userId && row.key === key.key)
-
-  const db = {
-    cloudSetting: {
-      findMany: async (args: { where: { userId: string } }) =>
-        settings
-          .filter((row) => row.userId === args.where.userId)
-          .sort((a, b) => a.key.localeCompare(b.key)),
-      upsert: async (args: {
-        where: { userId_key: { userId: string; key: string } }
-        create: SettingCreate
-        update: { value: string }
-      }) => {
-        const existing = findByKey(args.where.userId_key)
-        if (existing) {
-          existing.value = args.update.value
-          existing.updatedAt = new Date()
-          return existing
-        }
-        const row = { ...args.create, createdAt: new Date(), updatedAt: new Date() }
-        settings.push(row)
-        return row
-      },
-      deleteMany: async (args: { where: { userId: string; key: string } }) => {
-        const kept = settings.filter(
-          (row) => !(row.userId === args.where.userId && row.key === args.where.key),
-        )
-        const count = settings.length - kept.length
-        settings.splice(0, settings.length, ...kept)
-        return { count }
-      },
-    },
-  }
-
-  return { db, settings }
-})
-
-vi.mock('../../../db', () => ({ db: fake.db as unknown as PrismaClient }))
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
 
 describe('SettingsService', () => {
+  const database = useTestDatabase()
+  const settings = () => db.orm.public.UserSetting.where((row) => row.id.neq('')).all()
   let service: SettingsService
 
-  beforeEach(() => {
-    fake.settings.length = 0
+  beforeEach(async () => {
+    for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
     service = new SettingsService()
   })
 
   it('set stores the value in plain text and list returns it', async () => {
     await service.set({ userId: USER_A, key: 'sandbox.image', value: 'img-1' })
 
-    const stored = fake.settings[0]
+    const stored = (await settings())[0]
     expect(stored?.id).toMatch(/^set_/)
     expect(stored?.value).toBe('img-1')
 
@@ -87,13 +36,14 @@ describe('SettingsService', () => {
 
   it('set upserts an existing key and bumps updatedAt', async () => {
     await service.set({ userId: USER_A, key: 'sandbox.image', value: 'old-value' })
-    const updatedAtBefore = fake.settings[0]?.updatedAt
+    const updatedAtBefore = (await settings())[0]?.updatedAt
 
     await new Promise((resolve) => setTimeout(resolve, 5))
     await service.set({ userId: USER_A, key: 'sandbox.image', value: 'new-value' })
 
-    expect(fake.settings).toHaveLength(1)
-    expect(fake.settings[0]?.updatedAt.getTime()).toBeGreaterThan(
+    const rows = await settings()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.updatedAt.getTime()).toBeGreaterThan(
       updatedAtBefore?.getTime() ?? 0,
     )
     expect((await service.list({ userId: USER_A }))[0]?.value).toBe('new-value')
@@ -120,7 +70,7 @@ describe('SettingsService', () => {
     await service.remove({ userId: USER_A, key: 'sandbox.image' })
     await service.remove({ userId: USER_A, key: 'never.existed' })
 
-    expect(fake.settings).toHaveLength(1)
+    expect(await settings()).toHaveLength(1)
     expect((await service.list({ userId: USER_B }))[0]?.value).toBe('img-2')
   })
 
@@ -134,7 +84,7 @@ describe('SettingsService', () => {
     await expect(
       service.remove({ userId: USER_A, key: 'k'.repeat(201) }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    expect(fake.settings).toHaveLength(0)
+    expect(await settings()).toHaveLength(0)
   })
 
   it('rejects keys that are not dot-separated segments', async () => {
@@ -144,7 +94,7 @@ describe('SettingsService', () => {
         BadRequestException,
       )
     }
-    expect(fake.settings).toHaveLength(0)
+    expect(await settings()).toHaveLength(0)
   })
 
   it('accepts dotted keys with camelCase, digits and dashes in later segments', async () => {
@@ -169,7 +119,7 @@ describe('SettingsService', () => {
     it('set stores every raw upload the harness accepts', async () => {
       for (const [key, value] of rawUploads) {
         await service.set({ userId: USER_A, key, value })
-        expect(fake.settings.find((row) => row.key === key)?.value).toBe(value)
+        expect((await settings()).find((row) => row.key === key)?.value).toBe(value)
       }
       expect(await service.list({ userId: USER_A })).toHaveLength(3)
     })
@@ -186,7 +136,7 @@ describe('SettingsService', () => {
           service.patch({ userId: USER_A, values: { [key]: value } }),
         ).rejects.toBeInstanceOf(BadRequestException)
       }
-      expect(fake.settings).toHaveLength(0)
+      expect(await settings()).toHaveLength(0)
     })
   })
 })

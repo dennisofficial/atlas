@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { McpServerConfigModel } from '../../../db'
-import { db } from '../../../db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { UpsertMcpServerDto } from './mcp-servers.dto'
 import type { McpServerDto, McpSpec, McpTransport } from './mcp-servers.types'
@@ -86,18 +85,17 @@ export class McpServersService {
   constructor(private readonly cipher: SecretCipherService) {}
 
   async list(args: { userId: string }): Promise<McpServerDto[]> {
-    const rows = await db.mcpServerConfig.findMany({
-      where: { userId: args.userId },
-      orderBy: { name: 'asc' },
-    })
+    const rows = await db.orm.public.UserMcpServer.where({ userId: args.userId })
+      .orderBy((row) => row.name.asc())
+      .all()
     return rows.map((row) => this.toServerDto(row))
   }
 
   async put(args: { userId: string; name: string; spec: UpsertMcpServerDto }): Promise<void> {
     const spec = toMcpSpec({ ...args.spec, name: args.name })
     const sealedSpec = this.cipher.encrypt(JSON.stringify(spec))
-    await db.mcpServerConfig.upsert({
-      where: { userId_name: { userId: args.userId, name: args.name } },
+    await db.orm.public.UserMcpServer.upsert({
+      conflictOn: { userId: args.userId, name: args.name },
       create: {
         id: `mcp_${randomUUID()}`,
         name: args.name,
@@ -110,12 +108,10 @@ export class McpServersService {
 
   async remove(args: { userId: string; name: string }): Promise<void> {
     assertValidName(args.name)
-    await db.mcpServerConfig.deleteMany({
-      where: { userId: args.userId, name: args.name },
-    })
+    await db.orm.public.UserMcpServer.where({ userId: args.userId, name: args.name }).deleteAndCount()
   }
 
-  private toServerDto(row: McpServerConfigModel): McpServerDto {
+  private toServerDto(row: Row<'UserMcpServer'>): McpServerDto {
     const spec = toMcpSpec(JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
       name: string
     })
