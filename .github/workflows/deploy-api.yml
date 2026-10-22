@@ -7,6 +7,7 @@ on:
       # mirrors the build context of apps/api/Dockerfile — update both together
       - apps/api/**
       - packages/wire/**
+      - packages/db/**
       - packages/ui/package.json
       - apps/tui/package.json
       - apps/web/package.json

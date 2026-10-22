@@ -68,7 +68,7 @@ re-break webhook management on a timer even after this redesign.
 - The device-flow endpoints (`github-device-client.ts`) stay; only the client id and scope
   list change.
 
-## Data model (Postgres, apps/api/prisma)
+## Data model (Postgres, packages/db)
 
 New models; the existing `GithubPullRequest` / `GithubWebhookEvent` models are replaced by
 these (see "Migration").

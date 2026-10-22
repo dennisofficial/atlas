@@ -20,6 +20,10 @@ export default defineConfig({
         replacement: new URL('../../packages/wire/src/web/index.ts', import.meta.url).pathname,
       },
       {
+        find: /^@dltech\/atlas-db\/migrations$/,
+        replacement: new URL('../../packages/db/src/migration-graph.ts', import.meta.url).pathname,
+      },
+      {
         find: /^@dltech\/atlas-db\/testing$/,
         replacement: new URL('../../packages/db/src/testing/index.ts', import.meta.url).pathname,
       },
@@ -35,7 +39,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.spec.ts', 'prisma/**/*.spec.ts', 'test/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
     setupFiles: ['vitest.setup.ts'],
     env: { NODE_ENV: 'test' },
   },

@@ -1,5 +1,5 @@
 import { schemaTask } from '@trigger.dev/sdk'
-import { db } from '../../db'
+import { db } from '@dltech/atlas-db'
 import {
   SMOKE_TASK_ID,
   type SmokeOutput,
@@ -8,7 +8,11 @@ import {
 } from './smoke.contract'
 
 export interface SmokeDatabase {
-  $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => PromiseLike<unknown>
+  ping: () => PromiseLike<unknown>
+}
+
+const sharedDatabase: SmokeDatabase = {
+  ping: () => db.execute(db.raw.sql`SELECT 1`.affectedCount().build()),
 }
 
 export async function runSmoke({
@@ -18,12 +22,12 @@ export async function runSmoke({
   database: SmokeDatabase
   now?: () => Date
 }): Promise<SmokeOutput> {
-  await database.$queryRaw`SELECT 1`
+  await database.ping()
   return { ok: true, at: now().toISOString() }
 }
 
 export async function runSmokeTask(): Promise<SmokeOutput> {
-  return runSmoke({ database: db })
+  return runSmoke({ database: sharedDatabase })
 }
 
 export const smokeTask = schemaTask({

@@ -88,7 +88,6 @@ apps/serve/sandbox-image/atlas-serve.bake-id
 # is what let 7,847 stale files from the pre-`deprecated/` layout show up as untracked changes.
 .next/
 *.tsbuildinfo
-apps/api/src/generated/
 
 .do/live-spec.backup.yaml
 

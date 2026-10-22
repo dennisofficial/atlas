@@ -1,6 +1,6 @@
 # apps/api
 
-The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 7 (driver adapter) over PostgreSQL
+The Atlas Cloud backend. NestJS 12 + better-auth + Prisma 8 (`@dltech/atlas-db`, `packages/db`) over PostgreSQL
 (PlanetScale Postgres in deployed tiers, docker locally). First client is the Atlas TUI. Local account metadata,
 API keys, ordinary secrets, user settings and MCP configuration stay on the machine; explicit
 backup actions copy them to/from the API. Signing in transfers Atlas-native provider OAuth
@@ -59,14 +59,12 @@ src/
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
-  db/         the lazy `db` client proxy + generated-client type re-exports.
   create-app.ts  composes the Nest app (parsers, pipes, filters) and inits it; never listens.
   main.ts     the long-lived server — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
               is present, validates env, createApp(), graceful shutdown, listen.
   vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
               validates env, createApp(), default-exports the Express instance.
 build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
-prisma/       schema + migrations only (the client wrapper moved to src/db).
 envs/         dotenvx tier files (.env.api.<tier>.enc, committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
 ```
@@ -87,12 +85,12 @@ so no route gets a larger parser. User-layer uploads fit because the harness ski
 
 DigitalOcean App Platform, git-connected to main: `apps/api/Dockerfile` (multi-stage, repo-root
 build context; the runtime image is `node:22-slim` plus the `bun` binary — the server runs
-`bun src/main.ts`, while the PRE_DEPLOY migrate job needs node, npm, dotenvx and the prisma CLI) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
+`bun src/main.ts`, while the PRE_DEPLOY migrate job needs node, npm, dotenvx and `packages/db`'s Prisma 8 CLI, which it runs under Bun) + `.do/app.yaml` (app spec: api service on port 3400 with a PRE_DEPLOY migrate
 job, region nyc). The only env the platform needs is `APP_TIER`, `MIGRATE_TIER` and
 `DOTENV_PRIVATE_KEY_API_PRODUCTION` — the tier file in the image carries the rest.
 
-The Dockerfile's runtime stage copies explicit paths (`src`, `envs`, `prisma`, `scripts`,
-`prisma.config.ts`, `tsconfig.json`) — anything a package script loads by path must be added to that list or it
+The Dockerfile's runtime stage copies explicit paths (`src`, `envs`, `scripts`, `tsconfig.json`, and
+`packages/db`'s `src`, `migrations`, `prisma.config.ts`) — anything a package script loads by path must be added to that list or it
 exists locally and 404s in the deploy. CI builds this image (`build-api-image` in `ci.yml`), so
 a missing copy fails the PR rather than only at deploy.
 
@@ -130,8 +128,8 @@ doctl apps list-deployments "$DO_APP_ID" --format ID,Phase,Created | head -3
 doctl apps logs "$DO_APP_ID" migrate --type run --deployment <id>
 ```
 
-The migrate logs of a healthy deploy read `N migrations found` then either the migrations it
-applied or `No pending migrations to apply.` A deployment whose `Phase` is `ERROR` with the job
+The migrate logs of a healthy deploy list the migrations `prisma db migrate` applied, or report the
+database already at the contract. A deployment whose `Phase` is `ERROR` with the job
 having exited non-zero is the gate working, not a regression: the previous release is still
 serving and the schema was never half-applied.
 
@@ -143,22 +141,22 @@ db:migrate:deploy`.
 
 The job connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432; `DATABASE_URL` is its
 PgBouncer on :6432) when the tier supplies one,
-falling back to `DATABASE_URL` — `prisma migrate deploy`'s session-level advisory lock does not
+falling back to `DATABASE_URL` (`packages/db/prisma.config.ts`) — a migration's session-level lock does not
 survive the pooler: a killed job once left the lock pinned on a pooled backend and every later
 deploy timed out acquiring it (P1002). `scripts/migrate-deploy.mjs` also retries the deploy
 three times with a 20s backoff, so two overlapping PRE_DEPLOY jobs no longer fail a deployment.
 
 `.github/workflows/migrate-production.yml` applies migrations on merges to main that touch
-`prisma/migrations`, `prisma/schema.prisma` or the workflow itself, through `DIRECT_URL`, and can be
+`packages/db/migrations`, `packages/db/src/prisma` or the workflow itself, through `DIRECT_URL`, and can be
 run by hand with `workflow_dispatch`. While DigitalOcean is live it runs alongside the PRE_DEPLOY
-job, safely: `prisma migrate deploy` is idempotent, takes an advisory lock, and
+job, safely: `prisma db migrate` starts at the marker, runs in one transaction, and
 `scripts/migrate-deploy.mjs` retries on contention. After cutover it is the only migration path,
 and the additive-migration and rollback rules below still apply.
 
 **Rollback does not unwind a migration.** App Platform can restore any of the last ten
 successful deployments, and it restores code, configuration and the app spec — never database
 data. It is control-panel only: Apps → the app → Activity → Rollback. `doctl apps` has no
-rollback subcommand, and the deployment must share the app's region and database configuration. Prisma has no down-migrations either. So every migration must be backward-compatible with
+rollback subcommand, and the deployment must share the app's region and database configuration. Prisma 8 has no down-migrations either. So every migration must be backward-compatible with
 the release it lands ahead of: add columns with defaults, add tables, never rename or drop in
 the same deploy as the code that stops using them. A `FAILED_DEPLOY` job that ran down-DDL would
 turn a failed deploy into data loss; there is deliberately none.
@@ -170,22 +168,21 @@ and redeploy. It reaches only as far back as the backup retention (2 days on the
 schedule), so check that window is wider than the gap between a bad migration landing and
 someone noticing. https://planetscale.com/docs/postgres/backups/point-in-time-recovery
 
-`GET /v1/health` answers 503 when the running build expects migrations the database has not
-applied, so drift fails the health check and DO holds the previous release rather than serving
+`GET /v1/health` answers 503 when `prisma_contract.marker` names an older contract in the
+migration graph than the one this build was emitted against (`contractStorageHash`), so drift fails the health check and DO holds the previous release rather than serving
 500s. A database it cannot reach is reported as `unknown` and stays healthy — a cold start is
 not drift.
 
 ## Vercel bundle
 
-`bun run build` (`prisma generate`, then `build.ts`) writes `.vercel/output`: `Bun.build` bundles
+`bun run build` (`build.ts`) writes `.vercel/output`: `Bun.build` bundles
 `src/vercel.ts` into one `index.js` (`target: 'bun'`, ESM), plus `config.json` routing everything to
 the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). The committed
 `envs/.env.api.production.enc` is copied into the function; Vercel holds only
 `DOTENV_PRIVATE_KEY_API_PRODUCTION`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
 `vercel-tier-env.ts` decrypt it at boot (fatal if the file is missing or any value stays
-`encrypted:`). The migration directory names are inlined at build time as
-`__ATLAS_SHIPPED_MIGRATIONS__`, because the bundle has no `prisma/migrations` directory for
-`shippedMigrationNames()` to read.
+`encrypted:`). The migration graph's contract hashes are inlined at build time as
+`__ATLAS_MIGRATION_GRAPH__`, because the bundle has no `packages/db/migrations` directory to read.
 
 The build follows comp-neo's pattern. `OPTIONAL_IMPORTS` in `build.ts` stays external: the lazy
 imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
@@ -274,7 +271,9 @@ a tier does not supply it), then `dotenvx set` to fill values in place. Typed ac
 `env.get('KEY')` via `EnvService`; never read `process.env` in app code (sanctioned exceptions:
 `main.ts` bootstrap and `auth.server.ts`, which construct before Nest DI exists).
 
-Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run dev`.
+Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run db:seed`,
+`bun run dev`. An existing local database migrated by Prisma 7 first needs a one-off
+`bun run env:inject -- bun run --cwd ../../packages/db prisma db sign` (see `packages/db/AGENTS.md`).
 Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they run via
 `db:migrate:deploy` with `MIGRATE_TIER` set, never from the app container.
 
@@ -325,20 +324,17 @@ one exact version; bump all three at once.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
   `trigger:dev` runs only the worker.
 - **Deploy is automatic.** `.github/workflows/deploy-trigger.yml` deploys to prod on every merge to
-  main that touches the API's build closure, serialized and never cancelled. It runs `db:generate`
-  first, because the generated client is gitignored and the bundle fails without it. The CLI
+  main that touches the API's build closure, serialized and never cancelled. The CLI
   authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
   the project from `trigger.config.ts`. The job then decrypts the prod `TRIGGER_SECRET_KEY` and runs
   `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db)
   and fails unless the run completes within two minutes. PRs get no deploy dry-run: `trigger deploy
   --dry-run` authenticates and fetches project env vars before it bundles, and PR code never
-  receives the token. A manual deploy is `bun run db:generate && bun run trigger:deploy`.
+  receives the token. A manual deploy is `bun run trigger:deploy`.
 - **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
-  `trigger.config.ts` sets `conditions: ['bun']`. `@prisma/client` must stay external
-  (`prismaExtension({ mode: 'modern' })`): bundled, esbuild re-exports its CJS query-compiler
-  `wasm-base64` module as a default only, the generated client's `const { wasm } = await import(...)`
-  gets `undefined`, and every query fails with `Buffer.from(undefined)`. `@prisma/adapter-pg`, `pg`
-  and ioredis bundle. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
+  `trigger.config.ts` sets `conditions: ['bun']`. `@dltech/atlas-db`, `@prisma/orm-postgres`, `pg`
+  and ioredis bundle; Prisma 8 has no query engine or wasm to keep external, and its
+  `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
   the smoke step is what proves the runtime. `src/vercel.ts` must never import `src/trigger/`.
 - **Until cutover, in-process timers stay.** `GithubSweepSchedulerService` owns the 30 s and 60 s
   `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so DO and `bun run dev`
@@ -347,8 +343,9 @@ one exact version; bump all three at once.
 
 ## Rules that differ from the rest of the repo
 
-- vitest unit specs are colocated `*.spec.ts`; they never touch a real database (CI has none).
-  `src/db`'s `db` is a lazy proxy, so importing it is safe; constructing queries is not.
+- vitest specs are colocated `*.spec.ts`. Specs that need data run against real Postgres through
+  `useTestDatabase()` from `@dltech/atlas-db/testing` (a local lane on :55441, a service container in
+  CI), never an in-memory fake. `db` is a lazy proxy, so importing it never connects.
 - Everything else from the root CLAUDE.md still applies: 300-line files, no `as any`, no
   ts-ignore, E-prefixed enums, `handle`-prefixed handlers, named parameters, no comments that
   restate the code.

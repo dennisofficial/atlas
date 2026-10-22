@@ -16,7 +16,6 @@
       "outputs": [
         "bin/**",
         "dist/**",
-        "src/generated/**",
         ".next/**",
         "storybook-static/**"
       ]

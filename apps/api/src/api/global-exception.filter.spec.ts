@@ -11,31 +11,30 @@ import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import type { MockInstance } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Prisma } from '../generated/prisma/client'
 import { GithubUserReadFailed } from './cloud/github/github-user-reads'
 import { GlobalExceptionFilter } from './global-exception.filter'
 
-const LEAKY_META = { target: ['email'], driverAdapterError: { cause: { value: 'secret@x.io' } } }
-
-const prismaError = ({ code }: { code: string }): Prisma.PrismaClientKnownRequestError =>
-  new Prisma.PrismaClientKnownRequestError('Unique constraint failed on secret@x.io', {
-    code,
-    clientVersion: 'test',
-    meta: LEAKY_META,
+const databaseError = ({ sqlState }: { sqlState: string }): Error =>
+  Object.assign(new Error('duplicate key value violates unique constraint on email secret@x.io'), {
+    name: 'SqlQueryError',
+    sqlState,
+    cause: { code: sqlState, constraint: 'User_email_key', detail: 'Key (email)=(secret@x.io) already exists.' },
   })
+
+const noRows = (): Error => Object.assign(new Error('no rows for secret@x.io'), { code: 'RUNTIME.NO_ROWS' })
 
 const THROWERS: Record<string, () => never> = {
   http: () => {
     throw new BadRequestException('nope')
   },
   unique: () => {
-    throw prismaError({ code: 'P2002' })
+    throw databaseError({ sqlState: '23505' })
   },
   missing: () => {
-    throw prismaError({ code: 'P2025' })
+    throw noRows()
   },
   other: () => {
-    throw prismaError({ code: 'P2003' })
+    throw databaseError({ sqlState: '23503' })
   },
   github: () => {
     throw new GithubUserReadFailed('github answered 500 for /repos/a/b: boom', 500)
@@ -94,30 +93,26 @@ describe('GlobalExceptionFilter', () => {
     expect(response.body).toEqual({ statusCode: 400, message: 'nope', error: 'Bad Request' })
   })
 
-  it('maps a Prisma P2002 unique violation to 409 with the code', async () => {
+  it('maps a unique violation to 409 with its SQLSTATE', async () => {
     const response = await hit({ kind: 'unique' }).expect(409)
     expect(response.body).toEqual({
       statusCode: 409,
       message: 'Resource already exists',
-      code: 'P2002',
+      code: '23505',
     })
   })
 
-  it('maps a Prisma P2025 missing record to 404 with the code', async () => {
+  it('maps a no-rows read to 404', async () => {
     const response = await hit({ kind: 'missing' }).expect(404)
-    expect(response.body).toEqual({
-      statusCode: 404,
-      message: 'Resource not found',
-      code: 'P2025',
-    })
+    expect(response.body).toEqual({ statusCode: 404, message: 'Resource not found' })
   })
 
-  it('maps any other Prisma known-request code to 400 with the code', async () => {
+  it('maps any other integrity violation to 400 with its SQLSTATE', async () => {
     const response = await hit({ kind: 'other' }).expect(400)
-    expect(response.body).toEqual({ statusCode: 400, message: 'Invalid request', code: 'P2003' })
+    expect(response.body).toEqual({ statusCode: 400, message: 'Invalid request', code: '23503' })
   })
 
-  it('never leaks Prisma meta or the raw message', async () => {
+  it('never leaks the driver detail or the raw message', async () => {
     const bodies = await Promise.all(
       ['unique', 'missing', 'other'].map(async (kind) => (await hit({ kind })).text),
     )

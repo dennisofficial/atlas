@@ -1,6 +1,6 @@
+import { contractStorageHash, databaseErrorCode, db } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
-import { db } from '../../../db'
-import { pendingMigrations, shippedMigrationNames } from '../../../_lib/migrations/pending-migrations'
+import { contractDrift, EContractDrift, shippedMigrationGraph } from '../../../_lib/migrations/contract-drift'
 
 export enum EMigrationState {
   Level = 'level',
@@ -13,7 +13,7 @@ export type MigrationReport = {
   pending: readonly string[]
 }
 
-type AppliedRow = { migration_name: string }
+const UNDEFINED_TABLE = '42P01'
 
 @Injectable()
 export class MigrationStateService {
@@ -22,33 +22,27 @@ export class MigrationStateService {
   async report(): Promise<MigrationReport> {
     if (this.level) return { state: EMigrationState.Level, pending: [] }
 
-    const applied = await this.appliedNames()
-    if (applied === null) return { state: EMigrationState.Unknown, pending: [] }
+    const marker = await this.markerHash()
+    if (marker === undefined) return { state: EMigrationState.Unknown, pending: [] }
 
-    const pending = pendingMigrations({ shipped: shippedMigrationNames(), applied })
-    if (pending.length > 0) return { state: EMigrationState.Behind, pending }
+    const drift = contractDrift({ expected: contractStorageHash, marker, graph: shippedMigrationGraph() })
+    if (drift === EContractDrift.Behind) {
+      return { state: EMigrationState.Behind, pending: [`contract ${contractStorageHash}`] }
+    }
 
     this.level = true
     return { state: EMigrationState.Level, pending: [] }
   }
 
-  private async appliedNames(): Promise<readonly string[] | null> {
+  private async markerHash(): Promise<string | null | undefined> {
     try {
-      const rows = await db.$queryRaw<AppliedRow[]>`
-        SELECT migration_name FROM "_prisma_migrations"
-        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
-      `
-      return rows.map((row) => row.migration_name)
+      const statement = db.raw.sql`SELECT core_hash FROM prisma_contract.marker WHERE space = 'app'`
+        .returnsRow({ core_hash: 'pg/text@1' })
+        .build()
+      const rows = await db.query(statement)
+      return rows[0]?.core_hash ?? null
     } catch (cause) {
-      return missingTable(cause) ? [] : null
+      return databaseErrorCode(cause) === UNDEFINED_TABLE ? null : undefined
     }
   }
-}
-
-const UNDEFINED_TABLE = '42P01'
-
-function missingTable(cause: unknown): boolean {
-  if (typeof cause !== 'object' || cause === null) return false
-  const code = Reflect.get(cause, 'code')
-  return code === UNDEFINED_TABLE
 }

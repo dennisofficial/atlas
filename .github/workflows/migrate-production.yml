@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - apps/api/prisma/migrations/**
-      - apps/api/prisma/schema.prisma
+      - packages/db/migrations/**
+      - packages/db/src/prisma/**
       - .github/workflows/migrate-production.yml
   workflow_dispatch:
 
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - run: bun install --frozen-lockfile --filter '@dltech/atlas-api'
+      - run: bun install --frozen-lockfile --filter '@dltech/atlas-api' --filter '@dltech/atlas-db'
 
       - run: bun run db:migrate:deploy
         working-directory: apps/api
