@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire'
+import { EVercelCredentialGap, SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire'
 
 export enum EBootStep {
   Provision = 'provision',
@@ -37,11 +37,14 @@ export const API_PROVISIONED_ENV = 'ATLAS_API_PROVISIONED'
 export const isApiProvisioned = (env: Record<string, string | undefined>): boolean =>
   env[API_PROVISIONED_ENV] === '1'
 
+export const MAX_BOOT_STEP_TEXT = 2000
+
 export const bootStepEventSchema = z.object({
   step: z.enum(EBootStep),
   state: z.enum(EBootStepState),
-  detail: z.string().optional(),
-  error: z.string().optional(),
+  detail: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
+  error: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
+  gap: z.enum(EVercelCredentialGap).optional(),
 })
 export type BootStepEvent = z.infer<typeof bootStepEventSchema>
 
@@ -140,6 +143,7 @@ export const recordedBootStepSchema = z.object({
   step: z.enum(EBootStep),
   state: z.enum(EBootStepState),
   error: z.string().optional(),
+  gap: z.enum(EVercelCredentialGap).optional(),
   at: z.string(),
 })
 export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>
@@ -151,6 +155,7 @@ export enum EPodState {
   None = 'none',
   Booting = 'booting',
   Running = 'running',
+  Parked = 'parked',
   Failed = 'failed',
 }
 
