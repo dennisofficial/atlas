@@ -20,7 +20,7 @@ import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { bootViewOf, isPodFailed } from './data/boot-view'
+import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { notConfiguredOf } from './data/not-configured'
 import {
   awaitingRunOf,
@@ -35,7 +35,7 @@ import { transcriptOf } from './data/transcript'
 import { useNow } from './data/use-now'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
-import { useThreadEvents } from './data/use-thread-events'
+import { useThreadSource } from './data/use-thread-source'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
@@ -83,7 +83,8 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
 
 export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
-  const { events, loaded, error } = useThreadEvents(threadId)
+  const [liveEligible, setLiveEligible] = useState(false)
+  const { events, loaded, error, working, sendLive } = useThreadSource({ threadId, liveEligible })
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -95,13 +96,15 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const items = useMemo(() => transcriptOf(visible), [visible])
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
   const { pod, refresh } = usePodStatus({ threadId, awaitingRun })
+  const eligibleNow = isPodLiveEligible(pod)
+  if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
   const now = useNow(isBootStarting(probe))
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
 
   const handleSubmit = async (text: string) => {
-    const sent = await send({ threadId, text })
+    const sent = await send({ threadId, text, liveSend: sendLive })
     if (!sent) setDraft(text)
     else refresh()
   }
@@ -147,7 +150,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
         </div>
       ) : null}
       <div className="min-h-0 flex-1">
-        <ThreadTranscript items={items} boot={boot} onRetryBoot={() => void handleRetryBoot()} />
+        <ThreadTranscript
+          items={items}
+          boot={boot}
+          working={working}
+          onRetryBoot={() => void handleRetryBoot()}
+        />
       </div>
       <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
         {notConfigured === null ? null : (

@@ -19,8 +19,13 @@ afterEach(() => {
 })
 
 describe('next.config', () => {
-  it('transpiles the atlas-ui and atlas-wire workspace packages', () => {
-    expect(nextConfig.transpilePackages).toEqual(['@dltech/atlas-ui', '@dltech/atlas-wire'])
+  it('transpiles the atlas client, core, ui and wire workspace packages', () => {
+    expect(nextConfig.transpilePackages).toEqual([
+      '@dltech/atlas-client',
+      '@dltech/atlas-core',
+      '@dltech/atlas-ui',
+      '@dltech/atlas-wire',
+    ])
   })
 })
 

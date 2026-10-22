@@ -8,7 +8,14 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
 
-import { bootViewOf, FAILED_FALLBACK, isPodFailed, isPodSettled, shouldPollPod } from '../boot-view'
+import {
+  bootViewOf,
+  FAILED_FALLBACK,
+  isPodFailed,
+  isPodLiveEligible,
+  isPodSettled,
+  shouldPollPod,
+} from '../boot-view'
 import { awaitingRunOf } from '../take-back'
 
 const T0 = Date.parse('2026-10-22T10:00:00.000Z')
@@ -217,5 +224,19 @@ describe('isPodFailed', () => {
     expect(isPodFailed(pod(EPodState.Parked))).toBe(false)
     expect(isPodFailed(pod(EPodState.Running))).toBe(false)
     expect(isPodFailed(null)).toBe(false)
+  })
+})
+
+describe('isPodLiveEligible', () => {
+  it('is true only for a running pod whose agent step is done', () => {
+    expect(isPodLiveEligible(null)).toBe(false)
+    expect(isPodLiveEligible(pod(EPodState.Booting))).toBe(false)
+    expect(isPodLiveEligible(pod(EPodState.Parked))).toBe(false)
+    expect(isPodLiveEligible(pod(EPodState.Failed))).toBe(false)
+    expect(isPodLiveEligible(pod(EPodState.Running, allDone))).toBe(true)
+  })
+
+  it('is false while the running pod is still booting the agent', () => {
+    expect(isPodLiveEligible(pod(EPodState.Running, allDone.slice(0, 5)))).toBe(false)
   })
 })

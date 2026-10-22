@@ -1,0 +1,331 @@
+import { describe, expect, it } from 'bun:test'
+
+import {
+  decodeClientFrame,
+  EClientFrame,
+  EClientRequest,
+  encodeFrame,
+  EServeFrame,
+  type ChannelSocketHandlers,
+  type ClientFrame,
+  type ServeFrame,
+} from '@dltech/atlas-client/channel'
+import type { WireEvent } from '@dltech/atlas-wire/web'
+
+import { createLiveThreadController, MAX_REMINTS, remintDelayMs } from '../live-thread-controller'
+import { IDLE_LIVE_THREAD, type LiveThreadState } from '../live-thread-view'
+import { EPodConnectOutcome, type PodConnectResult } from '../pod-connect'
+
+type FakeSocket = {
+  url: string
+  protocols: readonly string[]
+  handlers: ChannelSocketHandlers
+  sent: ClientFrame[]
+  closed: boolean
+}
+
+const event = (seq: number, body = '{}'): WireEvent => ({
+  id: `evt_${seq}`,
+  threadId: 'thr_1',
+  seq,
+  runId: 'run_1',
+  depth: 0,
+  at: '2026-10-22T10:00:00.000Z',
+  type: 'user-said',
+  body,
+})
+
+const flush = async () => {
+  for (let round = 0; round < 5; round += 1) await new Promise<void>((done) => setTimeout(done, 0))
+}
+
+const ticketOf = (token: string): PodConnectResult => ({
+  outcome: EPodConnectOutcome.Ready,
+  ticket: { url: 'https://pod.test', token, expiresAt: '2026-10-22T10:01:00.000Z' },
+})
+
+function rig(options?: { mints?: PodConnectResult[]; seed?: WireEvent[] }) {
+  const sockets: FakeSocket[] = []
+  const retries: { delayMs: number; run: () => void }[] = []
+  const mints = [...(options?.mints ?? [ticketOf('tkt1'), ticketOf('tkt2')])]
+  let mintCount = 0
+  let state: LiveThreadState = IDLE_LIVE_THREAD
+  const history: LiveThreadState[] = []
+
+  const controller = createLiveThreadController({
+    threadId: 'thr_1',
+    mint: async () => {
+      mintCount += 1
+      const next = mints.shift()
+      if (next === undefined) throw new Error('no more tickets')
+      return next
+    },
+    readSeed: async () => options?.seed ?? [event(1), event(2)],
+    onChange: (next) => {
+      state = next
+      history.push(next)
+    },
+    scheduleReconnect: (task) => queueMicrotask(task.run),
+    channelOptions: {
+      scheduleRetry: (retry) => void retries.push(retry),
+      scheduleTimeout: () => undefined,
+      scheduleKeepalive: () => () => undefined,
+      socketFactory: ({ url, protocols, handlers }) => {
+        const fake: FakeSocket = { url, protocols, handlers, sent: [], closed: false }
+        sockets.push(fake)
+        return {
+          send: (data) => {
+            const frame = decodeClientFrame(data)
+            if (frame !== null) fake.sent.push(frame)
+          },
+          close: () => void (fake.closed = true),
+        }
+      },
+    },
+  })
+
+  const socket = (): FakeSocket => {
+    const live = sockets.at(-1)
+    if (live === undefined) throw new Error('no socket opened')
+    return live
+  }
+  const receive = (frame: ServeFrame) => socket().handlers.handleMessage(encodeFrame(frame))
+  const ready = () => {
+    socket().handlers.handleOpen()
+    receive({ kind: EServeFrame.Ready, seq: 0 })
+  }
+  const requests = () =>
+    socket().sent.flatMap((frame) => (frame.kind === EClientFrame.Request ? [frame] : []))
+  const answer = (args: { index: number; events: WireEvent[] }) => {
+    const request = requests()[args.index]
+    if (request === undefined) throw new Error('no request to answer')
+    receive({
+      kind: EServeFrame.Reply,
+      replyTo: request.id,
+      ok: true,
+      data: { events: args.events },
+    })
+  }
+
+  return {
+    controller,
+    sockets,
+    retries,
+    socket,
+    receive,
+    ready,
+    requests,
+    answer,
+    state: () => state,
+    history,
+    mintCount: () => mintCount,
+  }
+}
+
+describe('createLiveThreadController', () => {
+  it('connects with the minted ticket, seeds the durable events, and goes live on ready', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+
+    expect(test.socket().url).toBe('wss://pod.test/v1/session')
+    expect(test.socket().protocols).toEqual(['atlas.v1', 'bearer.tkt1'])
+    expect(test.state().live).toBe(false)
+
+    test.ready()
+    expect(test.state().live).toBe(true)
+    expect(test.state().events.map((entry) => entry.seq)).toEqual([1, 2])
+  })
+
+  it('reads fromSeq head+1 over the channel on events-appended and dedupes by seq', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    const before = test.requests().length
+
+    test.receive({ kind: EServeFrame.Signal, seq: 1, signal: { type: 'events-appended' } })
+    await flush()
+
+    const request = test.requests()[before]
+    expect(request?.op).toBe(EClientRequest.ReadEvents)
+    expect(request?.params).toEqual({ threadId: 'thr_1', fromSeq: 3, own: true })
+
+    test.answer({ index: before, events: [event(2), event(3), event(4)] })
+    await flush()
+    expect(test.state().events.map((entry) => entry.seq)).toEqual([1, 2, 3, 4])
+  })
+
+  it('on reload drops events past sinceEventSeq and re-reads from there', async () => {
+    const test = rig({ seed: [event(1), event(2), event(3)] })
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    const before = test.requests().length
+
+    test.receive({ kind: EServeFrame.Reload, sinceEventSeq: 1 })
+    await flush()
+
+    expect(test.state().events.map((entry) => entry.seq)).toEqual([1])
+    expect(test.requests()[before]?.params).toEqual({ threadId: 'thr_1', fromSeq: 2, own: true })
+    test.answer({ index: before, events: [event(2, '{"fresh":true}')] })
+    await flush()
+    expect(test.state().events.map((entry) => entry.body)).toEqual(['{}', '{"fresh":true}'])
+  })
+
+  it('tracks working from turn-working signals', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.receive({
+      kind: EServeFrame.Signal,
+      seq: 1,
+      signal: { type: 'turn-working', working: true },
+    })
+    expect(test.state().working).toBe(true)
+    test.receive({
+      kind: EServeFrame.Signal,
+      seq: 2,
+      signal: { type: 'turn-working', working: false },
+    })
+    expect(test.state().working).toBe(false)
+  })
+
+  it('re-mints a fresh ticket when the socket drops and redials with it', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    expect(test.mintCount()).toBe(1)
+
+    test.socket().handlers.handleClose()
+    await flush()
+
+    expect(test.mintCount()).toBe(2)
+    expect(test.sockets).toHaveLength(2)
+    expect(test.socket().protocols).toEqual(['atlas.v1', 'bearer.tkt2'])
+    expect(test.retries).toHaveLength(0)
+  })
+
+  it('stops re-minting and falls back once reconnects keep failing', async () => {
+    const mints = Array.from({ length: 8 }, (_, index) => ticketOf(`tkt${index}`))
+    const test = rig({ mints })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    for (let round = 0; round < 8; round += 1) {
+      test.socket().handlers.handleClose()
+      await flush()
+    }
+
+    expect(test.state().live).toBe(false)
+    expect(test.mintCount()).toBe(1 + MAX_REMINTS)
+  })
+
+  it('falls back when the re-mint answers pod-not-running', async () => {
+    const test = rig({
+      mints: [ticketOf('tkt1'), { outcome: EPodConnectOutcome.NotRunning }],
+    })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.socket().handlers.handleClose()
+    await flush()
+
+    expect(test.state().live).toBe(false)
+    expect(test.sockets).toHaveLength(1)
+    expect(test.socket().closed).toBe(true)
+  })
+
+  it('falls back when the pod parks', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    expect(test.state().live).toBe(true)
+
+    test.receive({ kind: EServeFrame.Parked, reason: 'idle' })
+    await flush()
+
+    expect(test.state().live).toBe(false)
+    expect(test.socket().closed).toBe(true)
+  })
+
+  it('never opens a socket when the first mint answers pod-not-running', async () => {
+    const test = rig({ mints: [{ outcome: EPodConnectOutcome.NotRunning }] })
+    test.controller.start()
+    await flush()
+
+    expect(test.sockets).toHaveLength(0)
+    expect(test.state().live).toBe(false)
+  })
+
+  it('falls back at once when the upgrade is refused before the first ready', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+
+    test.socket().handlers.handleError('refused')
+    test.socket().handlers.handleClose()
+    await flush()
+
+    expect(test.state().live).toBe(false)
+    expect(test.socket().closed).toBe(true)
+    expect(test.mintCount()).toBe(1)
+  })
+
+  it('falls back when the first mint fails outright', async () => {
+    const test = rig({ mints: [] })
+    test.controller.start()
+    await flush()
+
+    expect(test.sockets).toHaveLength(0)
+    expect(test.state().live).toBe(false)
+  })
+
+  it('sends over the socket with the requestId only while connected', async () => {
+    const test = rig()
+    expect(test.controller.send({ text: 'early', requestId: 'r0' })).toBe(false)
+    test.controller.start()
+    await flush()
+    expect(test.controller.send({ text: 'early', requestId: 'r0' })).toBe(false)
+    test.ready()
+
+    expect(test.controller.send({ text: 'hello', requestId: 'r1' })).toBe(true)
+
+    const sends = test.socket().sent.filter((frame) => frame.kind === EClientFrame.Send)
+    expect(sends).toHaveLength(1)
+    expect(sends[0]).toMatchObject({ text: 'hello', requestId: 'r1' })
+  })
+
+  it('closes the socket and goes quiet on stop', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.controller.stop()
+    const emitted = test.history.length
+    test.receive({
+      kind: EServeFrame.Signal,
+      seq: 1,
+      signal: { type: 'turn-working', working: true },
+    })
+
+    expect(test.socket().closed).toBe(true)
+    expect(test.history).toHaveLength(emitted)
+    expect(test.controller.send({ text: 'x', requestId: 'r' })).toBe(false)
+  })
+})
+
+describe('remintDelayMs', () => {
+  it('redials at once, then backs off exponentially to a ceiling', () => {
+    expect([0, 1, 2, 3, 20].map(remintDelayMs)).toEqual([0, 500, 1000, 2000, 30000])
+  })
+})
