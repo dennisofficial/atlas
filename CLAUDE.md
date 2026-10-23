@@ -35,7 +35,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
 | `@dltech/atlas-models` (`packages/models`) | core, `zod` | The generated model catalogue (models.dev + inference.net cards), its generator scripts, and the pure card helpers. Shared by harness and web. |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and shadcn (Base UI) components + AI patterns, with their co-located stories. No Atlas imports. |
-| `@dltech/atlas-storybook` (`apps/storybook`) | ui | The Storybook host: loads the stories co-located in `ui` and owns the `Views/` prototypes. |
+| `@dltech/atlas-storybook` (`apps/storybook`) | ui | The Storybook host: loads the stories co-located in `ui` and owns the `App/` prototypes. |
 | `@dltech/atlas-wire`         | `zod`, `@vercel/sandbox` | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (drive lifecycle, serve install/launch, mount retries) shared by harness and the API. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
 | `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |

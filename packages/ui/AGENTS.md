@@ -18,7 +18,7 @@ and fonts. The repo `CLAUDE.md` has the repo-wide philosophy; read it first.
 Stories live next to the module they document (`button.tsx` -> `button.stories.tsx`), plus
 `src/tokens/{colors,typography}.stories.tsx`. Story data shared with specs lives in `src/fixtures/`
 (exported as `@dltech/atlas-ui/fixtures/<name>`; dev data only). `apps/storybook` is the Storybook
-host: it loads these stories and owns the `Views/` prototypes.
+host: it loads these stories and owns the `App/` prototypes.
 
 ## Commands
 
