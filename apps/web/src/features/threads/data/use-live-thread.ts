@@ -10,7 +10,7 @@ import {
   type ThreadModelChoice,
 } from './live-thread-view'
 import { connectPod } from './pod-connect'
-import { fetchEvents } from './threads-api'
+import { fetchEvents, fetchThread } from './threads-api'
 
 const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
@@ -33,6 +33,7 @@ export function useLiveThread(args: {
       threadId,
       mint: () => connectPod(threadId),
       readSeed: () => fetchEvents(threadId),
+      readStoredModel: async () => (await fetchThread(threadId)).model,
       onChange: setState,
       onModelChanged: (model) => modelChangedRef.current?.(model),
     })
