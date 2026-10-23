@@ -9,6 +9,7 @@ import {
 import { composeServeApp } from './compose-serve'
 import type { ServeApp, ServeCompose } from './serve-app'
 import type { bootServeFiles } from './serve-boot'
+import { apiThreadModel } from './serve-thread-model-boot'
 
 type Booted = Awaited<ReturnType<typeof bootServeFiles>>
 
@@ -27,7 +28,7 @@ const storedThreadModel = (args: {
   return { ref: meta.modelRef, effort: meta.modelEffort ?? undefined }
 }
 
-export function composeBootApp(args: {
+export async function composeBootApp(args: {
   compose?: ServeCompose | undefined
   model?: { ref: string; effort?: string | undefined } | undefined
   spec: Booted['spec']
@@ -40,10 +41,12 @@ export function composeBootApp(args: {
   clientVersion: string
   env: Record<string, string | undefined>
   notice: NoticePort
+  fetchFn?: typeof fetch | undefined
 }): Promise<ServeApp> {
   const { spec } = args
   const model =
     args.model ??
+    (await apiThreadModel(args)) ??
     storedThreadModel(args) ??
     (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
 
