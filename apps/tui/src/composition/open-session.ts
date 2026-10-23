@@ -139,7 +139,6 @@ async function startSession(args: {
     workspace: app.workspace,
     open: config.open,
     effects: (name) => app.tools.find(name)?.effect,
-    boot: true,
   })
 
   if ('cloud' in outcome) {

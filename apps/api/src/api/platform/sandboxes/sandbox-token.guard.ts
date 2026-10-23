@@ -1,5 +1,7 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
+import { POD_REACHABLE_KEY } from '../../../_core/decorators/pod-reachable.decorator'
 import type { Request } from 'express'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
@@ -30,7 +32,10 @@ const bearerTokenOf = (request: Request): string | undefined => {
  */
 @Injectable()
 export class SandboxTokenGuard implements CanActivate {
-  constructor(private readonly sandboxes: SandboxesService) {}
+  constructor(
+    private readonly sandboxes: SandboxesService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<SandboxAuthenticatedRequest>()
@@ -47,10 +52,19 @@ export class SandboxTokenGuard implements CanActivate {
     }
 
     const row = await this.sandboxes.verifyTokenPrincipal({ token })
-    if (row.kind === ETokenPrincipalKind.Pod) {
+    if (row.kind === ETokenPrincipalKind.Pod && !this.podReachable(context)) {
       throw new UnauthorizedException('a sandbox session token is required')
     }
     request.sandbox = { threadId: row.threadId, userId: row.userId }
     return true
+  }
+
+  private podReachable(context: ExecutionContext): boolean {
+    return (
+      this.reflector.getAllAndOverride<boolean>(POD_REACHABLE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) === true
+    )
   }
 }

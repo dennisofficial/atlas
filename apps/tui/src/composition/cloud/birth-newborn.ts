@@ -70,7 +70,6 @@ export function birthNewborn(args: {
     model: storedModel(app.model.choice()),
     bridge,
     localThreads: app.threads,
-    localLog: app.log,
     ids: app.ids,
     placement: owner,
     onBegin: ({ waves }) =>
@@ -149,7 +148,6 @@ export function birthNewborn(args: {
           runner: turns,
           opened,
           session,
-          sessionMirror: attachment.sessionMirror,
         }),
       })
     },

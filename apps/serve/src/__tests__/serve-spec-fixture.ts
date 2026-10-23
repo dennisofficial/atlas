@@ -25,6 +25,13 @@ import {
 
 export const TOKEN = 'session-token'
 
+const defaultFetch = (async (input: string | URL | Request) => {
+  const url = String(input)
+  if (url.endsWith('/v1/sandboxes/self/events')) return Response.json({ head: 0 })
+  if (url.includes('/events')) return Response.json([])
+  return new Response(null, { status: 204 })
+}) as unknown as typeof fetch
+
 export const threadId = toThreadId('thread-serve')
 
 export const CONTROL_PLANE = 'https://api.example.com'
@@ -68,9 +75,7 @@ export const startWithDriveSpec = async (args: {
     controlPlaneUrl: CONTROL_PLANE,
     env: {},
     cwd: '/workspace',
-    fetchFn:
-      args.fetchFn ??
-      ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
+    fetchFn: args.fetchFn ?? defaultFetch,
     compose: args.compose,
     ensureWorkspace: args.ensureWorkspace ?? (async () => ({ state: EWorkspaceState.Skipped })),
     contextFiles: inMemoryContextFiles(),
@@ -148,9 +153,7 @@ export const start = async (args: {
     cwd: '/workspace',
     bufferSize: args.bufferSize,
     write: (line) => lines.push(line),
-    fetchFn:
-      args.fetchFn ??
-      ((async (_input: unknown) => new Response(null, { status: 204 })) as typeof fetch),
+    fetchFn: args.fetchFn ?? defaultFetch,
     compose: async () => app,
     ensureWorkspace:
       args.ensureWorkspace ?? (async () => args.workspace ?? { state: EWorkspaceState.Skipped }),

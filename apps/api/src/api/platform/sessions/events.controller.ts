@@ -1,7 +1,9 @@
+import { podEventsPostSchema, type PodEventsReply } from '@dltech/atlas-wire'
 import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -68,6 +70,24 @@ export class EventsController {
     }
     if (own === 'true') return this.events.readOwn(args)
     return this.events.read(args)
+  }
+
+  @Post('import')
+  async handleImport(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+    @Body() body: unknown,
+  ): Promise<PodEventsReply> {
+    if (request.sandbox !== undefined || request.pod !== undefined) {
+      throw new ForbiddenException('only the thread owner can import events')
+    }
+    const parsed = podEventsPostSchema.safeParse(body)
+    if (!parsed.success) throw new BadRequestException(parsed.error.message)
+    return this.events.importEvents({
+      userId: userIdOf(request),
+      threadId,
+      events: parsed.data.events,
+    })
   }
 
   @Get('head')

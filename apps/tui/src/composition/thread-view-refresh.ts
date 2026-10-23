@@ -1,7 +1,6 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import {
   EConnectionView,
-  MirroredEventLog,
   RemoteTurnRunner,
   transcriptIdentityDigest,
   type RemoteDeltaChannel,
@@ -139,7 +138,6 @@ export function createThreadViewRefresh(args: {
   const cloudChannel = cloudChannelOf(app)
   const ownsChannelReadiness = cloudChannel !== null && threadId === cloudChannel.threadId
   const readiness = ownsChannelReadiness ? cloudReadinessOf(cloudChannel!) : null
-  const mirror = readiness !== null && app.log instanceof MirroredEventLog ? app.log : null
   let readingSpend = false
   let spendQueued = false
   let viewEpoch = 0
@@ -213,7 +211,7 @@ export function createThreadViewRefresh(args: {
               digest: transcriptIdentityDigest,
             })
             const [snapshot, spent] =
-              mirror === null
+              readiness === null
                 ? await Promise.all([reading, readThreadSpend({ ledger: app.ledger, threadId })])
                 : ([await reading, undefined] as const)
             if (detached || epoch !== viewEpoch) return
@@ -225,24 +223,24 @@ export function createThreadViewRefresh(args: {
               heldIdentity = snapshot.identity
               readiness?.registerApplied(snapshot.identity, Date.now(), snapshot.all)
             }
-            if (mirror !== null) refreshSpend()
+            if (readiness !== null) refreshSpend()
           },
         })
 
   return {
     refresh,
     bindLocalUpdates: () => {
-      if (mirror === null || readiness === null) return () => undefined
+      if (cloudChannel === null || readiness === null) return () => undefined
       detached = false
       const unbind = readiness.bindRefresh(refresh)
-      const unsubscribe = mirror.subscribe(() => {
+      const unready = cloudChannel.onReady(() => {
         void refresh().catch(() => undefined)
       })
       return () => {
         viewEpoch += 1
         detached = true
         unbind()
-        unsubscribe()
+        unready()
       }
     },
     refreshable: () => cloudChannel === null || !UNREFRESHABLE.has(cloudChannel.connection().state),

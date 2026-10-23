@@ -1,7 +1,9 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 
 import type { ServeApp } from './serve-app'
-import { podEventOf, type EventFlusher } from './serve-event-flush'
+import { podEventOf } from '@dltech/atlas-harness'
+
+import type { EventFlusher } from './serve-event-flush'
 
 type Snapshot = Map<number, string>
 

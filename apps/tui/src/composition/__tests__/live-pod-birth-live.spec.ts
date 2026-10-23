@@ -202,7 +202,6 @@ describeLive('a pod birth through the live TUI wiring', () => {
           model: storedModel(app.model.choice()),
           bridge,
           localThreads: app.threads,
-          localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
           onBegin: spy.onBegin,
@@ -287,7 +286,6 @@ describeLive('a pod birth through the live TUI wiring', () => {
           model: storedModel(app.model.choice()),
           bridge,
           localThreads: app.threads,
-          localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
           open: async ({ prepareRuntime }) =>

@@ -32,7 +32,7 @@ const synced = async () => {
   const app = fakeApp({
     model: scriptedModelPort({ script: { thinking: '', reply: 'unused' }, perChunkMs: 1 }),
   })
-  const rig = await mirrored({ app, seeded: [ASKED, CHILD], hold: false, inFlight: false })
+  const rig = await mirrored({ app, seeded: [ASKED, CHILD], inFlight: false })
   const screen = await mounted({ app, opened: rig.opened })
   cleanups.push(async () => {
     await screen.done()
@@ -65,23 +65,6 @@ describe('a cloud thread whose channel drops after its mirror synced', () => {
     expect(connectionOf(app)).toBe(EConnectionView.Reconnecting)
     expect(frame).toContain(ASKED_TEXT)
     expect(frame).toContain(SYNCED_ANSWER)
-    expect(frame).not.toContain(CHANNEL_DOWN)
-  }, 30_000)
-
-  it('renders the mirrored transcript on a thread opened after the channel was lost', async () => {
-    const { app, rig, screen } = await synced()
-    await screen.done()
-
-    disconnect(rig)
-    const events = await app.log.read({ threadId: rig.opened.threadId })
-    const reopened = await mounted({ app, opened: { ...rig.opened, events } })
-    cleanups.push(() => reopened.done())
-    const frame = await reopened.until(
-      (text) => text.includes(ASKED_TEXT) && text.includes(SYNCED_ANSWER),
-      'the mirrored transcript with the channel down',
-    )
-
-    expect(connectionOf(app)).toBe(EConnectionView.Reconnecting)
     expect(frame).not.toContain(CHANNEL_DOWN)
   }, 30_000)
 })

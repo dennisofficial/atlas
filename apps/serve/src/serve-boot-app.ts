@@ -4,7 +4,7 @@ import type { ServeArgs } from './serve-args'
 import { bootServeFiles } from './serve-boot'
 import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot-reporter'
 import { composeBootApp } from './serve-compose-boot'
-import { hydrateWhenApiProvisioned } from './serve-hydrate'
+import { hydrateWhenRegistered } from './serve-hydrate'
 import { bindServeWriteBehind } from './serve-write-behind'
 import type { LoggingNoticePort, ServeLog } from './serve-log'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
@@ -49,7 +49,7 @@ export async function bootServeApp(args: {
     reporter,
     strictSink: strictBootSinkFor({ env, ...remote }),
     work: async () => {
-      hydrated = await hydrateWhenApiProvisioned({ env, atlasHome, threadId, log, ...remote })
+      hydrated = await hydrateWhenRegistered({ env, atlasHome, threadId, log, ...remote })
       return composeBootApp({
         compose: serveArgs.compose,
         model: serveArgs.model,

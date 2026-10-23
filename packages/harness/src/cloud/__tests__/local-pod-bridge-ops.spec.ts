@@ -19,7 +19,6 @@ describe('createLocalPodBridge attach', () => {
 
     expect(typeof attachment.channel.send).toBe('function')
     expect(Object.keys(attachment.stores).sort()).toEqual(['ledger', 'log', 'threads'])
-    expect(attachment.sessionMirror).toBeUndefined()
     attachment.channel.close?.()
   })
 })

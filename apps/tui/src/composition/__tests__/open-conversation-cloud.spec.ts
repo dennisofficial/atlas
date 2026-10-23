@@ -179,7 +179,7 @@ describe('openConversation on a thread whose meta says cloud', () => {
     )
   })
 
-  it('opens the mirrored transcript at boot and marks it for attach, never the lock', async () => {
+  it('routes a cloud thread to the attach at boot too, never the lock or a local transcript', async () => {
     await closeConversation()
     const threads = fakeThreadStore({ existing: [REMOTE_THREAD], workspace: null })
     await threads.chooseExecutionLocation({
@@ -196,19 +196,9 @@ describe('openConversation on a thread whose meta says cloud', () => {
       workspace: HERE,
       effects: () => undefined,
       open: { mode: EOpenMode.Resume, threadId: REMOTE_THREAD },
-      boot: true,
     })
 
-    // A /restart relaunch resumes through this path: the transcript renders from the mirror at
-    // once and the attach is the workspace's first act — an unstarted placeholder would leave
-    // the welcome hero up for the whole wake, and forever if the attach fails.
-    expect('cloud' in outcome).toBe(false)
-    if (!('cloud' in outcome) && outcome.ok) {
-      expect(outcome.conversation.threadId).toBe(REMOTE_THREAD)
-      expect(outcome.conversation.started).toBe(true)
-      expect(outcome.conversation.events.map((event) => event.type)).toEqual(['user-said'])
-      expect(outcome.conversation.attachOnBoot).toBe(true)
-    }
+    expect('cloud' in outcome && outcome.threadId === REMOTE_THREAD).toBe(true)
     expect(await lockHeld(REMOTE_THREAD)).toBe(false)
     expect(threads.peekRow({ threadId: REMOTE_THREAD })?.executionLocation).toBe(
       EExecutionLocation.Cloud,

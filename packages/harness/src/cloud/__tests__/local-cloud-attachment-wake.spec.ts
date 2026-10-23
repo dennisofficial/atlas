@@ -20,7 +20,7 @@ const wakeThrough = async (args: {
     },
   } as unknown as CloudSandboxes
   const attachment = attachmentOf({
-    options: { sessionMirror: false, projectIdOf: args.projectIdOf },
+    options: { projectIdOf: args.projectIdOf },
     sandboxes,
   })({
     threadId: THREAD,

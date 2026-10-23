@@ -28,7 +28,6 @@ const open = async (args: { readyAtMount?: boolean; wakesInto?: boolean; inFligh
   const rig = await mirrored({
     app,
     seeded: [ASKED, CHILD],
-    hold: false,
     inFlight: args.inFlight === true,
     ...(args.readyAtMount === undefined ? {} : { readyAtMount: args.readyAtMount }),
     ...(args.wakesInto === undefined ? {} : { wakesInto: args.wakesInto }),
