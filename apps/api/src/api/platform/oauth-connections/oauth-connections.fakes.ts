@@ -29,6 +29,16 @@ export class FakeStore implements OauthConnectionStore {
     return row === undefined ? null : { ...row }
   }
 
+  async findActive(args: { userId: string; provider: string }) {
+    const row = [...this.rows.values()].find(
+      (candidate) =>
+        candidate.userId === args.userId &&
+        candidate.provider === args.provider &&
+        candidate.status === EConnectionStatus.Active,
+    )
+    return row === undefined ? null : { id: row.id }
+  }
+
   async reauthorize(args: {
     id: string
     userId: string

@@ -42,6 +42,17 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     ).first({ id: args.id })
   }
 
+  findActive(args: { userId: string; provider: string }): Promise<{ id: string } | null> {
+    return db.orm.public.OauthConnection.where({
+      userId: args.userId,
+      provider: args.provider,
+      status: EConnectionStatus.Active,
+    })
+      .orderBy((connection) => connection.updatedAt.desc())
+      .select('id')
+      .first()
+  }
+
   async reauthorize(args: {
     id: string
     userId: string

@@ -18,6 +18,7 @@ import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
 import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
+import { ModelsModule } from './platform/models/models.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
@@ -52,6 +53,7 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     AuthModule,
     AccountsModule,
     OauthConnectionsModule,
+    ModelsModule,
     PodLeasesModule,
     SecretsModule,
     SettingsModule,

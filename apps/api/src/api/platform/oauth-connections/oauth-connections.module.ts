@@ -16,5 +16,6 @@ import { PrismaOauthConnectionStore } from './prisma-oauth-connection.store'
     { provide: OauthIssuer, useClass: HttpOauthIssuer },
     { provide: OauthClock, useClass: SystemOauthClock },
   ],
+  exports: [OauthConnectionsService],
 })
 export class OauthConnectionsModule {}
