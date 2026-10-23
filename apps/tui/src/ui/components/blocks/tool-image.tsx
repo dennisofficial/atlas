@@ -9,6 +9,7 @@ import { imageRows } from '../../image-rows-store'
 import { DEFAULT_CELL_ASPECT, SAMPLES_PER_CELL, imageCellSpan } from '../../images'
 import '../../images/transcript-image'
 import { tailOfPath } from '../../paths'
+import { defaultOpenImage, type OpenImage } from '../../open-image'
 import { theme } from '../../theme'
 import { useTranscriptRows } from '../../viewport-rows-store'
 import type { Expander } from './more-toggle'
@@ -24,6 +25,7 @@ export function ToolImage(props: {
   inner: number
   cwd: string
   expand?: Expander
+  onOpenImage?: OpenImage
 }): React.ReactNode {
   const renderer = useRenderer()
   const { height } = useTerminalDimensions()
@@ -38,6 +40,16 @@ export function ToolImage(props: {
   const collapsible = props.expand?.onToggle !== undefined
   const shown = props.expand?.expanded ?? true
   const region = useClickRegion(collapsible ? props.expand?.onToggle : undefined)
+  const openImage = props.onOpenImage ?? defaultOpenImage
+  const handleOpen = (): void => {
+    if (image !== null)
+      openImage({
+        path: image.path,
+        mediaType: image.mediaType,
+        data: image.data,
+      })
+  }
+  const picture = useClickRegion(image === null ? undefined : handleOpen)
 
   if (summary === null || image === null) return null
 
@@ -69,7 +81,7 @@ export function ToolImage(props: {
           >{`${INDENT}Not sent to the model: ${image.notSentReason ?? ''}`}</span>
         </text>
       ) : !shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
-        <box paddingLeft={INDENT.length} flexShrink={0}>
+        <box paddingLeft={INDENT.length} flexShrink={0} {...picture.handlers}>
           <transcript-image
             source={bytes ?? image.path}
             protocol="auto"
@@ -84,7 +96,10 @@ export function ToolImage(props: {
 
 type CellMetrics = { aspect: number; width: number }
 
-const BLOCK_SAMPLER: CellMetrics = { aspect: DEFAULT_CELL_ASPECT, width: SAMPLES_PER_CELL }
+const BLOCK_SAMPLER: CellMetrics = {
+  aspect: DEFAULT_CELL_ASPECT,
+  width: SAMPLES_PER_CELL,
+}
 
 function cellMetricsOf(renderer: ReturnType<typeof useRenderer>): CellMetrics {
   const resolution = renderer.resolution
