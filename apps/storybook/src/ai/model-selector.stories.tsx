@@ -6,8 +6,46 @@ import { InputGroup, InputGroupAddon } from '@dltech/atlas-ui/components/input-g
 
 import { MODELS } from '../fixtures/agent'
 import MODEL_CATALOGUE from '../fixtures/model-catalogue.json'
+import { PROVIDER_LABELS } from '../fixtures/settings-models'
+import {
+  CATALOGUE_MODELS,
+  contextLabel,
+  familyMark,
+  priceLabel,
+} from '../fixtures/settings-models-catalogue'
 
 const CATALOGUE: ModelOption[] = MODEL_CATALOGUE
+
+const SCALE_ROUTES = ['Anthropic', 'OpenAI', 'OpenRouter', 'Inference.net', 'AI Gateway']
+
+const SCALE_MODELS: ModelOption[] = [
+  {
+    id: 'auto',
+    label: 'Claude Opus 4.7',
+    provider: 'Automatic',
+    auto: true,
+    route: 'Max',
+    efforts: [EEffort.Low, EEffort.Medium, EEffort.High, EEffort.XHigh, EEffort.Max],
+  },
+  ...SCALE_ROUTES.flatMap((route) =>
+    CATALOGUE_MODELS.flatMap((model) =>
+      model.rows
+        .filter((row) => PROVIDER_LABELS[row.provider] === route)
+        .map((row) => ({
+          id: row.ref,
+          label: row.label,
+          provider: route,
+          context: contextLabel(row.contextWindow),
+          contextTokens: row.contextWindow,
+          rate: priceLabel(row.cost),
+          images: row.images,
+          efforts: row.efforts,
+          brand: familyMark(model.vendor).brand,
+          monogram: familyMark(model.vendor).monogram,
+        })),
+    ),
+  ),
+]
 
 const RECONNECT_PROVIDERS = ['OpenRouter']
 
@@ -129,3 +167,35 @@ export const NoProviders: Story = {
     <CatalogueDemo models={[]} defaultOpen initialPinned={[]} reconnectProviders={[]} />
   ),
 }
+
+function ScaleDemo({ defaultOpen }: { defaultOpen: boolean }) {
+  const [model, setModel] = useState('auto')
+  const [effort, setEffort] = useState(EEffort.High)
+  const [pinned, setPinned] = useState(['anthropic/claude-opus-4-7', 'openai/gpt-5'])
+
+  return (
+    <div className="flex h-[640px] w-[28rem] flex-col items-start">
+      <InputGroup>
+        <InputGroupAddon align="block-end">
+          <ModelSelector
+            models={SCALE_MODELS}
+            value={model}
+            onValueChange={setModel}
+            effort={effort}
+            onEffortChange={setEffort}
+            pinned={pinned}
+            onPinnedChange={setPinned}
+            collapsedProviders={['OpenRouter', 'Inference.net', 'AI Gateway']}
+            reconnectProviders={[]}
+            onManageProviders={() => undefined}
+            defaultOpen={defaultOpen}
+          />
+        </InputGroupAddon>
+      </InputGroup>
+    </div>
+  )
+}
+
+export const AtScale: Story = { render: () => <ScaleDemo defaultOpen={false} /> }
+
+export const AtScaleOpen: Story = { render: () => <ScaleDemo defaultOpen /> }

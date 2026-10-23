@@ -1,0 +1,236 @@
+:root {
+  --atlas-md-sans: var(--font-sans);
+  --atlas-md-mono: var(--font-mono);
+}
+
+.mdxeditor.atlas-markdown-editor,
+.mdxeditor-popup-container.atlas-markdown-editor {
+  --accentBase: var(--background);
+  --accentBgSubtle: var(--muted);
+  --accentBg: var(--accent);
+  --accentBgHover: var(--accent);
+  --accentBgActive: var(--accent);
+  --accentLine: var(--border);
+  --accentBorder: var(--ring);
+  --accentBorderHover: var(--ring);
+  --accentSolid: var(--primary);
+  --accentSolidHover: var(--primary);
+  --accentText: var(--link);
+  --accentTextContrast: var(--foreground);
+
+  --basePageBg: var(--popover);
+  --baseBase: var(--background);
+  --baseBgSubtle: var(--muted);
+  --baseBg: var(--muted);
+  --baseBgHover: var(--accent);
+  --baseBgActive: var(--accent);
+  --baseLine: var(--border);
+  --baseBorder: var(--border);
+  --baseBorderHover: var(--muted-foreground);
+  --baseSolid: var(--muted-foreground);
+  --baseSolidHover: var(--foreground);
+  --baseText: var(--muted-foreground);
+  --baseTextContrast: var(--foreground);
+
+  --error-color: var(--destructive);
+  --font-body: var(--atlas-md-sans);
+  --font-mono: var(--atlas-md-mono);
+  --radius-base: calc(var(--radius) * 0.6);
+  --radius-medium: calc(var(--radius) * 0.8);
+  --radius-large: var(--radius);
+
+  font-family: var(--atlas-md-sans);
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+.atlas-markdown-editor .cm-editor {
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--atlas-md-mono);
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.atlas-markdown-editor .cm-editor .cm-scroller {
+  font-family: var(--atlas-md-mono);
+  line-height: 1.65;
+}
+
+.atlas-markdown-editor .cm-editor .cm-content {
+  caret-color: var(--foreground);
+  padding: 0.75rem 0;
+}
+
+.atlas-markdown-editor .cm-editor .cm-cursor {
+  border-left-color: var(--foreground);
+}
+
+.atlas-markdown-editor .cm-editor .cm-gutters {
+  background: transparent;
+  border-right: 1px solid var(--border);
+  color: var(--syntax-comment);
+}
+
+.atlas-markdown-editor .cm-editor .cm-activeLine,
+.atlas-markdown-editor .cm-editor .cm-activeLineGutter {
+  background: transparent;
+}
+
+.atlas-markdown-editor .cm-editor .cm-activeLineGutter {
+  color: var(--foreground);
+}
+
+.atlas-markdown-editor .cm-editor .cm-selectionBackground,
+.atlas-markdown-editor .cm-editor.cm-focused .cm-selectionBackground,
+.atlas-markdown-editor .cm-editor .cm-content ::selection {
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+.atlas-markdown-editor .cm-editor .cm-foldPlaceholder {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.atlas-markdown-editor .cm-editor .cm-matchingBracket {
+  background: var(--accent);
+  outline: none;
+}
+
+.atlas-markdown-editor .mdxeditor-source-editor {
+  flex: 1;
+}
+
+.atlas-markdown-editor .mdxeditor-source-editor .cm-editor {
+  min-height: 100%;
+}
+
+.atlas-markdown-content {
+  padding: 0.75rem;
+  line-height: 1.6;
+}
+
+.atlas-markdown-content h1,
+.atlas-markdown-content h2,
+.atlas-markdown-content h3,
+.atlas-markdown-content h4 {
+  color: var(--foreground);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1rem 0 0.4rem;
+}
+
+.atlas-markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.atlas-markdown-content h1 {
+  font-size: 1.25rem;
+}
+.atlas-markdown-content h2 {
+  font-size: 1.1rem;
+}
+.atlas-markdown-content h3 {
+  font-size: 1rem;
+}
+.atlas-markdown-content h4 {
+  font-size: 0.875rem;
+}
+
+.atlas-markdown-content p {
+  margin: 0 0 0.5rem;
+}
+
+.atlas-markdown-content a {
+  color: var(--link);
+}
+
+.atlas-markdown-editor [class*="_markdownParseError_"] {
+  display: none;
+}
+
+[data-variant="document"] .mdxeditor-toolbar {
+  top: 0;
+  z-index: 10;
+  padding: 0.5rem 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--background);
+}
+
+[data-variant="document"] .mdxeditor-toolbar [role="separator"] {
+  border-left-color: var(--border);
+  border-right-color: transparent;
+}
+
+.atlas-markdown-content.atlas-markdown-document {
+  box-sizing: border-box;
+  min-height: 60vh;
+  padding: 1.5rem 0 4rem;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.atlas-markdown-document h1 {
+  font-size: 1.75rem;
+  margin: 2rem 0 0.75rem;
+}
+.atlas-markdown-document h2 {
+  font-size: 1.375rem;
+  margin: 1.75rem 0 0.5rem;
+}
+.atlas-markdown-document h3 {
+  font-size: 1.125rem;
+  margin: 1.5rem 0 0.4rem;
+}
+
+.atlas-markdown-document p {
+  margin: 0 0 0.75rem;
+}
+
+[data-variant="document"] .mdxeditor-source-editor .cm-editor {
+  min-height: 60vh;
+  font-size: 0.8125rem;
+}
+
+[data-variant="document"] .mdxeditor-source-editor .cm-editor .cm-content {
+  padding: 1.5rem 0 4rem;
+}
+
+.atlas-markdown-document ul,
+.atlas-markdown-document ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.atlas-markdown-document ul {
+  list-style: disc;
+}
+
+.atlas-markdown-document ol {
+  list-style: decimal;
+}
+
+.atlas-markdown-document li {
+  margin: 0.25rem 0;
+  padding-left: 0.25rem;
+}
+
+.atlas-markdown-document li > p {
+  margin: 0;
+}
+
+.atlas-markdown-document li > ul,
+.atlas-markdown-document li > ol {
+  margin: 0.25rem 0 0;
+}
+
+.atlas-markdown-document li::marker {
+  color: var(--muted-foreground);
+}
+
+.atlas-markdown-document code {
+  font-family: var(--atlas-md-mono);
+  font-size: 0.875em;
+}

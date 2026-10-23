@@ -1,3 +1,10 @@
+import {
+  ESecretKind,
+  ESecretsScope,
+  PERSONAL_SECRETS,
+  type LibrarySecret,
+} from './settings-library'
+
 export enum EProjectSettingsPage {
   Overview = 'overview',
   Sandbox = 'sandbox',
@@ -11,39 +18,130 @@ export enum EShipBehavior {
   Merge = 'merge',
 }
 
-export interface WorkspaceOption {
-  value: string
-  label: string
-}
-
-export const PERSONAL_WORKSPACE_VALUE = 'personal'
-
-export const WORKSPACE_OPTIONS: readonly WorkspaceOption[] = [
-  { value: PERSONAL_WORKSPACE_VALUE, label: 'Personal (no workspace)' },
-  { value: 'org_acme', label: 'Acme' },
-  { value: 'org_atlas', label: 'Atlas Labs' },
-]
-
-export interface ProjectFixture {
+export interface GithubRepo {
   owner: string
   name: string
   description: string
+  isPrivate: boolean
   defaultBranch: string
-  baseBranch: string
-  shipBehavior: EShipBehavior
-  additionalRepositories: readonly string[]
-  workspace: string
+  avatarUrl: string | null
 }
 
-export const PROJECT: ProjectFixture = {
+export interface ProjectFixture extends GithubRepo {
+  baseBranch: string | null
+  shipBehavior: EShipBehavior
+  additionalRepositories: readonly string[]
+}
+
+function fixtureAvatar({ from, to }: { from: string; to: string }): string {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">',
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>`,
+    '<rect width="64" height="64" fill="url(#g)"/>',
+    '<circle cx="32" cy="32" r="14" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="5"/>',
+    '</svg>',
+  ].join('')
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+const DENNIS_AVATAR = fixtureAvatar({ from: '#c2410c', to: '#7c2d12' })
+const DLTECH_AVATAR = fixtureAvatar({ from: '#0e7490', to: '#164e63' })
+
+const ATLAS_REPO: GithubRepo = {
   owner: 'dennisofficial',
   name: 'atlas',
   description: 'Coding-agent harness: the loop, the TUI, and Atlas Cloud.',
+  isPrivate: false,
   defaultBranch: 'main',
-  baseBranch: '',
+  avatarUrl: DENNIS_AVATAR,
+}
+
+export const GITHUB_REPOS: readonly GithubRepo[] = [
+  ATLAS_REPO,
+  {
+    owner: 'dennisofficial',
+    name: 'atlas-docs',
+    description: 'Documentation site for Atlas.',
+    isPrivate: false,
+    defaultBranch: 'main',
+    avatarUrl: DENNIS_AVATAR,
+  },
+  {
+    owner: 'dennisofficial',
+    name: 'atlas-sandbox-image',
+    description: 'The container image Atlas sandboxes boot from.',
+    isPrivate: false,
+    defaultBranch: 'main',
+    avatarUrl: DENNIS_AVATAR,
+  },
+  {
+    owner: 'dennisofficial',
+    name: 'comp-v3',
+    description: 'Compliance automation platform.',
+    isPrivate: true,
+    defaultBranch: 'main',
+    avatarUrl: DENNIS_AVATAR,
+  },
+  {
+    owner: 'dennisofficial',
+    name: 'dotfiles',
+    description: 'Shell, editor and git configuration.',
+    isPrivate: true,
+    defaultBranch: 'master',
+    avatarUrl: DENNIS_AVATAR,
+  },
+  {
+    owner: 'dltech',
+    name: 'billing-service',
+    description: 'Usage metering and invoicing.',
+    isPrivate: true,
+    defaultBranch: 'main',
+    avatarUrl: DLTECH_AVATAR,
+  },
+  {
+    owner: 'dltech',
+    name: 'design-tokens',
+    description: 'Shared color and type tokens.',
+    isPrivate: false,
+    defaultBranch: 'main',
+    avatarUrl: DLTECH_AVATAR,
+  },
+  {
+    owner: 'oven-sh',
+    name: 'bun',
+    description: 'Incredibly fast JavaScript runtime, bundler, test runner, and package manager.',
+    isPrivate: false,
+    defaultBranch: 'main',
+    avatarUrl: null,
+  },
+  {
+    owner: 'vercel',
+    name: 'ai',
+    description: 'The AI Toolkit for TypeScript.',
+    isPrivate: false,
+    defaultBranch: 'main',
+    avatarUrl: null,
+  },
+]
+
+export const PROJECT_BRANCHES: readonly string[] = [
+  'main',
+  'dennis/sandbox-settings',
+  'dennis/model-catalogue',
+  'dennis/mcp-oauth',
+  'feat/atlas-cloud-threads',
+  'fix/serve-reconnect',
+  'refactor/harness-ports',
+  'release/0.9',
+  'release/0.8',
+  'staging',
+]
+
+export const PROJECT: ProjectFixture = {
+  ...ATLAS_REPO,
+  baseBranch: null,
   shipBehavior: EShipBehavior.OpenPullRequest,
   additionalRepositories: ['dennisofficial/atlas-docs'],
-  workspace: 'org_atlas',
 }
 
 export const SHIP_BEHAVIORS: readonly {
@@ -54,132 +152,63 @@ export const SHIP_BEHAVIORS: readonly {
   {
     value: EShipBehavior.OpenPullRequest,
     label: 'Open pull request',
-    description: 'Push a branch and open a PR for review.',
+    description: 'Push the branch and open a PR for review.',
   },
   {
     value: EShipBehavior.Push,
     label: 'Push branch',
-    description: 'Push the branch; you open the PR yourself.',
+    description: 'Push the branch. You open the PR.',
+  },
+  {
+    value: EShipBehavior.Merge,
+    label: 'Merge',
+    description: 'Merge into the base branch when checks pass.',
   },
 ]
 
 export interface SandboxSize {
-  id: string
   vcpus: number
   memoryGb: number
-  diskGb: number
-  pricePerHour: string
-  unavailableReason?: string
 }
 
 export const SANDBOX_SIZES: readonly SandboxSize[] = [
-  { id: 's1.small', vcpus: 1, memoryGb: 2, diskGb: 16, pricePerHour: '$0.06' },
-  { id: 's1.medium', vcpus: 2, memoryGb: 4, diskGb: 32, pricePerHour: '$0.12' },
-  { id: 's1.large', vcpus: 4, memoryGb: 8, diskGb: 64, pricePerHour: '$0.24' },
-  {
-    id: 's1.xlarge',
-    vcpus: 8,
-    memoryGb: 16,
-    diskGb: 128,
-    pricePerHour: '$0.48',
-    unavailableReason: "Above this workspace's limit",
-  },
+  { vcpus: 2, memoryGb: 4 },
+  { vcpus: 4, memoryGb: 8 },
+  { vcpus: 6, memoryGb: 12 },
+  { vcpus: 8, memoryGb: 16 },
 ]
 
-export const DEFAULT_SANDBOX_SIZE = 's1.medium'
+export const DEFAULT_SANDBOX_VCPUS = 4
 
 export const SETUP_SCRIPT = `bun install --frozen-lockfile
 bun run --filter @dltech/atlas-ui generate
 bunx turbo run typecheck --filter @dltech/atlas-core`
 
-export enum ESecretScope {
-  Project = 'project',
-  Workspace = 'workspace',
-}
-
-export interface SecretRow {
-  name: string
-  value: string
-  scope: ESecretScope
-  updated: string
-  overridesWorkspace?: boolean
-}
-
-export const SECRETS: readonly SecretRow[] = [
+export const PROJECT_SECRETS: LibrarySecret[] = [
   {
-    name: 'ANTHROPIC_API_KEY',
+    id: 'j1',
+    key: 'ANTHROPIC_API_KEY',
+    kind: ESecretKind.Secret,
     value: 'sk-ant-api03-q8Zr2mVd7Lk0aPp4xT9e',
-    scope: ESecretScope.Project,
     updated: '2h ago',
-    overridesWorkspace: true,
+    scope: ESecretsScope.Project,
   },
   {
-    name: 'DATABASE_URL',
+    id: 'j2',
+    key: 'DATABASE_URL',
+    kind: ESecretKind.Secret,
     value: 'postgres://atlas:hunter2@ep-calm-sun.neon.tech/atlas',
-    scope: ESecretScope.Project,
     updated: '3d ago',
+    scope: ESecretsScope.Project,
   },
   {
-    name: 'VERCEL_TOKEN',
-    value: 'vcl_6Yb2TnQe1sKx90',
-    scope: ESecretScope.Project,
+    id: 'j3',
+    key: 'NEXT_PUBLIC_APP_URL',
+    kind: ESecretKind.EnvVar,
+    value: 'http://localhost:3000',
     updated: '1w ago',
-  },
-  {
-    name: 'GITHUB_TOKEN',
-    value: 'ghp_R4nd0mT0k3nV4lu3',
-    scope: ESecretScope.Workspace,
-    updated: '2w ago',
-  },
-  {
-    name: 'NODE_ENV',
-    value: 'development',
-    scope: ESecretScope.Workspace,
-    updated: '1mo ago',
+    scope: ESecretsScope.Project,
   },
 ]
 
-export const BULK_ADD_SAMPLE = `OPENAI_API_KEY=sk-proj-9fK2
-POSTHOG_KEY=phc_live_41b0
-# staging only
-SENTRY_DSN=https://4c1@o12.ingest.sentry.io/77
-not a pair`
-
-export enum EMcpTransport {
-  Stdio = 'stdio',
-  Http = 'http',
-}
-
-export interface McpServer {
-  id: string
-  transport: EMcpTransport
-  target: string
-  enabled: boolean
-}
-
-export const MCP_SERVERS: readonly McpServer[] = [
-  {
-    id: 'playwright',
-    transport: EMcpTransport.Stdio,
-    target: 'bunx @playwright/mcp@latest --headless',
-    enabled: true,
-  },
-  {
-    id: 'posthog',
-    transport: EMcpTransport.Http,
-    target: 'https://mcp.posthog.com/mcp',
-    enabled: true,
-  },
-  {
-    id: 'linear',
-    transport: EMcpTransport.Http,
-    target: 'https://mcp.linear.app/mcp',
-    enabled: true,
-  },
-  {
-    id: 'postgres',
-    transport: EMcpTransport.Stdio,
-    target: 'bunx @modelcontextprotocol/server-postgres $DATABASE_URL',
-    enabled: false,
-  },
-]
+export const PROJECT_SECRET_ROWS: LibrarySecret[] = [...PROJECT_SECRETS, ...PERSONAL_SECRETS]

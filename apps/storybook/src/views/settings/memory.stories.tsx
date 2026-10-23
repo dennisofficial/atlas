@@ -12,7 +12,7 @@ import { renderSettingsPage } from './settings-pages'
 import { SettingsShell } from './settings-shell'
 
 const meta = {
-  title: 'Views/Settings/Personal/Memory',
+  title: 'Views/Settings/Memory',
   parameters: { layout: 'fullscreen' },
 } satisfies Meta
 

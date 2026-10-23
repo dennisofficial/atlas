@@ -8,7 +8,6 @@ import {
   SearchIcon,
 } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
   InputGroup,
@@ -29,17 +28,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@dltech/atlas-ui/components/sidebar'
-import { Tabs, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
-import { CURRENT_USER, CURRENT_WORKSPACE } from '../../fixtures/settings'
-import {
-  ESettingsPage,
-  ESettingsScope,
-  filterNav,
-  firstPageOf,
-  navForScope,
-  scopeOfPage,
-} from './settings-nav'
+import { ESettingsPage, PERSONAL_NAV, filterNav } from './settings-nav'
 
 const HELP_LINKS = [
   { label: 'Docs', icon: BookOpenIcon },
@@ -48,56 +38,14 @@ const HELP_LINKS = [
   { label: 'Email us', icon: MailIcon },
 ]
 
-export function WorkspaceLogo({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`flex size-4 items-center justify-center rounded-[4px] bg-primary text-[10px] font-semibold text-primary-foreground ${className ?? ''}`}
-    >
-      {CURRENT_WORKSPACE.initial}
-    </span>
-  )
-}
-
-function ScopeTabs({
-  scope,
-  onScopeChange,
-}: {
-  scope: ESettingsScope
-  onScopeChange: (scope: ESettingsScope) => void
-}) {
-  return (
-    <Tabs value={scope} onValueChange={(value) => onScopeChange(value as ESettingsScope)}>
-      <TabsList>
-        <TabsTrigger value={ESettingsScope.Personal} className="px-3">
-          <Avatar size="sm" className="size-4">
-            <AvatarFallback className="text-[8px]">{CURRENT_USER.initials}</AvatarFallback>
-          </Avatar>
-          Personal
-        </TabsTrigger>
-        <TabsTrigger value={ESettingsScope.Workspace} className="px-3">
-          <WorkspaceLogo />
-          {CURRENT_WORKSPACE.name}
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
-  )
-}
-
-function SettingsTopBar({
-  scope,
-  onScopeChange,
-}: {
-  scope: ESettingsScope
-  onScopeChange: (scope: ESettingsScope) => void
-}) {
+function SettingsTopBar() {
   return (
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
       <Button variant="ghost" size="sm" className="justify-self-start text-muted-foreground">
         <ArrowLeftIcon data-icon="inline-start" />
         Back to Atlas
       </Button>
-      <ScopeTabs scope={scope} onScopeChange={onScopeChange} />
+      <span className="text-sm font-medium">Settings</span>
       <span />
     </header>
   )
@@ -121,16 +69,14 @@ function HelpCard() {
 }
 
 function SettingsNav({
-  scope,
   page,
   onPageChange,
 }: {
-  scope: ESettingsScope
   page: ESettingsPage
   onPageChange: (page: ESettingsPage) => void
 }) {
   const [query, setQuery] = useState('')
-  const groups = filterNav({ groups: navForScope(scope), query })
+  const groups = filterNav({ groups: PERSONAL_NAV, query })
   return (
     <Sidebar collapsible="none" className="w-60 border-r">
       <SidebarHeader className="pt-3">
@@ -192,13 +138,11 @@ export function SettingsShell({
   renderPage: (page: ESettingsPage) => ReactNode
 }) {
   const [page, setPage] = useState(initialPage)
-  const scope = scopeOfPage(page)
-  const handleScopeChange = (next: ESettingsScope) => setPage(firstPageOf(next))
   return (
     <SidebarProvider className="h-svh min-h-0 flex-col">
-      <SettingsTopBar scope={scope} onScopeChange={handleScopeChange} />
+      <SettingsTopBar />
       <div className="flex min-h-0 flex-1">
-        <SettingsNav scope={scope} page={page} onPageChange={setPage} />
+        <SettingsNav page={page} onPageChange={setPage} />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-8 py-10">{renderPage(page)}</div>
         </main>

@@ -1,16 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react'
 
-import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { SettingsCard, SettingsRow } from '../settings-layout'
+import { Mono, SettingsCard, SettingsRow } from '../settings-layout'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 
 export type VercelCredentialView = {
   configured: boolean
+  tokenHint: string | null
   teamId: string
   vercelProjectId: string
   updatedAt: string | null
@@ -18,30 +18,30 @@ export type VercelCredentialView = {
 
 export type VercelDraft = { teamId: string; vercelProjectId: string; token: string }
 
-export type VercelCardCopy = {
-  description: string
-  removeDescription: string
-}
+const REMOVE_DESCRIPTION = "New sandboxes won't start until you save a token again."
 
-export const WORKSPACE_VERCEL_COPY: VercelCardCopy = {
-  description:
-    "Atlas Cloud creates this workspace's sandboxes in this Vercel team and project with this token.",
-  removeDescription: "New sandboxes for this workspace won't start until a token is saved again.",
-}
-
-export const PERSONAL_VERCEL_COPY: VercelCardCopy = {
-  description:
-    'Atlas Cloud creates the sandboxes for your personal projects, and for threads without a project, in this Vercel team and project with this token.',
-  removeDescription:
-    "New sandboxes for your personal projects and threads without a project won't start until a token is saved again.",
-}
-
-const AVAILABLE_SOON = 'Available soon'
 const EMPTY_VIEW: VercelCredentialView = {
   configured: false,
+  tokenHint: null,
   teamId: '',
   vercelProjectId: '',
   updatedAt: null,
+}
+
+const TOKEN_TAIL_LENGTH = 4
+const TOKEN_PREFIX_PATTERN = /^([A-Za-z0-9]+)_/
+
+const buildTokenHint = (token: string): string => {
+  const tail = token.slice(-TOKEN_TAIL_LENGTH)
+  const prefix = TOKEN_PREFIX_PATTERN.exec(token)?.[1]
+  return prefix ? `${prefix}_…${tail}` : `••••${tail}`
+}
+
+const formatSavedDate = (iso: string | null): string | null => {
+  if (iso === null) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  return `Saved ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
 }
 
 const canSave = ({ view, draft }: { view: VercelCredentialView; draft: VercelDraft }): boolean => {
@@ -66,17 +66,11 @@ function StatusLine({ configured, text }: { configured: boolean; text: string })
 }
 
 export function VercelCredentialCard({
-  copy = WORKSPACE_VERCEL_COPY,
   view = EMPTY_VIEW,
   statusLine,
-  disabled = false,
-  soon = false,
 }: {
-  copy?: VercelCardCopy
   view?: VercelCredentialView
   statusLine?: string
-  disabled?: boolean
-  soon?: boolean
 }) {
   const teamId = useId()
   const projectId = useId()
@@ -90,7 +84,8 @@ export function VercelCredentialCard({
   })
   const [replacing, setReplacing] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const tokenLocked = saved.configured && !replacing
+  const showTokenInput = !saved.configured || replacing
+  const savedDate = formatSavedDate(saved.updatedAt)
   const savable = canSave({ view: saved, draft })
 
   useEffect(() => {
@@ -108,9 +103,10 @@ export function VercelCredentialCard({
   const handleSave = () => {
     setSaved({
       configured: true,
+      tokenHint: draft.token.trim() === '' ? saved.tokenHint : buildTokenHint(draft.token.trim()),
       teamId: draft.teamId.trim(),
       vercelProjectId: draft.vercelProjectId.trim(),
-      updatedAt: 'just now',
+      updatedAt: new Date().toISOString(),
     })
     setDraft({
       teamId: draft.teamId.trim(),
@@ -126,19 +122,20 @@ export function VercelCredentialCard({
     setReplacing(false)
   }
 
+  const fallbackStatus = saved.configured ? 'Configured' : 'Not configured'
   const shownStatus =
     saved === view
-      ? statusLine
+      ? (statusLine ?? fallbackStatus)
       : saved.configured
         ? 'Configured · updated just now'
-        : 'Not configured'
+        : fallbackStatus
 
   return (
     <>
       <SettingsCard
         footer={
           <>
-            {saved.configured && !disabled ? (
+            {saved.configured ? (
               <Button
                 variant="destructive"
                 size="sm"
@@ -148,7 +145,7 @@ export function VercelCredentialCard({
                 Remove
               </Button>
             ) : null}
-            <Button size="sm" disabled={disabled || !savable} onClick={handleSave}>
+            <Button size="sm" disabled={!savable} onClick={handleSave}>
               Save
             </Button>
           </>
@@ -156,22 +153,11 @@ export function VercelCredentialCard({
       >
         <SettingsRow
           media={<BrandMark brand={EBrand.Vercel} />}
-          title={
-            <>
-              Vercel
-              {soon ? <Badge variant="secondary">{AVAILABLE_SOON}</Badge> : null}
-            </>
-          }
-          description={copy.description}
-          control={
-            shownStatus === undefined ? null : (
-              <StatusLine configured={saved.configured} text={shownStatus} />
-            )
-          }
+          title={<StatusLine configured={saved.configured} text={shownStatus} />}
         />
         <SettingsRow
           title={<label htmlFor={teamId}>Team ID</label>}
-          description="The Vercel team or account the sandboxes belong to."
+          description="The team or account that owns the sandboxes."
           control={
             <Input
               id={teamId}
@@ -179,7 +165,6 @@ export function VercelCredentialCard({
               placeholder="team_…"
               autoComplete="off"
               spellCheck={false}
-              disabled={disabled}
               value={draft.teamId}
               onChange={(event) => setDraft({ ...draft, teamId: event.target.value })}
             />
@@ -187,7 +172,7 @@ export function VercelCredentialCard({
         />
         <SettingsRow
           title={<label htmlFor={projectId}>Project ID</label>}
-          description="The Vercel project the sandboxes are created in."
+          description="The project sandboxes are created in."
           control={
             <Input
               id={projectId}
@@ -195,7 +180,6 @@ export function VercelCredentialCard({
               placeholder="prj_…"
               autoComplete="off"
               spellCheck={false}
-              disabled={disabled}
               value={draft.vercelProjectId}
               onChange={(event) => setDraft({ ...draft, vercelProjectId: event.target.value })}
             />
@@ -204,30 +188,36 @@ export function VercelCredentialCard({
         <SettingsRow
           title={<label htmlFor={tokenId}>Token</label>}
           description={
-            saved.configured
-              ? 'Write-only. Leave it blank to keep the saved token.'
-              : 'Required. Write-only, and never shown again once saved.'
+            saved.configured && saved.tokenHint ? (
+              <span className="flex items-center gap-2">
+                <Mono className="text-foreground">{saved.tokenHint}</Mono>
+                {savedDate ? <span className="text-xs">{savedDate}</span> : null}
+              </span>
+            ) : (
+              'Write-only. Not shown again after you save.'
+            )
           }
           control={
             <>
-              <Input
-                id={tokenId}
-                ref={tokenRef}
-                type="password"
-                className="w-72"
-                autoComplete="new-password"
-                placeholder={tokenLocked ? 'Token saved and hidden' : 'Paste a Vercel access token'}
-                disabled={disabled || tokenLocked}
-                value={draft.token}
-                onChange={(event) => setDraft({ ...draft, token: event.target.value })}
-              />
-              {saved.configured && !disabled ? (
+              {showTokenInput ? (
+                <Input
+                  id={tokenId}
+                  ref={tokenRef}
+                  type="password"
+                  className="w-72"
+                  autoComplete="new-password"
+                  placeholder="Paste a Vercel access token"
+                  value={draft.token}
+                  onChange={(event) => setDraft({ ...draft, token: event.target.value })}
+                />
+              ) : null}
+              {saved.configured ? (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={replacing ? handleKeep : handleReplace}
                 >
-                  {replacing ? 'Keep saved token' : 'Replace token'}
+                  {replacing ? 'Cancel' : 'Replace'}
                 </Button>
               ) : null}
             </>
@@ -238,7 +228,7 @@ export function VercelCredentialCard({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Remove the Vercel credential?"
-        description={copy.removeDescription}
+        description={REMOVE_DESCRIPTION}
         confirmLabel="Remove"
         onConfirm={handleRemove}
       />

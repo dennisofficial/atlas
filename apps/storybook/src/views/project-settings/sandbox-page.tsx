@@ -9,7 +9,7 @@ import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import {
-  DEFAULT_SANDBOX_SIZE,
+  DEFAULT_SANDBOX_VCPUS,
   SANDBOX_SIZES,
   SETUP_SCRIPT,
   type SandboxSize,
@@ -18,14 +18,14 @@ import {
   ERowLayout,
   FileChip,
   SettingsCard,
+  SettingsPage,
   SettingsRow,
   SettingsSection,
   UnsavedHint,
-} from './settings-layout'
+} from '../settings/settings-layout'
 
 function SizeCard({ size }: { size: SandboxSize }) {
-  const id = `sandbox-size-${size.id}`
-  const disabled = size.unavailableReason !== undefined
+  const id = `sandbox-size-${size.vcpus}`
   return (
     <Label
       htmlFor={id}
@@ -33,41 +33,26 @@ function SizeCard({ size }: { size: SandboxSize }) {
         'flex cursor-pointer flex-col items-stretch gap-3 rounded-lg border bg-card p-3 font-normal transition-colors',
         'hover:bg-muted/50 has-data-checked:border-primary has-data-checked:bg-primary/5',
         'has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
-        disabled && 'cursor-not-allowed opacity-50 hover:bg-card',
       )}
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="font-mono text-sm font-medium">{size.id}</span>
-        <RadioGroupItem id={id} value={size.id} disabled={disabled} />
+        <span className="text-sm font-medium">{size.vcpus} vCPU</span>
+        <RadioGroupItem id={id} value={String(size.vcpus)} />
       </span>
-      <span className="font-mono text-xs leading-relaxed text-muted-foreground">
-        {size.vcpus} vCPU · {size.memoryGb} GB RAM
-        <br />
-        {size.diskGb} GB disk
-      </span>
-      <span className="text-sm">
-        <span className="font-semibold">{size.pricePerHour}</span>
-        <span className="text-muted-foreground">/hour</span>
-      </span>
-      {disabled ? (
-        <span className="text-xs text-muted-foreground">{size.unavailableReason}</span>
-      ) : null}
+      <span className="font-mono text-xs text-muted-foreground">{size.memoryGb} GB RAM</span>
     </Label>
   )
 }
 
 function SizePicker() {
-  const [saved, setSaved] = useState(DEFAULT_SANDBOX_SIZE)
-  const [selected, setSelected] = useState(DEFAULT_SANDBOX_SIZE)
+  const [saved, setSaved] = useState(String(DEFAULT_SANDBOX_VCPUS))
+  const [selected, setSelected] = useState(String(DEFAULT_SANDBOX_VCPUS))
   const dirty = selected !== saved
   const handleValueChange = (value: unknown) => {
     if (typeof value === 'string') setSelected(value)
   }
   return (
-    <SettingsSection
-      title="Sandbox size"
-      description="Resources for every new thread in this project. Billed by the minute; paused when idle."
-    >
+    <SettingsSection title="Sandbox size" description="Applies to new threads in this project.">
       <SettingsCard
         footer={
           <>
@@ -86,7 +71,7 @@ function SizePicker() {
             className="grid-cols-2 gap-3 lg:grid-cols-4"
           >
             {SANDBOX_SIZES.map((size) => (
-              <SizeCard key={size.id} size={size} />
+              <SizeCard key={size.vcpus} size={size} />
             ))}
           </RadioGroup>
         </div>
@@ -111,7 +96,7 @@ function SetupScript() {
   return (
     <SettingsSection
       title="Setup script"
-      description="Runs once after the repository is cloned, before the agent starts. Its result is snapshotted."
+      description="Runs once after the repository is cloned, before the agent starts."
     >
       <SettingsCard
         footer={
@@ -126,14 +111,14 @@ function SetupScript() {
         <SettingsRow
           title={
             <>
-              <Label htmlFor="sandbox-setup-script">Setup</Label>
+              <Label htmlFor="sandbox-setup-script">Script</Label>
               <DocsBadge />
             </>
           }
           description={
             <>
-              Overrides <FileChip>setup</FileChip> in <FileChip>.atlas/container.json</FileChip>{' '}
-              when both are set.
+              Takes precedence over <FileChip>setup</FileChip> in{' '}
+              <FileChip>.atlas/container.json</FileChip>.
             </>
           }
           layout={ERowLayout.Stacked}
@@ -153,9 +138,9 @@ function SetupScript() {
 
 export function SandboxPage() {
   return (
-    <>
+    <SettingsPage title="Sandbox" description="How this project's sandboxes are sized and set up.">
       <SizePicker />
       <SetupScript />
-    </>
+    </SettingsPage>
   )
 }

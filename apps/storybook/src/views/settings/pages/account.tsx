@@ -1,7 +1,6 @@
 import { SIGN_IN_METHODS_BOTH, type SignInMethods } from '../../../fixtures/settings-account'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
-import { AccountWorkspacesCard } from '../parts/account-workspaces-card'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
 export function AccountPage({
@@ -10,15 +9,12 @@ export function AccountPage({
   signInMethods?: SignInMethods
 }) {
   return (
-    <SettingsPage title="Account" description="Your profile and the workspaces you belong to.">
+    <SettingsPage title="Account" description="Your name, email, and the ways you sign in.">
       <SettingsSection title="Profile">
         <AccountProfileCard />
       </SettingsSection>
-      <SettingsSection title="Sign-in methods" description="How you can sign in to Atlas.">
+      <SettingsSection title="Sign-in methods">
         <AccountSignInMethodsCard methods={signInMethods} />
-      </SettingsSection>
-      <SettingsSection title="Workspaces" description="Workspaces you are a member of.">
-        <AccountWorkspacesCard />
       </SettingsSection>
     </SettingsPage>
   )

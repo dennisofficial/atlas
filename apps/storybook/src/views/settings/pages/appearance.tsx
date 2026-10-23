@@ -48,7 +48,7 @@ export function AppearancePage() {
 
   return (
     <SettingsPage title="Appearance" description="How Atlas looks on this device.">
-      <SettingsSection title="Theme" description="Choose the palette used across the app.">
+      <SettingsSection title="Theme">
         <RadioGroup
           value={value.theme}
           onValueChange={handleThemeChange}
@@ -60,7 +60,7 @@ export function AppearancePage() {
           ))}
         </RadioGroup>
       </SettingsSection>
-      <SettingsSection title="Display" description="Tune density and how code and motion render.">
+      <SettingsSection title="Display">
         <SettingsCard
           footer={<SaveFooter dirty={draft.dirty} onDiscard={draft.discard} onSave={draft.save} />}
         >

@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { BULK_ADD_SAMPLE, EProjectSettingsPage } from '../../fixtures/project-settings'
+import { EProjectSettingsPage } from '../../fixtures/project-settings'
+import { BULK_ADD_SAMPLE } from '../../fixtures/settings-library'
+import { ESecretsDialog } from '../shared/secrets/secrets-view'
 import { ProjectSettingsShell } from './project-settings-shell'
-import { ESecretsDialog, SecretsPage } from './secrets-page'
+import { SecretsPage } from './secrets-page'
 
 const meta = {
   title: 'Views/Project Settings/Secrets & Env Vars',

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 
-import { Badge } from '@dltech/atlas-ui/components/badge'
-import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
-import { Button } from '@dltech/atlas-ui/components/button'
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 import {
   API_KEY_PROVIDERS,
@@ -10,30 +8,44 @@ import {
   CLAUDE_SUBSCRIPTION,
   EProviderId,
   KEY_PREFIXES,
+  UNKNOWN_PREFIX_MASK,
   type ApiKeyEntry,
+  type SubscriptionAccount,
 } from '../../../fixtures/settings-agent'
 import { ApiKeyRow } from '../parts/agent-api-key-row'
 import { SubscriptionRow } from '../parts/agent-subscription-row'
-import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 const TODAY_LABEL = 'Added Oct 20'
 const MASK_TAIL_LENGTH = 4
 
 function buildEntry({ providerId, key }: { providerId: EProviderId; key: string }): ApiKeyEntry {
+  const prefix = KEY_PREFIXES[providerId]
+  const tail = key.slice(-MASK_TAIL_LENGTH)
   return {
-    masked: `${KEY_PREFIXES[providerId]}…${key.slice(-MASK_TAIL_LENGTH)}`,
+    masked: prefix ? `${prefix}…${tail}` : `${UNKNOWN_PREFIX_MASK}${tail}`,
     added: TODAY_LABEL,
   }
 }
 
-export function ProvidersPage() {
+export function ProvidersPage({
+  claude = CLAUDE_SUBSCRIPTION,
+  chatgpt = CHATGPT_SUBSCRIPTION,
+  chatgptConnectedInitially = false,
+}: {
+  claude?: SubscriptionAccount
+  chatgpt?: SubscriptionAccount
+  chatgptConnectedInitially?: boolean
+}) {
   const [claudeConnected, setClaudeConnected] = useState(true)
-  const [chatgptConnected, setChatgptConnected] = useState(false)
+  const [chatgptConnected, setChatgptConnected] = useState(chatgptConnectedInitially)
   const [keys, setKeys] = useState<Record<EProviderId, ApiKeyEntry | null>>(() => ({
-    [EProviderId.Anthropic]: API_KEY_PROVIDERS[0]?.key ?? null,
-    [EProviderId.OpenAI]: API_KEY_PROVIDERS[1]?.key ?? null,
-    [EProviderId.Google]: null,
+    [EProviderId.Anthropic]: null,
+    [EProviderId.OpenAI]: null,
     [EProviderId.OpenRouter]: null,
+    [EProviderId.Inference]: null,
+    [EProviderId.Gateway]: null,
+    ...Object.fromEntries(API_KEY_PROVIDERS.map((provider) => [provider.id, provider.key])),
   }))
 
   const handleKeySave = (providerId: EProviderId, key: string) =>
@@ -42,21 +54,15 @@ export function ProvidersPage() {
     setKeys((current) => ({ ...current, [providerId]: null }))
 
   return (
-    <SettingsPage
-      title="Providers"
-      description="Where Atlas gets model access. A subscription is used first, then an API key."
-    >
-      <SettingsSection
-        title="Subscriptions"
-        description="Sign in with a plan you already pay for. Takes precedence over API keys."
-      >
+    <SettingsPage title="Providers" description="Where Atlas gets model access.">
+      <SettingsSection title="Subscriptions" description="Used first.">
         <SettingsCard>
           <SubscriptionRow
             name="Claude"
             brand={EBrand.Claude}
             idleDescription="Use your Claude Pro or Max subscription."
             signInLabel="Sign in with Claude"
-            account={claudeConnected ? CLAUDE_SUBSCRIPTION : null}
+            account={claudeConnected ? claude : null}
             onSignIn={() => setClaudeConnected(true)}
             onSignOut={() => setClaudeConnected(false)}
           />
@@ -65,16 +71,13 @@ export function ProvidersPage() {
             brand={EBrand.OpenAI}
             idleDescription="Use your ChatGPT Plus or Pro plan for GPT-5 models."
             signInLabel="Sign in with ChatGPT"
-            account={chatgptConnected ? CHATGPT_SUBSCRIPTION : null}
+            account={chatgptConnected ? chatgpt : null}
             onSignIn={() => setChatgptConnected(true)}
             onSignOut={() => setChatgptConnected(false)}
           />
         </SettingsCard>
       </SettingsSection>
-      <SettingsSection
-        title="API keys"
-        description="Used when no subscription covers the model. Billed by the provider."
-      >
+      <SettingsSection title="API keys" description="Used when no subscription covers the model.">
         <SettingsCard>
           {API_KEY_PROVIDERS.map((provider) => (
             <ApiKeyRow
@@ -85,29 +88,8 @@ export function ProvidersPage() {
               onRemove={() => handleKeyRemove(provider.id)}
             />
           ))}
-          <AiGatewayRow />
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
-  )
-}
-
-function AiGatewayRow() {
-  return (
-    <SettingsRow
-      media={<BrandMark brand={EBrand.Vercel} />}
-      title={
-        <>
-          Vercel AI Gateway
-          <Badge variant="outline">Coming soon</Badge>
-        </>
-      }
-      description="Every major model behind one key, billed through Vercel."
-      control={
-        <Button variant="outline" size="sm" disabled>
-          Add key
-        </Button>
-      }
-    />
   )
 }

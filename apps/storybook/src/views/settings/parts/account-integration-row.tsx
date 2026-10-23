@@ -25,7 +25,6 @@ export function AccountIntegrationRow({ integration }: { integration: Integratio
           )}
         </>
       }
-      description={integration.description}
       control={
         connected ? (
           <>
