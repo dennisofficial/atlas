@@ -1,7 +1,9 @@
 import type { SaidImage } from '@dltech/atlas-core'
 import React from 'react'
 
+import { useClickRegion } from '../../hooks/use-click-region'
 import { MarkdownView } from '../../markdown/markdown-view'
+import { defaultOpenImage, type OpenImage } from '../../open-image'
 import { saidImageText } from '../../said-images'
 import { glyph, theme, TRANSCRIPT_INSET } from '../../theme'
 import { Panel, PANEL_INSET, PANEL_PAD } from '../panel'
@@ -21,7 +23,12 @@ const basename = (path: string): string => {
   return trimmed.slice(trimmed.lastIndexOf('/') + 1)
 }
 
-type AttachmentChip = { key: string; icon: string; label: string }
+type AttachmentChip = {
+  key: string
+  icon: string
+  label: string
+  image?: SaidImage
+}
 
 function attachmentChips(args: {
   skills: readonly string[]
@@ -29,19 +36,42 @@ function attachmentChips(args: {
   images: readonly SaidImage[]
 }): readonly AttachmentChip[] {
   return [
-    ...args.skills.map((skill) => ({ key: `skill:${skill}`, icon: glyph.skill, label: skill })),
-    ...args.files.map((file) => ({ key: `file:${file}`, icon: glyph.file, label: basename(file) })),
+    ...args.skills.map((skill) => ({
+      key: `skill:${skill}`,
+      icon: glyph.skill,
+      label: skill,
+    })),
+    ...args.files.map((file) => ({
+      key: `file:${file}`,
+      icon: glyph.file,
+      label: basename(file),
+    })),
     ...args.images.map((image) => ({
       key: `image:${image.path}`,
       icon: glyph.image,
       label: saidImageText(image),
+      image,
     })),
   ]
 }
 
-function Chip(props: { chip: AttachmentChip }): React.ReactNode {
+function Chip(props: { chip: AttachmentChip; onOpenImage: OpenImage }): React.ReactNode {
+  const { image } = props.chip
+  const handleOpen = (): void => {
+    if (image !== undefined)
+      props.onOpenImage({
+        path: image.path,
+        mediaType: image.mediaType,
+        data: image.data,
+      })
+  }
+  const region = useClickRegion(image === undefined ? undefined : handleOpen)
   return (
-    <box backgroundColor={theme.selectedBg} flexShrink={0}>
+    <box
+      backgroundColor={region.hovered ? theme.hoverBg : theme.selectedBg}
+      flexShrink={0}
+      {...region.handlers}
+    >
       <text fg={theme.body}>{` ${props.chip.icon} ${props.chip.label} `}</text>
     </box>
   )
@@ -60,6 +90,7 @@ export function UserBlock(props: {
   skills?: readonly string[]
   files?: readonly string[]
   images?: readonly SaidImage[]
+  onOpenImage?: OpenImage
 }): React.ReactNode {
   const columns = Math.max(NARROWEST_BAND, props.width - RESERVED)
   const chips = attachmentChips({
@@ -94,7 +125,11 @@ export function UserBlock(props: {
               footer: (
                 <box flexDirection="row" flexWrap="wrap" gap={1} flexShrink={0}>
                   {chips.map((chip) => (
-                    <Chip key={chip.key} chip={chip} />
+                    <Chip
+                      key={chip.key}
+                      chip={chip}
+                      onOpenImage={props.onOpenImage ?? defaultOpenImage}
+                    />
                   ))}
                 </box>
               ),
