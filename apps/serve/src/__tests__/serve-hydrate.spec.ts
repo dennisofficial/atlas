@@ -15,7 +15,7 @@ import {
 } from '@dltech/atlas-harness'
 import { API_PROVISIONED_ENV, BOOT_STEP_EVENT_TYPE } from '@dltech/atlas-wire'
 
-import { hydrateServeHistory, hydrateWhenApiProvisioned } from '../serve-hydrate'
+import { hydrateServeHistory, hydrateWhenRegistered } from '../serve-hydrate'
 
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
@@ -140,7 +140,7 @@ describe('hydrateServeHistory', () => {
   })
 })
 
-describe('hydrateWhenApiProvisioned', () => {
+describe('hydrateWhenRegistered', () => {
   const failingFetch = (async () => {
     throw new Error('the control plane must not be called')
   }) as unknown as typeof fetch
@@ -148,7 +148,7 @@ describe('hydrateWhenApiProvisioned', () => {
   it('does nothing when the sandbox was not provisioned by the API', async () => {
     const home = newHome()
 
-    await hydrateWhenApiProvisioned({
+    await hydrateWhenRegistered({
       env: {},
       atlasHome: home,
       threadId,
@@ -171,7 +171,7 @@ describe('hydrateWhenApiProvisioned', () => {
       return Response.json([userSaid(1, 'first')])
     }) as unknown as typeof fetch
 
-    await hydrateWhenApiProvisioned({
+    await hydrateWhenRegistered({
       env: { [API_PROVISIONED_ENV]: '1' },
       atlasHome: home,
       threadId,
@@ -195,7 +195,7 @@ describe('hydrateWhenApiProvisioned', () => {
     const lines: string[] = []
 
     await expect(
-      hydrateWhenApiProvisioned({
+      hydrateWhenRegistered({
         env: { [API_PROVISIONED_ENV]: '1' },
         atlasHome: home,
         threadId,
@@ -206,6 +206,25 @@ describe('hydrateWhenApiProvisioned', () => {
         log: (line) => lines.push(line.event),
       }),
     ).rejects.toThrow()
+    expect(lines).toEqual(['serve.hydrate-failed'])
+  })
+
+  it('logs and carries on when a registered pod cannot read its history', async () => {
+    const home = newHome()
+    const lines: string[] = []
+
+    const result = await hydrateWhenRegistered({
+      env: { ATLAS_CLOUD_URL: 'https://api.example.com', ATLAS_SERVE_TOKEN: 't' },
+      atlasHome: home,
+      threadId,
+      controlPlaneUrl: 'https://api.example.com',
+      token: 't',
+      clientVersion: 'dev',
+      fetchFn: (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch,
+      log: (line) => lines.push(line.event),
+    })
+
+    expect(result).toBeUndefined()
     expect(lines).toEqual(['serve.hydrate-failed'])
   })
 })

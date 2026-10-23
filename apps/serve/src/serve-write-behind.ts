@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import type { DeltaChannel } from '@dltech/atlas-harness'
-import { isApiProvisioned } from '@dltech/atlas-wire'
+import { isApiProvisioned, writesBehind } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
 import { createEventFlusher, httpPostPodEvents, httpTruncatePodEvents } from './serve-event-flush'
@@ -22,13 +22,14 @@ export function bindServeWriteBehind(args: {
   remote: { controlPlaneUrl: string; token: string; clientVersion: string; fetchFn: typeof fetch }
   log: ServeLog
 }): ServeWriteBehind | undefined {
-  if (!isApiProvisioned(args.env)) return undefined
+  if (!writesBehind(args.env)) return undefined
   const flusher = createEventFlusher({
     threadId: args.threadId,
     events: args.app.log,
     durableHead: args.durableHead,
     post: httpPostPodEvents(args.remote),
     truncate: httpTruncatePodEvents(args.remote),
+    refusalSettles: !isApiProvisioned(args.env),
     log: args.log,
   })
   mirrorHistoryEdits({ app: args.app, threadId: args.threadId, flusher })
@@ -42,5 +43,6 @@ export function bindServeWriteBehind(args: {
       if (settled) void flusher.flush()
     },
   })
+  void flusher.flush()
   return { flush: flusher.flush, detach: unsubscribe }
 }

@@ -28,7 +28,7 @@ import { bootServeApp } from './serve-boot-app'
 import { bindServeIdleStop } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
 import { bindServeDrain } from './serve-drain-binding'
-import { resumeWhenApiProvisioned } from './serve-resume-boot'
+import { resumeWhenRegistered } from './serve-resume-boot'
 import { createServeLifecycle } from './serve-lifecycle'
 import { createServeDriver } from './serve-driver'
 import { handlerOptionsOf } from './serve-handler-options'
@@ -214,7 +214,7 @@ export async function finishServeBoot(args: {
     })
 
   await recovery.recover({ session, driver })
-  resumeWhenApiProvisioned({
+  resumeWhenRegistered({
     env,
     resumable,
     admissionLatched: admissionClosed(),

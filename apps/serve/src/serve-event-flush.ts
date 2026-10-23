@@ -19,6 +19,23 @@ export type FlushReply =
   | { kind: EFlushReply.Stored; head: number }
   | { kind: EFlushReply.Conflict; seq: number | undefined }
 
+export class ControlPlaneRefusal extends Error {
+  readonly status: number
+
+  constructor(args: { status: number }) {
+    super(`the control plane answered ${args.status}`)
+    this.name = 'ControlPlaneRefusal'
+    this.status = args.status
+  }
+}
+
+const REFUSAL_STATUSES: readonly number[] = [401, 403]
+
+const failedWith = (response: Response): Error =>
+  REFUSAL_STATUSES.includes(response.status)
+    ? new ControlPlaneRefusal({ status: response.status })
+    : new Error(`the control plane answered ${response.status}`)
+
 export type PostPodEvents = (events: readonly PodEvent[]) => Promise<FlushReply>
 
 export type TruncatePodEvents = (toSeq: number) => Promise<number>
@@ -56,6 +73,7 @@ export function createEventFlusher(args: {
   post: PostPodEvents
   truncate: TruncatePodEvents
   log: ServeLog
+  refusalSettles?: boolean | undefined
 }): EventFlusher {
   const { threadId, log } = args
   let durable = args.durableHead
@@ -83,6 +101,10 @@ export function createEventFlusher(args: {
       if (events.length > 0) log({ event: EServeEvent.EventsFlushed, threadId, head: durable })
       return true
     } catch (failure) {
+      if (args.refusalSettles === true && failure instanceof ControlPlaneRefusal) {
+        log({ event: EServeEvent.EventFlushRefused, threadId, reason: reasonOf(failure) })
+        return true
+      }
       log({ event: EServeEvent.EventFlushFailed, threadId, reason: reasonOf(failure) })
       return false
     }
@@ -146,7 +168,7 @@ export function httpTruncatePodEvents(remote: PodRemote): TruncatePodEvents {
       path: SANDBOX_SELF_EVENTS_TRUNCATE_PATH,
       body: { toSeq },
     })
-    if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
+    if (!response.ok) throw failedWith(response)
     return podEventsReplySchema.parse(await response.json()).head
   }
 }
@@ -162,7 +184,7 @@ export function httpPostPodEvents(remote: PodRemote): PostPodEvents {
           : undefined
       return { kind: EFlushReply.Conflict, seq }
     }
-    if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
+    if (!response.ok) throw failedWith(response)
     return {
       kind: EFlushReply.Stored,
       head: podEventsReplySchema.parse(await response.json()).head,

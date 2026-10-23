@@ -59,6 +59,7 @@ export enum EServeEvent {
   EventsTruncated = 'serve.events-truncated',
   EventFlushConflict = 'serve.event-flush-conflict',
   EventFlushFailed = 'serve.event-flush-failed',
+  EventFlushRefused = 'serve.event-flush-refused',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

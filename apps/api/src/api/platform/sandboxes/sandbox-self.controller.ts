@@ -19,6 +19,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
 import type { SandboxAuthenticatedRequest } from './sandbox-token.guard'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import { lockThread } from '../sessions/thread-head'
@@ -75,6 +76,7 @@ export class SandboxSelfController {
   }
 
   @Post('events')
+  @PodReachable()
   async handleEvents(
     @Req() request: SandboxAuthenticatedRequest,
     @Body() body: unknown,
@@ -85,6 +87,7 @@ export class SandboxSelfController {
   }
 
   @Post('events/truncate')
+  @PodReachable()
   async handleEventsTruncate(
     @Req() request: SandboxAuthenticatedRequest,
     @Body() body: unknown,

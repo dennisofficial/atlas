@@ -12,7 +12,7 @@ import {
   type MirrorWriter,
   type WireEvent,
 } from '@dltech/atlas-harness'
-import { BOOT_STEP_EVENT_TYPE, isApiProvisioned } from '@dltech/atlas-wire'
+import { BOOT_STEP_EVENT_TYPE, isApiProvisioned, writesBehind } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -63,7 +63,7 @@ export async function hydrateServeHistory(args: {
   return { imported: events.length, skipped, head, remoteHead }
 }
 
-export async function hydrateWhenApiProvisioned(args: {
+export async function hydrateWhenRegistered(args: {
   env: Record<string, string | undefined>
   atlasHome: string
   threadId: ThreadId
@@ -73,7 +73,7 @@ export async function hydrateWhenApiProvisioned(args: {
   fetchFn: typeof fetch
   log: ServeLog
 }): Promise<HydrateResult | undefined> {
-  if (!isApiProvisioned(args.env)) return undefined
+  if (!writesBehind(args.env)) return undefined
   try {
     return await hydrateServeHistory({
       atlasHome: args.atlasHome,
@@ -91,6 +91,7 @@ export async function hydrateWhenApiProvisioned(args: {
       event: EServeEvent.HydrateFailed,
       reason: failure instanceof Error ? failure.message : String(failure),
     })
-    throw failure
+    if (isApiProvisioned(args.env)) throw failure
+    return undefined
   }
 }
