@@ -7,5 +7,5 @@
     "resolvePackageJsonImports": true,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src", "__tests__", ".storybook"]
+  "include": ["src", "__tests__", "scripts", ".storybook"]
 }
