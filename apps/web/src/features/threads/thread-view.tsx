@@ -30,13 +30,17 @@ import {
   takeBackTargetOf,
   withoutTakenBack,
 } from './data/take-back'
+import { AUTO_MODEL_ID } from './data/model-options'
+import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { eventsFromWire } from './data/events-from-wire'
 import { transcriptViewOf } from './data/transcript'
 import { useNow } from './data/use-now'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
+import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
@@ -85,10 +89,9 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
 export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
   const [liveEligible, setLiveEligible] = useState(false)
-  const { events, signals, outputs, loaded, error, working, sendLive } = useThreadSource({
-    threadId,
-    liveEligible,
-  })
+  const model = useThreadModel({ threadId, stored: thread.data?.model })
+  const { events, signals, outputs, loaded, error, working, sendLive, chooseModel } =
+    useThreadSource({ threadId, liveEligible, onModelChanged: model.handleRemoteChange })
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -114,6 +117,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     const sent = await send({ threadId, text, liveSend: sendLive })
     if (!sent) setDraft(text)
     else refresh()
+  }
+  const handleModelChange = (next: ModelSelection) => {
+    if (next.id === AUTO_MODEL_ID) return
+    void model.handleChange({ next, chooseLive: chooseModel })
   }
   const handleRetryBoot = async () => {
     await retryBoot(threadId)
@@ -176,7 +183,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
           onEscape={() => void handleEscape()}
           disabled={sending}
           placeholder={starting ? STARTING_PLACEHOLDER : undefined}
-        />
+        >
+          <ModelPickerControls
+            picker={model.picker}
+            selection={model.selection}
+            onSelectionChange={handleModelChange}
+          />
+        </ThreadComposer>
       </div>
     </div>
   )

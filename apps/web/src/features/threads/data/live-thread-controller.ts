@@ -32,6 +32,7 @@ export type LiveThreadControllerArgs = {
   mint: () => Promise<PodConnectResult>
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
+  onModelChanged?: (model: { ref: string; effort: string }) => void
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
@@ -157,6 +158,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     releases.push(
       live.subscribe({ threadId, listener: handleSignal(live) }),
       live.onConnection(() => handleConnection(live)),
+      live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
       live.onError(() => {
         if (!everConnected) fallBack()
       }),
@@ -192,9 +194,21 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     return true
   }
 
+  const chooseModel = async (model: { ref: string; effort: string }): Promise<boolean> => {
+    const live = channel
+    if (stopped || fellBack || live === null) return false
+    if (live.connection().state !== EConnectionView.Connected) return false
+    await live.request({
+      op: EClientRequest.SetThreadModel,
+      params: { threadId: args.threadId, model },
+    })
+    return true
+  }
+
   return {
     start: () => void start(),
     send,
+    chooseModel,
     stop: () => {
       update({ ...EMPTY_SIGNALS })
       stopped = true

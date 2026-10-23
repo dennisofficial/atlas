@@ -45,7 +45,7 @@ export type GeneratedCard = {
     cacheReadPerMillion?: number
     cacheWritePerMillion?: number
   }
-  effort?: Record<string, string | number>
+  effort?: Partial<Record<string, string | number>>
 }
 
 export type GeneratedManifest = {
@@ -85,7 +85,7 @@ function toEffortMap(effort: GeneratedCard['effort']): EffortMap | undefined {
   const map: EffortMap = {}
   for (const [rung, wire] of Object.entries(effort)) {
     const known = EFFORT_BY_ID[rung]
-    if (known === undefined) continue
+    if (known === undefined || wire === undefined) continue
     map[known] = wire
   }
 
