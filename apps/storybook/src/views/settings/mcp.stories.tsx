@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { MCP_IMPORT_SAMPLE, OAUTH_STATE_MCP_SERVERS } from '../../fixtures/settings-mcp'
 import { EMcpDialog } from '../shared/mcp/mcp-view'

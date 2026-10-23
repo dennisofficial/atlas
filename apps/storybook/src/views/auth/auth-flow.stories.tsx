@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { AuthFlow } from './auth-flow'
 import { EAuthScreen, EHomeState } from './auth-route'

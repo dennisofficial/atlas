@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Button } from '@dltech/atlas-ui/components/button'

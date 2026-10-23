@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { ChainOfThought, EStepStatus } from '@dltech/atlas-ui/ai/chain-of-thought'
 

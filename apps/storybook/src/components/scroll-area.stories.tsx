@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { ScrollArea, ScrollBar } from '@dltech/atlas-ui/components/scroll-area'
 import { Separator } from '@dltech/atlas-ui/components/separator'

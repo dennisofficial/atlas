@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { CheckIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Tool, EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'

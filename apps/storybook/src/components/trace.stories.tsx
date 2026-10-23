@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { FileSearchIcon, SquareTerminalIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { Spinner } from '@dltech/atlas-ui/components/spinner'

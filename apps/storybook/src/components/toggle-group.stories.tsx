@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { AlignCenterIcon, AlignLeftIcon, AlignRightIcon } from 'lucide-react'
 
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'

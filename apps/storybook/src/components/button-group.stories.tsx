@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { ChevronDownIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'

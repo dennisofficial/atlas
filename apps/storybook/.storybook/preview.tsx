@@ -1,4 +1,4 @@
-import type { Decorator, Preview } from '@storybook/react-vite'
+import type { Decorator, Preview } from '@storybook/nextjs-vite'
 import { ThemeProvider } from 'next-themes'
 
 import '@dltech/atlas-ui/fonts.css'
@@ -17,6 +17,7 @@ const handleThemeDecorator: Decorator = (Story, context) => {
 const preview: Preview = {
   parameters: {
     layout: 'centered',
+    nextjs: { appDirectory: true },
   },
   globalTypes: {
     theme: {

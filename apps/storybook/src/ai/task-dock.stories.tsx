@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { EStepStatus, type PlanStep } from '@dltech/atlas-ui/ai/plan'
 import { PromptInput } from '@dltech/atlas-ui/ai/prompt-input'

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { NewThreadView } from './new-thread/new-thread-view'
 import { EFirstMessage, ENewThreadOutcome, EPodProgress } from './new-thread/new-thread-types'

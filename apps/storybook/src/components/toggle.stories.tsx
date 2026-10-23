@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { BoldIcon } from 'lucide-react'
 
 import { Toggle } from '@dltech/atlas-ui/components/toggle'

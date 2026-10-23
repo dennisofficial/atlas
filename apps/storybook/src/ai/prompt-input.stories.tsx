@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Context } from '@dltech/atlas-ui/ai/context'
 import { EEffort, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'

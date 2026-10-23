@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { WrenchIcon } from 'lucide-react'
 
 import { Marker, MarkerContent, MarkerIcon } from '@dltech/atlas-ui/components/marker'

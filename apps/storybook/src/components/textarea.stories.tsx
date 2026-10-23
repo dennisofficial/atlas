@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'

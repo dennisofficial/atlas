@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Progress, ProgressLabel, ProgressValue } from '@dltech/atlas-ui/components/progress'
 

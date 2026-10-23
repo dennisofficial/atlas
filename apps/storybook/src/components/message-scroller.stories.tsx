@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { Bubble, BubbleContent } from '@dltech/atlas-ui/components/bubble'
 import { Message, MessageContent } from '@dltech/atlas-ui/components/message'

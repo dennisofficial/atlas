@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { AppShell, EAppNav } from './app-shell'
 import { ProjectsView, type ProjectsViewProps } from './projects/projects-view'

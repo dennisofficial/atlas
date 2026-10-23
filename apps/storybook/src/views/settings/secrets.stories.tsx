@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { BULK_ADD_SAMPLE } from '../../fixtures/settings-library'
 import { ESecretsDialog } from '../shared/secrets/secrets-view'

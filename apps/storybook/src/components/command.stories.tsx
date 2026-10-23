@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { FileIcon, GitBranchIcon, SettingsIcon, SquareTerminalIcon } from 'lucide-react'
 import { useState } from 'react'
 

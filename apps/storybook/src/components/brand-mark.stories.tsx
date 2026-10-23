@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 

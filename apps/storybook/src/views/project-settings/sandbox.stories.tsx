@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { EProjectSettingsPage } from '../../fixtures/project-settings'
 import { ProjectSettingsShell } from './project-settings-shell'

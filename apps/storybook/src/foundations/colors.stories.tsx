@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { EColorScheme, semantic, type SemanticToken } from '@dltech/atlas-ui/tokens'
 
