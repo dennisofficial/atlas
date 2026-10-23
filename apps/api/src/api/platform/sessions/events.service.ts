@@ -1,5 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import type { PodEvent, PodEventsReply } from '@dltech/atlas-wire'
+import { applyPodEvents } from '../sandboxes/pod-events'
 import { appendWithin, nextEventId, readComposedRows, readOwnRows } from './append'
 import { ownedThread } from './ownership'
 import { toEventDto } from './rows'
@@ -91,6 +93,15 @@ export class EventsService {
       upTo: args.upTo,
     })
     return rows.map(toEventDto)
+  }
+
+  async importEvents(args: {
+    userId: string
+    threadId: string
+    events: readonly PodEvent[]
+  }): Promise<PodEventsReply> {
+    await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    return applyPodEvents({ threadId: args.threadId, events: args.events })
   }
 
   async head(args: { userId: string; threadId: string }): Promise<{ head: number }> {

@@ -1,5 +1,5 @@
-import type { Event, EventLogPort, ThreadId } from '@dltech/atlas-core'
-import { wireDraftOf } from '@dltech/atlas-harness'
+import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import { podEventOf } from '@dltech/atlas-harness'
 import {
   MAX_POD_EVENTS_PER_FLUSH,
   podEventsReplySchema,
@@ -44,23 +44,6 @@ export type EventFlusher = {
   flush: () => Promise<boolean>
   rebase: (args: { toSeq: number }) => Promise<boolean>
   durableHead: () => number
-}
-
-export function podEventOf(event: Event): PodEvent {
-  const { id: _id, seq, threadId: _thread, runId, parentRunId, depth, at, ...draft } = event
-  const wire = wireDraftOf(draft)
-  return {
-    seq,
-    runId,
-    depth,
-    at,
-    type: wire.type,
-    body: wire.body,
-    ...(parentRunId === undefined ? {} : { parentRunId }),
-    ...(wire.contextSlot === undefined ? {} : { contextSlot: wire.contextSlot }),
-    ...(wire.contextKey === undefined ? {} : { contextKey: wire.contextKey }),
-    ...(wire.contextDigest === undefined ? {} : { contextDigest: wire.contextDigest }),
-  }
 }
 
 const reasonOf = (failure: unknown): string =>
