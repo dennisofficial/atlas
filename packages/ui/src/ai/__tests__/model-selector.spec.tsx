@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { ModelSelector, groupByProvider, type ModelOption } from '../model-selector'
+import { EEffort, ModelSelector, groupByProvider, type ModelOption } from '../model-selector'
 import {
+  EModelFilter,
   EModelSelectorState,
   EProviderGroupKind,
   MANAGE_PROVIDERS_VALUE,
+  availableFilters,
   firstItemValue,
   modelSelectorGroups,
   reconnectItemValue,
@@ -128,6 +130,7 @@ describe('modelSelectorGroups', () => {
 
     expect(groups).toEqual({
       state: EModelSelectorState.NoMatches,
+      auto: undefined,
       pinned: [],
       providers: [],
       showManageProviders: false,
@@ -146,6 +149,135 @@ describe('modelSelectorGroups', () => {
 
     expect(groups.state).toBe(EModelSelectorState.Results)
     expect(summary(groups.providers)).toEqual([{ provider: 'Anthropic', reconnect: true }])
+  })
+})
+
+const many = (count: number): ModelOption[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: `openrouter/vendor/model-${index}`,
+    label: `Model ${index}`,
+    provider: 'OpenRouter',
+  }))
+
+describe('modelSelectorGroups at scale', () => {
+  const models = [...MODELS, ...many(300)]
+
+  it('collapses a keyed group to its first five and counts the rest', () => {
+    const groups = modelSelectorGroups({ models, collapsedProviders: ['OpenRouter'] })
+    const group = groups.providers.find((candidate) => candidate.provider === 'OpenRouter')
+
+    expect(group?.kind === EProviderGroupKind.Models && group.models.length).toBe(5)
+    expect(group?.kind === EProviderGroupKind.Models && group.hidden).toBe(295)
+    expect(groups.providers.find((candidate) => candidate.provider === 'OpenAI')).toMatchObject({
+      hidden: 0,
+    })
+  })
+
+  it('shows everything for a group once expanded', () => {
+    const groups = modelSelectorGroups({
+      models,
+      collapsedProviders: ['OpenRouter'],
+      expandedProviders: ['OpenRouter'],
+    })
+    const group = groups.providers.find((candidate) => candidate.provider === 'OpenRouter')
+
+    expect(group?.kind === EProviderGroupKind.Models && group.models.length).toBe(300)
+  })
+
+  it('searches the models a collapsed group hides', () => {
+    const groups = modelSelectorGroups({
+      models,
+      query: 'model-250',
+      collapsedProviders: ['OpenRouter'],
+    })
+
+    expect(summary(groups.providers)).toEqual([
+      { provider: 'OpenRouter', ids: ['openrouter/vendor/model-250'] },
+    ])
+  })
+})
+
+describe('modelSelectorGroups auto, filters and fuzzy search', () => {
+  const rich: ModelOption[] = [
+    { id: 'auto', label: 'Claude Opus 4.7', provider: 'Automatic', auto: true, route: 'Max' },
+    {
+      id: 'anthropic/claude-opus-4-7',
+      label: 'Claude Opus 4.7',
+      provider: 'Claude Max',
+      images: true,
+      efforts: [],
+      contextTokens: 1_000_000,
+    },
+    {
+      id: 'openrouter/qwen/qwen3-coder',
+      label: 'Qwen3 Coder',
+      provider: 'OpenRouter',
+      images: false,
+      efforts: [],
+      contextTokens: 262_000,
+    },
+    {
+      id: 'inference/llama-3.2-3b',
+      label: 'Llama 3.2 3B',
+      provider: 'Inference.net',
+      images: false,
+      contextTokens: 128_000,
+    },
+  ]
+
+  it('lifts the auto option out of the provider groups', () => {
+    const groups = modelSelectorGroups({ models: rich })
+
+    expect(groups.auto?.id).toBe('auto')
+    expect(groups.providers.map((group) => group.provider)).toEqual([
+      'Claude Max',
+      'OpenRouter',
+      'Inference.net',
+    ])
+    expect(firstItemValue(groups)).toBe('auto')
+  })
+
+  it('hides auto while a filter is active', () => {
+    const groups = modelSelectorGroups({ models: rich, filters: [EModelFilter.Images] })
+
+    expect(groups.auto).toBeUndefined()
+    expect(summary(groups.providers)).toEqual([
+      { provider: 'Claude Max', ids: ['anthropic/claude-opus-4-7'] },
+    ])
+  })
+
+  it('combines the long-context filter with the query', () => {
+    const groups = modelSelectorGroups({
+      models: rich,
+      query: 'coder',
+      filters: [EModelFilter.LongContext],
+    })
+
+    expect(summary(groups.providers)).toEqual([
+      { provider: 'OpenRouter', ids: ['openrouter/qwen/qwen3-coder'] },
+    ])
+  })
+
+  it('offers only the filters the options carry data for', () => {
+    expect(availableFilters(MODELS)).toEqual([])
+    expect(availableFilters(rich)).toEqual([
+      EModelFilter.Images,
+      EModelFilter.Reasoning,
+      EModelFilter.LongContext,
+    ])
+  })
+
+  it('matches across separators and spaces', () => {
+    const opus = modelSelectorGroups({ models: rich, query: 'opus 4 7' })
+    expect(opus.pinned).toEqual([])
+    expect(summary(opus.providers)).toEqual([
+      { provider: 'Claude Max', ids: ['anthropic/claude-opus-4-7'] },
+    ])
+
+    const llama = modelSelectorGroups({ models: rich, query: 'llama3' })
+    expect(summary(llama.providers)).toEqual([
+      { provider: 'Inference.net', ids: ['inference/llama-3.2-3b'] },
+    ])
   })
 })
 
@@ -193,6 +325,37 @@ describe('ModelSelector', () => {
     const html = renderToStaticMarkup(<ModelSelector models={MODELS} value="missing" />)
 
     expect(html).toContain('Claude Sonnet 5')
+  })
+
+  it('shows the provider mark, the route and the Auto prefix on the trigger', () => {
+    const html = renderToStaticMarkup(
+      <ModelSelector
+        models={[
+          { id: 'auto', label: 'Claude Opus 4.7', provider: 'Automatic', auto: true, route: 'Max' },
+        ]}
+        value="auto"
+      />,
+    )
+
+    expect(html).toContain('Auto')
+    expect(html).toContain('Claude Opus 4.7')
+    expect(html).toContain('Max')
+  })
+
+  it('renders the effort control only when the model has efforts', () => {
+    const models: ModelOption[] = [
+      { id: 'a', label: 'Reasoner', efforts: [EEffort.Low, EEffort.High] },
+      { id: 'b', label: 'Plain', efforts: [] },
+    ]
+    const withEffort = renderToStaticMarkup(
+      <ModelSelector models={models} value="a" effort={EEffort.High} />,
+    )
+    const without = renderToStaticMarkup(
+      <ModelSelector models={models} value="b" effort={EEffort.High} />,
+    )
+
+    expect(withEffort).toContain('Effort: High')
+    expect(without).not.toContain('Effort:')
   })
 
   it('shows a placeholder trigger with no models', () => {

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { ChevronDownIcon, Settings2Icon } from 'lucide-react'
+import { cn } from 'cn'
 
 import {
   Command,
@@ -11,44 +12,53 @@ import {
   CommandList,
   CommandSeparator,
 } from '#components/command'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '#components/dropdown-menu'
 import { InputGroupButton } from '#components/input-group'
 import { Popover, PopoverContent, PopoverTrigger } from '#components/popover'
 
-import { ModelRow, NoProvidersState, ReconnectRow } from './internal/model-selector-rows'
 import {
+  EffortMenu,
+  FilterChips,
+  ModelRow,
+  NoProvidersState,
+  ReconnectRow,
+  ShowAllRow,
+  TriggerLabel,
+} from './internal/model-selector-rows'
+import {
+  DEFAULT_COLLAPSED_LIMIT,
+  DEFAULT_EFFORTS,
   EModelSelectorState,
   EProviderGroupKind,
   MANAGE_PROVIDERS_VALUE,
+  availableFilters,
   firstItemValue,
   modelSelectorGroups,
   togglePinned,
+  type EEffort,
+  type EModelFilter,
   type ModelOption,
 } from './model-selector-groups'
 
 export {
+  EEffort,
+  EFFORT_LABELS,
+  EFFORT_LADDER,
+  EModelFilter,
   EModelSelectorState,
   EProviderGroupKind,
+  LONG_CONTEXT_TOKENS,
+  MODEL_FILTER_LABELS,
+  MODEL_FILTER_ORDER,
   groupByProvider,
+  includesAll,
   modelSelectorGroups,
+  queryTerms,
   togglePinned,
   type ModelOption,
   type ModelSelectorGroups,
   type ProviderGroup,
   type ProviderModels,
 } from './model-selector-groups'
-
-export enum EEffort {
-  Low = 'low',
-  Medium = 'medium',
-  High = 'high',
-}
 
 export interface ModelSelectorProps {
   models: ModelOption[]
@@ -60,21 +70,13 @@ export interface ModelSelectorProps {
   pinned?: string[]
   onPinnedChange?: (ids: string[]) => void
   reconnectProviders?: string[]
+  reconnectNotes?: Record<string, string>
   onReconnect?: (provider: string) => void
   onManageProviders?: () => void
+  collapsedProviders?: string[]
+  collapsedLimit?: number
   defaultOpen?: boolean
-}
-
-const EFFORT_LABEL: Record<EEffort, string> = {
-  [EEffort.Low]: 'Low',
-  [EEffort.Medium]: 'Medium',
-  [EEffort.High]: 'High',
-}
-
-const EFFORTS = [EEffort.Low, EEffort.Medium, EEffort.High]
-
-function isEffort(value: string): value is EEffort {
-  return EFFORTS.some((effort) => effort === value)
+  className?: string
 }
 
 export function ModelSelector({
@@ -87,40 +89,72 @@ export function ModelSelector({
   pinned = [],
   onPinnedChange,
   reconnectProviders = [],
+  reconnectNotes = {},
   onReconnect,
   onManageProviders,
+  collapsedProviders = [],
+  collapsedLimit = DEFAULT_COLLAPSED_LIMIT,
   defaultOpen = false,
+  className,
 }: ModelSelectorProps) {
   const current = models.find((model) => model.id === value) ?? models[0]
   const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState('')
+  const [filters, setFilters] = useState<EModelFilter[]>([])
+  const [expanded, setExpanded] = useState<string[]>([])
   const [highlighted, setHighlighted] = useState(current?.id ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const canManageProviders = onManageProviders !== undefined
-  const groupsFor = (nextQuery: string) =>
+  const groupsFor = ({
+    nextQuery,
+    nextFilters,
+  }: {
+    nextQuery: string
+    nextFilters: EModelFilter[]
+  }) =>
     modelSelectorGroups({
       models,
       query: nextQuery,
       pinned,
       reconnectProviders,
       canManageProviders,
+      filters: nextFilters,
+      collapsedProviders,
+      collapsedLimit,
+      expandedProviders: expanded,
     })
-  const groups = groupsFor(query)
+  const groups = groupsFor({ nextQuery: query, nextFilters: filters })
+  const filterOptions = availableFilters(models)
   const pinnedIds = new Set(groups.pinned.map((model) => model.id))
   const canPin = onPinnedChange !== undefined
   const hasNoProviders = groups.state === EModelSelectorState.NoProviders
+  const routedProviders = new Set(models.flatMap((model) => (model.route ? [model.provider] : [])))
+  const effortOptions = current?.efforts ?? DEFAULT_EFFORTS
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     setQuery('')
-    if (next) setHighlighted(current?.id ?? firstItemValue(groupsFor('')) ?? '')
+    setFilters([])
+    setExpanded([])
+    if (next)
+      setHighlighted(
+        current?.id ?? firstItemValue(groupsFor({ nextQuery: '', nextFilters: [] })) ?? '',
+      )
   }
   const handleQueryChange = (next: string) => {
     setQuery(next)
-    const first = firstItemValue(groupsFor(next)) ?? ''
+    const first = firstItemValue(groupsFor({ nextQuery: next, nextFilters: filters })) ?? ''
     setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first)
   }
+  const handleFilterToggle = (filter: EModelFilter) => {
+    const next = filters.includes(filter)
+      ? filters.filter((active) => active !== filter)
+      : [...filters, filter]
+    setFilters(next)
+    setHighlighted(firstItemValue(groupsFor({ nextQuery: query, nextFilters: next })) ?? '')
+  }
+  const handleShowAll = (provider: string) => setExpanded([...expanded, provider])
   const handleModelSelect = (id: string) => {
     onValueChange?.(id)
     handleOpenChange(false)
@@ -134,11 +168,9 @@ export function ModelSelector({
     handleOpenChange(false)
   }
   const handleTogglePin = (id: string) => onPinnedChange?.(togglePinned({ pinned, id }))
-  const handleEffortChange = (next: string) => {
-    if (isEffort(next)) onEffortChange?.(next)
-  }
+  const handleEffortChange = (next: EEffort) => onEffortChange?.(next)
 
-  const renderRow = (model: ModelOption) => (
+  const renderRow = (model: ModelOption, showRoute: boolean) => (
     <ModelRow
       key={model.id}
       model={model}
@@ -146,6 +178,7 @@ export function ModelSelector({
       pinned={pinnedIds.has(model.id)}
       canPin={canPin}
       showRate={showRate}
+      showRoute={showRoute}
       onSelect={handleModelSelect}
       onTogglePin={handleTogglePin}
     />
@@ -154,14 +187,16 @@ export function ModelSelector({
   return (
     <>
       <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverTrigger render={<InputGroupButton size="sm" />}>
-          {current?.label ?? 'No model'}
-          <ChevronDownIcon />
+        <PopoverTrigger
+          render={<InputGroupButton size="sm" className={cn('min-w-0 justify-start', className)} />}
+        >
+          <TriggerLabel model={current} />
+          <ChevronDownIcon className="ml-auto" />
         </PopoverTrigger>
         <PopoverContent
           align="start"
           initialFocus={hasNoProviders ? true : inputRef}
-          className="w-80 gap-0 p-0"
+          className="w-96 gap-0 p-0"
         >
           {hasNoProviders ? (
             <NoProvidersState canConnect={canManageProviders} onConnect={handleManageProviders} />
@@ -181,21 +216,46 @@ export function ModelSelector({
                 value={query}
                 onValueChange={handleQueryChange}
               />
-              <CommandList className="max-h-80">
+              {filterOptions.length > 0 ? (
+                <FilterChips
+                  filters={filterOptions}
+                  active={filters}
+                  onToggle={handleFilterToggle}
+                />
+              ) : null}
+              <CommandList className="max-h-96">
                 {groups.state === EModelSelectorState.NoMatches ? (
                   <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">
-                    No models match “{query.trim()}”
+                    No models match{query.trim() ? ` “${query.trim()}”` : ' these filters'}
                   </p>
                 ) : null}
+                {groups.auto ? (
+                  <CommandGroup heading="Auto">{renderRow(groups.auto, false)}</CommandGroup>
+                ) : null}
                 {groups.pinned.length > 0 ? (
-                  <CommandGroup heading="Pinned">{groups.pinned.map(renderRow)}</CommandGroup>
+                  <CommandGroup heading="Pinned">
+                    {groups.pinned.map((model) => renderRow(model, routedProviders.size > 0))}
+                  </CommandGroup>
                 ) : null}
                 {groups.providers.map((group) => (
                   <CommandGroup key={group.provider} heading={group.provider}>
                     {group.kind === EProviderGroupKind.Reconnect ? (
-                      <ReconnectRow provider={group.provider} onReconnect={handleReconnect} />
+                      <ReconnectRow
+                        provider={group.provider}
+                        note={reconnectNotes[group.provider]}
+                        onReconnect={handleReconnect}
+                      />
                     ) : (
-                      group.models.map(renderRow)
+                      <>
+                        {group.models.map((model) => renderRow(model, false))}
+                        {group.hidden > 0 ? (
+                          <ShowAllRow
+                            provider={group.provider}
+                            total={group.total}
+                            onShowAll={handleShowAll}
+                          />
+                        ) : null}
+                      </>
                     )}
                   </CommandGroup>
                 ))}
@@ -219,22 +279,11 @@ export function ModelSelector({
           )}
         </PopoverContent>
       </Popover>
-      {effort ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<InputGroupButton size="sm" />}>
-            {EFFORT_LABEL[effort]}
-            <ChevronDownIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuRadioGroup value={effort} onValueChange={handleEffortChange}>
-              {EFFORTS.map((option) => (
-                <DropdownMenuRadioItem key={option} value={option} closeOnClick>
-                  {EFFORT_LABEL[option]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {effort && effortOptions.length > 0 ? (
+        <>
+          <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
+          <EffortMenu efforts={effortOptions} value={effort} onChange={handleEffortChange} />
+        </>
       ) : null}
     </>
   )
