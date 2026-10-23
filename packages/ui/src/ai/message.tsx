@@ -40,6 +40,7 @@ export interface AgentMessageProps {
   author?: string
   timestamp?: string
   streaming?: boolean
+  caret?: boolean
   copyText?: string
   feedback?: EFeedback
   onFeedback?: (feedback: EFeedback) => void
@@ -150,6 +151,7 @@ export function AgentMessage({
   author,
   timestamp,
   streaming = false,
+  caret = true,
   copyText,
   feedback,
   onFeedback,
@@ -163,7 +165,7 @@ export function AgentMessage({
         <Meta author={author} timestamp={timestamp} />
         <div className="text-sm leading-relaxed text-pretty">
           {children}
-          {streaming ? (
+          {streaming && caret ? (
             <span
               aria-hidden
               className="ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 animate-pulse bg-primary"
