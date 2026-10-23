@@ -12,8 +12,11 @@ import { QueryGate } from '@/features/settings/data/workspace/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { createThreadBodyOf } from './data/create-thread'
+import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
 import { createThread, fetchProjects } from './data/threads-api'
+import { useModelPicker } from './data/use-model-picker'
 import { messageOf } from './data/use-send'
+import { ModelPickerControls } from './model-picker'
 import { ProjectSelect } from './project-select'
 import { ThreadComposer } from './thread-composer'
 
@@ -24,6 +27,15 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     projects.some((project) => project.id === preselected) ? preselected : undefined,
   )
   const [draft, setDraft] = useState('')
+  const [chosen, setChosen] = useState<ModelSelection | null>(null)
+  const picker = useModelPicker({ includeAuto: true })
+  const selection =
+    chosen ??
+    defaultSelectionOf({
+      models: picker.options.models,
+      personalId: picker.personalId,
+      personalEffort: picker.personalEffort,
+    })
   const [creating, setCreating] = useState(false)
   const attempt = useRef<{ text: string; projectId: string | null; sendId: string } | null>(null)
   const projectId = selected === undefined ? (projects[0]?.id ?? null) : selected
@@ -38,7 +50,9 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     attempt.current = { text, projectId, sendId }
     setCreating(true)
     try {
-      const { thread } = await createThread(createThreadBodyOf({ projectId, text, sendId }))
+      const { thread } = await createThread(
+        createThreadBodyOf({ projectId, text, sendId, ...createFieldsOf(selection) }),
+      )
       attempt.current = null
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
@@ -56,6 +70,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       disabled={creating}
       placeholder="Describe a task for Atlas…"
     >
+      <ModelPickerControls picker={picker} selection={selection} onSelectionChange={setChosen} />
       <div className="ml-auto flex min-w-0">
         <ProjectSelect
           projects={projects}

@@ -11,7 +11,12 @@ describe('modelOptionsOf', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('openai'), account('anthropic')],
     })
-    expect(models[0]).toEqual({ id: AUTO_MODEL_ID, label: 'Atlas picks', auto: true })
+    expect(models[0]).toEqual({
+      id: AUTO_MODEL_ID,
+      label: 'Atlas picks',
+      auto: true,
+      efforts: [],
+    })
     const providers = [...new Set(models.slice(1).map((model) => model.provider))]
     expect(providers).toEqual(['Anthropic', 'OpenAI'])
     expect(models.length - 1).toBe(
@@ -66,5 +71,21 @@ describe('modelOptionsOf', () => {
     const { models } = modelOptionsOf({ accounts: [account('openai')] })
     const bare = cardsForProvider('openai').find((card) => card.effort === undefined)
     expect(models.find((model) => model.id === `openai/${bare?.ref.modelId}`)?.efforts).toEqual([])
+  })
+
+  it('keeps a thread model whose provider is no longer offered selectable', () => {
+    const card = cardsForProvider('anthropic')[0]
+    const id = `anthropic/${card?.ref.modelId}`
+    const { models } = modelOptionsOf({ accounts: [account('openai')], currentId: id })
+    expect(models.find((model) => model.id === id)?.label).toBe(card?.label)
+    const unknown = modelOptionsOf({ accounts: [account('openai')], currentId: 'x/y' })
+    expect(unknown.models.find((model) => model.id === 'x/y')?.label).toBe('x/y')
+  })
+
+  it('does not duplicate a current model that is already offered', () => {
+    const card = cardsForProvider('anthropic')[0]
+    const id = `anthropic/${card?.ref.modelId}`
+    const { models } = modelOptionsOf({ accounts: [account('anthropic')], currentId: id })
+    expect(models.filter((model) => model.id === id)).toHaveLength(1)
   })
 })

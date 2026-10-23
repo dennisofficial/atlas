@@ -27,7 +27,12 @@ const PROVIDER_BRANDS: Record<string, EBrand> = {
   openrouter: EBrand.OpenRouter,
 }
 
-const AUTO_OPTION: ModelOption = { id: AUTO_MODEL_ID, label: 'Atlas picks', auto: true }
+const AUTO_OPTION: ModelOption = {
+  id: AUTO_MODEL_ID,
+  label: 'Atlas picks',
+  auto: true,
+  efforts: [],
+}
 
 const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => [effort, effort]))
 
@@ -68,9 +73,23 @@ function optionOf(card: ModelCard): ModelOption {
   }
 }
 
+function withCurrent(args: {
+  offered: ModelOption[]
+  cards: readonly ModelCard[]
+  currentId: string | undefined
+}): ModelOption[] {
+  const { offered, currentId } = args
+  if (currentId === undefined || offered.some((option) => option.id === currentId)) return offered
+  const card = args.cards.find((candidate) => refKey(candidate.ref) === currentId)
+  const option: ModelOption =
+    card === undefined ? { id: currentId, label: currentId } : optionOf(card)
+  return [...offered, option]
+}
+
 export function modelOptionsOf(args: {
   accounts: readonly AccountSummary[]
   includeAuto?: boolean
+  currentId?: string | undefined
 }): ModelOptions {
   const usable = new Set<string>()
   const expired = new Set<string>()
@@ -79,7 +98,8 @@ export function modelOptionsOf(args: {
   }
   const cards = generatedCards()
   const catalogueOrder = [...new Set(cards.map((card) => card.ref.providerId))]
-  const models = cards.filter((card) => usable.has(card.ref.providerId)).map(optionOf)
+  const offered = cards.filter((card) => usable.has(card.ref.providerId)).map(optionOf)
+  const models = withCurrent({ offered, cards, currentId: args.currentId })
   const reconnectProviders = catalogueOrder
     .filter((providerId) => expired.has(providerId) && !usable.has(providerId))
     .map(providerNameOf)

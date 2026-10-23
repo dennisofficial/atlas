@@ -3,7 +3,7 @@ import type { CallId } from '@dltech/atlas-core'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import type { ThreadEvents } from './events-poller'
-import type { LiveSend, LiveThreadView } from './live-thread-view'
+import type { LiveChooseModel, LiveSend, LiveThreadView } from './live-thread-view'
 
 export type ThreadSource = {
   events: WireEvent[]
@@ -14,6 +14,7 @@ export type ThreadSource = {
   working: boolean
   live: boolean
   sendLive: LiveSend
+  chooseModel: LiveChooseModel
 }
 
 const NO_SIGNALS: StepSignal[] = []
@@ -33,6 +34,7 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
       working: live.working,
       live: true,
       sendLive: live.send,
+      chooseModel: live.chooseModel,
     }
   }
   return {
@@ -42,5 +44,6 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
     working: false,
     live: false,
     sendLive: live.send,
+    chooseModel: live.chooseModel,
   }
 }

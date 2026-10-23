@@ -41,7 +41,11 @@ export const ticketOf = (token: string): PodConnectResult => ({
   ticket: { url: 'https://pod.test', token, expiresAt: '2026-10-22T10:01:00.000Z' },
 })
 
-export function rig(options?: { mints?: PodConnectResult[]; seed?: WireEvent[] }) {
+export function rig(options?: {
+  mints?: PodConnectResult[]
+  seed?: WireEvent[]
+  onModelChanged?: (model: { ref: string; effort: string }) => void
+}) {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
   const mints = [...(options?.mints ?? [ticketOf('tkt1'), ticketOf('tkt2')])]
@@ -58,6 +62,7 @@ export function rig(options?: { mints?: PodConnectResult[]; seed?: WireEvent[] }
       return next
     },
     readSeed: async () => options?.seed ?? [event(1), event(2)],
+    ...(options?.onModelChanged === undefined ? {} : { onModelChanged: options.onModelChanged }),
     onChange: (next) => {
       state = next
       history.push(next)

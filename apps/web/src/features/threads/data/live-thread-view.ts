@@ -12,7 +12,11 @@ export type LiveThreadState = {
 
 export type LiveSend = (args: { text: string; requestId: string }) => boolean
 
-export type LiveThreadView = LiveThreadState & { send: LiveSend }
+export type ThreadModelChoice = { ref: string; effort: string }
+
+export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
+
+export type LiveThreadView = LiveThreadState & { send: LiveSend; chooseModel: LiveChooseModel }
 
 export const IDLE_LIVE_THREAD: LiveThreadState = {
   events: [],

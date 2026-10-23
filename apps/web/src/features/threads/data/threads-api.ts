@@ -71,3 +71,13 @@ export const fetchEvents = (threadId: string) =>
     path: `${threadPath(threadId)}/events?own=true`,
     schema: z.array(wireEventSchema),
   })
+
+export const patchThreadModel = (args: {
+  threadId: string
+  model: { ref: string; effort: string }
+}) =>
+  cloudSend({
+    method: EHttpMethod.Patch,
+    path: `${threadPath(args.threadId)}/model`,
+    body: args.model,
+  })

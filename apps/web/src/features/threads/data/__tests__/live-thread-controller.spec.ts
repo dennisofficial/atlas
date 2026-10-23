@@ -234,6 +234,22 @@ describe('createLiveThreadController', () => {
     expect(await chosen).toBe(true)
   })
 
+  it('reports a thread-model-changed broadcast made elsewhere', async () => {
+    const seen: { ref: string; effort: string }[] = []
+    const test = rig({ onModelChanged: (model) => void seen.push(model) })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.receive({
+      kind: EServeFrame.ThreadModelChanged,
+      threadId: 'thr_1',
+      model: { ref: 'openai/gpt-5', effort: 'low' },
+    })
+
+    expect(seen).toEqual([{ ref: 'openai/gpt-5', effort: 'low' }])
+  })
+
   it('chooseModel is false without a connected channel', async () => {
     const test = rig()
     expect(await test.controller.chooseModel({ ref: 'a/b', effort: 'low' })).toBe(false)
