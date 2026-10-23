@@ -90,12 +90,6 @@ export type CloudChannel = RemoteDeltaChannel
 export type CloudAttachment = {
   channel: CloudChannel
   stores: CloudStores
-  /**
-   * The session-directory mirror keeping the local copy of the cloud session dir current while the
-   * channel is open. Absent when the attach opted out (specs, probes). Liveness never reads it —
-   * turnInFlight is the channel's answer, not the mirror's.
-   */
-  sessionMirror?: import('./session-mirror-syncer').SessionMirrorSync | undefined
 }
 
 /**

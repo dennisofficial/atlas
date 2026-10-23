@@ -1,7 +1,6 @@
 import {
   EServeFrame,
   createSessionContextReader,
-  sessionDirectory,
   type ServeFrame,
   type StepId,
 } from '@dltech/atlas-harness'
@@ -37,8 +36,6 @@ import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
 import { createSessionHandlers } from './socket-session'
 import { createServeWorkspaceSession } from './serve-workspace-session'
-import { createSessionMirrorReader } from './session-mirror'
-import { createSessionMirrorRevision } from './session-mirror-revision'
 
 const noopIdle = (noop: () => void) => ({ note: noop, halt: noop, reset: noop })
 
@@ -87,11 +84,6 @@ export async function finishServeBoot(args: {
   let liveStepId: () => StepId | null = () => null
   let broadcast: (frame: ServeFrame) => void = noop
   let captureRunning: () => void = noop
-  const mirrorRevision = createSessionMirrorRevision({
-    buffer,
-    broadcast: (frame) => broadcast(frame),
-    startsAt: 1,
-  })
 
   const checkpoint = bindRuntimeCheckpoint({
     capture: createRuntimeCheckpointCapture({
@@ -114,10 +106,6 @@ export async function finishServeBoot(args: {
     buffer.pushLifecycle(frame)
     broadcast(frame)
     captureRunning()
-    // A settled turn is the durable point where shell spools and cached images are final. Bump
-    // only — never broadcast: a signal frame pushed after a lifecycle frame advances the buffer's
-    // seq past the lifecycle frame's position, which is what suppresses its replay on reconnect.
-    if (frame.kind === EServeFrame.TurnEnded) mirrorRevision.bump()
   }
 
   const driver = createServeDriver({
@@ -160,12 +148,6 @@ export async function finishServeBoot(args: {
     agents: app.agents,
     operatorInput: app.operatorInput,
     pending: app.pending,
-    sessionMirror: {
-      reader: createSessionMirrorReader({
-        sessionDir: () => sessionDirectory({ home: atlasHome, sessionId: threadId }),
-      }),
-      revision: mirrorRevision.current,
-    },
     ...handlerOptionsOf({ app, log }),
   })
 
@@ -176,7 +158,6 @@ export async function finishServeBoot(args: {
     contextReader,
     note,
     captureRunning: () => captureRunning(),
-    mirror: mirrorRevision,
   })
 
   const bridge = createChannelBridge({
@@ -186,7 +167,6 @@ export async function finishServeBoot(args: {
     onFrame: (frame) => {
       handlers.broadcast(frame)
       if (frame.kind !== EServeFrame.Signal) return
-      if (frame.signal.type === 'events-appended') mirrorRevision.bump()
       if (frame.signal.type === 'events-appended' || frame.signal.type === 'step-ended')
         captureRunning()
     },

@@ -11,7 +11,6 @@ import { bornPlacementChip } from './born-placement-chip'
 export const unplacedThread = (args: { opened: OpenedConversation; started: boolean }): boolean =>
   !args.started &&
   args.opened.bootCloudThreadId === undefined &&
-  args.opened.attachOnBoot !== true &&
   args.opened.executionLocation === undefined
 
 export function preferenceChipFor(args: { app: AtlasApp; threadId: ThreadId }): void {

@@ -12,6 +12,7 @@ import type { EThinkingVisibility } from '../store'
 import type { BackgroundWork } from '../ui/background-wait'
 import { BackPill } from '../ui/components/back-pill'
 import { Transcript } from '../ui/components/transcript'
+import { TranscriptLoading, transcriptLoading } from '../ui/components/transcript-loading'
 import { WelcomeScreen } from '../ui/components/welcome-screen'
 import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
@@ -26,6 +27,7 @@ const UPDATING_LABEL = 'updating the pod'
 export function WorkspaceTranscript(props: {
   app: AtlasApp
   welcome: boolean
+  bootingCloudThread: boolean
   wide: boolean
   width: number
   modelId: string
@@ -73,12 +75,18 @@ export function WorkspaceTranscript(props: {
       : null
   const attachClosed =
     cloudSession === null &&
-    location === EExecutionLocation.Cloud &&
+    (location === EExecutionLocation.Cloud || props.bootingCloudThread) &&
     attachFailed !== null &&
-    attachFailed.threadId === threadId
+    (attachFailed.threadId === threadId || props.bootingCloudThread)
   const connection =
     cloudHealth?.view.state ?? (attachClosed ? EConnectionView.Disconnected : undefined)
   const updating = connection === EConnectionView.Updating
+  const loadingTranscript = transcriptLoading({
+    welcome,
+    bootingCloudThread: props.bootingCloudThread,
+    attachFailed: attachFailed !== null,
+    firstReadLanded: (cloudHealth?.lastSeenAt ?? null) !== null,
+  })
 
   return (
     <box flexDirection="column" flexGrow={1} flexShrink={1}>
@@ -86,7 +94,9 @@ export function WorkspaceTranscript(props: {
         <BackPill label={agentView.backLabel} onBack={agentView.handleBack} />
       )}
       <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
-      {welcome ? (
+      {loadingTranscript ? (
+        <TranscriptLoading />
+      ) : welcome && !attachClosed ? (
         <WelcomeScreen
           cwd={app.config.cwd}
           home={homedir()}

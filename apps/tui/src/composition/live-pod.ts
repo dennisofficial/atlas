@@ -58,7 +58,6 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
   },
   attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
-  localLog: app.log,
   settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   registerPodLease: ({ threadId, token }: { threadId: ThreadId; token: string }) => {
@@ -70,13 +69,6 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
       clientVersion: clientVersionHeader(),
       threadId,
       token,
-    })
-  },
-  onMirrorFailed: (failure) => {
-    durableOpLog()?.warn({
-      source: 'cloud-mirror',
-      message: 'cloud session mirror fell out of sync; it self-repairs on the next sync',
-      error: failure instanceof Error ? failure.message : String(failure),
     })
   },
   environment: () => ({

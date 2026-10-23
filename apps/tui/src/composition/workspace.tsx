@@ -252,6 +252,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
         <WorkspaceTranscript
           app={props.app}
           welcome={layout.welcome}
+          bootingCloudThread={props.opened.bootCloudThreadId !== undefined}
           wide={frame.wide}
           width={layout.contentWidth}
           modelId={selection.ref.modelId}

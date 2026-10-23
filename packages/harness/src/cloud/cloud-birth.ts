@@ -1,7 +1,6 @@
 import {
   EHarnessPlacement,
   type ERunner,
-  type EventLogPort,
   type IdPort,
   type ThreadId,
   type WorkspaceIdentity,
@@ -57,7 +56,6 @@ export type BirthArgs = {
   model: ThreadModel
   bridge: CloudBridge
   localThreads: ThreadStorePort
-  localLog: EventLogPort
   ids: IdPort
   placement: SessionOwner<SessionRuntime>
   onBegin?: ((args: { waves: readonly BirthWave[] }) => void) | undefined

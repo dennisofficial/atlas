@@ -5,7 +5,6 @@ import {
   type CloudReload,
   type CloudStores,
   type RemoteTurnRunner,
-  type SessionMirrorSync,
 } from '@dltech/atlas-harness'
 
 import type { AtlasApp } from '../compose'
@@ -17,7 +16,6 @@ import { cloudReadinessOf } from './cloud-readiness'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
 import { createCloudRunner, createCloudWake, wakeSandbox, type CloudWake } from './cloud-runner'
 import { createCloudSession, type CloudSession } from './cloud-session'
-import { parkedStoresOf } from './parked-stores'
 import { mirrorCloudRenames } from './rename-mirror'
 
 type OpenArgs = {
@@ -26,14 +24,11 @@ type OpenArgs = {
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
   onReload: (reload: CloudReload) => Promise<void>
-  /** Wake the sandbox before anything renders. Recovery settles on the live channel, so it needs this. */
-  wakeFirst?: boolean | undefined
 }
 
 type Composed = {
   channel: CloudChannel
   stores: CloudStores
-  sessionMirror: SessionMirrorSync | undefined
   wake: CloudWake
   settleOpenOf: (session: CloudSession) => () => void
   openAgainst: (runner: RemoteTurnRunner) => Promise<OpenedConversation>
@@ -52,7 +47,7 @@ const wakeNarrationFor = (args: ResolvedOpenArgs) => ({
 
 async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
   const woken = await wakeSandbox(wakeNarrationFor(args))
-  const { channel, stores, sessionMirror } = args.bridge.attach({
+  const { channel, stores } = args.bridge.attach({
     threadId: args.threadId,
     url: woken.url,
     token: woken.token,
@@ -60,7 +55,6 @@ async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
   return {
     channel,
     stores,
-    sessionMirror,
     wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
     settleOpenOf: () => ALREADY_SETTLED,
     openAgainst: (runner) =>
@@ -68,24 +62,6 @@ async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
         app: { ...args.app, ...cloudRuntimeParts({ channel, stores, runner }) },
         threadId: args.threadId,
       }),
-  }
-}
-
-function composeRenderFirst(args: ResolvedOpenArgs & { opened: OpenedConversation }): Composed {
-  const attachment = args.bridge.attach({ threadId: args.threadId })
-  const { channel } = attachment
-  const stores = parkedStoresOf({
-    channel,
-    local: { threads: args.app.threads, log: args.app.log, ledger: args.app.ledger },
-    remote: attachment.stores,
-  })
-  return {
-    channel,
-    stores,
-    sessionMirror: attachment.sessionMirror,
-    wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
-    settleOpenOf: (session) => session.settleOpen,
-    openAgainst: async () => args.opened,
   }
 }
 
@@ -103,11 +79,7 @@ export async function openCloudThread(openArgs: OpenArgs): Promise<Binding> {
   try {
     const projectId = (await app.threads.find({ threadId }))?.projectId ?? null
     const args: ResolvedOpenArgs = { ...openArgs, projectId }
-    const renderable = args.wakeFirst === true ? null : await renderableLocally(args)
-    const composed =
-      renderable === null
-        ? await composeEager(args)
-        : composeRenderFirst({ ...args, opened: renderable })
+    const composed = await composeEager(args)
     const { channel, stores } = composed
 
     const runner = createCloudRunner({ ...wakeNarrationFor(args), channel, wake: composed.wake })
@@ -137,24 +109,10 @@ export async function openCloudThread(openArgs: OpenArgs): Promise<Binding> {
       runner,
       opened,
       session,
-      sessionMirror: composed.sessionMirror,
       settleOpen: composed.settleOpenOf(session),
     })
   } catch (error) {
     move?.handleFail(messageOf(error))
     throw error
-  }
-}
-
-async function renderableLocally(args: OpenArgs): Promise<OpenedConversation | null> {
-  const { app, threadId } = args
-  try {
-    const placement = await app.threads.readPlacement({ threadId })
-    if (placement === undefined) return null
-
-    const opened = await openCloudConversation({ app, threadId })
-    return opened.events.length === 0 ? null : opened
-  } catch {
-    return null
   }
 }

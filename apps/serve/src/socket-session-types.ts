@@ -12,7 +12,6 @@ import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
-import type { SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeLog } from './serve-log'
 import type { StepAlias } from './step-alias'
 import type { ServeTurnDriver } from './turn-driver'
@@ -80,5 +79,4 @@ export type SessionHandlersArgs = {
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
-  sessionMirror?: SessionMirrorRouting | undefined
 }

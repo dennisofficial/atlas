@@ -9,10 +9,8 @@ import {
   EConnectionView,
   EServeFrame,
   LocalCompaction,
-  mirrorWriter,
   RemoteCompaction,
   RemoteEventLog,
-  TranscriptSyncer,
   type ChannelReload,
   type ChannelSocketFactory,
   type RemoteDeltaChannel,
@@ -26,6 +24,7 @@ import {
 } from '../../../../packages/harness/src/store/__tests__/harness'
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 
+import { TranscriptMirrorClient } from './transcript-mirror-client'
 import { openSeededStore } from './cloud-compaction-fixture'
 import { fakeRewindTarget, fakeServeApp, type FakeServeApp } from './fakes'
 import { gate, threadId, TOKEN, until } from './serve-remote-fixture'
@@ -237,11 +236,11 @@ export const attachMirrored = async (args: {
 
   const reloads: ChannelReload[] = []
   channel.onReload((reload) => void reloads.push(reload))
-  const syncer = new TranscriptSyncer({
+  const syncer = new TranscriptMirrorClient({
     channel,
     remote: new RemoteEventLog({ channel }),
     local: mirror.log,
-    writer: mirrorWriter({ home: () => mirror.home }),
+    home: mirror.home,
     threadId,
   })
   await until({

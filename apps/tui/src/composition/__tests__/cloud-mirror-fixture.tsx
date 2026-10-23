@@ -16,16 +16,14 @@ import {
   EClientFrame,
   EClientRequest,
   JsonlEventLog,
-  MirroredEventLog,
+  RemoteEventLog,
   SessionRegistry,
   SystemClock,
-  mirrorWriter,
   transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
 
 import { cloudChannelOf } from '../thread-view-refresh'
 import type { OpenedConversation } from '../open-conversation'
-import { promiseGate } from './app-fixture'
 import { fakeIds } from './fake-backend'
 import type { FakeApp } from './fake-app'
 import { THREAD, wire } from './cloud-turn-state-fixture'
@@ -50,7 +48,6 @@ const identityOf = (events: readonly Event[]) => ({
 export async function mirrored(args: {
   app: FakeApp
   seeded: readonly EventDraft[]
-  hold: boolean
   inFlight: boolean
   readyAtMount?: boolean
   wakesInto?: boolean
@@ -81,24 +78,7 @@ export async function mirrored(args: {
   if (args.readyAtMount !== false) wired.ready(args.inFlight)
   if (args.inFlight) wired.signal({ type: 'turn-working', working: true })
 
-  const entered = promiseGate()
-  const finish = promiseGate()
-  const writer = mirrorWriter({ home: () => home })
-  const log = new MirroredEventLog({
-    channel,
-    localLog: local,
-    threadId: THREAD,
-    writer: {
-      ...writer,
-      appendDelta: async (given) => {
-        if (args.hold) {
-          entered.release()
-          await finish.gate
-        }
-        await writer.appendDelta(given)
-      },
-    },
-  })
+  const log = new RemoteEventLog({ channel })
   Object.assign(args.app, { log })
 
   const opened: OpenedConversation = {
@@ -113,8 +93,6 @@ export async function mirrored(args: {
   return {
     wired,
     opened,
-    entered: entered.gate,
-    release: finish.release,
     failIdentity: (message: string | null): void => {
       identity.failure = message
     },
@@ -135,8 +113,6 @@ export async function mirrored(args: {
       )
     },
     cleanup: async (): Promise<void> => {
-      finish.release()
-      await log.converge()
       await rm(home, { recursive: true, force: true })
     },
   }

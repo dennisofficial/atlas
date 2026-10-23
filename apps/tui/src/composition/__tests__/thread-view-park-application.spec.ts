@@ -8,11 +8,10 @@ import {
   EClientRequest,
   EConnectionView,
   JsonlEventLog,
-  MirroredEventLog,
+  RemoteEventLog,
   RemoteTurnRunner,
   SessionRegistry,
   SystemClock,
-  mirrorWriter,
   transcriptIdentityDigest,
 } from '@dltech/atlas-harness'
 
@@ -77,12 +76,7 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
         })),
     }
   }
-  const log = new MirroredEventLog({
-    channel,
-    localLog: local,
-    threadId,
-    writer: mirrorWriter({ home: () => home }),
-  })
+  const log = new RemoteEventLog({ channel })
   const spend = promiseGate()
   const ledger = fakeLedger()
   let spendReads = 0
@@ -122,10 +116,9 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
     spend.release()
     unbind()
     store.dispose()
-    await log.converge()
   })
   return {
-    local,
+    channel,
     log,
     remote,
     parked,
@@ -150,7 +143,6 @@ describe('refreshing a mirrored cloud thread view', () => {
     const held = await rig({ slowSpend: true })
     held.remote.push(held.parked)
     void held.refresh.refresh()
-    await held.log.converge()
 
     expect(
       await until({
@@ -186,19 +178,15 @@ describe('refreshing a mirrored cloud thread view', () => {
 
   it('does not let an unmounted view overwrite the replacement view readiness', async () => {
     const held = await rig()
-    await held.local.append({
-      threadId: held.threadId,
-      runId: toRunId('local-park'),
-      drafts: [held.parked],
-    })
+    held.remote.push(held.parked)
     const reading = promiseGate()
     const returnRead = promiseGate()
-    const readOwn = held.local.readOwn.bind(held.local)
-    held.local.readOwn = async (given) => {
-      const events = await readOwn(given)
+    const request = held.channel.request.bind(held.channel)
+    held.channel.request = async (given) => {
+      const reply = await request(given)
       reading.release()
       await returnRead.gate
-      return events
+      return reply
     }
     const first = held.refresh.refresh()
     await reading.gate
@@ -209,6 +197,5 @@ describe('refreshing a mirrored cloud thread view', () => {
     returnRead.release()
     await Promise.all([first, queued])
     expect(held.readiness.applied()?.identity).toEqual(replacement)
-    expect(held.visible().at(-1)?.type).toBe('user-said')
   })
 })

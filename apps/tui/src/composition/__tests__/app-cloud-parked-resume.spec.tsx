@@ -16,6 +16,7 @@ import { CLOUD_WAKE_FAILED_NOTICE_KEY } from '../cloud/cloud-session'
 import { CLOUD_BIRTH_NOTICE_KEY } from '../cloud/cloud-birth-notices'
 import { CLOUD_SERVER_FAILURE_NOTICE_KEY } from '../use-cloud-connection'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
+import { LOADING_TRANSCRIPT_LABEL } from '../../ui/components/transcript-loading'
 import { cloudAttachmentOf } from '../session-binding'
 import { mountCloud } from './app-cloud-archive-fixture'
 import { promiseGate, THREAD, until } from './app-fixture'
@@ -113,93 +114,56 @@ const gateCreate = (bridge: FakeBridge): { release: () => void } => {
   return gate
 }
 
-describe('opening a cloud thread whose transcript this machine holds', () => {
-  it('renders at once and wakes nothing when the lifecycle record says parked', async () => {
-    const app = appFor()
-    const threadId = await cloudThread(app)
-    const bridge = bridgeAt({ threadId, phase: ERuntimePhase.Parked })
-    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
+const seedRemote = async (args: { app: FakeApp; bridge: FakeBridge; threadId: ThreadId }) => {
+  const local = await args.app.threads.find({ threadId: args.threadId })
+  args.bridge.threads.seedThread({
+    id: args.threadId,
+    head: 1,
+    createdAt: local?.createdAt ?? '',
+    updatedAt: local?.updatedAt ?? '',
+    workspace: FAKE_CONFIG.cwd,
+    repo: null,
+    title: 'the cloud thread',
+    executionLocation: EExecutionLocation.Cloud,
+  })
+  await args.bridge.log.append({
+    threadId: args.threadId,
+    runId: toRunId('run-before-park'),
+    drafts: [{ type: 'user-said', text: LOCAL_TEXT }],
+  })
+}
 
-    try {
-      const frame = await mounted.showing(LOCAL_TEXT)
-      await mounted.frame()
-
-      expect(frame).toContain(LOCAL_TEXT)
-      expect(app.sessionOwner.snapshot().bound).toBe(true)
-      expect(bridge.created).toHaveLength(0)
-      expect(bridge.attached).toHaveLength(0)
-      expect(bridge.parkedAttaches).toEqual([threadId])
-      expect(bridge.channel.observed.map((checkpoint) => checkpoint.phase)).toEqual([
-        ERuntimePhase.Parked,
-      ])
-      expect(viewOf(app)?.state).toBe(EConnectionView.Parked)
-      expect(mounted.mutedEntries()).toBe(0)
-      expect(cloudNotices()).toEqual([])
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
-
-  it('wakes the parked sandbox on the first send', async () => {
-    const app = appFor()
-    const threadId = await cloudThread(app)
-    const bridge = bridgeAt({ threadId, phase: ERuntimePhase.Parked })
-    const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
-
-    try {
-      await mounted.showing(LOCAL_TEXT)
-      await mounted.frame()
-      expect(bridge.created).toHaveLength(0)
-
-      await mounted.command('now wake up')
-
-      expect(await until({ holds: async () => bridge.created.length === 1, within: 10_000 })).toBe(
-        true,
-      )
-      expect(
-        await until({ holds: async () => bridge.channel.woken.length === 1, within: 10_000 }),
-      ).toBe(true)
-    } finally {
-      await mounted.done()
-    }
-  }, 60_000)
-
+describe('opening a parked cloud thread', () => {
   it.each([
+    ['a parked record', ERuntimePhase.Parked],
     ['a serving record', ERuntimePhase.Serving],
     ['no record at all', null],
   ])(
-    'wakes in the background given %s, Waking until the sandbox answers, then Connected',
+    'shows the loading line, never a blank screen, then the transcript the sandbox serves given %s',
     async (_name, phase) => {
       const app = appFor()
       const threadId = await cloudThread(app)
       const bridge = bridgeAt({ threadId, phase })
+      await seedRemote({ app, bridge, threadId })
       const wake = gateCreate(bridge)
       const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
       try {
-        const frame = await mounted.showing(LOCAL_TEXT)
-        expect(frame).toContain(LOCAL_TEXT)
-        expect(
-          await until({
-            holds: async () => viewOf(app)?.state === EConnectionView.Waking,
-            within: 10_000,
-          }),
-        ).toBe(true)
-        expect(bridge.attached).toHaveLength(0)
+        const loading = await mounted.showing(LOADING_TRANSCRIPT_LABEL)
+        expect(loading).not.toContain(LOCAL_TEXT)
 
         wake.release()
 
-        expect(
-          await until({ holds: async () => bridge.attached.length === 1, within: 10_000 }),
-        ).toBe(true)
+        const frame = await mounted.showing(LOCAL_TEXT)
+        expect(frame).not.toContain(LOADING_TRANSCRIPT_LABEL)
+        expect(bridge.created).toHaveLength(1)
+        expect(bridge.parkedAttaches).toEqual([])
         expect(
           await until({
             holds: async () => viewOf(app)?.state === EConnectionView.Connected,
             within: 10_000,
           }),
         ).toBe(true)
-        expect(bridge.created).toHaveLength(1)
-        expect(await mounted.frame()).toContain(LOCAL_TEXT)
       } finally {
         await mounted.done()
       }
@@ -207,7 +171,7 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
     60_000,
   )
 
-  it('reads Disconnected with the reason and a passing notice when the background wake fails — never a sticky banner', async () => {
+  it('reads disconnected with the reason when the wake fails — never a sticky banner', async () => {
     const app = appFor()
     const threadId = await cloudThread(app)
     const bridge = fakeBridge({
@@ -217,17 +181,16 @@ describe('opening a cloud thread whose transcript this machine holds', () => {
     const mounted = await mountCloud({ app, bridge, opened: bootOn(threadId) })
 
     try {
-      await mounted.showing(LOCAL_TEXT)
-
+      const frame = await mounted.showing('the sandbox would not start')
+      expect(frame).toContain('disconnected')
+      expect(frame).not.toContain(LOADING_TRANSCRIPT_LABEL)
       expect(
-        await until({
-          holds: async () => viewOf(app)?.state === EConnectionView.Disconnected,
-          within: 10_000,
-        }),
+        currentNotices().some(
+          (notice) =>
+            notice.key === 'cloud-open-failed' &&
+            notice.text.includes('the sandbox would not start'),
+        ),
       ).toBe(true)
-      expect(viewOf(app)?.detail).toContain('the sandbox would not start')
-      expect(currentNotices().map((notice) => notice.key)).toContain(CLOUD_WAKE_FAILED_NOTICE_KEY)
-      await mounted.frame()
       expect(stickyNotices()).toEqual([])
     } finally {
       await mounted.done()

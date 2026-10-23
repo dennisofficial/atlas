@@ -103,7 +103,6 @@ describeLive('a multi-turn session in a local pod', () => {
           model: { ref: `openrouter/${MODEL_ID}`, effort: EEffort.Medium },
           bridge,
           localThreads: app.threads,
-          localLog: app.log,
           ids: app.ids,
           placement: app.sessionOwner,
           open: async ({ attachment, prepareRuntime }) => {
