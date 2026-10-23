@@ -30,6 +30,7 @@ import {
   takeBackTargetOf,
   withoutTakenBack,
 } from './data/take-back'
+import { AUTO_MODEL_ID } from './data/model-options'
 import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { eventsFromWire } from './data/events-from-wire'
@@ -117,8 +118,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     if (!sent) setDraft(text)
     else refresh()
   }
-  const handleModelChange = (next: ModelSelection) =>
+  const handleModelChange = (next: ModelSelection) => {
+    if (next.id === AUTO_MODEL_ID) return
     void model.handleChange({ next, chooseLive: chooseModel })
+  }
   const handleRetryBoot = async () => {
     await retryBoot(threadId)
     refresh()
