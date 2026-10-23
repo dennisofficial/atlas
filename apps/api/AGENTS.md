@@ -41,7 +41,10 @@ thread discovery, backup sync and PR/CI webhooks.
 This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with `bun test`.
 Bun runs Nest's constructor `@Inject(...)` decorators under this package's tsconfig;
 `test/bun-runtime.spec.ts` spawns the real app under `bun` and fails if one is dropped. `bunfig.toml`
-preloads the shared root `bun-test.setup.ts` and `test.setup.ts` (env). Specs mock `../../../db`
+preloads `nestjs-preload.ts` first (it settles `@nestjs/common` and `@nestjs/core` before the CJS
+`@nestjs/throttler` requires them, working around a Bun loader race that intermittently failed
+specs with `require() async module ... is unsupported`), then the shared root `bun-test.setup.ts`
+and `test.setup.ts` (env). Specs mock `../../../db`
 with a synchronous `mock.module` factory over a statically imported fake — an `async` factory that
 dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTimersByTimeAsync` and
 `waitFor` live in `test/fake-timers.ts`; the other vitest-only helpers come from `@dltech/bun-test-shims`.
