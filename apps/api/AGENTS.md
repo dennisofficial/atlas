@@ -36,6 +36,14 @@ The TUI still provisions its own BYO sandboxes and registers them through `POST 
 unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,
 thread discovery, backup sync and PR/CI webhooks.
 
+**`GET /v1/models` serves each user's model list.** `src/api/platform/models/` composes the catalogue from the
+user's accounts and, when they hold an active OpenAI OAuth connection, replaces the static OpenAI list with
+the live Codex list (`CodexModelsCatalogue`, cached per user in memory for 300 s, revalidated with
+`If-None-Match`; a Codex failure returns the static list plus `liveError`). The code lives in harness behind
+the one subpath `@dltech/atlas-harness/models`, which the API may import and nothing else of harness;
+`src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce it, and harness's own subpath guard spec
+keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
+
 ## Runtime and tests
 
 This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with `bun test`.
