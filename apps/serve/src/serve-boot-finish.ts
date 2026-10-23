@@ -148,7 +148,7 @@ export async function finishServeBoot(args: {
     agents: app.agents,
     operatorInput: app.operatorInput,
     pending: app.pending,
-    ...handlerOptionsOf({ app, log }),
+    ...handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
   })
 
   const detachSubscriptions = bindServeSubscriptions({

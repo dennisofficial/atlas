@@ -12,6 +12,7 @@ import {
   type RequestFrame,
 } from './request-reply'
 import type { TranscriptReaders } from './requests'
+import { EServeEvent, type ServeLog } from './serve-log'
 
 async function belongsToServedSession(args: {
   threads: Pick<ThreadStorePort, 'find'>
@@ -29,11 +30,30 @@ async function belongsToServedSession(args: {
   return false
 }
 
+async function persistRootModel(args: {
+  persist: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  log: ServeLog | undefined
+  threadId: ThreadId
+  model: { ref: string; effort: string }
+}): Promise<void> {
+  try {
+    await args.persist?.(args.model)
+  } catch (failure) {
+    args.log?.({
+      event: EServeEvent.ThreadModelPersistFailed,
+      threadId: args.threadId,
+      message: failure instanceof Error ? failure.message : String(failure),
+    })
+  }
+}
+
 export async function answerSetThreadModel(args: {
   frame: RequestFrame
   transcript: TranscriptReaders
   threadId: ThreadId
   select?: ((model: { ref: string; effort: string }) => void) | undefined
+  persist?: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  log?: ServeLog | undefined
 }): Promise<ReplyFrame> {
   const parsed = setThreadModelParamsSchema.safeParse(args.frame.params)
   if (!parsed.success) {
@@ -79,6 +99,9 @@ export async function answerSetThreadModel(args: {
     model,
     ...(retarget === undefined ? {} : { retarget }),
   })
-  if (target.agent === undefined && threadId === args.threadId) args.select?.(model)
+  if (target.agent === undefined && threadId === args.threadId) {
+    args.select?.(model)
+    await persistRootModel({ persist: args.persist, log: args.log, threadId, model })
+  }
   return answeredRequest({ replyTo: args.frame.id, data: { threadId, model } })
 }

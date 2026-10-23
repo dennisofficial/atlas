@@ -60,6 +60,7 @@ export enum EServeEvent {
   EventFlushConflict = 'serve.event-flush-conflict',
   EventFlushFailed = 'serve.event-flush-failed',
   EventFlushRefused = 'serve.event-flush-refused',
+  ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }
