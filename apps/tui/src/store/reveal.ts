@@ -9,7 +9,7 @@ const REVEAL_HORIZON_MS = 150
 
 const REVEAL_MIN_CHARS = 3
 
-const REVEAL_BURST_CAP = 600
+const REVEAL_FLOOR_CHARS = 40
 
 export type TailRun = { key: string; text: string }
 
@@ -46,7 +46,8 @@ export function advancedGate(args: {
   const backlog = args.tail.text.length - attached.revealed
   if (backlog <= 0) return attached
 
-  const reached = attached.revealed + sliceSize(backlog)
+  const frames = Math.max(1, Math.round(REVEAL_HORIZON_MS / FRAME_MS))
+  const reached = attached.revealed + sliceSize({ backlog, frames })
   return {
     key: attached.key,
     revealed: pastAnyLoneSurrogate({ text: args.tail.text, at: reached }),
@@ -61,13 +62,16 @@ export const gateIsDraining = (args: { gate: RevealGate | null; tail: TailRun | 
  * Proportional drain rather than a measured character rate, because a rate estimate is open-loop and
  * its error accumulates: guess low and the tail falls further behind every chunk, guess high and it
  * drains empty and stalls between them. Dividing the backlog makes arrival rate the input, so the
- * reveal tracks any speed and settles about one horizon behind the wire.
+ * reveal tracks any speed and settles about one horizon behind the wire. A backlog-doubling window
+ * between frames — a fast stream, or a step's first deltas all landing inside one frame — used to
+ * trip a burst cutoff that switched the typewriter into a single dump. There is no burst anymore:
+ * a drain floor keeps the slice from shrinking to nothing as the backlog grows, so the paint
+ * cadence stays the only knob.
  */
-function sliceSize(backlog: number): number {
-  if (backlog > REVEAL_BURST_CAP) return backlog
-
-  const frames = Math.max(1, Math.round(REVEAL_HORIZON_MS / FRAME_MS))
-  return Math.min(backlog, Math.max(REVEAL_MIN_CHARS, Math.ceil(backlog / frames)))
+function sliceSize(args: { backlog: number; frames: number }): number {
+  const proportional = Math.ceil(args.backlog / args.frames)
+  const sized = Math.max(REVEAL_MIN_CHARS, REVEAL_FLOOR_CHARS, proportional)
+  return Math.min(args.backlog, sized)
 }
 
 function pastAnyLoneSurrogate(args: { text: string; at: number }): number {

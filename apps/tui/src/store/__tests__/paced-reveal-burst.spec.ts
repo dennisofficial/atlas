@@ -40,7 +40,7 @@ describe('the paced reveal under a fast stream', () => {
       publisher.onChunk({ type: 'text-delta', id: 'b1', text })
     }
 
-    await sleep(A_FRAME_OR_TWO * 2)
+    await sleep(900)
 
     expect(tailOf(store)).toBe(arrived)
     expect(largestJump).toBeLessThanOrEqual(arrived.length / 5)

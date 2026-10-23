@@ -64,11 +64,16 @@ describe('the paced reveal', () => {
     expect(tailOf(store).length).toBe(120)
   })
 
-  it('dumps a burst instead of typewriting through it', async () => {
+  it('paces a burst instead of dumping it in one paint', async () => {
     publisher.onChunk({ type: 'text-delta', id: 'b1', text: 'y'.repeat(5_000) })
 
     await sleep(A_FRAME_OR_TWO)
 
+    const shown = tailOf(store).length
+    expect(shown).toBeGreaterThan(0)
+    expect(shown).toBeLessThan(5_000)
+
+    await sleep(LONG_ENOUGH_TO_DRAIN)
     expect(tailOf(store).length).toBe(5_000)
   })
 
