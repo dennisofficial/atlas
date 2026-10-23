@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from 'react'
 import { CircleAlertIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
+import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Tool } from '@dltech/atlas-ui/ai/tool'
@@ -26,8 +27,10 @@ function Said({ item }: { item: TranscriptItem }) {
       )
     case ETranscriptKind.Agent:
       return (
-        <AgentMessage streaming={item.streaming} copyText={item.text}>
-          <p className="whitespace-pre-wrap">{item.text}</p>
+        <AgentMessage streaming={item.streaming} caret={false} copyText={item.text}>
+          <MessageResponse isAnimating={item.streaming} caret="block">
+            {item.text}
+          </MessageResponse>
         </AgentMessage>
       )
     case ETranscriptKind.Thought:

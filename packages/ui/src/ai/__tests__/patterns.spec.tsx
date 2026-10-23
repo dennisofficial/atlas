@@ -217,6 +217,19 @@ describe('Message, Checkpoint and ModelSelector', () => {
     ).not.toContain('aria-label="Copy"')
   })
 
+  it('drops its own caret while streaming when told to', () => {
+    const caret = 'animate-pulse'
+    const render = (props: { caret?: boolean }) =>
+      renderToStaticMarkup(
+        <AgentMessage streaming {...props}>
+          hi
+        </AgentMessage>,
+      )
+
+    expect(render({})).toContain(caret)
+    expect(render({ caret: false })).not.toContain(caret)
+  })
+
   it('aligns the user turn to the end', () => {
     expect(renderToStaticMarkup(<UserMessage>yo</UserMessage>)).toContain('data-align="end"')
   })
