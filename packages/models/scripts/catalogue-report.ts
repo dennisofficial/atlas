@@ -1,5 +1,5 @@
 import { DEFAULT_IMAGE_TIER, EImageTier } from '@dltech/atlas-core'
-import { RELEASE_STAMP, type GeneratedCard } from '../src/models/generated-card'
+import { RELEASE_STAMP, type GeneratedCard } from '../src/generated-card'
 
 export enum ESkipReason {
   UnmappedNpm = 'provider npm has no api mapping',

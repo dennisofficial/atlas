@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     '@dltech/atlas-client',
     '@dltech/atlas-core',
+    '@dltech/atlas-models',
     '@dltech/atlas-ui',
     '@dltech/atlas-wire',
   ],

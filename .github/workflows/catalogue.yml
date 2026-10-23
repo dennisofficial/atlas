@@ -30,17 +30,17 @@ jobs:
       - name: regenerate and open a PR on drift
         run: |
           set -euo pipefail
-          (cd packages/harness && bun run generate:catalogue)
-          if git diff --quiet -- packages/harness/src/models/generated; then
+          (cd packages/models && bun run generate:catalogue)
+          if git diff --quiet -- packages/models/src/generated; then
             echo "catalogue is fresh"
             exit 0
           fi
           branch="catalogue/$(date -u +%Y%m%d-%H%M)"
           .github/scripts/api-commit.sh \
             --branch "$branch" \
-            --message "chore(harness): regenerate model catalogue" \
-            -- packages/harness/src/models/generated
-          gh pr create --title "chore(harness): regenerate model catalogue" \
+            --message "chore(models): regenerate model catalogue" \
+            -- packages/models/src/generated
+          gh pr create --title "chore(models): regenerate model catalogue" \
             --body "Automated refresh from models.dev + api.inference.net. Queued for auto-merge; lands once ci is green."
           pr=$(gh pr list --head "$branch" --json number --jq '.[0].number')
           gh pr merge --squash --auto "$pr"

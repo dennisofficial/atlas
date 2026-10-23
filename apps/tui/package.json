@@ -2,7 +2,7 @@
   "name": "@dltech/atlas",
   "version": "0.1.0",
   "private": true,
-  "description": "Atlas \u2014 a coding-agent harness in the shape of Claude Code.",
+  "description": "Atlas — a coding-agent harness in the shape of Claude Code.",
   "type": "module",
   "bin": {
     "atlas": "./bin/atlas",
@@ -29,10 +29,11 @@
     "skills:generate": "bun scripts/generate-skills.ts"
   },
   "dependencies": {
-    "@dltech/atlas-wire": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-models": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
     "@mariozechner/clipboard": "^0.3.9",
     "@opentui/core": "0.5.12",
     "@opentui/react": "0.5.12",

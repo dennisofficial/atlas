@@ -16,7 +16,7 @@ import {
   type DiffFile,
   type ModelRef,
 } from '@dltech/atlas-core'
-import { cardsForProvider, withoutDatedDuplicates } from '@dltech/atlas-harness'
+import { cardsForProvider, withoutDatedDuplicates } from '@dltech/atlas-models'
 import { createRoot, useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useState } from 'react'
 

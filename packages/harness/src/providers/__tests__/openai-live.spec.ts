@@ -17,7 +17,7 @@ import {
   builtinOauthClients,
   fileAccountStore,
 } from '../../credentials'
-import { generatedCatalogue } from '../../models/generated-catalogue'
+import { generatedCatalogue } from '@dltech/atlas-models'
 import { SystemClock } from '../../store'
 import { OpenAiAdapter } from '../openai-adapter'
 import { bodyOnlyRecordingPassthroughFetch } from './recording-fetch'

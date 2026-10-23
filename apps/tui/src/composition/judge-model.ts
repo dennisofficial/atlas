@@ -9,11 +9,11 @@ import {
 } from '@dltech/atlas-core'
 import {
   DEFAULT_MODEL_REF,
-  generatedCatalogue,
   providerAdapters,
   unanswerableRef,
   type ProviderAdapter,
 } from '@dltech/atlas-harness'
+import { generatedCatalogue } from '@dltech/atlas-models'
 
 export const judgeRefFor = ({
   override,

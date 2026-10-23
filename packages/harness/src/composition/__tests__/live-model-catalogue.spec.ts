@@ -10,7 +10,8 @@ import {
   type AccountId,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { cardsForProvider, OpenAiAdapter, OPENAI_PROVIDER_ID } from '@dltech/atlas-harness'
+import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '@dltech/atlas-harness'
+import { cardsForProvider } from '@dltech/atlas-models'
 
 import { modelCatalogue, type LiveCards } from '../model-catalogue'
 import { alwaysAuthorised } from './fakes'

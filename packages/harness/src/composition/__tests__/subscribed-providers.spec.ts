@@ -11,12 +11,12 @@ import {
 } from '@dltech/atlas-core'
 import {
   AnthropicAdapter,
-  cardsForProvider,
   InferenceAdapter,
   INFERENCE_PROVIDER_ID,
   OpenRouterAdapter,
   OPENROUTER_PROVIDER_ID,
 } from '@dltech/atlas-harness'
+import { cardsForProvider } from '@dltech/atlas-models'
 
 import { modelCatalogue } from '../model-catalogue'
 import { alwaysAuthorised } from './fakes'

@@ -7,6 +7,7 @@ import {
   type NoticePort,
   type SettingsResolution,
 } from '@dltech/atlas-core'
+import { cardsForProvider } from '@dltech/atlas-models'
 
 import type { DependencyContainer } from '../container/injection'
 import {
@@ -16,7 +17,6 @@ import {
   SelectableModelToken,
 } from '../container/tokens'
 import { CodexModelsCatalogue } from '../models/codex-models-catalogue'
-import { cardsForProvider } from '../models/generated-catalogue'
 import { CODEX_VERSION } from '../providers/codex-version'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
