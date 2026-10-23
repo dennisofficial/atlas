@@ -6,6 +6,13 @@ import type { Components, ExtraProps } from 'streamdown'
 
 import { Separator } from '#components/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '#components/table'
+import {
+  MarkdownBlockquote,
+  MarkdownInput,
+  MarkdownListItem,
+  MarkdownOrderedList,
+  MarkdownUnorderedList,
+} from './markdown-blocks'
 import { MarkdownCode } from './markdown-code'
 
 const INCOMPLETE_LINK = 'streamdown:incomplete-link'
@@ -36,15 +43,18 @@ function MarkdownLink({
   className,
   href,
   children,
+  target: _target,
+  rel: _rel,
   ...props
 }: ComponentProps<'a'> & ExtraProps) {
   if (href === INCOMPLETE_LINK) return <span>{children}</span>
+  const inPage = href?.startsWith('#') ?? false
 
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      target={inPage ? undefined : '_blank'}
+      rel={inPage ? undefined : 'noreferrer'}
       className={cn(
         'font-medium wrap-anywhere text-primary underline-offset-4 hover:underline',
         className,
@@ -98,7 +108,12 @@ function MarkdownRule() {
 
 export const markdownComponents: Components = {
   a: MarkdownLink,
+  blockquote: MarkdownBlockquote,
   code: MarkdownCode,
+  input: MarkdownInput,
+  li: MarkdownListItem,
+  ol: MarkdownOrderedList,
+  ul: MarkdownUnorderedList,
   h1: heading('h1'),
   h2: heading('h2'),
   h3: heading('h3'),
