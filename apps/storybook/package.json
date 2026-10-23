@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "storybook dev -p 6006 --no-open",
-    "build": "storybook build -o storybook-static",
+    "build": "storybook build -o storybook-static --stats-json storybook-static",
+    "render-check": "bun scripts/render-check.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
@@ -25,6 +26,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "next": "16.3.5",
+    "playwright": "1.64.1",
     "storybook": "10.6.0",
     "tailwindcss": "^4.1.18",
     "typescript": "6.0.3",

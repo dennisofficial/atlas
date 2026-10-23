@@ -11,6 +11,21 @@ bun run --filter @dltech/atlas-storybook build   # static build to storybook-sta
 bun run --filter @dltech/atlas-storybook test    # prototype specs and the sitemap guard
 ```
 
+## Render check
+
+CI renders stories in headless Chromium and fails on an error display, a `pageerror`, a console
+error, or a story that never mounts — but only the stories a change can affect. `bun run build`
+writes `preview-stats.json` beside the static build; `scripts/affected-stories.ts` walks its importer
+graph backwards from the changed files. A change to `.storybook/`, `scripts/`, any stylesheet,
+`packages/ui/package.json`, or `bun.lock` — or one that reaches `.storybook/preview.tsx` — renders everything.
+
+```sh
+bun run --filter @dltech/atlas-storybook build
+bun run --filter @dltech/atlas-storybook render-check        # stories affected vs origin/main plus uncommitted edits
+RENDER_CHECK_ALL=1 bun run --filter @dltech/atlas-storybook render-check   # every story
+bun run --filter @dltech/atlas-storybook render-check plan   # list the selection without rendering
+```
+
 ## Theme
 
 The toolbar **Theme** menu switches Dark (default) and Light. It toggles the `light` class on
