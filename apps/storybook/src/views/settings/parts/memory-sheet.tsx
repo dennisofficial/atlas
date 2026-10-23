@@ -1,5 +1,6 @@
 import { PencilIcon, Trash2Icon } from 'lucide-react'
 
+import { MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
@@ -18,7 +19,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@dltech/atlas-ui/components/sheet'
-import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import {
@@ -175,13 +175,12 @@ function MemoryEdit({
         </Field>
         <Field>
           <FieldLabel htmlFor="memory-body">Body</FieldLabel>
-          <Textarea
+          <MarkdownEditor
             id="memory-body"
-            spellCheck={false}
-            aria-invalid={bodyTooLong}
-            className="field-sizing-fixed h-64 resize-y font-mono text-xs leading-relaxed"
+            ariaInvalid={bodyTooLong}
+            className="h-64"
             value={draft.value.body}
-            onChange={(event) => patch({ body: event.target.value })}
+            onChange={(body) => patch({ body })}
           />
           <CharCounter count={bodyLength} max={MEMORY_MAX_BODY_CHARS} />
         </Field>

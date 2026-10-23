@@ -2,14 +2,13 @@ import {
   ArrowUpRight,
   BookOpen,
   Bug,
-  Check,
   ChevronsUpDown,
   Command,
   HeartPulse,
   Keyboard,
   LogOut,
   Megaphone,
-  Users,
+  Settings,
 } from 'lucide-react'
 
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
@@ -19,15 +18,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@dltech/atlas-ui/components/dropdown-menu'
 import { Kbd, KbdGroup } from '@dltech/atlas-ui/components/kbd'
 import { SidebarMenuButton } from '@dltech/atlas-ui/components/sidebar'
 
-import { USER, WORKSPACE } from '../../fixtures/app'
+import { USER } from '../../fixtures/app'
 
 export interface AccountMenuProps {
   defaultOpen?: boolean
@@ -45,22 +41,6 @@ function Keys({ keys }: { keys: string[] }) {
 
 function External() {
   return <ArrowUpRight className="ml-auto text-muted-foreground" />
-}
-
-function WorkspaceTile() {
-  return (
-    <span className="flex size-4 items-center justify-center rounded-sm bg-primary font-display text-[10px] leading-none font-semibold text-primary-foreground">
-      {WORKSPACE.initials}
-    </span>
-  )
-}
-
-function UserAvatar() {
-  return (
-    <span className="flex size-4 items-center justify-center rounded-full bg-muted font-sans text-[8px] leading-none text-muted-foreground">
-      {USER.initials}
-    </span>
-  )
 }
 
 export function AccountMenu({ defaultOpen }: AccountMenuProps) {
@@ -121,34 +101,9 @@ export function AccountMenu({ defaultOpen }: AccountMenuProps) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Users />
-              Switch account
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-52">
-              <DropdownMenuItem>
-                <UserAvatar />
-                {USER.name}
-                <Check className="ml-auto" />
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <WorkspaceTile />
-                {WORKSPACE.name}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
           <DropdownMenuItem>
-            <WorkspaceTile />
-            {WORKSPACE.name} settings
-            <Keys keys={['⌥', '⌘', ',']} />
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <UserAvatar />
-            Personal settings
+            <Settings />
+            Settings
             <Keys keys={['⌘', ',']} />
           </DropdownMenuItem>
         </DropdownMenuGroup>

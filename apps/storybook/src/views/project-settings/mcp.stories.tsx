@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import { EProjectSettingsPage } from '../../fixtures/project-settings'
+import { MCP_IMPORT_SAMPLE } from '../../fixtures/settings-mcp'
+import { EMcpDialog } from '../shared/mcp/mcp-view'
 import { McpPage } from './mcp-page'
 import { ProjectSettingsShell } from './project-settings-shell'
 
@@ -13,26 +15,19 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-export const Configured: Story = {
-  render: () => (
-    <ProjectSettingsShell active={EProjectSettingsPage.Mcp}>
-      <McpPage />
-    </ProjectSettingsShell>
-  ),
+function shell(page: ReturnType<typeof McpPage>) {
+  return <ProjectSettingsShell active={EProjectSettingsPage.Mcp}>{page}</ProjectSettingsShell>
 }
 
-export const Empty: Story = {
-  render: () => (
-    <ProjectSettingsShell active={EProjectSettingsPage.Mcp}>
-      <McpPage initialServers={[]} />
-    </ProjectSettingsShell>
-  ),
+export const Configured: Story = { render: () => shell(<McpPage />) }
+
+export const Empty: Story = { render: () => shell(<McpPage initialRows={[]} />) }
+
+export const AddForm: Story = {
+  render: () => shell(<McpPage openDialog={EMcpDialog.Add} />),
 }
 
-export const AddServerDialog: Story = {
-  render: () => (
-    <ProjectSettingsShell active={EProjectSettingsPage.Mcp}>
-      <McpPage addDialogOpen />
-    </ProjectSettingsShell>
-  ),
+export const AddPasteJson: Story = {
+  render: () =>
+    shell(<McpPage openDialog={EMcpDialog.PasteJson} initialJson={MCP_IMPORT_SAMPLE} />),
 }

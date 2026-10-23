@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import {
   AlertDialog,
@@ -12,7 +12,13 @@ import {
   AlertDialogTrigger,
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { Label } from '@dltech/atlas-ui/components/label'
 import { cn } from '@dltech/atlas-ui/lib/utils'
+
+export enum ERowLayout {
+  Inline = 'inline',
+  Stacked = 'stacked',
+}
 
 export function SettingsPage({
   title,
@@ -42,19 +48,27 @@ export function SettingsPage({
 export function SettingsSection({
   title,
   description,
+  count,
   actions,
   children,
 }: {
   title: string
   description?: ReactNode
+  count?: number
   actions?: ReactNode
   children: ReactNode
 }) {
+  const headingId = useId()
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-sm font-medium">{title}</h2>
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="flex max-w-prose flex-col gap-0.5">
+          <h2 id={headingId} className="text-sm font-medium">
+            {title}
+            {count === undefined ? null : (
+              <span className="ml-2 font-mono text-xs text-muted-foreground">{count}</span>
+            )}
+          </h2>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
@@ -94,6 +108,8 @@ export function SettingsRow({
   control,
   children,
   className,
+  htmlFor,
+  layout = ERowLayout.Inline,
 }: {
   title: ReactNode
   description?: ReactNode
@@ -101,18 +117,46 @@ export function SettingsRow({
   control?: ReactNode
   children?: ReactNode
   className?: string
+  htmlFor?: string
+  layout?: ERowLayout
 }) {
+  const stacked = layout === ERowLayout.Stacked
+  const hasField = Boolean(children) && !stacked && !control && !media
+  const hasBelow = Boolean(children) && !hasField
+
   return (
     <div className={cn('flex flex-col gap-3 px-4 py-3.5', className)}>
-      <div className="flex items-center gap-3">
+      <div
+        className={cn(
+          'flex gap-3',
+          hasField
+            ? 'flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-8'
+            : 'items-center',
+        )}
+      >
         {media ? <div className="flex shrink-0 items-center">{media}</div> : null}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex items-center gap-2 text-sm font-medium">{title}</div>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          <div className="flex items-center gap-2 text-sm font-medium">
+            {htmlFor ? <Label htmlFor={htmlFor}>{title}</Label> : title}
+          </div>
+          {description ? (
+            <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
+          ) : null}
         </div>
         {control ? <div className="flex shrink-0 items-center gap-2">{control}</div> : null}
+        {hasField ? (
+          <div className="flex min-w-0 items-center gap-2 sm:w-96 sm:shrink-0 sm:justify-end">
+            {children}
+          </div>
+        ) : null}
       </div>
-      {children}
+      {hasBelow ? (
+        stacked ? (
+          <div className="flex min-w-0 flex-col items-stretch gap-2">{children}</div>
+        ) : (
+          children
+        )
+      ) : null}
     </div>
   )
 }
@@ -188,4 +232,31 @@ export function DangerZone({ actions }: { actions: DangerAction[] }) {
 
 export function Mono({ className, children }: { className?: string; children: ReactNode }) {
   return <span className={cn('font-mono text-xs tabular-nums', className)}>{children}</span>
+}
+
+export function MonogramTile({ label, className }: { label: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-foreground uppercase ring-1 ring-foreground/10',
+        className,
+      )}
+    >
+      {label.slice(0, 1)}
+    </span>
+  )
+}
+
+export function FileChip({ children }: { children: ReactNode }) {
+  return (
+    <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+      {children}
+    </code>
+  )
+}
+
+export function UnsavedHint({ visible }: { visible: boolean }) {
+  if (!visible) return null
+  return <span className="mr-auto text-sm text-muted-foreground">Unsaved changes</span>
 }

@@ -33,20 +33,24 @@ export function MemoryRow({
 }) {
   return (
     <SettingsRow
+      className="relative transition-colors hover:bg-muted/40 has-[[data-memory-open]:focus-visible]:bg-muted/40"
       media={
-        <Checkbox
-          aria-label={`Select ${entry.name}`}
-          checked={selected}
-          onCheckedChange={onSelectedChange}
-        />
+        <span className="relative z-10 flex">
+          <Checkbox
+            aria-label={`Select ${entry.name}`}
+            checked={selected}
+            onCheckedChange={onSelectedChange}
+          />
+        </span>
       }
       title={
         <>
           <MemoryTypeBadge type={entry.type} />
           <button
             type="button"
+            data-memory-open
             onClick={onOpen}
-            className="min-w-0 truncate rounded-sm text-left font-mono text-xs outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-w-0 truncate text-left font-mono text-xs outline-none after:absolute after:inset-0 after:content-['']"
           >
             {entry.name}
           </button>
@@ -60,7 +64,11 @@ export function MemoryRow({
           </Mono>
         </>
       }
-      control={<LibraryRowMenu label={entry.name} actions={actions} />}
+      control={
+        <span className="relative z-10 flex">
+          <LibraryRowMenu label={entry.name} actions={actions} />
+        </span>
+      }
     />
   )
 }
