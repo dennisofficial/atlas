@@ -110,7 +110,6 @@ describeDocker('createLocalPodBridge against a live daemon', () => {
           ...config,
           provisionLock: fileProvisionLock({ directory: join(tmpdir(), 'atlas-pod-locks') }),
         }),
-      sessionMirror: false,
     })
 
     const sandbox = await bridge.sandboxes.create({ threadId, projectId: null })

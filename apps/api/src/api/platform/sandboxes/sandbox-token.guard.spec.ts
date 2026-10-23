@@ -1,5 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common'
 import { UnauthorizedException } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import { describe, expect, it, vi } from 'bun:test'
 import { SandboxTokenGuard } from './sandbox-token.guard'
 import type { SandboxesService } from './sandboxes.service'
@@ -21,9 +22,12 @@ const contextWith = (args: {
 describe('SandboxTokenGuard', () => {
   it('verifies the bearer token against the thread it names', async () => {
     const verifySessionToken = vi.fn(async () => ({ threadId: 'brn_1', userId: 'user-a' }))
-    const guard = new SandboxTokenGuard({
-      verifySessionToken,
-    } as unknown as SandboxesService)
+    const guard = new SandboxTokenGuard(
+      {
+        verifySessionToken,
+      } as unknown as SandboxesService,
+      new Reflector(),
+    )
 
     const allowed = await guard.canActivate(
       contextWith({ params: { threadId: 'brn_1' }, authorization: 'Bearer session-token' }),
@@ -37,9 +41,12 @@ describe('SandboxTokenGuard', () => {
   })
 
   it('refuses a request carrying no bearer token', async () => {
-    const guard = new SandboxTokenGuard({
-      verifySessionToken: vi.fn(),
-    } as unknown as SandboxesService)
+    const guard = new SandboxTokenGuard(
+      {
+        verifySessionToken: vi.fn(),
+      } as unknown as SandboxesService,
+      new Reflector(),
+    )
 
     await expect(
       guard.canActivate(contextWith({ params: { threadId: 'brn_1' } })),
@@ -56,9 +63,12 @@ describe('SandboxTokenGuard', () => {
       threadId: 'brn_resolved',
       userId: 'user-a',
     }))
-    const guard = new SandboxTokenGuard({
-      verifyTokenPrincipal,
-    } as unknown as SandboxesService)
+    const guard = new SandboxTokenGuard(
+      {
+        verifyTokenPrincipal,
+      } as unknown as SandboxesService,
+      new Reflector(),
+    )
     const request = { params: {}, headers: { authorization: 'Bearer sandbox-token' } }
 
     const allowed = await guard.canActivate({
@@ -71,9 +81,12 @@ describe('SandboxTokenGuard', () => {
   })
 
   it('still refuses a threadId-less route without a bearer token', async () => {
-    const guard = new SandboxTokenGuard({
-      verifyTokenPrincipal: vi.fn(),
-    } as unknown as SandboxesService)
+    const guard = new SandboxTokenGuard(
+      {
+        verifyTokenPrincipal: vi.fn(),
+      } as unknown as SandboxesService,
+      new Reflector(),
+    )
 
     await expect(guard.canActivate(contextWith({ params: {} }))).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -85,12 +98,17 @@ describe('SandboxTokenGuard', () => {
       threadId: 'brn_pod',
       userId: 'user-a',
     }))
-    const guard = new SandboxTokenGuard({ verifyTokenPrincipal } as unknown as SandboxesService)
+    const guard = new SandboxTokenGuard(
+      { verifyTokenPrincipal } as unknown as SandboxesService,
+      new Reflector(),
+    )
     const request = { params: {}, headers: { authorization: 'Bearer pod-token' } }
 
     await expect(
       guard.canActivate({
         switchToHttp: () => ({ getRequest: () => request }),
+        getHandler: () => () => undefined,
+        getClass: () => class Probe {},
       } as unknown as ExecutionContext),
     ).rejects.toBeInstanceOf(UnauthorizedException)
     expect(request).not.toHaveProperty('sandbox')

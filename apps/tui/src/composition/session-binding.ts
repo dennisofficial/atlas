@@ -4,12 +4,10 @@ import {
   ERuntimeKind,
   MirroredContextFiles,
   RemoteContextFiles,
-  SyncedContextFiles,
   type CloudBridge,
   type CloudChannel,
   type CloudStores,
   type RuntimeBinding,
-  type SessionMirrorSync,
   type SessionRuntime,
   type TurnRunner,
 } from '@dltech/atlas-harness'
@@ -83,12 +81,9 @@ export async function cloudAnchorOf(args: {
 const cloudContextOf = (args: {
   channel: CloudChannel
   opened: OpenedConversation
-  sessionMirror?: SessionMirrorSync | undefined
 }): ContextReaders => {
   const local = createSessionContextReader({ threadId: args.opened.threadId })
   const remote = new RemoteContextFiles({ channel: args.channel })
-  if (args.sessionMirror !== undefined)
-    return new SyncedContextFiles({ local, remote, mirror: args.sessionMirror })
   return new MirroredContextFiles({
     channel: args.channel,
     local,
@@ -108,7 +103,6 @@ export const cloudBindingOf = (args: {
   runner: TurnRunner
   opened: OpenedConversation
   session: CloudSession
-  sessionMirror?: SessionMirrorSync | undefined
   settleOpen?: (() => void) | undefined
 }): Binding => ({
   kind: ERuntimeKind.Cloud,

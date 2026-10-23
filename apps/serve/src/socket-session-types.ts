@@ -12,7 +12,6 @@ import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
 import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
-import type { SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
 import type { StepAlias } from './step-alias'
@@ -82,5 +81,4 @@ export type SessionHandlersArgs = {
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
-  sessionMirror?: SessionMirrorRouting | undefined
 }

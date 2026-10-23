@@ -58,6 +58,5 @@ export const podBridgeWith = (args: {
       args.registered?.push(lease)
     },
     driverWith: () => args.driver,
-    sessionMirror: false,
     ...args.overrides,
   })

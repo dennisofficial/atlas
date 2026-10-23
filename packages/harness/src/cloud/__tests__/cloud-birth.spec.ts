@@ -54,7 +54,6 @@ async function setup() {
     model: { ref: 'anthropic/claude', effort: 'medium' },
     bridge: sandboxed,
     localThreads: fixture.threads,
-    localLog: fixture.log,
     ids: new CountingIds('birth'),
     placement: owner,
     open: async ({ prepareRuntime }) =>

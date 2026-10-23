@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { ETurnStatus } from '@dltech/atlas-harness'
-import { isApiProvisioned } from '@dltech/atlas-wire'
+import { writesBehind } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -8,7 +8,7 @@ import type { ServeTurnDriver } from './turn-driver'
 
 type BootDriver = Pick<ServeTurnDriver, 'run' | 'busy' | 'settled' | 'outcome' | 'failure'>
 
-export function resumeWhenApiProvisioned(args: {
+export function resumeWhenRegistered(args: {
   env: Record<string, string | undefined>
   resumable: boolean
   admissionLatched: boolean
@@ -17,7 +17,7 @@ export function resumeWhenApiProvisioned(args: {
   threadId: ThreadId
   log: ServeLog
 }): void {
-  if (!isApiProvisioned(args.env) || !args.resumable) return
+  if (!writesBehind(args.env) || !args.resumable) return
   if (args.admissionLatched || args.driver.busy()) return
   try {
     args.driver.run({ resume: true, onlyIfIdle: true })

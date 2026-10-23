@@ -27,9 +27,7 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
     frame.op === EClientRequest.ReadContextFile ||
     frame.op === EClientRequest.ListMentionFiles ||
     frame.op === EClientRequest.MentionFileExists ||
-    frame.op === EClientRequest.ReadMentionFile ||
-    frame.op === EClientRequest.ReadSessionManifest ||
-    frame.op === EClientRequest.ReadSessionFiles)
+    frame.op === EClientRequest.ReadMentionFile)
 
 export function createMutationTracker(args: { changed?: (() => void) | undefined }) {
   const open = new Map<string, number>()

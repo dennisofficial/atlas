@@ -15,6 +15,7 @@ import { bindPathLinks } from './path-links'
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './boot-failure'
 import { createBootProgress } from './boot-progress'
 import { durableOpLog } from './durable-op-log'
+import { startMirrorUpload } from './cloud/mirror-upload-start'
 import { BootScreen } from './boot-screen'
 import { CrashBoundary } from './crash-boundary'
 import { classifyRequestOf } from './classify'
@@ -33,6 +34,7 @@ import {
   logFieldsOf,
   createFileOpener,
   EEditor,
+  atlasDirectory,
 } from '@dltech/atlas-harness'
 import { trackTerminalFocus } from './terminal-focus'
 import { IDLE_TITLE_GLYPH } from '../ui/glyphs'
@@ -206,6 +208,7 @@ export async function bootAtlas(args: {
     editorSettings = settled.app.settings
     bindPathLinks({ resolve: settled.app.pathResolver })
     output?.enableNotices()
+    void startMirrorUpload({ app: settled.app, home: atlasDirectory(), log: durableOpLog() })
     activeThread = () => settled.app.activeThread()
     installHeapDumpSignal({
       onDone: ({ text, failed }) =>

@@ -37,6 +37,11 @@ export const API_PROVISIONED_ENV = 'ATLAS_API_PROVISIONED'
 export const isApiProvisioned = (env: Record<string, string | undefined>): boolean =>
   env[API_PROVISIONED_ENV] === '1'
 
+const present = (value: string | undefined): boolean => value !== undefined && value.trim() !== ''
+
+export const writesBehind = (env: Record<string, string | undefined>): boolean =>
+  isApiProvisioned(env) || (present(env.ATLAS_CLOUD_URL) && present(env.ATLAS_SERVE_TOKEN))
+
 export const MAX_BOOT_STEP_TEXT = 2000
 
 export const bootStepEventSchema = z.object({

@@ -1,3 +1,4 @@
+import { podEventsReplySchema, type PodEvent, type PodEventsReply } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
 import { cloudRequest } from './cloud-transport'
@@ -266,6 +267,18 @@ export class SessionsClient {
       retry: true,
     })
     return z.array(wireEventSchema).parse(body)
+  }
+
+  async importEvents(args: {
+    threadId: string
+    events: readonly PodEvent[]
+  }): Promise<PodEventsReply> {
+    const body = await this.request({
+      method: 'POST',
+      path: `/v1/threads/${args.threadId}/events/import`,
+      body: { events: args.events },
+    })
+    return podEventsReplySchema.parse(body)
   }
 
   async threadHead(args: { threadId: string }): Promise<number> {

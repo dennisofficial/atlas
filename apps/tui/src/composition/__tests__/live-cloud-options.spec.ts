@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 
-import { currentNotices, dismissNotice } from '../../ui/notice-store'
+import { dismissNotice } from '../../ui/notice-store'
 import { liveBridgeOptionsFor } from '../live-cloud'
 import type { AtlasApp } from '../compose'
 
@@ -41,9 +41,7 @@ describe('liveBridgeOptionsFor', () => {
       'cloudUrl',
       'environment',
       'lastEventSeq',
-      'localLog',
       'onDriverLog',
-      'onMirrorFailed',
       'onRegistrationFailed',
       'projectIdOf',
       'registration',
@@ -53,13 +51,12 @@ describe('liveBridgeOptionsFor', () => {
     ])
   })
 
-  it('reports the local log head and hands the mirror the app log', async () => {
-    const { app, log, settings } = fakeApp()
+  it('reports the local log head and hands over the settings', async () => {
+    const { app, settings } = fakeApp()
 
     const options = liveBridgeOptionsFor(app)
 
     expect(await options.lastEventSeq?.({ threadId: THREAD })).toBe(42)
-    expect(options.localLog).toBe(log as never)
     expect(options.settings).toBe(settings as never)
   })
 
@@ -76,16 +73,5 @@ describe('liveBridgeOptionsFor', () => {
     const { app } = fakeApp()
 
     expect(await liveBridgeOptionsFor(app).registration?.({ threadId: THREAD })).toBeUndefined()
-  })
-
-  it('never banners a mirror blip — the mirror self-repairs and the live view is unaffected, so it is logged, not shown', () => {
-    const { app } = fakeApp()
-    const options = liveBridgeOptionsFor(app)
-
-    options.onMirrorFailed?.(new Error('wire died'))
-    options.onMirrorFailed?.(new Error('wire died again'))
-
-    expect(currentNotices().filter((notice) => notice.key === 'mirror-out-of-sync')).toHaveLength(0)
-    expect(currentNotices().some((notice) => /mirror/i.test(notice.text))).toBe(false)
   })
 })

@@ -266,11 +266,22 @@ describe('SandboxSelfController', () => {
       return (token === undefined ? call : call.set(as(token))).send(body as object)
     }
 
-    it('answers 401 with no token or a pod token on both routes', async () => {
+    it('answers 401 with no token on both routes', async () => {
       for (const path of [SANDBOX_SELF_EVENTS_PATH, SANDBOX_SELF_EVENTS_TRUNCATE_PATH]) {
         expect((await post(path, undefined, {})).status).toBe(401)
-        expect((await post(path, POD_TOKEN, {})).status).toBe(401)
       }
+    })
+
+    it('lets a pod lease token write and truncate its own thread', async () => {
+      const written = await post(SANDBOX_SELF_EVENTS_PATH, POD_TOKEN, {
+        events: [podEvent(1), podEvent(2)],
+      })
+      expect(written.status).toBe(201)
+      expect(written.body).toEqual({ head: 2 })
+
+      const truncated = await post(SANDBOX_SELF_EVENTS_TRUNCATE_PATH, POD_TOKEN, { toSeq: 1 })
+      expect(truncated.status).toBe(201)
+      expect(await eventsOf('thr-1')).toHaveLength(1)
     })
 
     it('answers 400 for a malformed batch', async () => {

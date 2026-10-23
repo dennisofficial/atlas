@@ -21,7 +21,6 @@ import { answerRewindRequest } from './rewind-request'
 import { createHistoryMutations } from './history-mutations'
 import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
-import { routeSessionMirrorRead, type SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
@@ -50,7 +49,6 @@ export function createRequestRouter(args: {
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
-  sessionMirror?: SessionMirrorRouting | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -218,15 +216,6 @@ export function createRequestRouter(args: {
         frame,
         root: threadId,
         mentions: args.mentions,
-        reply: (reply) => send({ socket, frame: reply }),
-      })
-    )
-      return
-
-    if (
-      routeSessionMirrorRead({
-        frame,
-        mirror: args.sessionMirror,
         reply: (reply) => send({ socket, frame: reply }),
       })
     )

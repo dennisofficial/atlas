@@ -98,7 +98,6 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   // The local durable log is the truth the serve's currency vouch is checked against: report
   // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
-  localLog: app.log,
   settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
@@ -122,15 +121,6 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
     noticePortBinding().notify({
       text: 'the sandbox is up, but Atlas Cloud could not register it — remote control and the cloud listing will miss it until the next birth',
       tone: ENoticeTone.Warn,
-    })
-  },
-  // The mirror self-repairs on the next sync and the live view is unaffected, so a transient
-  // sync blip is not operator-facing — log it for diagnostics, never banner it.
-  onMirrorFailed: (failure) => {
-    durableOpLog()?.warn({
-      source: 'cloud-mirror',
-      message: 'cloud session mirror fell out of sync; it self-repairs on the next sync',
-      error: failure instanceof Error ? failure.message : String(failure),
     })
   },
   environment: () => ({
