@@ -92,6 +92,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     mentions: args.mentions,
     transcript,
     selectModel,
+    persistModel: args.persistModel,
   })
 
   const checkpointField = (): { checkpoint?: RuntimeCheckpoint } => {

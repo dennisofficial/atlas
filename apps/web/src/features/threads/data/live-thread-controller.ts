@@ -8,7 +8,11 @@ import {
   type SandboxAttachment,
 } from '@dltech/atlas-client/channel'
 import { toThreadId } from '@dltech/atlas-core'
-import { readEventsReplySchema, type WireEvent } from '@dltech/atlas-wire/web'
+import {
+  readEventsReplySchema,
+  readThreadReplySchema,
+  type WireEvent,
+} from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
 import { absorbInto, EMPTY_SIGNALS, settleInto } from './live-signals'
@@ -33,6 +37,7 @@ export type LiveThreadControllerArgs = {
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
   onModelChanged?: (model: { ref: string; effort: string }) => void
+  readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
@@ -46,6 +51,8 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let everConnected = false
   let podGone = false
   let reminted = 0
+  let connected = false
+  let modelChoices = 0
   let reading = false
   let readAgain = false
   const releases: (() => void)[] = []
@@ -110,6 +117,29 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
   }
 
+  const recheckModel = async (live: RemoteDeltaChannel) => {
+    const read = args.readStoredModel
+    if (read === undefined) return
+    try {
+      const choicesBefore = modelChoices
+      const stored = await read()
+      if (stored === undefined) return
+      const reply = await live.request({
+        op: EClientRequest.ReadThread,
+        params: { threadId: args.threadId },
+      })
+      const podModel = readThreadReplySchema.parse(reply).thread?.model
+      if (stopped || fellBack || modelChoices !== choicesBefore || podModel === undefined) return
+      if (podModel.ref === stored.ref && podModel.effort === stored.effort) return
+      await live.request({
+        op: EClientRequest.SetThreadModel,
+        params: { threadId: args.threadId, model: stored },
+      })
+    } catch {
+      return
+    }
+  }
+
   const handleSignal = (live: RemoteDeltaChannel) => (signal: ChannelSignal) => {
     if (signal.type === 'events-appended') void readFromHead(live)
     if (signal.type === 'turn-working') update({ working: signal.working })
@@ -137,8 +167,11 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       everConnected = true
       reminted = 0
       update({ live: true })
+      if (!connected) void recheckModel(live)
+      connected = true
       return
     }
+    connected = false
     if (view === EConnectionView.Parked) return fallBack()
     if (view === EConnectionView.Disconnected) handleDisconnected(live)
   }
@@ -196,6 +229,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
 
   const chooseModel = async (model: { ref: string; effort: string }): Promise<boolean> => {
     const live = channel
+    modelChoices += 1
     if (stopped || fellBack || live === null) return false
     if (live.connection().state !== EConnectionView.Connected) return false
     await live.request({

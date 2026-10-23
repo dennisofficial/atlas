@@ -5,7 +5,7 @@ import { changeThreadModel } from '../change-thread-model'
 const model = { ref: 'anthropic/claude-opus-5', effort: 'high' }
 
 describe('changeThreadModel', () => {
-  it('sets it live first and patches Postgres after the pod accepted it', async () => {
+  it('sets it live only and never patches while the channel is connected', async () => {
     const calls: string[] = []
     await changeThreadModel({
       threadId: 't1',
@@ -16,7 +16,7 @@ describe('changeThreadModel', () => {
       },
       patch: async () => void calls.push('patch'),
     })
-    expect(calls).toEqual(['live', 'patch'])
+    expect(calls).toEqual(['live'])
   })
 
   it('patches only when the channel is not connected', async () => {

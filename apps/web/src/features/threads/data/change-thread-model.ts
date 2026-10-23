@@ -6,6 +6,6 @@ export async function changeThreadModel(args: {
   chooseLive: (model: ThreadModelChoice) => Promise<boolean>
   patch: (args: { threadId: string; model: ThreadModelChoice }) => Promise<void>
 }): Promise<void> {
-  await args.chooseLive(args.model)
+  if (await args.chooseLive(args.model)) return
   await args.patch({ threadId: args.threadId, model: args.model })
 }

@@ -45,6 +45,7 @@ export function rig(options?: {
   mints?: PodConnectResult[]
   seed?: WireEvent[]
   onModelChanged?: (model: { ref: string; effort: string }) => void
+  readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
 }) {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
@@ -63,6 +64,7 @@ export function rig(options?: {
     },
     readSeed: async () => options?.seed ?? [event(1), event(2)],
     ...(options?.onModelChanged === undefined ? {} : { onModelChanged: options.onModelChanged }),
+    ...(options?.readStoredModel === undefined ? {} : { readStoredModel: options.readStoredModel }),
     onChange: (next) => {
       state = next
       history.push(next)
@@ -109,7 +111,14 @@ export function rig(options?: {
     })
   }
 
+  const reply = (args: { index: number; data: object }) => {
+    const request = requests()[args.index]
+    if (request === undefined) throw new Error('no request to answer')
+    receive({ kind: EServeFrame.Reply, replyTo: request.id, ok: true, data: args.data })
+  }
+
   return {
+    reply,
     controller,
     sockets,
     retries,
