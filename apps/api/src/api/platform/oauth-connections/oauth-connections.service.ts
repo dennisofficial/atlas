@@ -58,6 +58,14 @@ export class OauthConnectionsService {
     return this.issueAccessToken({ userId: args.userId, connectionId: args.connectionId })
   }
 
+  async activeConnection(args: {
+    userId: string
+    provider: string
+  }): Promise<{ connectionId: string } | null> {
+    const row = await this.store.findActive(args)
+    return row === null ? null : { connectionId: row.id }
+  }
+
   async metadata(args: { userId: string; connectionId: string }): Promise<{
     provider: string
     authorizationId: string

@@ -11,9 +11,12 @@ import { fetchAccounts } from '@/features/settings/data/personal/accounts-api'
 import { ESettingsTarget, useCloudSettings } from '@/lib/cloud-settings'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { modelOptionsOf, type ModelOptions } from './model-options'
+import { modelOptionsOfSource, type ModelOptions } from './model-options'
+import { fetchModels, loadModelsSource } from './models-api'
 
 const PERSONAL = { kind: ESettingsTarget.Personal } as const
+
+const loadSource = () => loadModelsSource({ loadModels: fetchModels, loadAccounts: fetchAccounts })
 
 export type ModelPicker = {
   ready: boolean
@@ -28,19 +31,19 @@ export function useModelPicker(args: {
   includeAuto: boolean
   currentId?: string | undefined
 }): ModelPicker {
-  const accounts = useCloudQuery({ key: 'personal-accounts', load: fetchAccounts })
+  const source = useCloudQuery({ key: 'model-picker-source', load: loadSource })
   const settings = useCloudSettings(PERSONAL)
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const { save, read } = settings
 
   const options = useMemo(
     () =>
-      modelOptionsOf({
-        accounts: accounts.data ?? [],
+      modelOptionsOfSource({
+        source: source.data,
         includeAuto: args.includeAuto,
         currentId: args.currentId,
       }),
-    [accounts.data, args.includeAuto, args.currentId],
+    [source.data, args.includeAuto, args.currentId],
   )
 
   const stored = parsePinnedModels(
@@ -57,7 +60,7 @@ export function useModelPicker(args: {
   )
 
   return {
-    ready: accounts.state !== EQueryState.Loading && settings.query.state !== EQueryState.Loading,
+    ready: source.state !== EQueryState.Loading && settings.query.state !== EQueryState.Loading,
     options,
     personalId: read({ key: 'model.id', schema: z.string() }),
     personalEffort: read({ key: 'model.effort', schema: z.string() }),

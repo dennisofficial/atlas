@@ -16,8 +16,8 @@ import {
   ModelCardSourceToken,
   SelectableModelToken,
 } from '../container/tokens'
-import { CodexModelsCatalogue } from '../models/codex-models-catalogue'
-import { CODEX_VERSION } from '../providers/codex-version'
+import { CODEX_VERSION, CodexModelsCatalogue } from '../models'
+import { codexModelsFsPorts } from './codex-models-fs-ports'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { InferenceAdapter, INFERENCE_PROVIDER_ID } from '../providers/inference-adapter'
 import { OpenAiAdapter, OPENAI_PROVIDER_ID } from '../providers/openai-adapter'
@@ -78,6 +78,7 @@ export async function bindModels(args: {
     credentials,
     provider: EAuthProvider.OpenAI,
     clientVersion: CODEX_VERSION,
+    ports: codexModelsFsPorts(),
   })
 
   const models = modelCatalogue({

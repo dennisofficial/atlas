@@ -32,7 +32,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | Package                      | Depends on     | Owns                                                          |
 | ---------------------------- | -------------- | ------------------------------------------------------------- |
 | `@dltech/atlas-core`         | `zod` only     | Events, IDs, context assembly, hook and port contracts. Pure.  |
-| `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store.    |
+| `@dltech/atlas-harness`      | core           | The loop, hooks, tools, model adapters, credentials, store. Its `/models` subpath (`@dltech/atlas-harness/models`) is browser-safe: the live Codex list over injected fetch/cache/clock ports and the pure catalogue composition, with no `node:*`, Bun or `@ai-sdk/*` reachable. |
 | `@dltech/atlas-models` (`packages/models`) | core, `zod` | The generated model catalogue (models.dev + inference.net cards), its generator scripts, and the pure card helpers. Shared by harness and web. |
 | `@dltech/atlas-ui`           | nothing        | Design tokens and shadcn (Base UI) components + AI patterns, with their co-located stories. No Atlas imports. |
 | `@dltech/atlas-storybook` (`apps/storybook`) | ui | The Storybook host: loads the stories co-located in `ui` and owns the `App/` prototypes. |
@@ -40,7 +40,7 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
 | `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
 | `@dltech/atlas-db` (`packages/db`) | `@prisma/orm-postgres`, `pg` | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps. |
-| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire`, `@dltech/atlas-db` | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres). |
+| `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire`, `@dltech/atlas-db`, `@dltech/atlas-harness/models` (subpath only) | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres). |
 | `web` (`apps/web`) | client, core, models, ui, wire | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 
 A package boundary is worth it only where the compiler should enforce a dependency rule.

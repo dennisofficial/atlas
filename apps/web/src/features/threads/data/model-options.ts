@@ -1,5 +1,6 @@
 import { refKey, supportedEfforts, type ModelCard } from '@dltech/atlas-core'
 import { generatedCards } from '@dltech/atlas-models'
+import { EModelProviderStatus, type ModelEntry, type ModelsResponse } from '@dltech/atlas-wire/web'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { EEffort, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
@@ -44,11 +45,13 @@ export function contextLabelOf(tokens: number): string {
   return `${Math.round(tokens / 1000)}k`
 }
 
-function rateOf(card: ModelCard): string | undefined {
-  if (card.cost === undefined) return undefined
-  if (card.cost.inputPerMillion < CHEAP_INPUT_PER_MILLION) return '$'
-  return card.cost.inputPerMillion < PRICEY_INPUT_PER_MILLION ? '$$' : '$$$'
+function rateForInput(inputPerMillion: number | undefined): string | undefined {
+  if (inputPerMillion === undefined) return undefined
+  if (inputPerMillion < CHEAP_INPUT_PER_MILLION) return '$'
+  return inputPerMillion < PRICEY_INPUT_PER_MILLION ? '$$' : '$$$'
 }
+
+const rateOf = (card: ModelCard): string | undefined => rateForInput(card.cost?.inputPerMillion)
 
 export function effortsOf(card: ModelCard): EEffort[] {
   return supportedEfforts(card.effort).flatMap((effort) => {
@@ -105,4 +108,65 @@ export function modelOptionsOf(args: {
     .map(providerNameOf)
   const withAuto = args.includeAuto !== false && models.length > 0
   return { models: withAuto ? [AUTO_OPTION, ...models] : models, reconnectProviders }
+}
+
+export type ModelsSource =
+  | { kind: 'live'; response: ModelsResponse }
+  | { kind: 'accounts'; accounts: readonly AccountSummary[] }
+
+const effortsFromNames = (names: readonly string[]): EEffort[] =>
+  names.flatMap((name) => {
+    const mapped = efforts.get(name)
+    return mapped === undefined ? [] : [mapped]
+  })
+
+function optionOfEntry(args: { providerId: string; entry: ModelEntry }): ModelOption {
+  const { providerId, entry } = args
+  const brand = PROVIDER_BRANDS[providerId]
+  const rate = rateForInput(entry.inputPerMillion)
+  return {
+    id: entry.id,
+    label: entry.label,
+    provider: providerNameOf(providerId),
+    context: contextLabelOf(entry.contextWindow),
+    contextTokens: entry.contextWindow,
+    efforts: effortsFromNames(entry.efforts),
+    monogram: providerNameOf(providerId).slice(0, 1),
+    ...(brand === undefined ? {} : { brand }),
+    ...(rate === undefined ? {} : { rate }),
+  }
+}
+
+export function modelOptionsFromResponse(args: {
+  response: ModelsResponse
+  includeAuto?: boolean
+  currentId?: string | undefined
+}): ModelOptions {
+  const offered = args.response.providers
+    .filter((provider) => provider.status === EModelProviderStatus.Connected)
+    .flatMap((provider) =>
+      provider.models.map((entry) => optionOfEntry({ providerId: provider.id, entry })),
+    )
+  const currentId = args.currentId
+  const models =
+    currentId === undefined || offered.some((option) => option.id === currentId)
+      ? offered
+      : [...offered, { id: currentId, label: currentId }]
+  const reconnectProviders = args.response.providers
+    .filter((provider) => provider.status === EModelProviderStatus.Expired)
+    .map((provider) => providerNameOf(provider.id))
+  const withAuto = args.includeAuto !== false && models.length > 0
+  return { models: withAuto ? [AUTO_OPTION, ...models] : models, reconnectProviders }
+}
+
+export function modelOptionsOfSource(args: {
+  source: ModelsSource | undefined
+  includeAuto?: boolean
+  currentId?: string | undefined
+}): ModelOptions {
+  const { source, ...rest } = args
+  if (source === undefined) return { models: [], reconnectProviders: [] }
+  if (source.kind === 'live')
+    return modelOptionsFromResponse({ response: source.response, ...rest })
+  return modelOptionsOf({ accounts: source.accounts, ...rest })
 }

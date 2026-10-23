@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           (cd packages/harness && bun run generate:codex-version)
-          pinned=packages/harness/src/providers/codex-version.ts
+          pinned=packages/harness/src/models/codex-version.ts
           if git diff --quiet -- "$pinned"; then
             echo "codex client version is fresh"
             exit 0

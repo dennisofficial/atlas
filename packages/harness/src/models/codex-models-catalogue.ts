@@ -1,20 +1,14 @@
-import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-
 import {
   EAuthKind,
-  EEffort,
-  EImageTier,
   type CredentialPort,
   type EAuthProvider,
   type ModelCard,
   type OauthCredential,
 } from '@dltech/atlas-core'
-import { z } from 'zod'
 
-import { atlasDirectory } from '../store/paths'
+import { parseCacheEntry, type CacheEntry } from './codex-cache-entry'
 import { hasListedModel, ModelsResponseSchema, toCodexModelCards } from './codex-models-response'
+import type { CodexModelsPorts } from './codex-ports'
 
 // openai/codex codex-rs/core/src/models_manager (manager.rs, cache.rs): the picker is fetched from
 // GET /models?client_version=<X.Y.Z>, cached in $CODEX_HOME/models_cache.json for 300s, revalidated
@@ -22,55 +16,20 @@ import { hasListedModel, ModelsResponseSchema, toCodexModelCards } from './codex
 // ChatGPT accounts whenever it carries at least one `visibility: "list"` model.
 const CODEX_MODELS_URL = 'https://chatgpt.com/backend-api/codex/models'
 const CODEX_ORIGINATOR = 'codex_cli_rs'
-const CACHE_FILE_NAME = 'codex-models-cache.json'
 export const CODEX_MODELS_TTL_MS = 300_000
-
-export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
-
-const CachedCardSchema = z.object({
-  ref: z.object({ providerId: z.string(), modelId: z.string() }),
-  label: z.string(),
-  api: z.string(),
-  contextWindow: z.number(),
-  imageTier: z.enum(EImageTier),
-  effort: z.partialRecord(z.enum(EEffort), z.union([z.string(), z.number()])).optional(),
-})
-
-const CacheEntrySchema = z.object({
-  identity: z.string(),
-  fetchedAt: z.string(),
-  etag: z.string().optional(),
-  cards: z.array(CachedCardSchema),
-})
-
-type CacheEntry = { identity: string; fetchedAt: string; etag?: string; cards: ModelCard[] }
-
-const toCacheEntry = (raw: z.infer<typeof CacheEntrySchema>): CacheEntry => ({
-  identity: raw.identity,
-  fetchedAt: raw.fetchedAt,
-  ...(raw.etag === undefined ? {} : { etag: raw.etag }),
-  cards: raw.cards.map(({ effort, ...card }) => ({
-    ...card,
-    ...(effort === undefined ? {} : { effort }),
-  })),
-})
-
-export const codexCacheIdentity = (credential: OauthCredential): string =>
-  createHash('sha256')
-    .update(credential.providerAccountId ?? credential.accountId)
-    .digest('hex')
 
 const sameCards = (a: readonly ModelCard[], b: readonly ModelCard[]): boolean =>
   JSON.stringify(a) === JSON.stringify(b)
+
+const isPromise = <T>(value: T | Promise<T>): value is Promise<T> =>
+  typeof value === 'object' && value !== null && 'then' in value
 
 export class CodexModelsCatalogue {
   private readonly credentials: CredentialPort
   private readonly provider: EAuthProvider
   private readonly clientVersion: string
-  private readonly fetchImpl: FetchLike
-  private readonly cacheFile: string
+  private readonly ports: CodexModelsPorts
   private readonly ttlMs: number
-  private readonly now: () => string
 
   private held: CacheEntry | undefined
   private seeded: { entry: CacheEntry | undefined } | undefined
@@ -83,18 +42,14 @@ export class CodexModelsCatalogue {
     credentials: CredentialPort
     provider: EAuthProvider
     clientVersion: string
-    fetch?: FetchLike
-    cacheFile?: string
+    ports: CodexModelsPorts
     ttlMs?: number
-    now?: () => string
   }) {
     this.credentials = args.credentials
     this.provider = args.provider
     this.clientVersion = args.clientVersion
-    this.fetchImpl = args.fetch ?? ((url, init) => fetch(url, init))
-    this.cacheFile = args.cacheFile ?? join(atlasDirectory(), CACHE_FILE_NAME)
+    this.ports = args.ports
     this.ttlMs = args.ttlMs ?? CODEX_MODELS_TTL_MS
-    this.now = args.now ?? (() => new Date().toISOString())
   }
 
   readCached(): ModelCard[] | undefined {
@@ -141,8 +96,8 @@ export class CodexModelsCatalogue {
   }
 
   private async revalidateFor(credential: OauthCredential): Promise<void> {
-    const identity = codexCacheIdentity(credential)
-    const entry = this.held ?? this.loadEntry()
+    const identity = await this.ports.identityOf(credential)
+    const entry = this.held ?? (await this.readEntry())
     const sameAccount = entry?.identity === identity
 
     if (entry !== undefined && !sameAccount) this.adopt(undefined)
@@ -151,12 +106,12 @@ export class CodexModelsCatalogue {
       return
     }
 
-    const response = await this.fetchImpl(this.modelsUrl(), {
+    const response = await this.ports.fetch(this.modelsUrl(), {
       headers: this.headersFor({ credential, etag: sameAccount ? entry?.etag : undefined }),
     })
 
     if (response.status === 304 && entry !== undefined && sameAccount) {
-      this.store({ ...entry, fetchedAt: this.now() })
+      await this.store({ ...entry, fetchedAt: this.ports.now() })
       return
     }
     if (!response.ok) throw new Error(`codex models request failed: ${response.status}`)
@@ -165,9 +120,9 @@ export class CodexModelsCatalogue {
     if (!hasListedModel(parsed.models)) return
 
     const etag = response.headers.get('etag') ?? undefined
-    this.store({
+    await this.store({
       identity,
-      fetchedAt: this.now(),
+      fetchedAt: this.ports.now(),
       ...(etag === undefined ? {} : { etag }),
       cards: toCodexModelCards({ models: parsed.models, providerId: this.provider }),
     })
@@ -192,33 +147,48 @@ export class CodexModelsCatalogue {
   }
 
   private isFresh(entry: CacheEntry): boolean {
-    const age = Date.parse(this.now()) - Date.parse(entry.fetchedAt)
+    const age = Date.parse(this.ports.now()) - Date.parse(entry.fetchedAt)
     return Number.isFinite(age) && age >= 0 && age < this.ttlMs
   }
 
   private loadEntry(): CacheEntry | undefined {
     try {
-      const parsed = CacheEntrySchema.safeParse(JSON.parse(readFileSync(this.cacheFile, 'utf8')))
-      return parsed.success ? toCacheEntry(parsed.data) : undefined
+      const text = this.ports.cache.read()
+      return isPromise(text) ? undefined : parseCacheEntry(text)
     } catch {
       return undefined
     }
   }
 
-  private persist(entry: CacheEntry): void {
+  private async readEntry(): Promise<CacheEntry | undefined> {
     try {
-      mkdirSync(dirname(this.cacheFile), { recursive: true })
-      const staging = `${this.cacheFile}.${process.pid}.tmp`
-      writeFileSync(staging, JSON.stringify(entry))
-      renameSync(staging, this.cacheFile)
+      const entry = parseCacheEntry(await this.ports.cache.read())
+      this.seed(entry)
+      return entry
+    } catch {
+      return undefined
+    }
+  }
+
+  private seed(entry: CacheEntry | undefined): void {
+    if (this.seeded?.entry !== undefined || entry === undefined) return
+    const before = this.cards() ?? []
+    this.seeded = { entry }
+    if (sameCards(before, this.cards() ?? [])) return
+    this.announce()
+  }
+
+  private async persist(entry: CacheEntry): Promise<void> {
+    try {
+      await this.ports.cache.write(JSON.stringify(entry))
     } catch (fault) {
       this.failure = fault instanceof Error ? fault.message : String(fault)
     }
   }
 
-  private store(entry: CacheEntry): void {
+  private async store(entry: CacheEntry): Promise<void> {
     this.adopt(entry)
-    this.persist(entry)
+    await this.persist(entry)
   }
 
   private adopt(entry: CacheEntry | undefined): void {
@@ -227,6 +197,10 @@ export class CodexModelsCatalogue {
     const after = this.cards() ?? []
     if (sameCards(before, after)) return
 
+    this.announce()
+  }
+
+  private announce(): void {
     this.bumps += 1
     for (const listener of this.listeners) listener()
   }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFile } from 'node:fs/promises'
 
-import { CODEX_VERSION } from '../../src/providers/codex-version'
+import { CODEX_VERSION } from '../../src/models/codex-version'
 
 const HARNESS_ROOT = new URL('../../', import.meta.url)
 const WORKFLOW_PATH = new URL('../../../../.github/workflows/codex-version.yml', import.meta.url)
@@ -16,7 +16,7 @@ describe('codex version pin', () => {
       new URL('scripts/generate-codex-version.ts', HARNESS_ROOT),
       'utf8',
     )
-    expect(script).toContain("'../src/providers/codex-version'")
+    expect(script).toContain("'../src/models/codex-version'")
     expect(script).toContain('CODEX_VERSION')
     expect(script).toContain('openai/codex/releases/latest')
   })
@@ -32,7 +32,7 @@ describe('codex version pin', () => {
   test('the workflow runs the script and diffs the pinned file', async () => {
     const workflow = await readFile(WORKFLOW_PATH, 'utf8')
     expect(workflow).toContain('bun run generate:codex-version')
-    expect(workflow).toContain('packages/harness/src/providers/codex-version.ts')
+    expect(workflow).toContain('packages/harness/src/models/codex-version.ts')
     expect(workflow).toContain('codex-version/$version')
     expect(workflow).toContain('fix(harness): bump codex client version to $version')
   })

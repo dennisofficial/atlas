@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./models": "./src/models/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {

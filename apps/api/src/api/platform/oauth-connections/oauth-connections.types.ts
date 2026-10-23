@@ -62,6 +62,7 @@ export abstract class OauthConnectionStore {
     sealedTokens: string
   }): Promise<boolean>
   abstract find(args: { id: string }): Promise<ConnectionRow | null>
+  abstract findActive(args: { userId: string; provider: string }): Promise<{ id: string } | null>
   abstract claim(args: {
     id: string
     userId: string
