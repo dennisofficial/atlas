@@ -5,18 +5,18 @@ import {
   queryTerms,
 } from '@dltech/atlas-ui/ai/model-selector'
 
-import type { EProviderId } from '../../../fixtures/settings-agent'
+import type { EProviderId } from '@dltech/atlas-ui/fixtures/settings-agent'
 import {
   PROVIDER_LABELS,
   type EAgentRole,
   type ModelsConfig,
   type ProviderAccessMap,
-} from '../../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import {
   CATALOGUE_MODELS,
   type CatalogueModel,
   type CatalogueRow,
-} from '../../../fixtures/settings-models-catalogue'
+} from '@dltech/atlas-ui/fixtures/settings-models-catalogue'
 import { modelUsers } from './model-state'
 import { ERouteKind, servedBy, viasFor, type Via } from './model-routes'
 

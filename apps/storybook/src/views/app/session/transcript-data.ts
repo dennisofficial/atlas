@@ -7,7 +7,7 @@ import {
   GIT_STATUS_OUTPUT,
   REASONING_TEXT,
   TYPECHECK_OUTPUT,
-} from '../../../fixtures/agent'
+} from '@dltech/atlas-ui/fixtures/agent'
 import { ESessionState } from './session-types'
 
 export interface StepSpec {

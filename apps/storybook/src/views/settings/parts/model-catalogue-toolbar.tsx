@@ -19,8 +19,8 @@ import {
 } from '@dltech/atlas-ui/components/select'
 import { Toggle } from '@dltech/atlas-ui/components/toggle'
 
-import { EProviderId } from '../../../fixtures/settings-agent'
-import { PROVIDER_LABELS, type ProviderAccessMap } from '../../../fixtures/settings-models'
+import { EProviderId } from '@dltech/atlas-ui/fixtures/settings-agent'
+import { PROVIDER_LABELS, type ProviderAccessMap } from '@dltech/atlas-ui/fixtures/settings-models'
 import { ECatalogueRoute, type RouteFilter } from './model-catalogue-state'
 import { PROVIDER_PRECEDENCE, routeFor, EReach } from './model-routes'
 

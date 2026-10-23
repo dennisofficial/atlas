@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import {
   CHATGPT_SUBSCRIPTION_NEAR_LIMIT,
   CLAUDE_SUBSCRIPTION_NEAR_LIMIT,
-} from '../../fixtures/settings-agent'
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 import { ProvidersPage } from './pages/providers'
 import { ESettingsPage } from './settings-nav'
 import { renderSettingsPage } from './settings-pages'

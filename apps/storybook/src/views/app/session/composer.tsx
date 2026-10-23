@@ -7,7 +7,7 @@ import { PromptInput } from '@dltech/atlas-ui/ai/prompt-input'
 import { TaskDock, type QueuedMessage } from '@dltech/atlas-ui/ai/task-dock'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { MODELS } from '../../../fixtures/agent'
+import { MODELS } from '@dltech/atlas-ui/fixtures/agent'
 
 export interface ComposerProps {
   steps?: PlanStep[]

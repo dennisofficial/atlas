@@ -7,7 +7,7 @@ import {
   EUsageWindow,
   type SubscriptionAccount,
   type UsageReading,
-} from '../../../fixtures/settings-agent'
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 import { Mono, SettingsRow } from '../settings-layout'
 import { BrandMark, type EBrand } from '@dltech/atlas-ui/components/brand-mark'
 

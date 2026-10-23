@@ -7,7 +7,7 @@ import {
   type EAgentRole,
   type ModelsConfig,
   type ProviderAccessMap,
-} from '../../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import {
   CATALOGUE_MODELS,
   MODEL_BY_KEY,
@@ -18,7 +18,7 @@ import {
   priceLabel,
   type CatalogueModel,
   type CatalogueRow,
-} from '../../../fixtures/settings-models-catalogue'
+} from '@dltech/atlas-ui/fixtures/settings-models-catalogue'
 import {
   EReach,
   ERouteKind,

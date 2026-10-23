@@ -4,7 +4,7 @@ import { ChangesPanel, type ChangeScopeOption } from '@dltech/atlas-ui/ai/change
 import { FileTree } from '@dltech/atlas-ui/ai/file-tree'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
-import { CHANGED_FILES } from '../../../fixtures/agent'
+import { CHANGED_FILES } from '@dltech/atlas-ui/fixtures/agent'
 import { CHANGE_SCOPES, filesInScope } from './session-changes'
 import { PodChanges, PodFiles, PodPreview, PodTerminal } from './pod-panels'
 import type { PodPanelState } from './pod-state'

@@ -1,6 +1,12 @@
-import { EProviderId } from '../../../fixtures/settings-agent'
-import { EConnectionStatus, type ProviderAccessMap } from '../../../fixtures/settings-models'
-import type { CatalogueModel, CatalogueRow } from '../../../fixtures/settings-models-catalogue'
+import { EProviderId } from '@dltech/atlas-ui/fixtures/settings-agent'
+import {
+  EConnectionStatus,
+  type ProviderAccessMap,
+} from '@dltech/atlas-ui/fixtures/settings-models'
+import type {
+  CatalogueModel,
+  CatalogueRow,
+} from '@dltech/atlas-ui/fixtures/settings-models-catalogue'
 
 export enum EReach {
   Ready = 'ready',

@@ -11,7 +11,7 @@ import {
   UNKNOWN_PREFIX_MASK,
   type ApiKeyEntry,
   type SubscriptionAccount,
-} from '../../../fixtures/settings-agent'
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 import { ApiKeyRow } from '../parts/agent-api-key-row'
 import { SubscriptionRow } from '../parts/agent-subscription-row'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'

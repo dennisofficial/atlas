@@ -4,8 +4,12 @@ import { Badge } from '@dltech/atlas-ui/components/badge'
 import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { ROLE_META } from '../../../fixtures/settings-models'
-import { contextLabel, familyMark, priceLabel } from '../../../fixtures/settings-models-catalogue'
+import { ROLE_META } from '@dltech/atlas-ui/fixtures/settings-models'
+import {
+  contextLabel,
+  familyMark,
+  priceLabel,
+} from '@dltech/atlas-ui/fixtures/settings-models-catalogue'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { MonogramTile } from '../settings-layout'
 import type { CatalogueEntry } from './model-catalogue-state'

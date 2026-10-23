@@ -7,7 +7,7 @@ import {
   ACCESS_OPENROUTER_ONLY,
   EAgentRole,
   RECONNECT_MODELS_CONFIG,
-} from '../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import { ModelsEffortPage } from './pages/models-effort'
 import { ESettingsPage } from './settings-nav'
 import { renderSettingsPage } from './settings-pages'

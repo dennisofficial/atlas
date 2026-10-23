@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { EModelFilter } from '@dltech/atlas-ui/ai/model-selector'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import type { ModelsConfig, ProviderAccessMap } from '../../../fixtures/settings-models'
+import type { ModelsConfig, ProviderAccessMap } from '@dltech/atlas-ui/fixtures/settings-models'
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { CatalogueRow } from './model-catalogue-row'
 import {

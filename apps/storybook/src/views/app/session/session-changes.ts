@@ -5,7 +5,7 @@ import {
 } from '@dltech/atlas-ui/ai/changes-panel'
 import type { DiffLine } from '@dltech/atlas-ui/ai/diff-viewer'
 
-import { DIFF_LINES } from '../../../fixtures/agent'
+import { DIFF_LINES } from '@dltech/atlas-ui/fixtures/agent'
 
 const THEME_LINES: DiffLine[] = [
   { kind: 'context', text: ':root {', oldNumber: 1, newNumber: 1 },

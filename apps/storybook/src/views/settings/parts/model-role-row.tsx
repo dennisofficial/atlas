@@ -10,7 +10,7 @@ import {
   type EAgentRole,
   type ModelsConfig,
   type ProviderAccessMap,
-} from '../../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import { SettingsRow } from '../settings-layout'
 import { EReach } from './model-routes'
 import {

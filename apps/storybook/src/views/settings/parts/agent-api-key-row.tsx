@@ -5,7 +5,7 @@ import {
   KEY_PREFIXES,
   type ApiKeyEntry,
   type ApiKeyProvider,
-} from '../../../fixtures/settings-agent'
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 import { MonogramTile, Mono, SettingsRow } from '../settings-layout'
 import { KeyDialog } from './agent-key-dialog'
 

@@ -9,7 +9,7 @@ import {
   type EAgentRole,
   type ModelsConfig,
   type ProviderAccessMap,
-} from '../../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import { ConfigFooter } from '../parts/agent-config-footer'
 import { ModelCatalogue } from '../parts/model-catalogue'
 import { ModelsEmpty } from '../parts/model-empty'

@@ -1,4 +1,4 @@
-import { BUN_TEST_OUTPUT } from '../../../fixtures/agent'
+import { BUN_TEST_OUTPUT } from '@dltech/atlas-ui/fixtures/agent'
 
 export enum ETerminalConnection {
   Connecting = 'connecting',

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { EEffort, EModelFilter } from '@dltech/atlas-ui/ai/model-selector'
 
-import { EProviderId } from '../../../../fixtures/settings-agent'
+import { EProviderId } from '@dltech/atlas-ui/fixtures/settings-agent'
 import {
   ACCESS_ALL,
   ACCESS_CLAUDE_EXPIRED,
@@ -12,13 +12,13 @@ import {
   AUTO_MODEL,
   DEFAULT_MODELS_CONFIG,
   EAgentRole,
-} from '../../../../fixtures/settings-models'
+} from '@dltech/atlas-ui/fixtures/settings-models'
 import {
   CATALOGUE_MODELS,
   CATALOGUE_ROW_COUNT,
   contextLabel,
   priceLabel,
-} from '../../../../fixtures/settings-models-catalogue'
+} from '@dltech/atlas-ui/fixtures/settings-models-catalogue'
 import {
   ECatalogueRoute,
   PAGE_SIZE,

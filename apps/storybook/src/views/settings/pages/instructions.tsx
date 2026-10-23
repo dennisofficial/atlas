@@ -5,7 +5,10 @@ import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/mark
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { GLOBAL_INSTRUCTIONS_RICH, INSTRUCTIONS_CHAR_LIMIT } from '../../../fixtures/settings-agent'
+import {
+  GLOBAL_INSTRUCTIONS_RICH,
+  INSTRUCTIONS_CHAR_LIMIT,
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 
 const COPIED_RESET_MS = 1500
 

@@ -18,6 +18,9 @@ const preview: Preview = {
   parameters: {
     layout: 'centered',
     nextjs: { appDirectory: true },
+    options: {
+      storySort: { order: ['Foundations', 'Components', 'AI', 'App'] },
+    },
   },
   globalTypes: {
     theme: {

@@ -15,7 +15,10 @@ and fonts. The repo `CLAUDE.md` has the repo-wide philosophy; read it first.
   `src/styles/theme.css` (generated, never hand-edited).
 - `src/styles/` — `theme.css` (generated), `base.css`, `fonts.css`.
 
-Stories do not live here. They live in `apps/storybook`.
+Stories live next to the module they document (`button.tsx` -> `button.stories.tsx`), plus
+`src/tokens/{colors,typography}.stories.tsx`. Story data shared with specs lives in `src/fixtures/`
+(exported as `@dltech/atlas-ui/fixtures/<name>`; dev data only). `apps/storybook` is the Storybook
+host: it loads these stories and owns the `Views/` prototypes.
 
 ## Commands
 
@@ -61,12 +64,12 @@ Inside the package, use the `imports` aliases: `#components/*`, `#lib/*`, `#hook
   parameters, `E`-enums). Everything else in this package follows it, including `src/ai`,
   `src/tokens`, and the specs.
 - Compose, don't restyle: variants via the component's own props, `className` only for layout.
-- A component is not done without a story in `apps/storybook`.
+- A component is not done without a `<name>.stories.tsx` next to it.
 
 ## AI patterns (`src/ai`)
 
 House style applies. Compose from `#components/*`; no direct Base UI imports unless a component
-needs a primitive shadcn does not wrap. Every pattern ships a story in `apps/storybook/src/ai`.
+needs a primitive shadcn does not wrap. Every pattern ships a `<name>.stories.tsx` next to it in `src/ai`.
 
 ## Tokens
 
@@ -81,9 +84,11 @@ needs a primitive shadcn does not wrap. Every pattern ships a story in `apps/sto
 
 ## Story coverage
 
-`apps/storybook/__tests__/story-coverage.spec.ts` fails if any file in `src/components` lacks
-`apps/storybook/src/components/<name>.stories.tsx`, or any file in `src/ai` lacks
-`apps/storybook/src/ai/<name>.stories.tsx`.
+`src/__tests__/story-coverage.spec.ts` fails if any `src/components/<name>.tsx` or
+`src/ai/<name>.tsx` lacks a sibling `<name>.stories.tsx`.
+
+Stories import Storybook types from `@storybook/react` (the renderer package), never from a
+framework package, so `next` stays out of the design system.
 
 ## Decisions
 

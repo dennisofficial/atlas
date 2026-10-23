@@ -5,7 +5,7 @@ import {
   GLOBAL_INSTRUCTIONS,
   GLOBAL_INSTRUCTIONS_RICH,
   OVER_LIMIT_INSTRUCTIONS,
-} from '../../fixtures/settings-agent'
+} from '@dltech/atlas-ui/fixtures/settings-agent'
 import { InstructionsPage } from './pages/instructions'
 import { ESettingsPage } from './settings-nav'
 import { renderSettingsPage } from './settings-pages'

@@ -170,7 +170,7 @@
       }
     },
     {
-      "includes": ["apps/storybook/**"],
+      "includes": ["apps/storybook/**", "**/*.stories.tsx"],
       "linter": {
         "rules": {
           "a11y": {
