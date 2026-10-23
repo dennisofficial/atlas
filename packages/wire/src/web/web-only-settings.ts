@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { PINNED_MODELS_FALLBACK, pinnedModelsSettingSchema } from './pinned-models'
 import type { CloudSettingEntry } from './setting-entry'
 import { ESettingConsumer, settingEntry } from './setting-entry'
 import {
@@ -59,6 +60,11 @@ export const WEB_ONLY_SETTING_ENTRIES = [
     key: 'web.models.subagentEffort',
     schema: effortSchema,
     fallback: EEffortLevel.Medium,
+  }),
+  webEntry({
+    key: 'web.models.pinned',
+    schema: pinnedModelsSettingSchema,
+    fallback: PINNED_MODELS_FALLBACK,
   }),
   webEntry({ key: 'web.models.classifierModel', schema: z.string(), fallback: '' }),
   webEntry({

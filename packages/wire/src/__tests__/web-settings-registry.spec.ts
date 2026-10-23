@@ -5,6 +5,7 @@ import {
   decodeSettingValue,
   encodeSettingValue,
   ESettingConsumer,
+  parsePinnedModels,
   validateCloudSetting,
   validateWorkspaceSetting,
   WORKSPACE_SETTING_REGISTRY,
@@ -76,6 +77,28 @@ describe('cloud setting registry', () => {
     for (const [key, value, ok] of cases) {
       expect(validateCloudSetting({ key, stored: stored(value) }).ok).toBe(ok)
     }
+  })
+
+  it('accepts pinned models only as a json array of strings', () => {
+    const cases: Array<[string, boolean]> = [
+      ['[]', true],
+      ['["anthropic/claude-opus-4-7","openai/gpt-5"]', true],
+      ['[1]', false],
+      ['{"a":1}', false],
+      ['not json', false],
+    ]
+    for (const [value, ok] of cases) {
+      expect(validateCloudSetting({ key: 'web.models.pinned', stored: stored(value) }).ok).toBe(ok)
+    }
+  })
+
+  it('parses pinned models and falls back to an empty list', () => {
+    expect(parsePinnedModels('["a/b","c/d"]')).toEqual(['a/b', 'c/d'])
+    expect(parsePinnedModels(undefined)).toEqual([])
+    expect(parsePinnedModels('')).toEqual([])
+    expect(parsePinnedModels('nope')).toEqual([])
+    expect(parsePinnedModels('[1,"a/b"]')).toEqual([])
+    expect(parsePinnedModels(7)).toEqual([])
   })
 
   it('has 18 notification event keys and tags consumers', () => {
