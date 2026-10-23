@@ -225,6 +225,22 @@ describe('the command menu', () => {
     }
   }, 60_000)
 
+  it('completes a name when tab lands before the menu has rendered', async () => {
+    const setup = await opened(appWith())
+
+    try {
+      await setup.mockInput.typeText('/hel')
+      setup.mockInput.pressTab()
+      await landed(setup)
+      await setup.mockInput.typeText('now')
+      await landed(setup)
+
+      expect(setup.captureCharFrame()).toContain('/help now')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
   it('leaves no stray tab in the draft when tab completes a name', async () => {
     const setup = await opened(appWith())
 

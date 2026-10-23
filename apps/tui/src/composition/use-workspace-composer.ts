@@ -52,6 +52,8 @@ export function useWorkspaceComposer(args: {
   const currentFiles = useRef(files)
   currentFiles.current = files
 
+  const readLiveText = useCallback(() => draft.editor.current?.plainText, [draft.editor])
+
   const menus = useComposerMenus({
     specs,
     files,
@@ -59,6 +61,7 @@ export function useWorkspaceComposer(args: {
     onProblem: reportMentionProblem,
     currentDirectory: conversation.projectDirectory,
     onComplete: draft.setValue,
+    liveText: readLiveText,
   })
   const readDraft = useRef(menus.handleTextChanged)
   readDraft.current = menus.handleTextChanged
