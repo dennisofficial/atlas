@@ -29,7 +29,7 @@ export function LibraryRowMenu({
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-36">
+      <DropdownMenuContent align="end" className="w-auto min-w-40">
         {actions.map((action) => (
           <span key={action.label} className="contents">
             {action.destructive ? <DropdownMenuSeparator /> : null}

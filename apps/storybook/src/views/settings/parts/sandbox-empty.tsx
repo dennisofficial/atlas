@@ -8,7 +8,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 
-export function UsageSandboxEmpty() {
+export function SandboxEmpty() {
   return (
     <Empty className="border">
       <EmptyHeader>
@@ -16,9 +16,7 @@ export function UsageSandboxEmpty() {
           <ServerIcon />
         </EmptyMedia>
         <EmptyTitle>No sandboxes running</EmptyTitle>
-        <EmptyDescription>
-          Sandboxes start when a cloud thread needs one and show up here while they run.
-        </EmptyDescription>
+        <EmptyDescription>They appear here while a cloud thread is running.</EmptyDescription>
       </EmptyHeader>
     </Empty>
   )

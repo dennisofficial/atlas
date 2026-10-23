@@ -16,12 +16,14 @@ import { Label } from '@dltech/atlas-ui/components/label'
 export function KeyDialog({
   providerName,
   placeholder,
+  envVar,
   triggerLabel,
   primary = false,
   onSave,
 }: {
   providerName: string
   placeholder: string
+  envVar: string
   triggerLabel: string
   primary?: boolean
   onSave: (key: string) => void
@@ -64,6 +66,9 @@ export function KeyDialog({
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />
+          <span className="text-xs text-muted-foreground">
+            Read as <span className="font-mono">{envVar}</span>.
+          </span>
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>

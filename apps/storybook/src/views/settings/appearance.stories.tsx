@@ -5,7 +5,7 @@ import { renderSettingsPage } from './settings-pages'
 import { SettingsShell } from './settings-shell'
 
 const meta = {
-  title: 'Views/Settings/Personal/Appearance',
+  title: 'Views/Settings/Appearance',
   parameters: { layout: 'fullscreen' },
 } satisfies Meta
 

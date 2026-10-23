@@ -1,86 +1,89 @@
-import { useEffect } from 'react'
-
-import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
+import { useEffect, useState } from 'react'
 
 import {
+  ACCESS_ALL,
   DEFAULT_MODELS_CONFIG,
+  DEFAULT_PINNED,
   EDITED_MODELS_CONFIG,
-  EPreset,
-  PRESETS,
-  PRESET_LABELS,
   ROLE_ORDER,
   type EAgentRole,
   type ModelsConfig,
-  type RoleSetting,
-} from '../../../fixtures/settings-agent'
+  type ProviderAccessMap,
+} from '../../../fixtures/settings-models'
 import { ConfigFooter } from '../parts/agent-config-footer'
-import { RoleCard } from '../parts/agent-role-card'
-import { SettingsPage, SettingsSection } from '../settings-layout'
+import { ModelCatalogue } from '../parts/model-catalogue'
+import { ModelsEmpty } from '../parts/model-empty'
+import { RoleRow } from '../parts/model-role-row'
+import { hasAnyRoute } from '../parts/model-routes'
+import { catalogueOptions } from '../parts/model-state'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 import { useDraft } from '../use-draft'
 
-const PRESET_ORDER = [EPreset.Fast, EPreset.Balanced, EPreset.Thorough]
+const noop = () => undefined
 
-function findActivePreset(config: ModelsConfig): EPreset | null {
-  const serialized = JSON.stringify(config)
-  return PRESET_ORDER.find((preset) => JSON.stringify(PRESETS[preset]) === serialized) ?? null
-}
+const DESCRIPTION = 'Pick the model and how hard it thinks for each part of the agent.'
 
-function isPreset(value: unknown): value is EPreset {
-  return PRESET_ORDER.some((preset) => preset === value)
-}
-
-export function ModelsEffortPage({ startEdited = false }: { startEdited?: boolean }) {
-  const draft = useDraft<ModelsConfig>(DEFAULT_MODELS_CONFIG)
+export function ModelsEffortPage({
+  startEdited = false,
+  initialConfig = DEFAULT_MODELS_CONFIG,
+  access = ACCESS_ALL,
+  openRole,
+  initialQuery,
+  onOpenProviders = noop,
+}: {
+  startEdited?: boolean
+  initialConfig?: ModelsConfig
+  access?: ProviderAccessMap
+  openRole?: EAgentRole
+  initialQuery?: string
+  onOpenProviders?: () => void
+}) {
+  const draft = useDraft<ModelsConfig>(initialConfig)
   const { setValue } = draft
-  const activePreset = findActivePreset(draft.value)
+  const [pinned, setPinned] = useState(DEFAULT_PINNED)
 
   useEffect(() => {
     if (startEdited) setValue(EDITED_MODELS_CONFIG)
   }, [startEdited, setValue])
 
-  const handlePresetChange = (selected: unknown[]) => {
-    const next = selected[0]
-    if (isPreset(next)) setValue(PRESETS[next])
+  if (!hasAnyRoute(access)) {
+    return (
+      <SettingsPage title="Models & Effort" description={DESCRIPTION}>
+        <ModelsEmpty onOpenProviders={onOpenProviders} />
+      </SettingsPage>
+    )
   }
-  const handleRoleChange = (role: EAgentRole, setting: RoleSetting) =>
-    setValue({ ...draft.value, [role]: setting })
+
+  const options = catalogueOptions(access)
 
   return (
-    <SettingsPage
-      title="Models & Effort"
-      description="Choose which model each part of the agent runs on and how hard it thinks."
-    >
-      <SettingsSection
-        title="Presets"
-        description="Set every role at once. Editing a role switches this to Custom."
-        actions={
-          activePreset ? null : (
-            <span className="font-mono text-xs text-muted-foreground">Custom</span>
-          )
-        }
-      >
-        <ToggleGroup
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={activePreset ? [activePreset] : []}
-          onValueChange={handlePresetChange}
-        >
-          {PRESET_ORDER.map((preset) => (
-            <ToggleGroupItem key={preset} value={preset} className="px-4">
-              {PRESET_LABELS[preset]}
-            </ToggleGroupItem>
+    <SettingsPage title="Models & Effort" description={DESCRIPTION}>
+      <SettingsSection title="Roles">
+        <SettingsCard>
+          {ROLE_ORDER.map((role) => (
+            <RoleRow
+              key={role}
+              role={role}
+              config={draft.value}
+              access={access}
+              options={options}
+              pinned={pinned}
+              defaultOpen={role === openRole}
+              onConfigChange={setValue}
+              onPinnedChange={setPinned}
+              onOpenProviders={onOpenProviders}
+            />
           ))}
-        </ToggleGroup>
+        </SettingsCard>
       </SettingsSection>
-      {ROLE_ORDER.map((role) => (
-        <RoleCard
-          key={role}
-          role={role}
-          setting={draft.value[role]}
-          onChange={(setting) => handleRoleChange(role, setting)}
-        />
-      ))}
+      <ModelCatalogue
+        config={draft.value}
+        access={access}
+        pinned={pinned}
+        onPinnedChange={setPinned}
+        initialQuery={initialQuery}
+        onOpenProviders={onOpenProviders}
+      />
       <ConfigFooter dirty={draft.dirty} onDiscard={draft.discard} onSave={draft.save} />
     </SettingsPage>
   )

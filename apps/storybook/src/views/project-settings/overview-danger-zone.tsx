@@ -15,7 +15,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 
-import { SettingsCard, SettingsRow, SettingsSection } from './settings-layout'
+import { SettingsCard, SettingsRow, SettingsSection } from '../settings/settings-layout'
 
 function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
   const [confirmation, setConfirmation] = useState('')
@@ -61,16 +61,8 @@ export function DangerZone({ projectSlug }: { projectSlug: string }) {
     <SettingsSection title="Danger zone">
       <SettingsCard>
         <SettingsRow
-          title="Transfer ownership"
-          description="Not available yet. Moving a project between workspaces isn't hooked up to Atlas Cloud."
-        >
-          <Button variant="outline" size="sm" disabled>
-            Transfer…
-          </Button>
-        </SettingsRow>
-        <SettingsRow
           title="Delete project"
-          description="Permanently remove the project and everything Atlas stores for it."
+          description="Removes the project, its secrets and MCP servers. Threads and the GitHub repository stay."
         >
           <DeleteProjectDialog projectSlug={projectSlug} />
         </SettingsRow>

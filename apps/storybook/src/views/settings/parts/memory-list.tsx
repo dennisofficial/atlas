@@ -37,11 +37,11 @@ export function MemoryList({
             <BrainIcon />
           </EmptyMedia>
           <EmptyTitle>
-            {scopeIsEmpty ? 'No memories in this scope yet.' : 'No memories match.'}
+            {scopeIsEmpty ? 'No memories in this scope' : 'No memories match.'}
           </EmptyTitle>
           <EmptyDescription>
             {scopeIsEmpty
-              ? 'The agent writes one when it learns something worth keeping: who you are, how you want to work, project context, or where things live.'
+              ? 'The agent saves what is worth keeping across threads.'
               : 'Try a different search or clear the type filter.'}
           </EmptyDescription>
         </EmptyHeader>
@@ -58,7 +58,6 @@ export function MemoryList({
           onSelectedChange={(selected) => onSelectedChange({ name: entry.name, selected })}
           onOpen={() => onOpen(entry)}
           actions={[
-            { label: 'View', onSelect: () => onOpen(entry) },
             { label: 'Edit', onSelect: () => onEdit(entry) },
             { label: 'Delete', onSelect: () => onDelete(entry), destructive: true },
           ]}

@@ -19,12 +19,6 @@ export interface AppUser {
   email: string
 }
 
-export interface AppWorkspace {
-  name: string
-  owner: string
-  initials: string
-}
-
 export interface AppProject {
   id: string
   owner: string
@@ -62,12 +56,6 @@ export const USER: AppUser = {
   name: 'Dennis Lysenko',
   initials: 'DL',
   email: 'dennis@dltech.dev',
-}
-
-export const WORKSPACE: AppWorkspace = {
-  name: 'Comp AI',
-  owner: 'compai',
-  initials: 'C',
 }
 
 export const PERSONAL_OWNER = 'dennisofficial'

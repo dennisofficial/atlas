@@ -1,3 +1,4 @@
+import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import {
@@ -5,9 +6,8 @@ import {
   type ApiKeyEntry,
   type ApiKeyProvider,
 } from '../../../fixtures/settings-agent'
-import { Mono, SettingsRow } from '../settings-layout'
+import { MonogramTile, Mono, SettingsRow } from '../settings-layout'
 import { KeyDialog } from './agent-key-dialog'
-import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 
 export function ApiKeyRow({
   provider,
@@ -21,9 +21,16 @@ export function ApiKeyRow({
   onRemove: () => void
 }) {
   const prefix = KEY_PREFIXES[provider.id]
+  const placeholder = prefix ? `${prefix}…` : 'Paste your API key'
   return (
     <SettingsRow
-      media={<BrandMark brand={provider.brand} />}
+      media={
+        provider.brand ? (
+          <BrandMark brand={provider.brand} />
+        ) : (
+          <MonogramTile label={provider.name} />
+        )
+      }
       title={provider.name}
       description={
         entry ? (
@@ -40,7 +47,8 @@ export function ApiKeyRow({
           <>
             <KeyDialog
               providerName={provider.name}
-              placeholder={`${prefix}…`}
+              placeholder={placeholder}
+              envVar={provider.envVar}
               triggerLabel="Replace"
               onSave={onSave}
             />
@@ -51,7 +59,8 @@ export function ApiKeyRow({
         ) : (
           <KeyDialog
             providerName={provider.name}
-            placeholder={`${prefix}…`}
+            placeholder={placeholder}
+            envVar={provider.envVar}
             triggerLabel="Add key"
             onSave={onSave}
           />

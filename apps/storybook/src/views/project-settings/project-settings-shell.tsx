@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 import {
   ArrowLeftIcon,
   BoxIcon,
-  KeyRoundIcon,
   LayoutDashboardIcon,
   PlugIcon,
+  VariableIcon,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -16,7 +16,7 @@ import { EProjectSettingsPage, PROJECT } from '../../fixtures/project-settings'
 const NAV_ITEMS: readonly { page: EProjectSettingsPage; label: string; icon: LucideIcon }[] = [
   { page: EProjectSettingsPage.Overview, label: 'Overview', icon: LayoutDashboardIcon },
   { page: EProjectSettingsPage.Sandbox, label: 'Sandbox', icon: BoxIcon },
-  { page: EProjectSettingsPage.Secrets, label: 'Secrets & Env Vars', icon: KeyRoundIcon },
+  { page: EProjectSettingsPage.Secrets, label: 'Secrets & Env Vars', icon: VariableIcon },
   { page: EProjectSettingsPage.Mcp, label: 'MCP', icon: PlugIcon },
 ]
 
@@ -34,13 +34,13 @@ export function ProjectSettingsShell({
           <ArrowLeftIcon data-icon="inline-start" />
           Back to Atlas
         </Button>
-        <h1 className="truncate text-sm font-medium">
+        <p className="truncate text-sm font-medium">
           Project Settings
           <span className="text-muted-foreground"> — </span>
           <span className="font-mono text-muted-foreground">
             {PROJECT.owner}/{PROJECT.name}
           </span>
-        </h1>
+        </p>
       </header>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8 md:flex-row md:gap-10">
         <nav aria-label="Project settings" className="shrink-0 md:w-44">

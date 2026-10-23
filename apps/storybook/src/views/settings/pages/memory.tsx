@@ -22,7 +22,7 @@ import { MemoryList } from '../parts/memory-list'
 import { MemoryScopeSelect } from '../parts/memory-scope-select'
 import { MemorySelectionBar } from '../parts/memory-selection-bar'
 import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
-import { DangerZone, SettingsPage, SettingsSection } from '../settings-layout'
+import { DangerZone, SettingsPage } from '../settings-layout'
 import { useMemoryGroups } from '../use-memory-groups'
 
 const ALL_TYPES = 'all'
@@ -144,7 +144,7 @@ export function MemoryPage({
   return (
     <SettingsPage
       title="Memory"
-      description="Notes the agent keeps across conversations. Global memories apply everywhere; project memories apply only in that repository."
+      description="Notes the agent keeps across threads."
       actions={
         <InputGroup className="w-48">
           <InputGroupAddon>
@@ -159,14 +159,11 @@ export function MemoryPage({
         </InputGroup>
       }
     >
-      <SettingsSection title="Scope">
-        <MemoryScopeSelect groups={groups} value={group.id} onChange={handleGroupChange} />
-        <p className="text-sm text-muted-foreground">{scopeHint(group)}</p>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Memories"
-        actions={
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="w-72 max-w-full">
+            <MemoryScopeSelect groups={groups} value={group.id} onChange={handleGroupChange} />
+          </div>
           <ToggleGroup
             variant="outline"
             size="sm"
@@ -182,8 +179,8 @@ export function MemoryPage({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        }
-      >
+        </div>
+        <p className="text-sm text-muted-foreground">{scopeHint(group)}</p>
         {liveSelected.length > 0 ? (
           <MemorySelectionBar
             count={liveSelected.length}
@@ -200,7 +197,7 @@ export function MemoryPage({
           onEdit={handleEdit}
           onDelete={handleDeleteOne}
         />
-      </SettingsSection>
+      </div>
 
       <DangerZone
         actions={[

@@ -1,0 +1,4195 @@
+[
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-fable-5" },
+    "label": "Claude Fable 5",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "anthropic/claude-fable-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-fable-5-1" },
+    "label": "Claude Fable 5.1",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "anthropic/claude-fable-5-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-haiku-4-5" },
+    "label": "Claude Haiku 4.5 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1, "output": 5 },
+    "canonical": "anthropic/claude-haiku-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-haiku-4-5-20251001" },
+    "label": "Claude Haiku 4.5",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1, "output": 5 },
+    "canonical": "anthropic/claude-haiku-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-haiku-5-5" },
+    "label": "Claude Haiku 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "anthropic/claude-haiku-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-4-5" },
+    "label": "Claude Opus 4.5 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-4-5-20251101" },
+    "label": "Claude Opus 4.5",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-4-6" },
+    "label": "Claude Opus 4.6",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-4-7" },
+    "label": "Claude Opus 4.7",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-7",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-4-8" },
+    "label": "Claude Opus 4.8",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-8",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-5" },
+    "label": "Claude Opus 5",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-opus-5-5" },
+    "label": "Claude Opus 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "anthropic/claude-opus-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5" },
+    "label": "Claude Sonnet 4.5 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-sonnet-4-5-20250929" },
+    "label": "Claude Sonnet 4.5",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-sonnet-4-6" },
+    "label": "Claude Sonnet 4.6",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "max"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-sonnet-5" },
+    "label": "Claude Sonnet 5",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "anthropic/claude-sonnet-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "anthropic", "modelId": "claude-sonnet-5-5" },
+    "label": "Claude Sonnet 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "anthropic/claude-sonnet-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4.1" },
+    "label": "GPT-4.1",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 8 },
+    "canonical": "openai/gpt-4-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4.1-mini" },
+    "label": "GPT-4.1 mini",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 1.6 },
+    "canonical": "openai/gpt-4-1-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4o" },
+    "label": "GPT-4o",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4o-2024-08-06" },
+    "label": "GPT-4o (2024-08-06)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4o-2024-11-20" },
+    "label": "GPT-4o (2024-11-20)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-4o-mini" },
+    "label": "GPT-4o mini",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "openai/gpt-4o-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5" },
+    "label": "GPT-5",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5-mini" },
+    "label": "GPT-5 Mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "openai/gpt-5-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5-nano" },
+    "label": "GPT-5 Nano",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.05, "output": 0.4 },
+    "canonical": "openai/gpt-5-nano",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5-pro" },
+    "label": "GPT-5 Pro",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["high"],
+    "cost": { "input": 15, "output": 120 },
+    "canonical": "openai/gpt-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.1" },
+    "label": "GPT-5.1",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.2" },
+    "label": "GPT-5.2",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-2",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.2-pro" },
+    "label": "GPT-5.2 Pro",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 21, "output": 168 },
+    "canonical": "openai/gpt-5-2-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.3-codex" },
+    "label": "GPT-5.3 Codex",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-3-codex",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.3-codex-spark" },
+    "label": "GPT-5.3 Codex Spark",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-3-codex-spark",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.4" },
+    "label": "GPT-5.4",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2.5, "output": 15 },
+    "canonical": "openai/gpt-5-4",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.4-mini" },
+    "label": "GPT-5.4 mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.75, "output": 4.5 },
+    "canonical": "openai/gpt-5-4-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.4-nano" },
+    "label": "GPT-5.4 nano",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.2, "output": 1.25 },
+    "canonical": "openai/gpt-5-4-nano",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.4-pro" },
+    "label": "GPT-5.4 Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 30, "output": 180 },
+    "canonical": "openai/gpt-5-4-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.5" },
+    "label": "GPT-5.5",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "openai/gpt-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.5-pro" },
+    "label": "GPT-5.5 Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 30, "output": 180 },
+    "canonical": "openai/gpt-5-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.6" },
+    "label": "GPT-5.6",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "openai/gpt-5-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.6-luna" },
+    "label": "GPT-5.6 Luna",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.2, "output": 1.2 },
+    "canonical": "openai/gpt-5-6-luna",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.6-sol" },
+    "label": "GPT-5.6 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "openai/gpt-5-6-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-5.6-terra" },
+    "label": "GPT-5.6 Terra",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "openai/gpt-5-6-terra",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-6-astra" },
+    "label": "GPT-6 Astra",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "openai/gpt-6-astra",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-6-luna" },
+    "label": "GPT-6 Luna",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "openai/gpt-6-luna",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-6-sol" },
+    "label": "GPT-6 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-6.1-sol" },
+    "label": "GPT-6.1 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-1-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-daybreak-blue-latest" },
+    "label": "Daybreak Blue",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "openai/gpt-daybreak-blue-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-daybreak-red-latest" },
+    "label": "Daybreak Red",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 12.5, "output": 75 },
+    "canonical": "openai/gpt-daybreak-red-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "gpt-realtime-2.1" },
+    "label": "GPT-Realtime-2.1",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 4, "output": 24 },
+    "canonical": "openai/gpt-realtime-2-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "o3" },
+    "label": "o3",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 8 },
+    "canonical": "openai/o3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openai", "modelId": "o3-pro" },
+    "label": "o3-pro",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 20, "output": 80 },
+    "canonical": "openai/o3-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "aion-labs/aion-2.0" },
+    "label": "Aion-2.0",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.8, "output": 1.6 },
+    "canonical": "aion-labs/aion-2-0",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "aion-labs/aion-3.0" },
+    "label": "Aion-3.0",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 3, "output": 6 },
+    "canonical": "aion-labs/aion-3-0",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "aion-labs/aion-3.0-mini" },
+    "label": "Aion-3.0-Mini",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.7, "output": 1.4 },
+    "canonical": "aion-labs/aion-3-0-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "aion-labs/aion-3.5" },
+    "label": "Aion 3.5",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 3, "output": 6 },
+    "canonical": "aion-labs/aion-3-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "aion-labs/aion-3.5-mini" },
+    "label": "Aion 3.5 Mini",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.7, "output": 1.4 },
+    "canonical": "aion-labs/aion-3-5-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "amazon/nova-2-lite-v1" },
+    "label": "Nova 2 Lite",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 2.5 },
+    "canonical": "amazon/nova-2-lite-v1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "amazon/nova-lite-v1" },
+    "label": "Nova Lite 1.0",
+    "contextWindow": 300000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.06, "output": 0.24 },
+    "canonical": "amazon/nova-lite-v1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "amazon/nova-micro-v1" },
+    "label": "Nova Micro 1.0",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.035, "output": 0.14 },
+    "canonical": "amazon/nova-micro-v1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "amazon/nova-premier-v1" },
+    "label": "Nova Premier 1.0",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 12.5 },
+    "canonical": "amazon/nova-premier-v1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "amazon/nova-pro-v1" },
+    "label": "Nova Pro 1.0",
+    "contextWindow": 300000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.8, "output": 3.2 },
+    "canonical": "amazon/nova-pro-v1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-fable-5" },
+    "label": "Claude Fable 5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "anthropic/claude-fable-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-fable-5.1" },
+    "label": "Claude Fable 5.1",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "anthropic/claude-fable-5-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-haiku-4.5" },
+    "label": "Claude Haiku 4.5 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1, "output": 5 },
+    "canonical": "anthropic/claude-haiku-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-haiku-5.5" },
+    "label": "Claude Haiku 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "anthropic/claude-haiku-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-4.1" },
+    "label": "Claude Opus 4.1 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 15, "output": 75 },
+    "canonical": "anthropic/claude-opus-4-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-4.5" },
+    "label": "Claude Opus 4.5 (latest)",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-4.6" },
+    "label": "Claude Opus 4.6",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-4.7" },
+    "label": "Claude Opus 4.7",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-7",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-4.8" },
+    "label": "Claude Opus 4.8",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-4-8",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-5" },
+    "label": "Claude Opus 5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 25 },
+    "canonical": "anthropic/claude-opus-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-opus-5.5" },
+    "label": "Claude Opus 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "anthropic/claude-opus-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-sonnet-4" },
+    "label": "Claude Sonnet 4",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-sonnet-4.5" },
+    "label": "Claude Sonnet 4.5 (latest)",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-sonnet-4.6" },
+    "label": "Claude Sonnet 4.6",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "max"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "anthropic/claude-sonnet-4-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-sonnet-5" },
+    "label": "Claude Sonnet 5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "anthropic/claude-sonnet-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "anthropic/claude-sonnet-5.5" },
+    "label": "Claude Sonnet 5.5",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "anthropic/claude-sonnet-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "apodex/apodex-1.1-mini:free" },
+    "label": "Apodex 1.1 Mini (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "apodex/apodex-1-1-mini:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "arcee-ai/trinity-large-thinking" },
+    "label": "Trinity Large Thinking",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.25, "output": 0.8 },
+    "canonical": "arcee-ai/trinity-large-thinking",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-1.6" },
+    "label": "Seed 1.6",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "bytedance-seed/seed-1-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-1.6-flash" },
+    "label": "Seed 1.6 Flash",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.075, "output": 0.3 },
+    "canonical": "bytedance-seed/seed-1-6-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-2-1-turbo" },
+    "label": "Seed 2.1 Turbo",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 2.5 },
+    "canonical": "bytedance-seed/seed-2-1-turbo",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-2.0-code" },
+    "label": "Seed 2.0 Code",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.5, "output": 3 },
+    "canonical": "bytedance-seed/seed-2-0-code",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-2.0-lite" },
+    "label": "Seed 2.0 Lite",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "bytedance-seed/seed-2-0-lite",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "bytedance-seed/seed-2.0-mini" },
+    "label": "Seed 2.0 Mini",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.1, "output": 0.4 },
+    "canonical": "bytedance-seed/seed-2-0-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "cohere/command-a-plus" },
+    "label": "Command A+",
+    "contextWindow": 192000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1.5 },
+    "canonical": "cohere/command-a-plus",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "cohere/command-r-08-2024" },
+    "label": "Command R",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "cohere/command-r-08-2024",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "cohere/command-r-plus-08-2024" },
+    "label": "Command R+",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "cohere/command-r-plus-08-2024",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "cohere/north-mini-code:free" },
+    "label": "North Mini Code (free)",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "cohere/north-mini-code:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-chat" },
+    "label": "DeepSeek Chat",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.32, "output": 0.89 },
+    "canonical": "deepseek/deepseek-chat",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-chat-v3-0324" },
+    "label": "DeepSeek V3 0324",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.29, "output": 1.14 },
+    "canonical": "deepseek/deepseek-chat-v3-0324",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-chat-v3.1" },
+    "label": "DeepSeek V3.1",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.25, "output": 0.95 },
+    "canonical": "deepseek/deepseek-chat-v3-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-r1" },
+    "label": "DeepSeek-R1",
+    "contextWindow": 64000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.7, "output": 2.5 },
+    "canonical": "deepseek/deepseek-r1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-r1-0528" },
+    "label": "DeepSeek R1 0528",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 2.15 },
+    "canonical": "deepseek/deepseek-r1-0528",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v3.1-terminus" },
+    "label": "DeepSeek V3.1 Terminus",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.27, "output": 1 },
+    "canonical": "deepseek/deepseek-v3-1-terminus",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v3.2" },
+    "label": "DeepSeek V3.2",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.259, "output": 0.8 },
+    "canonical": "deepseek/deepseek-v3-2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v3.2-exp" },
+    "label": "DeepSeek V3.2 Exp",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.27, "output": 0.41 },
+    "canonical": "deepseek/deepseek-v3-2-exp",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4-flash" },
+    "label": "DeepSeek V4 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh"],
+    "cost": { "input": 0.03, "output": 1.28 },
+    "canonical": "deepseek/deepseek-v4-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4-flash-0731" },
+    "label": "DeepSeek V4 Flash 0731",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.018, "output": 1.28 },
+    "canonical": "deepseek/deepseek-v4-flash-0731",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4-flash-vision-exp" },
+    "label": "DeepSeek V4 Flash Vision Exp",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.2156, "output": 0.6468 },
+    "canonical": "deepseek/deepseek-v4-flash-vision-exp",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4-pro" },
+    "label": "DeepSeek V4 Pro",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh"],
+    "cost": { "input": 0.2088, "output": 0.4176 },
+    "canonical": "deepseek/deepseek-v4-pro",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4-pro-0813" },
+    "label": "DeepSeek V4 Pro 0813",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.66, "output": 1.98 },
+    "canonical": "deepseek/deepseek-v4-pro-0813",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "deepseek/deepseek-v4.1-flash" },
+    "label": "DeepSeek V4.1 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "deepseek/deepseek-v4-1-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "dots-studio/dots-3-note-preview:free" },
+    "label": "Dots3-Note Preview (free)",
+    "contextWindow": 512000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "dots-studio/dots-3-note-preview:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "fireworks/ember-1" },
+    "label": "Ember-1",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "fireworks/ember-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-2.5-flash" },
+    "label": "Gemini 2.5 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 2.5 },
+    "canonical": "google/gemini-2-5-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-2.5-flash-lite" },
+    "label": "Gemini 2.5 Flash-Lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.4 },
+    "canonical": "google/gemini-2-5-flash-lite",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-2.5-pro" },
+    "label": "Gemini 2.5 Pro",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "google/gemini-2-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-2.5-pro-preview" },
+    "label": "Gemini 2.5 Pro Preview 06-05",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "google/gemini-2-5-pro-preview",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3-flash-preview" },
+    "label": "Gemini 3 Flash Preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.5, "output": 3 },
+    "canonical": "google/gemini-3-flash-preview",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3-pro-image" },
+    "label": "Nano Banana Pro",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "google/gemini-3-pro-image",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.1-flash-lite" },
+    "label": "Gemini 3.1 Flash Lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 1.5 },
+    "canonical": "google/gemini-3-1-flash-lite",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.1-flash-lite-preview" },
+    "label": "Gemini 3.1 Flash Lite Preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 1.5 },
+    "canonical": "google/gemini-3-1-flash-lite-preview",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.1-pro-preview" },
+    "label": "Gemini 3.1 Pro Preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "google/gemini-3-1-pro-preview",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.1-pro-preview-customtools" },
+    "label": "Gemini 3.1 Pro Preview Custom Tools",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "google/gemini-3-1-pro-preview-customtools",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.5-flash" },
+    "label": "Gemini 3.5 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 1.5, "output": 9 },
+    "canonical": "google/gemini-3-5-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.5-flash-lite" },
+    "label": "Gemini 3.5 Flash Lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.3, "output": 2.5 },
+    "canonical": "google/gemini-3-5-flash-lite",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.6-flash" },
+    "label": "Gemini 3.6 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.75, "output": 3.75 },
+    "canonical": "google/gemini-3-6-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.7-flash" },
+    "label": "Gemini 3.7 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.75, "output": 3.75 },
+    "canonical": "google/gemini-3-7-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-3.8-flash" },
+    "label": "Gemini 3.8 Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.75, "output": 3.75 },
+    "canonical": "google/gemini-3-8-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemini-nano-banana-2.1" },
+    "label": "Nano Banana 2.1",
+    "contextWindow": 65536,
+    "imageTier": "standard",
+    "efforts": ["minimal", "high"],
+    "cost": { "input": 1.5, "output": 7.5 },
+    "canonical": "google/gemini-nano-banana-2-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-3-12b-it" },
+    "label": "Gemma 3 12B IT",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.05, "output": 0.15 },
+    "canonical": "google/gemma-3-12b-it",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-3-27b-it" },
+    "label": "Gemma 3 27B IT",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.08, "output": 0.45 },
+    "canonical": "google/gemma-3-27b-it",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-4-26b-a4b-it" },
+    "label": "Gemma 4 26B A4B IT",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.0675, "output": 0.225 },
+    "canonical": "google/gemma-4-26b-a4b-it",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-4-26b-a4b-it:free" },
+    "label": "Gemma 4 26B A4B  (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "google/gemma-4-26b-a4b-it:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-4-31b-it" },
+    "label": "Gemma 4 31B IT",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.09, "output": 0.34 },
+    "canonical": "google/gemma-4-31b-it",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "google/gemma-4-31b-it:free" },
+    "label": "Gemma 4 31B (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "google/gemma-4-31b-it:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "ibm-granite/granite-4.2-8b" },
+    "label": "Granite 4.2 8B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high"],
+    "cost": { "input": 0.06, "output": 0.25 },
+    "canonical": "ibm-granite/granite-4-2-8b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inception/mercury-2" },
+    "label": "Mercury 2",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 0.75 },
+    "canonical": "inception/mercury-2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inception/mercury-2.5" },
+    "label": "Mercury 2.5",
+    "contextWindow": 260000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.04, "output": 0.15 },
+    "canonical": "inception/mercury-2-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inclusionai/ling-3.0-flash" },
+    "label": "Ling 3.0 Flash",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.021, "output": 0.063 },
+    "canonical": "inclusionai/ling-3-0-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inclusionai/ling-3.0-flash-fin" },
+    "label": "Ling 3.0 Flash Fin",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.042, "output": 0.1232 },
+    "canonical": "inclusionai/ling-3-0-flash-fin",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inclusionai/ling-3.0-flash-sante" },
+    "label": "Ling 3.0 Flash Sante",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.042, "output": 0.1232 },
+    "canonical": "inclusionai/ling-3-0-flash-sante",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inclusionai/ling-3.0-flash-vl" },
+    "label": "Ling 3.0 Flash VL",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.021, "output": 0.0616 },
+    "canonical": "inclusionai/ling-3-0-flash-vl",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "inclusionai/ling-3.1-flash" },
+    "label": "Ling 3.1 Flash",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "inclusionai/ling-3-1-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "liquid/lfm-2.5-2.6b:free" },
+    "label": "LFM2.5-2.6B (free)",
+    "contextWindow": 65536,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "liquid/lfm-2-5-2-6b:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meituan/longcat-2.0" },
+    "label": "LongCat 2.0",
+    "contextWindow": 1048756,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "meituan/longcat-2-0",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta-llama/llama-3.1-70b-instruct" },
+    "label": "Llama-3.1-70B-Instruct",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 0.4 },
+    "canonical": "meta-llama/llama-3-1-70b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta-llama/llama-3.1-8b-instruct" },
+    "label": "Llama-3.1-8B-Instruct",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.05, "output": 0.08 },
+    "canonical": "meta-llama/llama-3-1-8b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta-llama/llama-3.3-70b-instruct" },
+    "label": "Llama-3.3-70B-Instruct",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.22, "output": 0.5 },
+    "canonical": "meta-llama/llama-3-3-70b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta-llama/llama-4-maverick" },
+    "label": "Llama 4 Maverick",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1875, "output": 0.6525 },
+    "canonical": "meta-llama/llama-4-maverick",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta-llama/llama-4-scout" },
+    "label": "Llama 4 Scout",
+    "contextWindow": 1310720,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.3 },
+    "canonical": "meta-llama/llama-4-scout",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-glimmer-30b" },
+    "label": "Muse Glimmer 30B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "meta/muse-glimmer-30b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-spark-1.1" },
+    "label": "Muse Spark 1.1",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.25, "output": 4.25 },
+    "canonical": "meta/muse-spark-1-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-spark-1.2" },
+    "label": "Muse Spark 1.2",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.25, "output": 4.25 },
+    "canonical": "meta/muse-spark-1-2",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-spark-1.2-contributor" },
+    "label": "Muse Spark 1.2 Contributor",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.1, "output": 0.2 },
+    "canonical": "meta/muse-spark-1-2-contributor",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-spark-1.3" },
+    "label": "Muse Spark 1.3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 1.25, "output": 4.25 },
+    "canonical": "meta/muse-spark-1-3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "meta/muse-spark-1.3-contributor" },
+    "label": "Muse Spark 1.3 Contributor",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.2 },
+    "canonical": "meta/muse-spark-1-3-contributor",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m1" },
+    "label": "MiniMax M1",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.55, "output": 2.2 },
+    "canonical": "minimax/minimax-m1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m2" },
+    "label": "MiniMax-M2",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "minimax/minimax-m2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.1" },
+    "label": "MiniMax-M2.1",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "minimax/minimax-m2-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" },
+    "label": "MiniMax-M2.5",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.27, "output": 1.08 },
+    "canonical": "minimax/minimax-m2-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" },
+    "label": "MiniMax-M2.7",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.21, "output": 0.84 },
+    "canonical": "minimax/minimax-m2-7",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "minimax/minimax-m3" },
+    "label": "MiniMax-M3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1.2 },
+    "canonical": "minimax/minimax-m3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/codestral-2508" },
+    "label": "Codestral 25.08",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 0.9 },
+    "canonical": "mistralai/codestral-2508",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/devstral-2512" },
+    "label": "Devstral 2",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 2 },
+    "canonical": "mistralai/devstral-2512",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/ministral-14b-2512" },
+    "label": "Ministral 3 14B 2512",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.2, "output": 0.2 },
+    "canonical": "mistralai/ministral-14b-2512",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/ministral-3b-2512" },
+    "label": "Ministral 3 3B 2512",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.1 },
+    "canonical": "mistralai/ministral-3b-2512",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/ministral-8b-2512" },
+    "label": "Ministral 3 8B 2512",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.15 },
+    "canonical": "mistralai/ministral-8b-2512",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-large" },
+    "label": "Mistral Large",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "mistralai/mistral-large",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-large-2407" },
+    "label": "Mistral Large 2407",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "mistralai/mistral-large-2407",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-large-2512" },
+    "label": "Mistral Large 3",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 1.5 },
+    "canonical": "mistralai/mistral-large-2512",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-large-4-0" },
+    "label": "Mistral Large 4",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "high"],
+    "cost": { "input": 0.68, "output": 2.09 },
+    "canonical": "mistralai/mistral-large-4-0",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-medium-3" },
+    "label": "Mistral Medium 3",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 2 },
+    "canonical": "mistralai/mistral-medium-3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-medium-3-5" },
+    "label": "Mistral Medium 3.5",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "high"],
+    "cost": { "input": 1.5, "output": 7.5 },
+    "canonical": "mistralai/mistral-medium-3-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-medium-3.1" },
+    "label": "Mistral Medium 3.1",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 2 },
+    "canonical": "mistralai/mistral-medium-3-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-nemo" },
+    "label": "Mistral Nemo",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.029, "output": 0.03 },
+    "canonical": "mistralai/mistral-nemo",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-saba" },
+    "label": "Saba",
+    "contextWindow": 32768,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.2, "output": 0.6 },
+    "canonical": "mistralai/mistral-saba",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-small-2603" },
+    "label": "Mistral Small 4",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "high"],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "mistralai/mistral-small-2603",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-small-3.1-24b-instruct" },
+    "label": "Mistral Small 3.1 24B",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.351, "output": 0.555 },
+    "canonical": "mistralai/mistral-small-3-1-24b-instruct",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mistral-small-3.2-24b-instruct" },
+    "label": "Mistral Small 3.2 24B",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.09375, "output": 0.25 },
+    "canonical": "mistralai/mistral-small-3-2-24b-instruct",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/mixtral-8x22b-instruct" },
+    "label": "Mixtral 8x22B Instruct",
+    "contextWindow": 65536,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "mistralai/mixtral-8x22b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "mistralai/voxtral-small-24b-2507" },
+    "label": "Voxtral Small 24B 2507",
+    "contextWindow": 32768,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.3 },
+    "canonical": "mistralai/voxtral-small-24b-2507",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2" },
+    "label": "Kimi K2 0711",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.57, "output": 2.3 },
+    "canonical": "moonshotai/kimi-k2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2-0905" },
+    "label": "Kimi K2 Instruct 0905",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 2.5 },
+    "canonical": "moonshotai/kimi-k2-0905",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2-thinking" },
+    "label": "Kimi K2 Thinking",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 2.5 },
+    "canonical": "moonshotai/kimi-k2-thinking",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2.5" },
+    "label": "Kimi K2.5",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 2.5 },
+    "canonical": "moonshotai/kimi-k2-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2.6" },
+    "label": "Kimi K2.6",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4344, "output": 2.45 },
+    "canonical": "moonshotai/kimi-k2-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k2.7-code" },
+    "label": "Kimi K2.7 Code",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6712, "output": 3.35 },
+    "canonical": "moonshotai/kimi-k2-7-code",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "moonshotai/kimi-k3" },
+    "label": "Kimi K3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.5, "output": 13.5 },
+    "canonical": "moonshotai/kimi-k3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nex-agi/nex-n2.5-pro" },
+    "label": "Nex-N2.5-Pro",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "medium", "high"],
+    "cost": { "input": 0.075, "output": 0.25 },
+    "canonical": "nex-agi/nex-n2-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3-nano-30b-a3b" },
+    "label": "Nemotron 3 Nano 30B A3B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.06, "output": 0.24 },
+    "canonical": "nvidia/nemotron-3-nano-30b-a3b",
+    "images": false
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    },
+    "label": "Nemotron 3 Nano Omni (free)",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3-super-120b-a12b" },
+    "label": "Nemotron 3 Super 120B A12B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium"],
+    "cost": { "input": 0.08, "output": 0.45 },
+    "canonical": "nvidia/nemotron-3-super-120b-a12b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3-super-120b-a12b:free" },
+    "label": "Nemotron 3 Super (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium"],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "nvidia/nemotron-3-super-120b-a12b:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3-ultra-550b-a55b" },
+    "label": "Nemotron 3 Ultra 550B A55B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["medium", "high"],
+    "cost": { "input": 0.5, "output": 2.2 },
+    "canonical": "nvidia/nemotron-3-ultra-550b-a55b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3-ultra-550b-a55b:free" },
+    "label": "Nemotron 3 Ultra (free)",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high"],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3.5-lightning" },
+    "label": "Nemotron 3.5 Lightning 30B A3B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.07, "output": 0.2 },
+    "canonical": "nvidia/nemotron-3-5-lightning",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "nvidia/nemotron-3.5-lightning:free" },
+    "label": "Nemotron 3.5 Lightning (free)",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "nvidia/nemotron-3-5-lightning:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-3.5-turbo" },
+    "label": "GPT-3.5-turbo",
+    "contextWindow": 16385,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 1.5 },
+    "canonical": "openai/gpt-3-5-turbo",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-3.5-turbo-0613" },
+    "label": "GPT-3.5 Turbo (older v0613)",
+    "contextWindow": 4095,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1, "output": 2 },
+    "canonical": "openai/gpt-3-5-turbo-0613",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-3.5-turbo-16k" },
+    "label": "GPT-3.5 Turbo 16k",
+    "contextWindow": 16385,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 3, "output": 4 },
+    "canonical": "openai/gpt-3-5-turbo-16k",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4" },
+    "label": "GPT-4",
+    "contextWindow": 8191,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 30, "output": 60 },
+    "canonical": "openai/gpt-4",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4-turbo" },
+    "label": "GPT-4 Turbo",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 10, "output": 30 },
+    "canonical": "openai/gpt-4-turbo",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4.1" },
+    "label": "GPT-4.1",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 8 },
+    "canonical": "openai/gpt-4-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4.1-mini" },
+    "label": "GPT-4.1 mini",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 1.6 },
+    "canonical": "openai/gpt-4-1-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4.1-nano" },
+    "label": "GPT-4.1 nano",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.4 },
+    "canonical": "openai/gpt-4-1-nano",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o" },
+    "label": "GPT-4o",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o-2024-05-13" },
+    "label": "GPT-4o (2024-05-13)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 5, "output": 15 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o-2024-08-06" },
+    "label": "GPT-4o (2024-08-06)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o-2024-11-20" },
+    "label": "GPT-4o (2024-11-20)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o-mini" },
+    "label": "GPT-4o mini",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "openai/gpt-4o-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-4o-mini-2024-07-18" },
+    "label": "GPT-4o-mini (2024-07-18)",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "openai/gpt-4o-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5" },
+    "label": "GPT-5",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5-mini" },
+    "label": "GPT-5 Mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "openai/gpt-5-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5-nano" },
+    "label": "GPT-5 Nano",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 0.05, "output": 0.4 },
+    "canonical": "openai/gpt-5-nano",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5-pro" },
+    "label": "GPT-5 Pro",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["high"],
+    "cost": { "input": 15, "output": 120 },
+    "canonical": "openai/gpt-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.1" },
+    "label": "GPT-5.1",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.1-codex" },
+    "label": "GPT-5.1 Codex",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5-1-codex",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.1-codex-max" },
+    "label": "GPT-5.1 Codex Max",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "openai/gpt-5-1-codex-max",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.1-codex-mini" },
+    "label": "GPT-5.1 Codex mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "openai/gpt-5-1-codex-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.2" },
+    "label": "GPT-5.2",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-2",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.2-chat" },
+    "label": "GPT-5.2 Chat",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-2-chat",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.2-codex" },
+    "label": "GPT-5.2 Codex",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-2-codex",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.2-pro" },
+    "label": "GPT-5.2 Pro",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 21, "output": 168 },
+    "canonical": "openai/gpt-5-2-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.3-codex" },
+    "label": "GPT-5.3 Codex",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 1.75, "output": 14 },
+    "canonical": "openai/gpt-5-3-codex",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.4" },
+    "label": "GPT-5.4",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2.5, "output": 15 },
+    "canonical": "openai/gpt-5-4",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.4-mini" },
+    "label": "GPT-5.4 mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.75, "output": 4.5 },
+    "canonical": "openai/gpt-5-4-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.4-nano" },
+    "label": "GPT-5.4 nano",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.2, "output": 1.25 },
+    "canonical": "openai/gpt-5-4-nano",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.4-pro" },
+    "label": "GPT-5.4 Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 30, "output": 180 },
+    "canonical": "openai/gpt-5-4-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.5" },
+    "label": "GPT-5.5",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "openai/gpt-5-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.5-pro" },
+    "label": "GPT-5.5 Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["medium", "high", "xhigh"],
+    "cost": { "input": 30, "output": 180 },
+    "canonical": "openai/gpt-5-5-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-luna" },
+    "label": "GPT-5.6 Luna",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.2, "output": 1.2 },
+    "canonical": "openai/gpt-5-6-luna",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-luna-pro" },
+    "label": "GPT-5.6 Luna Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.2, "output": 1.2 },
+    "canonical": "openai/gpt-5-6-luna-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-sol" },
+    "label": "GPT-5.6 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-5-6-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-sol-pro" },
+    "label": "GPT-5.6 Sol Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-5-6-sol-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-terra" },
+    "label": "GPT-5.6 Terra",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "openai/gpt-5-6-terra",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-5.6-terra-pro" },
+    "label": "GPT-5.6 Terra Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "openai/gpt-5-6-terra-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-astra" },
+    "label": "GPT-6 Astra",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "openai/gpt-6-astra",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-astra-pro" },
+    "label": "GPT-6 Astra Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "openai/gpt-6-astra-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-luna" },
+    "label": "GPT-6 Luna",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "openai/gpt-6-luna",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-luna-pro" },
+    "label": "GPT-6 Luna Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "openai/gpt-6-luna-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-sol" },
+    "label": "GPT-6 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6-sol-pro" },
+    "label": "GPT-6 Sol Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-sol-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6.1-sol" },
+    "label": "GPT-6.1 Sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-1-sol",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-6.1-sol-pro" },
+    "label": "GPT-6.1 Sol Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-1-sol-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-audio" },
+    "label": "GPT Audio",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-audio",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-audio-mini" },
+    "label": "GPT Audio Mini",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 2.4 },
+    "canonical": "openai/gpt-audio-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-chat-latest" },
+    "label": "GPT Chat Latest",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "openai/gpt-chat-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-oss-120b" },
+    "label": "GPT OSS 120B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.037, "output": 0.17 },
+    "canonical": "openai/gpt-oss-120b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-oss-20b" },
+    "label": "GPT OSS 20B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.018, "output": 0.09 },
+    "canonical": "openai/gpt-oss-20b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/gpt-oss-safeguard-20b" },
+    "label": "GPT OSS Safeguard 20B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.075, "output": 0.3 },
+    "canonical": "openai/gpt-oss-safeguard-20b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o1" },
+    "label": "o1",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 15, "output": 60 },
+    "canonical": "openai/o1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o3" },
+    "label": "o3",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 8 },
+    "canonical": "openai/o3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o3-mini" },
+    "label": "o3-mini",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.1, "output": 4.4 },
+    "canonical": "openai/o3-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o3-mini-high" },
+    "label": "o3 Mini High",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["high"],
+    "cost": { "input": 1.1, "output": 4.4 },
+    "canonical": "openai/o3-mini-high",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o3-pro" },
+    "label": "o3-pro",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 20, "output": 80 },
+    "canonical": "openai/o3-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o4-mini" },
+    "label": "o4-mini",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.1, "output": 4.4 },
+    "canonical": "openai/o4-mini",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openai/o4-mini-high" },
+    "label": "o4 Mini High",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": ["high"],
+    "cost": { "input": 1.1, "output": 4.4 },
+    "canonical": "openai/o4-mini-high",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openrouter/auto" },
+    "label": "Auto Router",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": null,
+    "canonical": "openrouter/auto",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "openrouter/free" },
+    "label": "Free Models Router",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "openrouter/free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "perceptron/perceptron-mk1.5" },
+    "label": "Perceptron Mk1.5",
+    "contextWindow": 36864,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high"],
+    "cost": { "input": 0.15, "output": 1.5 },
+    "canonical": "perceptron/perceptron-mk1-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "poolside/laguna-s-2.1" },
+    "label": "Laguna S 2.1",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.09, "output": 0.18 },
+    "canonical": "poolside/laguna-s-2-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "poolside/laguna-s-2.1:free" },
+    "label": "Laguna S 2.1 (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "poolside/laguna-s-2-1:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "poolside/laguna-xs-2.1" },
+    "label": "Laguna XS 2.1",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.06, "output": 0.12 },
+    "canonical": "poolside/laguna-xs-2-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "poolside/laguna-xs-2.1:free" },
+    "label": "Laguna XS 2.1 (free)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "poolside/laguna-xs-2-1:free",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "prism-ml/ternary-bonsai-2-27b" },
+    "label": "Ternary Bonsai 2 27B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["medium", "xhigh"],
+    "cost": { "input": 0.075, "output": 0.5 },
+    "canonical": "prism-ml/ternary-bonsai-2-27b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen-2.5-72b-instruct" },
+    "label": "Qwen2.5 72B Instruct",
+    "contextWindow": 32768,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.36, "output": 0.4 },
+    "canonical": "qwen/qwen-2-5-72b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen-2.5-7b-instruct" },
+    "label": "Qwen2.5 7B Instruct",
+    "contextWindow": 32768,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.2 },
+    "canonical": "qwen/qwen-2-5-7b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen-plus" },
+    "label": "Qwen Plus",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.26, "output": 0.78 },
+    "canonical": "qwen/qwen-plus",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-14b" },
+    "label": "Qwen3 14B",
+    "contextWindow": 40960,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.12, "output": 0.24 },
+    "canonical": "qwen/qwen3-14b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-235b-a22b-2507" },
+    "label": "Qwen3 235B A22B Instruct 2507",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.09, "output": 0.55 },
+    "canonical": "qwen/qwen3-235b-a22b-2507",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-235b-a22b-thinking-2507" },
+    "label": "Qwen3 235B A22B Thinking 2507",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.45, "output": 3.5 },
+    "canonical": "qwen/qwen3-235b-a22b-thinking-2507",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-30b-a3b" },
+    "label": "Qwen3 30B A3B",
+    "contextWindow": 40960,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.12, "output": 0.5 },
+    "canonical": "qwen/qwen3-30b-a3b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-30b-a3b-instruct-2507" },
+    "label": "Qwen3 30B A3B Instruct 2507",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.3 },
+    "canonical": "qwen/qwen3-30b-a3b-instruct-2507",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-32b" },
+    "label": "Qwen3 32B",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.08, "output": 0.28 },
+    "canonical": "qwen/qwen3-32b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-coder" },
+    "label": "Qwen3 Coder 480B A35B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1 },
+    "canonical": "qwen/qwen3-coder",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-coder-30b-a3b-instruct" },
+    "label": "Qwen3-Coder 30B-A3B Instruct",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.07, "output": 0.28 },
+    "canonical": "qwen/qwen3-coder-30b-a3b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-coder-flash" },
+    "label": "Qwen3 Coder Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.195, "output": 0.975 },
+    "canonical": "qwen/qwen3-coder-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-coder-next" },
+    "label": "Qwen3 Coder Next",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.12, "output": 0.8 },
+    "canonical": "qwen/qwen3-coder-next",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-next-80b-a3b-instruct" },
+    "label": "Qwen3-Next 80B-A3B Instruct",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 1.1 },
+    "canonical": "qwen/qwen3-next-80b-a3b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-next-80b-a3b-thinking" },
+    "label": "Qwen3-Next 80B-A3B (Thinking)",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 1.2 },
+    "canonical": "qwen/qwen3-next-80b-a3b-thinking",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-vl-235b-a22b-instruct" },
+    "label": "Qwen3 VL 235B A22B Instruct",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.21, "output": 1.9 },
+    "canonical": "qwen/qwen3-vl-235b-a22b-instruct",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-vl-30b-a3b-instruct" },
+    "label": "Qwen3 VL 30B A3B Instruct",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "qwen/qwen3-vl-30b-a3b-instruct",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-vl-30b-a3b-thinking" },
+    "label": "Qwen3 VL 30B A3B Thinking",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.29, "output": 1 },
+    "canonical": "qwen/qwen3-vl-30b-a3b-thinking",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3-vl-8b-instruct" },
+    "label": "Qwen3 VL 8B Instruct",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.25, "output": 0.75 },
+    "canonical": "qwen/qwen3-vl-8b-instruct",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-122b-a10b" },
+    "label": "Qwen3.5 122B-A10B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.26, "output": 2.08 },
+    "canonical": "qwen/qwen3-5-122b-a10b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-27b" },
+    "label": "Qwen3.5 27B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.26, "output": 2.6 },
+    "canonical": "qwen/qwen3-5-27b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-35b-a3b" },
+    "label": "Qwen3.5 35B-A3B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.08, "output": 0.75 },
+    "canonical": "qwen/qwen3-5-35b-a3b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-397b-a17b" },
+    "label": "Qwen3.5 397B-A17B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.55, "output": 3.5 },
+    "canonical": "qwen/qwen3-5-397b-a17b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-9b" },
+    "label": "Qwen3.5 9B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.15 },
+    "canonical": "qwen/qwen3-5-9b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-flash-02-23" },
+    "label": "Qwen3.5-Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.065, "output": 0.26 },
+    "canonical": "qwen/qwen3-5-flash-02-23",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-plus-02-15" },
+    "label": "Qwen3.5 Plus 2026-02-15",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.26, "output": 1.56 },
+    "canonical": "qwen/qwen3-5-plus-02-15",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.5-plus-20260420" },
+    "label": "Qwen3.5 Plus 2026-04-20",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 1.8 },
+    "canonical": "qwen/qwen3-5-plus",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.6-27b" },
+    "label": "Qwen3.6 27B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.32, "output": 3.2 },
+    "canonical": "qwen/qwen3-6-27b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.6-35b-a3b" },
+    "label": "Qwen3.6 35B-A3B",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.95 },
+    "canonical": "qwen/qwen3-6-35b-a3b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.6-flash" },
+    "label": "Qwen3.6 Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1875, "output": 1.125 },
+    "canonical": "qwen/qwen3-6-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.6-plus" },
+    "label": "Qwen3.6 Plus",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.325, "output": 1.95 },
+    "canonical": "qwen/qwen3-6-plus",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.7-flash" },
+    "label": "Qwen3.7 Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.03, "output": 0.13 },
+    "canonical": "qwen/qwen3-7-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.7-max" },
+    "label": "Qwen3.7 Max",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.475, "output": 4.425 },
+    "canonical": "qwen/qwen3-7-max",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.7-plus" },
+    "label": "Qwen3.7 Plus",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.32, "output": 1.28 },
+    "canonical": "qwen/qwen3-7-plus",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-2.4t-a95b" },
+    "label": "Qwen3.8 2.4T A95B",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "xhigh"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "qwen/qwen3-8-2-4t-a95b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-27b" },
+    "label": "Qwen3.8 27B",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "xhigh"],
+    "cost": { "input": 0.425, "output": 2.55 },
+    "canonical": "qwen/qwen3-8-27b",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-flash" },
+    "label": "Qwen3.8 Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.15, "output": 0.47 },
+    "canonical": "qwen/qwen3-8-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-max-0902" },
+    "label": "Qwen3.8 Max 0902",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "qwen/qwen3-8-max-0902",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-max-prime" },
+    "label": "Qwen 3.8 Max Prime",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 4, "output": 12 },
+    "canonical": "qwen/qwen3-8-max-prime",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "qwen/qwen3.8-omni-flash" },
+    "label": "Qwen3.8 Omni Flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.15, "output": 0.47 },
+    "canonical": "qwen/qwen3-8-omni-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "rekaai/reka-edge" },
+    "label": "Reka Edge",
+    "contextWindow": 16384,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.1 },
+    "canonical": "rekaai/reka-edge",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "relace/relace-search" },
+    "label": "Relace Search",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1, "output": 3 },
+    "canonical": "relace/relace-search",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "sakana/fugu-max" },
+    "label": "Fugu Max",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "sakana/fugu-max",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "sakana/fugu-ultra" },
+    "label": "Fugu Ultra",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "sakana/fugu-ultra",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "sakana/fugu-ultra-v2" },
+    "label": "Fugu Ultra v2",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh", "max"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "sakana/fugu-ultra-v2",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "sakana/sakana-namazu" },
+    "label": "Sakana Namazu",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "high"],
+    "cost": { "input": 0.95, "output": 4 },
+    "canonical": "sakana/sakana-namazu",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "stepfun/step-3.5-flash" },
+    "label": "Step 3.5 Flash",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.3 },
+    "canonical": "stepfun/step-3-5-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "stepfun/step-3.7-flash" },
+    "label": "Step 3.7 Flash",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.2, "output": 1.15 },
+    "canonical": "stepfun/step-3-7-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "stepfun/step-5-preview" },
+    "label": "Step 5 Preview",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1, "output": 2.7 },
+    "canonical": "stepfun/step-5-preview",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "tencent/hy3" },
+    "label": "Hy3",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high"],
+    "cost": { "input": 0.0825, "output": 0.33 },
+    "canonical": "tencent/hy3",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "tencent/hy3-preview" },
+    "label": "Hy3 preview",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high"],
+    "cost": { "input": 0.18, "output": 0.6 },
+    "canonical": "tencent/hy3-preview",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "tencent/hy4-preview" },
+    "label": "Hy4 preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high"],
+    "cost": { "input": 0.7506, "output": 2.2509 },
+    "canonical": "tencent/hy4-preview",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "thinkingmachines/inkling" },
+    "label": "Inkling",
+    "contextWindow": 524288,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "max"],
+    "cost": { "input": 1, "output": 4.05 },
+    "canonical": "thinkingmachines/inkling",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "thinkingmachines/inkling-small" },
+    "label": "Inkling Small",
+    "contextWindow": 524288,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "max"],
+    "cost": { "input": 0.45, "output": 1.2 },
+    "canonical": "thinkingmachines/inkling-small",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "thinkingmachines/inkling-small:free" },
+    "label": "Inkling Small (free)",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "max"],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "thinkingmachines/inkling-small:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "thinkingmachines/inkling:free" },
+    "label": "Inkling (free)",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "max"],
+    "cost": { "input": 0, "output": 0 },
+    "canonical": "thinkingmachines/inkling:free",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "unbiased/pareto" },
+    "label": "Pareto",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 7.5 },
+    "canonical": "unbiased/pareto",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "unbiased/pareto-26.10-preview" },
+    "label": "Pareto 26.10 Preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.8, "output": 3.2 },
+    "canonical": "unbiased/pareto-26-10-preview",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "upstage/solar-mini4" },
+    "label": "Solar Mini 4",
+    "contextWindow": 524288,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.05, "output": 0.2 },
+    "canonical": "upstage/solar-mini4",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "upstage/solar-pro-3" },
+    "label": "Solar Pro 3",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high"],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "upstage/solar-pro-3",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "upstage/solar-pro4" },
+    "label": "Solar Pro 4",
+    "contextWindow": 524288,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.09, "output": 0.36 },
+    "canonical": "upstage/solar-pro4",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-4.20" },
+    "label": "Grok 4.20",
+    "contextWindow": 2000000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.25, "output": 2.5 },
+    "canonical": "x-ai/grok-4-20",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-4.3" },
+    "label": "Grok 4.3",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 2.5 },
+    "canonical": "x-ai/grok-4-3",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-4.5" },
+    "label": "Grok 4.5",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-4-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-4.6" },
+    "label": "Grok 4.6",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-4-6",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-4.7" },
+    "label": "Grok 4.7",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-4-7",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "x-ai/grok-build-0.1" },
+    "label": "Grok Build 0.1",
+    "contextWindow": 256000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1, "output": 2 },
+    "canonical": "x-ai/grok-build-0-1",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "xiaomi/mimo-v2.5" },
+    "label": "MiMo-V2.5",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.14, "output": 0.28 },
+    "canonical": "xiaomi/mimo-v2-5",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "xiaomi/mimo-v2.5-pro" },
+    "label": "MiMo-V2.5-Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.435, "output": 0.87 },
+    "canonical": "xiaomi/mimo-v2-5-pro",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "xiaomi/mimo-v2.6-flash" },
+    "label": "MiMo-V2.6-Flash",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.14, "output": 0.28 },
+    "canonical": "xiaomi/mimo-v2-6-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "xiaomi/mimo-v2.6-pro" },
+    "label": "MiMo-V2.6-Pro",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.435, "output": 0.87 },
+    "canonical": "xiaomi/mimo-v2-6-pro",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "xiaomi/mimo-v2.6-pro-ultraspeed" },
+    "label": "MiMo-V2.6-Pro-UltraSpeed",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 4.35, "output": 8.7 },
+    "canonical": "xiaomi/mimo-v2-6-pro-ultraspeed",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.5" },
+    "label": "GLM-4.5",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 2.2 },
+    "canonical": "z-ai/glm-4-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.5-air" },
+    "label": "GLM-4.5-Air",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.13, "output": 0.85 },
+    "canonical": "z-ai/glm-4-5-air",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.5v" },
+    "label": "GLM-4.5V",
+    "contextWindow": 65536,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 1.8 },
+    "canonical": "z-ai/glm-4-5v",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.6" },
+    "label": "GLM-4.6",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.5, "output": 2 },
+    "canonical": "z-ai/glm-4-6",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.6v" },
+    "label": "GLM-4.6V",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.3, "output": 0.9 },
+    "canonical": "z-ai/glm-4-6v",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.7" },
+    "label": "GLM-4.7",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 2.2 },
+    "canonical": "z-ai/glm-4-7",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-4.7-flash" },
+    "label": "GLM-4.7-Flash",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.0605, "output": 0.4 },
+    "canonical": "z-ai/glm-4-7-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5" },
+    "label": "GLM-5",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.6, "output": 1.92 },
+    "canonical": "z-ai/glm-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5-turbo" },
+    "label": "GLM-5-Turbo",
+    "contextWindow": 202752,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.2, "output": 4 },
+    "canonical": "z-ai/glm-5-turbo",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.1" },
+    "label": "GLM-5.1",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.966, "output": 3.036 },
+    "canonical": "z-ai/glm-5-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.2" },
+    "label": "GLM-5.2",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["high", "xhigh"],
+    "cost": { "input": 0.06, "output": 7 },
+    "canonical": "z-ai/glm-5-2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.3" },
+    "label": "GLM-5.3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.039, "output": 4.8 },
+    "canonical": "z-ai/glm-5-3",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.3-flash" },
+    "label": "GLM-5.3-Flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.15, "output": 0.5 },
+    "canonical": "z-ai/glm-5-3-flash",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.3-flashx" },
+    "label": "GLM 5.3 FlashX",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.37, "output": 1.25 },
+    "canonical": "z-ai/glm-5-3-flashx",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5.3-prime" },
+    "label": "GLM 5.3 Prime",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 2.8, "output": 8.8 },
+    "canonical": "z-ai/glm-5-3-prime",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "z-ai/glm-5v-turbo" },
+    "label": "GLM-5V-Turbo",
+    "contextWindow": 202752,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 1.2, "output": 4 },
+    "canonical": "z-ai/glm-5v-turbo",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~anthropic/claude-fable-latest" },
+    "label": "Claude Fable Latest",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "anthropic/claude-fable-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~anthropic/claude-haiku-latest" },
+    "label": "Claude Haiku Latest",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "anthropic/claude-haiku-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~anthropic/claude-opus-latest" },
+    "label": "Claude Opus Latest",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 4, "output": 20 },
+    "canonical": "anthropic/claude-opus-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~anthropic/claude-sonnet-latest" },
+    "label": "Claude Sonnet Latest",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "anthropic/claude-sonnet-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~deepseek/deepseek-flash-latest" },
+    "label": "DeepSeek Flash Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.0001, "output": 0.6 },
+    "canonical": "deepseek/deepseek-flash-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~deepseek/deepseek-pro-latest" },
+    "label": "DeepSeek Pro Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.21912, "output": 0.65736 },
+    "canonical": "deepseek/deepseek-pro-latest",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~deepseek/deepseek-v4-flash-latest" },
+    "label": "DeepSeek V4 Flash Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.018, "output": 1.28 },
+    "canonical": "deepseek/deepseek-v4-flash-latest",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~google/gemini-flash-latest" },
+    "label": "Gemini Flash Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.75, "output": 3.75 },
+    "canonical": "google/gemini-flash-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~google/gemini-pro-latest" },
+    "label": "Gemini Pro Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "google/gemini-pro-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~moonshotai/kimi-latest" },
+    "label": "Kimi Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.31, "output": 14.89 },
+    "canonical": "moonshotai/kimi-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~openai/gpt-astra-latest" },
+    "label": "GPT Astra Latest",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "openai/gpt-astra-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~openai/gpt-luna-latest" },
+    "label": "GPT Luna Latest",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "openai/gpt-luna-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~openai/gpt-mini-latest" },
+    "label": "GPT Mini Latest",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.75, "output": 4.5 },
+    "canonical": "openai/gpt-mini-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~openai/gpt-sol-latest" },
+    "label": "GPT Sol Latest",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-sol-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~openai/gpt-terra-latest" },
+    "label": "GPT Terra Latest",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh", "max"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "openai/gpt-terra-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~x-ai/grok-latest" },
+    "label": "Grok Latest",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~z-ai/glm-flash-latest" },
+    "label": "GLM Flash Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.04, "output": 0.5 },
+    "canonical": "z-ai/glm-flash-latest",
+    "images": true
+  },
+  {
+    "ref": { "providerId": "openrouter", "modelId": "~z-ai/glm-latest" },
+    "label": "GLM Latest",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.039, "output": 4.8 },
+    "canonical": "z-ai/glm-latest",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v3.2" },
+    "label": "deepseek-v3.2",
+    "contextWindow": 163840,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.7, "output": 2 },
+    "canonical": "deepseek/deepseek-v3-2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v4-flash" },
+    "label": "deepseek-v4-flash",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.23, "output": 0.62 },
+    "canonical": "deepseek/deepseek-v4-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v4-flash-0731" },
+    "label": "deepseek-v4-flash-0731",
+    "contextWindow": 1048575,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.53, "output": 1.58 },
+    "canonical": "deepseek/deepseek-v4-flash-0731",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v4-pro" },
+    "label": "deepseek-v4-pro",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 2.1, "output": 4.2 },
+    "canonical": "deepseek/deepseek-v4-pro",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v4-pro-0813" },
+    "label": "deepseek-v4-pro-0813",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 1.32, "output": 3.96 },
+    "canonical": "deepseek/deepseek-v4-pro-0813",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "deepseek-v4.1-flash" },
+    "label": "deepseek-v4.1-flash",
+    "contextWindow": 1040000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high", "max"],
+    "cost": { "input": 0.3, "output": 1 },
+    "canonical": "deepseek/deepseek-v4-1-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-2.5-flash" },
+    "label": "gemini-2.5-flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.3, "output": 2.5 },
+    "canonical": "google/gemini-2-5-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-2.5-flash-lite" },
+    "label": "gemini-2.5-flash-lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.1, "output": 0.4 },
+    "canonical": "google/gemini-2-5-flash-lite",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-2.5-pro" },
+    "label": "gemini-2.5-pro",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["minimal", "low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 10 },
+    "canonical": "google/gemini-2-5-pro",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3-flash-preview" },
+    "label": "gemini-3-flash-preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.5, "output": 3 },
+    "canonical": "google/gemini-3-flash-preview",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.1-flash-lite" },
+    "label": "gemini-3.1-flash-lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.25, "output": 1.5 },
+    "canonical": "google/gemini-3-1-flash-lite",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.1-pro-preview" },
+    "label": "gemini-3.1-pro-preview",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "google/gemini-3-1-pro-preview",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.5-flash" },
+    "label": "gemini-3.5-flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 1.5, "output": 9 },
+    "canonical": "google/gemini-3-5-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.5-flash-lite" },
+    "label": "gemini-3.5-flash-lite",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.3, "output": 2.5 },
+    "canonical": "google/gemini-3-5-flash-lite",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.6-flash" },
+    "label": "gemini-3.6-flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 1.5, "output": 7.5 },
+    "canonical": "google/gemini-3-6-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemini-3.7-flash" },
+    "label": "gemini-3.7-flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1.5, "output": 7.5 },
+    "canonical": "google/gemini-3-7-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemma-3-27b-it" },
+    "label": "gemma-3-27b-it",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.09, "output": 0.25 },
+    "canonical": "google/gemma-3-27b-it",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gemma-3-4b-it" },
+    "label": "gemma-3-4b-it",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.05, "output": 0.1 },
+    "canonical": "google/gemma-3-4b-it",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "glm-5" },
+    "label": "glm-5",
+    "contextWindow": 204800,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.95, "output": 2.55 },
+    "canonical": "z-ai/glm-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "glm-5.2" },
+    "label": "glm-5.2",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 0.65, "output": 2.2 },
+    "canonical": "z-ai/glm-5-2",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "glm-5.2-fast" },
+    "label": "glm-5.2-fast",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high"],
+    "cost": { "input": 2.6, "output": 8.8 },
+    "canonical": "z-ai/glm-5-2-fast",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "glm-5.3" },
+    "label": "glm-5.3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.9, "output": 3 },
+    "canonical": "z-ai/glm-5-3",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "glm-5.3-flash" },
+    "label": "glm-5.3-flash",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "high", "max"],
+    "cost": { "input": 0.1, "output": 0.45 },
+    "canonical": "z-ai/glm-5-3-flash",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-4.1" },
+    "label": "gpt-4.1",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2, "output": 8 },
+    "canonical": "openai/gpt-4-1",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-4.1-mini" },
+    "label": "gpt-4.1-mini",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.4, "output": 1.6 },
+    "canonical": "openai/gpt-4-1-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-4.1-nano" },
+    "label": "gpt-4.1-nano",
+    "contextWindow": 1047576,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.1, "output": 0.4 },
+    "canonical": "openai/gpt-4-1-nano",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-4o" },
+    "label": "gpt-4o",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 2.5, "output": 10 },
+    "canonical": "openai/gpt-4o",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-4o-mini" },
+    "label": "gpt-4o-mini",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.15, "output": 0.6 },
+    "canonical": "openai/gpt-4o-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5-mini" },
+    "label": "gpt-5-mini",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.25, "output": 2 },
+    "canonical": "openai/gpt-5-mini",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5-nano" },
+    "label": "gpt-5-nano",
+    "contextWindow": 400000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.05, "output": 0.4 },
+    "canonical": "openai/gpt-5-nano",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5.4" },
+    "label": "gpt-5.4",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2.5, "output": 15 },
+    "canonical": "openai/gpt-5-4",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5.5" },
+    "label": "gpt-5.5",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "openai/gpt-5-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5.6-luna" },
+    "label": "gpt-5.6-luna",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.2, "output": 1.2 },
+    "canonical": "openai/gpt-5-6-luna",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5.6-sol" },
+    "label": "gpt-5.6-sol",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 5, "output": 30 },
+    "canonical": "openai/gpt-5-6-sol",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-5.6-terra" },
+    "label": "gpt-5.6-terra",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "efforts": ["off", "minimal", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 12 },
+    "canonical": "openai/gpt-5-6-terra",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-6-astra" },
+    "label": "gpt-6-astra",
+    "contextWindow": 922000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 10, "output": 50 },
+    "canonical": "openai/gpt-6-astra",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-6-luna" },
+    "label": "gpt-6-luna",
+    "contextWindow": 922000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 0.1, "output": 0.5 },
+    "canonical": "openai/gpt-6-luna",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "gpt-6-sol" },
+    "label": "gpt-6-sol",
+    "contextWindow": 922000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "medium", "high", "xhigh"],
+    "cost": { "input": 2, "output": 10 },
+    "canonical": "openai/gpt-6-sol",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "grok-4.5" },
+    "label": "grok-4.5",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-4-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "grok-4.6" },
+    "label": "grok-4.6",
+    "contextWindow": 500000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 2, "output": 6 },
+    "canonical": "x-ai/grok-4-6",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "inference-net/schematron-v2-small" },
+    "label": "inference-net/schematron-v2-small",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.05, "output": 0.23 },
+    "canonical": "inference-net/schematron-v2-small",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "inference-net/schematron-v2-turbo" },
+    "label": "inference-net/schematron-v2-turbo",
+    "contextWindow": 128000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.03, "output": 0.15 },
+    "canonical": "inference-net/schematron-v2-turbo",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "kimi-k2.5" },
+    "label": "kimi-k2.5",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.8, "output": 3.95 },
+    "canonical": "moonshotai/kimi-k2-5",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "kimi-k2.6" },
+    "label": "kimi-k2.6",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 1.25, "output": 5.3 },
+    "canonical": "moonshotai/kimi-k2-6",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "kimi-k3-fast" },
+    "label": "kimi-k3-fast",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 4.5, "output": 22.5 },
+    "canonical": "moonshotai/kimi-k3-fast",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "llama-3.2-1b-instruct" },
+    "label": "llama-3.2-1b-instruct",
+    "contextWindow": 60000,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.027, "output": 0.201 },
+    "canonical": "meta-llama/llama-3-2-1b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "llama-3.2-3b-instruct" },
+    "label": "llama-3.2-3b-instruct",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.05, "output": 0.33 },
+    "canonical": "meta-llama/llama-3-2-3b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "llama-3.3-70b-instruct" },
+    "label": "llama-3.3-70b-instruct",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": [],
+    "cost": { "input": 0.13, "output": 0.4 },
+    "canonical": "meta-llama/llama-3-3-70b-instruct",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "moonshotai/kimi-k3" },
+    "label": "moonshotai/kimi-k3",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high", "max"],
+    "cost": { "input": 3, "output": 15 },
+    "canonical": "moonshotai/kimi-k3",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "moonshotai/kimi-k3-fast" },
+    "label": "moonshotai/kimi-k3-fast",
+    "contextWindow": 250000,
+    "imageTier": "standard",
+    "efforts": ["off", "low", "high", "max"],
+    "cost": { "input": 4.5, "output": 22.5 },
+    "canonical": "moonshotai/kimi-k3-fast",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "nemotron-3-super" },
+    "label": "nemotron-3-super",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.102, "output": 0.48 },
+    "canonical": "nvidia/nemotron-3-super",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "qwen3-14b" },
+    "label": "qwen3-14b",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.2275, "output": 0.91 },
+    "canonical": "qwen/qwen3-14b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "qwen3-30b-a3b" },
+    "label": "qwen3-30b-a3b",
+    "contextWindow": 40960,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.12, "output": 0.5 },
+    "canonical": "qwen/qwen3-30b-a3b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "qwen3-8b" },
+    "label": "qwen3-8b",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.117, "output": 0.455 },
+    "canonical": "qwen/qwen3-8b",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "qwen3-max-thinking" },
+    "label": "qwen3-max-thinking",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.78, "output": 3.9 },
+    "canonical": "qwen/qwen3-max-thinking",
+    "images": false
+  },
+  {
+    "ref": { "providerId": "inference", "modelId": "qwen3.7-plus" },
+    "label": "qwen3.7-plus",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "efforts": ["low", "medium", "high"],
+    "cost": { "input": 0.4, "output": 1.6 },
+    "canonical": "qwen/qwen3-7-plus",
+    "images": false
+  }
+]

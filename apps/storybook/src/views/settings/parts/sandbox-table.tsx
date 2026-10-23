@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@dltech/atlas-ui/components/table'
 
-import type { SandboxRow } from '../../../fixtures/settings-usage'
+import type { SandboxRow } from '../../../fixtures/settings-sandbox'
 import { Mono, SettingsCard } from '../settings-layout'
 
 export function SandboxStatus({ row }: { row: SandboxRow }) {
@@ -25,7 +25,7 @@ export function SandboxStatus({ row }: { row: SandboxRow }) {
   return <span className="text-sm text-muted-foreground">Paused {row.pausedAgo}</span>
 }
 
-export function UsageSandboxTable({
+export function SandboxTable({
   rows,
   actionLabel,
   actionIcon,
@@ -62,9 +62,7 @@ export function UsageSandboxTable({
                 <SandboxStatus row={row} />
               </TableCell>
               <TableCell className="text-right">
-                <Mono>
-                  {row.last24h} / {row.cost}
-                </Mono>
+                <Mono>{row.last24h}</Mono>
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <Button variant="outline" size="xs">

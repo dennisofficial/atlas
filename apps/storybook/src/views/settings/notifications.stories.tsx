@@ -1,11 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
-import { ESettingsPage } from './settings-nav'
-import { renderSettingsPage } from './settings-pages'
-import { SettingsShell } from './settings-shell'
+import { NotificationsPage } from './pages/notifications'
 
 const meta = {
-  title: 'Views/Settings/Personal/Notifications',
+  title: 'Views/Settings/Parked/Notifications',
   parameters: { layout: 'fullscreen' },
 } satisfies Meta
 
@@ -15,6 +13,8 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => (
-    <SettingsShell initialPage={ESettingsPage.Notifications} renderPage={renderSettingsPage} />
+    <div className="mx-auto w-full max-w-3xl px-8 py-10">
+      <NotificationsPage />
+    </div>
   ),
 }
