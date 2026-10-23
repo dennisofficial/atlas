@@ -20,6 +20,8 @@
     "./lib/highlighter": "./src/lib/highlighter.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
+    "./fixtures/*.json": "./src/fixtures/*.json",
+    "./fixtures/*": "./src/fixtures/*.ts",
     "./theme.css": "./src/styles/theme.css",
     "./base.css": "./src/styles/base.css",
     "./fonts.css": "./src/styles/fonts.css"
@@ -65,11 +67,13 @@
     "tailwindcss": "^4"
   },
   "devDependencies": {
+    "@storybook/react": "10.6.0",
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "19.2.7",
     "react-dom": "19.2.7",
+    "storybook": "10.6.0",
     "tailwindcss": "^4.1.18"
   }
 }

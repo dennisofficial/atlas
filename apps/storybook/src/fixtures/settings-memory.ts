@@ -3,15 +3,15 @@ import {
   COMP_MEMORIES,
   GLOBAL_MEMORIES,
   RS_CRM_MEMORIES,
-} from './settings-memory-entries'
+} from '@dltech/atlas-ui/fixtures/settings-memory-entries'
 import {
   EMemoryScope,
   MEMORY_GLOBAL_GROUP_ID,
   MEMORY_RS_CRM_GROUP_ID,
   type MemoryScopeGroup,
-} from './settings-memory-types'
+} from '@dltech/atlas-ui/fixtures/settings-memory-types'
 
-export * from './settings-memory-types'
+export * from '@dltech/atlas-ui/fixtures/settings-memory-types'
 
 const MEMORY_DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
   month: 'short',

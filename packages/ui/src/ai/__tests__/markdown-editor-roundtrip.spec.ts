@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { GLOBAL_INSTRUCTIONS } from '../../../../../apps/storybook/src/fixtures/settings-agent'
+import { GLOBAL_INSTRUCTIONS } from '../../fixtures/settings-agent'
 import {
   ATLAS_MEMORIES,
   COMP_MEMORIES,
   GLOBAL_MEMORIES,
   RS_CRM_MEMORIES,
-} from '../../../../../apps/storybook/src/fixtures/settings-memory-entries'
+} from '../../fixtures/settings-memory-entries'
 import { roundTripMarkdown } from '../internal/markdown-editor-headless'
 
 const MEMORIES = [...GLOBAL_MEMORIES, ...ATLAS_MEMORIES, ...RS_CRM_MEMORIES, ...COMP_MEMORIES]
