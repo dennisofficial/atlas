@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
-import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
+import { API_PROVISIONED_ENV, EServeEnv } from '@dltech/atlas-wire'
 
 import { threadModelPersisterOf } from '../serve-thread-model-persist'
 
@@ -57,6 +57,16 @@ describe('threadModelPersisterOf', () => {
         body: PICKED,
         auth: 'Bearer sandbox-token',
       },
+    ])
+  })
+
+  it('PATCHes the thread model from a registered pod the TUI provisioned', async () => {
+    const { persist, requests } = bind({
+      env: { [EServeEnv.CloudUrl]: 'https://api.example.com', [EServeEnv.Token]: 'sandbox-token' },
+    })
+    await persist?.(PICKED)
+    expect(requests.map((request) => request.url)).toEqual([
+      'https://api.example.com/v1/threads/thr_persist/model',
     ])
   })
 

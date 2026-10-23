@@ -1,6 +1,6 @@
 import { ENoticeTone, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 import { SessionsClient } from '@dltech/atlas-harness'
-import { isApiProvisioned } from '@dltech/atlas-wire'
+import { writesBehind } from '@dltech/atlas-wire'
 
 export type ThreadModelPersister = (model: { ref: string; effort: string }) => Promise<void>
 
@@ -13,7 +13,7 @@ export function threadModelPersisterOf(args: {
   fetchFn?: typeof fetch | undefined
   notice: NoticePort
 }): ThreadModelPersister | undefined {
-  if (!isApiProvisioned(args.env)) return undefined
+  if (!writesBehind(args.env)) return undefined
   const client = new SessionsClient({
     url: args.controlPlaneUrl,
     token: args.token,
