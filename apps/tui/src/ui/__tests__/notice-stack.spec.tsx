@@ -63,6 +63,18 @@ describe('the notice stack', () => {
     expect(row?.indexOf('✓')).toBe(1)
   })
 
+  it('centers itself when the welcome screen centers the composer', async () => {
+    notify({ text: 'copied 3 lines' })
+    const frame = await frameOf(<NoticeStack width={WIDTH} centered />, WIDTH)
+    dismissNotice()
+
+    const row = frame.split('\n').find((line) => line.includes('copied')) ?? ''
+    const left = row.indexOf('✓')
+    const right = WIDTH - row.trimEnd().length
+    expect(left).toBeGreaterThan(5)
+    expect(Math.abs(left - 1 - right)).toBeLessThanOrEqual(2)
+  })
+
   it('marks a warning apart from a confirmation', async () => {
     notify({ text: 'clipboard unavailable', tone: ENoticeTone.Warn })
     const frame = await frameOf(stack(), WIDTH)

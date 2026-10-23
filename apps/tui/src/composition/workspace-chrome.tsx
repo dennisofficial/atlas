@@ -35,7 +35,7 @@ export function WorkspaceChrome(props: {
 
   return (
     <>
-      <NoticeStack width={props.width} />
+      <NoticeStack width={props.width} centered={props.welcome} />
       <WorkspacePanel panel={props.panel} width={props.width} />
       <WorkspaceComposer
         draft={props.draft}
