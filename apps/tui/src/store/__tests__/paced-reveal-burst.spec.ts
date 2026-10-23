@@ -6,8 +6,6 @@ import { fixtureThreadId } from '@dltech/atlas-client/transcript-fixture'
 import { createConversationStore } from '../conversation-store'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 
-const A_FRAME_OR_TWO = 60
-
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 const tailOf = (store: ReturnType<typeof createConversationStore>): string =>
