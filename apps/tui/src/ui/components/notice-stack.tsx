@@ -29,7 +29,7 @@ export const toneMark = (tone: ENoticeTone): string => {
   return glyph.passed
 }
 
-export function NoticeStack(props: { width: number }): React.ReactNode {
+export function NoticeStack(props: { width: number; centered?: boolean }): React.ReactNode {
   useSyncExternalStore(subscribeNotices, noticeVersion)
   const notices = currentNotices().filter((notice) => notice.position === ENoticePosition.Tray)
   if (notices.length === 0 || props.width < NOTICE_MIN_CELLS) return null
@@ -38,7 +38,12 @@ export function NoticeStack(props: { width: number }): React.ReactNode {
   const band = Math.max(1, cells - SLAB_PAD - MARK_INDENT)
 
   return (
-    <box width={props.width} flexDirection="column" alignItems="flex-start" flexShrink={0}>
+    <box
+      width={props.width}
+      flexDirection="column"
+      alignItems={props.centered === true ? 'center' : 'flex-start'}
+      flexShrink={0}
+    >
       {notices.map((notice) => {
         const [first, ...rest] = wrapWords({ text: notice.text, width: band })
         const lines = [
