@@ -80,6 +80,45 @@ export const Diagram: Story = {
   args: { children: DIAGRAM },
 }
 
+const EXTENDED = [
+  'Task list:',
+  '',
+  '- [x] Render headings',
+  '- [ ] Render footnotes',
+  '',
+  'Nested:',
+  '',
+  '- First item',
+  '  - Nested item with `code`',
+  '',
+  '3. Starts at three',
+  '4. Continues',
+  '',
+  '> [!NOTE]',
+  '> GitHub-style admonition with `code`.',
+  '',
+  '> [!WARNING]',
+  '> A warning admonition.',
+  '',
+  'Inline math $E = mc^2$ and a block:',
+  '',
+  '$$',
+  '\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}',
+  '$$',
+  '',
+  'Shortcode :rocket: and a footnote.[^1]',
+  '',
+  '***',
+  '',
+  'Text after a star rule.',
+  '',
+  '[^1]: The footnote, with a back link that stays on the page.',
+].join('\n')
+
+export const Extended: Story = {
+  args: { children: EXTENDED },
+}
+
 export const StreamingText: Story = {
   args: {
     isAnimating: true,
