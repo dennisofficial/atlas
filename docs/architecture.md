@@ -1631,6 +1631,7 @@ atlas/
   packages/
     core/       pure. no I/O, no clock, no randomness, no network, no database
     harness/    the loop, hooks, tools, model adapters, credentials, store
+    models/     the generated model catalogue and its generator, shared by harness and web
     ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
     wire/       the wire contract: channel/session zod schemas, protocol version, serve-env.
                 No in-repo deps, so the NodeNext api can build it where core cannot.

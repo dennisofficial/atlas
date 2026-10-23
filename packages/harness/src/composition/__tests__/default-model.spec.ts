@@ -8,12 +8,12 @@ import {
 } from '@dltech/atlas-core'
 import {
   AnthropicAdapter,
-  cardsForProvider,
   createSettingsService,
   MemorySettingsStore,
   OpenAiAdapter,
   OPENAI_PROVIDER_ID,
 } from '@dltech/atlas-harness'
+import { cardsForProvider } from '@dltech/atlas-models'
 
 import { DEFAULT_MODEL_REF } from '../config'
 import { launchSelection } from '../model-preference'

@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { MODELS_DEV_PROVIDER_IDS, type GeneratedManifest } from '../src/models/generated-card'
+import { MODELS_DEV_PROVIDER_IDS, type GeneratedManifest } from '../src/generated-card'
 import { mapProvider } from './catalogue-map'
 import type { ProviderMapping, ProviderReport } from './catalogue-report'
 import { mapInferenceModels } from './inference-map'
@@ -10,7 +10,7 @@ import { fetchModelsDevIndex, MODELS_DEV_SOURCE } from './models-dev'
 const SOURCE = `${MODELS_DEV_SOURCE} + ${INFERENCE_SOURCE}`
 
 const SHRINK_FLOOR = 0.6
-const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../src/models/generated')
+const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../src/generated')
 const MANIFEST_PATH = join(OUTPUT_DIR, 'manifest.json')
 
 const providerPath = (providerId: string): string => join(OUTPUT_DIR, `${providerId}.json`)

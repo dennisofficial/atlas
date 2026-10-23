@@ -2,7 +2,7 @@ import {
   INFERENCE_CATALOGUE_PROVIDER_ID,
   OPENAI_COMPLETIONS_API,
   type GeneratedCard,
-} from '../src/models/generated-card'
+} from '../src/generated-card'
 import { literalRungs } from './catalogue-effort'
 import {
   ENote,

@@ -10,7 +10,8 @@ import {
   textValueOf,
   toThreadId,
 } from '@dltech/atlas-core'
-import { AnthropicAdapter, cardsForProvider } from '@dltech/atlas-harness'
+import { AnthropicAdapter } from '@dltech/atlas-harness'
+import { cardsForProvider } from '@dltech/atlas-models'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'

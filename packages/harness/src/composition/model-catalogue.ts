@@ -11,8 +11,7 @@ import {
   type ModelCatalog,
   type ModelRef,
 } from '@dltech/atlas-core'
-import { enrichLiveCards } from '../models/enrich-live-cards'
-import { cardsForProvider, withoutDatedDuplicates } from '../models/generated-catalogue'
+import { cardsForProvider, enrichLiveCards, withoutDatedDuplicates } from '@dltech/atlas-models'
 import type { ProviderAdapter } from '../providers/adapter'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { INFERENCE_PROVIDER_ID, InferenceAdapter } from '../providers/inference-adapter'

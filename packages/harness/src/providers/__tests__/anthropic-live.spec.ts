@@ -13,7 +13,7 @@ import { ETurnStatus, buildHarness, type AtlasHarness } from '../../loop'
 import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { SystemClock } from '../../store'
 import { createAnthropicOauthModel } from '../anthropic-oauth'
-import { generatedCatalogue } from '../../models/generated-catalogue'
+import { generatedCatalogue } from '@dltech/atlas-models'
 import { anthropicEffortOptions } from '../anthropic-effort'
 import { bodyOnlyRecordingPassthroughFetch, type BodyOnlyRecordingFetch } from './recording-fetch'
 

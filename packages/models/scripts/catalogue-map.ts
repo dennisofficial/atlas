@@ -1,4 +1,4 @@
-import { API_BY_NPM, type GeneratedCard } from '../src/models/generated-card'
+import { API_BY_NPM, type GeneratedCard } from '../src/generated-card'
 import {
   ENote,
   ESkipReason,
