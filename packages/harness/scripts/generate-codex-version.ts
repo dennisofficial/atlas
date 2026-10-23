@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
-import { CODEX_VERSION } from '../src/providers/codex-version'
+import { CODEX_VERSION } from '../src/models/codex-version'
 
 const VERSION_PATH = new URL('../src/providers/codex-version.ts', import.meta.url)
 const TAG_PREFIX = 'rust-v'

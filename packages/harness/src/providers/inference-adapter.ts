@@ -12,11 +12,12 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
+import { INFERENCE_LABEL, INFERENCE_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { inferenceEffortOptions } from './inference-effort'
 import { providerKey } from './provider-key'
 
-export const INFERENCE_PROVIDER_ID = 'inference'
+export { INFERENCE_PROVIDER_ID }
 
 /**
  * models.dev records inference.net's base as `https://inference.net/v1`, which 301s. The host that
@@ -26,7 +27,7 @@ const INFERENCE_BASE_URL = 'https://api.inference.net/v1'
 
 export class InferenceAdapter extends ProviderAdapter {
   readonly id = INFERENCE_PROVIDER_ID
-  readonly label = 'Inference.net'
+  readonly label = INFERENCE_LABEL
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]

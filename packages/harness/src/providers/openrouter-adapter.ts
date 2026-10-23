@@ -9,11 +9,12 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
+import { OPENROUTER_LABEL, OPENROUTER_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { openrouterEffortOptions } from './openrouter-effort'
 import { providerKey } from './provider-key'
 
-export const OPENROUTER_PROVIDER_ID = 'openrouter'
+export { OPENROUTER_PROVIDER_ID }
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
@@ -26,7 +27,7 @@ const ATTRIBUTION_HEADERS = {
 
 export class OpenRouterAdapter extends ProviderAdapter {
   readonly id = OPENROUTER_PROVIDER_ID
-  readonly label = 'OpenRouter'
+  readonly label = OPENROUTER_LABEL
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]

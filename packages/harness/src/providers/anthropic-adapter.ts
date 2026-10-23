@@ -8,13 +8,14 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
+import { CLAUDE_PLAN_LABEL } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { anthropicEffortOptions } from './anthropic-effort'
 import { createAnthropicOauthModel } from './anthropic-oauth'
 
 export class AnthropicAdapter extends ProviderAdapter {
   readonly id = ANTHROPIC_PROVIDER_ID
-  readonly label = 'Claude Plan'
+  readonly label = CLAUDE_PLAN_LABEL
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]

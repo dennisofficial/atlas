@@ -9,15 +9,16 @@ import {
 
 import type { OpenAIProviderSettings } from '@ai-sdk/openai'
 
+import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '../models/provider-ids'
 import { ProviderAdapter } from './adapter'
 import { openaiEffortOptions } from './openai-effort'
 import { createOpenAiModel, mergedProviderOptions } from './openai-oauth'
 
-export const OPENAI_PROVIDER_ID = 'openai'
+export { OPENAI_PROVIDER_ID }
 
 export class OpenAiAdapter extends ProviderAdapter {
   readonly id = OPENAI_PROVIDER_ID
-  readonly label = 'Codex Plan'
+  readonly label = CODEX_PLAN_LABEL
 
   private readonly credentials: CredentialPort
   private readonly catalogue: readonly ModelCard[]
