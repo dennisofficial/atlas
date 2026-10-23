@@ -166,7 +166,7 @@ export async function finishServeBoot(args: {
       }),
       revision: mirrorRevision.current,
     },
-    ...handlerOptionsOf({ app, log }),
+    ...handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
   })
 
   const detachSubscriptions = bindServeSubscriptions({

@@ -24,6 +24,7 @@ import { createRotationRequests, isRotationOp } from './rotation-requests'
 import { routeSessionMirrorRead, type SessionMirrorRouting } from './session-mirror-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
+import type { ThreadModelPersister } from './serve-thread-model-persist'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 export const messageOf = (error: unknown, fallback: string): string =>
@@ -48,6 +49,7 @@ export function createRequestRouter(args: {
   mentions?: MentionRouting | undefined
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
+  persistModel?: ThreadModelPersister | undefined
   sessionMirror?: SessionMirrorRouting | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
@@ -272,7 +274,9 @@ export function createRequestRouter(args: {
         frame,
         transcript,
         threadId,
+        log,
         ...(selectModel === undefined ? {} : { select: selectModel }),
+        ...(args.persistModel === undefined ? {} : { persist: args.persistModel }),
       })
         .then((reply) => send({ socket, frame: reply }))
         .catch((error: unknown) =>

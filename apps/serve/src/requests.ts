@@ -22,6 +22,7 @@ import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
+import type { ServeLog } from './serve-log'
 import { answerSetThreadModel } from './thread-model'
 import {
   answeredRequest,
@@ -168,6 +169,8 @@ export async function answerTranscriptWrite(args: {
   transcript: TranscriptReaders
   threadId: ThreadId
   select?: ((model: { ref: string; effort: string }) => void) | undefined
+  persist?: ((model: { ref: string; effort: string }) => Promise<void>) | undefined
+  log?: ServeLog | undefined
 }): Promise<ReplyFrame> {
   if (args.frame.op === EClientRequest.RenameThread) return await answerRenameThread(args)
   return await answerSetThreadModel(args)

@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'bun:test'
+import { NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
+
+import { threadModelPersisterOf } from '../serve-thread-model-persist'
+
+const threadId = toThreadId('thr_persist')
+const PICKED = { ref: 'openai/gpt-5-codex', effort: 'high' }
+
+class RecordingNotice extends NoticePort {
+  readonly posts: NoticePost[] = []
+  notify(post: NoticePost): void {
+    this.posts.push(post)
+  }
+}
+
+const bind = (args: { env: Record<string, string | undefined>; status?: number }) => {
+  const requests: {
+    url: string
+    method: string | undefined
+    body: unknown
+    auth: string | null
+  }[] = []
+  const notice = new RecordingNotice()
+  const persist = threadModelPersisterOf({
+    env: args.env,
+    threadId,
+    controlPlaneUrl: 'https://api.example.com',
+    token: 'sandbox-token',
+    clientVersion: '1.2.3',
+    notice,
+    fetchFn: (async (input: string | URL | Request, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        method: init?.method,
+        body: JSON.parse(String(init?.body)),
+        auth: new Headers(init?.headers).get('authorization'),
+      })
+      return new Response(null, { status: args.status ?? 204 })
+    }) as unknown as typeof fetch,
+  })
+  return { persist, requests, notice }
+}
+
+describe('threadModelPersisterOf', () => {
+  it('is absent when the pod has no control plane', () => {
+    expect(bind({ env: {} }).persist).toBeUndefined()
+  })
+
+  it('PATCHes the thread model with the sandbox token when API-provisioned', async () => {
+    const { persist, requests } = bind({ env: { [API_PROVISIONED_ENV]: '1' } })
+    await persist?.(PICKED)
+    expect(requests).toEqual([
+      {
+        url: 'https://api.example.com/v1/threads/thr_persist/model',
+        method: 'PATCH',
+        body: PICKED,
+        auth: 'Bearer sandbox-token',
+      },
+    ])
+  })
+
+  it('posts a warn notice and rejects when the API refuses', async () => {
+    const { persist, notice } = bind({ env: { [API_PROVISIONED_ENV]: '1' }, status: 500 })
+    await expect(persist?.(PICKED)).rejects.toThrow()
+    expect(notice.posts).toHaveLength(1)
+    expect(notice.posts[0]).toMatchObject({ tone: 'warn', key: 'thread-model-persist' })
+  })
+})
