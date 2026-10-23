@@ -22,22 +22,29 @@ export function useCommandMenu(args: {
   specs: readonly CommandSpec[]
   onComplete: (text: string) => void
 }): CommandMenuControl {
-  const [state, setState] = useState<CommandMenuState | null>(null)
+  const [state, setRenderedState] = useState<CommandMenuState | null>(null)
+  const current = useRef<CommandMenuState | null>(null)
   const typed = useRef('')
   const { specs, onComplete } = args
+
+  const setState = useCallback((next: CommandMenuState | null) => {
+    current.current = next
+    setRenderedState(next)
+  }, [])
 
   const handleTextChanged = useCallback(
     (text: string) => {
       typed.current = text
       setState(openCommandMenu({ text, specs }))
     },
-    [specs],
+    [setState, specs],
   )
 
-  const handleDismiss = useCallback(() => setState(null), [])
+  const handleDismiss = useCallback(() => setState(null), [setState])
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
+      const state = current.current
       if (state === null) return false
 
       if (key.name === 'escape') {
@@ -60,7 +67,7 @@ export function useCommandMenu(args: {
       onComplete(completedText({ text: typed.current, spec }))
       return true
     },
-    [onComplete, state],
+    [onComplete, setState],
   )
 
   return useMemo(

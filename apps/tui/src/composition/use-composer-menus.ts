@@ -1,5 +1,5 @@
 import type { KeyEvent } from '@opentui/core'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 
 import type { CommandSpec } from '@dltech/atlas-core'
 import type { MentionReader } from '@dltech/atlas-harness'
@@ -27,6 +27,7 @@ export function useComposerMenus(args: {
   currentDirectory: string
   onComplete: (text: string) => void
   onProblem?: ((reason: string) => void) | undefined
+  liveText?: (() => string | undefined) | undefined
 }): ComposerMenus {
   const { files, onComplete, onProblem } = args
   const cdFiles = args.cdFiles ?? files
@@ -40,8 +41,11 @@ export function useComposerMenus(args: {
     onProblem,
   })
 
+  const seen = useRef<string | undefined>(undefined)
+
   const handleTextChanged = useCallback(
     (text: string) => {
+      seen.current = text
       commands.handleTextChanged(text)
       cd.handleTextChanged(text)
 
@@ -60,10 +64,14 @@ export function useComposerMenus(args: {
     cd.handleDismiss()
   }, [commands, mentions, cd])
 
+  const { liveText } = args
   const handleKey = useCallback(
-    (key: KeyEvent): boolean =>
-      commands.handleKey(key) || cd.handleKey(key) || mentions.handleKey(key),
-    [commands, mentions, cd],
+    (key: KeyEvent): boolean => {
+      const live = liveText?.()
+      if (live !== undefined && live !== seen.current) handleTextChanged(live)
+      return commands.handleKey(key) || cd.handleKey(key) || mentions.handleKey(key)
+    },
+    [commands, mentions, cd, handleTextChanged, liveText],
   )
 
   return useMemo(
