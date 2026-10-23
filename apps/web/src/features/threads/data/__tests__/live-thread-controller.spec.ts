@@ -206,6 +206,38 @@ describe('createLiveThreadController', () => {
     expect(test.history).toHaveLength(emitted)
     expect(test.controller.send({ text: 'x', requestId: 'r' })).toBe(false)
   })
+
+  it('chooseModel sends set-thread-model with the thread id and model and resolves on the reply', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    const before = test.requests().length
+
+    const chosen = test.controller.chooseModel({ ref: 'anthropic/claude-opus-5', effort: 'high' })
+    await flush()
+
+    const request = test.requests()[before]
+    expect(request?.op).toBe(EClientRequest.SetThreadModel)
+    expect(request?.params).toEqual({
+      threadId: 'thr_1',
+      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+    })
+    if (request === undefined) throw new Error('no request')
+    test.receive({
+      kind: EServeFrame.Reply,
+      replyTo: request.id,
+      ok: true,
+      data: { threadId: 'thr_1', model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+    })
+    expect(await chosen).toBe(true)
+  })
+
+  it('chooseModel is false without a connected channel', async () => {
+    const test = rig()
+    expect(await test.controller.chooseModel({ ref: 'a/b', effort: 'low' })).toBe(false)
+  })
 })
 
 describe('remintDelayMs', () => {

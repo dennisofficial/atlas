@@ -192,9 +192,28 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     return true
   }
 
+  const chooseModel = async (model: { ref: string; effort: string }): Promise<boolean> => {
+    const live = channel
+    if (stopped || fellBack || live === null) return false
+    if (live.connection().state !== EConnectionView.Connected) return false
+    await live.request({
+      op: EClientRequest.SetThreadModel,
+      params: { threadId: args.threadId, model },
+    })
+    return true
+  }
+
+  const onModelChanged = (listener: (model: { ref: string; effort: string }) => void) => {
+    const live = channel
+    if (live === null) return () => undefined
+    return live.onThreadModelChanged((changed) => listener(changed.model))
+  }
+
   return {
     start: () => void start(),
     send,
+    chooseModel,
+    onModelChanged,
     stop: () => {
       update({ ...EMPTY_SIGNALS })
       stopped = true
