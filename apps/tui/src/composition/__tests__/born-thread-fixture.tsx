@@ -43,6 +43,14 @@ export type CreatedProject = {
 
 export type FakeProjectsApi = { client: CloudClient; created: CreatedProject[] }
 
+const trpcData = (data: unknown): Response => Response.json({ result: { data } })
+
+const trpcBadRequest = (message: string): Response =>
+  Response.json(
+    { error: { message, code: -32600, data: { code: 'BAD_REQUEST', httpStatus: 400 } } },
+    { status: 400 },
+  )
+
 export const fakeProjectsApi = (
   args: {
     projects?: readonly Project[]
@@ -57,16 +65,14 @@ export const fakeProjectsApi = (
   const created: CreatedProject[] = []
   const fetchFn = (async (_url: string, init?: RequestInit) => {
     if (init?.method === 'POST') {
-      if (args.createFails === true)
-        return Response.json({ message: 'projects are read-only' }, { status: 400 })
+      if (args.createFails === true) return trpcBadRequest('projects are read-only')
       const body = JSON.parse(String(init.body)) as CreatedProject
       created.push(body)
-      return Response.json(projectOf({ id: 'proj-new', name: body.name, repo: body.repo }))
+      return trpcData(projectOf({ id: 'proj-new', name: body.name, repo: body.repo }))
     }
     await args.listGate
-    if (args.listFails === true)
-      return Response.json({ message: 'projects are down' }, { status: 400 })
-    return Response.json(projects)
+    if (args.listFails === true) return trpcBadRequest('projects are down')
+    return trpcData(projects)
   }) as unknown as typeof fetch
   return { client: new CloudClient({ url: 'https://cloud.test', token: 'test', fetchFn }), created }
 }
