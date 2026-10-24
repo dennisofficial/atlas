@@ -29,6 +29,19 @@ export const Default: Story = {
   ),
 }
 
+const renderVariantMarker: Story['render'] = (args) => (
+  <Marker {...args}>
+    <MarkerIcon>
+      <WrenchIcon />
+    </MarkerIcon>
+    <MarkerContent>Context compacted · {args.variant}</MarkerContent>
+  </Marker>
+)
+
+export const DefaultVariant: Story = { args: { variant: 'default' }, render: renderVariantMarker }
+
+export const Border: Story = { args: { variant: 'border' }, render: renderVariantMarker }
+
 export const Variants: Story = {
   render: () => (
     <div className="flex flex-col gap-6">

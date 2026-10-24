@@ -51,6 +51,28 @@ export const Default: Story = {
   ),
 }
 
+type Side = 'top' | 'right' | 'bottom' | 'left'
+
+function sideSheet(side: Side): Story['render'] {
+  return (args) => (
+    <Sheet {...args}>
+      <SheetTrigger render={<Button variant="outline" />}>{side}</SheetTrigger>
+      <SheetContent side={side}>
+        <SheetHeader>
+          <SheetTitle>Sheet from the {side}</SheetTitle>
+          <SheetDescription>Slides in from the {side} edge.</SheetDescription>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+export const Top: Story = { render: sideSheet('top') }
+
+export const Bottom: Story = { render: sideSheet('bottom') }
+
+export const Left: Story = { render: sideSheet('left') }
+
 export const Sides: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2">

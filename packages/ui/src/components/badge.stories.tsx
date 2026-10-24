@@ -19,6 +19,16 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
 
+export const Secondary: Story = { args: { variant: 'secondary', children: 'secondary' } }
+
+export const Destructive: Story = { args: { variant: 'destructive', children: 'destructive' } }
+
+export const Outline: Story = { args: { variant: 'outline', children: 'outline' } }
+
+export const Ghost: Story = { args: { variant: 'ghost', children: 'ghost' } }
+
+export const Link: Story = { args: { variant: 'link', children: 'link' } }
+
 export const Variants: Story = {
   render: () => (
     <div className="flex flex-wrap items-center gap-2">
