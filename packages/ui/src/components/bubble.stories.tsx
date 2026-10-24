@@ -41,6 +41,24 @@ export const Default: Story = {
   ),
 }
 
+const renderVariantBubble: Story['render'] = (args) => (
+  <Bubble {...args}>
+    <BubbleContent>{args.variant}</BubbleContent>
+  </Bubble>
+)
+
+export const DefaultVariant: Story = { args: { variant: 'default' }, render: renderVariantBubble }
+
+export const Muted: Story = { args: { variant: 'muted' }, render: renderVariantBubble }
+
+export const Tinted: Story = { args: { variant: 'tinted' }, render: renderVariantBubble }
+
+export const Outline: Story = { args: { variant: 'outline' }, render: renderVariantBubble }
+
+export const Ghost: Story = { args: { variant: 'ghost' }, render: renderVariantBubble }
+
+export const Destructive: Story = { args: { variant: 'destructive' }, render: renderVariantBubble }
+
 export const Variants: Story = {
   render: () => (
     <BubbleGroup>

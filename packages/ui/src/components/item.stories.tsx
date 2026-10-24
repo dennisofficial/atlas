@@ -54,6 +54,19 @@ export const Default: Story = {
   ),
 }
 
+const renderVariantItem: Story['render'] = (args) => (
+  <Item {...args}>
+    <ItemContent>
+      <ItemTitle>{args.variant}</ItemTitle>
+      <ItemDescription>Item with the {args.variant} variant.</ItemDescription>
+    </ItemContent>
+  </Item>
+)
+
+export const DefaultVariant: Story = { args: { variant: 'default' }, render: renderVariantItem }
+
+export const Muted: Story = { args: { variant: 'muted' }, render: renderVariantItem }
+
 export const Variants: Story = {
   render: () => (
     <div className="flex flex-col gap-3">
