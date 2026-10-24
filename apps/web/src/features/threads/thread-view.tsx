@@ -21,6 +21,7 @@ import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
+import { TOO_LATE_NOTICE } from './data/composer-queue'
 import { notConfiguredOf } from './data/not-configured'
 import {
   awaitingRunOf,
@@ -35,11 +36,13 @@ import { fetchThread } from './data/threads-api'
 import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
 import { transcriptViewOf } from './data/transcript'
+import { useComposerDock } from './data/use-composer-dock'
 import { useNow } from './data/use-now'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { isBootStarting } from './sandbox-boot-props'
@@ -48,7 +51,6 @@ import { ThreadTranscript } from './thread-transcript'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
-const TOO_LATE_NOTICE = 'Atlas already started on that message.'
 
 function ThreadMissing() {
   return (
@@ -89,8 +91,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
-  const { events, signals, outputs, loaded, error, working, sendLive, chooseModel } =
-    useThreadSource({ threadId, liveEligible, onModelChanged: model.handleRemoteChange })
+  const source = useThreadSource({
+    threadId,
+    liveEligible,
+    onModelChanged: model.handleRemoteChange,
+  })
+  const { events, signals, outputs, loaded, error, working, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -103,6 +109,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
     () => transcriptViewOf({ events: eventsFromWire(visible), signals, outputs }),
     [visible, signals, outputs],
   )
+  const dock = useComposerDock({
+    visible,
+    source,
+    picker: model.picker,
+    selection: model.selection,
+    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+  })
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
   const { pod, refresh } = usePodStatus({ threadId, awaitingRun })
   const eligibleNow = isPodLiveEligible(pod)
@@ -173,19 +186,21 @@ export function ThreadView({ threadId }: { threadId: string }) {
         {notConfigured === null ? null : (
           <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
         )}
+        <ComposerDock dock={dock} />
         <ThreadComposer
           value={draft}
           onValueChange={setDraft}
           onSubmit={handleSubmit}
           onEscape={() => void handleEscape()}
           disabled={sending}
-          placeholder={starting ? STARTING_PLACEHOLDER : undefined}
+          placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
         >
           <ModelPickerControls
             picker={model.picker}
             selection={model.selection}
             onSelectionChange={handleModelChange}
           />
+          <ComposerContext usage={dock.usage} />
         </ThreadComposer>
       </div>
     </div>

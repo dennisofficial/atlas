@@ -16,6 +16,7 @@ export { EStepStatus }
 export interface QueuedMessage {
   id: string
   text: string
+  removable?: boolean
 }
 
 export interface TaskDockProps {
@@ -81,14 +82,16 @@ function QueuedRow({
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className="min-w-0 flex-1 truncate text-foreground">{message.text}</span>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label="Remove queued message"
-        onClick={handleRemove}
-      >
-        <XIcon />
-      </Button>
+      {message.removable === false ? null : (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Remove queued message"
+          onClick={handleRemove}
+        >
+          <XIcon />
+        </Button>
+      )}
     </li>
   )
 }

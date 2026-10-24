@@ -6,7 +6,12 @@ import { EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '../events-from-wire'
-import { ETranscriptKind, isTextStreaming, transcriptViewOf } from '../transcript-items'
+import {
+  EToolFamily,
+  ETranscriptKind,
+  isTextStreaming,
+  transcriptViewOf,
+} from '../transcript-items'
 
 const wire = (seq: number, body: Record<string, unknown>): WireEvent => ({
   id: `evt_${seq}`,
@@ -33,7 +38,10 @@ const chunk = (body: Extract<StepSignal, { type: 'chunk' }>['chunk']): StepSigna
   chunk: body,
 })
 const viewOf = (args: { events: WireEvent[]; signals?: StepSignal[] }) =>
-  transcriptViewOf({ events: eventsFromWire(args.events), signals: args.signals ?? [] })
+  transcriptViewOf({
+    events: eventsFromWire(args.events),
+    signals: args.signals ?? [],
+  })
 
 describe('transcriptViewOf', () => {
   it('shows streaming text as a streaming agent item after the user message', () => {
@@ -77,17 +85,27 @@ describe('transcriptViewOf', () => {
       events: [said(1, 'hi')],
       signals: [
         started,
-        chunk({ type: 'tool-call', callId, name: 'bash', input: { command: 'ls' } }),
+        chunk({
+          type: 'tool-call',
+          callId,
+          name: 'bash',
+          input: { command: 'ls' },
+        }),
       ],
     })
     const tools = view.items[1]
     expect(tools).toMatchObject({ kind: ETranscriptKind.Tools })
     if (tools?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
-    expect(tools.calls[0]).toMatchObject({ state: EToolState.Running, label: 'ls' })
+    expect(tools.calls[0]).toMatchObject({
+      state: EToolState.Running,
+      label: 'ls',
+    })
   })
 
   it('shows a dispatched call with no result as running', () => {
-    const view = viewOf({ events: [said(1, 'hi'), called(2, 'call_1', { command: 'ls' })] })
+    const view = viewOf({
+      events: [said(1, 'hi'), called(2, 'call_1', { command: 'ls' })],
+    })
     const tools = view.items[1]
     if (tools?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
     expect(tools.calls[0]?.state).toBe(EToolState.Running)
@@ -120,7 +138,10 @@ describe('transcriptViewOf', () => {
     })
     const tools = view.items[1]
     if (tools?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
-    expect(tools.calls[0]).toMatchObject({ state: EToolState.Error, errorText: 'exit 1' })
+    expect(tools.calls[0]).toMatchObject({
+      state: EToolState.Error,
+      errorText: 'exit 1',
+    })
   })
 
   it('maps a denied call and one awaiting approval', () => {
@@ -128,9 +149,18 @@ describe('transcriptViewOf', () => {
       events: [
         said(1, 'hi'),
         called(2, 'call_1', { command: 'rm -rf /' }),
-        wire(3, { type: 'tool-denied', callId: 'call_1', name: 'bash', reason: 'no' }),
+        wire(3, {
+          type: 'tool-denied',
+          callId: 'call_1',
+          name: 'bash',
+          reason: 'no',
+        }),
         called(4, 'call_2', { command: 'git push' }),
-        wire(5, { type: 'approval-requested', callId: 'call_2', reason: 'pushes' }),
+        wire(5, {
+          type: 'approval-requested',
+          callId: 'call_2',
+          reason: 'pushes',
+        }),
       ],
     })
     const states = view.items.flatMap((item) =>
@@ -143,12 +173,20 @@ describe('transcriptViewOf', () => {
     const view = viewOf({
       events: [
         said(1, 'hi'),
-        wire(2, { type: 'assistant-said', parts: [{ type: 'text', text: 'Hello' }] }),
+        wire(2, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'Hello' }],
+        }),
       ],
       signals: [
         started,
         chunk({ type: 'text-delta', id: 't1', text: 'Hello' }),
-        { type: 'step-ended', stepId: step, end: EStepEnd.Completed, supersededBy: null },
+        {
+          type: 'step-ended',
+          stepId: step,
+          end: EStepEnd.Completed,
+          supersededBy: null,
+        },
       ],
     })
     const agents = view.items.filter((item) => item.kind === ETranscriptKind.Agent)
@@ -162,14 +200,122 @@ describe('transcriptViewOf', () => {
       signals: [
         started,
         chunk({ type: 'error', message: 'provider overloaded' }),
-        { type: 'step-ended', stepId: step, end: EStepEnd.Failed, supersededBy: null },
+        {
+          type: 'step-ended',
+          stepId: step,
+          end: EStepEnd.Failed,
+          supersededBy: null,
+        },
       ],
     })
     expect(view.failure).toBe('provider overloaded')
   })
 
   it('skips legacy boot rows', () => {
-    const boot: WireEvent = { ...said(1, 'x'), type: 'sandbox-boot-step', body: '{"step":"a"}' }
+    const boot: WireEvent = {
+      ...said(1, 'x'),
+      type: 'sandbox-boot-step',
+      body: '{"step":"a"}',
+    }
     expect(viewOf({ events: [boot, said(2, 'hi')] }).items).toHaveLength(1)
+  })
+
+  it('stamps durable items with their event time and leaves live ones unstamped', () => {
+    const view = viewOf({
+      events: [said(1, 'hi'), called(2, 'call_1', { command: 'ls' })],
+      signals: [
+        started,
+        chunk({ type: 'text-start', id: 't1' }),
+        chunk({ type: 'text-delta', id: 't1', text: 'ok' }),
+      ],
+    })
+    expect(view.items[0]?.at).toBe('2026-10-22T10:00:01.000Z')
+    expect(view.items[1]).toMatchObject({
+      kind: ETranscriptKind.Tools,
+      at: '2026-10-22T10:00:02.000Z',
+    })
+    const live = view.items.at(-1)
+    expect(live).toMatchObject({
+      kind: ETranscriptKind.Agent,
+      streaming: true,
+    })
+    expect(live?.at).toBeUndefined()
+  })
+
+  it('stamps an assistant message with its event time', () => {
+    const view = viewOf({
+      events: [
+        said(1, 'hi'),
+        wire(2, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'done' }],
+        }),
+      ],
+    })
+    expect(view.items[1]).toMatchObject({
+      kind: ETranscriptKind.Agent,
+      at: '2026-10-22T10:00:02.000Z',
+    })
+  })
+})
+
+describe('tool titles', () => {
+  const toolItem = (name: string, input: unknown, output: Record<string, unknown> = {}) => {
+    const callId = 'call_1'
+    const view = viewOf({
+      events: [
+        said(1, 'hi'),
+        wire(2, { type: 'tool-called', callId, name, input, ordinal: 0 }),
+        wire(3, { type: 'tool-result', callId, name, output, modelText: '' }),
+      ],
+    })
+    const item = view.items[1]
+    if (item?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
+    return item.calls[0]
+  }
+
+  it('phrases a spawn by what it was spawned for', () => {
+    expect(toolItem('agent_spawn', { agentType: 'explore', intent: 'vault audit' })).toMatchObject({
+      title: 'Spawned vault audit',
+      family: EToolFamily.Agent,
+    })
+  })
+
+  it('phrases a plan update', () => {
+    expect(toolItem('task_write', { tasks: [] })).toMatchObject({
+      title: 'Updated the plan',
+      family: EToolFamily.Plan,
+    })
+  })
+
+  it('falls back to Called <name> for an unknown tool', () => {
+    expect(toolItem('mystery', {})).toMatchObject({
+      title: 'Called mystery',
+      family: EToolFamily.Other,
+    })
+  })
+
+  it('leaves tools with a dedicated kind untitled', () => {
+    const call = toolItem('bash', { command: 'ls' })
+    expect(call?.title).toBeUndefined()
+    expect(call?.family).toBeUndefined()
+  })
+
+  it('does not title a call that is still running', () => {
+    const view = viewOf({
+      events: [
+        said(1, 'hi'),
+        wire(2, {
+          type: 'tool-called',
+          callId: 'c',
+          name: 'mystery',
+          input: {},
+          ordinal: 0,
+        }),
+      ],
+    })
+    const item = view.items[1]
+    if (item?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
+    expect(item.calls[0]?.title).toBeUndefined()
   })
 })

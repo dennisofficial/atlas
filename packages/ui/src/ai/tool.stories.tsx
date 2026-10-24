@@ -73,6 +73,10 @@ export const Kinds: Story = {
   ),
 }
 
+export const TitleOverride: Story = {
+  args: { label: 'agent_spawn', title: 'Spawned vault audit' },
+}
+
 export const WithDiffOutput: Story = {
   args: { kind: EToolKind.Edit, label: 'packages/ui/src/tokens/semantic.ts', defaultOpen: true },
   render: (args) => (

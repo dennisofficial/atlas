@@ -75,6 +75,19 @@ describe('TaskDock', () => {
     expect(html).toContain('Remove queued message')
   })
 
+  it('hides the remove button on a message that cannot be removed', () => {
+    const html = renderToStaticMarkup(
+      <TaskDock
+        steps={[]}
+        queued={[{ id: 'q1', text: 'Started already', removable: false }]}
+        defaultOpen
+      />,
+    )
+
+    expect(html).toContain('Started already')
+    expect(html).not.toContain('Remove queued message')
+  })
+
   it('renders a queue-only dock', () => {
     const html = renderToStaticMarkup(
       <TaskDock steps={[]} queued={[{ id: 'q1', text: 'Later' }]} />,
