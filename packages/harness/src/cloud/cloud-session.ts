@@ -28,7 +28,7 @@ export class CloudSessionStore {
 
   /**
    * Every consumer reads the session per call, so a clear flips them all to local at once — the
-   * listeners let the layers holding per-session caches (brokered tokens, account metadata,
+   * listeners let the layers holding per-session caches (account metadata,
    * settings) drop state that belonged to the dead session rather than waiting to re-read.
    */
   onCleared(listener: () => void): () => void {

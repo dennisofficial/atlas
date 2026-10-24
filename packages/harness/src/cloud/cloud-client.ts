@@ -18,7 +18,6 @@ import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
-import { cloudRequest } from './cloud-transport'
 import {
   beginGithubConnectVia,
   disconnectGithubVia,
@@ -36,19 +35,16 @@ import type {
 export { CloudError } from './cloud-transport'
 
 import {
-  accessTokenResponseSchema,
   activeAccountResponseSchema,
   cloudMcpServerWireSchema,
   cloudSecretSchema,
   cloudSettingSchema,
-  type BrokeredAccessToken,
   type CloudMcpServer,
   type CloudSecret,
   type CloudSetting,
 } from './cloud-resource-schemas'
 
 export type {
-  BrokeredAccessToken,
   CloudMcpServer,
   CloudSecret,
   CloudSetting,
@@ -139,21 +135,6 @@ export class CloudClient {
 
   async removeAccount(args: { accountId: AccountId }): Promise<void> {
     await cloudCall(this.api.accounts.remove.mutate({ accountId: args.accountId }))
-  }
-
-  async accessToken(args: {
-    accountId: AccountId
-    rejectedAccessToken?: string
-  }): Promise<BrokeredAccessToken> {
-    const body = await this.request({
-      method: 'POST',
-      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/access-token`,
-      body:
-        args.rejectedAccessToken === undefined
-          ? {}
-          : { rejectedAccessToken: args.rejectedAccessToken },
-    })
-    return accessTokenResponseSchema.parse(body)
   }
 
   async setActiveAccount(args: { provider: EAuthProvider; accountId: AccountId }): Promise<void> {
@@ -254,24 +235,6 @@ export class CloudClient {
 
   createProject(input: ProjectInput): Promise<Project> {
     return createProjectVia({ api: this.api, input })
-  }
-
-  private request(args: {
-    method: string
-    path: string
-    body?: unknown
-    allowMissing?: boolean
-  }): Promise<unknown> {
-    return cloudRequest({
-      url: this.url,
-      token: this.token,
-      clientVersion: this.clientVersion,
-      fetchFn: this.fetchFn,
-      method: args.method,
-      path: args.path,
-      ...(args.body === undefined ? {} : { body: args.body }),
-      ...(args.allowMissing === undefined ? {} : { allowMissing: args.allowMissing }),
-    })
   }
 }
 

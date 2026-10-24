@@ -5,13 +5,6 @@ import { mcpSpecSchema, type ParsedMcpSpec } from '../mcp/config/specs'
 
 export const activeAccountResponseSchema = z.object({ accountId: accountIdSchema.nullable() })
 
-export const accessTokenResponseSchema = z.strictObject({
-  accessToken: z.string().min(1),
-  expiresAt: z.string().nullable(),
-})
-
-export type BrokeredAccessToken = z.infer<typeof accessTokenResponseSchema>
-
 export const cloudSecretSchema = z.strictObject({
   name: z.string().min(1),
   value: z.string(),
