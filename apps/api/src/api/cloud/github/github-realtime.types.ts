@@ -4,12 +4,6 @@ export enum ERepoHookStatus {
   Deleting = 'deleting',
 }
 
-export enum EPrRealtimeEvent {
-  PrState = 'pr-state',
-  PrEvent = 'pr-event',
-  Heartbeat = 'heartbeat',
-}
-
 export enum EPrEventKind {
   Comment = 'comment',
   Review = 'review',

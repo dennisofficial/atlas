@@ -13,9 +13,59 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema } from "@dltech/atlas-wire";
+import { githubPrStreamOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubSubscribeInputSchema, githubSubscriptionSchema, githubSubscriptionIdInputSchema, githubDismissAppInstallNoticeInputSchema, githubHeartbeatSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
+  githubPrs: t.router({
+    stream: publicProcedure
+      .output(githubPrStreamOutputSchema)
+      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  githubRepos: t.router({
+    list: publicProcedure
+      .output(githubRepoListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    branches: publicProcedure
+      .input(githubBranchesInputSchema)
+      .output(githubBranchListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  githubSubscriptions: t.router({
+    subscribe: publicProcedure
+      .input(githubSubscribeInputSchema)
+      .output(githubSubscriptionSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    unsubscribe: publicProcedure
+      .input(githubSubscriptionIdInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    dismissAppInstallNotice: publicProcedure
+      .input(githubDismissAppInstallNoticeInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    heartbeat: publicProcedure
+      .input(githubSubscriptionIdInputSchema)
+      .output(githubHeartbeatSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  github: t.router({
+    beginConnect: publicProcedure
+      .output(githubDeviceCodesSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    pollConnect: publicProcedure
+      .input(githubPollConnectInputSchema)
+      .output(githubPollResultSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .output(githubConnectionStateSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    token: publicProcedure
+      .output(githubTokenSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    disconnect: publicProcedure
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   sandboxSelf: t.router({
     exposePort: publicProcedure
       .input(sandboxExposePortRequestSchema)

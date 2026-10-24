@@ -18,21 +18,18 @@ import { prFrameBusProvider } from './github-pr-fanout.transport'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { wakeDebounceProvider } from './github-sandbox-wake-debounce'
 import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
-import { GithubPrStreamController } from './github-pr-stream.controller'
-import { GithubSubscriptionsController } from './github-subscriptions.controller'
+import { GithubPrStreamRouter } from './github-pr-stream.router'
+import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubModule } from './github.module'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
-  controllers: [
-    GithubSubscriptionsController,
-    GithubPrStreamController,
-    GithubHookController,
-    GithubAppHookController,
-  ],
+  controllers: [GithubHookController, GithubAppHookController],
   providers: [
+    GithubSubscriptionsRouter,
+    GithubPrStreamRouter,
     GithubSubscriptionsService,
     GithubHookLifecycleService,
     GithubPollSweeperService,

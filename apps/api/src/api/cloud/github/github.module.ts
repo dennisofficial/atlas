@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubRepoReads } from './github-repo-reads'
-import { GithubReposController } from './github-repos.controller'
-import { GithubController } from './github.controller'
+import { GithubReposRouter } from './github-repos.router'
+import { GithubRouter } from './github.router'
 import { GithubService } from './github.service'
 
 @Module({
-  controllers: [GithubController, GithubReposController],
   providers: [
+    GithubRouter,
+    GithubReposRouter,
     GithubService,
     GithubRepoReads,
     { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },

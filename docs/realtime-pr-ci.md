@@ -127,10 +127,10 @@ this guard opened to it.
 ### Subscriptions (client-facing)
 
 ```
-POST   /v1/github/subscriptions        { repoFullName, prNumber }  -> subscription + current state
-DELETE /v1/github/subscriptions/:id
-POST   /v1/github/subscriptions/:id/heartbeat   -> { expiresAt }
-GET    /v1/github/prs/stream?repos=owner/a,owner/b   (SSE)
+githubSubscriptions.subscribe    mutation  { repoFullName, prNumber | branch }  -> subscription + current state
+githubSubscriptions.unsubscribe  mutation  { id }
+githubSubscriptions.heartbeat    mutation  { id }  -> { expiresAt }
+githubPrs.stream                 subscription (SSE)  -> pr-state | pr-event | heartbeat frames
 ```
 
 - **Subscribe** validates repo access with the user's token (existing `requireRepoAccess`

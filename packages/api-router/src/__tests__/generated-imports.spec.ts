@@ -17,7 +17,7 @@ describe('generated AppRouter', () => {
 
   it('declares every procedure with an output so no api source is imported', () => {
     const source = readFileSync(GENERATED, 'utf8')
-    const procedures = source.match(/\.(?:mutation|query)\(/g) ?? []
+    const procedures = source.match(/\.(?:mutation|query|subscription)\(/g) ?? []
     const outputs = source.match(/\.output\(/g) ?? []
     expect(procedures.length).toBeGreaterThan(0)
     expect(outputs).toHaveLength(procedures.length)
