@@ -70,22 +70,23 @@ export const keyFetch = (state: Remote): typeof fetch => {
 
     if (state.gate !== null) await state.gate
     if (state.down) {
-      return call.startsWith('sshSigningKey.')
+      return call.startsWith('sshSigningKey.') || call.startsWith('github.')
         ? trpcFailure({ status: 500, message: 'cloud is down' })
         : reply(500, { message: 'cloud is down' })
     }
-    if (call === 'GET /v1/github') {
-      return reply(
-        200,
-        state.githubConnected
-          ? {
-              connected: true,
-              login: 'octocat',
-              scopes: ['repo'],
-              connectedAt: '2026-01-01T00:00:00.000Z',
-            }
-          : { connected: false },
-      )
+    if (call === 'github.get') {
+      return reply(200, {
+        result: {
+          data: state.githubConnected
+            ? {
+                connected: true,
+                login: 'octocat',
+                scopes: ['repo'],
+                connectedAt: '2026-01-01T00:00:00.000Z',
+              }
+            : { connected: false },
+        },
+      })
     }
     if (call === 'sshSigningKey.status') return trpcData(statusBody())
     if (call === 'sshSigningKey.register' || call === 'sshSigningKey.rotate') {

@@ -4,6 +4,7 @@ import type { LogPort } from '@dltech/atlas-core'
 import { EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import type { PrEventFrame } from '../pr-event-frame'
 import { SsePullRequestPort } from '../sse-pull-requests'
+import { eventChunk, openStreamResponse, STREAM_PROCEDURE, trpcOk } from './trpc-fakes'
 
 const CHECKOUT: RepositoryCheckout = {
   directory: '/repo',
@@ -47,38 +48,23 @@ const serve = () => {
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname
-      if (path.endsWith('/subscriptions')) {
-        return Response.json(
-          {
-            id: 'sub_1',
-            repoFullName: 'owner/repo',
-            prNumber: 42,
-            branch: 'feature',
-            pollBacked: false,
-            expiresAt: '2026-10-08T01:00:00Z',
-            state: STATE,
-          },
-          { status: 201 },
-        )
+      if (path.endsWith('/githubSubscriptions.subscribe')) {
+        return trpcOk({
+          id: 'sub_1',
+          repoFullName: 'owner/repo',
+          prNumber: 42,
+          branch: 'feature',
+          pollBacked: false,
+          expiresAt: '2026-10-08T01:00:00Z',
+          state: STATE,
+        })
       }
-      if (!path.endsWith('/prs/stream')) return Response.json({})
-      return new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            streams.add(controller)
-            controller.enqueue(new TextEncoder().encode(': connected\n\n'))
-            request.signal.addEventListener(
-              'abort',
-              () => {
-                streams.delete(controller)
-                controller.close()
-              },
-              { once: true },
-            )
-          },
-        }),
-        { headers: { 'content-type': 'text/event-stream' } },
-      )
+      if (!path.endsWith(`/${STREAM_PROCEDURE}`)) return trpcOk(null)
+      return openStreamResponse({
+        request,
+        register: (controller) => streams.add(controller),
+        onAbort: () => streams.clear(),
+      })
     },
   })
   return {
@@ -129,7 +115,7 @@ describe('SsePullRequestPort pr-event frames', () => {
     const frames: PrEventFrame[] = []
     const api = await start({ onPrEvent: (frame) => frames.push(frame) })
 
-    api.send(`id: evt_1\nevent: pr-event\ndata: ${JSON.stringify(goodFrame)}\n\n`)
+    api.send(eventChunk(goodFrame))
     await until(() => frames.length > 0)
 
     expect(frames).toHaveLength(1)
@@ -141,9 +127,9 @@ describe('SsePullRequestPort pr-event frames', () => {
     const warnings: string[] = []
     const api = await start({ onPrEvent: (frame) => frames.push(frame), warnings })
 
-    api.send('event: pr-event\ndata: {"id":"","kind":"nope"}\n\n')
-    api.send('event: pr-event\ndata: not json\n\n')
-    api.send(`event: pr-event\ndata: ${JSON.stringify({ ...goodFrame, id: 'evt_2' })}\n\n`)
+    api.send(eventChunk({ id: '', kind: 'nope' }))
+    api.send(eventChunk({ ...goodFrame, id: 'evt_bad', payload: {} }))
+    api.send(eventChunk({ ...goodFrame, id: 'evt_2' }))
     await until(() => frames.length > 0)
 
     expect(frames.map((frame) => frame.id)).toEqual(['evt_2'])
@@ -162,8 +148,8 @@ describe('SsePullRequestPort pr-event frames', () => {
       },
     })
 
-    api.send(`event: pr-event\ndata: ${JSON.stringify(goodFrame)}\n\n`)
-    api.send(`event: pr-event\ndata: ${JSON.stringify({ ...goodFrame, id: 'evt_2' })}\n\n`)
+    api.send(eventChunk(goodFrame))
+    api.send(eventChunk({ ...goodFrame, id: 'evt_2' }))
     await until(() => seen.length === 2)
 
     expect(seen).toEqual(['evt_1', 'evt_2'])

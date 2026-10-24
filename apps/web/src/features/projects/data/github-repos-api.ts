@@ -1,18 +1,8 @@
-import {
-  githubBranchesPath,
-  githubBranchListSchema,
-  GITHUB_REPOS_PATH,
-  githubRepoListSchema,
-} from '@dltech/atlas-wire/web'
+import { api, cloudCall } from '@/lib/api-client'
 
-import { cloudJson, EHttpMethod } from '@/lib/cloud-api'
+export const fetchGithubRepos = () => cloudCall(api.githubRepos.list.query())
 
-export const fetchGithubRepos = () =>
-  cloudJson({ method: EHttpMethod.Get, path: GITHUB_REPOS_PATH, schema: githubRepoListSchema })
-
-export const fetchGithubBranches = (fullName: string) =>
-  cloudJson({
-    method: EHttpMethod.Get,
-    path: githubBranchesPath(fullName),
-    schema: githubBranchListSchema,
-  })
+export const fetchGithubBranches = (fullName: string) => {
+  const [owner = '', repo = ''] = fullName.split('/')
+  return cloudCall(api.githubRepos.branches.query({ owner, repo }))
+}

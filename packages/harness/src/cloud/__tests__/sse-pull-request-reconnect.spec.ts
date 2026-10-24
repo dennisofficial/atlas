@@ -9,6 +9,7 @@ import {
 } from '../../plugins/github/pure'
 import type { SubscriptionPrState } from '../pr-subscription-client'
 import { SsePullRequestPort } from '../sse-pull-requests'
+import { openStreamResponse, STREAM_PROCEDURE, stateChunk, trpcFailure, trpcOk } from './trpc-fakes'
 
 const CHECKOUT: RepositoryCheckout = {
   directory: '/repo',
@@ -48,19 +49,19 @@ const createApi = () => {
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname
-      if (request.method === 'DELETE') {
+      if (path.endsWith('/githubSubscriptions.unsubscribe')) {
         deletedSubscriptions += 1
-        return Response.json({})
+        return trpcOk(null)
       }
-      if (path.endsWith('/subscriptions')) {
+      if (path.endsWith('/githubSubscriptions.subscribe')) {
         subscribes += 1
         for (const notify of subscriptionWaiters) notify()
         if (subscribeFailure) {
           subscribeFailure = false
           failedSubscribes += 1
-          return Response.json({ message: 'redeploying' }, { status: 503 })
+          return trpcFailure({ status: 503, message: 'redeploying' })
         }
-        return Response.json({
+        return trpcOk({
           id: 'sub_1',
           repoFullName: 'owner/repo',
           prNumber: current.prNumber,
@@ -69,30 +70,20 @@ const createApi = () => {
           state: current,
         })
       }
-      if (path.endsWith('/prs/stream')) {
+      if (path.endsWith(`/${STREAM_PROCEDURE}`)) {
         streamAttempts += 1
         activeStreams += 1
         peakStreams = Math.max(peakStreams, activeStreams)
-        return new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller) {
-              streams.add(controller)
-              controller.enqueue(new TextEncoder().encode('event: heartbeat\ndata: {}\n\n'))
-              request.signal.addEventListener(
-                'abort',
-                () => {
-                  activeStreams -= 1
-                  streams.delete(controller)
-                  controller.close()
-                },
-                { once: true },
-              )
-            },
-          }),
-          { headers: { 'content-type': 'text/event-stream' } },
-        )
+        return openStreamResponse({
+          request,
+          register: (controller) => streams.add(controller),
+          onAbort: () => {
+            activeStreams -= 1
+            streams.clear()
+          },
+        })
       }
-      return Response.json({})
+      return trpcOk(null)
     },
   })
   return {
@@ -105,9 +96,7 @@ const createApi = () => {
     },
     push: (value: SubscriptionPrState) => {
       for (const stream of streams) {
-        stream.enqueue(
-          new TextEncoder().encode(`event: pr-state\ndata: ${JSON.stringify(value)}\n\n`),
-        )
+        stream.enqueue(new TextEncoder().encode(stateChunk(value)))
       }
     },
     waitForSubscribes: (count: number): Promise<void> =>

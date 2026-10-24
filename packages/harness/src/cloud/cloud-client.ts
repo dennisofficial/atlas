@@ -225,33 +225,27 @@ export class CloudClient {
   }
 
   beginGithubConnect(): Promise<GithubConnectTicket> {
-    return beginGithubConnectVia((args) => this.request(args))
+    return beginGithubConnectVia(this.api)
   }
 
   pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
-    return pollGithubConnectVia({
-      request: (call) => this.request(call),
-      deviceCode: args.deviceCode,
-    })
+    return pollGithubConnectVia({ api: this.api, deviceCode: args.deviceCode })
   }
 
   dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
-    return dismissGithubAppInstallNoticeVia({
-      request: (call) => this.request(call),
-      repoFullName: args.repoFullName,
-    })
+    return dismissGithubAppInstallNoticeVia({ api: this.api, repoFullName: args.repoFullName })
   }
 
   githubConnection(): Promise<GithubConnection | null> {
-    return githubConnectionVia((args) => this.request(args))
+    return githubConnectionVia(this.api)
   }
 
   githubToken(): Promise<string | undefined> {
-    return githubTokenVia((args) => this.request(args))
+    return githubTokenVia(this.api)
   }
 
   disconnectGithub(): Promise<void> {
-    return disconnectGithubVia((args) => this.request(args))
+    return disconnectGithubVia(this.api)
   }
 
   listProjects(): Promise<Project[]> {

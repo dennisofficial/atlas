@@ -9,6 +9,7 @@ import {
 import type { AppInstallRecommendation, SubscriptionPrState } from '../pr-subscription-client'
 import { createSseSubscriptionBook } from '../sse-pull-request-book'
 import { SsePullRequestPort } from '../sse-pull-requests'
+import { procedureOf, trpcOk } from './trpc-fakes'
 
 const state = (overrides: Partial<SubscriptionPrState> = {}): SubscriptionPrState => ({
   repoFullName: 'owner/repo',
@@ -55,7 +56,7 @@ describe('the book remembers pollBacked per subscription', () => {
 
   it('keeps the flag on readings pushed by later frames', () => {
     const { book } = subscribed(true)
-    book.applyFrame({ data: JSON.stringify(state({ checksRunning: 0, checksPassed: 3 })) })
+    book.applyFrame({ state: state({ checksRunning: 0, checksPassed: 3 }) })
     expect(pollBackedOf(book.holding({ key: 'k' })?.reading)).toBe(true)
   })
 
@@ -68,7 +69,7 @@ describe('the book remembers pollBacked per subscription', () => {
       state: null,
       pollBacked: true,
     })
-    book.applyFrame({ data: JSON.stringify(state()) })
+    book.applyFrame({ state: state() })
     expect(pollBackedOf(book.holding({ key: 'k' })?.reading)).toBe(true)
   })
 
@@ -115,20 +116,17 @@ describe('SsePullRequestPort subscribe outcome', () => {
 
   const serve = (extra: Record<string, unknown>): void => {
     globalThis.fetch = (async (url: unknown) => {
-      if (String(url).endsWith('/v1/github/subscriptions')) {
-        return new Response(
-          JSON.stringify({
-            id: 'sub_1',
-            repoFullName: 'owner/repo',
-            prNumber: 42,
-            branch: 'feature',
-            pollBacked: true,
-            expiresAt: '2026-10-15T03:00:00.000Z',
-            state: state(),
-            ...extra,
-          }),
-          { status: 201, headers: { 'content-type': 'application/json' } },
-        )
+      if (procedureOf(url) === 'githubSubscriptions.subscribe') {
+        return trpcOk({
+          id: 'sub_1',
+          repoFullName: 'owner/repo',
+          prNumber: 42,
+          branch: 'feature',
+          pollBacked: true,
+          expiresAt: '2026-10-15T03:00:00.000Z',
+          state: state(),
+          ...extra,
+        })
       }
       return new Promise<Response>(() => {})
     }) as unknown as typeof fetch

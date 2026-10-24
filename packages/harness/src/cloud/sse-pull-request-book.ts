@@ -97,7 +97,7 @@ export type SseSubscriptionBook = {
     state: SubscriptionPrState | null
     pollBacked?: boolean
   }) => void
-  applyFrame: (args: { data: string }) => void
+  applyFrame: (args: { state: SubscriptionPrState }) => void
   markAllStale: () => void
   clear: () => void
 }
@@ -181,14 +181,7 @@ export function createSseSubscriptionBook(args: {
       index(state, key)
       emit(key, readingOfState({ state, pollBacked }))
     },
-    applyFrame: ({ data }) => {
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(data)
-      } catch {
-        return
-      }
-      const state = parsed as SubscriptionPrState
+    applyFrame: ({ state }) => {
       if (typeof state.repoFullName !== 'string' || typeof state.prNumber !== 'number') return
 
       const known = byIdentity.get(prIdentityOf(state))

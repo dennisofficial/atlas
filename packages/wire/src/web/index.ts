@@ -1,6 +1,7 @@
 export * from '../memory-wire'
 export * from '../project-wire'
 export * from '../github-repos-wire'
+export * from '../github-wire'
 export * from './mcp-wire'
 export * from './models-wire'
 export * from './project-settings-wire'
