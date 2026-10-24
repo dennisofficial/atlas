@@ -7,7 +7,16 @@ import { transcriptIdentityDigest } from '@dltech/atlas-harness'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import type { ServeLogLine } from '../serve-log'
-import { captureFor, fakeFetch, saidEvent, startApi, threadId } from './runtime-checkpoint-fixture'
+import {
+  captureFor,
+  CHECKPOINT_GET,
+  CHECKPOINT_PUT,
+  fakeFetch,
+  saidEvent,
+  startApi,
+  threadId,
+} from './runtime-checkpoint-fixture'
+import { trpcFailure, trpcOk } from './trpc-fake'
 
 const homes: string[] = []
 const servers: ReturnType<typeof Bun.serve>[] = []
@@ -68,7 +77,7 @@ describe('runtime checkpoint mirror', () => {
     const sent = capture.capture({ phase: ERuntimePhase.Serving })
     await fetchEntered
     expect(sawPersistedBeforeSend).toBe(true)
-    send.release?.(new Response('{}', { status: 200 }))
+    send.release?.(trpcOk(null))
     await sent
     await capture.flush({ timeoutMs: 1_000 })
   })
@@ -92,7 +101,7 @@ describe('runtime checkpoint mirror', () => {
         if (sentRevisions.length === 0 && gate === null) await holdFirst()
         const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
         sentRevisions.push(body.revision)
-        return new Response('{}', { status: 200 })
+        return trpcOk(null)
       }),
     })
 
@@ -118,7 +127,7 @@ describe('runtime checkpoint mirror', () => {
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
-        return new Response('{}', { status: 200 })
+        return trpcOk(null)
       }),
     })
 
@@ -142,7 +151,7 @@ describe('runtime checkpoint mirror', () => {
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
-        return new Response('{}', { status: 200 })
+        return trpcOk(null)
       }),
     })
 
@@ -172,7 +181,7 @@ describe('runtime checkpoint mirror', () => {
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
-        return new Response('{}', { status: 200 })
+        return trpcOk(null)
       }),
     })
 
@@ -222,17 +231,21 @@ describe('runtime checkpoint mirror', () => {
     await capture.flush({ timeoutMs: 1_000 })
     expect(accepted.map((c) => c.revision)).toEqual([1, 2, 3])
 
-    const staleReply = await fetch(`${cloudURL}/v1/sandboxes/${threadId}/checkpoint`, {
-      method: 'PUT',
+    const staleReply = await fetch(`${cloudURL}${CHECKPOINT_PUT}`, {
+      method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(stale),
     })
-    const staleBody = (await staleReply.json()) as { checkpoint: RuntimeCheckpoint | null }
-    expect(staleBody.checkpoint?.revision).toBe(3)
+    const staleBody = (await staleReply.json()) as {
+      result: { data: { checkpoint: RuntimeCheckpoint | null } }
+    }
+    expect(staleBody.result.data.checkpoint?.revision).toBe(3)
 
-    const getReply = await fetch(`${cloudURL}/v1/sandboxes/${threadId}/checkpoint`)
-    const getBody = (await getReply.json()) as { checkpoint: RuntimeCheckpoint | null }
-    expect(getBody.checkpoint?.phase).toBe(ERuntimePhase.Parked)
+    const getReply = await fetch(`${cloudURL}${CHECKPOINT_GET}`)
+    const getBody = (await getReply.json()) as {
+      result: { data: { checkpoint: RuntimeCheckpoint | null } }
+    }
+    expect(getBody.result.data.checkpoint?.phase).toBe(ERuntimePhase.Parked)
   })
 
   it('treats a missing registration as a logged diagnostic and retries on the next report', async () => {
@@ -240,7 +253,7 @@ describe('runtime checkpoint mirror', () => {
     const lines: ServeLogLine[] = []
     const server = Bun.serve({
       port: 0,
-      fetch: () => new Response('no row', { status: 404 }),
+      fetch: () => trpcFailure({ status: 404, message: 'sandbox not found' }),
     })
     servers.push(server)
     const capture = captureFor({

@@ -1,15 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { db } from '@dltech/atlas-db'
+import { EOauthProvider } from '@dltech/atlas-wire'
 import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { OauthConnectionsService } from '../src/api/platform/oauth-connections/oauth-connections.service'
-import {
-  EOauthProvider,
-  OauthClock,
-} from '../src/api/platform/oauth-connections/oauth-connections.types'
+import { OauthClock } from '../src/api/platform/oauth-connections/oauth-connections.types'
 import { HttpOauthIssuer } from '../src/api/platform/oauth-connections/oauth-issuer'
 import { PrismaOauthConnectionStore } from '../src/api/platform/oauth-connections/prisma-oauth-connection.store'
 

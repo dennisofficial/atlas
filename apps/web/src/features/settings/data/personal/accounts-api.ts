@@ -1,6 +1,7 @@
+import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import { EProviderId, type ApiKeyEntry } from '../../fixtures/settings-agent'
 import { shortDate } from './relative-time'
@@ -10,7 +11,11 @@ export enum EAccountKind {
   ApiKey = 'api-key',
 }
 
-const ACCOUNT_ORIGIN_LOGIN = 'login'
+const AUTH_PROVIDER_OF: Record<EProviderId, EAuthProvider> = {
+  [EProviderId.Anthropic]: EAuthProvider.Anthropic,
+  [EProviderId.OpenAI]: EAuthProvider.OpenAI,
+  [EProviderId.OpenRouter]: EAuthProvider.OpenRouter,
+}
 
 const accountSchema = z.object({
   id: z.string(),
@@ -25,12 +30,8 @@ const accountSchema = z.object({
 
 export type Account = z.infer<typeof accountSchema>
 
-export function fetchAccounts(): Promise<Account[]> {
-  return cloudJson({
-    method: EHttpMethod.Get,
-    path: '/v1/accounts',
-    schema: z.array(accountSchema),
-  })
+export async function fetchAccounts(): Promise<Account[]> {
+  return z.array(accountSchema).parse(await cloudCall(api.accounts.list.query()))
 }
 
 export function subscriptionFor(args: {
@@ -61,30 +62,25 @@ export async function createApiKeyAccount(args: {
   provider: EProviderId
   apiKey: string
 }): Promise<void> {
-  await cloudJson({
-    method: EHttpMethod.Post,
-    path: '/v1/accounts',
-    body: {
-      provider: args.provider,
+  await cloudCall(
+    api.accounts.create.mutate({
+      provider: AUTH_PROVIDER_OF[args.provider],
       label: API_KEY_LABEL,
-      origin: ACCOUNT_ORIGIN_LOGIN,
-      secret: { kind: EAccountKind.ApiKey, apiKey: args.apiKey },
-    },
-    schema: accountSchema,
-  })
+      origin: EAccountOrigin.Login,
+      secret: { kind: EAuthKind.ApiKey, apiKey: args.apiKey },
+    }),
+  )
 }
 
-export function replaceApiKey(args: { accountId: string; apiKey: string }): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Put,
-    path: `/v1/accounts/${encodeURIComponent(args.accountId)}/secret`,
-    body: { secret: { kind: EAccountKind.ApiKey, apiKey: args.apiKey } },
-  })
+export async function replaceApiKey(args: { accountId: string; apiKey: string }): Promise<void> {
+  await cloudCall(
+    api.accounts.replaceSecret.mutate({
+      accountId: args.accountId,
+      secret: { kind: EAuthKind.ApiKey, apiKey: args.apiKey },
+    }),
+  )
 }
 
-export function removeAccount(accountId: string): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Delete,
-    path: `/v1/accounts/${encodeURIComponent(accountId)}`,
-  })
+export async function removeAccount(accountId: string): Promise<void> {
+  await cloudCall(api.accounts.remove.mutate({ accountId }))
 }

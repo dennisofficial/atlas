@@ -9,12 +9,14 @@ import {
   type EAuthProvider,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import type { ApiClient } from '@dltech/atlas-api-router'
 import type { Project } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import { cloudRequest } from './cloud-transport'
 import {
   beginGithubConnectVia,
@@ -56,6 +58,7 @@ export class CloudClient {
   private readonly token: string
   private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
@@ -67,6 +70,12 @@ export class CloudClient {
     this.token = args.token
     this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
+    this.api = createHarnessApiClient({
+      url: this.url,
+      token: this.token,
+      clientVersion: this.clientVersion,
+      fetchFn: this.fetchFn,
+    })
   }
 
   get baseUrl(): string {
@@ -85,14 +94,12 @@ export class CloudClient {
   }
 
   async listAccounts(): Promise<readonly Account[]> {
-    const body = await this.request({ method: 'GET', path: '/v1/accounts' })
+    const body = await cloudCall(this.api.accounts.list.query())
     return z.array(accountSchema).parse(body)
   }
 
   async readAccount(args: { accountId: AccountId }): Promise<StoredAccount | undefined> {
-    const body = await this.request({
-      method: 'GET',
-      path: `/v1/accounts/${encodeURIComponent(args.accountId)}`,
+    const body = await cloudCall(this.api.accounts.get.query({ accountId: args.accountId }), {
       allowMissing: true,
     })
     if (body === undefined) return undefined
@@ -102,10 +109,8 @@ export class CloudClient {
 
   async addAccount(args: { draft: AccountDraft }): Promise<Account> {
     const { draft } = args
-    const body = await this.request({
-      method: 'POST',
-      path: '/v1/accounts',
-      body: {
+    const body = await cloudCall(
+      this.api.accounts.create.mutate({
         provider: draft.provider,
         label: draft.label,
         secret: draft.secret,
@@ -113,33 +118,26 @@ export class CloudClient {
         ...(draft.email === undefined ? {} : { email: draft.email }),
         ...(draft.subscription === undefined ? {} : { subscription: draft.subscription }),
         ...(draft.importedFrom === undefined ? {} : { importedFrom: draft.importedFrom }),
-      },
-    })
+      }),
+    )
 
     return accountSchema.parse(body)
   }
 
   async replaceAccountSecret(args: { accountId: AccountId; secret: AccountSecret }): Promise<void> {
-    await this.request({
-      method: 'PUT',
-      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/secret`,
-      body: { secret: args.secret },
-    })
+    await cloudCall(
+      this.api.accounts.replaceSecret.mutate({ accountId: args.accountId, secret: args.secret }),
+    )
   }
 
   async setAccountStatus(args: { accountId: AccountId; status: EAccountStatus }): Promise<void> {
-    await this.request({
-      method: 'PATCH',
-      path: `/v1/accounts/${encodeURIComponent(args.accountId)}/status`,
-      body: { status: args.status },
-    })
+    await cloudCall(
+      this.api.accounts.setStatus.mutate({ accountId: args.accountId, status: args.status }),
+    )
   }
 
   async removeAccount(args: { accountId: AccountId }): Promise<void> {
-    await this.request({
-      method: 'DELETE',
-      path: `/v1/accounts/${encodeURIComponent(args.accountId)}`,
-    })
+    await cloudCall(this.api.accounts.remove.mutate({ accountId: args.accountId }))
   }
 
   async accessToken(args: {
@@ -158,18 +156,13 @@ export class CloudClient {
   }
 
   async setActiveAccount(args: { provider: EAuthProvider; accountId: AccountId }): Promise<void> {
-    await this.request({
-      method: 'PUT',
-      path: '/v1/accounts/active',
-      body: { provider: args.provider, accountId: args.accountId },
-    })
+    await cloudCall(
+      this.api.accounts.setActive.mutate({ provider: args.provider, accountId: args.accountId }),
+    )
   }
 
   async activeAccount(args: { provider: EAuthProvider }): Promise<AccountId | undefined> {
-    const body = await this.request({
-      method: 'GET',
-      path: `/v1/accounts/active/${encodeURIComponent(args.provider)}`,
-    })
+    const body = await cloudCall(this.api.accounts.active.query({ provider: args.provider }))
     const parsed = activeAccountResponseSchema.parse(body)
 
     return parsed.accountId ?? undefined

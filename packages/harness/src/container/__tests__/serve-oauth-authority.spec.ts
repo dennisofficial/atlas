@@ -24,10 +24,15 @@ it('resolves cloud-owned OAuth through the served sandbox principal without uplo
         authorization: new Headers(init?.headers).get('authorization'),
       })
       return Response.json({
-        accessToken: 'fake-served-access',
-        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-        generation: 1,
-        authorizationId: 'oauth-served',
+        result: {
+          data: {
+            accessToken: 'fake-served-access',
+            expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+            refreshAfter: new Date(Date.now() + 1_800_000).toISOString(),
+            generation: 1,
+            authorizationId: 'oauth-served',
+          },
+        },
       })
     },
     { preconnect: () => undefined },
@@ -58,7 +63,7 @@ it('resolves cloud-owned OAuth through the served sandbox principal without uplo
     expect(credential).toMatchObject({ accountId: account.id, accessToken: 'fake-served-access' })
     expect(calls).toEqual([
       {
-        url: 'https://api.test/v1/oauth-connections/oauth-served/access-token',
+        url: 'https://api.test/v1/trpc/oauthConnections.accessToken',
         method: 'POST',
         authorization: 'Bearer fake-sandbox-principal',
       },

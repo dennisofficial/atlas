@@ -25,14 +25,25 @@ const checkpoint: RuntimeCheckpoint = {
 
 const fakeFetch = (args: {
   status: number
-  body?: unknown
+  data?: unknown
+  message?: string
   expect: (input: unknown, init?: RequestInit) => void
 }): typeof fetch =>
   (async (input: unknown, init?: RequestInit) => {
     args.expect(input, init)
-    return new Response(args.body === undefined ? '' : JSON.stringify(args.body), {
-      status: args.status,
-    })
+    if (args.status >= 400) {
+      return Response.json(
+        {
+          error: {
+            message: args.message ?? 'failed',
+            code: -32603,
+            data: { code: 'ERROR', httpStatus: args.status },
+          },
+        },
+        { status: args.status },
+      )
+    }
+    return Response.json({ result: { data: args.data ?? null } })
   }) as typeof fetch
 
 describe('SandboxClient.readCheckpoint', () => {
@@ -42,12 +53,17 @@ describe('SandboxClient.readCheckpoint', () => {
       token: 'sess_user',
       fetchFn: fakeFetch({
         status: 200,
-        body: { checkpoint },
+        data: { checkpoint },
         expect: (input, init) => {
-          expect(String(input)).toBe('https://cloud.test/v1/sandboxes/thread-1/checkpoint')
-          expect(init?.method).toBe('GET')
-          const headers = (init?.headers ?? {}) as Record<string, string>
-          expect(headers.authorization).toBe('Bearer sess_user')
+          const url = new URL(String(input))
+          expect(`${url.origin}${url.pathname}`).toBe(
+            'https://cloud.test/v1/trpc/sandboxCheckpoint.get',
+          )
+          expect(JSON.parse(url.searchParams.get('input') ?? 'null')).toEqual({
+            threadId: 'thread-1',
+          })
+          expect(init?.method ?? 'GET').toBe('GET')
+          expect(new Headers(init?.headers).get('authorization')).toBe('Bearer sess_user')
         },
       }),
     })
@@ -61,7 +77,7 @@ describe('SandboxClient.readCheckpoint', () => {
       token: 'sess_user',
       fetchFn: fakeFetch({
         status: 404,
-        body: { message: 'sandbox not found' },
+        message: 'sandbox not found',
         expect: () => undefined,
       }),
     })
@@ -73,7 +89,7 @@ describe('SandboxClient.readCheckpoint', () => {
     const client = new SandboxClient({
       url: 'https://cloud.test',
       token: 'sess_user',
-      fetchFn: fakeFetch({ status: 200, body: { checkpoint: null }, expect: () => undefined }),
+      fetchFn: fakeFetch({ status: 200, data: { checkpoint: null }, expect: () => undefined }),
     })
 
     await expect(client.readCheckpoint({ threadId: 'thread-1' })).resolves.toBeNull()
@@ -85,7 +101,7 @@ describe('SandboxClient.readCheckpoint', () => {
       token: 'sess_user',
       fetchFn: fakeFetch({
         status: 200,
-        body: { checkpoint: { ...checkpoint, phase: 'melting' } },
+        data: { checkpoint: { ...checkpoint, phase: 'melting' } },
         expect: () => undefined,
       }),
     })
@@ -100,25 +116,26 @@ describe('SandboxClient.readCheckpoint', () => {
       token: 'sess_user',
       fetchFn: fakeFetchOf(async () => {
         seen.push('listed')
-        return new Response(
-          JSON.stringify([
-            {
-              threadId: 'thread-1',
-              name: 'sandbox',
-              driveName: null,
-              state: 'stopped',
-              lastActivityAt: '2026-10-01T00:00:00.000Z',
-            },
-            {
-              threadId: 'thread-2',
-              name: 'sandbox',
-              driveName: null,
-              state: 'unknown',
-              lastActivityAt: '2026-10-01T00:00:00.000Z',
-            },
-          ]),
-          { status: 200 },
-        )
+        return Response.json({
+          result: {
+            data: [
+              {
+                threadId: 'thread-1',
+                name: 'sandbox',
+                driveName: null,
+                state: 'stopped',
+                lastActivityAt: '2026-10-01T00:00:00.000Z',
+              },
+              {
+                threadId: 'thread-2',
+                name: 'sandbox',
+                driveName: null,
+                state: 'unknown',
+                lastActivityAt: '2026-10-01T00:00:00.000Z',
+              },
+            ],
+          },
+        })
       }),
     })
 

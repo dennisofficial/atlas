@@ -4,11 +4,14 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import {
+  EOauthProvider,
+  type ReauthorizeConnectionDraft,
+  type UploadConnectionDraft,
+} from '@dltech/atlas-wire'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { ReauthorizeConnectionDto, UploadConnectionDto } from './oauth-connections.dto'
 import {
   EConnectionStatus,
-  EOauthProvider,
   OauthClock,
   OauthConnectionStore,
   OauthIssuer,
@@ -43,7 +46,7 @@ export class OauthConnectionsService {
   async upload(args: {
     userId: string
     connectionId: string
-    draft: UploadConnectionDto
+    draft: UploadConnectionDraft
   }): Promise<AccessTokenDto> {
     const issuedAt = new Date(this.clock.now()).toISOString()
     const tokens: StoredTokens = { ...args.draft.tokens, issuedAt }
@@ -82,7 +85,7 @@ export class OauthConnectionsService {
   async reauthorize(args: {
     userId: string
     connectionId: string
-    draft: ReauthorizeConnectionDto
+    draft: ReauthorizeConnectionDraft
   }): Promise<AccessTokenDto> {
     const { draft, userId, connectionId } = args
     const row = await this.authorizedRow({ userId, connectionId })

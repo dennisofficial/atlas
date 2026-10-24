@@ -1,41 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
-import { ECloudSandboxState, SandboxClient } from '../sandbox-client'
+import { SandboxClient } from '../sandbox-client'
 
-type Call = { url: string; method: string; headers: Record<string, string>; body?: unknown }
-
-const harness = (replies: readonly { status?: number; body?: unknown }[]) => {
-  const calls: Call[] = []
-  let at = 0
-
-  const fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const headers = init?.headers as Record<string, string> | undefined
-    calls.push({
-      url: String(input),
-      method: init?.method ?? 'GET',
-      headers: headers ?? {},
-      ...(init?.body === undefined ? {} : { body: JSON.parse(String(init.body)) }),
-    })
-    const reply = replies[at]
-    at += 1
-    return new Response(reply?.body === undefined ? '' : JSON.stringify(reply.body), {
-      status: reply?.status ?? 200,
-    })
-  }) as typeof fetch
-
-  const client = new SandboxClient({
-    url: 'https://cloud.test/',
-    token: 'sess_test',
-    clientVersion: '1.2.3',
-    fetchFn,
-  })
-  return { client, calls }
-}
+import { CLAIM_URL, harness } from './sandbox-client-fixture'
 
 describe('claiming a sandbox', () => {
   it('posts the thread id, git token and context flag, and reads back the session token', async () => {
-    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const { client, calls } = harness([{ data: { token: 'tok_1' } }])
 
     const claim = await client.claimSandbox({
       threadId: 'brn_cloud',
@@ -44,7 +16,7 @@ describe('claiming a sandbox', () => {
     })
 
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes')
+    expect(calls[0]?.url).toBe(CLAIM_URL)
     expect(calls[0]?.body).toEqual({
       threadId: 'brn_cloud',
       gitToken: 'gho_abc',
@@ -54,7 +26,7 @@ describe('claiming a sandbox', () => {
   })
 
   it('carries the workspace spec when a birth supplies one', async () => {
-    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const { client, calls } = harness([{ data: { token: 'tok_1' } }])
     const workspace = {
       remoteUrl: 'https://github.com/compai/atlas',
       branch: 'main',
@@ -79,7 +51,7 @@ describe('claiming a sandbox', () => {
   })
 
   it('passes a workspace carrying a git identity through to the claim body verbatim', async () => {
-    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const { client, calls } = harness([{ data: { token: 'tok_1' } }])
     const workspace = {
       remoteUrl: 'https://github.com/compai/atlas',
       branch: 'main',
@@ -105,16 +77,16 @@ describe('claiming a sandbox', () => {
   })
 
   it('carries the bearer token and the client version', async () => {
-    const { client, calls } = harness([{ body: { token: 'tok_1' } }])
+    const { client, calls } = harness([{ data: { token: 'tok_1' } }])
 
     await client.claimSandbox({ threadId: 'brn_cloud', gitToken: 'gho_abc', contextPending: false })
 
-    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
-    expect(calls[0]?.headers['atlas-client-version']).toBe('1.2.3')
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer sess_test')
+    expect(calls[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
   })
 
   it('refuses a response carrying no session token', async () => {
-    const { client } = harness([{ body: { threadId: 'brn_cloud' } }])
+    const { client } = harness([{ data: { threadId: 'brn_cloud' } }])
 
     await expect(
       client.claimSandbox({ threadId: 'brn_cloud', gitToken: 'gho_abc', contextPending: true }),
@@ -122,7 +94,7 @@ describe('claiming a sandbox', () => {
   })
 
   it('surfaces a failure as a CloudError carrying the status', async () => {
-    const { client } = harness([{ status: 402, body: { message: 'no sandbox entitlement' } }])
+    const { client } = harness([{ status: 402, message: 'no sandbox entitlement' }])
 
     const failure = await client
       .claimSandbox({ threadId: 'brn_cloud', gitToken: 'gho_abc', contextPending: true })
@@ -138,7 +110,7 @@ describe('registering a client-provisioned sandbox', () => {
   const TOKEN = 'a'.repeat(64)
 
   it('posts the client token and serve URL to the claim route, and reads both back', async () => {
-    const { client, calls } = harness([{ body: { token: TOKEN, url: 'https://box.vercel.run' } }])
+    const { client, calls } = harness([{ data: { token: TOKEN, url: 'https://box.vercel.run' } }])
 
     const registered = await client.registerSandbox({
       threadId: 'brn_cloud',
@@ -148,8 +120,8 @@ describe('registering a client-provisioned sandbox', () => {
     })
 
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes')
-    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
+    expect(calls[0]?.url).toBe(CLAIM_URL)
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer sess_test')
     expect(calls[0]?.body).toEqual({
       threadId: 'brn_cloud',
       clientToken: TOKEN,
@@ -160,7 +132,7 @@ describe('registering a client-provisioned sandbox', () => {
   })
 
   it('carries the serve version when the caller pins one', async () => {
-    const { client, calls } = harness([{ body: { token: TOKEN } }])
+    const { client, calls } = harness([{ data: { token: TOKEN } }])
 
     await client.registerSandbox({
       threadId: 'brn_cloud',
@@ -178,7 +150,7 @@ describe('registering a client-provisioned sandbox', () => {
   })
 
   it('omits the optional fields the caller did not pass', async () => {
-    const { client, calls } = harness([{ body: { token: TOKEN } }])
+    const { client, calls } = harness([{ data: { token: TOKEN } }])
 
     const registered = await client.registerSandbox({
       threadId: 'brn_cloud',
@@ -195,7 +167,7 @@ describe('registering a client-provisioned sandbox', () => {
   })
 
   it('refuses an answer carrying no token', async () => {
-    const { client } = harness([{ body: { threadId: 'brn_cloud' } }])
+    const { client } = harness([{ data: { threadId: 'brn_cloud' } }])
 
     await expect(
       client.registerSandbox({
@@ -207,7 +179,7 @@ describe('registering a client-provisioned sandbox', () => {
   })
 
   it('surfaces a refusal as a CloudError carrying the status', async () => {
-    const { client } = harness([{ status: 400, body: { message: 'serveUrl must use https' } }])
+    const { client } = harness([{ status: 400, message: 'serveUrl must use https' }])
 
     const failure = await client
       .registerSandbox({
@@ -244,110 +216,4 @@ describe('registering a client-provisioned sandbox', () => {
     expect(failure).toBeInstanceOf(CloudError)
     expect((failure as CloudError).status).toBe(0)
   }, 15_000)
-})
-
-describe('listing sandboxes', () => {
-  it('gets the sandboxes route and parses each entry', async () => {
-    const { client, calls } = harness([
-      {
-        body: [
-          {
-            threadId: 'brn_one',
-            name: 'fix the thing',
-            driveName: 'atlas',
-            state: 'running',
-            lastActivityAt: '2026-09-26T10:00:00.000Z',
-          },
-          {
-            threadId: 'brn_two',
-            name: 'parked work',
-            driveName: null,
-            state: 'parked',
-            lastActivityAt: '2026-09-25T08:30:00.000Z',
-          },
-        ],
-      },
-    ])
-
-    const sandboxes = await client.listSandboxes()
-
-    expect(calls[0]?.method).toBe('GET')
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes')
-    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
-    expect(sandboxes).toEqual([
-      {
-        threadId: 'brn_one',
-        name: 'fix the thing',
-        driveName: 'atlas',
-        state: ECloudSandboxState.Running,
-        lastActivityAt: '2026-09-26T10:00:00.000Z',
-      },
-      {
-        threadId: 'brn_two',
-        name: 'parked work',
-        driveName: null,
-        state: ECloudSandboxState.Parked,
-        lastActivityAt: '2026-09-25T08:30:00.000Z',
-      },
-    ])
-  })
-
-  it('answers an empty list when the operator has no sandboxes', async () => {
-    const { client } = harness([{ body: [] }])
-
-    expect(await client.listSandboxes()).toEqual([])
-  })
-
-  it('refuses an entry whose state is not a known sandbox state', async () => {
-    const { client } = harness([
-      {
-        body: [
-          {
-            threadId: 'brn_one',
-            name: 'fix the thing',
-            driveName: null,
-            state: 'exploded',
-            lastActivityAt: '2026-09-26T10:00:00.000Z',
-          },
-        ],
-      },
-    ])
-
-    await expect(client.listSandboxes()).rejects.toThrow()
-  })
-
-  it('surfaces a transport failure as a CloudError carrying the status', async () => {
-    const { client } = harness([{ status: 401, body: { message: 'session expired' } }])
-
-    const failure = await client.listSandboxes().catch((error) => error)
-
-    expect(failure).toBeInstanceOf(CloudError)
-    expect((failure as CloudError).status).toBe(401)
-    expect((failure as CloudError).message).toContain('session expired')
-  })
-})
-
-describe('destroying a sandbox', () => {
-  it('posts to the destroy path and answers nothing', async () => {
-    const { client, calls } = harness([{}])
-
-    expect(await client.destroySandbox({ threadId: 'brn_cloud' })).toBeUndefined()
-    expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/sandboxes/brn_cloud/destroy')
-    expect(calls[0]?.headers.authorization).toBe('Bearer sess_test')
-  })
-
-  it('treats a sandbox already gone as success rather than a failure', async () => {
-    const { client } = harness([{ status: 404, body: { message: 'not found' } }])
-
-    expect(await client.destroySandbox({ threadId: 'brn_cloud' })).toBeUndefined()
-  })
-
-  it('surfaces any other failure as a CloudError', async () => {
-    const { client } = harness([{ status: 500, body: { message: 'vercel said no' } }])
-
-    await expect(client.destroySandbox({ threadId: 'brn_cloud' })).rejects.toBeInstanceOf(
-      CloudError,
-    )
-  })
 })

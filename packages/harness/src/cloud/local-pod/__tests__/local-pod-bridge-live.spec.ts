@@ -39,17 +39,18 @@ const startFakeApi = () =>
     hostname: '127.0.0.1',
     port: 0,
     fetch: async (request) => {
-      if (request.method !== 'PUT') return new Response('not found', { status: 404 })
+      if (request.method !== 'POST') return new Response('not found', { status: 404 })
       recordedPuts.push({
         path: new URL(request.url).pathname,
         authorization: request.headers.get('authorization'),
         body: await request.json(),
       })
-      return new Response(null, { status: 204 })
+      return Response.json({ result: { data: null } })
     },
   })
 
 const OPERATOR_SESSION = 'operator-session-bearer'
+const LEASE_PATH = '/v1/trpc/podLeases.register'
 
 const sweep = async (): Promise<void> => {
   const failures: unknown[] = []
@@ -94,13 +95,13 @@ describeDocker('createLocalPodBridge against a live daemon', () => {
       }),
       attachmentToken: () => serveToken,
       registerPodLease: async (lease) => {
-        const response = await fetch(`${apiUrl}/v1/pod-leases/${lease.threadId}`, {
-          method: 'PUT',
+        const response = await fetch(`${apiUrl}${LEASE_PATH}`, {
+          method: 'POST',
           headers: {
             Authorization: `Bearer ${OPERATOR_SESSION}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ token: lease.token }),
+          body: JSON.stringify({ threadId: lease.threadId, token: lease.token }),
         })
         if (!response.ok) throw new Error(`lease PUT answered ${response.status}`)
       },
@@ -117,9 +118,9 @@ describeDocker('createLocalPodBridge against a live daemon', () => {
     expect(sandbox.created).toBe(true)
     expect(sandbox.token).toBe(serveToken)
     const leasePut = {
-      path: `/v1/pod-leases/${threadId}`,
+      path: LEASE_PATH,
       authorization: `Bearer ${OPERATOR_SESSION}`,
-      body: { token: serveToken },
+      body: { threadId, token: serveToken },
     }
     expect(recordedPuts).toEqual([leasePut, leasePut])
     const health = await fetch(`${sandbox.url}/v1/health`, {

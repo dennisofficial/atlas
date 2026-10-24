@@ -53,9 +53,11 @@ const handle = async (request: Request): Promise<Response> => {
   const text = await request.text()
   calls.push({ method: request.method, path, body: text === '' ? undefined : JSON.parse(text) })
 
-  if (request.method === 'GET' && path === '/v1/accounts') return Response.json(cloudAccounts)
-  if (request.method === 'GET' && path.startsWith('/v1/accounts/active/')) {
-    return Response.json({ accountId: ACCOUNT.id })
+  if (request.method === 'GET' && path === '/v1/trpc/accounts.list') {
+    return Response.json({ result: { data: cloudAccounts } })
+  }
+  if (request.method === 'GET' && path === '/v1/trpc/accounts.active') {
+    return Response.json({ result: { data: { accountId: ACCOUNT.id } } })
   }
   if (request.method === 'GET' && path === '/v1/secrets') {
     return Response.json({
@@ -119,7 +121,9 @@ const compose = async (cloudState: boolean | undefined) => {
 }
 
 const requestsTo = (resource: 'accounts' | 'secrets' | 'settings'): Call[] =>
-  calls.filter((call) => call.path.startsWith(`/v1/${resource}`))
+  calls.filter((call) =>
+    call.path.startsWith(resource === 'accounts' ? '/v1/trpc/accounts.' : `/v1/${resource}`),
+  )
 
 const eventually = async (check: () => boolean): Promise<void> => {
   for (let attempt = 0; attempt < 100 && !check(); attempt += 1) await Bun.sleep(10)
@@ -220,7 +224,9 @@ describe.each([false, undefined])('composeHarness with cloudState %p', (cloudSta
     })
     await Bun.sleep(50)
 
-    expect(calls.filter((call) => /^\/v1\/(accounts|secrets|settings)/.test(call.path))).toEqual([])
+    expect(
+      calls.filter((call) => /^\/v1\/(trpc\/accounts\.|secrets|settings)/.test(call.path)),
+    ).toEqual([])
     expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBe('hidden')
     expect(existsSync(atlasSecretsFile())).toBe(true)
     expect(notices.posts.some((post) => post.key === 'cloud:legacy-accounts')).toBe(true)

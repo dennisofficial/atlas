@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
-import {
-  OauthRateLimitedError,
-  OauthRejectedError,
-  EOauthProvider,
-} from './oauth-connections.types'
+import { EOauthProvider } from '@dltech/atlas-wire'
+import { OauthRateLimitedError, OauthRejectedError } from './oauth-connections.types'
 import { HttpOauthIssuer } from './oauth-issuer'
 
 const NOW = Date.parse('2026-10-05T12:00:00.000Z')

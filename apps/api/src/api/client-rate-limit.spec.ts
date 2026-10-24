@@ -2,7 +2,8 @@ import 'reflect-metadata'
 import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
 import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
-import { SandboxesController } from './platform/sandboxes/sandboxes.controller'
+import { SandboxCheckpointRouter } from './platform/sandboxes/sandbox-checkpoint.router'
+import { SandboxesRouter } from './platform/sandboxes/sandboxes.router'
 import { procedureMetaOf } from './platform/sessions/procedure-meta.fixture'
 import { ThreadEventsRouter } from './platform/sessions/thread-events.router'
 import { ThreadTurnsRouter } from './platform/sessions/thread-turns.router'
@@ -46,12 +47,17 @@ describe('the first-party read routes', () => {
     })
   }
 
-  it('raises the throttle on SandboxesController above the app-wide default', () => {
-    expect(Reflect.getMetadata('THROTTLER:LIMITdefault', SandboxesController)).toBe(
-      CLIENT_READ_LIMIT_PER_MINUTE,
-    )
-    expect(Reflect.getMetadata('THROTTLER:TTLdefault', SandboxesController)).toBe(60_000)
-  })
+  for (const [label, handler] of [
+    ['sandboxes.list', SandboxesRouter.prototype.list],
+    ['sandboxes.claim', SandboxesRouter.prototype.claim],
+    ['sandboxes.destroy', SandboxesRouter.prototype.destroy],
+    ['sandboxCheckpoint.get', SandboxCheckpointRouter.prototype.get],
+    ['sandboxCheckpoint.put', SandboxCheckpointRouter.prototype.put],
+  ] as const) {
+    it(`raises the throttle on ${label} above the app-wide default`, () => {
+      expect(procedureMetaOf(handler).throttle).toEqual(READ_THROTTLE)
+    })
+  }
 })
 
 describe('the serve-facing control-plane routes', () => {

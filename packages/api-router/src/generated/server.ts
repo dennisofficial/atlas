@@ -13,7 +13,7 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
+import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
   publishedBundles: t.router({
@@ -103,6 +103,95 @@ const appRouter = t.router({
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
+  accountLease: t.router({
+    get: publicProcedure
+      .output(accountLeaseSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  accounts: t.router({
+    list: publicProcedure
+      .output(z.array(accountDtoSchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    create: publicProcedure
+      .input(createAccountInputSchema)
+      .output(accountDtoSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setActive: publicProcedure
+      .input(setActiveInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    active: publicProcedure
+      .input(activeAccountInputSchema)
+      .output(activeAccountDtoSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(accountIdInputSchema)
+      .output(storedAccountDtoSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    replaceSecret: publicProcedure
+      .input(replaceSecretInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setStatus: publicProcedure
+      .input(setStatusInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(accountIdInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  models: t.router({
+    list: publicProcedure
+      .output(modelsResponseSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  oauthConnections: t.router({
+    upload: publicProcedure
+      .input(uploadConnectionInputSchema)
+      .output(oauthAccessTokenSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(connectionRefSchema)
+      .output(oauthConnectionMetadataSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    reauthorize: publicProcedure
+      .input(reauthorizeConnectionInputSchema)
+      .output(oauthAccessTokenSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    accessToken: publicProcedure
+      .input(oauthAccessTokenRequestSchema)
+      .output(oauthAccessTokenSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    assignSandbox: publicProcedure
+      .input(assignConnectionSandboxSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(connectionRefSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  podLeases: t.router({
+    register: publicProcedure
+      .input(registerPodLeaseInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    release: publicProcedure
+      .input(releasePodLeaseInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sandboxCheckpoint: t.router({
+    get: publicProcedure
+      .input(sandboxThreadInputSchema)
+      .output(readRuntimeCheckpointReplySchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    put: publicProcedure
+      .input(runtimeCheckpointSchema)
+      .output(readRuntimeCheckpointReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   sandboxSelf: t.router({
     exposePort: publicProcedure
       .input(sandboxExposePortRequestSchema)
@@ -123,6 +212,19 @@ const appRouter = t.router({
     truncateEvents: publicProcedure
       .input(podEventsTruncateSchema)
       .output(podEventsReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sandboxes: t.router({
+    list: publicProcedure
+      .output(z.array(sandboxListEntrySchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    claim: publicProcedure
+      .input(claimSandboxInputSchema)
+      .output(sandboxAttachmentSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    destroy: publicProcedure
+      .input(sandboxThreadInputSchema)
+      .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   threadEvents: t.router({

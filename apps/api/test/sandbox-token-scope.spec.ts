@@ -1,12 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
-import { ValidationPipe } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
+import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
+import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
+import { SessionMiddleware } from '../src/_module/session/session.middleware'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
@@ -53,29 +53,20 @@ describe('sandbox token scoping (in-process, real guard)', () => {
   let app: INestApplication
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      controllers: [SecretsController, AccountsController],
+    app = await createMixedApp({
+      controllers: [SecretsController],
       providers: [
+        AccountsRouter,
         { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
         SessionAuthGuard,
         SessionOrSandboxGuard,
+        SessionMiddleware,
         { provide: SandboxesService, useValue: { verifyTokenPrincipal: vi.fn(async () => null) } },
         Reflector,
         { provide: SESSION_VERIFIER, useValue: verifier },
       ],
-    }).compile()
-
-    app = module.createNestApplication()
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    )
-    await app.init()
+    })
   })
 
   afterAll(async () => {
@@ -91,16 +82,17 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     expect(secretsStub.list).not.toHaveBeenCalled()
   })
 
-  it('refuses a sandbox token on GET /accounts and PUT /accounts/:id/secret', async () => {
+  it('refuses a sandbox token on accounts.get and accounts.replaceSecret', async () => {
     const server = app.getHttpServer()
 
     const read = await request(server)
-      .get('/accounts/acc_1')
+      .get('/v1/trpc/accounts.get')
+      .query({ input: JSON.stringify({ accountId: 'acc_1' }) })
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
     const rotate = await request(server)
-      .put('/accounts/acc_1/secret')
+      .post('/v1/trpc/accounts.replaceSecret')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-      .send({ secret: { kind: 'api-key', apiKey: 'sk-ant-test' } })
+      .send({ accountId: 'acc_1', secret: { kind: 'api-key', apiKey: 'sk-ant-test' } })
 
     expect(read.status).toBe(401)
     expect(rotate.status).toBe(401)

@@ -32,11 +32,11 @@ lives in `SandboxBootStep`, read by the web through `threadPod.status`. Messages
 while the pod is parked, absent or failed are appended as Events and start a pod; serve hydrates
 them at boot. `threadMessages.takeBack` takes back an unrun last message.
 
-The TUI still provisions its own BYO sandboxes and registers them through `POST /v1/sandboxes`,
+The TUI still provisions its own BYO sandboxes and registers them through `sandboxes.claim`,
 unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,
 thread discovery, backup sync and PR/CI webhooks.
 
-**`GET /v1/models` serves each user's model list.** `src/api/platform/models/` composes the catalogue from the
+**`models.list` (tRPC) serves each user's model list.** `src/api/platform/models/` composes the catalogue from the
 user's accounts and, when they hold an active OpenAI OAuth connection, replaces the static OpenAI list with
 the live Codex list (`CodexModelsCatalogue`, cached per user in memory for 300 s, revalidated with
 `If-None-Match`; a Codex failure returns the static list plus `liveError`). The code lives in harness behind

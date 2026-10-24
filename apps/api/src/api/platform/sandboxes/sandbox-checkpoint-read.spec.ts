@@ -1,11 +1,10 @@
-import { NotFoundException } from '@nestjs/common'
+import type { INestApplication } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { asJson } from '../../../../test/session-seed'
 import {
   checkpoint,
-  ownerRequest,
   sandboxRow,
   seedCheckpointOwners,
   storedRow,
@@ -14,37 +13,52 @@ import {
   USER_B,
 } from '../../../../test/sandbox-checkpoint-fixture'
 import { storedCheckpointOf } from './sandbox-checkpoint'
-import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
+import { createSandboxRoutersApp, getCheckpoint } from './sandbox-routers.fixture'
 
-describe('SandboxCheckpointController reads', () => {
+describe('SandboxCheckpointRouter.get', () => {
   useTestDatabase()
+  let app: INestApplication
+
+  beforeAll(async () => {
+    app = await createSandboxRoutersApp()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
   beforeEach(seedCheckpointOwners)
+
+  const read = (userId: string | undefined) => getCheckpoint({ app, userId, threadId: THREAD })
 
   it('answers null when no checkpoint was ever reported', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handleGetCheckpoint(ownerRequest(USER_A), THREAD)
+    const reply = await read(USER_A)
 
-    expect(result).toEqual({ checkpoint: null })
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({ result: { data: { checkpoint: null } } })
   })
 
   it('answers the stored checkpoint to the owner', async () => {
     await storedRow(checkpoint())
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handleGetCheckpoint(ownerRequest(USER_A), THREAD)
+    const reply = await read(USER_A)
 
-    expect(result).toEqual({ checkpoint: checkpoint() })
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({ result: { data: { checkpoint: checkpoint() } } })
   })
 
   it('404s for a signed-in user who does not own the thread', async () => {
     await storedRow(checkpoint())
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handleGetCheckpoint(ownerRequest(USER_B), THREAD),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    expect((await read(USER_B)).status).toBe(404)
+  })
+
+  it('answers 401 without a session', async () => {
+    await storedRow(checkpoint())
+
+    expect((await read(undefined)).status).toBe(401)
   })
 
   it('answers null when the stored payload no longer parses, rather than 500ing', async () => {
@@ -53,11 +67,11 @@ describe('SandboxCheckpointController reads', () => {
       runtimeCheckpoint: { revision: 'later' },
       runtimeCheckpointRevision: 3,
     })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handleGetCheckpoint(ownerRequest(USER_A), THREAD)
+    const reply = await read(USER_A)
 
-    expect(result).toEqual({ checkpoint: null })
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({ result: { data: { checkpoint: null } } })
   })
 
   it('answers null when a stored payload names a thread other than the row', async () => {
@@ -66,11 +80,11 @@ describe('SandboxCheckpointController reads', () => {
       runtimeCheckpoint: asJson(checkpoint({ threadId: 'brn_other' })),
       runtimeCheckpointRevision: 3,
     })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handleGetCheckpoint(ownerRequest(USER_A), THREAD)
+    const reply = await read(USER_A)
 
-    expect(result).toEqual({ checkpoint: null })
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({ result: { data: { checkpoint: null } } })
   })
 })
 

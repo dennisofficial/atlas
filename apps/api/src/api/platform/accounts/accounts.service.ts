@@ -2,22 +2,20 @@ import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type {
-  CreateAccountDto,
-  OauthAuthorityDto,
-  SecretDto,
-  SetActiveDto,
-  SetStatusDto,
-} from './accounts.dto'
-import type {
-  AccountDto,
-  AccountLeaseDto,
-  AccountSecret,
-  ActiveAccountDto,
-  OauthAuthority,
-  StoredAccountDto,
-} from './accounts.types'
-import { EAccountStatus, EAuthKind } from './accounts.types'
+import {
+  EAccountStatus,
+  EAuthKind,
+  type AccountDto,
+  type AccountLease,
+  type AccountSecretDto,
+  type ActiveAccountDto,
+  type CreateAccountInput,
+  type OauthAuthorityDto,
+  type OauthAuthorityInput,
+  type SecretInput,
+  type SetActiveInput,
+  type StoredAccountDto,
+} from '@dltech/atlas-wire'
 
 function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
   return {
@@ -35,12 +33,12 @@ function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
   }
 }
 
-function withoutRefreshToken(secret: AccountSecret): AccountSecret {
+function withoutRefreshToken(secret: AccountSecretDto): AccountSecretDto {
   if (secret.kind !== EAuthKind.Oauth) return secret
   return { ...secret, tokens: { ...secret.tokens, refreshToken: '' } }
 }
 
-function toAuthority(dto: OauthAuthorityDto): OauthAuthority {
+function toAuthority(dto: OauthAuthorityInput): OauthAuthorityDto {
   return {
     url: dto.url,
     connectionId: dto.connectionId,
@@ -53,7 +51,7 @@ function toAuthority(dto: OauthAuthorityDto): OauthAuthority {
   }
 }
 
-function toAccountSecret(dto: SecretDto): AccountSecret {
+function toAccountSecret(dto: SecretInput): AccountSecretDto {
   if (dto.kind === EAuthKind.Oauth) {
     const tokens = dto.tokens
     if (!tokens || tokens.accessToken.length === 0 || tokens.expiresAt.length === 0) {
@@ -91,7 +89,7 @@ export class AccountsService {
     return rows.map(toAccountDto)
   }
 
-  async lease(args: { userId: string }): Promise<AccountLeaseDto> {
+  async lease(args: { userId: string }): Promise<AccountLease> {
     const rows = await db.orm.public.AgentAccount.where({ userId: args.userId })
       .orderBy((account) => account.createdAt.asc())
       .all()
@@ -113,7 +111,7 @@ export class AccountsService {
     return { ...toAccountDto(row), secret: this.openSecret(row.sealedSecret) }
   }
 
-  async add(args: { userId: string; draft: CreateAccountDto }): Promise<AccountDto> {
+  async add(args: { userId: string; draft: CreateAccountInput }): Promise<AccountDto> {
     const secret = toAccountSecret(args.draft.secret)
     const at = new Date()
     const row = await db.orm.public.AgentAccount.create({
@@ -150,7 +148,7 @@ export class AccountsService {
   async replaceSecret(args: {
     userId: string
     accountId: string
-    secret: SecretDto
+    secret: SecretInput
   }): Promise<void> {
     await this.ownedRow(args)
     const secret = toAccountSecret(args.secret)
@@ -169,11 +167,11 @@ export class AccountsService {
   async setStatus(args: {
     userId: string
     accountId: string
-    status: SetStatusDto
+    status: EAccountStatus
   }): Promise<void> {
     await this.ownedRow(args)
     await db.orm.public.AgentAccount.where({ id: args.accountId }).update({
-      status: args.status.status,
+      status: args.status,
     })
   }
 
@@ -182,7 +180,7 @@ export class AccountsService {
     await db.orm.public.AgentAccount.where({ id: args.accountId }).delete()
   }
 
-  async setActive(args: { userId: string; draft: SetActiveDto }): Promise<void> {
+  async setActive(args: { userId: string; draft: SetActiveInput }): Promise<void> {
     await this.ownedRow({ userId: args.userId, accountId: args.draft.accountId })
     await db.orm.public.ActiveAccount.upsert({
       create: {
@@ -215,11 +213,11 @@ export class AccountsService {
     return row
   }
 
-  private sealSecret(secret: AccountSecret): string {
+  private sealSecret(secret: AccountSecretDto): string {
     return this.cipher.encrypt(JSON.stringify(secret))
   }
 
-  private openSecret(sealedSecret: string): AccountSecret {
-    return JSON.parse(this.cipher.decrypt(sealedSecret)) as AccountSecret
+  private openSecret(sealedSecret: string): AccountSecretDto {
+    return JSON.parse(this.cipher.decrypt(sealedSecret)) as AccountSecretDto
   }
 }

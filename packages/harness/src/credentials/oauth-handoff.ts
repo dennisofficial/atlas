@@ -9,6 +9,7 @@ import {
   type ClockPort,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import { EOauthProvider } from '@dltech/atlas-wire'
 import { randomUUID } from 'node:crypto'
 
 import type { CloudSession } from '../cloud/cloud-session'
@@ -22,8 +23,8 @@ import { isPending, persistAccess, sameUrl, underAccountLock } from './oauth-own
 const LEGACY_CLI_SOURCES: readonly string[] = ['claude-code', 'codex']
 
 const wireProviderOf: Partial<Record<EAuthProvider, OauthConnectionProvider>> = {
-  [EAuthProvider.Anthropic]: 'anthropic',
-  [EAuthProvider.OpenAI]: 'openai',
+  [EAuthProvider.Anthropic]: EOauthProvider.Anthropic,
+  [EAuthProvider.OpenAI]: EOauthProvider.OpenAI,
 }
 
 const failure = (args: { failure: ECredentialFailure; message: string }): CredentialError =>

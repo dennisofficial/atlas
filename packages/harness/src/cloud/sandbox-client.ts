@@ -1,8 +1,9 @@
 import { z } from 'zod'
 
 import { readRuntimeCheckpointReplySchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import type { ApiClient } from '@dltech/atlas-api-router'
 
-import { CloudTransport } from './cloud-transport'
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 
 export enum ECloudSandboxState {
   Running = 'running',
@@ -52,7 +53,7 @@ export type WorkspaceSpec = z.infer<typeof workspaceSpecSchema>
  * operator's own token drives that through `VercelDriver`.
  */
 export class SandboxClient {
-  private readonly transport: CloudTransport
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
@@ -60,12 +61,17 @@ export class SandboxClient {
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
   }) {
-    this.transport = new CloudTransport(args)
+    this.api = createHarnessApiClient({
+      url: args.url,
+      token: args.token,
+      clientVersion: args.clientVersion ?? 'dev',
+      fetchFn: args.fetchFn ?? fetch,
+    })
   }
 
   /**
    * Upserts the row and mints (or reissues) the sandbox session token. No provisioning happens
-   * server-side, so a reattach is the same POST with a fresh git token and `contextPending`
+   * server-side, so a reattach is the same call with a fresh git token and `contextPending`
    * naming whether the client believes the sandbox will boot fresh (needing the context archive)
    * or resume from its snapshot.
    */
@@ -75,16 +81,14 @@ export class SandboxClient {
     contextPending: boolean
     workspace?: WorkspaceSpec | undefined
   }): Promise<WireSandboxClaim> {
-    const body = await this.request({
-      method: 'POST',
-      path: '/v1/sandboxes',
-      body: {
+    const body = await cloudCall(
+      this.api.sandboxes.claim.mutate({
         threadId: args.threadId,
         gitToken: args.gitToken,
         contextPending: args.contextPending,
         ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
-      },
-    })
+      }),
+    )
     return wireSandboxClaimSchema.parse(body)
   }
 
@@ -95,53 +99,38 @@ export class SandboxClient {
     serveVersion?: string | undefined
     metadata?: { title?: string; repo?: string; model?: string } | undefined
   }): Promise<WireSandboxRegistration> {
-    const body = await this.request({
-      method: 'POST',
-      path: '/v1/sandboxes',
-      body: {
+    const body = await cloudCall(
+      this.api.sandboxes.claim.mutate({
         threadId: args.threadId,
         clientToken: args.token,
         serveUrl: args.serveUrl,
         ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
         ...(args.metadata === undefined ? {} : { metadata: args.metadata }),
-      },
-    })
+      }),
+    )
     return wireSandboxRegistrationSchema.parse(body)
   }
 
   /** Operator-session auth: the signed-in user's own sandbox rows, newest activity first. */
   async listSandboxes(): Promise<WireSandboxListEntry[]> {
-    const body = await this.request({ method: 'GET', path: '/v1/sandboxes', retry: true })
+    const body = await cloudCall(this.api.sandboxes.list.query())
     return z.array(wireSandboxListEntrySchema).parse(body)
   }
 
   /** A sandbox already gone is the caller's desired end state, so a 404 here is success, not an error. */
   async destroySandbox(args: { threadId: string }): Promise<void> {
-    await this.request({
-      method: 'POST',
-      path: `/v1/sandboxes/${args.threadId}/destroy`,
+    await cloudCall(this.api.sandboxes.destroy.mutate({ threadId: args.threadId }), {
       allowMissing: true,
     })
   }
 
   async readCheckpoint(args: { threadId: string }): Promise<RuntimeCheckpoint | null> {
-    const body = await this.request({
-      method: 'GET',
-      path: `/v1/sandboxes/${args.threadId}/checkpoint`,
-      allowMissing: true,
-    })
+    const body = await cloudCall(
+      this.api.sandboxCheckpoint.get.query({ threadId: args.threadId }),
+      { allowMissing: true },
+    )
     if (body === undefined || body === null) return null
     const parsed = readRuntimeCheckpointReplySchema.safeParse(body)
     return parsed.success ? parsed.data.checkpoint : null
-  }
-
-  private request(args: {
-    method: string
-    path: string
-    body?: unknown
-    allowMissing?: boolean
-    retry?: boolean
-  }): Promise<unknown> {
-    return this.transport.request(args)
   }
 }

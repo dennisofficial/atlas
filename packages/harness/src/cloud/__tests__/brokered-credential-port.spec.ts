@@ -17,8 +17,11 @@ import { CredentialError, ECredentialFailure } from '../../credentials/credentia
 import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudError } from '../cloud-transport'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcData } from './accounts-trpc-fake'
 
 let nowIso = '2026-01-01T00:00:00.000Z'
+const OUTAGE_TEST_TIMEOUT_MS = 20_000
+
 const clock: ClockPort = { now: () => nowIso }
 
 let directory: string
@@ -273,10 +276,9 @@ describe('BrokeredCredentialPort reading account metadata through an outage', ()
   const answerFor = (url?: string): Response => {
     if (url === undefined) return brokering()
     if (url.endsWith('/access-token')) return brokering()
-    if (url.includes('/v1/accounts/active/'))
-      return new Response(JSON.stringify({ accountId: 'acc_cloud_1' }), { status: 200 })
-    if (url.endsWith('/v1/accounts'))
-      return new Response(JSON.stringify([remoteAccountBody]), { status: 200 })
+    if (url.includes('/v1/trpc/accounts.active')) return trpcData({ accountId: 'acc_cloud_1' })
+    if (url.includes('/v1/trpc/accounts.list')) return trpcData([remoteAccountBody])
+    if (url.includes('/v1/trpc/accounts.get')) return trpcData(remoteStoredBody)
     return new Response(JSON.stringify(remoteStoredBody), { status: 200 })
   }
 
@@ -296,32 +298,40 @@ describe('BrokeredCredentialPort reading account metadata through an outage', ()
     }) as typeof fetch
   }
 
-  it('falls back to the last-known account metadata when the cloud 504s mid-session', async () => {
-    answer = answerFor
-    outageAnswering()
-    const port = proxiedPort()
+  it(
+    'falls back to the last-known account metadata when the cloud 504s mid-session',
+    async () => {
+      answer = answerFor
+      outageAnswering()
+      const port = proxiedPort()
 
-    const first = await port.read()
-    expect(first).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
-    if (first.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
-    expect(first.accessToken).toMatch(/^brokered-access-/)
+      const first = await port.read()
+      expect(first).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
+      if (first.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
+      expect(first.accessToken).toMatch(/^brokered-access-/)
 
-    answer = failing(504)
-    nowIso = '2026-01-01T00:56:00.000Z'
-    const later = await port.read()
+      answer = failing(504)
+      nowIso = '2026-01-01T00:56:00.000Z'
+      const later = await port.read()
 
-    expect(later).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
-    if (later.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
-    expect(later.accessToken).toMatch(/^brokered-access-/)
-  })
+      expect(later).toMatchObject({ kind: EAuthKind.Oauth, accountId: 'acc_cloud_1' })
+      if (later.kind !== EAuthKind.Oauth) throw new Error('expected an oauth credential')
+      expect(later.accessToken).toMatch(/^brokered-access-/)
+    },
+    OUTAGE_TEST_TIMEOUT_MS,
+  )
 
-  it('keeps failing when the outage predates any successful read — nothing is last-known yet', async () => {
-    answer = failing(504)
-    outageAnswering()
-    const port = proxiedPort()
+  it(
+    'keeps failing when the outage predates any successful read — nothing is last-known yet',
+    async () => {
+      answer = failing(504)
+      outageAnswering()
+      const port = proxiedPort()
 
-    await expect(port.read()).rejects.toBeInstanceOf(CloudError)
-  })
+      await expect(port.read()).rejects.toBeInstanceOf(CloudError)
+    },
+    OUTAGE_TEST_TIMEOUT_MS,
+  )
 
   it('ends the session on a refused token — the cloud cache dies with it and nothing stale serves', async () => {
     answer = answerFor

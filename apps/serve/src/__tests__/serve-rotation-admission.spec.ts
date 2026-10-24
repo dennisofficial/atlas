@@ -81,6 +81,7 @@ const rig = async (
       atlasHome: fixture.home,
       env: { ATLAS_SANDBOX_SESSION_ID: replacementSession },
       token,
+      clientVersion: 'dev',
       transcript: app.log,
       log: noop,
     }),
