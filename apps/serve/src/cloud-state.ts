@@ -16,6 +16,7 @@ import {
   ATLAS_SECRETS_NAME,
   cipherSecretBox,
   CloudError,
+  cloudCall,
   cloudRequest,
   decodeSettingValue,
   fileVaultBackend,
@@ -25,15 +26,11 @@ import {
   type VaultFile,
 } from '@dltech/atlas-harness'
 import { accountLeaseSchema } from '@dltech/atlas-wire'
-import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
+import { ESecretKind } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
-import {
-  cloudConfigPathFor,
-  exportEnvSecrets,
-  mergeCloudMcpServers,
-  type CloudConfig,
-} from './cloud-config'
+import { createApiClient } from './api-client'
+import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -145,9 +142,8 @@ export const applyCloudState = async (args: {
     return left
   }
 
-  const request = (path: string, allowMissing = false): Promise<unknown> =>
+  const request = (path: string): Promise<unknown> =>
     cloudRequest({
-      allowMissing,
       url,
       token: args.token,
       clientVersion: args.clientVersion,
@@ -157,10 +153,24 @@ export const applyCloudState = async (args: {
       timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
     })
 
-  const requestPatiently = async (path: string, allowMissing = false): Promise<unknown> => {
+  const api = createApiClient({
+    controlPlaneUrl: url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: Object.assign(
+      (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+        args.fetchFn(input, {
+          ...init,
+          signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs())),
+        }),
+      { preconnect: fetch.preconnect },
+    ),
+  })
+
+  const requestPatiently = async <T>(load: () => Promise<T>): Promise<T> => {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        return await request(path, allowMissing)
+        return await load()
       } catch (error) {
         const registering = error instanceof CloudError && error.status === UNAUTHORIZED
         if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
@@ -171,8 +181,12 @@ export const applyCloudState = async (args: {
 
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
-      requestPatiently('/v1/settings').then((body) => settingsResponseSchema.parse(body)),
-      requestPatiently('/v1/secrets').then((body) => secretsResponseSchema.parse(body)),
+      requestPatiently(() => request('/v1/settings')).then((body) =>
+        settingsResponseSchema.parse(body),
+      ),
+      requestPatiently(() => request('/v1/secrets')).then((body) =>
+        secretsResponseSchema.parse(body),
+      ),
     ])
     return {
       settings: settings.settings,
@@ -182,9 +196,11 @@ export const applyCloudState = async (args: {
   }
 
   const scopedConfig = async (): Promise<CloudConfig> => {
-    const body = await requestPatiently(cloudConfigPathFor(args.projectId), true)
-    if (body === undefined) return legacyConfig()
-    const resolved = resolvedSandboxConfigSchema.parse(body)
+    const input = args.projectId ? { projectId: args.projectId } : undefined
+    const resolved = await requestPatiently(() =>
+      cloudCall(api.sandboxConfig.get.query(input), { allowMissing: true }),
+    )
+    if (resolved === undefined) return legacyConfig()
     return {
       settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
       secrets: resolved.secrets,
@@ -194,7 +210,9 @@ export const applyCloudState = async (args: {
 
   try {
     const [lease, config] = await Promise.all([
-      requestPatiently('/v1/account-lease').then((body) => accountLeaseSchema.parse(body)),
+      requestPatiently(() => request('/v1/account-lease')).then((body) =>
+        accountLeaseSchema.parse(body),
+      ),
       scopedConfig(),
     ])
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))

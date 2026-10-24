@@ -9,10 +9,12 @@ import {
   type EAuthProvider,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import type { ApiClient } from '@dltech/atlas-api-router'
 import type { Project } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
+import { createHarnessApiClient } from './api-trpc-client'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
 import { cloudRequest } from './cloud-transport'
@@ -56,6 +58,7 @@ export class CloudClient {
   private readonly token: string
   private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
@@ -67,6 +70,12 @@ export class CloudClient {
     this.token = args.token
     this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
+    this.api = createHarnessApiClient({
+      url: this.url,
+      token: this.token,
+      clientVersion: this.clientVersion,
+      fetchFn: this.fetchFn,
+    })
   }
 
   get baseUrl(): string {
@@ -271,11 +280,11 @@ export class CloudClient {
   }
 
   listProjects(): Promise<Project[]> {
-    return listProjectsVia((args) => this.request(args))
+    return listProjectsVia(this.api)
   }
 
   createProject(input: ProjectInput): Promise<Project> {
-    return createProjectVia({ request: (args) => this.request(args), input })
+    return createProjectVia({ api: this.api, input })
   }
 
   private request(args: {

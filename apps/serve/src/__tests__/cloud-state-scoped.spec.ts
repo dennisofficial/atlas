@@ -7,6 +7,7 @@ import { EDefinitionOrigin, ESettingId } from '@dltech/atlas-core'
 import { encodeSettingValue, FileMcpSource } from '@dltech/atlas-harness'
 
 import { EServeEvent } from '../serve-log'
+import { SANDBOX_CONFIG_PATH, sandboxConfigSearch } from './cloud-state-fixture'
 import { cleanupCloudState, apply, cloudWith, secretsAt, tempHome } from './cloud-state-harness'
 
 afterEach(cleanupCloudState)
@@ -33,12 +34,10 @@ describe('applyCloudState against the scoped config endpoint', () => {
 
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
       '/v1/account-lease',
-      '/v1/sandboxes/self/config',
+      SANDBOX_CONFIG_PATH,
     ])
-    const configRequest = cloud.requests.find(
-      (request) => request.path === '/v1/sandboxes/self/config',
-    )
-    expect(configRequest?.search).toBe('?projectId=proj%201')
+    const configRequest = cloud.requests.find((request) => request.path === SANDBOX_CONFIG_PATH)
+    expect(configRequest?.search).toBe(sandboxConfigSearch('proj 1'))
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).toContain(ESettingId.SidebarWidth)
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).not.toContain('legacy')
     expect(secretsAt(home).read('TAVILY_API_KEY')).toBe('tvly-scoped')
@@ -92,8 +91,6 @@ describe('applyCloudState against the scoped config endpoint', () => {
   it('omits the projectId query when there is no project', async () => {
     const cloud = cloudWith({ config: resolved })
     await apply({ home: tempHome(), cloud })
-    expect(
-      cloud.requests.find((request) => request.path === '/v1/sandboxes/self/config')?.search,
-    ).toBe('')
+    expect(cloud.requests.find((request) => request.path === SANDBOX_CONFIG_PATH)?.search).toBe('')
   })
 })

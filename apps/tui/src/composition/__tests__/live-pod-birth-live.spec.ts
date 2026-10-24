@@ -164,8 +164,10 @@ describeLive('a pod birth through the live TUI wiring', () => {
         const auth = request.headers.get('authorization')
         if (request.method === 'GET') {
           reads.push({ path, auth })
-          if (path === '/v1/projects') return Response.json([PROJECT])
-          if (path === `/v1/projects/${PROJECT_ID}/workspace`) return Response.json(WORKSPACE)
+          if (path === '/v1/trpc/projects.list')
+            return Response.json({ result: { data: [PROJECT] } })
+          if (path === '/v1/trpc/projectWorkspace.get')
+            return Response.json({ result: { data: WORKSPACE } })
           return Response.json({ message: 'not found' }, { status: 404 })
         }
         leases.push({ path, auth, body: (await request.json()) as { token: string } })
@@ -304,12 +306,14 @@ describeLive('a pod birth through the live TUI wiring', () => {
         expect(await gitInPod({ podName, command: 'remote get-url origin' })).toBe(PROJECT_ORIGIN)
 
         expect(
-          reads.some((read) => read.path === '/v1/projects' && read.auth === 'Bearer live-session'),
+          reads.some(
+            (read) => read.path === '/v1/trpc/projects.list' && read.auth === 'Bearer live-session',
+          ),
         ).toBe(true)
         expect(
           reads.some(
             (read) =>
-              read.path === `/v1/projects/${PROJECT_ID}/workspace` &&
+              read.path === '/v1/trpc/projectWorkspace.get' &&
               read.auth === `Bearer ${born.sandbox.token}`,
           ),
         ).toBe(true)

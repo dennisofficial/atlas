@@ -23,6 +23,7 @@ import {
 
 import { connect } from './client'
 import { fakeServeApp } from './fakes'
+import { trpcOk } from './trpc-fake'
 import {
   CONTROL_PLANE,
   hello,
@@ -263,7 +264,7 @@ describe('startServe', () => {
           authorization:
             (init?.headers as Record<string, string> | undefined)?.authorization ?? null,
         })
-        return Response.json({
+        return trpcOk({
           projectId: 'proj-boot',
           repo: 'octocat/Hello-World',
           baseBranch: 'test',
@@ -282,7 +283,7 @@ describe('startServe', () => {
       additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
     })
     expect(requested[0]).toEqual({
-      url: `${CONTROL_PLANE}/v1/projects/proj-boot/workspace`,
+      url: `${CONTROL_PLANE}/v1/trpc/projectWorkspace.get?input=${encodeURIComponent(JSON.stringify({ projectId: 'proj-boot' }))}`,
       authorization: `Bearer ${TOKEN}`,
     })
   })

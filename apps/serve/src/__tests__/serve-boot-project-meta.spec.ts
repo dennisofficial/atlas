@@ -11,6 +11,7 @@ import {
 
 import { fakeServeApp } from './fakes'
 import { releaseServeSpec, start, startWithDriveSpec, threadId } from './serve-spec-fixture'
+import { trpcOk } from './trpc-fake'
 
 afterEach(releaseServeSpec)
 
@@ -28,7 +29,7 @@ describe('startServe born thread meta project', () => {
     await startWithDriveSpec({
       spec: { projectId: 'proj-boot' },
       fetchFn: (async (_input: unknown) =>
-        Response.json({
+        trpcOk({
           projectId: 'proj-boot',
           repo: null,
           baseBranch: null,

@@ -1,5 +1,12 @@
-import { projectSchema, type Project, type ProjectRepo } from '@dltech/atlas-wire'
-import { z } from 'zod'
+import type { ApiClient } from '@dltech/atlas-api-router'
+import {
+  projectListSchema,
+  projectSchema,
+  type Project,
+  type ProjectRepo,
+} from '@dltech/atlas-wire'
+
+import { cloudCall } from './api-trpc-client'
 
 export type ProjectInput = {
   name: string
@@ -8,15 +15,11 @@ export type ProjectInput = {
   additionalRepos: ProjectRepo[]
 }
 
-type Request = (args: { method: string; path: string; body?: unknown }) => Promise<unknown>
-
-export const listProjectsVia = async (request: Request): Promise<Project[]> =>
-  z.array(projectSchema).parse(await request({ method: 'GET', path: '/v1/projects' }))
+export const listProjectsVia = async (api: ApiClient): Promise<Project[]> =>
+  projectListSchema.parse(await cloudCall(api.projects.list.query()))
 
 export const createProjectVia = async (args: {
-  request: Request
+  api: ApiClient
   input: ProjectInput
 }): Promise<Project> =>
-  projectSchema.parse(
-    await args.request({ method: 'POST', path: '/v1/projects', body: args.input }),
-  )
+  projectSchema.parse(await cloudCall(args.api.projects.create.mutate(args.input)))
