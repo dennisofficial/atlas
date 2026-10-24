@@ -30,10 +30,16 @@ export function useCdMenu(args: {
   onComplete: (text: string) => void
   onProblem?: ((reason: string) => void) | undefined
 }): CdMenuControl {
-  const [state, setState] = useState<FileMenuState | null>(null)
+  const [state, setRenderedState] = useState<FileMenuState | null>(null)
+  const current = useRef<FileMenuState | null>(null)
   const typed = useRef('')
   const asked = useRef(0)
   const { files, currentDirectory, onComplete } = args
+
+  const setState = useCallback((next: FileMenuState | null) => {
+    current.current = next
+    setRenderedState(next)
+  }, [])
 
   const handleTextChanged = useCallback(
     (text: string) => {
@@ -63,16 +69,17 @@ export function useCdMenu(args: {
           args.onProblem?.(`could not list directories: ${messageOf(error)}`)
         })
     },
-    [files, currentDirectory, args.onProblem],
+    [files, currentDirectory, args.onProblem, setState],
   )
 
   const handleDismiss = useCallback(() => {
     asked.current += 1
     setState(null)
-  }, [])
+  }, [setState])
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
+      const state = current.current
       if (state === null) return false
 
       if (key.name === 'escape') {
@@ -95,7 +102,7 @@ export function useCdMenu(args: {
       onComplete(completed)
       return true
     },
-    [handleDismiss, onComplete, state],
+    [handleDismiss, onComplete, setState],
   )
 
   return useMemo(
