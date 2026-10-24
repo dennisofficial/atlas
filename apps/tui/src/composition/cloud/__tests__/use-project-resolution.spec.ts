@@ -13,7 +13,7 @@ const gatedClient = (args: { gate: Promise<void>; requests: string[] }): CloudCl
     fetchFn: (async (_url: string, init?: RequestInit) => {
       args.requests.push(init?.method ?? 'GET')
       await args.gate
-      return Response.json([])
+      return Response.json({ result: { data: [] } })
     }) as unknown as typeof fetch,
   })
 
