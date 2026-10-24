@@ -1,16 +1,24 @@
+import { EGithubPrStreamFrame, type GithubPrState } from '@dltech/atlas-wire'
+
+import type { SsePrFrame } from '../sse-types'
+
 export type ServedResponse = {
   status: number
   body?: string
   contentType?: string
-  /** Hold the stream open until the request aborts, delivering only the initial body. */
+  /** Hold the stream open until the request aborts, delivering only the initial body (default: connected + one heartbeat frame). */
   openEnded?: boolean
-  /** With openEnded, push a `: keepalive` comment frame on this cadence. */
+  /** With openEnded, push a heartbeat data frame on this cadence. */
   heartbeatEveryMs?: number
   /** Accept the connection and never answer with headers at all. */
   hangs?: boolean
 }
 
-export type RecordedRequest = { authorization: string | null; clientVersion: string | null }
+export type RecordedRequest = {
+  authorization: string | null
+  clientVersion: string | null
+  path: string
+}
 
 export type TestServer = {
   url: string
@@ -21,8 +29,46 @@ export type TestServer = {
 
 export const text = (body: string): { status: number; body: string } => ({ status: 200, body })
 
-export const frame = (args: { id?: string; event: string; data: unknown }): string =>
-  `${args.id === undefined ? '' : `id: ${args.id}\n`}event: ${args.event}\ndata: ${JSON.stringify(args.data)}\n\n`
+export const connected = (): string => 'event: connected\ndata: {}\n\n'
+
+export const dataFrame = (data: unknown): string => `data: ${JSON.stringify(data)}\n\n`
+
+export const heartbeatFrame = (): string => dataFrame({ type: 'heartbeat' })
+
+export const serializedError = (args: {
+  code: string
+  httpStatus: number
+  number: number
+}): string =>
+  `event: serialized-error\ndata: ${JSON.stringify({
+    message: 'failed',
+    code: args.number,
+    data: { code: args.code, httpStatus: args.httpStatus },
+  })}\n\n`
+
+export const returnEvent = (): string => 'event: return\ndata: {}\n\n'
+
+export const opened = (...rest: string[]): string =>
+  [connected(), heartbeatFrame(), ...rest].join('')
+
+export const prStateFrame = (state: Partial<GithubPrState> = {}): SsePrFrame => ({
+  type: EGithubPrStreamFrame.PrState,
+  state: {
+    repoFullName: 'owner/repo',
+    prNumber: 42,
+    title: 'smoke',
+    url: 'https://github.com/owner/repo/pull/42',
+    state: 'open',
+    headBranch: 'feature',
+    headSha: 'abc',
+    checksRunning: 1,
+    checksPassed: 0,
+    checksFailed: 0,
+    mergeable: null,
+    updatedAt: '2026-10-24T00:00:00.000Z',
+    ...state,
+  },
+})
 
 export const startServer = ({ responses }: { responses: ServedResponse[] }): TestServer => {
   let calls = 0
@@ -34,6 +80,7 @@ export const startServer = ({ responses }: { responses: ServedResponse[] }): Tes
       requests.push({
         authorization: request.headers.get('authorization'),
         clientVersion: request.headers.get('atlas-client-version'),
+        path: new URL(request.url).pathname,
       })
       const served = responses[Math.min(calls, responses.length - 1)]
       calls += 1
@@ -42,16 +89,15 @@ export const startServer = ({ responses }: { responses: ServedResponse[] }): Tes
       if (served.openEnded === true) {
         // A Bun fetch client does not resolve a streamed response until the first chunk arrives,
         // so a truly empty stream would hang the client under test rather than simulate silence.
-        // The leading comment frame carries no event data, so the watchdog still times it out.
         live += 1
         return new Response(
           new ReadableStream({
             start(controller) {
               let heartbeat: ReturnType<typeof setInterval> | undefined
-              controller.enqueue(new TextEncoder().encode(served.body ?? ': connected\n\n'))
+              controller.enqueue(new TextEncoder().encode(served.body ?? opened()))
               if (served.heartbeatEveryMs !== undefined) {
                 heartbeat = setInterval(() => {
-                  controller.enqueue(new TextEncoder().encode(': keepalive\n\n'))
+                  controller.enqueue(new TextEncoder().encode(heartbeatFrame()))
                 }, served.heartbeatEveryMs)
               }
               request.signal.addEventListener('abort', () => {
@@ -79,7 +125,7 @@ export const startServer = ({ responses }: { responses: ServedResponse[] }): Tes
 }
 
 export const collect = () => {
-  const frames: { id: string | undefined; event: string; data: string }[] = []
+  const frames: SsePrFrame[] = []
   let drops = 0
   let opens = 0
   return {
@@ -87,7 +133,7 @@ export const collect = () => {
     drops: () => drops,
     opens: () => opens,
     handlers: {
-      onFrame: (f: { id: string | undefined; event: string; data: string }) => frames.push(f),
+      onFrame: (f: SsePrFrame) => frames.push(f),
       onDrop: () => {
         drops += 1
       },

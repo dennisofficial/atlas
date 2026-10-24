@@ -48,24 +48,34 @@ export const keyFetch = (state: Remote): typeof fetch => {
       : { state: 'absent' }
 
   return (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).slice(URL.length)
+    const path = String(input).slice(URL.length).split('?')[0] ?? ''
     const call = `${init?.method ?? 'GET'} ${path}`
     state.calls.push(call)
 
     if (state.gate !== null) await state.gate
+    if (state.down && call === 'GET /v1/trpc/github.get') {
+      return reply(500, {
+        error: {
+          message: 'cloud is down',
+          code: -32603,
+          data: { code: 'INTERNAL_SERVER_ERROR', httpStatus: 500 },
+        },
+      })
+    }
     if (state.down) return reply(500, { message: 'cloud is down' })
-    if (call === 'GET /v1/github') {
-      return reply(
-        200,
-        state.githubConnected
-          ? {
-              connected: true,
-              login: 'octocat',
-              scopes: ['repo'],
-              connectedAt: '2026-01-01T00:00:00.000Z',
-            }
-          : { connected: false },
-      )
+    if (call === 'GET /v1/trpc/github.get') {
+      return reply(200, {
+        result: {
+          data: state.githubConnected
+            ? {
+                connected: true,
+                login: 'octocat',
+                scopes: ['repo'],
+                connectedAt: '2026-01-01T00:00:00.000Z',
+              }
+            : { connected: false },
+        },
+      })
     }
     if (call === 'GET /v1/ssh-signing-key/status') return reply(200, statusBody())
     if (call === 'POST /v1/ssh-signing-key' || call === 'POST /v1/ssh-signing-key/rotate') {

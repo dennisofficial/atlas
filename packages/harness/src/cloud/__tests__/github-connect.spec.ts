@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { EGithubConnectPoll } from '../github-connect'
+import { trpcFailure, trpcOk } from './trpc-fakes'
 
 const TOKEN = 'sess_test_token'
 
@@ -27,10 +28,11 @@ const clientWith = (
     calls.push(call)
 
     const answer = respond(call)
-    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
-      status: answer.status,
-      headers: { 'content-type': 'application/json' },
-    })
+    if (answer.status >= 400) {
+      const message = (answer.body as { message?: string } | undefined)?.message
+      return trpcFailure({ status: answer.status, ...(message === undefined ? {} : { message }) })
+    }
+    return trpcOk(answer.body ?? null)
   }) as typeof fetch
 
   return { client: new CloudClient({ url: 'http://cloud.test/', token: TOKEN, fetchFn }), calls }
@@ -52,7 +54,7 @@ describe('CloudClient github connect', () => {
 
     expect(calls[0]).toMatchObject({
       method: 'POST',
-      url: 'http://cloud.test/v1/github/connect/begin',
+      url: 'http://cloud.test/v1/trpc/github.beginConnect',
       headers: { authorization: `Bearer ${TOKEN}` },
     })
     expect(ticket).toEqual(ticketBody)
@@ -86,7 +88,7 @@ describe('CloudClient github connect', () => {
 
       expect(calls[0]).toMatchObject({
         method: 'POST',
-        url: 'http://cloud.test/v1/github/connect/poll',
+        url: 'http://cloud.test/v1/trpc/github.pollConnect',
         body: { deviceCode: 'dev_code_1' },
       })
       expect(outcome).toEqual({ status })
@@ -121,7 +123,7 @@ describe('CloudClient github connect', () => {
 
     const connection = await client.githubConnection()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/github' })
+    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/trpc/github.get' })
     expect(connection).toBeNull()
   })
 
@@ -150,7 +152,10 @@ describe('CloudClient github connect', () => {
 
     const token = await client.githubToken()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/github/token' })
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      url: 'http://cloud.test/v1/trpc/github.token',
+    })
     expect(token).toBe('gho_1')
   })
 
@@ -160,11 +165,14 @@ describe('CloudClient github connect', () => {
     expect(await client.githubToken()).toBeUndefined()
   })
 
-  it('disconnects github with a DELETE', async () => {
+  it('disconnects github with a mutation', async () => {
     const { client, calls } = clientWith(() => ({ status: 204 }))
 
     await client.disconnectGithub()
 
-    expect(calls[0]).toMatchObject({ method: 'DELETE', url: 'http://cloud.test/v1/github' })
+    expect(calls[0]).toMatchObject({
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/github.disconnect',
+    })
   })
 })

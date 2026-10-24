@@ -4,6 +4,7 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 
+import { inputOf, procedureOf, trpcOk } from '../../../cloud/__tests__/trpc-fakes'
 import { createSessionFacts } from '../session'
 import { createPullRequestService } from '../pull-request-service'
 import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from '../pure'
@@ -19,8 +20,7 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms)
   })
 
-const respond = (body: unknown, status = 201): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+const respond = (body: unknown): Response => trpcOk(body)
 
 const subscribeBody = {
   id: 'sub_boot',
@@ -87,10 +87,9 @@ describe('checkout tracking at boot', () => {
     const checkout = aCheckout({ branch: 'dennis/cloud-branch', directory: '/workspace' })
     const realFetch = globalThis.fetch
     const subscribed: string[] = []
-    globalThis.fetch = (async (url: unknown, init: { body?: string } = {}) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) {
-        subscribed.push(String(JSON.parse(init.body ?? '{}').branch))
+    globalThis.fetch = (async (url: unknown, init: { body?: unknown } = {}) => {
+      if (procedureOf(url) === 'githubSubscriptions.subscribe') {
+        subscribed.push(String((inputOf(init) as { branch?: unknown }).branch))
         return respond(subscribeBody)
       }
       return new Promise<Response>(() => {})

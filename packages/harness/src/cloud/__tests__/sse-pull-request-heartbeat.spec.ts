@@ -10,6 +10,7 @@ import {
 import type { SubscriptionPrState } from '../pr-subscription-client'
 import { SsePullRequestPort } from '../sse-pull-requests'
 import { createFakeTimerClock } from './fake-timer-clock'
+import { openStreamResponse, STREAM_PROCEDURE, stateChunk, trpcFailure, trpcOk } from './trpc-fakes'
 
 const TICK_WINDOW_MS = 75_000
 
@@ -51,58 +52,45 @@ const createApi = () => {
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname
-      if (!authAccepted) return Response.json({ message: 'token revoked' }, { status: 401 })
-      if (path.endsWith('/heartbeat')) {
+      if (!authAccepted) return trpcFailure({ status: 401, message: 'token revoked' })
+      if (path.endsWith('/githubSubscriptions.heartbeat')) {
         heartbeats += 1
         if (heartbeatFailures > 0) {
           heartbeatFailures -= 1
-          return Response.json({ message: 'upstream sick' }, { status: 503 })
+          return trpcFailure({ status: 503, message: 'upstream sick' })
         }
         if (!subscriptionLive) {
-          return Response.json({ message: 'subscription expired' }, { status: 404 })
+          return trpcFailure({ status: 404, message: 'subscription expired' })
         }
-        return Response.json({})
+        return trpcOk({ expiresAt: '2026-09-30T03:00:00Z' })
       }
-      if (path.endsWith('/subscriptions') && request.method === 'POST') {
+      if (path.endsWith('/githubSubscriptions.subscribe')) {
         subscribes += 1
         subscriptionLive = true
         ids += 1
-        return Response.json(
-          {
-            id: `sub_${ids}`,
-            repoFullName: 'owner/repo',
-            prNumber: current.prNumber,
-            branch: 'feature',
-            pollBacked: false,
-            expiresAt: '2026-09-30T03:00:00Z',
-            state: current,
-          },
-          { status: 201 },
-        )
+        return trpcOk({
+          id: `sub_${ids}`,
+          repoFullName: 'owner/repo',
+          prNumber: current.prNumber,
+          branch: 'feature',
+          pollBacked: false,
+          expiresAt: '2026-09-30T03:00:00Z',
+          state: current,
+        })
       }
-      if (path.endsWith('/prs/stream')) {
+      if (path.endsWith(`/${STREAM_PROCEDURE}`)) {
         streamAttempts += 1
         activeStreams += 1
-        return new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller) {
-              streams.add(controller)
-              controller.enqueue(new TextEncoder().encode(': connected\n\n'))
-              request.signal.addEventListener(
-                'abort',
-                () => {
-                  activeStreams -= 1
-                  streams.delete(controller)
-                  controller.close()
-                },
-                { once: true },
-              )
-            },
-          }),
-          { headers: { 'content-type': 'text/event-stream' } },
-        )
+        return openStreamResponse({
+          request,
+          register: (controller) => streams.add(controller),
+          onAbort: () => {
+            activeStreams -= 1
+            streams.clear()
+          },
+        })
       }
-      return Response.json({})
+      return trpcOk(null)
     },
   })
   return {
@@ -124,9 +112,7 @@ const createApi = () => {
     },
     push: (value: SubscriptionPrState) => {
       for (const stream of streams) {
-        stream.enqueue(
-          new TextEncoder().encode(`event: pr-state\ndata: ${JSON.stringify(value)}\n\n`),
-        )
+        stream.enqueue(new TextEncoder().encode(stateChunk(value)))
       }
     },
     heartbeats: () => heartbeats,

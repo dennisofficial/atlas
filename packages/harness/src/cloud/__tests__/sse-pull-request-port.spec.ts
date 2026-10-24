@@ -4,6 +4,7 @@ import { ELogSeverity, type LogEntry, type LogPort } from '@dltech/atlas-core'
 
 import { EPullRequestLookup, EForge, type RepositoryCheckout } from '../../plugins/github/pure'
 import { SsePullRequestPort } from '../sse-pull-requests'
+import { inputOf, procedureOf, STREAM_PROCEDURE, trpcFailure, trpcOk } from './trpc-fakes'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
 const ports: SsePullRequestPort[] = []
@@ -44,8 +45,15 @@ const CHECKOUT: RepositoryCheckout = {
   remote: { host: 'github.com', owner: 'owner', repo: 'repo' },
 }
 
-const respond = (body: unknown, status = 201): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+const waitFor = async (condition: () => boolean): Promise<void> => {
+  const deadline = Date.now() + 5_000
+  while (!condition() && Date.now() < deadline) await Bun.sleep(10)
+}
+
+const SUBSCRIBE_PROCEDURE = 'githubSubscriptions.subscribe'
+
+const respond = (body: unknown, status = 200): Response =>
+  status >= 400 ? trpcFailure({ status }) : trpcOk(body)
 
 describe('SsePullRequestPort discovery', () => {
   const realFetch = globalThis.fetch
@@ -57,9 +65,8 @@ describe('SsePullRequestPort discovery', () => {
   it('holds an Absent entry from a state-null subscribe and answers repeats from the book', async () => {
     let subscribes = 0
     let streamAttempts = 0
-    globalThis.fetch = (async (url: unknown, init: { body?: string } = {}) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) {
+    globalThis.fetch = (async (url: unknown, init: { body?: unknown } = {}) => {
+      if (procedureOf(url) === SUBSCRIBE_PROCEDURE) {
         subscribes += 1
         return respond({
           id: 'sub_1',
@@ -71,7 +78,7 @@ describe('SsePullRequestPort discovery', () => {
           state: null,
         })
       }
-      if (target.endsWith('/v1/github/prs/stream')) {
+      if (procedureOf(url) === STREAM_PROCEDURE) {
         streamAttempts += 1
         return new Promise<Response>(() => {})
       }
@@ -88,6 +95,7 @@ describe('SsePullRequestPort discovery', () => {
 
     const first = await port.read({ checkout: CHECKOUT })
     expect(first.lookup).toBe(EPullRequestLookup.Absent)
+    await waitFor(() => streamAttempts >= 1)
     expect(streamAttempts).toBe(1)
 
     const second = await port.read({ checkout: CHECKOUT })
@@ -98,12 +106,11 @@ describe('SsePullRequestPort discovery', () => {
   it('keeps a legacy 404 branch subscribe out of the book so the next read re-probes', async () => {
     let subscribes = 0
     globalThis.fetch = (async (url: unknown) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) {
+      if (procedureOf(url) === SUBSCRIBE_PROCEDURE) {
         subscribes += 1
-        return respond({ message: 'no open pull request for branch' }, 404)
+        return trpcFailure({ status: 404, message: 'no open pull request for branch' })
       }
-      if (target.endsWith('/v1/github/prs/stream')) return new Promise<Response>(() => {})
+      if (procedureOf(url) === STREAM_PROCEDURE) return new Promise<Response>(() => {})
       return respond({})
     }) as unknown as typeof fetch
 
@@ -134,14 +141,13 @@ describe('SsePullRequestPort recovery', () => {
     let subscribes = 0
     let streamAttempts = 0
 
-    globalThis.fetch = (async (url: unknown, init: { body?: string } = {}) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) {
+    globalThis.fetch = (async (url: unknown, init: { body?: unknown } = {}) => {
+      if (procedureOf(url) === SUBSCRIBE_PROCEDURE) {
         subscribes += 1
-        bodies.push(JSON.parse(init.body ?? '{}'))
+        bodies.push(inputOf(init))
         return respond(liveSubscribeBody)
       }
-      if (target.endsWith('/v1/github/prs/stream')) {
+      if (procedureOf(url) === STREAM_PROCEDURE) {
         streamAttempts += 1
         if (streamAttempts === 1) return new Response(null, { status: 401 })
         return new Promise<Response>(() => {})
@@ -158,8 +164,10 @@ describe('SsePullRequestPort recovery', () => {
     })
 
     await port.read({ checkout: CHECKOUT })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await waitFor(() => streamAttempts >= 1)
+    await Bun.sleep(20)
     await port.read({ checkout: CHECKOUT })
+    await waitFor(() => streamAttempts >= 2)
 
     expect(subscribes).toBe(2)
     expect(streamAttempts).toBe(2)
@@ -171,9 +179,8 @@ describe('SsePullRequestPort recovery', () => {
   it('keeps the held reading retryable while a refused session is dead, so the tally does not freeze', async () => {
     let streamAttempts = 0
     globalThis.fetch = (async (url: unknown) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) return respond(liveSubscribeBody)
-      if (target.endsWith('/v1/github/prs/stream')) {
+      if (procedureOf(url) === SUBSCRIBE_PROCEDURE) return respond(liveSubscribeBody)
+      if (procedureOf(url) === STREAM_PROCEDURE) {
         streamAttempts += 1
         return new Response(null, { status: 403 })
       }
@@ -189,7 +196,8 @@ describe('SsePullRequestPort recovery', () => {
     })
 
     await port.read({ checkout: CHECKOUT })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await waitFor(() => streamAttempts >= 1)
+    await Bun.sleep(50)
 
     const last = readings[readings.length - 1]
     expect(last?.lookup).toBe(EPullRequestLookup.Unavailable)
@@ -200,11 +208,12 @@ describe('SsePullRequestPort recovery', () => {
     const entries: LogEntry[] = []
     let refused = true
     globalThis.fetch = (async (url: unknown) => {
-      const target = String(url)
-      if (target.endsWith('/v1/github/subscriptions')) {
-        return refused ? respond({ message: 'unauthorized' }, 401) : respond(liveSubscribeBody)
+      if (procedureOf(url) === SUBSCRIBE_PROCEDURE) {
+        return refused
+          ? trpcFailure({ status: 401, message: 'unauthorized' })
+          : respond(liveSubscribeBody)
       }
-      if (target.endsWith('/v1/github/prs/stream')) return new Promise<Response>(() => {})
+      if (procedureOf(url) === STREAM_PROCEDURE) return new Promise<Response>(() => {})
       return respond({})
     }) as unknown as typeof fetch
 

@@ -9,12 +9,14 @@ import {
   type EAuthProvider,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import type { ApiClient } from '@dltech/atlas-api-router'
 import type { Project } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
+import { createHarnessApiClient } from './api-trpc-client'
 import { cloudRequest } from './cloud-transport'
 import {
   beginGithubConnectVia,
@@ -56,6 +58,7 @@ export class CloudClient {
   private readonly token: string
   private readonly clientVersion: string
   private readonly fetchFn: typeof fetch
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
@@ -67,6 +70,12 @@ export class CloudClient {
     this.token = args.token
     this.clientVersion = args.clientVersion ?? 'dev'
     this.fetchFn = args.fetchFn ?? fetch
+    this.api = createHarnessApiClient({
+      url: this.url,
+      token: this.token,
+      clientVersion: this.clientVersion,
+      fetchFn: this.fetchFn,
+    })
   }
 
   get baseUrl(): string {
@@ -241,33 +250,27 @@ export class CloudClient {
   }
 
   beginGithubConnect(): Promise<GithubConnectTicket> {
-    return beginGithubConnectVia((args) => this.request(args))
+    return beginGithubConnectVia(this.api)
   }
 
   pollGithubConnect(args: { deviceCode: string }): Promise<GithubConnectPollOutcome> {
-    return pollGithubConnectVia({
-      request: (call) => this.request(call),
-      deviceCode: args.deviceCode,
-    })
+    return pollGithubConnectVia({ api: this.api, deviceCode: args.deviceCode })
   }
 
   dismissGithubAppInstallNotice(args: { repoFullName: string }): Promise<void> {
-    return dismissGithubAppInstallNoticeVia({
-      request: (call) => this.request(call),
-      repoFullName: args.repoFullName,
-    })
+    return dismissGithubAppInstallNoticeVia({ api: this.api, repoFullName: args.repoFullName })
   }
 
   githubConnection(): Promise<GithubConnection | null> {
-    return githubConnectionVia((args) => this.request(args))
+    return githubConnectionVia(this.api)
   }
 
   githubToken(): Promise<string | undefined> {
-    return githubTokenVia((args) => this.request(args))
+    return githubTokenVia(this.api)
   }
 
   disconnectGithub(): Promise<void> {
-    return disconnectGithubVia((args) => this.request(args))
+    return disconnectGithubVia(this.api)
   }
 
   listProjects(): Promise<Project[]> {

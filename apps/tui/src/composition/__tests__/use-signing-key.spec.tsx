@@ -56,7 +56,7 @@ describe('useSigningKey', () => {
     try {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
       await settle(100)
-      expect(count(state, 'GET /v1/github')).toBeGreaterThan(0)
+      expect(count(state, 'GET /v1/trpc/github.get')).toBeGreaterThan(0)
       expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
     } finally {
       await done()

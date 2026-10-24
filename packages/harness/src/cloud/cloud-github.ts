@@ -1,3 +1,6 @@
+import type { ApiClient } from '@dltech/atlas-api-router'
+
+import { cloudCall } from './api-trpc-client'
 import {
   githubConnectPollOutcomeFrom,
   githubConnectPollResponseSchema,
@@ -9,55 +12,40 @@ import {
   type GithubConnection,
 } from './github-connect'
 
-type Request = (args: {
-  method: string
-  path: string
-  body?: unknown
-  allowMissing?: boolean
-}) => Promise<unknown>
-
-export const beginGithubConnectVia = async (request: Request): Promise<GithubConnectTicket> =>
-  githubConnectTicketSchema.parse(
-    await request({ method: 'POST', path: '/v1/github/connect/begin' }),
-  )
+export const beginGithubConnectVia = async (api: ApiClient): Promise<GithubConnectTicket> =>
+  githubConnectTicketSchema.parse(await cloudCall(api.github.beginConnect.mutate()))
 
 export const pollGithubConnectVia = async (args: {
-  request: Request
+  api: ApiClient
   deviceCode: string
 }): Promise<GithubConnectPollOutcome> => {
-  const body = await args.request({
-    method: 'POST',
-    path: '/v1/github/connect/poll',
-    body: { deviceCode: args.deviceCode },
-  })
+  const body = await cloudCall(args.api.github.pollConnect.mutate({ deviceCode: args.deviceCode }))
   return githubConnectPollOutcomeFrom(githubConnectPollResponseSchema.parse(body))
 }
 
 export const dismissGithubAppInstallNoticeVia = async (args: {
-  request: Request
+  api: ApiClient
   repoFullName: string
 }): Promise<void> => {
-  await args.request({
-    method: 'POST',
-    path: '/v1/github/subscriptions/app-install-notice/dismiss',
-    body: { repoFullName: args.repoFullName },
-  })
+  await cloudCall(
+    args.api.githubSubscriptions.dismissAppInstallNotice.mutate({
+      repoFullName: args.repoFullName,
+    }),
+  )
 }
 
-export const githubConnectionVia = async (request: Request): Promise<GithubConnection | null> => {
-  const parsed = githubStateResponseSchema.parse(
-    await request({ method: 'GET', path: '/v1/github' }),
-  )
+export const githubConnectionVia = async (api: ApiClient): Promise<GithubConnection | null> => {
+  const parsed = githubStateResponseSchema.parse(await cloudCall(api.github.get.query()))
   if (!parsed.connected) return null
   return { login: parsed.login, scopes: parsed.scopes, connectedAt: parsed.connectedAt }
 }
 
-export const githubTokenVia = async (request: Request): Promise<string | undefined> => {
-  const body = await request({ method: 'GET', path: '/v1/github/token', allowMissing: true })
+export const githubTokenVia = async (api: ApiClient): Promise<string | undefined> => {
+  const body = await cloudCall(api.github.token.query(), { allowMissing: true })
   if (body === undefined) return undefined
   return githubTokenResponseSchema.parse(body).token
 }
 
-export const disconnectGithubVia = async (request: Request): Promise<void> => {
-  await request({ method: 'DELETE', path: '/v1/github' })
+export const disconnectGithubVia = async (api: ApiClient): Promise<void> => {
+  await cloudCall(api.github.disconnect.mutate())
 }

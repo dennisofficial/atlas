@@ -122,11 +122,11 @@ describe('prEventNoticeOf', () => {
 
 describe('parsePrEventFrame', () => {
   it('reports invalid JSON and schema failures instead of throwing', () => {
-    expect(parsePrEventFrame({ data: '{nope' })).toEqual({ failure: 'the frame was not JSON' })
-    expect(parsePrEventFrame({ data: JSON.stringify(frame({ id: '' })) })).toHaveProperty('failure')
+    expect(parsePrEventFrame({ value: 'nope' })).toHaveProperty('failure')
+    expect(parsePrEventFrame({ value: frame({ id: '' }) })).toHaveProperty('failure')
   })
 
   it('returns the frame on success', () => {
-    expect(parsePrEventFrame({ data: JSON.stringify(frame()) })).toHaveProperty('frame.id', 'evt_1')
+    expect(parsePrEventFrame({ value: frame() })).toHaveProperty('frame.id', 'evt_1')
   })
 })
