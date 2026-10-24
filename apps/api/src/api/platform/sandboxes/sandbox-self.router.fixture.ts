@@ -1,12 +1,18 @@
 import { UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Test } from '@nestjs/testing'
+import { ThrottlerModule } from '@nestjs/throttler'
 import { TRPCModule } from 'nestjs-trpc'
 import { vi } from 'bun:test'
 import { ApiTrpcContext } from '../../../_module/trpc/api-trpc-context'
 import { ApiTrpcModule } from '../../../_module/trpc/api-trpc.module'
 import { HttpErrorMiddleware } from '../../../_module/trpc/http-error.middleware'
+import { ThrottleMiddleware } from '../../../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../../../_module/trpc/trpc-error-formatter'
+import {
+  fakeEnvModule,
+  UNTHROTTLED_RATE_LIMIT,
+} from '../../../_module/trpc/trpc-middleware.fixture'
 import { JSON_BODY_LIMIT } from '../../../_lib/body-limits'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
@@ -36,12 +42,14 @@ export const procedurePath = (procedure: string): string => `/v1/trpc/sandboxSel
 export async function createSandboxSelfApp(): Promise<NestExpressApplication> {
   const module = await Test.createTestingModule({
     imports: [
+      fakeEnvModule(UNTHROTTLED_RATE_LIMIT),
+      ThrottlerModule.forRoot([{ ttl: 60_000, limit: UNTHROTTLED_RATE_LIMIT }]),
       ApiTrpcModule,
       TRPCModule.forRoot({
         basePath: '/v1/trpc',
         context: ApiTrpcContext,
         errorFormatter: apiErrorFormatter,
-        globalMiddlewares: [HttpErrorMiddleware],
+        globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
       }),
     ],
     providers: [

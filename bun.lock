@@ -190,6 +190,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-wire": "workspace:*",
+        "@trpc/client": "^11.19.0",
         "@trpc/server": "^11.19.0",
         "zod": "^4.4.3",
       },

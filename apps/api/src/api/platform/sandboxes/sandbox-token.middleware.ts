@@ -1,15 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { MiddlewareOptions, MiddlewareResponse, TRPCMiddleware } from 'nestjs-trpc'
 import { type ApiTrpcCtx, isApiTrpcCtx } from '../../../_module/trpc/api-trpc-context'
+import { metaOf } from '../../../_module/trpc/procedure-meta'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 
 export type SandboxTrpcCtx = ApiTrpcCtx & { sandbox: { threadId: string; userId: string } }
-
-export type SandboxProcedureMeta = { podReachable?: boolean }
-
-const isPodReachable = (meta: unknown): boolean =>
-  typeof meta === 'object' && meta !== null && (meta as SandboxProcedureMeta).podReachable === true
 
 @Injectable()
 export class SandboxTokenMiddleware implements TRPCMiddleware {
@@ -20,7 +16,7 @@ export class SandboxTokenMiddleware implements TRPCMiddleware {
       throw new UnauthorizedException('a sandbox session token is required')
     }
     const principal = await this.sandboxes.verifyTokenPrincipal({ token: ctx.bearerToken })
-    if (principal.kind === ETokenPrincipalKind.Pod && !isPodReachable(meta)) {
+    if (principal.kind === ETokenPrincipalKind.Pod && metaOf(meta).podReachable !== true) {
       throw new UnauthorizedException('a sandbox session token is required')
     }
     return next({

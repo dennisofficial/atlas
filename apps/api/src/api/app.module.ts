@@ -12,6 +12,7 @@ import { ClientVersionModule } from '../_module/client-version/client-version.mo
 import { ApiTrpcContext } from '../_module/trpc/api-trpc-context'
 import { ApiTrpcModule } from '../_module/trpc/api-trpc.module'
 import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
+import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { AuthModule } from './platform/auth/auth.module'
@@ -60,7 +61,7 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
       basePath: '/v1/trpc',
       context: ApiTrpcContext,
       errorFormatter: apiErrorFormatter,
-      globalMiddlewares: [HttpErrorMiddleware],
+      globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
     }),
     AuthModule,
     AccountsModule,

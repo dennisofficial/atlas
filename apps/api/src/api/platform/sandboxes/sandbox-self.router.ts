@@ -18,6 +18,7 @@ import { db } from '@dltech/atlas-db'
 import { NotFoundException } from '@nestjs/common'
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
+import { meta } from '../../../_module/trpc/procedure-meta'
 import { lockThread } from '../sessions/thread-head'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
@@ -70,7 +71,7 @@ export class SandboxSelfRouter {
   @Mutation({
     input: podEventsPostSchema,
     output: podEventsReplySchema,
-    meta: { podReachable: true },
+    meta: meta({ podReachable: true }),
   })
   events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
     return applyPodEvents({ threadId: ctx.sandbox.threadId, events: input.events })
@@ -79,7 +80,7 @@ export class SandboxSelfRouter {
   @Mutation({
     input: podEventsTruncateSchema,
     output: podEventsReplySchema,
-    meta: { podReachable: true },
+    meta: meta({ podReachable: true }),
   })
   truncateEvents(
     @Input() input: PodEventsTruncate,
