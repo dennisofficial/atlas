@@ -74,12 +74,16 @@ const createApi = () => {
         streamAttempts += 1
         activeStreams += 1
         peakStreams = Math.max(peakStreams, activeStreams)
+        let own: ReadableStreamDefaultController<Uint8Array> | undefined
         return openStreamResponse({
           request,
-          register: (controller) => streams.add(controller),
+          register: (controller) => {
+            own = controller
+            streams.add(controller)
+          },
           onAbort: () => {
             activeStreams -= 1
-            streams.clear()
+            if (own !== undefined) streams.delete(own)
           },
         })
       }
