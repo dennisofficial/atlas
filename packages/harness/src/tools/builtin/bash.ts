@@ -48,10 +48,10 @@ const DEFAULT_TIMEOUT_MS = 120_000
 const MAXIMUM_TIMEOUT_MS = 600_000
 
 const inputSchema = z.strictObject({
+  description: z.string().min(1),
   command: z.string().min(1),
   workdir: z.string().min(1).optional(),
   timeoutMs: z.number().int().positive().optional(),
-  description: z.string().min(1),
   runInBackground: z.boolean().optional(),
   watch: z.string().min(1).optional(),
   outputLimitBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
