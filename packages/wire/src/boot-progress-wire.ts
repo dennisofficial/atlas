@@ -99,13 +99,25 @@ export function createBootReporter(args: {
     work: () => Promise<T>
   }): Promise<T> => {
     const detail = tracked.detail === undefined ? {} : { detail: tracked.detail }
-    await report({ step: tracked.step, state: EBootStepState.Running, ...detail })
+    await report({
+      step: tracked.step,
+      state: EBootStepState.Running,
+      ...detail,
+    })
     try {
       const result = await tracked.work()
-      await report({ step: tracked.step, state: EBootStepState.Done, ...detail })
+      await report({
+        step: tracked.step,
+        state: EBootStepState.Done,
+        ...detail,
+      })
       return result
     } catch (failure) {
-      await report({ step: tracked.step, state: EBootStepState.Error, error: failureText(failure) })
+      await report({
+        step: tracked.step,
+        state: EBootStepState.Error,
+        error: failureText(failure),
+      })
       throw failure
     }
   }
@@ -160,7 +172,40 @@ export const recordedBootStepSchema = z.object({
 })
 export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>
 
-export const bootStepsPostSchema = z.object({ steps: z.array(bootStepEventSchema).min(1).max(50) })
+const atMsOf = (step: RecordedBootStep): number => Date.parse(step.at)
+
+const isProvisionRunning = (step: RecordedBootStep): boolean =>
+  step.step === EBootStep.Provision && step.state === EBootStepState.Running
+
+function startsAttempt(args: {
+  step: RecordedBootStep
+  current: readonly RecordedBootStep[]
+}): boolean {
+  const { step, current } = args
+  if (step.step !== EBootStep.Provision) return false
+  if (step.state === EBootStepState.Running) return !current.every(isProvisionRunning)
+  const provision = current.findLast((recorded) => recorded.step === EBootStep.Provision)
+  return provision !== undefined && provision.state !== EBootStepState.Running
+}
+
+/** Splits a thread's whole boot history into attempts, oldest first. */
+export function bootAttemptsOf(steps: readonly RecordedBootStep[]): RecordedBootStep[][] {
+  const ordered = [...steps].sort((left, right) => atMsOf(left) - atMsOf(right))
+  const attempts: RecordedBootStep[][] = []
+  for (const step of ordered) {
+    const current = attempts.at(-1)
+    if (current === undefined || startsAttempt({ step, current })) attempts.push([step])
+    else current.push(step)
+  }
+  return attempts
+}
+
+export const latestBootAttemptOf = (steps: readonly RecordedBootStep[]): RecordedBootStep[] =>
+  bootAttemptsOf(steps).at(-1) ?? []
+
+export const bootStepsPostSchema = z.object({
+  steps: z.array(bootStepEventSchema).min(1).max(50),
+})
 export type BootStepsPost = z.infer<typeof bootStepsPostSchema>
 
 export enum EPodState {
@@ -174,6 +219,7 @@ export enum EPodState {
 export const podStatusSchema = z.object({
   state: z.enum(EPodState),
   steps: z.array(recordedBootStepSchema),
+  history: z.array(recordedBootStepSchema).optional(),
 })
 export type PodStatus = z.infer<typeof podStatusSchema>
 

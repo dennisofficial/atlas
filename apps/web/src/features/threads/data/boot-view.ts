@@ -74,11 +74,12 @@ function elapsedOf(args: {
   return undefined
 }
 
-export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootView | null {
-  const { pod } = args
-  if (pod === null || pod.state === EPodState.None || pod.state === EPodState.Parked) return null
-  if (pod.state === EPodState.Running && pod.steps.length === 0) return null
-  const attempt = [...pod.steps].sort(byAt)
+function attemptViewOf(args: {
+  steps: readonly RecordedBootStep[]
+  failed: boolean
+  now: number
+}): BootView {
+  const attempt = [...args.steps].sort(byAt)
   const folded = foldBootSteps(attempt.map(eventOf))
   const recorded = BOOT_STEP_ORDER.map((id): BootStepView => {
     const status = folded[id]
@@ -90,7 +91,7 @@ export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootVi
       ...(detail === undefined ? {} : { detail }),
     }
   })
-  const steps = pod.state === EPodState.Failed ? failedAtUnreportedStep(recorded) : recorded
+  const steps = args.failed ? failedAtUnreportedStep(recorded) : recorded
   const state = overallStateOf(steps)
   const error = steps.find((step) => step.state === EBootStepState.Error)?.detail
   const elapsedMs = elapsedOf({ state, attempt, now: args.now })
@@ -102,6 +103,23 @@ export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootVi
   }
 }
 
+export function bootViewOf(args: { pod: PodStatus | null; now: number }): BootView | null {
+  const { pod } = args
+  if (pod === null || pod.state === EPodState.None || pod.state === EPodState.Parked) return null
+  if (pod.state === EPodState.Running && pod.steps.length === 0) return null
+  return attemptViewOf({
+    steps: pod.steps,
+    failed: pod.state === EPodState.Failed,
+    now: args.now,
+  })
+}
+
+export function settledBootViewOf(attempt: readonly RecordedBootStep[]): BootView {
+  const folded = foldBootSteps(attempt.map(eventOf))
+  const finished = BOOT_STEP_ORDER.every((id) => folded[id].state === EBootStepState.Done)
+  return attemptViewOf({ steps: attempt, failed: !finished, now: 0 })
+}
+
 export const isPodFailed = (pod: PodStatus | null): boolean => pod?.state === EPodState.Failed
 
 export function isPodSettled(pod: PodStatus): boolean {
@@ -111,9 +129,14 @@ export function isPodSettled(pod: PodStatus): boolean {
   return foldBootSteps(pod.steps.map(eventOf))[EBootStep.Agent].state === EBootStepState.Done
 }
 
-export function shouldPollPod(args: { pod: PodStatus | null; awaitingRun: boolean }): boolean {
+export function shouldPollPod(args: {
+  pod: PodStatus | null
+  awaitingRun: boolean
+  watchingPark?: boolean
+}): boolean {
   const { pod } = args
   if (pod === null) return true
+  if (args.watchingPark === true && pod.state === EPodState.Running) return true
   if (pod.state === EPodState.None) return args.awaitingRun
   return !isPodSettled(pod)
 }

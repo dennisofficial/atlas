@@ -88,7 +88,10 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
 }
 
 export function ThreadView({ threadId }: { threadId: string }) {
-  const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
+  const thread = useCloudQuery({
+    key: threadId,
+    load: () => fetchThread(threadId),
+  })
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const source = useThreadSource({
@@ -117,7 +120,17 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
-  const { pod, refresh } = usePodStatus({ threadId, awaitingRun })
+  const [wasLive, setWasLive] = useState(false)
+  const [liveLost, setLiveLost] = useState(false)
+  if (source.live !== wasLive) {
+    setWasLive(source.live)
+    setLiveLost(!source.live)
+  }
+  const { pod, refresh } = usePodStatus({
+    threadId,
+    awaitingRun,
+    watchingPark: liveLost,
+  })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
@@ -137,7 +150,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     refresh()
   }
   const handleEscape = async () => {
-    const target = takeBackTargetOf({ events: visible, podState: pod?.state ?? null })
+    const target = takeBackTargetOf({
+      events: visible,
+      podState: pod?.state ?? null,
+    })
     if (target === null) return
     try {
       const outcome = await takeBack({ threadId, sendId: target.sendId })
@@ -177,7 +193,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
         <ThreadTranscript
           items={view.items}
           failure={view.failure}
-          boot={boot}
+          pod={pod}
+          bootNow={now}
           working={working}
           onRetryBoot={() => void handleRetryBoot()}
         />
