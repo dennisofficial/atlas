@@ -1,4 +1,5 @@
 import {
+  classify,
   deriveTranscript,
   ECallState,
   EEntryKind,
@@ -24,21 +25,44 @@ export enum ETranscriptKind {
   Tools = 'tools',
 }
 
+export enum EToolFamily {
+  Agent = 'agent',
+  Plan = 'plan',
+  Other = 'other',
+}
+
 export type ToolCallItem = {
   id: string
   kind: EToolKind
   state: EToolState
   label: string
+  title?: string
+  family?: EToolFamily
+  at?: string
   output?: string
   errorText?: string
   elapsed?: string
 }
 
-export type TranscriptItem =
-  | { kind: ETranscriptKind.User; id: string; text: string }
-  | { kind: ETranscriptKind.Agent; id: string; text: string; streaming: boolean }
-  | { kind: ETranscriptKind.Thought; id: string; text: string; streaming: boolean }
-  | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
+type Timed = { at?: string | undefined }
+
+export type TranscriptItem = Timed &
+  (
+    | { kind: ETranscriptKind.User; id: string; text: string }
+    | {
+        kind: ETranscriptKind.Agent
+        id: string
+        text: string
+        streaming: boolean
+      }
+    | {
+        kind: ETranscriptKind.Thought
+        id: string
+        text: string
+        streaming: boolean
+      }
+    | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
+  )
 
 export type ThreadTranscriptView = {
   items: TranscriptItem[]
@@ -57,6 +81,18 @@ const KIND_OF_TOOL: Record<string, EToolKind> = {
   web_fetch: EToolKind.Web,
   web_search: EToolKind.Web,
   skill: EToolKind.Skill,
+  bash: EToolKind.Shell,
+}
+
+const TITLED_STATES: readonly EToolState[] = [EToolState.Done, EToolState.Error, EToolState.Denied]
+
+const AGENT_TOOL_PREFIX = 'agent_'
+const PLAN_TOOL = 'task_write'
+
+function familyOf(name: string): EToolFamily {
+  if (name.startsWith(AGENT_TOOL_PREFIX)) return EToolFamily.Agent
+  if (name === PLAN_TOOL) return EToolFamily.Plan
+  return EToolFamily.Other
 }
 
 const STATE_OF_CALL: Record<ECallState, EToolState> = {
@@ -82,10 +118,15 @@ function toolCallItemOf(call: ToolCall): ToolCallItem {
   const state = STATE_OF_CALL[call.state]
   const note = call.note === null ? undefined : clipped(call.note)
   const elapsed = elapsedOf(call)
+  const kind = KIND_OF_TOOL[call.name]
   return {
     id: call.callId,
-    kind: KIND_OF_TOOL[call.name] ?? EToolKind.Shell,
+    kind: kind ?? EToolKind.Shell,
     state,
+    ...(kind === undefined ? { family: familyOf(call.name) } : {}),
+    ...(kind === undefined && TITLED_STATES.includes(state)
+      ? { title: classify({ call, cwd: '' }).line }
+      : {}),
     label: targetOf({ call, cwd: '' }) ?? str(inputOf(call).url) ?? call.name,
     ...(state === EToolState.Done && clipped(call.modelText) !== undefined
       ? { output: clipped(call.modelText) }
@@ -93,6 +134,7 @@ function toolCallItemOf(call: ToolCall): ToolCallItem {
     ...(state === EToolState.Denied && note !== undefined ? { output: note } : {}),
     ...(state === EToolState.Error ? { errorText: note ?? FAILED_FALLBACK } : {}),
     ...(elapsed === undefined ? {} : { elapsed }),
+    ...(call.at === null ? {} : { at: call.at }),
   }
 }
 
@@ -131,6 +173,21 @@ function itemOf(entry: TranscriptEntry): TranscriptItem | null {
   }
 }
 
+const eventIdOf = (key: string): string => key.split('#')[0] ?? key
+
+function stamped(args: { item: TranscriptItem; at: string | undefined }): TranscriptItem {
+  return args.at === undefined ? args.item : { ...args.item, at: args.at }
+}
+
+function atOf(args: {
+  item: TranscriptItem
+  stamps: ReadonlyMap<string, string>
+}): string | undefined {
+  const { item } = args
+  if (item.kind === ETranscriptKind.Tools) return item.calls[0]?.at
+  return args.stamps.get(eventIdOf(item.id))
+}
+
 export function transcriptViewOf(args: {
   events: readonly Event[]
   signals: readonly StepSignal[]
@@ -143,10 +200,12 @@ export function transcriptViewOf(args: {
     outputs: args.outputs,
     now: args.now ?? (() => new Date()),
   })
+  const stamps = new Map(args.events.map((event) => [event.id as string, event.at]))
   return {
     items: model.entries.flatMap((entry) => {
       const item = itemOf(entry)
-      return item === null ? [] : [item]
+      if (item === null) return []
+      return [stamped({ item, at: atOf({ item, stamps }) })]
     }),
     streaming: model.streaming,
     failure: model.failure === null ? null : (model.failure.message ?? FAILED_FALLBACK),

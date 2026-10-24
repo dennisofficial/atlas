@@ -11,6 +11,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import {
   readEventsReplySchema,
   readThreadReplySchema,
+  takeBackPendingReplySchema,
   type WireEvent,
 } from '@dltech/atlas-wire/web'
 
@@ -72,7 +73,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     fellBack = true
     release()
     channel?.close()
-    update({ live: false, working: false, ...EMPTY_SIGNALS })
+    update({ live: false, working: false, pending: [], reported: null, ...EMPTY_SIGNALS })
   }
 
   const commit = (next: LiveThreadState) => {
@@ -141,6 +142,9 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   }
 
   const handleSignal = (live: RemoteDeltaChannel) => (signal: ChannelSignal) => {
+    if (signal.type === 'chunk' && signal.chunk.type === 'finish' && signal.chunk.usage) {
+      update({ reported: signal.chunk.usage })
+    }
     if (signal.type === 'events-appended') void readFromHead(live)
     if (signal.type === 'turn-working') update({ working: signal.working })
     commit(absorbInto({ state, signal }))
@@ -188,7 +192,9 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       maxAttempts: 0,
     })
     channel = live
+    update({ pending: live.pendingEntries() })
     releases.push(
+      live.onPendingChanged((entries) => update({ pending: entries })),
       live.subscribe({ threadId, listener: handleSignal(live) }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
@@ -239,10 +245,21 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     return true
   }
 
+  const takeBackPending = async (): Promise<string | null> => {
+    const live = channel
+    if (stopped || fellBack || live === null) throw new Error('the sandbox is not connected')
+    const reply = await live.request({
+      op: EClientRequest.TakeBackPending,
+      params: { threadId: args.threadId },
+    })
+    return takeBackPendingReplySchema.parse(reply).taken?.text ?? null
+  }
+
   return {
     start: () => void start(),
     send,
     chooseModel,
+    takeBackPending,
     stop: () => {
       update({ ...EMPTY_SIGNALS })
       stopped = true
