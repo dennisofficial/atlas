@@ -235,6 +235,10 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
   title is the release decision: `feat` cuts a minor, `fix` a patch, anything else no release.
   Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
   restyles, and behavior polish are `fix` or `refactor`.
+- **A change the released serve or TUI cannot talk to must cut a release.** The API deploys on
+  every merge, but sandboxes download the latest *release* of serve. A `refactor` that moves or
+  removes a route serve calls leaves every new sandbox hanging on "Start Atlas" until the next
+  release (#1400 did exactly that). Title such a PR `fix` or `feat`.
 - No `Co-Authored-By` or "Generated with Claude" trailers.
 
 ## Workspace mechanics
