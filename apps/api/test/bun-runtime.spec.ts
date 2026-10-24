@@ -75,14 +75,20 @@ describe('api under the bun runtime', () => {
     expect(response.status).toBe(200)
   })
 
-  it('injects the session verifier into SessionAuthGuard', async () => {
-    const response = await fetch(`${base}/v1/secrets`)
+  it('injects the session verifier into SessionMiddleware', async () => {
+    const response = await fetch(`${base}/v1/trpc/secrets.details`)
     expect(response.status).toBe(401)
-    expect(await response.json()).toMatchObject({ message: 'a valid session is required' })
+    expect(await response.json()).toMatchObject({
+      error: { message: 'a valid session is required' },
+    })
   })
 
   it('injects the session verifier into SessionOrSandboxGuard', async () => {
-    const response = await fetch(`${base}/v1/memories`)
+    const response = await fetch(`${base}/v1/github/subscriptions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repoFullName: 'owner/repo' }),
+    })
     expect(response.status).toBe(401)
   })
 

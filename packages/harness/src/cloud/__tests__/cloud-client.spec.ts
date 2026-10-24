@@ -122,7 +122,7 @@ describe('CloudClient', () => {
     })
     await client.putSecret({ name: 'k', value: 'v' })
 
-    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'PUT'])
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'POST'])
     expect(calls.map((call) => new Headers(call.headers).get('atlas-client-version'))).toEqual([
       'dev',
       'dev',
@@ -348,32 +348,36 @@ describe('CloudClient', () => {
 
     const secrets = await client.listSecrets()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/secrets' })
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      url: 'http://cloud.test/v1/trpc/secrets.list',
+    })
     expect(secrets).toEqual([
       { name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' },
     ])
   })
 
   it('puts a secret value under its name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.putSecret({ name: 'search.tavily', value: 'tvly-1' })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/secrets/search.tavily',
-      body: { value: 'tvly-1' },
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/secrets.set',
+      body: { name: 'search.tavily', value: 'tvly-1' },
     })
   })
 
   it('deletes a secret by name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.deleteSecret({ name: 'search.tavily' })
 
     expect(calls[0]).toMatchObject({
-      method: 'DELETE',
-      url: 'http://cloud.test/v1/secrets/search.tavily',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/secrets.remove',
+      body: { name: 'search.tavily' },
     })
   })
 
@@ -394,7 +398,10 @@ describe('CloudClient', () => {
 
     const servers = await client.listMcpServers()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/mcp-servers' })
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      url: 'http://cloud.test/v1/trpc/mcpServers.list',
+    })
     expect(servers).toEqual([
       {
         name: 'linear',
@@ -415,7 +422,7 @@ describe('CloudClient', () => {
   })
 
   it('puts an mcp server, omitting absent optional fields from the body', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.putMcpServer({
       name: 'linear',
@@ -423,22 +430,24 @@ describe('CloudClient', () => {
     })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/mcp-servers/linear',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/mcpServers.put',
       body: {
+        name: 'linear',
         transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
       },
     })
   })
 
   it('deletes an mcp server by name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.deleteMcpServer({ name: 'linear' })
 
     expect(calls[0]).toMatchObject({
-      method: 'DELETE',
-      url: 'http://cloud.test/v1/mcp-servers/linear',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/mcpServers.remove',
+      body: { name: 'linear' },
     })
   })
 })
@@ -502,11 +511,7 @@ describe('CloudClient projects', () => {
   it('lists projects from a bare array', async () => {
     const { client, calls } = clientWith(() => ({
       status: 200,
-      body: {
-        result: {
-          data: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })],
-        },
-      },
+      body: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })],
     }))
 
     const projects = await client.listProjects()
@@ -519,7 +524,7 @@ describe('CloudClient projects', () => {
   it('rejects a list that is not an array of projects', async () => {
     const { client } = clientWith(() => ({
       status: 200,
-      body: { result: { data: { projects: [] } } },
+      body: { projects: [] },
     }))
 
     await expect(client.listProjects()).rejects.toThrow()
@@ -528,7 +533,7 @@ describe('CloudClient projects', () => {
   it('creates a project with a POST of the input', async () => {
     const { client, calls } = clientWith(() => ({
       status: 200,
-      body: { result: { data: projectBody() } },
+      body: projectBody(),
     }))
     const input = { name: 'atlas', repo: 'comp-ai/atlas', baseBranch: 'main', additionalRepos: [] }
 
@@ -543,13 +548,7 @@ describe('CloudClient projects', () => {
   it('surfaces a failed create as a CloudError', async () => {
     const { client } = clientWith(() => ({
       status: 400,
-      body: {
-        error: {
-          message: 'bad repo',
-          code: -32600,
-          data: { code: 'BAD_REQUEST', httpStatus: 400 },
-        },
-      },
+      body: { message: 'bad repo' },
     }))
 
     await expect(

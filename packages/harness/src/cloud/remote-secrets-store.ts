@@ -67,7 +67,7 @@ export class RemoteSecretsStore implements SecretsPort {
   }
 
   origin(): string {
-    return `${this.client.baseUrl}/v1/secrets`
+    return `${this.client.baseUrl} (Atlas Cloud secrets)`
   }
 
   read(name: string): string | undefined {

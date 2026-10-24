@@ -11,12 +11,13 @@ import {
 } from '@dltech/atlas-core'
 import type { ApiClient } from '@dltech/atlas-api-router'
 import type { Project } from '@dltech/atlas-wire'
+import { mcpTransportSchema as mcpTransportWireSchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { mcpSpecSchema, type McpTransport } from '../mcp/config/specs'
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import type { CloudSession } from './cloud-session'
 import { createProjectVia, listProjectsVia, type ProjectInput } from './cloud-projects'
-import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import { cloudRequest } from './cloud-transport'
 import {
   beginGithubConnectVia,
@@ -169,41 +170,33 @@ export class CloudClient {
   }
 
   async listSecrets(): Promise<readonly CloudSecret[]> {
-    const body = await this.request({ method: 'GET', path: '/v1/secrets' })
+    const body = await cloudCall(this.api.secrets.list.query())
     return z.strictObject({ secrets: z.array(cloudSecretSchema) }).parse(body).secrets
   }
 
   async putSecret(args: { name: string; value: string }): Promise<void> {
-    await this.request({
-      method: 'PUT',
-      path: `/v1/secrets/${encodeURIComponent(args.name)}`,
-      body: { value: args.value },
-    })
+    await cloudCall(this.api.secrets.set.mutate({ name: args.name, value: args.value }))
   }
 
   async deleteSecret(args: { name: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/secrets/${encodeURIComponent(args.name)}` })
+    await cloudCall(this.api.secrets.remove.mutate({ name: args.name }))
   }
 
   async listSettings(): Promise<readonly CloudSetting[]> {
-    const body = await this.request({ method: 'GET', path: '/v1/settings' })
+    const body = await cloudCall(this.api.settings.list.query())
     return z.strictObject({ settings: z.array(cloudSettingSchema) }).parse(body).settings
   }
 
   async setSetting(args: { key: string; value: string }): Promise<void> {
-    await this.request({
-      method: 'PUT',
-      path: `/v1/settings/${encodeURIComponent(args.key)}`,
-      body: { value: args.value },
-    })
+    await cloudCall(this.api.settings.set.mutate({ key: args.key, value: args.value }))
   }
 
   async deleteSetting(args: { key: string }): Promise<void> {
-    await this.request({ method: 'DELETE', path: `/v1/settings/${encodeURIComponent(args.key)}` })
+    await cloudCall(this.api.settings.remove.mutate({ key: args.key }))
   }
 
   async listMcpServers(): Promise<readonly CloudMcpServer[]> {
-    const body = await this.request({ method: 'GET', path: '/v1/mcp-servers' })
+    const body = await cloudCall(this.api.mcpServers.list.query())
     const parsed = z.strictObject({ servers: z.array(cloudMcpServerWireSchema) }).parse(body)
     return parsed.servers.map((server) => {
       const { updatedAt, ...fields } = server
@@ -216,21 +209,19 @@ export class CloudClient {
     transport?: McpTransport
     disabled?: boolean
   }): Promise<void> {
-    await this.request({
-      method: 'PUT',
-      path: `/v1/mcp-servers/${encodeURIComponent(args.name)}`,
-      body: {
-        ...(args.transport === undefined ? {} : { transport: args.transport }),
+    await cloudCall(
+      this.api.mcpServers.put.mutate({
+        name: args.name,
+        ...(args.transport === undefined
+          ? {}
+          : { transport: mcpTransportWireSchema.parse(args.transport) }),
         ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
-      },
-    })
+      }),
+    )
   }
 
   async deleteMcpServer(args: { name: string }): Promise<void> {
-    await this.request({
-      method: 'DELETE',
-      path: `/v1/mcp-servers/${encodeURIComponent(args.name)}`,
-    })
+    await cloudCall(this.api.mcpServers.remove.mutate({ name: args.name }))
   }
 
   beginGithubConnect(): Promise<GithubConnectTicket> {

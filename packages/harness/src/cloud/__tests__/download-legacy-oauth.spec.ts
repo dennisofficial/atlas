@@ -64,7 +64,7 @@ const serviceFor = (backup: readonly StoredAccount[], active: string) => {
   const requests: string[] = []
   const fetchFn: typeof fetch = Object.assign(
     async (input: string | URL | Request) => {
-      const path = String(input).slice(URL.length)
+      const path = new globalThis.URL(String(input)).pathname
       requests.push(path)
       if (path.startsWith('/v1/trpc/accounts.')) {
         const call = trpcCallOf({ url: String(input) })
@@ -78,9 +78,9 @@ const serviceFor = (backup: readonly StoredAccount[], active: string) => {
           ? trpcError({ status: 404, message: 'no such account' })
           : trpcData(held)
       }
-      if (path === '/v1/secrets') return Response.json({ secrets: [] })
-      if (path === '/v1/mcp-servers') return Response.json({ servers: [] })
-      if (path === '/v1/settings') return Response.json({ settings: [] })
+      if (path === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
+      if (path === '/v1/trpc/mcpServers.list') return trpcData({ servers: [] })
+      if (path === '/v1/trpc/settings.list') return trpcData({ settings: [] })
       return new Response(null, { status: 404 })
     },
     { preconnect: () => undefined },

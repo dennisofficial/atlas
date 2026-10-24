@@ -3,14 +3,13 @@ import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltec
 import { trpcFailure, trpcOk } from './trpc-fake'
 
 export const SANDBOX_CONFIG_PATH = '/v1/trpc/sandboxConfig.get'
+export const SETTINGS_LIST_PATH = '/v1/trpc/settings.list'
+export const SECRETS_LIST_PATH = '/v1/trpc/secrets.list'
 
 export const sandboxConfigSearch = (projectId: string): string =>
   `?input=${encodeURIComponent(JSON.stringify({ projectId }))}`
 
-const unauthorized = (path: string, text: string): Response =>
-  path.startsWith('/v1/trpc/')
-    ? trpcFailure({ status: 401, message: text })
-    : new Response(text, { status: 401 })
+const unauthorized = (text: string): Response => trpcFailure({ status: 401, message: text })
 
 export const SERVE_TOKEN = 'serve-token-fake'
 
@@ -71,18 +70,18 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
       const { pathname: path, search } = new URL(request.url)
       const authorization = request.headers.get('authorization')
       requests.push({ path, search, authorization })
-      if (authorization !== `Bearer ${SERVE_TOKEN}`) return unauthorized(path, 'unauthorized')
+      if (authorization !== `Bearer ${SERVE_TOKEN}`) return unauthorized('unauthorized')
       if (unauthorizedUntil.remaining > 0) {
         unauthorizedUntil.remaining -= 1
-        return unauthorized(path, 'not registered yet')
+        return unauthorized('not registered yet')
       }
       if (path === '/v1/trpc/accountLease.get') return trpcOk(state.lease)
       if (path === SANDBOX_CONFIG_PATH)
         return state.config === undefined
           ? trpcFailure({ status: 404, message: 'no such procedure' })
           : trpcOk(state.config)
-      if (path === '/v1/settings') return Response.json({ settings: state.settings })
-      if (path === '/v1/secrets') return Response.json({ secrets: state.secrets })
+      if (path === SETTINGS_LIST_PATH) return trpcOk({ settings: state.settings })
+      if (path === SECRETS_LIST_PATH) return trpcOk({ secrets: state.secrets })
       return new Response('not found', { status: 404 })
     },
   })

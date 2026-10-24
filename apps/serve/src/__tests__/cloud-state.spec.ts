@@ -11,7 +11,9 @@ import {
   apiKeyAccount,
   oauthAccount,
   SANDBOX_CONFIG_PATH,
+  SECRETS_LIST_PATH,
   SERVE_TOKEN,
+  SETTINGS_LIST_PATH,
 } from './cloud-state-fixture'
 import {
   accountStoreAt,
@@ -73,10 +75,10 @@ describe('applyCloudState', () => {
       { event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 },
     ])
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
-      '/v1/secrets',
-      '/v1/settings',
       '/v1/trpc/accountLease.get',
       SANDBOX_CONFIG_PATH,
+      SECRETS_LIST_PATH,
+      SETTINGS_LIST_PATH,
     ])
     expect(
       cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`),

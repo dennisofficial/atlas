@@ -107,7 +107,7 @@ const seedCloudSession = (): void => {
 const isMemoryIndexRequest = (request: RecordedRequest): boolean =>
   request.method === 'GET' &&
   request.url.startsWith(CLOUD_URL) &&
-  new URL(request.url).pathname === '/v1/memories'
+  new URL(request.url).pathname === '/v1/trpc/memories.list'
 
 const memoryIndexRequests = (): RecordedRequest[] => requests.filter(isMemoryIndexRequest)
 

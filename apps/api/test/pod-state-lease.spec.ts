@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
-import { UnauthorizedException, ValidationPipe, VersioningType } from '@nestjs/common'
+import { UnauthorizedException } from '@nestjs/common'
 import request from 'supertest'
 import { db } from '@dltech/atlas-db'
 import { EAuthKind, type AccountSecretDto } from '@dltech/atlas-wire'
@@ -10,10 +10,10 @@ import { EnvService } from '../src/_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { SettingsController } from '../src/api/cloud/settings/settings.controller'
-import { SettingsService } from '../src/api/cloud/settings/settings.service'
-import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
+import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
+import { SettingsRouter } from '../src/api/cloud/settings/settings.router'
+import { SettingsService } from '../src/api/cloud/settings/settings.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../src/api/platform/sandboxes/token-principal'
 import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
@@ -26,6 +26,8 @@ import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session
 
 const LEASE = '/v1/trpc/accountLease.get'
 const ACCOUNTS_LIST = '/v1/trpc/accounts.list'
+const SETTINGS_LIST = '/v1/trpc/settings.list'
+const SECRETS_LIST = '/v1/trpc/secrets.list'
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 const POD_TOKENS: Record<string, { threadId: string; userId: string }> = {
@@ -125,16 +127,11 @@ describe('account lease and pod-reachable settings and secrets', () => {
     }
 
     app = await createMixedApp({
-      controllers: [SettingsController, SecretsController],
-      configure: (instance) => {
-        instance.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-        instance.useGlobalPipes(
-          new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-        )
-      },
       providers: [
         AccountsRouter,
         AccountLeaseRouter,
+        SettingsRouter,
+        SecretsRouter,
         AccountsService,
         SettingsService,
         SecretsService,
@@ -234,15 +231,15 @@ describe('account lease and pod-reachable settings and secrets', () => {
   })
 
   it("reads the pod owner's settings and secrets only", async () => {
-    const settings = await http().get('/v1/settings').set(as('pod-token-a')).expect(200)
-    const secrets = await http().get('/v1/secrets').set(as('pod-token-a')).expect(200)
+    const settings = await http().get(SETTINGS_LIST).set(as('pod-token-a')).expect(200)
+    const secrets = await http().get(SECRETS_LIST).set(as('pod-token-a')).expect(200)
 
     expect(settings.headers['cache-control']).toBe('no-store')
     expect(secrets.headers['cache-control']).toBe('no-store')
-    expect(settings.body.settings).toEqual([
+    expect(settings.body.result.data.settings).toEqual([
       { key: 'sandbox.image', value: 'image-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
-    expect(secrets.body.secrets).toEqual([
+    expect(secrets.body.result.data.secrets).toEqual([
       { name: 'VERCEL_TOKEN', value: 'vercel-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
   })
@@ -252,18 +249,34 @@ describe('account lease and pod-reachable settings and secrets', () => {
     const before = await countWrites()
 
     await http().get(ACCOUNTS_LIST).set(pod).expect(401)
-    await http().put('/v1/secrets/NAME').set(pod).send({ value: 'x' }).expect(401)
-    await http().put('/v1/settings/sandbox.image').set(pod).send({ value: 'x' }).expect(401)
-    await http().delete('/v1/secrets/NAME').set(pod).expect(401)
-    await http().delete('/v1/settings/sandbox.image').set(pod).expect(401)
+    await http()
+      .post('/v1/trpc/secrets.set')
+      .set(pod)
+      .send({ name: 'NAME', value: 'x' })
+      .expect(401)
+    await http()
+      .post('/v1/trpc/settings.set')
+      .set(pod)
+      .send({ key: 'sandbox.image', value: 'x' })
+      .expect(401)
+    await http().post('/v1/trpc/secrets.remove').set(pod).send({ name: 'NAME' }).expect(401)
+    await http()
+      .post('/v1/trpc/settings.remove')
+      .set(pod)
+      .send({ key: 'sandbox.image' })
+      .expect(401)
     expect(await countWrites()).toEqual(before)
   })
 
   it('still lists settings and writes secrets for a session', async () => {
-    const settings = await http().get('/v1/settings').set(as('session-a')).expect(200)
-    await http().put('/v1/secrets/NAME').set(as('session-a')).send({ value: 'x' }).expect(204)
+    const settings = await http().get(SETTINGS_LIST).set(as('session-a')).expect(200)
+    await http()
+      .post('/v1/trpc/secrets.set')
+      .set(as('session-a'))
+      .send({ name: 'NAME', value: 'x' })
+      .expect(200)
 
-    expect(settings.body.settings).toHaveLength(1)
+    expect(settings.body.result.data.settings).toHaveLength(1)
     expect(
       await db.orm.public.UserSecret.where({ userId: 'user-a', name: 'NAME' }).first(),
     ).not.toBeNull()
@@ -272,7 +285,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
 
   it('answers 401 to a missing bearer', async () => {
     await http().get(LEASE).expect(401)
-    await http().get('/v1/settings').expect(401)
-    await http().get('/v1/secrets').expect(401)
+    await http().get(SETTINGS_LIST).expect(401)
+    await http().get(SECRETS_LIST).expect(401)
   })
 })

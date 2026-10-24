@@ -13,7 +13,6 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from './api-client'
-import { cloudJson, cloudSend, EHttpMethod } from './cloud-api'
 import { useCloudQuery, type CloudQuery } from './use-cloud-query'
 
 export enum ESettingsTarget {
@@ -28,23 +27,13 @@ export type SettingsTarget =
 export type SettingValues = ReadonlyMap<string, SettingScalar>
 export type SettingChanges = Record<string, SettingScalar | null>
 
-const settingListSchema = z.object({
-  settings: z.array(z.object({ key: z.string(), value: z.string(), updatedAt: z.string() })),
-})
-
-const PERSONAL_SETTINGS_PATH = '/v1/settings'
-
 const registryOf = (target: SettingsTarget): ReadonlyMap<string, CloudSettingEntry> =>
   target.kind === ESettingsTarget.Personal ? CLOUD_SETTING_REGISTRY : WORKSPACE_SETTING_REGISTRY
 
 export async function fetchSettings(target: SettingsTarget): Promise<SettingValues> {
   const body =
     target.kind === ESettingsTarget.Personal
-      ? await cloudJson({
-          method: EHttpMethod.Get,
-          path: PERSONAL_SETTINGS_PATH,
-          schema: settingListSchema,
-        })
+      ? await cloudCall(api.settings.list.query())
       : await cloudCall(
           api.workspaces.listSettings.query({ organizationId: target.organizationId }),
         )
@@ -62,7 +51,7 @@ export async function saveSettings(args: {
   if (Object.keys(values).length === 0) return
   const { target } = args
   if (target.kind === ESettingsTarget.Personal) {
-    await cloudSend({ method: EHttpMethod.Patch, path: PERSONAL_SETTINGS_PATH, body: { values } })
+    await cloudCall(api.settings.patch.mutate({ values }))
     return
   }
   await cloudCall(

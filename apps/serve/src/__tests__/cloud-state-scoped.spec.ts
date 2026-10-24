@@ -33,8 +33,8 @@ describe('applyCloudState against the scoped config endpoint', () => {
     const lines = await apply({ home, cloud, projectId: 'proj 1' })
 
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
-      SANDBOX_CONFIG_PATH,
       '/v1/trpc/accountLease.get',
+      SANDBOX_CONFIG_PATH,
     ])
     const configRequest = cloud.requests.find((request) => request.path === SANDBOX_CONFIG_PATH)
     expect(configRequest?.search).toBe(sandboxConfigSearch('proj 1'))

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudClient, CloudError } from '../cloud-client'
 import { downloadRemoteSettings, uploadLocalSettings } from '../sync-settings'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 type SettingsFake = {
   fetchFn: typeof fetch
@@ -21,34 +22,23 @@ const settingsFake = (): SettingsFake => {
     fetchFn: undefined as unknown as typeof fetch,
   }
 
-  const reply = (status: number, payload?: unknown) =>
-    new Response(payload === undefined ? null : JSON.stringify(payload), {
-      status,
-      headers: { 'content-type': 'application/json' },
-    })
-
   fake.fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).replace('http://cloud.test', '')
-    const method = init?.method ?? 'GET'
-    const body =
-      typeof init?.body === 'string'
-        ? (JSON.parse(init.body) as Record<string, unknown>)
-        : undefined
+    const call = trpcCallOf({ input, init })
+    const body = call.input as Record<string, unknown> | undefined
 
-    if (path === '/v1/settings' && method === 'GET') {
-      if (fake.failList) return reply(500, { message: 'listing broke' })
-      return reply(200, { settings: fake.remote })
+    if (call.procedure === 'settings.list') {
+      if (fake.failList) return trpcFailure({ status: 500, message: 'listing broke' })
+      return trpcData({ settings: fake.remote })
     }
-    if (path.startsWith('/v1/settings/') && method === 'PUT') {
-      const key = path.slice('/v1/settings/'.length)
-      fake.put.push({ key, value: body?.['value'] })
-      return reply(204)
+    if (call.procedure === 'settings.set') {
+      fake.put.push({ key: String(body?.['key']), value: body?.['value'] })
+      return trpcVoid()
     }
-    if (path.startsWith('/v1/settings/') && method === 'DELETE') {
-      fake.deletedKeys.push(path.slice('/v1/settings/'.length))
-      return reply(204)
+    if (call.procedure === 'settings.remove') {
+      fake.deletedKeys.push(String(body?.['key']))
+      return trpcVoid()
     }
-    return reply(404, { message: `unhandled ${method} ${path}` })
+    return trpcFailure({ status: 404, message: `unhandled ${call.method} ${call.path}` })
   }) as typeof fetch
 
   return fake

@@ -1,8 +1,6 @@
-import { z } from 'zod'
+import type { SecretDetail } from '@dltech/atlas-wire/web'
 
-import { secretDetailSchema, type SecretDetail } from '@dltech/atlas-wire/web'
-
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import {
   ESecretKind,
@@ -10,9 +8,8 @@ import {
   type LibrarySecret,
 } from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
+import { wireKindOf } from '../workspace/secrets-mapping'
 import { relativeTime } from './relative-time'
-
-const detailsSchema = z.object({ secrets: z.array(secretDetailSchema) })
 
 export function toLibrarySecret(args: {
   detail: SecretDetail
@@ -34,20 +31,14 @@ export function toLibrarySecret(args: {
 }
 
 export async function fetchSecretDetails(): Promise<SecretDetail[]> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: '/v1/secrets/details',
-    schema: detailsSchema,
-  })
+  const body = await cloudCall(api.secrets.details.query())
   return body.secrets
 }
 
 export function putSecret(args: { name: string; value: string; kind: ESecretKind }): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Put,
-    path: `/v1/secrets/${encodeURIComponent(args.name)}`,
-    body: { value: args.value, kind: args.kind },
-  })
+  return cloudCall(
+    api.secrets.set.mutate({ name: args.name, value: args.value, kind: wireKindOf(args.kind) }),
+  )
 }
 
 export function saveSecretEntry(args: {
@@ -62,5 +53,5 @@ export function saveSecretEntry(args: {
 }
 
 export function deleteSecret(name: string): Promise<void> {
-  return cloudSend({ method: EHttpMethod.Delete, path: `/v1/secrets/${encodeURIComponent(name)}` })
+  return cloudCall(api.secrets.remove.mutate({ name }))
 }

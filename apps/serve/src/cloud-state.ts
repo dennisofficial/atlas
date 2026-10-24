@@ -17,7 +17,6 @@ import {
   cipherSecretBox,
   CloudError,
   cloudCall,
-  cloudRequest,
   decodeSettingValue,
   fileVaultBackend,
   SANDBOX_SERVE_TOKEN_PREFIX,
@@ -26,7 +25,6 @@ import {
   type VaultFile,
 } from '@dltech/atlas-harness'
 import { ESecretKind } from '@dltech/atlas-wire/web'
-import { z } from 'zod'
 
 import { createApiClient, httpStatusOf } from './api-client'
 import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
@@ -39,13 +37,6 @@ const DEFAULT_RETRY_BUDGET_MS = 60_000
 const REQUEST_TIMEOUT_MS = 10_000
 const MAX_ATTEMPTS = 30
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
-
-const settingsResponseSchema = z.object({
-  settings: z.array(z.object({ key: z.string(), value: z.string() })),
-})
-const secretsResponseSchema = z.object({
-  secrets: z.array(z.object({ name: z.string(), value: z.string() })),
-})
 
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -141,17 +132,6 @@ export const applyCloudState = async (args: {
     return left
   }
 
-  const request = (path: string): Promise<unknown> =>
-    cloudRequest({
-      url,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-      method: 'GET',
-      path,
-      timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
-    })
-
   const isRegistering = (error: unknown): boolean =>
     (error instanceof CloudError && error.status === UNAUTHORIZED) ||
     httpStatusOf(error) === UNAUTHORIZED
@@ -169,8 +149,6 @@ export const applyCloudState = async (args: {
     }
   }
 
-  const requestPatiently = (path: string): Promise<unknown> => patiently(() => request(path))
-
   const api = createApiClient({
     controlPlaneUrl: url,
     token: args.token,
@@ -185,8 +163,8 @@ export const applyCloudState = async (args: {
 
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
-      requestPatiently('/v1/settings').then((body) => settingsResponseSchema.parse(body)),
-      requestPatiently('/v1/secrets').then((body) => secretsResponseSchema.parse(body)),
+      patiently(() => api.settings.list.query(undefined, { signal: attemptSignal() })),
+      patiently(() => api.secrets.list.query(undefined, { signal: attemptSignal() })),
     ])
     return {
       settings: settings.settings,

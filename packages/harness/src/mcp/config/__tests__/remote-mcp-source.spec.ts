@@ -4,6 +4,7 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 
 import { RemoteMcpSource } from '../remote-mcp-source'
 import { EMcpRejection } from '../sources'
+import { trpcData, trpcFailure } from '../../../cloud/__tests__/trpc-wire'
 
 const URL = 'http://cloud.test'
 
@@ -12,17 +13,15 @@ const session = { url: URL, token: 'sess_test', email: null }
 const sourceOver = (respond: () => { status: number; body?: unknown }): RemoteMcpSource => {
   const fetchFn = (async (_input: unknown, _init?: RequestInit) => {
     const answer = respond()
-    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
-      status: answer.status,
-      headers: { 'content-type': 'application/json' },
-    })
+    if (answer.status >= 400) return trpcFailure({ status: answer.status, message: 'boom' })
+    return trpcData(answer.body)
   }) as typeof fetch
 
   return new RemoteMcpSource({ session, fetchFn })
 }
 
 describe('RemoteMcpSource', () => {
-  it('maps remote servers to user-origin specs defined at the collection url', async () => {
+  it('maps remote servers to user-origin specs defined at the cloud MCP store label', async () => {
     const source = sourceOver(() => ({
       status: 200,
       body: {
@@ -46,13 +45,13 @@ describe('RemoteMcpSource', () => {
         name: 'linear',
         transport: { kind: 'http', url: 'https://mcp.linear.app/mcp' },
         origin: EDefinitionOrigin.User,
-        definedIn: 'http://cloud.test/v1/mcp-servers',
+        definedIn: 'http://cloud.test (Atlas Cloud MCP servers)',
       },
       {
         name: 'paused',
         disabled: true,
         origin: EDefinitionOrigin.User,
-        definedIn: 'http://cloud.test/v1/mcp-servers',
+        definedIn: 'http://cloud.test (Atlas Cloud MCP servers)',
       },
     ])
   })
@@ -67,7 +66,7 @@ describe('RemoteMcpSource', () => {
     expect(read.rejections[0]).toMatchObject({
       rejection: EMcpRejection.Unreadable,
       name: undefined,
-      definedIn: 'http://cloud.test/v1/mcp-servers',
+      definedIn: 'http://cloud.test (Atlas Cloud MCP servers)',
       origin: EDefinitionOrigin.User,
     })
   })
@@ -88,10 +87,7 @@ describe('RemoteMcpSource', () => {
     const seen: { version: string | null } = { version: null }
     const fetchFn = (async (_input: unknown, init?: RequestInit) => {
       seen.version = new Headers(init?.headers).get('atlas-client-version')
-      return new Response(JSON.stringify({ servers: [] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+      return trpcData({ servers: [] })
     }) as typeof fetch
 
     const source = new RemoteMcpSource({ session, clientVersion: '4.5.6', fetchFn })
