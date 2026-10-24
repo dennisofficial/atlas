@@ -9,19 +9,32 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
+  CardRow,
   CardTitle,
 } from '#components/card'
 
 const meta = {
   title: 'Components/Card',
   component: Card,
-  argTypes: { size: { control: 'inline-radio', options: ['default', 'sm'] } },
+  argTypes: {
+    size: { control: 'inline-radio', options: ['default', 'sm'] },
+    variant: { control: 'inline-radio', options: ['default', 'list'] },
+  },
   args: { size: 'default' },
 } satisfies Meta<typeof Card>
 
 export default meta
 
 type Story = StoryObj<typeof meta>
+
+const sessionRows = [
+  { title: 'fix flaky ws reconnect', detail: 'dennis/ws-reconnect · 14 turns' },
+  {
+    title: 'add storybook coverage spec',
+    detail: 'dennis/storybook-spec · 6 turns',
+  },
+  { title: 'trim sandbox image', detail: 'dennis/slim-image · 9 turns' },
+]
 
 export const Default: Story = {
   render: (args) => (
@@ -58,6 +71,23 @@ export const ContentOnly: Story = {
       <CardContent className="text-sm">
         3 tool calls awaiting approval in <span className="font-mono">apps/web</span>.
       </CardContent>
+    </Card>
+  ),
+}
+
+export const List: Story = {
+  args: { variant: 'list' },
+  render: (args) => (
+    <Card className="w-96" {...args}>
+      {sessionRows.map((row) => (
+        <CardRow key={row.title}>
+          <div className="font-medium">{row.title}</div>
+          <div className="text-muted-foreground">{row.detail}</div>
+        </CardRow>
+      ))}
+      <CardFooter className="justify-end">
+        <Button size="sm">Add session</Button>
+      </CardFooter>
     </Card>
   ),
 }

@@ -155,8 +155,10 @@ function Sidebar({
     return (
       <div
         data-slot="sidebar"
+        data-side={side}
         className={cn(
           'flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground',
+          variant === 'sidebar' && 'data-[side=left]:border-r data-[side=right]:border-l',
           className,
         )}
         {...props}

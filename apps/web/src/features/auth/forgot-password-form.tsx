@@ -11,7 +11,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { AuthApiError, requestPasswordReset } from '@/lib/auth-api'
 
 import { CENTER_TEXT } from './auth-align'
-import { AuthLink, AuthLinkButton, CONTROL_CLASS, FormError, SubmitButton } from './auth-controls'
+import { AuthLink, AuthLinkButton, FormError, SubmitButton } from './auth-controls'
 import { AuthField } from './auth-field'
 import { AuthHeading } from './auth-heading'
 import { EStatusTone, StatusIcon } from './status-icon'
@@ -71,7 +71,8 @@ export function ForgotPasswordForm() {
         <div className="flex flex-col gap-2">
           <Button
             variant="outline"
-            className={cn(CONTROL_CLASS, 'w-full')}
+            size="lg"
+            className="w-full"
             disabled={remaining > 0 || busy}
             onClick={handleResend}
           >
@@ -79,7 +80,8 @@ export function ForgotPasswordForm() {
           </Button>
           <Button
             variant="ghost"
-            className={cn(CONTROL_CLASS, 'w-full')}
+            size="lg"
+            className="w-full"
             nativeButton={false}
             render={<Link href="/sign-in" />}
           >
@@ -102,7 +104,7 @@ export function ForgotPasswordForm() {
         description="Enter the email on your account and we'll send you a link to choose a new password."
       />
       <form onSubmit={handleSubmit}>
-        <FieldGroup className="gap-4">
+        <FieldGroup>
           <AuthField
             id="email"
             label="Email"

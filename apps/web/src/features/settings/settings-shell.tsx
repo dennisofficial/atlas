@@ -65,14 +65,14 @@ function ScopeTabs({
   return (
     <Tabs value={scope} onValueChange={(value) => onScopeChange(value as ESettingsScope)}>
       <TabsList>
-        <TabsTrigger value={ESettingsScope.Personal} className="px-3">
-          <Avatar size="sm" className="size-4">
+        <TabsTrigger value={ESettingsScope.Personal}>
+          <Avatar size="xs">
             {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
-            <AvatarFallback className="text-[8px]">{initials}</AvatarFallback>
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           Personal
         </TabsTrigger>
-        <TabsTrigger value={ESettingsScope.Workspace} className="px-3">
+        <TabsTrigger value={ESettingsScope.Workspace}>
           <WorkspaceLogo name={workspaceName} />
           {workspaceName}
         </TabsTrigger>
@@ -110,9 +110,9 @@ function SettingsNav({ scope, page }: { scope: ESettingsScope; page: ESettingsPa
   const [query, setQuery] = useState('')
   const groups = filterNav({ groups: navForScope(scope), query })
   return (
-    <Sidebar collapsible="none" className="w-60 border-r">
-      <SidebarHeader className="pt-3">
-        <InputGroup className="h-8 bg-background">
+    <Sidebar collapsible="none" className="w-60">
+      <SidebarHeader>
+        <InputGroup>
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -127,12 +127,10 @@ function SettingsNav({ scope, page }: { scope: ESettingsScope; page: ESettingsPa
           </InputGroupAddon>
         </InputGroup>
       </SidebarHeader>
-      <SidebarContent className="gap-0">
+      <SidebarContent>
         {groups.map((group, index) => (
-          <SidebarGroup key={group.label ?? `group-${index}`} className="py-1">
-            {group.label ? (
-              <SidebarGroupLabel className="h-7">{group.label}</SidebarGroupLabel>
-            ) : null}
+          <SidebarGroup key={group.label ?? `group-${index}`}>
+            {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => (

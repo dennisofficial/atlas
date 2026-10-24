@@ -47,7 +47,7 @@ function ProjectList({ projects }: { projects: readonly Project[] }) {
 
 function NoProjects({ onNewProject }: { onNewProject: () => void }) {
   return (
-    <Empty className="border py-10">
+    <Empty variant="outline">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FolderPlusIcon />

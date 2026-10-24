@@ -77,7 +77,7 @@ export function SignInForm() {
         />
         <OrDivider />
         <form onSubmit={handleSubmit}>
-          <FieldGroup className="gap-4">
+          <FieldGroup>
             <AuthField
               id="email"
               label="Email"

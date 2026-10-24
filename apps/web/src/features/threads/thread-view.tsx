@@ -53,7 +53,7 @@ const UNTITLED = 'Untitled thread'
 
 function ThreadMissing() {
   return (
-    <Empty className="m-auto max-w-sm border py-10">
+    <Empty variant="outline" className="m-auto max-w-sm">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileQuestionIcon />
