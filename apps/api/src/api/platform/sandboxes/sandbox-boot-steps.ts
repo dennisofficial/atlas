@@ -1,5 +1,10 @@
 import type { BootStepEvent, RecordedBootStep } from '@dltech/atlas-wire'
-import { EBootStep, EBootStepState, EVercelCredentialGap } from '@dltech/atlas-wire'
+import {
+  EBootStep,
+  EBootStepState,
+  EVercelCredentialGap,
+  latestBootAttemptOf,
+} from '@dltech/atlas-wire'
 import { db, type Tx } from '@dltech/atlas-db'
 
 type Writer = Pick<Tx, 'orm'>
@@ -61,11 +66,5 @@ export async function readBootSteps(args: {
   })
 }
 
-export const latestAttemptOf = (steps: RecordedBootStep[]): RecordedBootStep[] => {
-  const isProvision = (step: RecordedBootStep) => step.step === EBootStep.Provision
-  const start = steps.findLastIndex(
-    (step) => isProvision(step) && step.state === EBootStepState.Running,
-  )
-  const from = start === -1 ? steps.findLastIndex(isProvision) : start
-  return from === -1 ? steps : steps.slice(from)
-}
+export const latestAttemptOf = (steps: RecordedBootStep[]): RecordedBootStep[] =>
+  latestBootAttemptOf(steps)
