@@ -16,6 +16,7 @@ import { useSigningKey, type SigningKeyControl } from '../use-signing-key'
 
 export const URL = 'https://cloud.test'
 export const PUBLIC_KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIABCDEFGHIJ'
+const TRPC_PREFIX = '/v1/trpc/'
 export const SCOPE_KEY = 'signing-scope-missing'
 
 export type Remote = {
@@ -42,6 +43,19 @@ export const keyFetch = (state: Remote): typeof fetch => {
       status,
       headers: { 'content-type': 'application/json' },
     })
+  const trpcData = (data: unknown) => reply(200, { result: { data } })
+  const trpcFailure = (args: { status: number; message: string; code?: string }) =>
+    reply(args.status, {
+      error: {
+        message: args.message,
+        code: -32603,
+        data: {
+          code: 'INTERNAL_SERVER_ERROR',
+          httpStatus: args.status,
+          ...(args.code === undefined ? {} : { details: { code: args.code } }),
+        },
+      },
+    })
   const statusBody = () =>
     state.registered
       ? { state: 'registered', publicKey: PUBLIC_KEY, createdAt: '2026-01-01T00:00:00.000Z' }
@@ -49,11 +63,17 @@ export const keyFetch = (state: Remote): typeof fetch => {
 
   return (async (input: unknown, init?: RequestInit) => {
     const path = String(input).slice(URL.length)
-    const call = `${init?.method ?? 'GET'} ${path}`
+    const call = path.startsWith(TRPC_PREFIX)
+      ? (path.slice(TRPC_PREFIX.length).split('?')[0] ?? path)
+      : `${init?.method ?? 'GET'} ${path}`
     state.calls.push(call)
 
     if (state.gate !== null) await state.gate
-    if (state.down) return reply(500, { message: 'cloud is down' })
+    if (state.down) {
+      return call.startsWith('sshSigningKey.')
+        ? trpcFailure({ status: 500, message: 'cloud is down' })
+        : reply(500, { message: 'cloud is down' })
+    }
     if (call === 'GET /v1/github') {
       return reply(
         200,
@@ -67,20 +87,21 @@ export const keyFetch = (state: Remote): typeof fetch => {
           : { connected: false },
       )
     }
-    if (call === 'GET /v1/ssh-signing-key/status') return reply(200, statusBody())
-    if (call === 'POST /v1/ssh-signing-key' || call === 'POST /v1/ssh-signing-key/rotate') {
+    if (call === 'sshSigningKey.status') return trpcData(statusBody())
+    if (call === 'sshSigningKey.register' || call === 'sshSigningKey.rotate') {
       if (state.scopeMissing) {
-        return reply(403, {
+        return trpcFailure({
+          status: 403,
           message: SSH_SIGNING_SCOPE_NOTICE,
           code: 'github-signing-scope-missing',
         })
       }
       state.registered = true
-      return reply(call.endsWith('rotate') ? 200 : 201, statusBody())
+      return trpcData(statusBody())
     }
-    if (call === 'DELETE /v1/ssh-signing-key') {
+    if (call === 'sshSigningKey.revoke') {
       state.registered = false
-      return reply(204)
+      return trpcData(null)
     }
     return reply(404, { message: `unhandled ${call}` })
   }) as typeof fetch

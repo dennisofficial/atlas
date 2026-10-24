@@ -36,20 +36,3 @@ export const cloudSettingSchema = z.strictObject({
 })
 
 export type CloudSetting = z.infer<typeof cloudSettingSchema>
-
-export const userFileMetaSchema = z.object({
-  path: z.string().min(1),
-  revision: z.number().int().min(0),
-  contentHash: z.string(),
-  tombstonedAt: z.string().nullable(),
-})
-
-export type UserFileMeta = z.infer<typeof userFileMetaSchema>
-
-export const userFileListResponseSchema = z.object({ files: z.array(userFileMetaSchema) })
-
-export const userFileContentResponseSchema = z.object({
-  files: z.array(userFileMetaSchema.extend({ content: z.string().nullable() })),
-})
-
-export const userFileRevisionResponseSchema = z.object({ revision: z.number().int().min(0) })

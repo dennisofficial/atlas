@@ -1,60 +1,56 @@
+import type { ApiClient } from '@dltech/atlas-api-router'
 import { sshSigningKeyStatusSchema, type SshSigningKeyStatus } from '@dltech/atlas-wire'
 
-import { CloudError, CloudTransport } from './cloud-transport'
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
+import { CloudError } from './cloud-transport'
 
-const SIGNING_KEY_PATH = '/v1/ssh-signing-key'
-
-const malformed = (path: string): CloudError =>
+const malformed = (procedure: string): CloudError =>
   new CloudError({
     status: 502,
-    message: `The Atlas Cloud API answered ${path} with a body that is not an ssh signing key status.`,
+    message: `The Atlas Cloud API answered ${procedure} with a body that is not an ssh signing key status.`,
   })
 
+const parseStatus = (args: { body: unknown; procedure: string }): SshSigningKeyStatus => {
+  const parsed = sshSigningKeyStatusSchema.safeParse(args.body)
+  if (!parsed.success) throw malformed(args.procedure)
+  return parsed.data
+}
+
 export class SigningKeyClient {
-  private readonly transport: CloudTransport
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
     token: string
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
-    this.transport = new CloudTransport(args)
+    this.api = createHarnessApiClient({
+      url: args.url,
+      token: args.token,
+      clientVersion: args.clientVersion ?? 'dev',
+      fetchFn: args.fetchFn ?? fetch,
+      sleep: args.sleep,
+    })
   }
 
   async status(): Promise<SshSigningKeyStatus> {
-    const body = await this.transport.request({ method: 'GET', path: `${SIGNING_KEY_PATH}/status` })
-    return this.parseStatus({ body, path: `${SIGNING_KEY_PATH}/status` })
+    const body = await cloudCall(this.api.sshSigningKey.status.query())
+    return parseStatus({ body, procedure: 'sshSigningKey.status' })
   }
 
   async register(args: { privateKey: string }): Promise<SshSigningKeyStatus> {
-    const body = await this.transport.request({
-      method: 'POST',
-      path: SIGNING_KEY_PATH,
-      body: { privateKey: args.privateKey },
-      retry: false,
-    })
-    return this.parseStatus({ body, path: SIGNING_KEY_PATH })
+    const body = await cloudCall(this.api.sshSigningKey.register.mutate(args))
+    return parseStatus({ body, procedure: 'sshSigningKey.register' })
   }
 
   async rotate(args: { privateKey: string }): Promise<SshSigningKeyStatus> {
-    const path = `${SIGNING_KEY_PATH}/rotate`
-    const body = await this.transport.request({
-      method: 'POST',
-      path,
-      body: { privateKey: args.privateKey },
-      retry: false,
-    })
-    return this.parseStatus({ body, path })
+    const body = await cloudCall(this.api.sshSigningKey.rotate.mutate(args))
+    return parseStatus({ body, procedure: 'sshSigningKey.rotate' })
   }
 
   async revoke(): Promise<void> {
-    await this.transport.request({ method: 'DELETE', path: SIGNING_KEY_PATH, retry: false })
-  }
-
-  private parseStatus(args: { body: unknown; path: string }): SshSigningKeyStatus {
-    const parsed = sshSigningKeyStatusSchema.safeParse(args.body)
-    if (!parsed.success) throw malformed(args.path)
-    return parsed.data
+    await cloudCall(this.api.sshSigningKey.revoke.mutate())
   }
 }

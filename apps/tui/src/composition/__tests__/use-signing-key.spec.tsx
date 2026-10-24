@@ -42,7 +42,7 @@ describe('useSigningKey', () => {
     try {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
       expect(controlOf(probe).view.fingerprintTail).toBe('CDEFGHIJ')
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+      expect(count(state, 'sshSigningKey.register')).toBe(1)
     } finally {
       await done()
     }
@@ -57,7 +57,7 @@ describe('useSigningKey', () => {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
       await settle(100)
       expect(count(state, 'GET /v1/github')).toBeGreaterThan(0)
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+      expect(count(state, 'sshSigningKey.register')).toBe(1)
     } finally {
       await done()
     }
@@ -70,7 +70,7 @@ describe('useSigningKey', () => {
 
     try {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+      expect(count(state, 'sshSigningKey.register')).toBe(1)
     } finally {
       await done()
     }
@@ -82,7 +82,7 @@ describe('useSigningKey', () => {
 
     try {
       await settle(100)
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(0)
+      expect(count(state, 'sshSigningKey.register')).toBe(0)
       expect(controlOf(probe).view.state).toBe(ESigningKeyView.Absent)
     } finally {
       await done()
@@ -96,7 +96,7 @@ describe('useSigningKey', () => {
 
     try {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(0)
+      expect(count(state, 'sshSigningKey.register')).toBe(0)
     } finally {
       await done()
     }
@@ -137,7 +137,7 @@ describe('useSigningKey', () => {
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
 
       controlOf(probe).activateRotateOrEnable()
-      await expectUntil(() => count(state, 'POST /v1/ssh-signing-key/rotate') === 1)
+      await expectUntil(() => count(state, 'sshSigningKey.rotate') === 1)
       await expectUntil(() => currentNotices().some((n) => n.text === 'commit signing key rotated'))
 
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Registered)
@@ -162,7 +162,7 @@ describe('useSigningKey', () => {
       control.activateRemove()
       await expectUntil(() => controlOf(probe).view.state === ESigningKeyView.Absent)
 
-      expect(count(state, 'DELETE /v1/ssh-signing-key')).toBe(1)
+      expect(count(state, 'sshSigningKey.revoke')).toBe(1)
     } finally {
       await done()
     }
@@ -184,7 +184,7 @@ describe('useSigningKey', () => {
     try {
       await expectUntil(() => controlOf(first).view.state === ESigningKeyView.Registered)
       await settle(100)
-      expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+      expect(count(state, 'sshSigningKey.register')).toBe(1)
     } finally {
       await teardown(setup)
     }
@@ -199,13 +199,13 @@ describe('useSigningKey', () => {
     })
     const { setup } = await mounted({ state, login: 'octocat' })
 
-    await expectUntil(() => count(state, 'GET /v1/ssh-signing-key/status') === 1)
+    await expectUntil(() => count(state, 'sshSigningKey.status') === 1)
     await teardown(setup)
     await settle(50)
     release()
     await settle(150)
 
-    expect(count(state, 'POST /v1/ssh-signing-key')).toBe(1)
+    expect(count(state, 'sshSigningKey.register')).toBe(1)
     expect(currentNotices().map((notice) => notice.text)).not.toContain(SSH_SIGNING_SCOPE_NOTICE)
   })
 })

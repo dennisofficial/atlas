@@ -9,8 +9,26 @@ import {
   rotateSigningKey,
 } from '../signing-key-setup'
 
-type Reply = { status: number; body?: unknown; networkError?: boolean }
+type Reply = { status: number; body?: unknown; code?: string; networkError?: boolean }
 type Replies = Partial<Record<string, Reply>>
+
+const answer = (reply: Reply): Response =>
+  reply.status < 400
+    ? Response.json({ result: { data: reply.body ?? null } })
+    : Response.json(
+        {
+          error: {
+            message: 'refused',
+            code: -32603,
+            data: {
+              code: 'FORBIDDEN',
+              httpStatus: reply.status,
+              ...(reply.code === undefined ? {} : { details: { code: reply.code } }),
+            },
+          },
+        },
+        { status: reply.status },
+      )
 
 const absent: Reply = { status: 200, body: { state: 'absent' } }
 const registered: Reply = {
@@ -25,15 +43,18 @@ const registered: Reply = {
 const fakeApi = (args: { replies: Replies }) => {
   const calls: { key: string; body: unknown }[] = []
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const key = `${init?.method ?? 'GET'} ${new URL(String(input)).pathname}`
+    const key = new URL(String(input)).pathname.replace('/v1/trpc/', '')
     calls.push({ key, body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined })
-    const reply = args.replies[key] ?? { status: 204 }
+    const reply = args.replies[key] ?? { status: 200 }
     if (reply.networkError === true) throw new Error('connection reset')
-    return new Response(reply.body === undefined ? '' : JSON.stringify(reply.body), {
-      status: reply.status,
-    })
+    return answer(reply)
   }) as typeof fetch
-  const client = new SigningKeyClient({ url: 'https://cloud.test', token: 'sess_1', fetchFn })
+  const client = new SigningKeyClient({
+    url: 'https://cloud.test',
+    token: 'sess_1',
+    fetchFn,
+    sleep: async () => undefined,
+  })
   return { client, calls }
 }
 
@@ -43,33 +64,33 @@ describe('ensureSigningKey', () => {
   it('generates and registers a key when none exists', async () => {
     const api = fakeApi({
       replies: {
-        'GET /v1/ssh-signing-key/status': absent,
-        'POST /v1/ssh-signing-key': { ...registered, status: 201 },
+        'sshSigningKey.status': absent,
+        'sshSigningKey.register': registered,
       },
     })
 
     const outcome = await ensureSigningKey({ client: api.client, comment: 'atlas@octo' })
 
     expect(outcome).toBe(ESigningKeyOutcome.Registered)
-    expect(keys(api.calls)).toEqual(['GET /v1/ssh-signing-key/status', 'POST /v1/ssh-signing-key'])
+    expect(keys(api.calls)).toEqual(['sshSigningKey.status', 'sshSigningKey.register'])
     const posted = api.calls[1]?.body as { privateKey: string }
     expect(posted.privateKey).toStartWith('-----BEGIN OPENSSH PRIVATE KEY-----')
   })
 
   it('does not register when a key already exists', async () => {
-    const api = fakeApi({ replies: { 'GET /v1/ssh-signing-key/status': registered } })
+    const api = fakeApi({ replies: { 'sshSigningKey.status': registered } })
 
     expect(await ensureSigningKey({ client: api.client, comment: 'c' })).toBe(
       ESigningKeyOutcome.AlreadyRegistered,
     )
-    expect(keys(api.calls)).toEqual(['GET /v1/ssh-signing-key/status'])
+    expect(keys(api.calls)).toEqual(['sshSigningKey.status'])
   })
 
   it('reports AlreadyRegistered when another machine wins the register race', async () => {
     const api = fakeApi({
       replies: {
-        'GET /v1/ssh-signing-key/status': absent,
-        'POST /v1/ssh-signing-key': { status: 409 },
+        'sshSigningKey.status': absent,
+        'sshSigningKey.register': { status: 409 },
       },
     })
 
@@ -81,8 +102,8 @@ describe('ensureSigningKey', () => {
   it('maps the scope code to ScopeMissing', async () => {
     const api = fakeApi({
       replies: {
-        'GET /v1/ssh-signing-key/status': absent,
-        'POST /v1/ssh-signing-key': { status: 403, body: { code: SSH_SIGNING_SCOPE_MISSING_CODE } },
+        'sshSigningKey.status': absent,
+        'sshSigningKey.register': { status: 403, code: SSH_SIGNING_SCOPE_MISSING_CODE },
       },
     })
 
@@ -94,8 +115,8 @@ describe('ensureSigningKey', () => {
   it('maps the not-connected code to GithubNotConnected even on a 409', async () => {
     const api = fakeApi({
       replies: {
-        'GET /v1/ssh-signing-key/status': absent,
-        'POST /v1/ssh-signing-key': { status: 409, body: { code: GITHUB_NOT_CONNECTED_CODE } },
+        'sshSigningKey.status': absent,
+        'sshSigningKey.register': { status: 409, code: GITHUB_NOT_CONNECTED_CODE },
       },
     })
 
@@ -106,10 +127,10 @@ describe('ensureSigningKey', () => {
 
   it('is Unavailable for a 5xx, a network failure and a malformed status, and never throws', async () => {
     const cases: Replies[] = [
-      { 'GET /v1/ssh-signing-key/status': { status: 500 } },
-      { 'GET /v1/ssh-signing-key/status': { status: 200, networkError: true } },
-      { 'GET /v1/ssh-signing-key/status': { status: 200, body: { state: 'mystery' } } },
-      { 'GET /v1/ssh-signing-key/status': absent, 'POST /v1/ssh-signing-key': { status: 503 } },
+      { 'sshSigningKey.status': { status: 500 } },
+      { 'sshSigningKey.status': { status: 200, networkError: true } },
+      { 'sshSigningKey.status': { status: 200, body: { state: 'mystery' } } },
+      { 'sshSigningKey.status': absent, 'sshSigningKey.register': { status: 503 } },
     ]
 
     for (const replies of cases) {
@@ -123,24 +144,24 @@ describe('ensureSigningKey', () => {
 
 describe('rotateSigningKey', () => {
   it('posts a fresh key to the rotate route', async () => {
-    const api = fakeApi({ replies: { 'POST /v1/ssh-signing-key/rotate': registered } })
+    const api = fakeApi({ replies: { 'sshSigningKey.rotate': registered } })
 
     expect(await rotateSigningKey({ client: api.client, comment: 'atlas@octo' })).toBe(
       ESigningKeyOutcome.Rotated,
     )
-    expect(keys(api.calls)).toEqual(['POST /v1/ssh-signing-key/rotate'])
+    expect(keys(api.calls)).toEqual(['sshSigningKey.rotate'])
   })
 
   it('maps scope, not-connected, missing key and outages', async () => {
     const outcomeFor = async (reply: Reply): Promise<ESigningKeyOutcome> => {
-      const api = fakeApi({ replies: { 'POST /v1/ssh-signing-key/rotate': reply } })
+      const api = fakeApi({ replies: { 'sshSigningKey.rotate': reply } })
       return rotateSigningKey({ client: api.client, comment: 'c' })
     }
 
-    expect(await outcomeFor({ status: 403, body: { code: SSH_SIGNING_SCOPE_MISSING_CODE } })).toBe(
+    expect(await outcomeFor({ status: 403, code: SSH_SIGNING_SCOPE_MISSING_CODE })).toBe(
       ESigningKeyOutcome.ScopeMissing,
     )
-    expect(await outcomeFor({ status: 409, body: { code: GITHUB_NOT_CONNECTED_CODE } })).toBe(
+    expect(await outcomeFor({ status: 409, code: GITHUB_NOT_CONNECTED_CODE })).toBe(
       ESigningKeyOutcome.GithubNotConnected,
     )
     expect(await outcomeFor({ status: 404 })).toBe(ESigningKeyOutcome.Unavailable)
@@ -153,16 +174,16 @@ describe('rotateSigningKey', () => {
 
 describe('removeSigningKey', () => {
   it('deletes the key', async () => {
-    const api = fakeApi({ replies: { 'DELETE /v1/ssh-signing-key': { status: 204 } } })
+    const api = fakeApi({ replies: { 'sshSigningKey.revoke': { status: 200 } } })
 
     expect(await removeSigningKey({ client: api.client })).toBe(ESigningKeyOutcome.Removed)
-    expect(keys(api.calls)).toEqual(['DELETE /v1/ssh-signing-key'])
+    expect(keys(api.calls)).toEqual(['sshSigningKey.revoke'])
   })
 
   it('is Unavailable when the API fails, and never throws', async () => {
-    const failing = fakeApi({ replies: { 'DELETE /v1/ssh-signing-key': { status: 500 } } })
+    const failing = fakeApi({ replies: { 'sshSigningKey.revoke': { status: 500 } } })
     const offline = fakeApi({
-      replies: { 'DELETE /v1/ssh-signing-key': { status: 200, networkError: true } },
+      replies: { 'sshSigningKey.revoke': { status: 200, networkError: true } },
     })
 
     expect(await removeSigningKey({ client: failing.client })).toBe(ESigningKeyOutcome.Unavailable)
