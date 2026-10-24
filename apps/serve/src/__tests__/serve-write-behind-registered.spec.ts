@@ -80,8 +80,8 @@ const fakePostgres = (seed: readonly WireEvent[] = []) => {
       }
       return trpcOk({ head: head() })
     }
-    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
-      return Response.json([...rows.values()])
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' }))) {
+      return trpcOk([...rows.values()])
     }
     return new Response(null, { status: 204 })
   }) as unknown as typeof fetch

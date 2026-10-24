@@ -5,22 +5,24 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
+import type {
+  AdoptThreadInput,
+  ChooseThreadModelInput,
+  CreateThreadInput,
+  OpenThreadInput,
+  RenameThreadInput,
+} from '@dltech/atlas-wire'
 import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { threadPullRequests, threadWorktree } from './places'
 import { withPullRequestStates } from './pull-request-state'
 import { toEventDto, toThreadDto } from './rows'
 import { threadProjectColumn, type ThreadProjectColumns } from './thread-project'
-import type {
-  AdoptThreadDto,
-  ChooseModelDto,
-  CreateThreadDto,
-  OpenThreadDto,
-  RenameThreadDto,
-} from './sessions.dto'
 import type { EventDto, ThreadDraft, ThreadDto } from './sessions.types'
 
 const THREAD_LISTING_LIMIT = 50
+
+export type OpenThreadDraft = Omit<OpenThreadInput, 'id'> & { threadId?: string | undefined }
 
 const createColumnsOf = (args: {
   userId: string
@@ -47,7 +49,7 @@ const createColumnsOf = (args: {
 
 @Injectable()
 export class ThreadsService {
-  async create(args: { userId: string; draft: CreateThreadDto }): Promise<ThreadDto> {
+  async create(args: { userId: string; draft: CreateThreadInput }): Promise<ThreadDto> {
     const project = await threadProjectColumn({
       userId: args.userId,
       projectId: args.draft.projectId,
@@ -72,7 +74,7 @@ export class ThreadsService {
 
   async open(args: {
     userId: string
-    draft: OpenThreadDto
+    draft: OpenThreadDraft
   }): Promise<{ thread: ThreadDto; events: EventDto[] }> {
     const threadId = args.draft.threadId ?? nextThreadId()
     const existing = await db.orm.public.Thread.where({ id: threadId }).select('id').first()
@@ -115,7 +117,7 @@ export class ThreadsService {
    */
   private async reopen(args: {
     userId: string
-    draft: OpenThreadDto
+    draft: OpenThreadDraft
     threadId: string
   }): Promise<{ thread: ThreadDto; events: EventDto[] }> {
     return db.transaction(async (tx) => {
@@ -236,7 +238,11 @@ export class ThreadsService {
     })
   }
 
-  async rename(args: { userId: string; threadId: string; draft: RenameThreadDto }): Promise<void> {
+  async rename(args: {
+    userId: string
+    threadId: string
+    draft: Omit<RenameThreadInput, 'threadId'>
+  }): Promise<void> {
     await this.ownedThread(args)
     await db.orm.public.Thread.where({ id: args.threadId }).update({ title: args.draft.title })
   }
@@ -244,7 +250,7 @@ export class ThreadsService {
   async chooseModel(args: {
     userId: string
     threadId: string
-    draft: ChooseModelDto
+    draft: Omit<ChooseThreadModelInput, 'threadId'>
   }): Promise<void> {
     await this.ownedThread(args)
     await db.orm.public.Thread.where({ id: args.threadId }).update({
@@ -253,11 +259,15 @@ export class ThreadsService {
     })
   }
 
-  async adopt(args: { userId: string; threadId: string; draft: AdoptThreadDto }): Promise<void> {
+  async adopt(args: {
+    userId: string
+    threadId: string
+    draft: Omit<AdoptThreadInput, 'threadId'>
+  }): Promise<void> {
     await this.ownedThread(args)
     await db.orm.public.Thread.where({ id: args.threadId }).update({
       workspace: args.draft.workspace,
-      repo: args.draft.repo,
+      ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
     })
   }
 

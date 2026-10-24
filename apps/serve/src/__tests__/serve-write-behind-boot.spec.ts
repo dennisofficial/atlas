@@ -54,8 +54,8 @@ const fakePostgres = () => {
       }
       return trpcOk({ head: head() })
     }
-    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
-      return Response.json(rows)
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' }))) {
+      return trpcOk(rows)
     }
     if (url.startsWith(`${controlPlaneUrl}/v1/trpc/`)) return trpcOk(undefined)
     return new Response(null, { status: 204 })

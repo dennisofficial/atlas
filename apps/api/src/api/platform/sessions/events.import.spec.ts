@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { ConflictException, NotFoundException } from '@nestjs/common'
 import { POD_EVENT_CONFLICT_CODE, type PodEvent } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -11,8 +11,6 @@ import {
   USER_A,
   USER_B,
 } from '../../../../test/session-seed'
-import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
-import { EventsController } from './events.controller'
 import { EventsService } from './events.service'
 
 const AT = '2026-10-22T10:00:00.000Z'
@@ -94,19 +92,6 @@ describe('importing a local mirror into a thread', () => {
     await expect(
       service.importEvents({ userId: USER_B, threadId: 'thr-1', events: [eventAt(4)] }),
     ).rejects.toBeInstanceOf(NotFoundException)
-    expect(await eventsOf('thr-1')).toHaveLength(3)
-  })
-
-  it('refuses a sandbox principal: only the owner session imports', async () => {
-    const controller = new EventsController(service)
-    const request = {
-      auth: { userId: USER_A, sessionId: 'sandbox:1', email: '', activeOrganizationId: null },
-      sandbox: { sandboxId: 'sbx-1', threadId: 'thr-1' },
-    } as unknown as AuthenticatedRequest
-
-    await expect(
-      controller.handleImport(request, 'thr-1', { events: [eventAt(4)] }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
     expect(await eventsOf('thr-1')).toHaveLength(3)
   })
 })

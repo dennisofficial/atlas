@@ -10,10 +10,10 @@ and outages; a stale local seed is never a fallback refresher. Model requests st
 to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
 
 **The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
-`POST /v1/threads` with a `firstMessage` writes the Thread, its first `user-said` Event and the
+`threads.create` with a `firstMessage` writes the Thread, its first `user-said` Event and the
 `CloudSandbox` claim in one transaction, then dispatches the `pod-provision` trigger.dev task
 (`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`), which exits if its
-`wakeClaim` was superseded. `POST /v1/threads/:threadId/sandbox` is Retry. Without `firstMessage`
+`wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
 the endpoint is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
 rows; a TUI BYO row (none) is never taken over by a web send or Retry.
 
@@ -28,9 +28,9 @@ An API-provisioned sandbox carries **no** Vercel credentials (`injectVercelCrede
 Its serve sees `ATLAS_API_PROVISIONED=1` and uses its sandbox token on `/v1/sandboxes/self/*`:
 `ports`, `stop`, `boot-steps` (Agent Running is recorded under the thread lock and must succeed
 before serve hydrates) and `events` (write-behind, idempotent on `(threadId, seq)`). Boot progress
-lives in `SandboxBootStep`, read by the web through `GET /v1/threads/:threadId/pod`. Messages sent
+lives in `SandboxBootStep`, read by the web through `threadPod.status`. Messages sent
 while the pod is parked, absent or failed are appended as Events and start a pod; serve hydrates
-them at boot. `DELETE /v1/threads/:threadId/messages/:sendId` takes back an unrun last message.
+them at boot. `threadMessages.takeBack` takes back an unrun last message.
 
 The TUI still provisions its own BYO sandboxes and registers them through `POST /v1/sandboxes`,
 unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,

@@ -1,10 +1,10 @@
+import type { EventDraftInput } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
-import type { EventDraftDto } from '../../platform/sessions/sessions.dto'
 
 export type FirstMessage = { sendId: string; text: string }
 
-export const userSaidDraftOf = (message: FirstMessage): EventDraftDto => ({
+export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => ({
   type: 'user-said',
   body: JSON.stringify({ type: 'user-said', text: message.text, requestId: message.sendId }),
 })

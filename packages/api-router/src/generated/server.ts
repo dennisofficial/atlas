@@ -13,7 +13,7 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema } from "@dltech/atlas-wire";
+import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
   publishedBundles: t.router({
@@ -27,6 +27,32 @@ const appRouter = t.router({
     current: publicProcedure
       .output(publishedBundleCurrentSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threadSandbox: t.router({
+    provision: publicProcedure
+      .input(threadIdInputSchema)
+      .output(sandboxProvisionReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threadMessages: t.router({
+    send: publicProcedure
+      .input(threadMessageSendInputSchema)
+      .output(threadMessageReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    takeBack: publicProcedure
+      .input(threadMessageTakeBackInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threadPod: t.router({
+    status: publicProcedure
+      .input(threadIdInputSchema)
+      .output(podStatusSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    connect: publicProcedure
+      .input(threadIdInputSchema)
+      .output(podConnectReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   sshSigningKey: t.router({
     lease: publicProcedure
@@ -97,6 +123,100 @@ const appRouter = t.router({
     truncateEvents: publicProcedure
       .input(podEventsTruncateSchema)
       .output(podEventsReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threadEvents: t.router({
+    append: publicProcedure
+      .input(appendEventsInputSchema)
+      .output(z.array(wireEventSchema))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    replace: publicProcedure
+      .input(replaceEventsInputSchema)
+      .output(z.array(wireEventSchema))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    read: publicProcedure
+      .input(readEventsInputSchema)
+      .output(z.array(wireEventSchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    import: publicProcedure
+      .input(importEventsInputSchema)
+      .output(podEventsReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    head: publicProcedure
+      .input(threadIdInputSchema)
+      .output(threadHeadReplySchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threadTurns: t.router({
+    record: publicProcedure
+      .input(recordTurnInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    tree: publicProcedure
+      .input(threadIdInputSchema)
+      .output(turnTreeSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    list: publicProcedure
+      .input(threadIdInputSchema)
+      .output(z.array(wireTurnSchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  threads: t.router({
+    create: publicProcedure
+      .input(createThreadInputSchema)
+      .output(createThreadOutputSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    open: publicProcedure
+      .input(openThreadInputSchema)
+      .output(openThreadReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    recent: publicProcedure
+      .input(recentThreadInputSchema)
+      .output(wireThreadSchema.nullable())
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    list: publicProcedure
+      .input(listThreadsInputSchema)
+      .output(z.array(wireThreadSchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(threadIdInputSchema)
+      .output(wireThreadSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    spawned: publicProcedure
+      .input(threadIdInputSchema)
+      .output(z.array(wireThreadSchema))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    rename: publicProcedure
+      .input(renameThreadInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    archive: publicProcedure
+      .input(archiveThreadInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    chooseModel: publicProcedure
+      .input(chooseThreadModelInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    adopt: publicProcedure
+      .input(adoptThreadInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    rewind: publicProcedure
+      .input(rewindThreadInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    compact: publicProcedure
+      .input(compactThreadInputSchema)
+      .output(replacedReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    summarise: publicProcedure
+      .input(summariseThreadInputSchema)
+      .output(replacedReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    fork: publicProcedure
+      .input(forkThreadInputSchema)
+      .output(wireThreadSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     })
 });

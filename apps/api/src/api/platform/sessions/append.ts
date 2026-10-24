@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ForbiddenException } from '@nestjs/common'
 import type { Row, Tx } from '@dltech/atlas-db'
-import type { EventDraftDto } from './sessions.dto'
+import type { EventDraftInput } from '@dltech/atlas-wire'
 import type { EventDto } from './sessions.types'
 import { toEventDto } from './rows'
 import { planSegments, type SessionReader } from './fork-chain'
@@ -13,7 +13,7 @@ export const nextRunId = (): string => `run_${randomUUID()}`
 
 type Identity = { slot: string; key: string; digest: string }
 
-const identityOf = (draft: EventDraftDto): Identity | undefined => {
+const identityOf = (draft: EventDraftInput): Identity | undefined => {
   const { contextSlot, contextKey, contextDigest } = draft
   if (contextSlot === undefined || contextKey === undefined || contextDigest === undefined) {
     return undefined
@@ -57,7 +57,7 @@ async function loadReusable(args: {
   tx: Tx
   threadId: string
   userId: string
-  drafts: readonly EventDraftDto[]
+  drafts: readonly EventDraftInput[]
 }): Promise<Map<string, EventDto>> {
   const wanted: Identity[] = []
   for (const draft of args.drafts) {
@@ -90,11 +90,11 @@ async function loadReusable(args: {
 type PlanEntry = { kind: 'reused'; event: EventDto } | { kind: 'fresh'; position: number }
 
 function planAppend(args: {
-  drafts: readonly EventDraftDto[]
+  drafts: readonly EventDraftInput[]
   reusable: ReadonlyMap<string, EventDto>
-}): { fresh: EventDraftDto[]; resolve: (stamped: readonly EventDto[]) => EventDto[] } {
+}): { fresh: EventDraftInput[]; resolve: (stamped: readonly EventDto[]) => EventDto[] } {
   const entries: PlanEntry[] = []
-  const fresh: EventDraftDto[] = []
+  const fresh: EventDraftInput[] = []
   const claimed = new Map<string, number>()
 
   for (const draft of args.drafts) {
@@ -144,7 +144,7 @@ export async function appendWithin(args: {
   runId: string
   parentRunId?: string | undefined
   depth?: number | undefined
-  drafts: readonly EventDraftDto[]
+  drafts: readonly EventDraftInput[]
 }): Promise<EventDto[]> {
   if (args.drafts.length === 0) return []
 

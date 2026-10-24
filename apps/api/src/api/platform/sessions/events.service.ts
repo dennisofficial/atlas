@@ -1,16 +1,24 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import type { PodEvent, PodEventsReply } from '@dltech/atlas-wire'
+import type {
+  AppendEventsInput,
+  PodEvent,
+  PodEventsReply,
+  ReplaceEventsInput,
+} from '@dltech/atlas-wire'
 import { applyPodEvents } from '../sandboxes/pod-events'
 import { appendWithin, nextEventId, readComposedRows, readOwnRows } from './append'
 import { ownedThread } from './ownership'
 import { toEventDto } from './rows'
-import type { AppendEventsDto, ReplaceEventsDto } from './sessions.dto'
 import type { EventDto } from './sessions.types'
 
 @Injectable()
 export class EventsService {
-  append(args: { userId: string; threadId: string; draft: AppendEventsDto }): Promise<EventDto[]> {
+  append(args: {
+    userId: string
+    threadId: string
+    draft: Omit<AppendEventsInput, 'threadId'>
+  }): Promise<EventDto[]> {
     return db.transaction((tx) =>
       appendWithin({
         tx,
@@ -27,7 +35,7 @@ export class EventsService {
   replace(args: {
     userId: string
     threadId: string
-    draft: ReplaceEventsDto
+    draft: Omit<ReplaceEventsInput, 'threadId'>
   }): Promise<EventDto[]> {
     return db.transaction(async (tx) => {
       const thread = await tx.orm.public.Thread.where({ id: args.threadId }).first()

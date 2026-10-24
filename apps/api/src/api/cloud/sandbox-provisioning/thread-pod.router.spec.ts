@@ -1,6 +1,4 @@
-import type { INestApplication } from '@nestjs/common'
-import { ValidationPipe, VersioningType } from '@nestjs/common'
-import { Test } from '@nestjs/testing'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import {
   channelTicketValid,
   EBootStep,
@@ -8,54 +6,27 @@ import {
   EPodState,
   podConnectReplySchema,
   podStatusSchema,
-  threadPodConnectPath,
-  threadPodPath,
 } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
-import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
-import { ThreadPodController } from './thread-pod.controller'
+import { callMutation, callQuery, createRouterApp } from './sandbox-provisioning.router.fixture'
+import { ThreadPodRouter } from './thread-pod.router'
 import { ThreadPodService } from './thread-pod.service'
 import { realEndpoints, SERVE_TOKEN, SERVE_URL, seedServingPod } from './thread-pod.fixture'
 
-const as = (token: string) => ({ authorization: `Bearer ${token}` })
-
-describe('ThreadPodController', () => {
+describe('ThreadPodRouter', () => {
   useTestDatabase()
-  let app: INestApplication
+  let app: NestExpressApplication
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      controllers: [ThreadPodController],
-      providers: [
-        SessionAuthGuard,
-        ThreadPodService,
-        { provide: SandboxEndpointService, useValue: realEndpoints() },
-        {
-          provide: SESSION_VERIFIER,
-          useValue: {
-            async verify(req: { headers: { authorization?: string } }) {
-              const user = { 'Bearer session-a': 'usr-1', 'Bearer session-b': 'usr-2' }[
-                req.headers.authorization ?? ''
-              ]
-              if (user === undefined) return null
-              return { userId: user, sessionId: 'ses', email: '', activeOrganizationId: null }
-            },
-          },
-        },
-      ],
-    }).compile()
-    app = module.createNestApplication()
-    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    )
-    await app.init()
+    app = await createRouterApp([
+      ThreadPodRouter,
+      ThreadPodService,
+      { provide: SandboxEndpointService, useValue: realEndpoints() },
+    ])
   })
 
   afterAll(async () => {
@@ -67,13 +38,20 @@ describe('ThreadPodController', () => {
     await seedThreadRow({ id: 'thr-1', userId: 'usr-1' })
   })
 
-  const get = (token?: string) => {
-    const call = request(app.getHttpServer()).get(threadPodPath('thr-1'))
-    return token === undefined ? call : call.set(as(token))
-  }
+  const get = (token?: string, input: unknown = { threadId: 'thr-1' }) =>
+    callQuery({
+      app,
+      procedure: 'threadPod.status',
+      input,
+      ...(token === undefined ? {} : { token }),
+    })
 
   it('answers 401 without a session', async () => {
     expect((await get()).status).toBe(401)
+  })
+
+  it('answers 400 for an empty thread id', async () => {
+    expect((await get('session-a', { threadId: '' })).status).toBe(400)
   })
 
   it("answers 404 for someone else's thread", async () => {
@@ -89,21 +67,28 @@ describe('ThreadPodController', () => {
     const reply = await get('session-a')
 
     expect(reply.status).toBe(200)
-    const pod = podStatusSchema.parse(reply.body)
+    const pod = podStatusSchema.parse(reply.body.result.data)
     expect(pod.state).toBe(EPodState.Failed)
     expect(pod.steps).toMatchObject([
       { step: EBootStep.Provision, state: EBootStepState.Error, error: 'no credential' },
     ])
   })
 
-  describe('POST connect', () => {
-    const post = (token?: string) => {
-      const call = request(app.getHttpServer()).post(threadPodConnectPath('thr-1'))
-      return token === undefined ? call : call.set(as(token))
-    }
+  describe('connect', () => {
+    const post = (token?: string, input: unknown = { threadId: 'thr-1' }) =>
+      callMutation({
+        app,
+        procedure: 'threadPod.connect',
+        input,
+        ...(token === undefined ? {} : { token }),
+      })
 
     it('answers 401 without a session', async () => {
       expect((await post()).status).toBe(401)
+    })
+
+    it('answers 400 for an empty thread id', async () => {
+      expect((await post('session-a', { threadId: '' })).status).toBe(400)
     })
 
     it("answers 404 for someone else's thread", async () => {
@@ -116,13 +101,16 @@ describe('ThreadPodController', () => {
       const reply = await post('session-a')
 
       expect(reply.status).toBe(409)
-      expect(reply.body).toMatchObject({ code: 'pod-not-running' })
+      expect(reply.body.error.data.details).toMatchObject({ code: 'pod-not-running' })
     })
 
     it('answers 409 pod-not-running for a parked pod', async () => {
       await seedServingPod({ threadId: 'thr-1', userId: 'usr-1', state: 'parked' })
 
-      expect((await post('session-a')).status).toBe(409)
+      const reply = await post('session-a')
+
+      expect(reply.status).toBe(409)
+      expect(reply.body.error.data.details).toMatchObject({ code: 'pod-not-running' })
     })
 
     it('answers 200 with a ticket for the serve token, and never the token itself', async () => {
@@ -131,7 +119,7 @@ describe('ThreadPodController', () => {
       const reply = await post('session-a')
 
       expect(reply.status).toBe(200)
-      const connect = podConnectReplySchema.parse(reply.body)
+      const connect = podConnectReplySchema.parse(reply.body.result.data)
       expect(connect.url).toBe(SERVE_URL)
       expect(
         channelTicketValid({

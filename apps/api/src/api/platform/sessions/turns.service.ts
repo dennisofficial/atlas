@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { ownedThread } from './ownership'
 import { toTurnDto } from './rows'
-import type { RecordTurnDto } from './sessions.dto'
+import type { RecordTurnInput } from '@dltech/atlas-wire'
 import type { TurnDto, TurnTreeDto } from './sessions.types'
 
 const SUPERVISION_DEPTH_LIMIT = 2
@@ -43,7 +43,7 @@ export class TurnsService {
     userId: string
     threadId: string
     runId: string
-    draft: RecordTurnDto
+    draft: Omit<RecordTurnInput, 'threadId' | 'runId'>
   }): Promise<void> {
     await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     const { startedAt, endedAt, ...rest } = args.draft

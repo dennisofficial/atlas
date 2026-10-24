@@ -16,9 +16,3 @@ export const threadMessageReplySchema = z.object({
   error: z.string().optional(),
 })
 export type ThreadMessageReply = z.infer<typeof threadMessageReplySchema>
-
-export const threadMessagePath = (threadId: string): string =>
-  `/v1/threads/${encodeURIComponent(threadId)}/messages`
-
-export const threadMessageTakeBackPath = (args: { threadId: string; sendId: string }): string =>
-  `${threadMessagePath(args.threadId)}/${encodeURIComponent(args.sendId)}`

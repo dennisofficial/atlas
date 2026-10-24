@@ -34,7 +34,8 @@ const recordingFetch = () => {
   const requests: { url: string; authorization: string | null }[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) return Response.json([])
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' })))
+      return trpcOk([])
     if (url !== trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.bootSteps' }))
       return new Response('{}', { status: 404 })
     const headers = new Headers(init?.headers)
