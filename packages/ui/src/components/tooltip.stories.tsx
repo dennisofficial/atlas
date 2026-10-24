@@ -34,6 +34,23 @@ export const Default: Story = {
   ),
 }
 
+type Side = 'top' | 'right' | 'bottom' | 'left'
+
+function sideTooltip(side: Side): Story['render'] {
+  return (args) => (
+    <Tooltip {...args}>
+      <TooltipTrigger render={<Button variant="outline" />}>{side}</TooltipTrigger>
+      <TooltipContent side={side}>Tooltip on the {side}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+export const Right: Story = { render: sideTooltip('right') }
+
+export const Bottom: Story = { render: sideTooltip('bottom') }
+
+export const Left: Story = { render: sideTooltip('left') }
+
 export const Sides: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2">

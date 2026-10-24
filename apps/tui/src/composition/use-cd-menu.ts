@@ -16,6 +16,8 @@ export type CdMenuControl = {
   handleDismiss: () => void
 }
 
+type Opened = { ticket: number; menu: FileMenuState }
+
 const listingDirectoryOf = (args: { directory: string; current: string }): string => {
   if (args.directory === '') return args.current
 
@@ -30,15 +32,16 @@ export function useCdMenu(args: {
   onComplete: (text: string) => void
   onProblem?: ((reason: string) => void) | undefined
 }): CdMenuControl {
-  const [state, setRenderedState] = useState<FileMenuState | null>(null)
-  const current = useRef<FileMenuState | null>(null)
+  const [opened, setOpened] = useState<Opened | null>(null)
+  const current = useRef<Opened | null>(null)
   const typed = useRef('')
   const asked = useRef(0)
   const { files, currentDirectory, onComplete } = args
 
-  const setState = useCallback((next: FileMenuState | null) => {
+  const setMenu = useCallback((ticket: number, menu: FileMenuState | null): void => {
+    const next = menu === null ? null : { ticket, menu }
     current.current = next
-    setRenderedState(next)
+    setOpened(next)
   }, [])
 
   const handleTextChanged = useCallback(
@@ -48,7 +51,7 @@ export function useCdMenu(args: {
 
       const query = cdQueryOf(text)
       if (query === null || files === undefined) {
-        setState(null)
+        setMenu(asked.current, null)
         return
       }
 
@@ -61,26 +64,29 @@ export function useCdMenu(args: {
         .list(directory)
         .then((entries: readonly DirectoryEntry[]) => {
           if (ticket !== asked.current) return
-          setState(openCdMenu({ query, entries }))
+          setMenu(ticket, openCdMenu({ query, entries }))
         })
         .catch((error: unknown) => {
           if (ticket !== asked.current) return
-          setState(null)
+          setMenu(ticket, null)
           args.onProblem?.(`could not list directories: ${messageOf(error)}`)
         })
     },
-    [files, currentDirectory, args.onProblem, setState],
+    [files, currentDirectory, args.onProblem, setMenu],
   )
 
   const handleDismiss = useCallback(() => {
     asked.current += 1
-    setState(null)
-  }, [setState])
+    setMenu(asked.current, null)
+  }, [setMenu])
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
-      const state = current.current
-      if (state === null) return false
+      const held = current.current
+      if (held === null) return false
+      if (held.ticket !== asked.current) return false
+
+      const state = held.menu
 
       if (key.name === 'escape') {
         handleDismiss()
@@ -88,7 +94,7 @@ export function useCdMenu(args: {
       }
 
       if (key.name === 'up' || key.name === 'down') {
-        setState(moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }))
+        setMenu(held.ticket, moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }))
         return true
       }
 
@@ -98,15 +104,20 @@ export function useCdMenu(args: {
       if (completed === null) return false
       if (key.name === 'return' && completed === typed.current) return false
 
-      setState(null)
+      handleDismiss()
       onComplete(completed)
       return true
     },
-    [handleDismiss, onComplete, setState],
+    [handleDismiss, onComplete, setMenu],
   )
 
   return useMemo(
-    () => ({ state, handleTextChanged, handleKey, handleDismiss }),
-    [handleDismiss, handleKey, handleTextChanged, state],
+    () => ({
+      state: opened === null ? null : opened.menu,
+      handleTextChanged,
+      handleKey,
+      handleDismiss,
+    }),
+    [opened, handleDismiss, handleKey, handleTextChanged],
   )
 }

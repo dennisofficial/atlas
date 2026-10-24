@@ -20,6 +20,12 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
+const renderSizedFallback: Story['render'] = (args) => (
+  <Avatar {...args}>
+    <AvatarFallback>{args.size?.slice(0, 2).toUpperCase()}</AvatarFallback>
+  </Avatar>
+)
+
 export const Default: Story = {
   render: (args) => (
     <Avatar {...args}>
@@ -48,6 +54,10 @@ export const Sizes: Story = {
     </div>
   ),
 }
+
+export const Small: Story = { args: { size: 'sm' }, render: renderSizedFallback }
+
+export const Large: Story = { args: { size: 'lg' }, render: renderSizedFallback }
 
 export const WithBadge: Story = {
   render: (args) => (

@@ -15,6 +15,32 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
 
+export const Anthropic: Story = { args: { brand: EBrand.Anthropic } }
+
+export const OpenAI: Story = { args: { brand: EBrand.OpenAI } }
+
+export const OpenRouter: Story = { args: { brand: EBrand.OpenRouter } }
+
+export const Vercel: Story = { args: { brand: EBrand.Vercel } }
+
+export const GitHub: Story = { args: { brand: EBrand.GitHub } }
+
+export const Linear: Story = { args: { brand: EBrand.Linear } }
+
+export const Gemini: Story = { args: { brand: EBrand.Gemini } }
+
+export const Sentry: Story = { args: { brand: EBrand.Sentry } }
+
+export const PostHog: Story = { args: { brand: EBrand.PostHog } }
+
+export const Neon: Story = { args: { brand: EBrand.Neon } }
+
+export const Stripe: Story = { args: { brand: EBrand.Stripe } }
+
+export const Notion: Story = { args: { brand: EBrand.Notion } }
+
+export const Figma: Story = { args: { brand: EBrand.Figma } }
+
 export const AllBrands: Story = {
   render: () => (
     <div className="grid grid-cols-7 gap-3">

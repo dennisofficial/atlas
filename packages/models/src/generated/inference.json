@@ -2,6 +2,185 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "claude-fable-5"
+    },
+    "label": "claude-fable-5",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 10,
+      "outputPerMillion": 50
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-haiku-4-5"
+    },
+    "label": "claude-haiku-4-5",
+    "api": "openai-completions",
+    "contextWindow": 200000,
+    "imageTier": "standard",
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 5
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-opus-4-6"
+    },
+    "label": "claude-opus-4-6",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-opus-4-7"
+    },
+    "label": "claude-opus-4-7",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-opus-4-8"
+    },
+    "label": "claude-opus-4-8",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-opus-5"
+    },
+    "label": "claude-opus-5",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "high-resolution",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 5,
+      "outputPerMillion": 25
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-opus-5-5"
+    },
+    "label": "claude-opus-5-5",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "claude-sonnet-4-6"
+    },
+    "label": "claude-sonnet-4-6",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "deepseek-v3.2"
     },
     "label": "deepseek-v3.2",
@@ -27,11 +206,6 @@
     "cost": {
       "inputPerMillion": 0.23,
       "outputPerMillion": 0.62
-    },
-    "effort": {
-      "low": "low",
-      "high": "high",
-      "max": "max"
     }
   },
   {
@@ -47,11 +221,6 @@
     "cost": {
       "inputPerMillion": 0.53,
       "outputPerMillion": 1.58
-    },
-    "effort": {
-      "low": "low",
-      "high": "high",
-      "max": "max"
     }
   },
   {
@@ -67,11 +236,6 @@
     "cost": {
       "inputPerMillion": 2.1,
       "outputPerMillion": 4.2
-    },
-    "effort": {
-      "low": "low",
-      "high": "high",
-      "max": "max"
     }
   },
   {
@@ -100,6 +264,27 @@
       "modelId": "deepseek-v4.1-flash"
     },
     "label": "deepseek-v4.1-flash",
+    "api": "openai-completions",
+    "contextWindow": 1040000,
+    "imageTier": "standard",
+    "maxOutputTokens": 393216,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "deepseek-v4.1-flash-1017"
+    },
+    "label": "deepseek-v4.1-flash-1017",
     "api": "openai-completions",
     "contextWindow": 1040000,
     "imageTier": "standard",
@@ -366,12 +551,6 @@
     "cost": {
       "inputPerMillion": 0.95,
       "outputPerMillion": 2.55
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -385,14 +564,8 @@
     "imageTier": "standard",
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.65,
-      "outputPerMillion": 2.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
+      "inputPerMillion": 1.3,
+      "outputPerMillion": 4.4
     }
   },
   {
@@ -411,8 +584,6 @@
     },
     "effort": {
       "off": "none",
-      "low": "low",
-      "medium": "medium",
       "high": "high"
     }
   },
@@ -550,8 +721,7 @@
       "minimal": "minimal",
       "low": "low",
       "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
+      "high": "high"
     }
   },
   {
@@ -573,8 +743,7 @@
       "minimal": "minimal",
       "low": "low",
       "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
+      "high": "high"
     }
   },
   {
@@ -616,7 +785,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -639,7 +807,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -662,7 +829,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -685,7 +851,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -744,6 +909,28 @@
     "label": "gpt-6-sol",
     "api": "openai-completions",
     "contextWindow": 922000,
+    "imageTier": "standard",
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "gpt-6.1-sol"
+    },
+    "label": "gpt-6.1-sol",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
     "imageTier": "standard",
     "maxOutputTokens": 128000,
     "cost": {
@@ -841,11 +1028,6 @@
     "cost": {
       "inputPerMillion": 0.8,
       "outputPerMillion": 3.95
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -861,11 +1043,6 @@
     "cost": {
       "inputPerMillion": 1.25,
       "outputPerMillion": 5.3
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -883,9 +1060,10 @@
       "outputPerMillion": 22.5
     },
     "effort": {
+      "off": "none",
       "low": "low",
-      "medium": "medium",
-      "high": "high"
+      "high": "high",
+      "max": "max"
     }
   },
   {
@@ -936,6 +1114,28 @@
   {
     "ref": {
       "providerId": "inference",
+      "modelId": "minimax-m3.1-flash"
+    },
+    "label": "minimax-m3.1-flash",
+    "api": "openai-completions",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "maxOutputTokens": 524288,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
       "modelId": "moonshotai/kimi-k3"
     },
     "label": "moonshotai/kimi-k3",
@@ -961,7 +1161,7 @@
     },
     "label": "moonshotai/kimi-k3-fast",
     "api": "openai-completions",
-    "contextWindow": 250000,
+    "contextWindow": 1048576,
     "imageTier": "standard",
     "maxOutputTokens": 1048576,
     "cost": {
@@ -990,8 +1190,7 @@
       "outputPerMillion": 0.48
     },
     "effort": {
-      "low": "low",
-      "medium": "medium",
+      "off": "none",
       "high": "high"
     }
   },
@@ -1008,11 +1207,6 @@
     "cost": {
       "inputPerMillion": 0.2275,
       "outputPerMillion": 0.91
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -1028,51 +1222,6 @@
     "cost": {
       "inputPerMillion": 0.12,
       "outputPerMillion": 0.5
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
-      "modelId": "qwen3-8b"
-    },
-    "label": "qwen3-8b",
-    "api": "openai-completions",
-    "contextWindow": 131072,
-    "imageTier": "standard",
-    "maxOutputTokens": 8192,
-    "cost": {
-      "inputPerMillion": 0.117,
-      "outputPerMillion": 0.455
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "inference",
-      "modelId": "qwen3-max-thinking"
-    },
-    "label": "qwen3-max-thinking",
-    "api": "openai-completions",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "maxOutputTokens": 65536,
-    "cost": {
-      "inputPerMillion": 0.78,
-      "outputPerMillion": 3.9
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -1088,6 +1237,25 @@
     "cost": {
       "inputPerMillion": 0.4,
       "outputPerMillion": 1.6
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "inference",
+      "modelId": "stepfun/step-5-preview"
+    },
+    "label": "stepfun/step-5-preview",
+    "api": "openai-completions",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "maxOutputTokens": 131072,
+    "cost": {
+      "inputPerMillion": 1,
+      "outputPerMillion": 2.7
     },
     "effort": {
       "low": "low",

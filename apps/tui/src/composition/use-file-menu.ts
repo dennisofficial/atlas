@@ -22,6 +22,7 @@ export type FileMenuControl = {
 
 type HeldMenu = {
   reader: MentionReader | undefined
+  ticket: number
   menu: FileMenuState | null
 }
 
@@ -31,23 +32,26 @@ export function useFileMenu(args: {
   onProblem?: ((reason: string) => void) | undefined
 }): FileMenuControl {
   const { files, onComplete } = args
-  const [held, setHeld] = useState<HeldMenu>({ reader: files, menu: null })
-  const state = held.reader === files ? held.menu : null
+  const [held, setHeld] = useState<HeldMenu>({ reader: files, ticket: 0, menu: null })
+  const current = useRef<HeldMenu>(held)
   const typed = useRef('')
   const asked = useRef(0)
   const reportProblem = useRef(args.onProblem)
   reportProblem.current = args.onProblem
 
-  const close = useCallback(() => {
-    setHeld((current) =>
-      current.menu === null && current.reader === files ? current : { reader: files, menu: null },
-    )
-  }, [files])
+  const setMenu = useCallback(
+    (menu: FileMenuState | null): void => {
+      const next = { reader: files, ticket: asked.current, menu }
+      current.current = next
+      setHeld(next)
+    },
+    [files],
+  )
 
   const ask = useCallback(
     (text: string) => {
       asked.current += 1
-      close()
+      setMenu(null)
 
       const query = mentionQueryOf(text)
       if (query === null || files === undefined) return
@@ -56,7 +60,7 @@ export function useFileMenu(args: {
       files.list(query.directory).then(
         (entries: readonly DirectoryEntry[]) => {
           if (ticket !== asked.current) return
-          setHeld({ reader: files, menu: openFileMenu({ query, entries }) })
+          setMenu(openFileMenu({ query, entries }))
         },
         (error: unknown) => {
           if (ticket !== asked.current) return
@@ -64,7 +68,7 @@ export function useFileMenu(args: {
         },
       )
     },
-    [close, files],
+    [files, setMenu],
   )
 
   useEffect(() => {
@@ -72,8 +76,9 @@ export function useFileMenu(args: {
 
     return () => {
       asked.current += 1
+      current.current = { reader: files, ticket: asked.current, menu: null }
     }
-  }, [ask])
+  }, [ask, files])
 
   const handleTextChanged = useCallback(
     (text: string) => {
@@ -85,12 +90,16 @@ export function useFileMenu(args: {
 
   const handleDismiss = useCallback(() => {
     asked.current += 1
-    close()
-  }, [close])
+    setMenu(null)
+  }, [setMenu])
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
-      if (state === null) return false
+      const shown = current.current
+      if (shown.reader !== files || shown.ticket !== asked.current || shown.menu === null)
+        return false
+
+      const state = shown.menu
 
       if (key.name === 'escape') {
         handleDismiss()
@@ -98,10 +107,7 @@ export function useFileMenu(args: {
       }
 
       if (key.name === 'up' || key.name === 'down') {
-        setHeld({
-          reader: files,
-          menu: moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }),
-        })
+        setMenu(moveFileSelection({ state, delta: key.name === 'up' ? -1 : 1 }))
         return true
       }
 
@@ -111,15 +117,20 @@ export function useFileMenu(args: {
       if (completed === null) return false
       if (key.name === 'return' && completed === typed.current) return false
 
-      close()
+      handleDismiss()
       onComplete(completed)
       return true
     },
-    [close, files, handleDismiss, onComplete, state],
+    [files, handleDismiss, onComplete, setMenu],
   )
 
   return useMemo(
-    () => ({ state, handleTextChanged, handleKey, handleDismiss }),
-    [handleDismiss, handleKey, handleTextChanged, state],
+    () => ({
+      state: held.reader === files ? held.menu : null,
+      handleTextChanged,
+      handleKey,
+      handleDismiss,
+    }),
+    [files, held, handleDismiss, handleKey, handleTextChanged],
   )
 }
