@@ -27,7 +27,8 @@ export const TOKEN = 'session-token'
 
 const defaultFetch = (async (input: string | URL | Request) => {
   const url = String(input)
-  if (url.endsWith('/v1/sandboxes/self/events')) return Response.json({ head: 0 })
+  if (url.endsWith('/v1/trpc/sandboxSelf.events'))
+    return Response.json({ result: { data: { head: 0 } } })
   if (url.includes('/events')) return Response.json([])
   return new Response(null, { status: 204 })
 }) as unknown as typeof fetch

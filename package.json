@@ -9,7 +9,7 @@
     "evals"
   ],
   "scripts": {
-    "postinstall": "sh scripts/install-git-hooks.sh",
+    "postinstall": "sh scripts/install-git-hooks.sh && bun run --cwd apps/api generate:trpc",
     "typecheck": "turbo run typecheck",
     "bench:load": "bun apps/tui/scripts/bench-load.ts",
     "bench:replay": "bun apps/tui/scripts/bench-replay.ts",

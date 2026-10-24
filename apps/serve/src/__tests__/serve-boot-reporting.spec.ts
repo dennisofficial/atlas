@@ -10,7 +10,6 @@ import {
   EBootStep,
   EBootStepState,
   NOOP_BOOT_REPORTER,
-  SANDBOX_SELF_BOOT_STEPS_PATH,
   type BootStepEvent,
 } from '@dltech/atlas-wire'
 
@@ -20,6 +19,7 @@ import { bootServeFiles } from '../serve-boot'
 import { bootReporterFor } from '../serve-boot-reporter'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 
 const threadId = toThreadId('thread-boot-report')
 const controlPlaneUrl = 'https://api.example.com'
@@ -35,12 +35,12 @@ const recordingFetch = () => {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) return Response.json([])
-    if (url !== `${controlPlaneUrl}${SANDBOX_SELF_BOOT_STEPS_PATH}`)
+    if (url !== trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.bootSteps' }))
       return new Response('{}', { status: 404 })
     const headers = new Headers(init?.headers)
     requests.push({ url, authorization: headers.get('authorization') })
     events.push(...bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps)
-    return new Response('{}', { status: 200 })
+    return trpcOk(undefined)
   }) as unknown as typeof fetch
   return { fetchFn, events, requests }
 }

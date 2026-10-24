@@ -1,0 +1,22 @@
+{
+  "name": "@dltech/atlas-api-router",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build": "bun run --cwd ../../apps/api generate:trpc"
+  },
+  "dependencies": {
+    "@dltech/atlas-wire": "workspace:*",
+    "@trpc/server": "^11.19.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

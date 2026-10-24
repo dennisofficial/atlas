@@ -1,0 +1,18 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "package.json",
+        "$TURBO_ROOT$/apps/api/src/**",
+        "$TURBO_ROOT$/apps/api/scripts/generate-trpc.ts",
+        "$TURBO_ROOT$/apps/api/tsconfig.json",
+        "$TURBO_ROOT$/packages/wire/src/**"
+      ],
+      "outputs": ["src/generated/**"]
+    },
+    "typecheck": { "dependsOn": ["$TURBO_EXTENDS$", "build"] },
+    "test": { "dependsOn": ["$TURBO_EXTENDS$", "build"] }
+  }
+}

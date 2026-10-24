@@ -161,6 +161,15 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     expect(response.status, withOutput(await response.text())).toBe(401)
   })
 
+  it('rejects a tRPC procedure without a sandbox token with 401', async () => {
+    const response = await fetch(`${baseUrl()}/v1/trpc/sandboxSelf.events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events: [] }),
+    })
+    expect(response.status, withOutput(await response.text())).toBe(401)
+  })
+
   it('serves a guarded route to a bearer session through prisma and pg', async () => {
     const response = await fetch(`${baseUrl()}/v1/secrets`, { headers: authed })
     const text = await response.text()

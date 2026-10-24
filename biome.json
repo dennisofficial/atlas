@@ -19,6 +19,7 @@
       "!**/*.generated.ts",
       "!**/*.generated",
       "!packages/harness/src/models/generated",
+      "!packages/api-router/src/generated",
       "!packages/harness/src/models/generated-*.ts",
       "!packages/ui/src/styles/theme.css",
       "!**/.next",

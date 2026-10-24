@@ -86,6 +86,24 @@ describe('api under the bun runtime', () => {
     expect(response.status).toBe(401)
   })
 
+  it('answers 401 on a tRPC procedure without a sandbox token', async () => {
+    const response = await fetch(`${base}/v1/trpc/sandboxSelf.events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events: [] }),
+    })
+    expect(response.status).toBe(401)
+  })
+
+  it('refuses a tRPC body over the 4mb global cap with 413', async () => {
+    const response = await fetch(`${base}/v1/trpc/sandboxSelf.stop`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'x'.repeat(5 * 1024 * 1024) }),
+    })
+    expect(response.status).toBe(413)
+  })
+
   it(
     'injects the session verifier and wake boot adapter by constructor token',
     () => {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { TRPCModule } from 'nestjs-trpc'
 import { EnvModule } from '../_core/config/env/env.module'
 import { EnvService } from '../_core/config/env/env.service'
 import { envConfigValidation } from '../_core/config/env/validation'
@@ -8,6 +9,10 @@ import { CryptoModule } from '../_lib/crypto/crypto.module'
 import { TriggerModule } from '../_lib/trigger/trigger.module'
 import { ClientVersionGuard } from '../_module/client-version/client-version.guard'
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
+import { ApiTrpcContext } from '../_module/trpc/api-trpc-context'
+import { ApiTrpcModule } from '../_module/trpc/api-trpc.module'
+import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
+import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { GithubModule } from './cloud/github/github.module'
@@ -50,6 +55,13 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     TriggerModule,
     HealthModule,
     ClientVersionModule,
+    ApiTrpcModule,
+    TRPCModule.forRoot({
+      basePath: '/v1/trpc',
+      context: ApiTrpcContext,
+      errorFormatter: apiErrorFormatter,
+      globalMiddlewares: [HttpErrorMiddleware],
+    }),
     AuthModule,
     AccountsModule,
     OauthConnectionsModule,

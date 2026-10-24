@@ -11,7 +11,6 @@ import {
   BOOT_STEP_EVENT_TYPE,
   MAX_POD_EVENTS_PER_FLUSH,
   podEventsPostSchema,
-  SANDBOX_SELF_EVENTS_PATH,
   type PodEvent,
 } from '@dltech/atlas-wire'
 
@@ -20,6 +19,7 @@ import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { bindServeWriteBehind } from '../serve-write-behind'
 
 import { fakeServeApp, type FakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
@@ -66,7 +66,7 @@ const fakePostgres = (seed: readonly WireEvent[] = []) => {
   const head = () => Math.max(0, ...rows.keys())
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (url === `${controlPlaneUrl}${SANDBOX_SELF_EVENTS_PATH}`) {
+    if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.events' })) {
       const { events } = podEventsPostSchema.parse(JSON.parse(String(init?.body)))
       batches.push(events.map((event) => event.seq))
       for (const event of events) {
@@ -74,11 +74,11 @@ const fakePostgres = (seed: readonly WireEvent[] = []) => {
         const identical = stored !== undefined && stored.body === event.body
         if (!identical && (stored !== undefined || event.seq <= head())) {
           conflicts.push(event.seq)
-          return Response.json({ seq: event.seq }, { status: 409 })
+          return trpcFailure({ status: 409, details: { seq: event.seq } })
         }
         rows.set(event.seq, wireRow(event))
       }
-      return Response.json({ head: head() })
+      return trpcOk({ head: head() })
     }
     if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
       return Response.json([...rows.values()])
@@ -202,7 +202,9 @@ describe('park after a failed flush', () => {
         token: 'serve-token',
         clientVersion: 'dev',
         fetchFn: (async () =>
-          new Response('{}', { status: args.status })) as unknown as typeof fetch,
+          args.status === 200
+            ? trpcOk({ head: 2 })
+            : trpcFailure({ status: args.status })) as unknown as typeof fetch,
       },
       log: (line) => lines.push(line),
     })

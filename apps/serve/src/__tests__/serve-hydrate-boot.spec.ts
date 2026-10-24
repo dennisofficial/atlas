@@ -11,13 +11,13 @@ import {
   bootStepsPostSchema,
   EBootStep,
   EBootStepState,
-  SANDBOX_SELF_BOOT_STEPS_PATH,
   type BootStepEvent,
 } from '@dltech/atlas-wire'
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
@@ -59,10 +59,10 @@ const boot = async (args: {
   const eventReads: string[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (url === `${controlPlaneUrl}${SANDBOX_SELF_BOOT_STEPS_PATH}`) {
+    if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.bootSteps' })) {
       const posted = bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps
       steps.push(...posted)
-      return args.bootStepsReply?.(posted) ?? new Response('{}')
+      return args.bootStepsReply?.(posted) ?? trpcOk(undefined)
     }
     if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
       eventReads.push(url)
@@ -154,8 +154,8 @@ describe('serve boot hydration and resume', () => {
         posted.some(
           (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
         )
-          ? new Response('{"message":"boom"}', { status: 500 })
-          : new Response('{}'),
+          ? trpcFailure({ status: 500, message: 'boom' })
+          : trpcOk(undefined),
     })
 
     await expect(run.start()).rejects.toThrow('500')
@@ -172,8 +172,8 @@ describe('serve boot hydration and resume', () => {
         posted.some(
           (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
         )
-          ? new Response('{}')
-          : new Response('{"message":"boom"}', { status: 500 }),
+          ? trpcOk(undefined)
+          : trpcFailure({ status: 500, message: 'boom' }),
     })
 
     running.push(await run.start())
@@ -192,7 +192,7 @@ describe('serve boot hydration and resume', () => {
       },
       bootStepsReply: (posted) => {
         for (const step of posted) order.push(`${step.step}:${step.state}`)
-        return new Response('{}')
+        return trpcOk(undefined)
       },
     })
 

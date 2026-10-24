@@ -1,8 +1,8 @@
 import { POD_NAME_ENV, sandboxNameFor, VercelDriver } from '@dltech/atlas-harness'
-import { isApiProvisioned, SANDBOX_SELF_STOP_PATH } from '@dltech/atlas-wire'
+import { isApiProvisioned } from '@dltech/atlas-wire'
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { postSandboxSelf } from './sandbox-self-client'
+import { controlPlaneError, createApiClient } from './api-client'
 
 export type SignalSender = (args: { pid: number; signal: NodeJS.Signals }) => void
 
@@ -26,14 +26,17 @@ export function sandboxPark(args: {
   if (isApiProvisioned(args.env)) {
     const sessionId = args.env.ATLAS_SANDBOX_SESSION_ID
     return async () => {
-      await postSandboxSelf({
+      const client = createApiClient({
         controlPlaneUrl: args.controlPlaneUrl,
-        path: SANDBOX_SELF_STOP_PATH,
         token: args.token,
         clientVersion: args.clientVersion ?? 'dev',
         fetchFn: args.fetchFn ?? fetch,
-        body: sessionId ? { sessionId } : {},
       })
+      await client.sandboxSelf.stop
+        .mutate(sessionId ? { sessionId } : {})
+        .catch((failure: unknown) => {
+          throw controlPlaneError(failure)
+        })
     }
   }
   const token = args.env.VERCEL_TOKEN

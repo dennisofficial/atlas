@@ -1,6 +1,4 @@
-import { SANDBOX_SELF_PORTS_PATH, sandboxExposePortReplySchema } from '@dltech/atlas-wire'
-
-import { postSandboxSelf } from './sandbox-self-client'
+import { type ApiRemote, controlPlaneError, createApiClient } from './api-client'
 
 export type PortExposer = { exposePort: (args: { port: number }) => Promise<string> }
 
@@ -9,16 +7,16 @@ export const apiPortExposer = (args: {
   token: string
   clientVersion: string
   fetchFn?: typeof fetch | undefined
-}): PortExposer => ({
-  exposePort: async ({ port }) => {
-    const response = await postSandboxSelf({
-      controlPlaneUrl: args.controlPlaneUrl,
-      path: SANDBOX_SELF_PORTS_PATH,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn ?? fetch,
-      body: { port },
-    })
-    return sandboxExposePortReplySchema.parse(await response.json()).url
-  },
-})
+}): PortExposer => {
+  const remote: ApiRemote = { ...args, fetchFn: args.fetchFn ?? fetch }
+  return {
+    exposePort: async ({ port }) => {
+      try {
+        const reply = await createApiClient(remote).sandboxSelf.exposePort.mutate({ port })
+        return reply.url
+      } catch (failure) {
+        throw controlPlaneError(failure)
+      }
+    },
+  }
+}
