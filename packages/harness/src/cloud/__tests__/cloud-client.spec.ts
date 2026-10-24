@@ -502,36 +502,55 @@ describe('CloudClient projects', () => {
   it('lists projects from a bare array', async () => {
     const { client, calls } = clientWith(() => ({
       status: 200,
-      body: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })],
+      body: {
+        result: {
+          data: [projectBody(), projectBody({ id: 'proj_2', repo: null, baseBranch: null })],
+        },
+      },
     }))
 
     const projects = await client.listProjects()
 
     expect(calls[0]?.method).toBe('GET')
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/trpc/projects.list')
     expect(projects.map((project) => project.id)).toEqual(['proj_1', 'proj_2'])
   })
 
   it('rejects a list that is not an array of projects', async () => {
-    const { client } = clientWith(() => ({ status: 200, body: { projects: [] } }))
+    const { client } = clientWith(() => ({
+      status: 200,
+      body: { result: { data: { projects: [] } } },
+    }))
 
     await expect(client.listProjects()).rejects.toThrow()
   })
 
   it('creates a project with a POST of the input', async () => {
-    const { client, calls } = clientWith(() => ({ status: 201, body: projectBody() }))
+    const { client, calls } = clientWith(() => ({
+      status: 200,
+      body: { result: { data: projectBody() } },
+    }))
     const input = { name: 'atlas', repo: 'comp-ai/atlas', baseBranch: 'main', additionalRepos: [] }
 
     const created = await client.createProject(input)
 
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/trpc/projects.create')
     expect(calls[0]?.body).toEqual(input)
     expect(created.id).toBe('proj_1')
   })
 
   it('surfaces a failed create as a CloudError', async () => {
-    const { client } = clientWith(() => ({ status: 400, body: { message: 'bad repo' } }))
+    const { client } = clientWith(() => ({
+      status: 400,
+      body: {
+        error: {
+          message: 'bad repo',
+          code: -32600,
+          data: { code: 'BAD_REQUEST', httpStatus: 400 },
+        },
+      },
+    }))
 
     await expect(
       client.createProject({ name: 'x', repo: null, baseBranch: null, additionalRepos: [] }),

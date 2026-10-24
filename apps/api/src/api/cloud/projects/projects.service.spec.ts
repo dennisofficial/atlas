@@ -4,7 +4,7 @@ import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import type { GithubService } from '../github/github.service'
 import { seedWorkspace } from '../web-settings.fake-db'
-import type { SaveProjectDto } from './projects.dto'
+import type { ProjectSave } from '@dltech/atlas-wire'
 import { ProjectsService } from './projects.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 
@@ -16,7 +16,7 @@ const ORG = 'org-1'
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 5))
 const projectRows = () => db.orm.public.Project.where((row) => row.id.neq('')).all()
 
-const input = (partial: Partial<SaveProjectDto> = {}): SaveProjectDto => ({
+const input = (partial: Partial<ProjectSave> = {}): ProjectSave => ({
   name: 'atlas',
   repo: 'dennisofficial/atlas',
   baseBranch: 'main',

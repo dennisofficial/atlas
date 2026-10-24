@@ -1,6 +1,16 @@
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
-import { trpcFailure } from './trpc-fake'
+import { trpcFailure, trpcOk } from './trpc-fake'
+
+export const SANDBOX_CONFIG_PATH = '/v1/trpc/sandboxConfig.get'
+
+export const sandboxConfigSearch = (projectId: string): string =>
+  `?input=${encodeURIComponent(JSON.stringify({ projectId }))}`
+
+const unauthorized = (path: string, text: string): Response =>
+  path.startsWith('/v1/trpc/')
+    ? trpcFailure({ status: 401, message: text })
+    : new Response(text, { status: 401 })
 
 export const SERVE_TOKEN = 'serve-token-fake'
 
@@ -61,19 +71,16 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
       const { pathname: path, search } = new URL(request.url)
       const authorization = request.headers.get('authorization')
       requests.push({ path, search, authorization })
-      const refuse = (message: string): Response =>
-        path.startsWith('/v1/trpc/')
-          ? trpcFailure({ status: 401, message })
-          : new Response(message, { status: 401 })
-      if (authorization !== `Bearer ${SERVE_TOKEN}`) return refuse('unauthorized')
+      if (authorization !== `Bearer ${SERVE_TOKEN}`) return unauthorized(path, 'unauthorized')
       if (unauthorizedUntil.remaining > 0) {
         unauthorizedUntil.remaining -= 1
-        return refuse('not registered yet')
+        return unauthorized(path, 'not registered yet')
       }
-      if (path === '/v1/trpc/accountLease.get')
-        return Response.json({ result: { data: state.lease } })
-      if (path === '/v1/sandboxes/self/config' && state.config !== undefined)
-        return Response.json(state.config)
+      if (path === '/v1/trpc/accountLease.get') return trpcOk(state.lease)
+      if (path === SANDBOX_CONFIG_PATH)
+        return state.config === undefined
+          ? trpcFailure({ status: 404, message: 'no such procedure' })
+          : trpcOk(state.config)
       if (path === '/v1/settings') return Response.json({ settings: state.settings })
       if (path === '/v1/secrets') return Response.json({ secrets: state.secrets })
       return new Response('not found', { status: 404 })

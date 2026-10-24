@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { UpsertMcpServerDto } from './mcp-servers.dto'
-import type { McpServerDto, McpSpec, McpTransport } from './mcp-servers.types'
+import type { McpServerDto, McpSpec, McpSpecDraft, McpTransport } from './mcp-servers.types'
 import { EMcpTransportKind } from './mcp-servers.types'
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
@@ -21,7 +20,7 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value).every((entry) => typeof entry === 'string')
 }
 
-function toTransport(dto: UpsertMcpServerDto['transport']): McpTransport {
+function toTransport(dto: McpSpecDraft['transport']): McpTransport {
   if (!dto) throw new BadRequestException('transport must be an object')
   if (dto.kind === EMcpTransportKind.Stdio) {
     if (typeof dto.command !== 'string' || dto.command.length === 0) {
@@ -67,7 +66,7 @@ function parseHttpUrl(url: string | undefined): string {
   return url
 }
 
-export function toMcpSpec(draft: UpsertMcpServerDto & { name: string }): McpSpec {
+export function toMcpSpec(draft: McpSpecDraft & { name: string }): McpSpec {
   assertValidName(draft.name)
   const transport = draft.transport === undefined ? undefined : toTransport(draft.transport)
   if (transport === undefined && draft.disabled !== true) {
@@ -91,7 +90,7 @@ export class McpServersService {
     return rows.map((row) => this.toServerDto(row))
   }
 
-  async put(args: { userId: string; name: string; spec: UpsertMcpServerDto }): Promise<void> {
+  async put(args: { userId: string; name: string; spec: McpSpecDraft }): Promise<void> {
     const spec = toMcpSpec({ ...args.spec, name: args.name })
     const sealedSpec = this.cipher.encrypt(JSON.stringify(spec))
     await db.orm.public.UserMcpServer.upsert({
@@ -116,7 +115,7 @@ export class McpServersService {
 
   private toServerDto(row: Row<'UserMcpServer'>): McpServerDto {
     const spec = toMcpSpec(
-      JSON.parse(this.cipher.decrypt(row.sealedSpec)) as UpsertMcpServerDto & {
+      JSON.parse(this.cipher.decrypt(row.sealedSpec)) as McpSpecDraft & {
         name: string
       },
     )

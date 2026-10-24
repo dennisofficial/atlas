@@ -4,8 +4,8 @@ import { useCallback } from 'react'
 
 import {
   listSecrets,
-  projectBase,
-  workspaceBase,
+  projectOwner,
+  workspaceOwner,
   type ListedSecret,
 } from '@/features/settings/data/workspace/resource-api'
 import { useSecretsResource } from '@/features/settings/data/workspace/use-secrets-resource'
@@ -17,13 +17,13 @@ import { inheritedViewOf } from './inherited-secrets'
 export type InheritedSecrets = { secrets: ListedSecret[]; workspaceName: string | null }
 
 export function useProjectSecrets(projectId: string) {
-  const own = useSecretsResource(projectBase(projectId))
+  const own = useSecretsResource(projectOwner(projectId))
   const access = useWorkspaceAccess()
   const organizationId =
     access.state === EQueryState.Ready ? (access.data?.organization.id ?? null) : null
   const load = useCallback(async (): Promise<ListedSecret[]> => {
     if (organizationId === null) return []
-    return listSecrets(workspaceBase(organizationId))
+    return listSecrets(workspaceOwner(organizationId))
   }, [organizationId])
   const inherited: CloudQuery<ListedSecret[]> = useCloudQuery({
     key: `inherited:${organizationId ?? 'none'}:${access.state}`,

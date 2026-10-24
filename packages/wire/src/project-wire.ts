@@ -41,3 +41,29 @@ export const projectWorkspaceSchema = z.object({
 export type ProjectWorkspace = z.infer<typeof projectWorkspaceSchema>
 
 export const githubCloneUrlOf = (repo: string): string => `https://github.com/${repo}.git`
+
+export const MAX_ORGANIZATION_ID_LENGTH = 200
+
+export const projectRepoInputSchema = z.strictObject({
+  repo: githubRepoSchema,
+  branch: gitBranchSchema.optional(),
+})
+
+export const projectSaveSchema = z.strictObject({
+  name: z.string().min(1).max(MAX_PROJECT_NAME_LENGTH),
+  repo: githubRepoSchema.nullable(),
+  baseBranch: gitBranchSchema.nullable(),
+  additionalRepos: z.array(projectRepoInputSchema).max(MAX_ADDITIONAL_REPOS),
+  description: z.string().max(MAX_PROJECT_DESCRIPTION_LENGTH).optional(),
+  shipBehavior: z.enum(EShipBehavior).optional(),
+  organizationId: z.string().min(1).max(MAX_ORGANIZATION_ID_LENGTH).nullable().optional(),
+})
+export type ProjectSave = z.infer<typeof projectSaveSchema>
+
+export const projectIdInputSchema = z.strictObject({ projectId: z.string().min(1) })
+export type ProjectIdInput = z.infer<typeof projectIdInputSchema>
+
+export const projectUpdateSchema = projectSaveSchema.extend(projectIdInputSchema.shape)
+export type ProjectUpdate = z.infer<typeof projectUpdateSchema>
+
+export const projectListSchema = z.array(projectSchema)

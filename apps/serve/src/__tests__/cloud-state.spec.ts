@@ -7,7 +7,12 @@ import { EAuthKind, EAuthProvider, ESettingId, toAccountId } from '@dltech/atlas
 import { encodeSettingValue, loadSettings } from '@dltech/atlas-harness'
 
 import { EServeEvent } from '../serve-log'
-import { apiKeyAccount, oauthAccount, SERVE_TOKEN } from './cloud-state-fixture'
+import {
+  apiKeyAccount,
+  oauthAccount,
+  SANDBOX_CONFIG_PATH,
+  SERVE_TOKEN,
+} from './cloud-state-fixture'
 import {
   accountStoreAt,
   apply,
@@ -68,10 +73,10 @@ describe('applyCloudState', () => {
       { event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 },
     ])
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
-      '/v1/sandboxes/self/config',
       '/v1/secrets',
       '/v1/settings',
       '/v1/trpc/accountLease.get',
+      SANDBOX_CONFIG_PATH,
     ])
     expect(
       cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`),

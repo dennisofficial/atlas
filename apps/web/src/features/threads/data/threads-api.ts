@@ -1,13 +1,11 @@
-import { createThreadReplySchema, projectSchema } from '@dltech/atlas-wire/web'
+import { createThreadReplySchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { api, cloudCall } from '@/lib/api-client'
-import { cloudJson, EHttpMethod } from '@/lib/cloud-api'
 
 import type { CreateThreadBody } from './create-thread'
 
-export const fetchProjects = () =>
-  cloudJson({ method: EHttpMethod.Get, path: '/v1/projects', schema: z.array(projectSchema) })
+export const fetchProjects = () => cloudCall(api.projects.list.query())
 
 export const fetchThreads = (projectId: string) => cloudCall(api.threads.list.query({ projectId }))
 

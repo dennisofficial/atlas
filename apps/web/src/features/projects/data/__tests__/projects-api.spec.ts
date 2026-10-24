@@ -1,8 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 
-import { createProject } from '@/features/project-settings/data/project-api'
+import { createApiClient } from '@dltech/atlas-api-router'
 
-import { fetchGithubBranches, fetchGithubRepos } from '../github-repos-api'
+import * as realApiClient from '@/lib/api-client'
+
+mock.module('@/lib/api-client', () => ({
+  ...realApiClient,
+  api: createApiClient({
+    baseUrl: '',
+    fetchFn: Object.assign(
+      (input: Parameters<typeof fetch>[0], init?: RequestInit) => globalThis.fetch(input, init),
+      { preconnect: fetch.preconnect },
+    ),
+  }),
+}))
+
+const { createProject } = await import('@/features/project-settings/data/project-api')
+const { fetchGithubBranches, fetchGithubRepos } = await import('../github-repos-api')
 
 let calls: { url: string; init?: RequestInit }[]
 const realFetch = globalThis.fetch
@@ -41,7 +55,7 @@ describe('createProject', () => {
       createdAt: '',
       updatedAt: '',
     }
-    answerWith(json(created))
+    answerWith(json({ result: { data: created } }))
     const body = {
       name: 'csa',
       repo: 'compai/csa',
@@ -52,13 +66,24 @@ describe('createProject', () => {
     }
     const project = await createProject(body)
     expect(project.id).toBe('p1')
-    expect(calls[0]?.url).toBe('/v1/projects')
+    expect(calls[0]?.url).toBe('/v1/trpc/projects.create')
     expect(calls[0]?.init?.method).toBe('POST')
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(body)
   })
 
   it('surfaces the API message on failure', async () => {
-    answerWith(new Response(JSON.stringify({ message: 'not a member' }), { status: 403 }))
+    answerWith(
+      Response.json(
+        {
+          error: {
+            message: 'not a member',
+            code: -32603,
+            data: { code: 'FORBIDDEN', httpStatus: 403, details: { message: 'not a member' } },
+          },
+        },
+        { status: 403 },
+      ),
+    )
     await expect(
       createProject({
         name: 'x',

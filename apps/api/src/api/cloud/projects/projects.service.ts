@@ -1,4 +1,4 @@
-import type { Project, ProjectRepo, ProjectWorkspace } from '@dltech/atlas-wire'
+import type { Project, ProjectRepo, ProjectSave, ProjectWorkspace } from '@dltech/atlas-wire'
 import { projectRepoSchema } from '@dltech/atlas-wire'
 import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { db, or, type Row } from '@dltech/atlas-db'
 import { GithubService } from '../github/github.service'
 import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
-import type { SaveProjectDto } from './projects.dto'
 import { assertProjectRules } from './projects.rules'
 
 export const PROJECT_NOT_FOUND = 'project not found'
@@ -37,7 +36,7 @@ function toProject(row: Row<'Project'>): Project {
   }
 }
 
-function columnsOf(input: SaveProjectDto) {
+function columnsOf(input: ProjectSave) {
   const additionalRepos = input.additionalRepos.map((entry) =>
     entry.branch ? { repo: entry.repo, branch: entry.branch } : { repo: entry.repo },
   )
@@ -78,7 +77,7 @@ export class ProjectsService {
     return rows.map((row) => toProject(row))
   }
 
-  async create(args: { userId: string; input: SaveProjectDto }): Promise<Project> {
+  async create(args: { userId: string; input: ProjectSave }): Promise<Project> {
     const columns = columnsOf(args.input)
     await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })
     const organizationId = args.input.organizationId ?? null
@@ -95,11 +94,7 @@ export class ProjectsService {
     return toProject(await this.editable(args))
   }
 
-  async replace(args: {
-    userId: string
-    projectId: string
-    input: SaveProjectDto
-  }): Promise<Project> {
+  async replace(args: { userId: string; projectId: string; input: ProjectSave }): Promise<Project> {
     const columns = columnsOf(args.input)
     await this.editable(args)
     await this.assertMembership({ userId: args.userId, organizationId: args.input.organizationId })

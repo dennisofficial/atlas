@@ -13,9 +13,78 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
+import { projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretSetSchema, projectSecretKeySchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectWorkspaceSchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, sandboxConfigInputSchema, resolvedSandboxConfigSchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, organizationIdInputSchema, workspaceSecretListSchema, workspaceSecretSetSchema, workspaceSecretKeySchema, workspaceMcpServerPutSchema, workspaceMcpServerKeySchema, workspaceSettingsPatchSchema, workspaceVercelCredentialSchema, workspaceVercelSaveSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
+  projectResources: t.router({
+    listSettings: publicProcedure
+      .input(projectIdInputSchema)
+      .output(settingListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    patchSettings: publicProcedure
+      .input(projectSettingsPatchSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    getSandbox: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectSandboxSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveSandbox: publicProcedure
+      .input(projectSandboxSaveSchema)
+      .output(projectSandboxSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listSecrets: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectSecretListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setSecret: publicProcedure
+      .input(projectSecretSetSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeSecret: publicProcedure
+      .input(projectSecretKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listMcpServers: publicProcedure
+      .input(projectIdInputSchema)
+      .output(resourceMcpServerListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    putMcpServer: publicProcedure
+      .input(projectMcpServerPutSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeMcpServer: publicProcedure
+      .input(projectMcpServerKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  projectWorkspace: t.router({
+    get: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectWorkspaceSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  projects: t.router({
+    list: publicProcedure
+      .output(projectListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    create: publicProcedure
+      .input(projectSaveSchema)
+      .output(projectSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    update: publicProcedure
+      .input(projectUpdateSchema)
+      .output(projectSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(projectIdInputSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   publishedBundles: t.router({
     issueUpload: publicProcedure
       .output(publishedBundleUploadSchema)
@@ -53,6 +122,12 @@ const appRouter = t.router({
       .input(threadIdInputSchema)
       .output(podConnectReplySchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sandboxConfig: t.router({
+    get: publicProcedure
+      .input(sandboxConfigInputSchema)
+      .output(resolvedSandboxConfigSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   sshSigningKey: t.router({
     lease: publicProcedure
@@ -100,6 +175,52 @@ const appRouter = t.router({
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     remove: publicProcedure
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  workspaces: t.router({
+    listSecrets: publicProcedure
+      .input(organizationIdInputSchema)
+      .output(workspaceSecretListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setSecret: publicProcedure
+      .input(workspaceSecretSetSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeSecret: publicProcedure
+      .input(workspaceSecretKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listMcpServers: publicProcedure
+      .input(organizationIdInputSchema)
+      .output(resourceMcpServerListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    putMcpServer: publicProcedure
+      .input(workspaceMcpServerPutSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeMcpServer: publicProcedure
+      .input(workspaceMcpServerKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listSettings: publicProcedure
+      .input(organizationIdInputSchema)
+      .output(settingListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    patchSettings: publicProcedure
+      .input(workspaceSettingsPatchSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    getVercel: publicProcedure
+      .input(organizationIdInputSchema)
+      .output(workspaceVercelCredentialSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveVercel: publicProcedure
+      .input(workspaceVercelSaveSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeVercel: publicProcedure
+      .input(organizationIdInputSchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),

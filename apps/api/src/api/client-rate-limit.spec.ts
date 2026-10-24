@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
-import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
+import { ProjectWorkspaceRouter } from './cloud/projects/project-workspace.router'
 import { SandboxCheckpointRouter } from './platform/sandboxes/sandbox-checkpoint.router'
 import { SandboxesRouter } from './platform/sandboxes/sandboxes.router'
 import { procedureMetaOf } from './platform/sessions/procedure-meta.fixture'
@@ -61,8 +61,8 @@ describe('the first-party read routes', () => {
 })
 
 describe('the serve-facing control-plane routes', () => {
-  it(`skips the app-wide throttle on ${ProjectWorkspaceController.name}`, () => {
-    expect(Reflect.getMetadata('THROTTLER:SKIPdefault', ProjectWorkspaceController)).toBe(true)
+  it('skips the app-wide throttle on the projectWorkspace.get procedure serve polls', () => {
+    expect(procedureMetaOf(ProjectWorkspaceRouter.prototype.get).throttle).toBe(false)
   })
 
   it('skips the app-wide throttle on the events-read procedure serve polls mid-turn', () => {

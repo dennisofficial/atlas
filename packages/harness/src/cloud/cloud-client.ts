@@ -264,11 +264,11 @@ export class CloudClient {
   }
 
   listProjects(): Promise<Project[]> {
-    return listProjectsVia((args) => this.request(args))
+    return listProjectsVia(this.api)
   }
 
   createProject(input: ProjectInput): Promise<Project> {
-    return createProjectVia({ request: (args) => this.request(args), input })
+    return createProjectVia({ api: this.api, input })
   }
 
   private request(args: {

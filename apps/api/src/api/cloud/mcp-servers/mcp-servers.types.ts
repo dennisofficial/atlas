@@ -1,6 +1,19 @@
-export enum EMcpTransportKind {
-  Stdio = 'stdio',
-  Http = 'http',
+import { EMcpTransportKind } from '@dltech/atlas-wire/web'
+
+export { EMcpTransportKind }
+
+export type McpTransportDraft = {
+  kind: EMcpTransportKind
+  command?: string | undefined
+  args?: string[] | undefined
+  env?: Record<string, string> | undefined
+  url?: string | undefined
+  headers?: Record<string, string> | undefined
+}
+
+export type McpSpecDraft = {
+  transport?: McpTransportDraft | undefined
+  disabled?: boolean | undefined
 }
 
 export type McpTransport =

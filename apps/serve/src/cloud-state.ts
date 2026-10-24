@@ -16,6 +16,7 @@ import {
   ATLAS_SECRETS_NAME,
   cipherSecretBox,
   CloudError,
+  cloudCall,
   cloudRequest,
   decodeSettingValue,
   fileVaultBackend,
@@ -24,16 +25,11 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
-import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
+import { ESecretKind } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { createApiClient, httpStatusOf } from './api-client'
-import {
-  cloudConfigPathFor,
-  exportEnvSecrets,
-  mergeCloudMcpServers,
-  type CloudConfig,
-} from './cloud-config'
+import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -145,9 +141,8 @@ export const applyCloudState = async (args: {
     return left
   }
 
-  const request = (path: string, allowMissing = false): Promise<unknown> =>
+  const request = (path: string): Promise<unknown> =>
     cloudRequest({
-      allowMissing,
       url,
       token: args.token,
       clientVersion: args.clientVersion,
@@ -174,8 +169,7 @@ export const applyCloudState = async (args: {
     }
   }
 
-  const requestPatiently = (path: string, allowMissing = false): Promise<unknown> =>
-    patiently(() => request(path, allowMissing))
+  const requestPatiently = (path: string): Promise<unknown> => patiently(() => request(path))
 
   const api = createApiClient({
     controlPlaneUrl: url,
@@ -184,12 +178,10 @@ export const applyCloudState = async (args: {
     fetchFn: args.fetchFn,
   })
 
+  const attemptSignal = () => AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs()))
+
   const leasePatiently = () =>
-    patiently(() =>
-      api.accountLease.get.query(undefined, {
-        signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs())),
-      }),
-    )
+    patiently(() => api.accountLease.get.query(undefined, { signal: attemptSignal() }))
 
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
@@ -204,9 +196,13 @@ export const applyCloudState = async (args: {
   }
 
   const scopedConfig = async (): Promise<CloudConfig> => {
-    const body = await requestPatiently(cloudConfigPathFor(args.projectId), true)
-    if (body === undefined) return legacyConfig()
-    const resolved = resolvedSandboxConfigSchema.parse(body)
+    const input = args.projectId ? { projectId: args.projectId } : undefined
+    const resolved = await patiently(() =>
+      cloudCall(api.sandboxConfig.get.query(input, { signal: attemptSignal() }), {
+        allowMissing: true,
+      }),
+    )
+    if (resolved === undefined) return legacyConfig()
     return {
       settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
       secrets: resolved.secrets,
