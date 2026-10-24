@@ -102,7 +102,7 @@ const activeRowSpy = () => {
   }
 }
 
-type Lease = { path: string; auth: string | null; body: { token: string } }
+type Lease = { path: string; auth: string | null; body: { threadId: string; token: string } }
 type ApiRead = { path: string; auth: string | null }
 
 const run = async (args: { command: readonly string[]; cwd?: string }): Promise<string> => {
@@ -168,8 +168,12 @@ describeLive('a pod birth through the live TUI wiring', () => {
           if (path === `/v1/projects/${PROJECT_ID}/workspace`) return Response.json(WORKSPACE)
           return Response.json({ message: 'not found' }, { status: 404 })
         }
-        leases.push({ path, auth, body: (await request.json()) as { token: string } })
-        return new Response(null, { status: 204 })
+        leases.push({
+          path,
+          auth,
+          body: (await request.json()) as { threadId: string; token: string },
+        })
+        return Response.json({ result: { data: null } })
       },
     })
   })
@@ -221,7 +225,9 @@ describeLive('a pod birth through the live TUI wiring', () => {
           'setting up the workspace',
         ])
         expect(spy.finalMarks()).toEqual([EStepMark.Done, EStepMark.Done])
-        const lease = leases.find((held) => held.path === `/v1/pod-leases/${THREAD}`)
+        const lease = leases.find(
+          (held) => held.path === '/v1/trpc/podLeases.register' && held.body.threadId === THREAD,
+        )
         expect(lease?.auth).toBe('Bearer live-session')
         expect(lease?.body.token).toBe(born.sandbox.token)
 

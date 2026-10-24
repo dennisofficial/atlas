@@ -102,7 +102,7 @@ describe('reauthorizing an owned grant', () => {
     await port.handoffAll(session)
 
     const secret = await settledSecret(accounts, account.id)
-    expect(api.calls).toContain('PUT /v1/oauth-connections/oauth_1/reauthorize')
+    expect(api.calls).toContain('POST /v1/trpc/oauthConnections.reauthorize')
     expect(api.connections.size).toBe(1)
     expect(api.connections.get('oauth_1')?.refresh).toBe('fake-new-refresh')
     expect(secret.tokens.refreshToken).toBe('')

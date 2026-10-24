@@ -166,8 +166,12 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
     hostname: '0.0.0.0',
     fetch: async (request) => {
       const url = new URL(request.url)
-      if (url.pathname.startsWith('/v1/pod-leases/')) return new Response(null, { status: 204 })
-      if (url.pathname === '/v1/account-lease') return Response.json(OPENROUTER_LEASE)
+      if (url.pathname === '/v1/trpc/podLeases.register') {
+        return Response.json({ result: { data: null } })
+      }
+      if (url.pathname === '/v1/trpc/accountLease.get') {
+        return Response.json({ result: { data: OPENROUTER_LEASE } })
+      }
       if (url.pathname === '/v1/settings') return Response.json({ settings: [] })
       if (url.pathname === '/v1/secrets') return Response.json({ secrets: [] })
       const bearer = request.headers.get('authorization')

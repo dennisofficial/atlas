@@ -88,10 +88,15 @@ describe('cloud-managed credential handoff', () => {
     expect((await settledSecret(accounts, account.id)).authority?.connectionId).toBe('oauth_1')
     release?.(
       Response.json({
-        accessToken: 'fake-access',
-        expiresAt: '2026-10-05T13:00:00.000Z',
-        generation: 0,
-        authorizationId: 'oauth_1',
+        result: {
+          data: {
+            accessToken: 'fake-access',
+            expiresAt: '2026-10-05T13:00:00.000Z',
+            refreshAfter: '2026-10-05T12:30:00.000Z',
+            generation: 0,
+            authorizationId: 'oauth_1',
+          },
+        },
       }),
     )
     await port.handoffAll(session)

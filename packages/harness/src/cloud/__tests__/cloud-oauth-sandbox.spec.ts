@@ -35,6 +35,12 @@ const addOauth = (accounts: AccountStorePort, authorityUrl = session.url) =>
     },
   })
 
+const CLAIM_PATH = '/v1/trpc/sandboxes.claim'
+const ASSIGN_PATH = '/v1/trpc/oauthConnections.assignSandbox'
+const trpcReply = (data: unknown): Response => Response.json({ result: { data } })
+const claimReply = (): Response =>
+  trpcReply({ token: registration.token, url: registration.serveUrl })
+
 const neverFetch: typeof fetch = Object.assign(
   async () => {
     throw new Error('unexpected API request')
@@ -85,9 +91,8 @@ describe('sandbox OAuth capability preparation', () => {
       async (input: string | URL | Request, init?: RequestInit) => {
         const path = new URL(String(input)).pathname
         events.push(`${init?.method} ${path}`)
-        if (path === '/v1/sandboxes')
-          return Response.json({ token: registration.token, url: registration.serveUrl })
-        return new Response(null, { status: 204 })
+        if (path === CLAIM_PATH) return claimReply()
+        return trpcReply(null)
       },
       { preconnect: () => undefined },
     )
@@ -102,11 +107,7 @@ describe('sandbox OAuth capability preparation', () => {
         events.push('handoff')
       },
     })
-    expect(events).toEqual([
-      'handoff',
-      'POST /v1/sandboxes',
-      'PUT /v1/oauth-connections/oauth-native/sandboxes/oauth-root',
-    ])
+    expect(events).toEqual(['handoff', `POST ${CLAIM_PATH}`, `POST ${ASSIGN_PATH}`])
   })
 
   it('refuses a selected grant owned by another authority before registering the sandbox', async () => {
@@ -227,9 +228,7 @@ describe('sandbox OAuth capability preparation', () => {
       async (input: string | URL | Request) => {
         const path = new URL(String(input)).pathname
         paths.push(path)
-        return path === '/v1/sandboxes'
-          ? Response.json({ token: registration.token, url: registration.serveUrl })
-          : new Response(null, { status: 204 })
+        return path === CLAIM_PATH ? claimReply() : trpcReply(null)
       },
       { preconnect: () => undefined },
     )
@@ -245,10 +244,7 @@ describe('sandbox OAuth capability preparation', () => {
     })
     expect(handed).toHaveLength(1)
     expect((handed[0] as string[]).length).toBe(1)
-    expect(paths).toEqual([
-      '/v1/sandboxes',
-      '/v1/oauth-connections/oauth-native/sandboxes/oauth-root',
-    ])
+    expect(paths).toEqual([CLAIM_PATH, ASSIGN_PATH])
   })
 
   it('refuses pending handoff state rather than stripping its renewable seed into the sandbox', async () => {
@@ -283,9 +279,18 @@ describe('sandbox OAuth capability preparation', () => {
     await addOauth(accounts)
     const fetchFn: typeof fetch = Object.assign(
       async (input: string | URL | Request) =>
-        String(input).endsWith('/v1/sandboxes')
-          ? Response.json({ token: registration.token })
-          : Response.json({ message: 'assignment refused' }, { status: 403 }),
+        new URL(String(input)).pathname === CLAIM_PATH
+          ? Response.json({ result: { data: { token: registration.token } } })
+          : Response.json(
+              {
+                error: {
+                  message: 'assignment refused',
+                  code: -32603,
+                  data: { code: 'FORBIDDEN', httpStatus: 403 },
+                },
+              },
+              { status: 403 },
+            ),
       { preconnect: () => undefined },
     )
     await expect(

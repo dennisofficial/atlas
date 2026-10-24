@@ -1,180 +1,128 @@
-import type { INestApplication } from '@nestjs/common'
-import {
-  Controller,
-  Get,
-  UnauthorizedException,
-  UseGuards,
-  ValidationPipe,
-  VersioningType,
-} from '@nestjs/common'
-import { Test } from '@nestjs/testing'
+import type { NestExpressApplication } from '@nestjs/platform-express'
+import { Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { PodReachable } from '../../../_core/decorators/pod-reachable.decorator'
-import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
-import { SessionAuthGuard } from '../../../_module/session/session-auth.guard'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { OauthConnectionsController } from '../oauth-connections/oauth-connections.controller'
-import {
-  FakeClock,
-  FakeIssuer,
-  FakeStore,
-  grantOf,
-} from '../oauth-connections/oauth-connections.fakes'
-import { OauthConnectionsService } from '../oauth-connections/oauth-connections.service'
-import {
-  OauthClock,
-  OauthConnectionStore,
-  OauthIssuer,
-} from '../oauth-connections/oauth-connections.types'
-import { SandboxesService } from '../sandboxes/sandboxes.service'
+import { z } from 'zod'
+import { as } from '../../../_module/trpc/trpc-middleware.fixture'
+import { meta } from '../../../_module/trpc/procedure-meta'
 import { ETokenPrincipalKind } from '../sandboxes/token-principal'
-import { SessionOrSandboxGuard } from '../sessions/session-or-sandbox.guard'
-import { PodLeasesController } from './pod-leases.controller'
+import { SessionOrSandboxMiddleware } from '../sessions/session-or-sandbox.middleware'
+import { FakeStore, grantOf } from '../oauth-connections/oauth-connections.fakes'
+import {
+  createOauthApp,
+  mutate,
+  oauthProviders,
+  principalSandboxes,
+  START,
+} from '../oauth-connections/oauth-connections.router.fixture'
+import { PodLeasesRouter } from './pod-leases.router'
 import { PodLeasesService } from './pod-leases.service'
 
-const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
-const START = Date.parse('2026-10-05T12:00:00.000Z')
-const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
-const POD_TOKENS: Record<string, { threadId: string; userId: string }> = {
-  'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
+const POD_PRINCIPALS = {
+  'pod-token-a': { kind: ETokenPrincipalKind.Pod, threadId: 'thread-pod-a', userId: 'user-a' },
 }
 
-const bearerOf = (req: { headers: { authorization?: string } }): string =>
-  (req.headers.authorization ?? '').replace(/^Bearer /i, '')
+const ok = z.object({ ok: z.literal(true) })
+const threaded = z.object({ threadId: z.string() })
 
-@Controller({ path: 'probe', version: '1' })
-class ProbeController {
-  @Get('plain')
-  @UseGuards(SessionOrSandboxGuard)
+@Router({ alias: 'probe' })
+@UseMiddlewares(SessionOrSandboxMiddleware)
+class ProbeRouter {
+  @Query({ output: ok })
   plain(): { ok: true } {
     return { ok: true }
   }
 
-  @Get('plain/:threadId')
-  @UseGuards(SessionOrSandboxGuard)
+  @Query({ input: threaded, output: ok })
   plainThread(): { ok: true } {
     return { ok: true }
   }
 
-  @Get('pod')
-  @UseGuards(SessionOrSandboxGuard)
-  @PodReachable()
+  @Query({ output: ok, meta: meta({ podReachable: true }) })
   pod(): { ok: true } {
     return { ok: true }
   }
 }
 
-describe('pod lease bearer on the HTTP surface', () => {
-  let app: INestApplication
+describe('pod lease bearer on the tRPC surface', () => {
+  let app: NestExpressApplication
   let store: FakeStore
   const leases = { register: vi.fn(async () => undefined), release: vi.fn(async () => undefined) }
 
-  const http = () => request(app.getHttpServer())
-  const as = (token: string) => ({ authorization: `Bearer ${token}` })
-  const upload = (token: string) =>
-    http()
-      .put('/v1/oauth-connections/conn-1')
-      .set(as(token))
-      .send({ provider: 'anthropic', tokens: grantOf(START) })
+  const upload = (token: string, connectionId = 'conn-1') =>
+    mutate({
+      app,
+      procedure: 'oauthConnections.upload',
+      token,
+      body: { connectionId, provider: 'anthropic', tokens: grantOf(START) },
+    })
+  const mint = (token: string) =>
+    mutate({
+      app,
+      procedure: 'oauthConnections.accessToken',
+      token,
+      body: { connectionId: 'conn-1' },
+    })
 
   beforeEach(async () => {
     store = new FakeStore()
     leases.register.mockClear()
-    const module = await Test.createTestingModule({
-      controllers: [OauthConnectionsController, PodLeasesController, ProbeController],
-      providers: [
-        OauthConnectionsService,
-        SessionAuthGuard,
-        SessionOrSandboxGuard,
-        { provide: PodLeasesService, useValue: leases },
-        { provide: OauthConnectionStore, useValue: store },
-        { provide: OauthIssuer, useValue: new FakeIssuer() },
-        { provide: OauthClock, useValue: new FakeClock(START) },
-        {
-          provide: SecretCipherService,
-          useValue: new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-        },
-        {
-          provide: SESSION_VERIFIER,
-          useValue: {
-            async verify(req: { headers: { authorization?: string } }) {
-              const userId = SESSIONS[bearerOf(req)]
-              if (userId === undefined) return null
-              return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
-            },
+    leases.release.mockClear()
+    app = await createOauthApp(
+      oauthProviders({
+        store,
+        sandboxes: principalSandboxes({
+          principals: POD_PRINCIPALS,
+          assertThreadInFamily: async () => {
+            throw new Error('a pod principal must never reach the thread-family check')
           },
-        },
-        {
-          provide: SandboxesService,
-          useValue: {
-            async verifyTokenPrincipal(args: { token: string }) {
-              const pod = POD_TOKENS[args.token]
-              if (pod === undefined) throw new UnauthorizedException()
-              return { kind: ETokenPrincipalKind.Pod, ...pod }
-            },
-            async assertThreadInFamily() {
-              throw new Error('a pod principal must never reach the thread-family check')
-            },
-          },
-        },
-      ],
-    }).compile()
-    app = module.createNestApplication()
-    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+        }),
+        extra: [ProbeRouter, PodLeasesRouter, { provide: PodLeasesService, useValue: leases }],
+      }),
     )
-    await app.init()
   })
 
   afterEach(() => app.close())
 
   it("leases an access token for its own user's connection with no sandbox row or assignment", async () => {
-    await upload('session-a').expect(200)
+    expect((await upload('session-a')).status).toBe(200)
     expect(store.sandboxes.size).toBe(0)
     expect(store.assignments.size).toBe(0)
 
-    const issued = await http()
-      .post('/v1/oauth-connections/conn-1/access-token')
-      .set(as('pod-token-a'))
-      .send({})
-      .expect(200)
+    const issued = await mint('pod-token-a')
 
+    expect(issued.status).toBe(200)
     expect(issued.headers['cache-control']).toBe('no-store')
-    expect(issued.body).toMatchObject({ accessToken: 'access-0', generation: 0 })
+    expect(issued.body.result.data).toMatchObject({ accessToken: 'access-0', generation: 0 })
     expect(JSON.stringify(issued.body)).not.toContain('refresh-0')
   })
 
   it("cannot lease another user's connection", async () => {
-    await http()
-      .put('/v1/oauth-connections/conn-1')
-      .set(as('session-b'))
-      .send({ provider: 'anthropic', tokens: grantOf(START) })
-      .expect(200)
+    expect((await upload('session-b')).status).toBe(200)
 
-    await http()
-      .post('/v1/oauth-connections/conn-1/access-token')
-      .set(as('pod-token-a'))
-      .send({})
-      .expect(404)
+    expect((await mint('pod-token-a')).status).toBe(404)
   })
 
-  it('is refused on a route that is not @PodReachable, threadless or not', async () => {
-    await http().get('/v1/probe/plain').set(as('pod-token-a')).expect(403)
-    await http().get('/v1/probe/plain/thread-pod-a').set(as('pod-token-a')).expect(403)
-    await http().get('/v1/probe/pod').set(as('pod-token-a')).expect(200)
+  it('is refused on a procedure that is not podReachable, threadless or not', async () => {
+    const get = (procedure: string, input?: object) => {
+      const call = request(app.getHttpServer()).get(`/v1/trpc/probe.${procedure}`)
+      const withInput = input === undefined ? call : call.query({ input: JSON.stringify(input) })
+      return withInput.set(as('pod-token-a'))
+    }
+
+    expect((await get('plain')).status).toBe(403)
+    expect((await get('plainThread', { threadId: 'thread-pod-a' })).status).toBe(403)
+    expect((await get('pod')).status).toBe(200)
   })
 
-  it('is unauthorized on the session-only lease routes and on connection management', async () => {
-    await http()
-      .put('/v1/pod-leases/thread-pod-a')
-      .set(as('pod-token-a'))
-      .send({ token: 'x' })
-      .expect(401)
-    await http().delete('/v1/pod-leases/thread-pod-a').set(as('pod-token-a')).expect(401)
-    await upload('pod-token-a').expect(401)
+  it('is unauthorized on the session-only lease procedures and on connection management', async () => {
+    const lease = (procedure: string, body: object) =>
+      mutate({ app, procedure: `podLeases.${procedure}`, token: 'pod-token-a', body })
+
+    expect((await lease('register', { threadId: 'thread-pod-a', token: 'x' })).status).toBe(401)
+    expect((await lease('release', { threadId: 'thread-pod-a' })).status).toBe(401)
+    expect((await upload('pod-token-a')).status).toBe(401)
     expect(leases.register).not.toHaveBeenCalled()
+    expect(leases.release).not.toHaveBeenCalled()
   })
 })
