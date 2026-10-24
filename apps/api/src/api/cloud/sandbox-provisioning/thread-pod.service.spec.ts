@@ -144,6 +144,19 @@ describe('ThreadPodService', () => {
     ])
   })
 
+  it('returns the whole boot history beside the latest attempt', async () => {
+    await record([Provision, Running], [Provision, Done], [Agent, Done], [Provision, Running])
+
+    const pod = await status()
+
+    expect(pod.history?.map(({ step, state }) => [step, state])).toEqual([
+      [Provision, Running],
+      [Provision, Done],
+      [Agent, Done],
+      [Provision, Running],
+    ])
+  })
+
   it('shows only the new attempt right after a re-claim of a failed pod', async () => {
     await record([Provision, Running], [Provision, Failed, 'old failure'])
     await seedSandboxRow({

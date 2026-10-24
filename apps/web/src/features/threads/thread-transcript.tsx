@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, memo, type ReactNode } from 'react'
-import { BotIcon, CircleAlertIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
+import { BotIcon, CircleAlertIcon, CirclePauseIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
@@ -11,11 +11,13 @@ import { Tool } from '@dltech/atlas-ui/ai/tool'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
+import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
+import type { PodStatus } from '@dltech/atlas-wire/web'
 
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 
-import type { BootView } from './data/boot-view'
+import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import { clockTimeOf, spanMsOf } from './data/clock-time'
 import { isSameItem } from './data/same-item'
 import { ETranscriptKind, type TranscriptItem } from './data/transcript'
@@ -113,33 +115,58 @@ function AgentTurnView({ turn, now }: { turn: AgentTurn; now: number }) {
   )
 }
 
+function ParkedLine() {
+  return (
+    <Trace>
+      <TraceLine>
+        <TraceIcon>
+          <CirclePauseIcon />
+        </TraceIcon>
+        <TraceTitle>Sandbox parked</TraceTitle>
+      </TraceLine>
+    </Trace>
+  )
+}
+
+function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => void }) {
+  return (
+    <ChatItem id={entry.id}>
+      {entry.kind === EBootEntryKind.Parked ? (
+        <ParkedLine />
+      ) : (
+        <SandboxBoot {...sandboxBootPropsOf(entry.view)} {...(entry.live ? { onRetry } : {})} />
+      )}
+    </ChatItem>
+  )
+}
+
 export function ThreadTranscript({
   items,
   failure,
-  boot,
+  pod,
+  bootNow,
   working,
   onRetryBoot,
 }: {
   items: readonly TranscriptItem[]
   failure: string | null
-  boot: BootView | null
+  pod: PodStatus | null
+  bootNow: number
   working: boolean
   onRetryBoot: () => void
 }) {
   const { user } = useSessionUser()
   const now = useNow(working)
   const turns = turnsOf({ items, working })
-  const bootAfter = turns.findIndex((turn) => turn.kind === ETurnKind.User)
+  const boot = bootTimelineOf({ turns, pod, now: bootNow })
   const userName = user?.name
-  const bootNode: ReactNode =
-    boot === null ? null : (
-      <ChatItem id="sandbox-boot">
-        <SandboxBoot {...sandboxBootPropsOf(boot)} onRetry={onRetryBoot} />
-      </ChatItem>
-    )
+  const bootAfter = (index: number): ReactNode =>
+    boot
+      .filter((entry) => entry.afterIndex === index)
+      .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
   return (
     <Chat>
-      {bootAfter === -1 ? bootNode : null}
+      {bootAfter(-1)}
       {turns.map((turn, index) => (
         <Fragment key={turn.id}>
           <ChatItem id={turn.id}>
@@ -151,7 +178,7 @@ export function ThreadTranscript({
               <AgentTurnView turn={turn} now={now} />
             )}
           </ChatItem>
-          {index === bootAfter ? bootNode : null}
+          {bootAfter(index)}
         </Fragment>
       ))}
       {failure === null ? null : (
