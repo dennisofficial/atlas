@@ -73,7 +73,7 @@ jobs:
 
       - name: fetch the diff base
         if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
-        run: git fetch --no-tags --depth=1 origin "$RENDER_CHECK_BASE"
+        run: git fetch --no-tags --depth=1 origin "$RENDER_CHECK_BASE" || echo "RENDER_CHECK_ALL=1" >> "$GITHUB_ENV"
 
       # The pull_request checkout is the merge commit, so base.sha..HEAD is exactly the PR's diff
       # and a tree diff needs no history on a shallow clone.
