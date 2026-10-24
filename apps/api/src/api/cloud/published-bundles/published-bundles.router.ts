@@ -15,7 +15,6 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../../platform/sessions/session-or-sandbox.middleware'
-import { markNoStore } from '../no-store'
 import { PublishedBundlesService } from './published-bundles.service'
 
 @Router({ alias: 'publishedBundles' })
@@ -25,7 +24,6 @@ export class PublishedBundlesRouter {
   @Mutation({ output: publishedBundleUploadSchema })
   @UseMiddlewares(SessionMiddleware)
   issueUpload(@Ctx() ctx: SessionTrpcCtx): Promise<PublishedBundleUpload> {
-    markNoStore(ctx)
     return this.bundles.issueUpload({ userId: ctx.auth.userId })
   }
 
@@ -35,7 +33,6 @@ export class PublishedBundlesRouter {
     @Input() input: PublishedBundleCommit,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<PublishedBundleSummary> {
-    markNoStore(ctx)
     return this.bundles.commit({ userId: ctx.auth.userId, body: input })
   }
 
@@ -45,7 +42,6 @@ export class PublishedBundlesRouter {
   })
   @UseMiddlewares(SessionOrSandboxMiddleware)
   current(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<PublishedBundleCurrent> {
-    markNoStore(ctx)
     return this.bundles.current({ userId: ctx.auth.userId })
   }
 }

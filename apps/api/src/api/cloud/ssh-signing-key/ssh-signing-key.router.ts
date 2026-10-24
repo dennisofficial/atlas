@@ -14,7 +14,6 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../../platform/sessions/session-or-sandbox.middleware'
-import { markNoStore } from '../no-store'
 import { SshSigningKeyService } from './ssh-signing-key.service'
 
 @Router({ alias: 'sshSigningKey' })
@@ -27,14 +26,12 @@ export class SshSigningKeyRouter {
   })
   @UseMiddlewares(SessionOrSandboxMiddleware)
   lease(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<SshSigningKeyLease> {
-    markNoStore(ctx)
     return this.keys.lease({ userId: ctx.auth.userId })
   }
 
   @Query({ output: sshSigningKeyStatusSchema })
   @UseMiddlewares(SessionMiddleware)
   status(@Ctx() ctx: SessionTrpcCtx): Promise<SshSigningKeyStatus> {
-    markNoStore(ctx)
     return this.keys.status({ userId: ctx.auth.userId })
   }
 
@@ -44,7 +41,6 @@ export class SshSigningKeyRouter {
     @Input() input: SshSigningKeyUpload,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SshSigningKeyStatus> {
-    markNoStore(ctx)
     return this.keys.register({ userId: ctx.auth.userId, privateKey: input.privateKey })
   }
 
@@ -54,7 +50,6 @@ export class SshSigningKeyRouter {
     @Input() input: SshSigningKeyUpload,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SshSigningKeyStatus> {
-    markNoStore(ctx)
     return this.keys.rotate({ userId: ctx.auth.userId, privateKey: input.privateKey })
   }
 

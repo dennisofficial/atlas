@@ -7,7 +7,6 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { markNoStore } from '../no-store'
 import { UserVercelService } from './user-vercel.service'
 
 @Router({ alias: 'userVercel' })
@@ -17,7 +16,6 @@ export class UserVercelRouter {
 
   @Query({ output: userVercelCredentialSchema })
   get(@Ctx() ctx: SessionTrpcCtx): Promise<UserVercelCredential> {
-    markNoStore(ctx)
     return this.vercel.read({ userId: ctx.auth.userId })
   }
 
