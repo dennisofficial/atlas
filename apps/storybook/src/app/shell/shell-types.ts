@@ -7,4 +7,6 @@ export interface ShellDemoState {
   threadCardId?: string
   projectCardId?: string
   accountMenuOpen?: boolean
+  archivedThreadIds?: string[]
+  archivedBucketOpen?: boolean
 }

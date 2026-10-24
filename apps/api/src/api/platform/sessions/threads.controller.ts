@@ -21,6 +21,7 @@ import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
+  ArchiveThreadDto,
   ChooseModelDto,
   CompactThreadDto,
   CreateThreadDto,
@@ -33,6 +34,7 @@ import {
 } from './sessions.dto'
 import { userIdOf } from './session-user'
 import type { ThreadDto } from './sessions.types'
+import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
 
@@ -74,6 +76,7 @@ export class ThreadsController {
     private readonly history: ThreadsHistoryService,
     private readonly sandboxes: SandboxesService,
     private readonly launcher: ThreadLauncher,
+    private readonly archive: ThreadArchiveService,
   ) {}
 
   @Post()
@@ -166,6 +169,20 @@ export class ThreadsController {
     @Body() body: RenameThreadDto,
   ): Promise<void> {
     await this.threads.rename({ userId: userIdOf(request), threadId, draft: body })
+  }
+
+  @Patch(':threadId/archived')
+  @HttpCode(204)
+  async handleArchive(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+    @Body() body: ArchiveThreadDto,
+  ): Promise<void> {
+    await this.archive.setArchived({
+      userId: userIdOf(request),
+      threadId,
+      archived: body.archived,
+    })
   }
 
   @Patch(':threadId/model')
