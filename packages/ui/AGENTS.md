@@ -85,7 +85,7 @@ expected.
 - `table.tsx`: header rows never take the body hover; `Table` `variant: 'default' | 'framed'` (bordered card container, `pl-4`/`pr-4` edge cells).
 - `empty.tsx`: `variant: 'default' | 'outline'`.
 - `avatar.tsx`: `size="xs"`; `AvatarFallback` text follows the avatar size.
-- `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes.
+- `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` gained `variant: 'default' | 'bordered'` (top `border-sidebar-border` edge) and `SidebarMenuButton` gained `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row.
 - `card.tsx`: `CardFooter` owns `gap-2` between its buttons; `variant: 'default' | 'list'` and the `CardRow` part, for divided settings lists; a table directly inside a list card gets the card's edge inset; `tone: 'default' | 'destructive'` tints the ring for danger zones.
 - `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`, so nav and tree rows never add `bg-muted` themselves.
 - `message.tsx`: `MessageHeader`/`MessageFooter` take the `px-3` bubble inset only when the message has a bubble, and the header owns `gap-2`.
