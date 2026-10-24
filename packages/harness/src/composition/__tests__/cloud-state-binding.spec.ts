@@ -57,20 +57,26 @@ const handle = async (request: Request): Promise<Response> => {
   if (request.method === 'GET' && path.startsWith('/v1/accounts/active/')) {
     return Response.json({ accountId: ACCOUNT.id })
   }
-  if (request.method === 'GET' && path === '/v1/secrets') {
+  if (path === '/v1/trpc/secrets.list') {
     return Response.json({
-      secrets: [{ name: 'search.tavily', value: 'cloud-secret', updatedAt: STAMP }],
+      result: {
+        data: { secrets: [{ name: 'search.tavily', value: 'cloud-secret', updatedAt: STAMP }] },
+      },
     })
   }
-  if (request.method === 'GET' && path === '/v1/settings') {
+  if (path === '/v1/trpc/settings.list') {
     return Response.json({
-      settings: [...cloudSettings].map(([key, value]) => ({ key, value, updatedAt: STAMP })),
+      result: {
+        data: {
+          settings: [...cloudSettings].map(([key, value]) => ({ key, value, updatedAt: STAMP })),
+        },
+      },
     })
   }
-  if (request.method === 'PUT' && path.startsWith('/v1/settings/')) {
-    const body = calls.at(-1)?.body as { value: string }
-    cloudSettings.set(decodeURIComponent(path.slice('/v1/settings/'.length)), body.value)
-    return new Response(null, { status: 204 })
+  if (path === '/v1/trpc/settings.set') {
+    const body = calls.at(-1)?.body as { key: string; value: string }
+    cloudSettings.set(body.key, body.value)
+    return Response.json({ result: {} })
   }
   return Response.json({ message: 'unhandled' }, { status: 404 })
 }
@@ -119,7 +125,12 @@ const compose = async (cloudState: boolean | undefined) => {
 }
 
 const requestsTo = (resource: 'accounts' | 'secrets' | 'settings'): Call[] =>
-  calls.filter((call) => call.path.startsWith(`/v1/${resource}`))
+  calls.filter(
+    (call) =>
+      call.path.startsWith(`/v1/${resource}`) || call.path.startsWith(`/v1/trpc/${resource}.`),
+  )
+
+const isWrite = (call: Call): boolean => call.method === 'PUT' || call.path.endsWith('.set')
 
 const eventually = async (check: () => boolean): Promise<void> => {
   for (let attempt = 0; attempt < 100 && !check(); attempt += 1) await Bun.sleep(10)
@@ -150,11 +161,11 @@ describe('composeHarness with cloudState on', () => {
     app.secrets.write({ name: 'mcp-oauth:https://mcp.test/', value: '{}' })
     app.secrets.write({ name: 'search.exa', value: 'goes-to-cloud' })
 
-    await eventually(() => requestsTo('secrets').some((call) => call.method === 'PUT'))
+    await eventually(() => requestsTo('secrets').some(isWrite))
     const puts = requestsTo('secrets')
-      .filter((call) => call.method === 'PUT')
-      .map((call) => call.path)
-    expect(puts).toEqual(['/v1/secrets/search.exa'])
+      .filter(isWrite)
+      .map((call) => call.body)
+    expect(puts).toEqual([{ name: 'search.exa', value: 'goes-to-cloud' }])
     expect(app.secrets.read('sandbox-serve:thr_1')).toBe('local-token')
     expect(existsSync(atlasSecretsFile())).toBe(true)
   })
@@ -172,10 +183,13 @@ describe('composeHarness with cloudState on', () => {
     })
     expect(app.settings.set({ id: ESettingId.Accent, value: 'moss' })).toEqual({ ok: true })
 
-    await eventually(() => requestsTo('settings').some((call) => call.method === 'PUT'))
-    const puts = requestsTo('settings').filter((call) => call.method === 'PUT')
-    expect(puts.map((call) => call.path)).toEqual([`/v1/settings/${ESettingId.ThinkingBlocks}`])
-    expect(puts[0]?.body).toEqual({ value: encodeSettingValue('hidden') })
+    await eventually(() => requestsTo('settings').some(isWrite))
+    const puts = requestsTo('settings').filter(isWrite)
+    expect(puts).toHaveLength(1)
+    expect(puts[0]?.body).toEqual({
+      key: ESettingId.ThinkingBlocks,
+      value: encodeSettingValue('hidden'),
+    })
 
     expect(localSettingsFile()[ESettingId.Accent]).toBe('moss')
     expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBeUndefined()

@@ -8,6 +8,7 @@ import type { ClockPort } from '@dltech/atlas-core'
 import { CloudError } from '../cloud-client'
 import { CloudSessionStore } from '../cloud-session'
 import { CLOUD_SETTINGS_TTL_MS, CloudSettingsStore } from '../cloud-settings-store'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const URL = 'http://cloud.test'
 
@@ -30,24 +31,14 @@ const settingsFake = (): SettingsFake => {
   }
 
   fake.fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).slice(URL.length)
-    const method = init?.method ?? 'GET'
-    const body =
-      typeof init?.body === 'string'
-        ? (JSON.parse(init.body) as Record<string, unknown>)
-        : undefined
-    fake.calls.push({ method, path, body })
+    const call = trpcCallOf({ input, init })
+    const body = call.input as Record<string, unknown> | undefined
+    fake.calls.push({ method: call.method, path: call.path, body })
 
-    const reply = (status: number, payload?: unknown) =>
-      new Response(payload === undefined ? null : JSON.stringify(payload), {
-        status,
-        headers: { 'content-type': 'application/json' },
-      })
+    if (fake.status !== 200) return trpcFailure({ status: fake.status, message: 'nope' })
 
-    if (fake.status !== 200) return reply(fake.status, { message: 'nope' })
-
-    if (path === '/v1/settings' && method === 'GET') {
-      return reply(200, {
+    if (call.procedure === 'settings.list') {
+      return trpcData({
         settings: [...fake.remote].map(([key, value]) => ({
           key,
           value,
@@ -55,15 +46,15 @@ const settingsFake = (): SettingsFake => {
         })),
       })
     }
-    if (path.startsWith('/v1/settings/') && method === 'PUT') {
-      fake.remote.set(path.slice('/v1/settings/'.length), String(body?.['value']))
-      return reply(204)
+    if (call.procedure === 'settings.set') {
+      fake.remote.set(String(body?.['key']), String(body?.['value']))
+      return trpcVoid()
     }
-    if (path.startsWith('/v1/settings/') && method === 'DELETE') {
-      fake.remote.delete(path.slice('/v1/settings/'.length))
-      return reply(204)
+    if (call.procedure === 'settings.remove') {
+      fake.remote.delete(String(body?.['key']))
+      return trpcVoid()
     }
-    return reply(404, { message: `unhandled ${method} ${path}` })
+    return trpcFailure({ status: 404, message: `unhandled ${call.method} ${call.path}` })
   }) as typeof fetch
 
   return fake
@@ -187,7 +178,7 @@ describe('CloudSettingsStore reads', () => {
 })
 
 describe('CloudSettingsStore writes', () => {
-  it('writes through with a PUT, then invalidates and re-reads', async () => {
+  it('writes through with a set call, then invalidates and re-reads', async () => {
     signIn()
     fake.remote.set('sandbox.image', 'img-1')
     await store.refresh()
@@ -196,21 +187,21 @@ describe('CloudSettingsStore writes', () => {
 
     const methods = fake.calls.map((call) => `${call.method} ${call.path}`)
     expect(methods).toEqual([
-      'GET /v1/settings',
-      'PUT /v1/settings/sandbox.image',
-      'GET /v1/settings',
+      'GET /v1/trpc/settings.list',
+      'POST /v1/trpc/settings.set',
+      'GET /v1/trpc/settings.list',
     ])
     expect(store.values()).toEqual({ 'sandbox.image': 'img-2' })
   })
 
-  it('removes through with a DELETE, then invalidates and re-reads', async () => {
+  it('removes through with a remove call, then invalidates and re-reads', async () => {
     signIn()
     fake.remote.set('sandbox.image', 'img-1')
     await store.refresh()
 
     await store.remove({ key: 'sandbox.image' })
 
-    expect(fake.calls.some((call) => call.method === 'DELETE')).toBe(true)
+    expect(fake.calls.some((call) => call.path === '/v1/trpc/settings.remove')).toBe(true)
     expect(store.values()).toEqual({})
   })
 })

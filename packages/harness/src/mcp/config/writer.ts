@@ -133,7 +133,7 @@ export async function runRemote(args: {
   client: CloudClient
 }): Promise<ToolOutcome> {
   const { input, client } = args
-  const definedIn = `${client.baseUrl}/v1/mcp-servers`
+  const definedIn = `${client.baseUrl} (Atlas Cloud MCP servers)`
 
   if (input.action === EMcpEditAction.Remove) {
     try {

@@ -70,8 +70,8 @@ describe('applyCloudState', () => {
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
       '/v1/account-lease',
       '/v1/sandboxes/self/config',
-      '/v1/secrets',
-      '/v1/settings',
+      '/v1/trpc/secrets.list',
+      '/v1/trpc/settings.list',
     ])
     expect(
       cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`),

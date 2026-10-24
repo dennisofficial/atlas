@@ -18,7 +18,7 @@ export class RemoteMcpSource extends McpSource {
   constructor(args: { session: CloudSession; clientVersion?: string; fetchFn?: typeof fetch }) {
     super()
     this.client = cloudClientFor(args)
-    this.definedIn = `${args.session.url.replace(/\/+$/, '')}/v1/mcp-servers`
+    this.definedIn = `${args.session.url.replace(/\/+$/, '')} (Atlas Cloud MCP servers)`
   }
 
   async load(): Promise<McpSourceRead> {

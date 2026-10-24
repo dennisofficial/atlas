@@ -8,25 +8,34 @@ import {
   type MemorySummary,
 } from '@dltech/atlas-wire'
 
+import { createApiClient, type ApiClient } from '@dltech/atlas-api-router'
+
+import { cloudCall, createHarnessApiClient } from '../cloud/api-trpc-client'
 import type { CloudSession } from '../cloud/cloud-session'
-import { CloudError, CloudTransport } from '../cloud/cloud-transport'
+import { CloudError } from '../cloud/cloud-transport'
 
 import { MemoryEditRefused, MemoryPort, MemoryUnavailable, type MemoryAddress } from './memory-port'
-
-const MEMORIES_PATH = '/v1/memories'
-const ENTRY_PATH = `${MEMORIES_PATH}/entry`
 
 const NO_PROJECT = 'this session has no GitHub repository, so only global memory is available'
 const SIGNED_OUT = 'sign in to Atlas Cloud to use memory'
 
-const malformed = (path: string): CloudError =>
+const malformed = (procedure: string): CloudError =>
   new CloudError({
     status: 502,
-    message: `The Atlas Cloud API answered ${path} with a body that is not a memory.`,
+    message: `The Atlas Cloud API answered ${procedure} with a body that is not a memory.`,
   })
 
 const isEditRefusal = (error: unknown): error is CloudError =>
   error instanceof CloudError && [404, 409, 422].includes(error.status)
+
+const singleAttempt = (args: { fetchFn: typeof fetch; timeoutMs: number }): typeof fetch =>
+  Object.assign(
+    (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+      args.fetchFn(input, { ...init, signal: AbortSignal.timeout(args.timeoutMs) }),
+    { preconnect: fetch.preconnect },
+  )
+
+type Address = { scope: EMemoryScope; name: string; project?: string }
 
 export class CloudMemoryPort extends MemoryPort {
   readonly project: string | null
@@ -48,63 +57,54 @@ export class CloudMemoryPort extends MemoryPort {
   }
 
   async list(args?: { timeoutMs?: number | undefined }): Promise<readonly MemorySummary[]> {
-    const query = this.project === null ? '' : `?${new URLSearchParams({ project: this.project })}`
-    const path = `${MEMORIES_PATH}${query}`
-    const timeoutMs = args?.timeoutMs
-    const body = await this.transport().request({
-      method: 'GET',
-      path,
-      retry: timeoutMs === undefined,
-      timeoutMs,
-    })
+    const client = this.client({ timeoutMs: args?.timeoutMs })
+    const body = await cloudCall(
+      client.memories.list.query(this.project === null ? {} : { project: this.project }),
+    )
     const parsed = memoryListSchema.safeParse(body)
-    if (!parsed.success) throw malformed(path)
+    if (!parsed.success) throw malformed('memories.list')
     return parsed.data.memories
   }
 
   async read(args: MemoryAddress): Promise<MemoryEntry | null> {
-    const path = `${ENTRY_PATH}?${this.addressQuery(args)}`
-    const body = await this.transport().request({
-      method: 'GET',
-      path,
-      retry: true,
+    const body = await cloudCall(this.client().memories.get.query(this.address(args)), {
       allowMissing: true,
     })
     if (body === undefined) return null
     const parsed = memoryEntrySchema.safeParse(body)
-    if (!parsed.success) throw malformed(path)
+    if (!parsed.success) throw malformed('memories.get')
     return parsed.data
   }
 
   async write(
     args: MemoryAddress & { description: string; type: EMemoryType; body: string },
   ): Promise<MemorySummary> {
-    const body = await this.transport().request({
-      method: 'PUT',
-      path: ENTRY_PATH,
-      body: {
-        ...this.addressBody(args),
+    const client = this.client()
+    const body = await cloudCall(
+      client.memories.put.mutate({
+        ...this.address(args),
         description: args.description,
         type: args.type,
         body: args.body,
-      },
-      retry: false,
-    })
-    return this.parseSummary(body)
+      }),
+    )
+    return this.parseSummary({ body, procedure: 'memories.put' })
   }
 
   async edit(
     args: MemoryAddress & { old: string; new: string; revision: number },
   ): Promise<MemorySummary> {
-    const transport = this.transport()
+    const client = this.client()
     try {
-      const body = await transport.request({
-        method: 'PATCH',
-        path: ENTRY_PATH,
-        body: { ...this.addressBody(args), old: args.old, new: args.new, revision: args.revision },
-        retry: false,
-      })
-      return this.parseSummary(body)
+      const body = await cloudCall(
+        client.memories.edit.mutate({
+          ...this.address(args),
+          old: args.old,
+          new: args.new,
+          revision: args.revision,
+        }),
+      )
+      return this.parseSummary({ body, procedure: 'memories.edit' })
     } catch (error) {
       if (!isEditRefusal(error)) throw error
       throw new MemoryEditRefused({ code: error.code, message: error.message })
@@ -112,9 +112,9 @@ export class CloudMemoryPort extends MemoryPort {
   }
 
   async delete(args: MemoryAddress): Promise<boolean> {
-    const path = `${ENTRY_PATH}?${this.addressQuery(args)}`
+    const client = this.client()
     try {
-      await this.transport().request({ method: 'DELETE', path, retry: false })
+      await cloudCall(client.memories.remove.mutate(this.address(args)))
       return true
     } catch (error) {
       if (error instanceof CloudError && error.status === 404) return false
@@ -122,14 +122,23 @@ export class CloudMemoryPort extends MemoryPort {
     }
   }
 
-  private transport(): CloudTransport {
+  private client(args?: { timeoutMs?: number | undefined }): ApiClient {
     const session = this.session()
     if (session === null) throw new MemoryUnavailable(SIGNED_OUT)
-    return new CloudTransport({
+    const fetchFn = this.fetchFn ?? fetch
+    if (args?.timeoutMs !== undefined) {
+      return createApiClient({
+        baseUrl: session.url,
+        token: session.token,
+        clientVersion: this.clientVersion,
+        fetchFn: singleAttempt({ fetchFn, timeoutMs: args.timeoutMs }),
+      })
+    }
+    return createHarnessApiClient({
       url: session.url,
       token: session.token,
       clientVersion: this.clientVersion,
-      fetchFn: this.fetchFn,
+      fetchFn,
     })
   }
 
@@ -139,27 +148,14 @@ export class CloudMemoryPort extends MemoryPort {
     return this.project
   }
 
-  private addressQuery(args: MemoryAddress): string {
-    const project = this.projectFor(args.scope)
-    return new URLSearchParams({
-      scope: args.scope,
-      name: args.name,
-      ...(project === undefined ? {} : { project }),
-    }).toString()
-  }
-
-  private addressBody(args: MemoryAddress): {
-    scope: EMemoryScope
-    name: string
-    project?: string
-  } {
+  private address(args: MemoryAddress): Address {
     const project = this.projectFor(args.scope)
     return { scope: args.scope, name: args.name, ...(project === undefined ? {} : { project }) }
   }
 
-  private parseSummary(body: unknown): MemorySummary {
-    const parsed = memorySummarySchema.safeParse(body)
-    if (!parsed.success) throw malformed(ENTRY_PATH)
+  private parseSummary(args: { body: unknown; procedure: string }): MemorySummary {
+    const parsed = memorySummarySchema.safeParse(args.body)
+    if (!parsed.success) throw malformed(args.procedure)
     return parsed.data
   }
 }

@@ -16,6 +16,7 @@ import {
   ATLAS_SECRETS_NAME,
   cipherSecretBox,
   CloudError,
+  cloudCall,
   cloudRequest,
   decodeSettingValue,
   fileVaultBackend,
@@ -24,9 +25,9 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
+import type { ApiClient } from '@dltech/atlas-api-router'
 import { accountLeaseSchema } from '@dltech/atlas-wire'
 import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
-import { z } from 'zod'
 
 import {
   cloudConfigPathFor,
@@ -34,6 +35,7 @@ import {
   mergeCloudMcpServers,
   type CloudConfig,
 } from './cloud-config'
+import { createApiClient } from './api-client'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -43,13 +45,6 @@ const DEFAULT_RETRY_BUDGET_MS = 60_000
 const REQUEST_TIMEOUT_MS = 10_000
 const MAX_ATTEMPTS = 30
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
-
-const settingsResponseSchema = z.object({
-  settings: z.array(z.object({ key: z.string(), value: z.string() })),
-})
-const secretsResponseSchema = z.object({
-  secrets: z.array(z.object({ name: z.string(), value: z.string() })),
-})
 
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -157,10 +152,10 @@ export const applyCloudState = async (args: {
       timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
     })
 
-  const requestPatiently = async (path: string, allowMissing = false): Promise<unknown> => {
+  const patiently = async <T>(attemptOnce: () => Promise<T>): Promise<T> => {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        return await request(path, allowMissing)
+        return await attemptOnce()
       } catch (error) {
         const registering = error instanceof CloudError && error.status === UNAUTHORIZED
         if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
@@ -169,10 +164,32 @@ export const applyCloudState = async (args: {
     }
   }
 
+  const requestPatiently = (path: string, allowMissing = false): Promise<unknown> =>
+    patiently(() => request(path, allowMissing))
+
+  const deadlineFetch: typeof fetch = Object.assign(
+    (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+      args.fetchFn(input, {
+        ...init,
+        signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs())),
+      }),
+    { preconnect: fetch.preconnect },
+  )
+
+  const api = createApiClient({
+    controlPlaneUrl: url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: deadlineFetch,
+  })
+
+  const trpcPatiently = <T>(call: (client: ApiClient) => Promise<T>): Promise<T> =>
+    patiently(() => cloudCall(call(api)))
+
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
-      requestPatiently('/v1/settings').then((body) => settingsResponseSchema.parse(body)),
-      requestPatiently('/v1/secrets').then((body) => secretsResponseSchema.parse(body)),
+      trpcPatiently((client) => client.settings.list.query()),
+      trpcPatiently((client) => client.secrets.list.query()),
     ])
     return {
       settings: settings.settings,

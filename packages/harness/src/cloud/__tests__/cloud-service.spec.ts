@@ -18,6 +18,7 @@ import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcCallOf, trpcData, trpcVoid } from './trpc-wire'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -136,47 +137,46 @@ const cloudFake = (): CloudFake => {
       if (held === undefined) return reply(404, { message: 'no such account' })
       return reply(200, held)
     }
-    if (path === '/v1/secrets' && method === 'GET')
-      return reply(200, { secrets: fake.remoteSecrets })
-    if (path.startsWith('/v1/secrets/') && method === 'PUT') {
-      const name = path.slice('/v1/secrets/'.length)
-      fake.putSecrets.push({ name, value: body?.['value'] })
+    const trpc = trpcCallOf({ input, init })
+    const args = trpc.input as Record<string, unknown> | undefined
+    if (trpc.procedure === 'secrets.list') return trpcData({ secrets: fake.remoteSecrets })
+    if (trpc.procedure === 'secrets.set') {
+      const name = String(args?.['name'])
+      fake.putSecrets.push({ name, value: args?.['value'] })
       fake.remoteSecrets.push({
         name,
-        value: String(body?.['value']),
+        value: String(args?.['value']),
         updatedAt: '2026-01-01T00:00:00.000Z',
       })
-      return reply(204)
+      return trpcVoid()
     }
-    if (path === '/v1/settings' && method === 'GET')
-      return reply(200, { settings: fake.remoteSettings })
-    if (path.startsWith('/v1/settings/') && method === 'PUT') {
-      const key = path.slice('/v1/settings/'.length)
-      fake.putSettings.push({ key, value: body?.['value'] })
+    if (trpc.procedure === 'settings.list') return trpcData({ settings: fake.remoteSettings })
+    if (trpc.procedure === 'settings.set') {
+      const key = String(args?.['key'])
+      fake.putSettings.push({ key, value: args?.['value'] })
       const held = fake.remoteSettings.find((setting) => setting.key === key)
       if (held === undefined) {
         fake.remoteSettings.push({
           key,
-          value: String(body?.['value']),
+          value: String(args?.['value']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         })
       } else {
-        held.value = String(body?.['value'])
+        held.value = String(args?.['value'])
       }
-      return reply(204)
+      return trpcVoid()
     }
-    if (path.startsWith('/v1/settings/') && method === 'DELETE') {
-      const key = path.slice('/v1/settings/'.length)
+    if (trpc.procedure === 'settings.remove') {
+      const key = String(args?.['key'])
       fake.remoteSettings = fake.remoteSettings.filter((setting) => setting.key !== key)
-      return reply(204)
+      return trpcVoid()
     }
-    if (path === '/v1/mcp-servers' && method === 'GET')
-      return reply(200, { servers: fake.remoteMcp })
-    if (path.startsWith('/v1/mcp-servers/') && method === 'PUT') {
-      const name = path.slice('/v1/mcp-servers/'.length)
-      fake.putMcp.push({ name, body: body ?? {} })
-      fake.remoteMcp.push({ name, ...(body ?? {}), updatedAt: '2026-01-01T00:00:00.000Z' })
-      return reply(204)
+    if (trpc.procedure === 'mcpServers.list') return trpcData({ servers: fake.remoteMcp })
+    if (trpc.procedure === 'mcpServers.put') {
+      const { name, ...rest } = args ?? {}
+      fake.putMcp.push({ name: String(name), body: rest })
+      fake.remoteMcp.push({ name: String(name), ...rest, updatedAt: '2026-01-01T00:00:00.000Z' })
+      return trpcVoid()
     }
 
     return reply(404, { message: `unhandled ${method} ${path}` })
@@ -565,7 +565,7 @@ describe('CloudService explicit sync', () => {
       value: 'atlas-setting:v1:"img-9"',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })
-    fake.failOn.push('GET /v1/settings')
+    fake.failOn.push('GET /v1/trpc/settings.list')
     const service = serviceWithSettings(fake.fetchFn)
     const seeded = await seedLocal()
     localSecrets.write({ name: 'local.key', value: 'local-1' })

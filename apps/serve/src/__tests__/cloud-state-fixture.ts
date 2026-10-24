@@ -1,5 +1,7 @@
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
+import { trpcOk } from './trpc-fake'
+
 export const SERVE_TOKEN = 'serve-token-fake'
 
 export const apiKeyAccount = (args: {
@@ -68,8 +70,8 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
       if (path === '/v1/account-lease') return Response.json(state.lease)
       if (path === '/v1/sandboxes/self/config' && state.config !== undefined)
         return Response.json(state.config)
-      if (path === '/v1/settings') return Response.json({ settings: state.settings })
-      if (path === '/v1/secrets') return Response.json({ secrets: state.secrets })
+      if (path === '/v1/trpc/settings.list') return trpcOk({ settings: state.settings })
+      if (path === '/v1/trpc/secrets.list') return trpcOk({ secrets: state.secrets })
       return new Response('not found', { status: 404 })
     },
   })

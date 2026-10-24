@@ -11,6 +11,7 @@ import { CloudSessionStore } from '../cloud-session'
 import { CloudSettingsStore } from '../cloud-settings-store'
 import { CloudUserSettingsStore } from '../cloud-user-settings-store'
 import { encodeSettingValue } from '../sync-settings'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const URL = 'http://cloud.test'
 const clock: ClockPort = { now: () => new Date(0).toISOString() }
@@ -21,7 +22,7 @@ let sessions: CloudSessionStore
 let remote: Map<string, string>
 let failPuts: boolean
 let calls: string[]
-let puts: { path: string; authorization: string | null }[]
+let puts: { key: string; authorization: string | null }[]
 let gate: Promise<void> | undefined
 let posts: NoticePost[]
 let changes: number
@@ -30,39 +31,33 @@ let cloud: CloudSettingsStore
 let store: CloudUserSettingsStore
 
 const fetchFn = (async (input: unknown, init?: RequestInit) => {
-  const path = String(input).slice(URL.length)
-  const method = init?.method ?? 'GET'
-  calls.push(`${method} ${path}`)
-  const reply = (args: { status: number; payload?: unknown }) =>
-    new Response(args.payload === undefined ? null : JSON.stringify(args.payload), {
-      status: args.status,
-      headers: { 'content-type': 'application/json' },
-    })
-  if (path === '/v1/settings' && method === 'GET') {
-    return reply({
-      status: 200,
-      payload: {
-        settings: [...remote].map(([key, value]) => ({
-          key,
-          value,
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        })),
-      },
+  const call = trpcCallOf({ input, init })
+  const body = call.input as { key?: string; value?: string } | undefined
+  calls.push(`${call.method} ${call.path}`)
+  if (call.procedure === 'settings.list') {
+    return trpcData({
+      settings: [...remote].map(([key, value]) => ({
+        key,
+        value,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      })),
     })
   }
-  if (path.startsWith('/v1/settings/') && method === 'PUT') {
-    puts.push({ path, authorization: new Headers(init?.headers).get('authorization') })
+  if (call.procedure === 'settings.set') {
+    puts.push({
+      key: String(body?.key),
+      authorization: new Headers(init?.headers).get('authorization'),
+    })
     if (gate !== undefined) await gate
-    if (failPuts) return reply({ status: 500, payload: { message: 'boom' } })
-    const body = JSON.parse(String(init?.body)) as { value: string }
-    remote.set(path.slice('/v1/settings/'.length), body.value)
-    return reply({ status: 204 })
+    if (failPuts) return trpcFailure({ status: 500, message: 'boom' })
+    remote.set(String(body?.key), String(body?.value))
+    return trpcVoid()
   }
-  if (path.startsWith('/v1/settings/') && method === 'DELETE') {
-    remote.delete(path.slice('/v1/settings/'.length))
-    return reply({ status: 204 })
+  if (call.procedure === 'settings.remove') {
+    remote.delete(String(body?.key))
+    return trpcVoid()
   }
-  return reply({ status: 404, payload: {} })
+  return trpcFailure({ status: 404, message: 'unhandled' })
 }) as typeof fetch
 
 beforeEach(() => {
@@ -139,9 +134,7 @@ describe('CloudUserSettingsStore signed in', () => {
     await settled()
 
     expect(local.document().values).toEqual({ 'appearance.accent': 'moss' })
-    expect(calls.filter((call) => call.startsWith('PUT'))).toEqual([
-      'PUT /v1/settings/transcript.thinkingBlocks',
-    ])
+    expect(puts.map((put) => put.key)).toEqual(['transcript.thinkingBlocks'])
     expect(remote.get('transcript.thinkingBlocks')).toBe(encodeSettingValue('hidden'))
   })
 
@@ -164,8 +157,8 @@ describe('CloudUserSettingsStore signed in', () => {
     store.write({ values: { 'transcript.smoothStreaming': false } })
     await settled()
 
-    expect(calls.filter((call) => call !== 'GET /v1/settings')).toEqual([
-      'DELETE /v1/settings/transcript.thinkingBlocks',
+    expect(calls.filter((call) => call !== 'GET /v1/trpc/settings.list')).toEqual([
+      'POST /v1/trpc/settings.remove',
     ])
     expect(remote.has('transcript.thinkingBlocks')).toBe(false)
   })
@@ -183,7 +176,7 @@ describe('CloudUserSettingsStore signed in', () => {
     })
     await settled()
 
-    expect(calls.filter((call) => call.startsWith('DELETE'))).toEqual([])
+    expect(calls.filter((call) => call.endsWith('settings.remove'))).toEqual([])
     expect(remote.get('transcript.smoothStreaming')).toBe(encodeSettingValue(false))
   })
 
@@ -196,7 +189,7 @@ describe('CloudUserSettingsStore signed in', () => {
     store.write({ values: {} })
     await settled()
 
-    expect(calls.filter((call) => call.startsWith('DELETE'))).toEqual([])
+    expect(calls.filter((call) => call.endsWith('settings.remove'))).toEqual([])
   })
 
   it('surfaces a failed cloud write as a notice and republishes so the dropped value disappears', async () => {
@@ -245,7 +238,7 @@ describe('CloudUserSettingsStore signed in', () => {
     release()
     await settled()
 
-    expect(puts.map((put) => put.path)).toEqual(['/v1/settings/transcript.smoothStreaming'])
+    expect(puts.map((put) => put.key)).toEqual(['transcript.smoothStreaming'])
     expect(puts.every((put) => put.authorization === 'Bearer sess')).toBe(true)
     expect(remote.has('transcript.thinkingBlocks')).toBe(false)
   })

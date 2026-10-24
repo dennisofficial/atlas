@@ -68,8 +68,10 @@ describeLive('a multi-turn session in a local pod', () => {
         fetch: (request) => {
           const path = new URL(request.url).pathname
           if (path === '/v1/account-lease') return Response.json(OPENROUTER_LEASE)
-          if (path === '/v1/settings') return Response.json({ settings: [] })
-          if (path === '/v1/secrets') return Response.json({ secrets: [] })
+          if (path === '/v1/trpc/settings.list')
+            return Response.json({ result: { data: { settings: [] } } })
+          if (path === '/v1/trpc/secrets.list')
+            return Response.json({ result: { data: { secrets: [] } } })
           return new Response(null, { status: 204 })
         },
       })
