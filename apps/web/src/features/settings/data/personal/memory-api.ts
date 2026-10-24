@@ -1,12 +1,6 @@
-import {
-  EMemoryScope,
-  memoryEntrySchema,
-  memoryListSchema,
-  memorySummarySchema,
-  type MemorySummary,
-} from '@dltech/atlas-wire/web'
+import { EMemoryScope, type MemorySummary } from '@dltech/atlas-wire/web'
 
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import {
   MEMORY_GLOBAL_GROUP_ID,
@@ -18,11 +12,11 @@ export type MemoryKey = { scope: EMemoryScope; project: string | null; name: str
 
 export type MemoryDraft = MemoryKey & Pick<MemoryEntry, 'description' | 'type' | 'body'>
 
-export function memoryQuery(key: MemoryKey): string {
-  const params = new URLSearchParams({ scope: key.scope, name: key.name })
-  if (key.project !== null) params.set('project', key.project)
-  return params.toString()
-}
+export const memoryKeyInput = (key: MemoryKey) => ({
+  scope: key.scope,
+  name: key.name,
+  ...(key.project === null ? {} : { project: key.project }),
+})
 
 export function summaryToEntry(summary: MemorySummary): MemoryEntry {
   return {
@@ -61,38 +55,25 @@ export function buildGroups(memories: readonly MemorySummary[]): MemoryScopeGrou
 }
 
 export async function fetchMemoryGroups(): Promise<MemoryScopeGroup[]> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: '/v1/memories/all',
-    schema: memoryListSchema,
-  })
+  const body = await cloudCall(api.memories.listAll.query())
   return buildGroups(body.memories)
 }
 
 export function fetchMemoryEntry(key: MemoryKey): Promise<MemoryEntry> {
-  return cloudJson({
-    method: EHttpMethod.Get,
-    path: `/v1/memories/entry?${memoryQuery(key)}`,
-    schema: memoryEntrySchema,
-  })
+  return cloudCall(api.memories.get.query(memoryKeyInput(key)))
 }
 
 export async function putMemory(draft: MemoryDraft): Promise<void> {
-  await cloudJson({
-    method: EHttpMethod.Put,
-    path: '/v1/memories/entry',
-    body: {
-      scope: draft.scope,
-      ...(draft.project === null ? {} : { project: draft.project }),
-      name: draft.name,
+  await cloudCall(
+    api.memories.put.mutate({
+      ...memoryKeyInput(draft),
       description: draft.description,
       type: draft.type,
       body: draft.body,
-    },
-    schema: memorySummarySchema,
-  })
+    }),
+  )
 }
 
 export function deleteMemory(key: MemoryKey): Promise<void> {
-  return cloudSend({ method: EHttpMethod.Delete, path: `/v1/memories/entry?${memoryQuery(key)}` })
+  return cloudCall(api.memories.remove.mutate(memoryKeyInput(key)))
 }
