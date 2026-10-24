@@ -1,10 +1,7 @@
-import {
-  podConnectReplySchema,
-  threadPodConnectPath,
-  type PodConnectReply,
-} from '@dltech/atlas-wire/web'
+import type { PodConnectReply } from '@dltech/atlas-wire/web'
 
-import { cloudJson, CloudApiError, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
+import { CloudApiError } from '@/lib/cloud-api'
 
 const CONFLICT = 409
 const POD_NOT_RUNNING = 'pod-not-running'
@@ -20,12 +17,7 @@ export type PodConnectResult =
 
 export async function connectPod(threadId: string): Promise<PodConnectResult> {
   try {
-    const ticket = await cloudJson({
-      method: EHttpMethod.Post,
-      path: threadPodConnectPath(threadId),
-      body: {},
-      schema: podConnectReplySchema,
-    })
+    const ticket = await cloudCall(api.threadPod.connect.mutate({ threadId }))
     return { outcome: EPodConnectOutcome.Ready, ticket }
   } catch (failure) {
     if (

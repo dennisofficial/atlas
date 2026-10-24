@@ -1,13 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { podConnectReplySchema, threadPodConnectPath, threadPodPath } from '../web'
+import { podConnectReplySchema } from '../web'
 
 describe('pod connect wire', () => {
-  it('extends the pod path with /connect', () => {
-    expect(threadPodConnectPath('thr 1')).toBe(`${threadPodPath('thr 1')}/connect`)
-    expect(threadPodConnectPath('thr-1')).toBe('/v1/threads/thr-1/pod/connect')
-  })
-
   it('parses a url, a non-empty token and an ISO expiry', () => {
     const reply = {
       url: 'https://serve.example.test',

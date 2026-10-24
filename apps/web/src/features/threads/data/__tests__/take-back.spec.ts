@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { BOOT_STEP_EVENT_TYPE, EPodState, type WireEvent } from '@dltech/atlas-wire/web'
+
+import { fakeFetch, mutationUrl, trpcFailure, trpcOk } from './trpc-fake'
 
 import {
   awaitingRunOf,
@@ -114,39 +116,30 @@ describe('restoredDraftOf', () => {
 
 describe('takeBack', () => {
   const realFetch = globalThis.fetch
-  let status: number
-  let calls: { url: string; method: string | undefined }[]
-
-  beforeEach(() => {
-    calls = []
-    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      calls.push({ url: String(input), method: init?.method })
-      return status === 204
-        ? new Response(null, { status })
-        : new Response(JSON.stringify({ message: 'nope' }), {
-            status,
-            headers: { 'content-type': 'application/json' },
-          })
-    }) as typeof fetch
-  })
 
   afterEach(() => {
     globalThis.fetch = realFetch
   })
 
-  it('reports taken back on 204 and calls DELETE on the message', async () => {
-    status = 204
+  it('reports taken back on success and mutates threadMessages.takeBack', async () => {
+    const calls = fakeFetch(() => trpcOk(undefined))
     expect(await takeBack({ threadId: 't 1', sendId: 's/1' })).toBe(ETakeBackOutcome.TakenBack)
-    expect(calls).toEqual([{ url: '/v1/threads/t%201/messages/s%2F1', method: 'DELETE' }])
+    expect(calls).toEqual([
+      {
+        url: mutationUrl('threadMessages.takeBack'),
+        method: 'POST',
+        body: { threadId: 't 1', sendId: 's/1' },
+      },
+    ])
   })
 
   it('reports too late on 409 without throwing', async () => {
-    status = 409
+    fakeFetch(() => trpcFailure({ status: 409, message: 'nope' }))
     expect(await takeBack({ threadId: 't1', sendId: 's1' })).toBe(ETakeBackOutcome.TooLate)
   })
 
   it('rethrows any other failure', async () => {
-    status = 500
+    fakeFetch(() => trpcFailure({ status: 500, message: 'nope' }))
     await expect(takeBack({ threadId: 't1', sendId: 's1' })).rejects.toThrow()
   })
 })

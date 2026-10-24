@@ -1,19 +1,9 @@
 import { z } from 'zod'
 
-import {
-  createThreadReplySchema,
-  podStatusSchema,
-  sandboxProvisionPath,
-  sandboxProvisionReplySchema,
-  threadMessagePath,
-  threadMessageReplySchema,
-  threadMessageTakeBackPath,
-  threadPodPath,
-  wireEventSchema,
-  wireThreadSchema,
-} from '@dltech/atlas-wire/web'
+import { createThreadReplySchema, wireEventSchema, wireThreadSchema } from '@dltech/atlas-wire/web'
 import { projectSchema } from '@dltech/atlas-wire/web'
 
+import { api, cloudCall } from '@/lib/api-client'
 import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
 
 import type { CreateThreadBody } from './create-thread'
@@ -44,26 +34,15 @@ export const fetchThread = (threadId: string) =>
   cloudJson({ method: EHttpMethod.Get, path: threadPath(threadId), schema: wireThreadSchema })
 
 export const provisionSandbox = (args: { threadId: string }) =>
-  cloudJson({
-    method: EHttpMethod.Post,
-    path: sandboxProvisionPath(args.threadId),
-    body: {},
-    schema: sandboxProvisionReplySchema,
-  })
+  cloudCall(api.threadSandbox.provision.mutate({ threadId: args.threadId }))
 
-export const fetchPod = (threadId: string) =>
-  cloudJson({ method: EHttpMethod.Get, path: threadPodPath(threadId), schema: podStatusSchema })
+export const fetchPod = (threadId: string) => cloudCall(api.threadPod.status.query({ threadId }))
 
 export const takeBackMessage = (args: { threadId: string; sendId: string }) =>
-  cloudSend({ method: EHttpMethod.Delete, path: threadMessageTakeBackPath(args) })
+  cloudCall(api.threadMessages.takeBack.mutate(args))
 
 export const postMessage = (args: { threadId: string; sendId: string; text: string }) =>
-  cloudJson({
-    method: EHttpMethod.Post,
-    path: threadMessagePath(args.threadId),
-    body: { sendId: args.sendId, text: args.text },
-    schema: threadMessageReplySchema,
-  })
+  cloudCall(api.threadMessages.send.mutate(args))
 
 export const fetchHead = (threadId: string) =>
   cloudJson({

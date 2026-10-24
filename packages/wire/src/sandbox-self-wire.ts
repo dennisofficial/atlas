@@ -19,9 +19,6 @@ export const sandboxProvisionReplySchema = z.object({
 })
 export type SandboxProvisionReply = z.infer<typeof sandboxProvisionReplySchema>
 
-export const sandboxProvisionPath = (threadId: string): string =>
-  `/v1/threads/${encodeURIComponent(threadId)}/sandbox`
-
 export const sandboxExposePortRequestSchema = z.object({
   port: z.number().int().min(1).max(65_535),
 })
