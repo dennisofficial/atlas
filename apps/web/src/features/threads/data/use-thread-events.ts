@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { usePageVisible } from '@/lib/use-page-visible'
+
 import { createEventsPoller, INITIAL_THREAD_EVENTS, type ThreadEvents } from './events-poller'
 import { fetchEvents, fetchHead } from './threads-api'
 
@@ -7,9 +9,11 @@ export type { ThreadEvents } from './events-poller'
 
 export function useThreadEvents(threadId: string, enabled = true): ThreadEvents {
   const [state, setState] = useState(INITIAL_THREAD_EVENTS)
+  const visible = usePageVisible()
+  const polling = enabled && visible
 
   useEffect(() => {
-    if (!enabled) return undefined
+    if (!polling) return undefined
     const poller = createEventsPoller({
       threadId,
       fetchHead,
@@ -18,7 +22,7 @@ export function useThreadEvents(threadId: string, enabled = true): ThreadEvents 
     })
     poller.start()
     return poller.stop
-  }, [threadId, enabled])
+  }, [threadId, polling])
 
   return state
 }

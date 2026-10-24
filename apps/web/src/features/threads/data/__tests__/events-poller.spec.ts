@@ -73,6 +73,25 @@ describe('createEventsPoller', () => {
     expect(test.calls).toEqual({ head: 3, events: 2 })
   })
 
+  it('backs off while the head stays put and snaps back when it moves', async () => {
+    const test = rig()
+    test.poller().start()
+    await flush()
+    const delays = () => test.tasks.map((task) => task.delayMs)
+    expect(delays()).toEqual([1000])
+
+    for (let tick = 0; tick < 4; tick += 1) {
+      test.tasks.at(-1)?.run()
+      await flush()
+    }
+    expect(delays()).toEqual([1000, 2000, 4000, 5000, 5000])
+
+    test.setHead(2)
+    test.tasks.at(-1)?.run()
+    await flush()
+    expect(delays().at(-1)).toBe(1000)
+  })
+
   it('stops fetching after stop, even for an already scheduled tick', async () => {
     const test = rig()
     const poller = test.poller()
