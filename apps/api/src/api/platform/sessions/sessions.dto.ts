@@ -2,6 +2,7 @@ import { Type } from 'class-transformer'
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsISO8601,
@@ -172,6 +173,11 @@ export class ReplaceEventsDto {
 export class RenameThreadDto {
   @IsString()
   title!: string
+}
+
+export class ArchiveThreadDto {
+  @IsBoolean()
+  archived!: boolean
 }
 
 export class ChooseModelDto {

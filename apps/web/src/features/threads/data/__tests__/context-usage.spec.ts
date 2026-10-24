@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import type { ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 import { contextUsageOf } from '../context-usage'
-import { AUTO_MODEL_ID } from '../model-options'
 
 const models: ModelOption[] = [
   { id: 'anthropic/opus', label: 'Opus', contextTokens: 200_000 },
@@ -33,8 +32,8 @@ describe('contextUsageOf', () => {
     expect(usage).toEqual({ used: 0, limit: 200_000 })
   })
 
-  it('hides the meter for auto, unknown, missing, or zero windows', () => {
-    for (const selectedId of [AUTO_MODEL_ID, 'local/mystery', 'local/zero', 'nope']) {
+  it('hides the meter for unknown, missing, or zero windows', () => {
+    for (const selectedId of ['local/mystery', 'local/zero', 'nope']) {
       expect(contextUsageOf({ reported: null, events: [], selectedId, models })).toBeNull()
     }
   })

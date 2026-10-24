@@ -88,3 +88,10 @@ export const patchThreadModel = (args: {
     path: `${threadPath(args.threadId)}/model`,
     body: args.model,
   })
+
+export const setThreadArchived = (args: { threadId: string; archived: boolean }) =>
+  cloudSend({
+    method: EHttpMethod.Patch,
+    path: `${threadPath(args.threadId)}/archived`,
+    body: { archived: args.archived },
+  })

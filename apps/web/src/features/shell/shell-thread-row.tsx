@@ -1,4 +1,4 @@
-import { ExternalLink, Pin } from 'lucide-react'
+import { Archive, ArchiveRestore, ExternalLink, Pin } from 'lucide-react'
 import Link from 'next/link'
 
 import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
@@ -9,6 +9,7 @@ import { UNTITLED } from '@/features/threads/data/untitled'
 
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
+import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
 import { linkedPullRequestOf, threadStatusOf } from './thread-status'
 
@@ -20,7 +21,10 @@ export interface ThreadRowProps {
 
 export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
   const pullRequest = linkedPullRequestOf(thread)
+  const { onToggleArchive } = useThreadActions()
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
+  const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
+  const handleArchive = () => onToggleArchive(thread)
   return (
     <SidebarMenuItem>
       <ThreadHoverCard
@@ -44,16 +48,22 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           <Pin
             role="img"
             aria-label="Pinned"
-            className="mr-2 size-3 shrink-0 text-muted-foreground"
+            className="mr-2 size-3 shrink-0 text-muted-foreground group-hover/thread:hidden group-data-popup-open/thread:hidden"
           />
         ) : null}
-        {pullRequest === undefined ? null : (
-          <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
+        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
+          <RowAction
+            label={archived ? 'Unarchive thread' : 'Archive thread'}
+            onClick={handleArchive}
+          >
+            {archived ? <ArchiveRestore /> : <Archive />}
+          </RowAction>
+          {pullRequest === undefined ? null : (
             <RowAction label="Open pull request on GitHub" href={pullRequest.url} external>
               <ExternalLink />
             </RowAction>
-          </div>
-        )}
+          )}
+        </div>
       </ThreadHoverCard>
     </SidebarMenuItem>
   )

@@ -4,6 +4,7 @@ import type { ThreadLauncher } from '../../../_core/ports/thread-launcher'
 import type { AuthenticatedRequest } from '../../../_core/types/auth.types'
 import type { SandboxesService } from '../sandboxes/sandboxes.service'
 import { ThreadsController } from './threads.controller'
+import type { ThreadArchiveService } from './thread-archive.service'
 import type { ThreadsHistoryService } from './threads-history.service'
 import type { ThreadsService } from './threads.service'
 
@@ -12,13 +13,15 @@ const setup = () => {
   const list = vi.fn(async () => [])
   const launch = vi.fn(async () => ({ thread: { id: 'brn_1' }, provision: { state: 'booting' } }))
   const assertThreadInFamily = vi.fn(async () => undefined)
+  const setArchived = vi.fn(async () => undefined)
   const controller = new ThreadsController(
     { create, list } as unknown as ThreadsService,
     {} as ThreadsHistoryService,
     { assertThreadInFamily } as unknown as SandboxesService,
     { launch } as unknown as ThreadLauncher,
+    { setArchived } as unknown as ThreadArchiveService,
   )
-  return { controller, create, list, launch, assertThreadInFamily }
+  return { controller, create, list, launch, assertThreadInFamily, setArchived }
 }
 
 const request = (extra: Partial<AuthenticatedRequest> = {}) =>
@@ -89,5 +92,19 @@ describe('ThreadsController.handleList', () => {
       BadRequestException,
     )
     expect(list).not.toHaveBeenCalled()
+  })
+})
+
+describe('ThreadsController.handleArchive', () => {
+  it('forwards the user, thread and archived flag', async () => {
+    const { controller, setArchived } = setup()
+
+    await controller.handleArchive(request(), 'thr-1', { archived: true })
+
+    expect(setArchived).toHaveBeenCalledWith({
+      userId: 'usr-1',
+      threadId: 'thr-1',
+      archived: true,
+    })
   })
 })

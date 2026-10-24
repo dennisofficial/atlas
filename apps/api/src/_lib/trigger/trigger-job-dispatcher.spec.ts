@@ -7,6 +7,8 @@ const trigger = vi.fn()
 const constructed: unknown[] = []
 
 mock.module('@trigger.dev/sdk', () => ({
+  schemaTask: <T>(definition: T): T => definition,
+  schedules: { task: <T>(definition: T): T => definition },
   TriggerClient: class {
     readonly tasks = { trigger }
     constructor(config: unknown) {

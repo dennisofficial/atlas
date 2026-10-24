@@ -1,8 +1,6 @@
 import { contextTokens, type Event, type ModelUsage } from '@dltech/atlas-core'
 import type { ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
-import { AUTO_MODEL_ID } from './model-options'
-
 export type ContextUsage = { used: number; limit: number }
 
 export function contextUsageOf(args: {
@@ -11,7 +9,6 @@ export function contextUsageOf(args: {
   selectedId: string
   models: readonly ModelOption[]
 }): ContextUsage | null {
-  if (args.selectedId === AUTO_MODEL_ID) return null
   const limit = args.models.find((model) => model.id === args.selectedId)?.contextTokens
   if (limit === undefined || limit <= 0) return null
   return {

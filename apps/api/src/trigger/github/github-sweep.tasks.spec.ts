@@ -1,7 +1,11 @@
 import { describe, expect, it, mock } from 'bun:test'
 
 mock.module('@trigger.dev/sdk', () => ({
+  schemaTask: <T>(definition: T): T => definition,
   schedules: { task: <T>(definition: T): T => definition },
+  TriggerClient: class {
+    readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
+  },
 }))
 
 const { githubHookSweepTask } = await import('./github-hook-sweep.task')

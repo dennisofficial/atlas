@@ -36,6 +36,7 @@ export interface AppThread {
   removed: number
   changed: number
   model: string
+  archived?: boolean
 }
 
 export interface ProjectCommit {
@@ -49,7 +50,6 @@ export interface ProjectCommit {
 
 export interface ThreadBuckets {
   inactive: number
-  archived: number
 }
 
 export const USER: AppUser = {
@@ -207,7 +207,7 @@ export const THREADS: AppThread[] = [
   },
 ]
 
-export const BUCKETS: ThreadBuckets = { inactive: 12, archived: 38 }
+export const BUCKETS: ThreadBuckets = { inactive: 12 }
 
 export const RECENT_COMMITS: ProjectCommit[] = [
   {

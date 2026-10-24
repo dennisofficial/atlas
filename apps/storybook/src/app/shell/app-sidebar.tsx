@@ -30,6 +30,8 @@ export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: A
           activeThreadId={activeThreadId}
           threadCardId={demo?.threadCardId}
           projectCardId={demo?.projectCardId}
+          archivedThreadIds={demo?.archivedThreadIds}
+          archivedBucketOpen={demo?.archivedBucketOpen}
           pendingThread={pendingThread}
         />
       </SidebarContent>
