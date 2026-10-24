@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { EVercelCredentialGap, SANDBOX_SELF_BOOT_STEPS_PATH } from './sandbox-self-wire'
+import { EVercelCredentialGap } from './sandbox-self-wire'
 
 export enum EBootStep {
   Provision = 'provision',
@@ -129,40 +129,6 @@ export const NOOP_BOOT_REPORTER: BootReporter = {
   track: (tracked) => tracked.work(),
 }
 
-/** Serve's strict sink: posts boot steps to the API's sandbox-token endpoint and throws when it is refused. */
-export function serveBootSink(args: {
-  controlPlaneUrl: string
-  token: string
-  clientVersion: string
-  fetchFn: typeof fetch
-}): BootStepSink {
-  const url = `${args.controlPlaneUrl.replace(/\/+$/, '')}${SANDBOX_SELF_BOOT_STEPS_PATH}`
-  return async (events) => {
-    const response = await args.fetchFn(url, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${args.token}`,
-        'content-type': 'application/json',
-        'atlas-client-version': args.clientVersion,
-      },
-      body: JSON.stringify(bootStepsPostSchema.parse({ steps: events })),
-    })
-    if (!response.ok) throw new Error(`the control plane answered ${response.status}`)
-  }
-}
-
-/** Serve's reporter: posts boot steps outside the event log, swallowing sink failures. */
-export function serveBootReporter(args: {
-  controlPlaneUrl: string
-  threadId: string
-  token: string
-  clientVersion: string
-  fetchFn: typeof fetch
-  log?: ((line: string) => void) | undefined
-}): BootReporter {
-  return createBootReporter({ log: args.log, sink: serveBootSink(args) })
-}
-
 export const recordedBootStepSchema = z.object({
   step: z.enum(EBootStep),
   state: z.enum(EBootStepState),
@@ -223,15 +189,9 @@ export const podStatusSchema = z.object({
 })
 export type PodStatus = z.infer<typeof podStatusSchema>
 
-export const threadPodPath = (threadId: string): string =>
-  `/v1/threads/${encodeURIComponent(threadId)}/pod`
-
 export const podConnectReplySchema = z.object({
   url: z.string().url(),
   token: z.string().min(1),
   expiresAt: z.iso.datetime(),
 })
 export type PodConnectReply = z.infer<typeof podConnectReplySchema>
-
-export const threadPodConnectPath = (threadId: string): string =>
-  `${threadPodPath(threadId)}/connect`

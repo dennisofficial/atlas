@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-export const SANDBOX_SELF_EVENTS_PATH = '/v1/sandboxes/self/events'
-export const SANDBOX_SELF_EVENTS_TRUNCATE_PATH = '/v1/sandboxes/self/events/truncate'
 export const MAX_POD_EVENTS_PER_FLUSH = 500
 
 export const podEventSchema = z.object({

@@ -1,19 +1,25 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import {
+  EAccountOrigin,
+  EAccountStatus,
+  EAuthKind,
+  EAuthProvider,
+  type CreateAccountInput,
+  type SecretInput,
+} from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { CreateAccountDto, SecretDto } from './accounts.dto'
 import { AccountsService } from './accounts.service'
-import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from './accounts.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
 
-function oauthSecret(accessToken: string): SecretDto {
+function oauthSecret(accessToken: string): SecretInput {
   return {
     kind: EAuthKind.Oauth,
     tokens: {
@@ -24,7 +30,7 @@ function oauthSecret(accessToken: string): SecretDto {
   }
 }
 
-function draftOf(secret: SecretDto): CreateAccountDto {
+function draftOf(secret: SecretInput): CreateAccountInput {
   return {
     provider: EAuthProvider.Anthropic,
     label: 'Claude subscription',
@@ -97,7 +103,7 @@ describe('AccountsService', () => {
     await service.setStatus({
       userId: USER_A,
       accountId: account.id,
-      status: { status: EAccountStatus.Expired },
+      status: EAccountStatus.Expired,
     })
     const sealedBefore = (await accounts())[0]?.sealedSecret
 

@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common'
-import { PodLeasesController } from './pod-leases.controller'
+import { PodLeasesRouter } from './pod-leases.router'
 import { PodLeasesService } from './pod-leases.service'
 
 @Module({
-  controllers: [PodLeasesController],
-  providers: [PodLeasesService],
+  providers: [PodLeasesService, PodLeasesRouter],
 })
 export class PodLeasesModule {}

@@ -1,15 +1,24 @@
 import { Module } from '@nestjs/common'
-import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
-import { SandboxSelfController } from './sandbox-self.controller'
+import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
+import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxEndpointService } from './sandbox-endpoint'
-import { SandboxTokenGuard } from './sandbox-token.guard'
-import { SandboxesController } from './sandboxes.controller'
+import { SandboxThreadTokenMiddleware } from './sandbox-thread-token.middleware'
+import { SandboxTokenMiddleware } from './sandbox-token.middleware'
+import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 @Module({
-  controllers: [SandboxCheckpointController, SandboxSelfController, SandboxesController],
-  providers: [SandboxesService, SandboxEndpointService, SandboxTokenGuard, VercelSandboxClient],
-  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient, SandboxTokenGuard],
+  providers: [
+    SandboxesService,
+    SandboxEndpointService,
+    SandboxTokenMiddleware,
+    SandboxThreadTokenMiddleware,
+    SandboxSelfRouter,
+    SandboxesRouter,
+    SandboxCheckpointRouter,
+    VercelSandboxClient,
+  ],
+  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient],
 })
 export class SandboxesModule {}

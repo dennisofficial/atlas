@@ -147,6 +147,8 @@ const summaryOf = ({ body: _body, ...summary }: StoredMemory) => summary
 
 type WriteBody = Omit<StoredMemory, 'revision' | 'updatedAt' | 'project'> & { project?: string }
 
+const trpcData = (data: unknown): Response => Response.json({ result: { data } })
+
 export type FakeMemoryApi = {
   hostUrl: string
   podUrl: string
@@ -166,16 +168,20 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
     hostname: '0.0.0.0',
     fetch: async (request) => {
       const url = new URL(request.url)
-      if (url.pathname.startsWith('/v1/pod-leases/')) return new Response(null, { status: 204 })
-      if (url.pathname === '/v1/account-lease') return Response.json(OPENROUTER_LEASE)
-      if (url.pathname === '/v1/settings') return Response.json({ settings: [] })
-      if (url.pathname === '/v1/secrets') return Response.json({ secrets: [] })
+      if (url.pathname === '/v1/trpc/podLeases.register') {
+        return Response.json({ result: { data: null } })
+      }
+      if (url.pathname === '/v1/trpc/accountLease.get') {
+        return Response.json({ result: { data: OPENROUTER_LEASE } })
+      }
+      if (url.pathname === '/v1/trpc/settings.list') return trpcData({ settings: [] })
+      if (url.pathname === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
       const bearer = request.headers.get('authorization')
       if (bearer !== null) bearers.add(bearer)
-      if (url.pathname === '/v1/memories' && request.method === 'GET') {
-        return Response.json({ memories: [...memories.values()].map(summaryOf) })
+      if (url.pathname === '/v1/trpc/memories.list' && request.method === 'GET') {
+        return trpcData({ memories: [...memories.values()].map(summaryOf) })
       }
-      if (url.pathname === '/v1/memories/entry' && request.method === 'PUT') {
+      if (url.pathname === '/v1/trpc/memories.put' && request.method === 'POST') {
         const body = (await request.json()) as WriteBody
         const project = body.project ?? null
         const held = memories.get(keyOf({ ...body, project }))
@@ -186,7 +192,7 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
           updatedAt: new Date().toISOString(),
         }
         memories.set(keyOf(stored), stored)
-        return Response.json(summaryOf(stored))
+        return trpcData(summaryOf(stored))
       }
       return new Response('not found', { status: 404 })
     },

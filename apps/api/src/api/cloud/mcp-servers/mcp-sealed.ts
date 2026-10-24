@@ -1,12 +1,11 @@
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { UpsertMcpServerDto } from './mcp-servers.dto'
 import { assertValidName, toMcpSpec } from './mcp-servers.service'
-import type { McpServerDto } from './mcp-servers.types'
+import type { McpServerDto, McpSpecDraft } from './mcp-servers.types'
 
 export const sealMcpSpec = (args: {
   cipher: SecretCipherService
   name: string
-  spec: UpsertMcpServerDto
+  spec: McpSpecDraft
 }): string => args.cipher.encrypt(JSON.stringify(toMcpSpec({ ...args.spec, name: args.name })))
 
 export const openMcpServer = (args: {
@@ -14,7 +13,7 @@ export const openMcpServer = (args: {
   sealedSpec: string
   updatedAt: Date
 }): McpServerDto => {
-  const stored = JSON.parse(args.cipher.decrypt(args.sealedSpec)) as UpsertMcpServerDto & {
+  const stored = JSON.parse(args.cipher.decrypt(args.sealedSpec)) as McpSpecDraft & {
     name: string
   }
   return { ...toMcpSpec(stored), updatedAt: args.updatedAt.toISOString() }

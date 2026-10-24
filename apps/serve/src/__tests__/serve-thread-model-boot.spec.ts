@@ -11,6 +11,7 @@ import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 import { composeBootApp } from '../serve-compose-boot'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcQueryUrl } from './trpc-fake'
 
 const threadId = toThreadId('thread-model-boot')
 const controlPlaneUrl = 'https://api.example.com'
@@ -88,17 +89,19 @@ describe('composeBootApp thread model', () => {
     const run = await composedModel({
       env: API_ENV,
       stored: { ref: 'a/old', effort: 'low' },
-      reply: () => Response.json(wireThread({ ref: 'b/new', effort: 'high' })),
+      reply: () => trpcOk(wireThread({ ref: 'b/new', effort: 'high' })),
     })
     expect(run.composedWith).toEqual({ ref: 'b/new', effort: 'high' })
-    expect(run.reads).toEqual([`${controlPlaneUrl}/v1/threads/${threadId}`])
+    expect(run.reads).toEqual([
+      trpcQueryUrl({ controlPlaneUrl, procedure: 'threads.get', input: { threadId } }),
+    ])
   })
 
   it('falls back to the local meta when the API read fails', async () => {
     const run = await composedModel({
       env: API_ENV,
       stored: { ref: 'a/old', effort: 'low' },
-      reply: () => new Response('{"message":"down"}', { status: 500 }),
+      reply: () => trpcFailure({ status: 500, message: 'down' }),
     })
     expect(run.composedWith).toEqual({ ref: 'a/old', effort: 'low' })
   })
@@ -107,7 +110,7 @@ describe('composeBootApp thread model', () => {
     const run = await composedModel({
       env: API_ENV,
       stored: { ref: 'a/old', effort: 'low' },
-      reply: () => Response.json(wireThread()),
+      reply: () => trpcOk(wireThread()),
     })
     expect(run.composedWith).toEqual({ ref: 'a/old', effort: 'low' })
   })
@@ -116,7 +119,7 @@ describe('composeBootApp thread model', () => {
     const run = await composedModel({
       env: {},
       stored: { ref: 'a/old', effort: 'low' },
-      reply: () => Response.json(wireThread({ ref: 'b/new', effort: 'high' })),
+      reply: () => trpcOk(wireThread({ ref: 'b/new', effort: 'high' })),
     })
     expect(run.composedWith).toEqual({ ref: 'a/old', effort: 'low' })
     expect(run.reads).toEqual([])
@@ -126,7 +129,7 @@ describe('composeBootApp thread model', () => {
     const run = await composedModel({
       env: API_ENV,
       explicit: { ref: 'c/explicit' },
-      reply: () => Response.json(wireThread({ ref: 'b/new', effort: 'high' })),
+      reply: () => trpcOk(wireThread({ ref: 'b/new', effort: 'high' })),
     })
     expect(run.composedWith).toEqual({ ref: 'c/explicit' })
   })

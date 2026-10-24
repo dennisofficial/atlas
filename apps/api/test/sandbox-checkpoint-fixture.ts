@@ -1,10 +1,8 @@
 import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { asJson, seedSandboxRow, seedUsers, USER_A, USER_B } from './session-seed'
-import type { AuthenticatedRequest } from '../src/_core/types/auth.types'
 import { storedCheckpointOf } from '../src/api/platform/sandboxes/sandbox-checkpoint'
 import { mintSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
-import type { SandboxAuthenticatedRequest } from '../src/api/platform/sandboxes/sandbox-token.guard'
 
 export const THREAD = 'brn_thread_1'
 
@@ -60,17 +58,3 @@ export const storedInRow = async (): Promise<RuntimeCheckpoint | null> => {
 }
 
 export { USER_A, USER_B }
-
-export const ownerRequest = (userId: string): AuthenticatedRequest =>
-  ({ auth: { userId } }) as unknown as AuthenticatedRequest
-
-export const sandboxRequest = (args: {
-  threadId?: string
-  userId?: string
-  token?: string
-}): SandboxAuthenticatedRequest =>
-  ({
-    params: { threadId: args.threadId ?? THREAD },
-    headers: { authorization: `Bearer ${args.token ?? minted.token}` },
-    sandbox: { threadId: args.threadId ?? THREAD, userId: args.userId ?? USER_A },
-  }) as unknown as SandboxAuthenticatedRequest

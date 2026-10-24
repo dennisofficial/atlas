@@ -32,7 +32,7 @@ describe('livePodBridgeOptionsFor', () => {
     expect(config.image).toBeUndefined()
   })
 
-  it('leases the pod token to PUT /v1/pod-leases/:id with the session bearer', async () => {
+  it('leases the pod token through podLeases.register with the session bearer', async () => {
     const seen: { method: string; path: string; auth: string | null; body: unknown }[] = []
     const server = Bun.serve({
       port: 0,
@@ -44,7 +44,7 @@ describe('livePodBridgeOptionsFor', () => {
           auth: request.headers.get('authorization'),
           body: await request.json(),
         })
-        return new Response(null, { status: 204 })
+        return Response.json({ result: { data: null } })
       },
     })
     try {
@@ -62,10 +62,10 @@ describe('livePodBridgeOptionsFor', () => {
 
       expect(seen).toEqual([
         {
-          method: 'PUT',
-          path: '/v1/pod-leases/brn_lease',
+          method: 'POST',
+          path: '/v1/trpc/podLeases.register',
           auth: 'Bearer sess',
-          body: { token: 'pod-token' },
+          body: { threadId: 'brn_lease', token: 'pod-token' },
         },
       ])
     } finally {

@@ -9,6 +9,7 @@ import { SecretCipher } from '../../credentials/secret-cipher'
 import { FileSecretsStore } from '../../secrets/file-secrets-store'
 import { CloudSessionStore } from '../cloud-session'
 import { SecretsStoreProxy } from '../secrets-store-proxy'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const flushWrites = () => new Promise((resolve) => setImmediate(resolve))
 
@@ -22,6 +23,8 @@ let fetchCalls: {
   method: string
   authorization: string | null
   clientVersion: string | null
+  procedure: string
+  input: unknown
 }[]
 const realFetch = globalThis.fetch
 
@@ -40,23 +43,21 @@ beforeEach(() => {
   fetchCalls = []
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
+    const call = trpcCallOf({ input, init })
     fetchCalls.push({
       url: String(input),
-      method: init?.method ?? 'GET',
+      method: call.method,
       authorization: headers.get('authorization'),
       clientVersion: headers.get('atlas-client-version'),
+      procedure: call.procedure,
+      input: call.input,
     })
-    return new Response(
-      JSON.stringify({
-        secrets: [
-          { name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' },
-        ],
-      }),
-      {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      },
-    )
+    if (call.procedure !== 'secrets.list') return trpcVoid()
+    return trpcData({
+      secrets: [
+        { name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' },
+      ],
+    })
   }) as typeof fetch
 })
 
@@ -107,9 +108,9 @@ describe('SecretsStoreProxy with a session', () => {
     await proxy.warm()
 
     expect(proxy.read('remote.key')).toBe('cloud-value')
-    expect(proxy.origin()).toBe('http://cloud.test/v1/secrets')
+    expect(proxy.origin()).toBe('http://cloud.test (Atlas Cloud secrets)')
     expect(fetchCalls[0]).toMatchObject({
-      url: 'http://cloud.test/v1/secrets',
+      url: 'http://cloud.test/v1/trpc/secrets.list',
       method: 'GET',
       authorization: 'Bearer sess_a',
     })
@@ -124,8 +125,9 @@ describe('SecretsStoreProxy with a session', () => {
 
     expect(proxy.read('new.key')).toBe('fresh')
     expect(fetchCalls.at(-1)).toMatchObject({
-      url: 'http://cloud.test/v1/secrets/new.key',
-      method: 'PUT',
+      url: 'http://cloud.test/v1/trpc/secrets.set',
+      method: 'POST',
+      input: { name: 'new.key', value: 'fresh' },
     })
     expect(local.read('new.key')).toBeUndefined()
   })
@@ -182,16 +184,8 @@ describe('SecretsStoreProxy with a session', () => {
     const notice: NoticePort = { notify: (post) => posts.push(post) }
     globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
       const method = init?.method ?? 'GET'
-      if (method === 'GET') {
-        return new Response(JSON.stringify({ secrets: [] }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
-      return new Response(JSON.stringify({ message: 'vault sealed' }), {
-        status: 500,
-        headers: { 'content-type': 'application/json' },
-      })
+      if (method === 'GET') return trpcData({ secrets: [] })
+      return trpcFailure({ status: 500, message: 'vault sealed' })
     }) as typeof fetch
     proxy = new SecretsStoreProxy({ local, sessions, notice })
     signIn('sess_a')
@@ -245,7 +239,8 @@ describe('SecretsStoreProxy local-only names', () => {
 
     expect(local.read('search.exa')).toBeUndefined()
     expect(fetchCalls.map((call) => `${call.method} ${call.url}`)).toEqual([
-      'PUT http://cloud.test/v1/secrets/search.exa',
+      'POST http://cloud.test/v1/trpc/secrets.set',
     ])
+    expect(fetchCalls[0]?.input).toEqual({ name: 'search.exa', value: 'cloud-held' })
   })
 })

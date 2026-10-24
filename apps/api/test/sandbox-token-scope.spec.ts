@@ -1,17 +1,15 @@
 import type { INestApplication } from '@nestjs/common'
-import { ValidationPipe } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
-import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
-import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
-import { AccountsService } from '../src/api/platform/accounts/accounts.service'
-import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
+import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
+import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
+import { SessionMiddleware } from '../src/_module/session/session.middleware'
+import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
+import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
-import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
+import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session-or-sandbox.middleware'
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const USER_SESSION = 'user-session-token'
@@ -34,8 +32,6 @@ const secretsStub = {
   list: vi.fn(async () => [
     { name: 'web.searchKey', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' },
   ]),
-  set: vi.fn(async () => undefined),
-  remove: vi.fn(async () => undefined),
 }
 
 const accountsStub = {
@@ -53,54 +49,44 @@ describe('sandbox token scoping (in-process, real guard)', () => {
   let app: INestApplication
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      controllers: [SecretsController, AccountsController],
+    app = await createMixedApp({
       providers: [
+        AccountsRouter,
+        SecretsRouter,
         { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
-        SessionAuthGuard,
-        SessionOrSandboxGuard,
+        SessionMiddleware,
+        SessionOrSandboxMiddleware,
         { provide: SandboxesService, useValue: { verifyTokenPrincipal: vi.fn(async () => null) } },
-        Reflector,
         { provide: SESSION_VERIFIER, useValue: verifier },
       ],
-    }).compile()
-
-    app = module.createNestApplication()
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    )
-    await app.init()
+    })
   })
 
   afterAll(async () => {
     await app.close()
   })
 
-  it('refuses a bearer that is neither a session nor a registered sandbox or pod on GET /secrets', async () => {
+  it('refuses a bearer that is neither a session nor a registered sandbox or pod on secrets.list', async () => {
     const response = await request(app.getHttpServer())
-      .get('/secrets')
+      .get('/v1/trpc/secrets.list')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
 
     expect(response.status).toBe(401)
     expect(secretsStub.list).not.toHaveBeenCalled()
   })
 
-  it('refuses a sandbox token on GET /accounts and PUT /accounts/:id/secret', async () => {
+  it('refuses a sandbox token on accounts.get and accounts.replaceSecret', async () => {
     const server = app.getHttpServer()
 
     const read = await request(server)
-      .get('/accounts/acc_1')
+      .get('/v1/trpc/accounts.get')
+      .query({ input: JSON.stringify({ accountId: 'acc_1' }) })
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
     const rotate = await request(server)
-      .put('/accounts/acc_1/secret')
+      .post('/v1/trpc/accounts.replaceSecret')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-      .send({ secret: { kind: 'api-key', apiKey: 'sk-ant-test' } })
+      .send({ accountId: 'acc_1', secret: { kind: 'api-key', apiKey: 'sk-ant-test' } })
 
     expect(read.status).toBe(401)
     expect(rotate.status).toBe(401)
@@ -110,7 +96,7 @@ describe('sandbox token scoping (in-process, real guard)', () => {
 
   it('still answers the same routes for a user session', async () => {
     const response = await request(app.getHttpServer())
-      .get('/secrets')
+      .get('/v1/trpc/secrets.list')
       .set('authorization', `Bearer ${USER_SESSION}`)
 
     expect(response.status).toBe(200)

@@ -1,5 +1,5 @@
-import { CloudError, cloudRequest } from '@dltech/atlas-harness'
-import { githubCloneUrlOf, projectWorkspaceSchema } from '@dltech/atlas-wire'
+import { CloudError, cloudCall, createHarnessApiClient } from '@dltech/atlas-harness'
+import { githubCloneUrlOf, type ProjectWorkspace } from '@dltech/atlas-wire'
 
 import { bootstrapWorkspaceSpecFetcher } from './bootstrap-fetchers'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
@@ -27,18 +27,17 @@ export function projectWorkspaceSpecFetcher(args: {
   const now = args.now ?? Date.now
   const url = args.controlPlaneUrl.replace(/\/+$/, '')
 
-  const request = (projectId: string): Promise<unknown> =>
-    cloudRequest({
-      url,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-      method: 'GET',
-      path: `/v1/projects/${encodeURIComponent(projectId)}/workspace`,
-      retry: true,
-    })
+  const api = createHarnessApiClient({
+    url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
 
-  const requestPatiently = async (projectId: string): Promise<unknown> => {
+  const request = (projectId: string): Promise<ProjectWorkspace> =>
+    cloudCall(api.projectWorkspace.get.query({ projectId }))
+
+  const requestPatiently = async (projectId: string): Promise<ProjectWorkspace> => {
     const startedAt = now()
     for (;;) {
       try {
@@ -57,7 +56,7 @@ export function projectWorkspaceSpecFetcher(args: {
       return { remoteUrl: null, githubToken: null, model: bootstrap.model }
     }
 
-    const workspace = projectWorkspaceSchema.parse(await requestPatiently(bootstrap.projectId))
+    const workspace = await requestPatiently(bootstrap.projectId)
     return {
       remoteUrl: workspace.repo === null ? null : githubCloneUrlOf(workspace.repo),
       githubToken: workspace.githubToken,

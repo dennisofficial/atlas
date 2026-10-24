@@ -10,6 +10,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 
 import { fakeServeApp } from './fakes'
+import { trpcOk } from './trpc-fake'
 
 const TOKEN = 'session-token'
 
@@ -56,7 +57,7 @@ const specOnDrive = async (args: { githubToken: string | null }): Promise<string
 
 const projectApiAnswering = (args: { githubToken: string | null }): typeof fetch =>
   (async () =>
-    Response.json({
+    trpcOk({
       projectId: 'proj_1',
       repo: 'dennisofficial/atlas',
       baseBranch: null,

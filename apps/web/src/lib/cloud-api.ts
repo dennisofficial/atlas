@@ -16,9 +16,6 @@ export class CloudApiError extends Error {
 export enum EHttpMethod {
   Get = 'GET',
   Post = 'POST',
-  Put = 'PUT',
-  Patch = 'PATCH',
-  Delete = 'DELETE',
 }
 
 type CloudRequest = {

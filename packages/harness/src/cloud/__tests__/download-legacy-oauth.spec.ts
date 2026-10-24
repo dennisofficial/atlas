@@ -15,6 +15,7 @@ import {
 import { memoryAccountStore } from '../../credentials/account-store'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcCallOf, trpcData, trpcError } from './accounts-trpc-fake'
 
 const URL = 'https://cloud.test'
 const clock: ClockPort = { now: () => '2026-10-05T12:00:00.000Z' }
@@ -63,17 +64,23 @@ const serviceFor = (backup: readonly StoredAccount[], active: string) => {
   const requests: string[] = []
   const fetchFn: typeof fetch = Object.assign(
     async (input: string | URL | Request) => {
-      const path = String(input).slice(URL.length)
+      const path = new globalThis.URL(String(input)).pathname
       requests.push(path)
-      if (path === '/v1/accounts')
-        return Response.json(backup.map(({ secret: _secret, ...account }) => account))
-      if (path === '/v1/accounts/active/anthropic') return Response.json({ accountId: active })
-      if (path.startsWith('/v1/accounts/active/')) return Response.json({ accountId: null })
-      if (path.startsWith('/v1/accounts/'))
-        return Response.json(backup.find((stored) => `/v1/accounts/${stored.id}` === path))
-      if (path === '/v1/secrets') return Response.json({ secrets: [] })
-      if (path === '/v1/mcp-servers') return Response.json({ servers: [] })
-      if (path === '/v1/settings') return Response.json({ settings: [] })
+      if (path.startsWith('/v1/trpc/accounts.')) {
+        const call = trpcCallOf({ url: String(input) })
+        const wanted = call.input as { provider?: string; accountId?: string } | undefined
+        if (call.procedure === 'accounts.list')
+          return trpcData(backup.map(({ secret: _secret, ...account }) => account))
+        if (call.procedure === 'accounts.active')
+          return trpcData({ accountId: wanted?.provider === 'anthropic' ? active : null })
+        const held = backup.find((stored) => stored.id === wanted?.accountId)
+        return held === undefined
+          ? trpcError({ status: 404, message: 'no such account' })
+          : trpcData(held)
+      }
+      if (path === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
+      if (path === '/v1/trpc/mcpServers.list') return trpcData({ servers: [] })
+      if (path === '/v1/trpc/settings.list') return trpcData({ settings: [] })
       return new Response(null, { status: 404 })
     },
     { preconnect: () => undefined },

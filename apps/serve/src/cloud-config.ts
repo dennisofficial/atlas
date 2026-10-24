@@ -6,8 +6,6 @@ import { ENV_NAME_PATTERN, ESecretKind, type ScopedMcpServer } from '@dltech/atl
 
 import { writeAtomically } from './owner-only-file'
 
-export const CLOUD_CONFIG_PATH = '/v1/sandboxes/self/config'
-
 const RESERVED_ENV_PREFIX = 'ATLAS_'
 
 export type CloudSecret = { name: string; value: string; kind: ESecretKind }
@@ -17,9 +15,6 @@ export type CloudConfig = {
   secrets: readonly CloudSecret[]
   mcpServers: readonly ScopedMcpServer[]
 }
-
-export const cloudConfigPathFor = (projectId: string | null | undefined): string =>
-  projectId ? `${CLOUD_CONFIG_PATH}?projectId=${encodeURIComponent(projectId)}` : CLOUD_CONFIG_PATH
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)

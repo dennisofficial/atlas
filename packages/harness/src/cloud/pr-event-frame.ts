@@ -54,16 +54,9 @@ export function prEventNoticeOf(frame: PrEventFrame): PrEventDraft {
 }
 
 export function parsePrEventFrame(args: {
-  data: string
+  value: unknown
 }): { frame: PrEventFrame } | { failure: string } {
-  let raw: unknown
-  try {
-    raw = JSON.parse(args.data)
-  } catch {
-    return { failure: 'the frame was not JSON' }
-  }
-
-  const parsed = prEventFrameSchema.safeParse(raw)
+  const parsed = prEventFrameSchema.safeParse(args.value)
   if (parsed.success) return { frame: parsed.data }
   return {
     failure: parsed.error.issues
@@ -74,13 +67,13 @@ export function parsePrEventFrame(args: {
 
 /** A bad frame or a throwing consumer is logged and dropped: one notice must never end the stream. */
 export function deliverPrEvent(args: {
-  data: string
+  event: unknown
   onPrEvent: ((frame: PrEventFrame) => void) | undefined
   log: TransportRetryLog | undefined
 }): void {
   if (args.onPrEvent === undefined) return
 
-  const parsed = parsePrEventFrame({ data: args.data })
+  const parsed = parsePrEventFrame({ value: args.event })
   if ('failure' in parsed) {
     args.log?.port.warn({
       source: 'cloud.pull-requests',

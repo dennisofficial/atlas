@@ -1,24 +1,48 @@
 import type { INestApplication } from '@nestjs/common'
-import { ValidationPipe } from '@nestjs/common'
-import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
+import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
-import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
-import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
+import { SessionMiddleware } from '../src/_module/session/session.middleware'
+import { as, createMiddlewareApp } from '../src/_module/trpc/trpc-middleware.fixture'
+import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
+import { seedUsers } from './session-seed'
 
-describe('AccountsController validation (in-process)', () => {
+const validBody = {
+  provider: 'anthropic',
+  label: 'work',
+  origin: 'login',
+  secret: { kind: 'api-key', apiKey: 'sk-ant-test' },
+}
+
+describe('AccountsRouter validation (in-process)', () => {
   useTestDatabase()
   let app: INestApplication
+  const create = (body: unknown) =>
+    request(app.getHttpServer())
+      .post('/v1/trpc/accounts.create')
+      .set(as('good'))
+      .send(body as object)
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      controllers: [AccountsController],
+    app = await createMiddlewareApp({
+      rateLimit: 100_000,
       providers: [
+        AccountsRouter,
         AccountsService,
+        SessionMiddleware,
+        {
+          provide: SESSION_VERIFIER,
+          useValue: {
+            async verify(req: { headers: { authorization?: string } }) {
+              if (req.headers.authorization !== 'Bearer good') return null
+              return { userId: 'user-a', sessionId: 's', email: '', activeOrganizationId: null }
+            },
+          },
+        },
         {
           provide: SecretCipherService,
           useValue: new SecretCipherService(
@@ -30,20 +54,10 @@ describe('AccountsController validation (in-process)', () => {
         },
       ],
     })
-      .overrideGuard(SessionAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile()
+  })
 
-    app = module.createNestApplication()
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    )
-    await app.init()
+  beforeEach(async () => {
+    await seedUsers('user-a')
   })
 
   afterAll(async () => {
@@ -51,64 +65,58 @@ describe('AccountsController validation (in-process)', () => {
   })
 
   it('accepts a well-formed account body', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/accounts')
-      .send({
-        provider: 'anthropic',
-        label: 'work',
-        origin: 'login',
-        secret: { kind: 'api-key', apiKey: 'sk-ant-test' },
-      })
+    const response = await create(validBody)
 
-    expect(response.status).not.toBe(400)
+    expect(response.status).toBe(200)
+    expect(response.body.result.data).toMatchObject({ provider: 'anthropic', label: 'work' })
   })
 
   it('rejects an unknown property', async () => {
-    await request(app.getHttpServer())
-      .post('/accounts')
-      .send({
-        provider: 'anthropic',
-        label: 'work',
-        origin: 'login',
-        secret: { kind: 'api-key', apiKey: 'sk-ant-test' },
-        bogus: true,
-      })
-      .expect(400)
+    const response = await create({ ...validBody, bogus: true })
+
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects an unknown property inside the secret', async () => {
+    const response = await create({
+      ...validBody,
+      secret: { kind: 'api-key', apiKey: 'sk-ant-test', bogus: true },
+    })
+
+    expect(response.status).toBe(400)
   })
 
   it('rejects a bad provider value', async () => {
-    await request(app.getHttpServer())
-      .post('/accounts')
-      .send({
-        provider: 'not-a-provider',
-        label: 'work',
-        origin: 'login',
-        secret: { kind: 'api-key', apiKey: 'sk-ant-test' },
-      })
-      .expect(400)
+    const response = await create({ ...validBody, provider: 'not-a-provider' })
+
+    expect(response.status).toBe(400)
   })
 
-  it('has no access-token minting route (the broker is gone)', async () => {
+  it('rejects an empty label and a bad origin', async () => {
+    expect((await create({ ...validBody, label: '' })).status).toBe(400)
+    expect((await create({ ...validBody, origin: 'elsewhere' })).status).toBe(400)
+  })
+
+  it('has no access-token minting procedure (the broker is gone)', async () => {
     const response = await request(app.getHttpServer())
-      .post('/accounts/acc_1/access-token')
-      .send({})
+      .post('/v1/trpc/accounts.accessToken')
+      .set(as('good'))
+      .send({ accountId: 'acc_1' })
 
     expect(response.status).toBe(404)
   })
 
-  it('has no sandbox broker routes', async () => {
+  it('has no sandbox broker procedures', async () => {
     const server = app.getHttpServer()
 
-    const accounts = await request(server)
-      .get('/sandboxes/brn_1/broker/accounts')
-      .set('authorization', 'Bearer whatever')
+    const accounts = await request(server).get('/v1/trpc/sandboxBroker.accounts').set(as('good'))
     const accessToken = await request(server)
-      .post('/sandboxes/brn_1/broker/access-token')
-      .set('authorization', 'Bearer whatever')
+      .post('/v1/trpc/sandboxBroker.accessToken')
+      .set(as('good'))
       .send({ provider: 'anthropic' })
     const secrets = await request(server)
-      .post('/sandboxes/brn_1/broker/secrets')
-      .set('authorization', 'Bearer whatever')
+      .post('/v1/trpc/sandboxBroker.secrets')
+      .set(as('good'))
       .send({ names: ['search.brave'] })
 
     expect(accounts.status).toBe(404)

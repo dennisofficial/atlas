@@ -1,133 +1,125 @@
-import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common'
+import type { INestApplication } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import {
   checkpoint,
-  sandboxRequest,
+  minted,
   sandboxRow,
   seedCheckpointOwners,
   storedInRow,
-  validCheckpoint,
   storedRow,
   THREAD,
+  USER_A,
+  validCheckpoint,
 } from '../../../../test/sandbox-checkpoint-fixture'
-import { SandboxCheckpointController } from './sandbox-checkpoint.controller'
+import { createSandboxRoutersApp, putCheckpoint } from './sandbox-routers.fixture'
 import { mintSessionToken } from './sandbox-tokens'
+import { SandboxesService } from './sandboxes.service'
 
-describe('SandboxCheckpointController reports', () => {
+const verifiesEveryToken = {
+  async verifySessionToken(): Promise<{ userId: string }> {
+    return { userId: USER_A }
+  },
+} as unknown as SandboxesService
+
+describe('SandboxCheckpointRouter.put', () => {
   useTestDatabase()
+  let app: INestApplication
+
+  beforeAll(async () => {
+    app = await createSandboxRoutersApp(verifiesEveryToken)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
   beforeEach(seedCheckpointOwners)
+
+  const report = (body: unknown, token: string | undefined = minted.token) =>
+    putCheckpoint({ app, token, body })
+
+  const dataOf = (reply: { body: unknown }): unknown => {
+    const body = reply.body as { result?: { data?: unknown } }
+    return body.result?.data
+  }
 
   it('stores the first checkpoint a sandbox reports', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint())
+    const reply = await report(checkpoint())
 
-    expect(result).toEqual({ checkpoint: checkpoint() })
+    expect(reply.status).toBe(200)
+    expect(dataOf(reply)).toEqual({ checkpoint: checkpoint() })
     expect(await storedInRow()).toEqual(checkpoint())
   })
 
   it('rejects a body that is not a checkpoint', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, { phase: 'running' }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const reply = await report({ threadId: THREAD, phase: 'running' })
+
+    expect(reply.status).toBe(400)
+    expect(await storedInRow()).toBeNull()
   })
 
   it('rejects a checkpoint carrying fields the contract does not know', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, {
-        ...checkpoint(),
-        debug: 'extra',
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const reply = await report({ ...checkpoint(), debug: 'extra' })
+
+    expect(reply.status).toBe(400)
+    expect(await storedInRow()).toBeNull()
   })
 
   it('rejects a revision beyond the integer column that stores it', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(
-        sandboxRequest({}),
-        THREAD,
-        checkpoint({ revision: 2147483648 }),
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const reply = await report(checkpoint({ revision: 2147483648 }))
+
+    expect(reply.status).toBe(400)
   })
 
-  it('rejects a checkpoint naming a thread other than the route and token', async () => {
+  it('refuses a body with no thread at all before touching the row', async () => {
     await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(
-        sandboxRequest({}),
-        THREAD,
-        checkpoint({ threadId: 'brn_other' }),
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException)
-  })
+    const reply = await report({ phase: 'running' })
 
-  it('rejects a report when the token and route disagree about the thread', async () => {
-    await sandboxRow({ threadId: THREAD })
-    const controller = new SandboxCheckpointController()
-
-    await expect(
-      controller.handlePutCheckpoint(
-        sandboxRequest({ threadId: 'brn_other' }),
-        THREAD,
-        checkpoint(),
-      ),
-    ).rejects.toBeInstanceOf(UnauthorizedException)
+    expect(reply.status).toBe(401)
+    expect(await storedInRow()).toBeNull()
   })
 
   it('404s when the sandbox row is gone', async () => {
-    const controller = new SandboxCheckpointController()
+    const reply = await report(checkpoint())
 
-    await expect(
-      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint()),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(reply.status).toBe(404)
   })
 
   it('replaces a stored checkpoint only with a strictly newer revision', async () => {
     await storedRow(checkpoint({ revision: 3 }))
-    const controller = new SandboxCheckpointController()
     const newer = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
 
-    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, newer)
+    const reply = await report(newer)
 
-    expect(result).toEqual({ checkpoint: newer })
+    expect(dataOf(reply)).toEqual({ checkpoint: newer })
     expect(await storedInRow()).toEqual(newer)
   })
 
   it('keeps the stored park when a delayed older revision arrives', async () => {
     const parked = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
     await storedRow(parked)
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handlePutCheckpoint(
-      sandboxRequest({}),
-      THREAD,
-      checkpoint({ revision: 3, phase: ERuntimePhase.Serving }),
-    )
+    const reply = await report(checkpoint({ revision: 3, phase: ERuntimePhase.Serving }))
 
-    expect(result).toEqual({ checkpoint: parked })
+    expect(dataOf(reply)).toEqual({ checkpoint: parked })
     expect(await storedInRow()).toEqual(parked)
   })
 
   it('never rewrites on an equal revision, even when the phase matches', async () => {
     const stored = checkpoint({ revision: 3 })
     await storedRow(stored)
-    const controller = new SandboxCheckpointController()
     const duplicate = checkpoint({
       revision: 3,
       runtimeId: 'runtime-other',
@@ -135,24 +127,19 @@ describe('SandboxCheckpointController reports', () => {
       reportedAt: '2026-10-01T12:00:01.000Z',
     })
 
-    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, duplicate)
+    const reply = await report(duplicate)
 
-    expect(result).toEqual({ checkpoint: stored })
+    expect(dataOf(reply)).toEqual({ checkpoint: stored })
     expect(await storedInRow()).toEqual(stored)
   })
 
   it('never lets an equal-revision running report rewrite a finalized park', async () => {
     const parked = checkpoint({ revision: 3, phase: ERuntimePhase.Parked })
     await storedRow(parked)
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handlePutCheckpoint(
-      sandboxRequest({}),
-      THREAD,
-      checkpoint({ revision: 3, phase: ERuntimePhase.Serving }),
-    )
+    const reply = await report(checkpoint({ revision: 3, phase: ERuntimePhase.Serving }))
 
-    expect(result).toEqual({ checkpoint: parked })
+    expect(dataOf(reply)).toEqual({ checkpoint: parked })
     expect(await storedInRow()).toEqual(parked)
   })
 
@@ -160,44 +147,32 @@ describe('SandboxCheckpointController reports', () => {
     const stored = checkpoint({ revision: 3 })
     const rotated = mintSessionToken()
     await storedRow(stored, { tokenHash: rotated.tokenHash })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handlePutCheckpoint(
-      sandboxRequest({}),
-      THREAD,
-      checkpoint({ revision: 4, phase: ERuntimePhase.Parked }),
-    )
+    const reply = await report(checkpoint({ revision: 4, phase: ERuntimePhase.Parked }))
 
-    expect(result).toEqual({ checkpoint: stored })
+    expect(dataOf(reply)).toEqual({ checkpoint: stored })
     expect(await storedInRow()).toEqual(stored)
   })
 
   it('treats a revision-less stored payload as empty, so reporting recovers', async () => {
     await sandboxRow({ threadId: THREAD, runtimeCheckpoint: { garbage: true } })
-    const controller = new SandboxCheckpointController()
 
-    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, checkpoint())
+    const reply = await report(checkpoint())
 
-    expect(result).toEqual({ checkpoint: checkpoint() })
+    expect(dataOf(reply)).toEqual({ checkpoint: checkpoint() })
     expect(await storedInRow()).toEqual(checkpoint())
   })
 
   it('leaves the sandbox state column alone: reports are metadata, not lifecycle', async () => {
     await sandboxRow({ threadId: THREAD, state: 'running' })
-    const controller = new SandboxCheckpointController()
 
-    await controller.handlePutCheckpoint(
-      sandboxRequest({}),
-      THREAD,
-      checkpoint({ phase: ERuntimePhase.Parked }),
-    )
+    await report(checkpoint({ phase: ERuntimePhase.Parked }))
 
     expect((await db.orm.public.CloudSandbox.first())?.state).toBe('running')
   })
 
   it('round-trips an updating checkpoint carrying its rotation receipt through the fence', async () => {
     await storedRow(checkpoint({ revision: 3 }))
-    const controller = new SandboxCheckpointController()
     const base = {
       threadId: THREAD,
       runtimeId: 'runtime-abc',
@@ -218,33 +193,96 @@ describe('SandboxCheckpointController reports', () => {
       },
     })
 
-    const result = await controller.handlePutCheckpoint(sandboxRequest({}), THREAD, updating)
+    const reply = await report(updating)
 
-    expect(result).toEqual({ checkpoint: updating })
+    expect(dataOf(reply)).toEqual({ checkpoint: updating })
     expect(await storedInRow()).toEqual(updating)
   })
 
   it('rejects an updating checkpoint without its receipt', async () => {
     await storedRow(checkpoint({ revision: 3 }))
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, {
-        ...checkpoint({ revision: 4 }),
-        phase: ERuntimePhase.Updating,
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const reply = await report({ ...checkpoint({ revision: 4 }), phase: ERuntimePhase.Updating })
+
+    expect(reply.status).toBe(400)
   })
 
   it('rejects a checkpoint still carrying a retired phase value', async () => {
     await storedRow(checkpoint({ revision: 3 }))
-    const controller = new SandboxCheckpointController()
 
-    await expect(
-      controller.handlePutCheckpoint(sandboxRequest({}), THREAD, {
-        ...checkpoint({ revision: 4 }),
-        phase: 'rotating',
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException)
+    const reply = await report({ ...checkpoint({ revision: 4 }), phase: 'rotating' })
+
+    expect(reply.status).toBe(400)
+  })
+})
+
+describe('SandboxCheckpointRouter.put thread token', () => {
+  useTestDatabase()
+  let app: INestApplication
+
+  beforeAll(async () => {
+    app = await createSandboxRoutersApp()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(seedCheckpointOwners)
+
+  it('stores a report from the token that owns the thread named in the body', async () => {
+    await sandboxRow({ threadId: THREAD })
+
+    const reply = await putCheckpoint({ app, token: minted.token, body: checkpoint() })
+
+    expect(reply.status).toBe(200)
+    expect(await storedInRow()).toEqual(checkpoint())
+  })
+
+  it('rejects a report when the token and the body disagree about the thread', async () => {
+    await sandboxRow({ threadId: THREAD })
+    await sandboxRow({
+      threadId: 'brn_other',
+      id: 'sbx_other',
+      tokenHash: mintSessionToken().tokenHash,
+    })
+
+    const reply = await putCheckpoint({
+      app,
+      token: minted.token,
+      body: checkpoint({ threadId: 'brn_other' }),
+    })
+
+    expect(reply.status).toBe(401)
+    expect(await storedInRow()).toBeNull()
+  })
+
+  it('refuses a request carrying no bearer token', async () => {
+    await sandboxRow({ threadId: THREAD })
+
+    const reply = await putCheckpoint({ app, token: undefined, body: checkpoint() })
+
+    expect(reply.status).toBe(401)
+  })
+
+  it('refuses a token that is not the thread session token', async () => {
+    await sandboxRow({ threadId: THREAD })
+
+    const reply = await putCheckpoint({ app, token: 'wrong-token', body: checkpoint() })
+
+    expect(reply.status).toBe(401)
+    expect(await storedInRow()).toBeNull()
+  })
+
+  it('refuses a body whose thread is not a string', async () => {
+    await sandboxRow({ threadId: THREAD })
+
+    const reply = await putCheckpoint({
+      app,
+      token: minted.token,
+      body: { ...checkpoint(), threadId: 7 },
+    })
+
+    expect(reply.status).toBe(401)
   })
 })

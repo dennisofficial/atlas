@@ -3,14 +3,28 @@ import {
   EBootStepState,
   isApiProvisioned,
   NOOP_BOOT_REPORTER,
-  serveBootReporter,
-  serveBootSink,
+  createBootReporter,
   type BootReporter,
   type BootStepSink,
 } from '@dltech/atlas-wire'
 
+import { controlPlaneError, createApiClient } from './api-client'
 import { EWorkspaceState, type WorkspaceReadiness } from './materialize-workspace'
 import { EServeEvent, type ServeLog } from './serve-log'
+
+export const serveBootSink = (args: {
+  controlPlaneUrl: string
+  token: string
+  clientVersion: string
+  fetchFn: typeof fetch
+}): BootStepSink => {
+  const client = createApiClient(args)
+  return async (events) => {
+    await client.sandboxSelf.bootSteps.mutate({ steps: [...events] }).catch((failure: unknown) => {
+      throw controlPlaneError(failure)
+    })
+  }
+}
 
 export const bootReporterFor = (args: {
   env: Record<string, string | undefined>
@@ -22,12 +36,8 @@ export const bootReporterFor = (args: {
   log: ServeLog
 }): BootReporter => {
   if (!isApiProvisioned(args.env)) return NOOP_BOOT_REPORTER
-  return serveBootReporter({
-    controlPlaneUrl: args.controlPlaneUrl,
-    threadId: args.threadId,
-    token: args.token,
-    clientVersion: args.clientVersion,
-    fetchFn: args.fetchFn,
+  return createBootReporter({
+    sink: serveBootSink(args),
     log: (line) => args.log({ event: EServeEvent.BootReportFailed, reason: line }),
   })
 }

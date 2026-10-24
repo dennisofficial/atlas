@@ -7,10 +7,13 @@ import { diagnoseCredentialFailure } from '../credential-diagnosis'
 describe('a cloud outage is a degradation, not a crash', () => {
   it('reads a 500 from the accounts endpoint as an outage', () => {
     const message = cloudOutageMessage(
-      new CloudError({ status: 500, message: 'The Atlas Cloud API answered GET /v1/accounts.' }),
+      new CloudError({
+        status: 500,
+        message: 'The Atlas Cloud API answered 500: Internal server error.',
+      }),
     )
 
-    expect(message).toContain('answered GET /v1/accounts')
+    expect(message).toContain('answered 500')
     expect(message).toContain('model access stays dark')
   })
 
@@ -24,7 +27,7 @@ describe('a cloud outage is a degradation, not a crash', () => {
     const message = cloudOutageMessage(
       new CloudError({
         status: 401,
-        message: 'The Atlas Cloud API answered GET /v1/accounts with 401.',
+        message: 'The Atlas Cloud API answered 401: session expired.',
       }),
     )
 
@@ -40,11 +43,14 @@ describe('a cloud outage is a degradation, not a crash', () => {
 
   it('lets boot carry on with a notice rather than dying', () => {
     const diagnosis = diagnoseCredentialFailure(
-      new CloudError({ status: 500, message: 'The Atlas Cloud API answered GET /v1/accounts.' }),
+      new CloudError({
+        status: 500,
+        message: 'The Atlas Cloud API answered 500: Internal server error.',
+      }),
     )
 
     expect(diagnosis).not.toBeNull()
     expect(diagnosis?.message).toContain('Atlas could not authenticate.')
-    expect(diagnosis?.message).toContain('answered GET /v1/accounts')
+    expect(diagnosis?.message).toContain('answered 500')
   })
 })

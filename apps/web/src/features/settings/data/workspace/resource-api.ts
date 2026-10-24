@@ -1,60 +1,113 @@
 import {
-  mcpServerSchema,
   workspaceSecretSchema,
   type ESecretKind,
   type McpServerWire,
   type McpUpsertWire,
 } from '@dltech/atlas-wire/web'
-import { z } from 'zod'
+import type { z } from 'zod'
 
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 const listedSecretSchema = workspaceSecretSchema.partial({ updatedBy: true })
 export type ListedSecret = z.infer<typeof listedSecretSchema>
 
-const secretListSchema = z.object({ secrets: z.array(listedSecretSchema) })
-const mcpListSchema = z.object({ servers: z.array(mcpServerSchema) })
+export enum EResourceOwner {
+  Project = 'project',
+  Workspace = 'workspace',
+}
 
-const secretPath = ({ base, name }: { base: string; name: string }) =>
-  `${base}/secrets/${encodeURIComponent(name)}`
-const mcpPath = ({ base, name }: { base: string; name: string }) =>
-  `${base}/mcp-servers/${encodeURIComponent(name)}`
+export type ResourceOwner =
+  | { kind: EResourceOwner.Project; projectId: string }
+  | { kind: EResourceOwner.Workspace; organizationId: string }
 
-export const workspaceBase = (organizationId: string) =>
-  `/v1/workspaces/${encodeURIComponent(organizationId)}`
+export const workspaceOwner = (organizationId: string): ResourceOwner => ({
+  kind: EResourceOwner.Workspace,
+  organizationId,
+})
 
-export const projectBase = (projectId: string) => `/v1/projects/${encodeURIComponent(projectId)}`
+export const projectOwner = (projectId: string): ResourceOwner => ({
+  kind: EResourceOwner.Project,
+  projectId,
+})
 
-export async function listSecrets(base: string): Promise<ListedSecret[]> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: `${base}/secrets`,
-    schema: secretListSchema,
-  })
+export const ownerKeyOf = (owner: ResourceOwner): string =>
+  owner.kind === EResourceOwner.Project
+    ? `project:${owner.projectId}`
+    : `workspace:${owner.organizationId}`
+
+export async function listSecrets(owner: ResourceOwner): Promise<ListedSecret[]> {
+  const body = await cloudCall(
+    owner.kind === EResourceOwner.Project
+      ? api.projectResources.listSecrets.query({ projectId: owner.projectId })
+      : api.workspaces.listSecrets.query({ organizationId: owner.organizationId }),
+  )
   return body.secrets
 }
 
-export const putSecret = (args: { base: string; name: string; value: string; kind: ESecretKind }) =>
-  cloudSend({
-    method: EHttpMethod.Put,
-    path: secretPath(args),
-    body: { value: args.value, kind: args.kind },
-  })
+export const putSecret = (args: {
+  owner: ResourceOwner
+  name: string
+  value: string
+  kind: ESecretKind
+}): Promise<void> => {
+  const secret = { name: args.name, value: args.value, kind: args.kind }
+  return cloudCall(
+    args.owner.kind === EResourceOwner.Project
+      ? api.projectResources.setSecret.mutate({ projectId: args.owner.projectId, ...secret })
+      : api.workspaces.setSecret.mutate({ organizationId: args.owner.organizationId, ...secret }),
+  )
+}
 
-export const deleteSecret = (args: { base: string; name: string }) =>
-  cloudSend({ method: EHttpMethod.Delete, path: secretPath(args) })
+export const deleteSecret = (args: { owner: ResourceOwner; name: string }): Promise<void> =>
+  cloudCall(
+    args.owner.kind === EResourceOwner.Project
+      ? api.projectResources.removeSecret.mutate({
+          projectId: args.owner.projectId,
+          name: args.name,
+        })
+      : api.workspaces.removeSecret.mutate({
+          organizationId: args.owner.organizationId,
+          name: args.name,
+        }),
+  )
 
-export async function listMcpServers(base: string): Promise<McpServerWire[]> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: `${base}/mcp-servers`,
-    schema: mcpListSchema,
-  })
+export async function listMcpServers(owner: ResourceOwner): Promise<McpServerWire[]> {
+  const body = await cloudCall(
+    owner.kind === EResourceOwner.Project
+      ? api.projectResources.listMcpServers.query({ projectId: owner.projectId })
+      : api.workspaces.listMcpServers.query({ organizationId: owner.organizationId }),
+  )
   return body.servers
 }
 
-export const putMcpServer = (args: { base: string; name: string; spec: McpUpsertWire }) =>
-  cloudSend({ method: EHttpMethod.Put, path: mcpPath(args), body: args.spec })
+export const putMcpServer = (args: {
+  owner: ResourceOwner
+  name: string
+  spec: McpUpsertWire
+}): Promise<void> =>
+  cloudCall(
+    args.owner.kind === EResourceOwner.Project
+      ? api.projectResources.putMcpServer.mutate({
+          projectId: args.owner.projectId,
+          name: args.name,
+          ...args.spec,
+        })
+      : api.workspaces.putMcpServer.mutate({
+          organizationId: args.owner.organizationId,
+          name: args.name,
+          ...args.spec,
+        }),
+  )
 
-export const deleteMcpServer = (args: { base: string; name: string }) =>
-  cloudSend({ method: EHttpMethod.Delete, path: mcpPath(args) })
+export const deleteMcpServer = (args: { owner: ResourceOwner; name: string }): Promise<void> =>
+  cloudCall(
+    args.owner.kind === EResourceOwner.Project
+      ? api.projectResources.removeMcpServer.mutate({
+          projectId: args.owner.projectId,
+          name: args.name,
+        })
+      : api.workspaces.removeMcpServer.mutate({
+          organizationId: args.owner.organizationId,
+          name: args.name,
+        }),
+  )

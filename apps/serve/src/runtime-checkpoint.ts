@@ -15,6 +15,7 @@ import {
   type SandboxRotationReceipt,
 } from '@dltech/atlas-wire'
 
+import { createApiClient, httpStatusOf } from './api-client'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export const SANDBOX_SESSION_ID_ENV = 'ATLAS_SANDBOX_SESSION_ID'
@@ -28,6 +29,7 @@ export type RuntimeCheckpointDeps = {
   atlasHome: string
   env: Record<string, string | undefined>
   token: string
+  clientVersion: string
   transcript: Pick<EventLogPort, 'read'>
   log: ServeLog
   fetchFn?: typeof fetch | undefined
@@ -88,16 +90,19 @@ export function createRuntimeCheckpointCapture(
 
   const sendMirror = async (checkpoint: RuntimeCheckpoint): Promise<void> => {
     try {
-      const response = await fetchFn(`${cloudURL}/v1/sandboxes/${deps.threadId}/checkpoint`, {
-        method: 'PUT',
-        headers: {
-          authorization: `Bearer ${deps.token}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(checkpoint),
+      const api = createApiClient({
+        controlPlaneUrl: cloudURL,
+        token: deps.token,
+        clientVersion: deps.clientVersion,
+        fetchFn,
+      })
+      await api.sandboxCheckpoint.put.mutate(checkpoint, {
         signal: AbortSignal.timeout(CHECKPOINT_MIRROR_TIMEOUT_MS),
       })
-      if (response.status === 404) {
+      registrationMissing = false
+    } catch (error: unknown) {
+      const status = httpStatusOf(error)
+      if (status === 404) {
         registrationMissing = true
         deps.log({
           event: EServeEvent.CheckpointMirrorFailed,
@@ -106,20 +111,13 @@ export function createRuntimeCheckpointCapture(
         })
         return
       }
-      if (!response.ok) {
-        deps.log({
-          event: EServeEvent.CheckpointMirrorFailed,
-          revision: checkpoint.revision,
-          reason: `the control plane answered the checkpoint mirror with ${response.status}`,
-        })
-        return
-      }
-      registrationMissing = false
-    } catch (error: unknown) {
       deps.log({
         event: EServeEvent.CheckpointMirrorFailed,
         revision: checkpoint.revision,
-        reason: messageOf(error),
+        reason:
+          status === undefined
+            ? messageOf(error)
+            : `the control plane answered the checkpoint mirror with ${status}`,
       })
     }
   }

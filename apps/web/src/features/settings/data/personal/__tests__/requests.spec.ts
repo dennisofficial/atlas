@@ -2,35 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire/web'
 
+import { answerTrpc, resetTrpc, restoreTrpc, trpcCalls, trpcData } from '@/lib/__tests__/fake-trpc'
 import { ESecretKind } from '../../../fixtures/settings-library'
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { addMcpServer } from '../mcp-api'
-import { fetchMemoryGroups } from '../memory-api'
-import { saveSecretEntry } from '../secrets-api'
+import { deleteMemory, fetchMemoryEntry, fetchMemoryGroups } from '../memory-api'
+import { deleteSecret, saveSecretEntry } from '../secrets-api'
 
-type Call = { url: string; method: string; body: unknown }
-
-let calls: Call[]
-let answer: () => Response
-const realFetch = globalThis.fetch
-
-beforeEach(() => {
-  calls = []
-  answer = () => new Response(null, { status: 204 })
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const raw = init?.body
-    calls.push({
-      url: String(input),
-      method: init?.method ?? 'GET',
-      body: typeof raw === 'string' ? JSON.parse(raw) : undefined,
-    })
-    return answer()
-  }) as typeof fetch
-})
-
-afterEach(() => {
-  globalThis.fetch = realFetch
-})
+beforeEach(resetTrpc)
+afterEach(restoreTrpc)
 
 const stored = {
   id: 'API_KEY',
@@ -47,11 +27,11 @@ describe('personal secret save', () => {
       entry: { key: 'API_KEY', value: '', kind: ESecretKind.Secret },
       secrets: [stored],
     })
-    expect(calls).toEqual([
+    expect(trpcCalls).toEqual([
       {
-        url: '/v1/secrets/API_KEY',
-        method: 'PUT',
-        body: { value: 'hunter2', kind: ESecretKind.Secret },
+        url: '/v1/trpc/secrets.set',
+        method: 'POST',
+        body: { name: 'API_KEY', value: 'hunter2', kind: ESecretKind.Secret },
       },
     ])
   })
@@ -61,7 +41,11 @@ describe('personal secret save', () => {
       entry: { key: 'API_KEY', value: '', kind: ESecretKind.EnvVar },
       secrets: [stored],
     })
-    expect(calls[0]?.body).toEqual({ value: 'hunter2', kind: ESecretKind.EnvVar })
+    expect(trpcCalls[0]?.body).toEqual({
+      name: 'API_KEY',
+      value: 'hunter2',
+      kind: ESecretKind.EnvVar,
+    })
   })
 
   it('sends a typed value and refuses a blank new secret', async () => {
@@ -69,14 +53,25 @@ describe('personal secret save', () => {
       entry: { key: 'API_KEY', value: 'new', kind: ESecretKind.Secret },
       secrets: [stored],
     })
-    expect(calls[0]?.body).toEqual({ value: 'new', kind: ESecretKind.Secret })
+    expect(trpcCalls[0]?.body).toEqual({
+      name: 'API_KEY',
+      value: 'new',
+      kind: ESecretKind.Secret,
+    })
     expect(() =>
       saveSecretEntry({
         entry: { key: 'OTHER', value: '', kind: ESecretKind.Secret },
         secrets: [stored],
       }),
     ).toThrow('A value is required')
-    expect(calls).toHaveLength(1)
+    expect(trpcCalls).toHaveLength(1)
+  })
+
+  it('deletes by name', async () => {
+    await deleteSecret('API_KEY')
+    expect(trpcCalls).toEqual([
+      { url: '/v1/trpc/secrets.remove', method: 'POST', body: { name: 'API_KEY' } },
+    ])
   })
 })
 
@@ -88,11 +83,12 @@ describe('personal MCP add', () => {
       target: 'npx -y pkg',
       extra: 'API_KEY=abc\n# note\nREGION=eu',
     })
-    expect(calls).toEqual([
+    expect(trpcCalls).toEqual([
       {
-        url: '/v1/mcp-servers/fs',
-        method: 'PUT',
+        url: '/v1/trpc/mcpServers.put',
+        method: 'POST',
         body: {
+          name: 'fs',
           transport: {
             kind: 'stdio',
             command: 'npx',
@@ -112,7 +108,8 @@ describe('personal MCP add', () => {
       target: 'https://x.dev/mcp',
       extra: 'Authorization: Bearer t',
     })
-    expect(calls[0]?.body).toEqual({
+    expect(trpcCalls[0]?.body).toEqual({
+      name: 'remote',
       transport: { kind: 'http', url: 'https://x.dev/mcp', headers: { Authorization: 'Bearer t' } },
       disabled: false,
     })
@@ -120,7 +117,8 @@ describe('personal MCP add', () => {
 
   it('omits env and headers when the field is blank', async () => {
     await addMcpServer({ id: 'bare', transport: EMcpTransport.Stdio, target: 'bun x', extra: '' })
-    expect(calls[0]?.body).toEqual({
+    expect(trpcCalls[0]?.body).toEqual({
+      name: 'bare',
       transport: { kind: 'stdio', command: 'bun', args: ['x'] },
       disabled: false,
     })
@@ -128,7 +126,7 @@ describe('personal MCP add', () => {
 })
 
 describe('memory groups', () => {
-  it('reads /v1/memories/all only and groups by the rows', async () => {
+  it('reads memories.listAll only and groups by the rows', async () => {
     const row = (project: string | null, name: string) => ({
       scope: project === null ? EMemoryScope.Global : EMemoryScope.Project,
       project,
@@ -138,13 +136,47 @@ describe('memory groups', () => {
       revision: 1,
       updatedAt: 'x',
     })
-    answer = () =>
-      new Response(JSON.stringify({ memories: [row('a/b', 'one'), row(null, 'two')] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+    answerTrpc(() => trpcData({ memories: [row('a/b', 'one'), row(null, 'two')] }))
     const groups = await fetchMemoryGroups()
-    expect(calls.map((call) => call.url)).toEqual(['/v1/memories/all'])
+    expect(trpcCalls.map((call) => call.url)).toEqual(['/v1/trpc/memories.listAll'])
+    expect(trpcCalls[0]?.method).toBe('GET')
     expect(groups.map((group) => group.id)).toEqual(['global', 'a/b'])
+  })
+})
+
+describe('memory entry', () => {
+  it('reads an entry with the key as the url input and omits a null project', async () => {
+    answerTrpc(() =>
+      trpcData({
+        scope: 'global',
+        project: null,
+        name: 'n',
+        description: 'd',
+        type: EMemoryType.User,
+        revision: 1,
+        updatedAt: 'x',
+        body: 'b',
+      }),
+    )
+    const entry = await fetchMemoryEntry({ scope: EMemoryScope.Global, project: null, name: 'n' })
+    expect(entry.body).toBe('b')
+    expect(trpcCalls).toEqual([
+      {
+        url: `/v1/trpc/memories.get?input=${encodeURIComponent(JSON.stringify({ scope: 'global', name: 'n' }))}`,
+        method: 'GET',
+        body: undefined,
+      },
+    ])
+  })
+
+  it('deletes with the project when one is set', async () => {
+    await deleteMemory({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })
+    expect(trpcCalls).toEqual([
+      {
+        url: '/v1/trpc/memories.remove',
+        method: 'POST',
+        body: { scope: 'project', name: 'n', project: 'a/b' },
+      },
+    ])
   })
 })

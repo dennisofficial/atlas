@@ -1,4 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
+import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ownedSandbox } from './ownership'
@@ -44,7 +45,7 @@ export class SandboxesService {
     clientToken?: string | undefined
     serveUrl?: string | undefined
     serveVersion?: string | undefined
-    metadata?: { title?: string; repo?: string; model?: string } | undefined
+    metadata?: RegisterSandboxMetadata | undefined
   }): Promise<SandboxAttachmentDto> {
     const clientToken = args.clientToken
     if (clientToken !== undefined) {

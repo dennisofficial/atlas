@@ -1,41 +1,48 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
-import {
-  deleteUserVercelCredential,
-  getUserVercelCredential,
-  putUserVercelCredential,
-} from '../vercel-credential-api'
+import { createApiClient } from '@dltech/atlas-api-router'
+
+import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
-const realFetch = globalThis.fetch
+let response: Response
 
-const answerWith = (response: Response): void => {
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+const fakeFetch = Object.assign(
+  async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     calls.push({ url: String(input), ...(init === undefined ? {} : { init }) })
     return response
-  }) as typeof fetch
+  },
+  { preconnect: fetch.preconnect },
+)
+
+mock.module('@/lib/api-client', () => ({
+  ...realApiClient,
+  api: createApiClient({ baseUrl: '', fetchFn: fakeFetch }),
+}))
+
+const { deleteUserVercelCredential, getUserVercelCredential, putUserVercelCredential } =
+  await import('../vercel-credential-api')
+
+const answerWith = (next: Response): void => {
+  response = next
 }
+
+const trpcOk = (data?: unknown): Response =>
+  Response.json({ result: data === undefined ? {} : { data } })
 
 beforeEach(() => {
   calls = []
 })
 
-afterEach(() => {
-  globalThis.fetch = realFetch
-})
-
 describe('user Vercel credential api', () => {
-  it('reads the credential from /v1/me/vercel', async () => {
+  it('reads the credential from userVercel.get', async () => {
     answerWith(
-      new Response(
-        JSON.stringify({
-          configured: true,
-          teamId: 'team_me',
-          vercelProjectId: 'prj_me',
-          updatedAt: '2026-10-21T09:00:00.000Z',
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      ),
+      trpcOk({
+        configured: true,
+        teamId: 'team_me',
+        vercelProjectId: 'prj_me',
+        updatedAt: '2026-10-21T09:00:00.000Z',
+      }),
     )
     expect(await getUserVercelCredential()).toEqual({
       configured: true,
@@ -43,14 +50,15 @@ describe('user Vercel credential api', () => {
       vercelProjectId: 'prj_me',
       updatedAt: '2026-10-21T09:00:00.000Z',
     })
-    expect(calls[0]?.url).toBe('/v1/me/vercel')
+    expect(new URL(calls[0]?.url ?? '', 'http://x').pathname).toBe('/v1/trpc/userVercel.get')
+    expect(calls[0]?.init?.method ?? 'GET').toBe('GET')
   })
 
-  it('PUTs team, project and token to /v1/me/vercel', async () => {
-    answerWith(new Response(null, { status: 204 }))
+  it('POSTs team, project and token to userVercel.save', async () => {
+    answerWith(trpcOk())
     await putUserVercelCredential({ teamId: 'team_me', vercelProjectId: 'prj_me', token: 'tok' })
-    expect(calls[0]?.url).toBe('/v1/me/vercel')
-    expect(calls[0]?.init?.method).toBe('PUT')
+    expect(calls[0]?.url).toBe('/v1/trpc/userVercel.save')
+    expect(calls[0]?.init?.method).toBe('POST')
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
       teamId: 'team_me',
       vercelProjectId: 'prj_me',
@@ -58,10 +66,10 @@ describe('user Vercel credential api', () => {
     })
   })
 
-  it('DELETEs /v1/me/vercel', async () => {
-    answerWith(new Response(null, { status: 204 }))
+  it('POSTs userVercel.remove', async () => {
+    answerWith(trpcOk())
     await deleteUserVercelCredential()
-    expect(calls[0]?.url).toBe('/v1/me/vercel')
-    expect(calls[0]?.init?.method).toBe('DELETE')
+    expect(calls[0]?.url).toBe('/v1/trpc/userVercel.remove')
+    expect(calls[0]?.init?.method).toBe('POST')
   })
 })

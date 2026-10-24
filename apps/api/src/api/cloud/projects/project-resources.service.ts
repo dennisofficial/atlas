@@ -5,8 +5,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
-import type { UpsertMcpServerDto } from '../mcp-servers/mcp-servers.dto'
-import type { McpServerDto } from '../mcp-servers/mcp-servers.types'
+import type { McpServerDto, McpSpecDraft } from '../mcp-servers/mcp-servers.types'
 import { assertEnvName, kindOf, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { PROJECT_NOT_FOUND, ProjectsService } from './projects.service'
 
@@ -91,7 +90,7 @@ export class ProjectResourcesService {
     )
   }
 
-  async putMcpServer(args: Scope & { name: string; spec: UpsertMcpServerDto }): Promise<void> {
+  async putMcpServer(args: Scope & { name: string; spec: McpSpecDraft }): Promise<void> {
     await this.projects.read(args)
     const sealedSpec = sealMcpSpec({ cipher: this.cipher, name: args.name, spec: args.spec })
     await db.orm.public.ProjectMcpServer.upsert({

@@ -1,97 +1,39 @@
+import { createThreadReplySchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
-import {
-  createThreadReplySchema,
-  podStatusSchema,
-  sandboxProvisionPath,
-  sandboxProvisionReplySchema,
-  threadMessagePath,
-  threadMessageReplySchema,
-  threadMessageTakeBackPath,
-  threadPodPath,
-  wireEventSchema,
-  wireThreadSchema,
-} from '@dltech/atlas-wire/web'
-import { projectSchema } from '@dltech/atlas-wire/web'
-
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import type { CreateThreadBody } from './create-thread'
 
-const threadPath = (threadId: string) => `/v1/threads/${encodeURIComponent(threadId)}`
+export const fetchProjects = () => cloudCall(api.projects.list.query())
 
-const headSchema = z.object({ head: z.number().int() })
+export const fetchThreads = (projectId: string) => cloudCall(api.threads.list.query({ projectId }))
 
-export const fetchProjects = () =>
-  cloudJson({ method: EHttpMethod.Get, path: '/v1/projects', schema: z.array(projectSchema) })
+export const createThread = async (body: CreateThreadBody) =>
+  createThreadReplySchema.parse(await cloudCall(api.threads.create.mutate(body)))
 
-export const fetchThreads = (projectId: string) =>
-  cloudJson({
-    method: EHttpMethod.Get,
-    path: `/v1/threads?projectId=${encodeURIComponent(projectId)}`,
-    schema: z.array(wireThreadSchema),
-  })
-
-export const createThread = (body: CreateThreadBody) =>
-  cloudJson({
-    method: EHttpMethod.Post,
-    path: '/v1/threads',
-    body,
-    schema: createThreadReplySchema,
-  })
-
-export const fetchThread = (threadId: string) =>
-  cloudJson({ method: EHttpMethod.Get, path: threadPath(threadId), schema: wireThreadSchema })
+export const fetchThread = (threadId: string) => cloudCall(api.threads.get.query({ threadId }))
 
 export const provisionSandbox = (args: { threadId: string }) =>
-  cloudJson({
-    method: EHttpMethod.Post,
-    path: sandboxProvisionPath(args.threadId),
-    body: {},
-    schema: sandboxProvisionReplySchema,
-  })
+  cloudCall(api.threadSandbox.provision.mutate({ threadId: args.threadId }))
 
-export const fetchPod = (threadId: string) =>
-  cloudJson({ method: EHttpMethod.Get, path: threadPodPath(threadId), schema: podStatusSchema })
+export const fetchPod = (threadId: string) => cloudCall(api.threadPod.status.query({ threadId }))
 
 export const takeBackMessage = (args: { threadId: string; sendId: string }) =>
-  cloudSend({ method: EHttpMethod.Delete, path: threadMessageTakeBackPath(args) })
+  cloudCall(api.threadMessages.takeBack.mutate(args))
 
 export const postMessage = (args: { threadId: string; sendId: string; text: string }) =>
-  cloudJson({
-    method: EHttpMethod.Post,
-    path: threadMessagePath(args.threadId),
-    body: { sendId: args.sendId, text: args.text },
-    schema: threadMessageReplySchema,
-  })
+  cloudCall(api.threadMessages.send.mutate(args))
 
-export const fetchHead = (threadId: string) =>
-  cloudJson({
-    method: EHttpMethod.Get,
-    path: `${threadPath(threadId)}/events/head`,
-    schema: headSchema,
-  })
+export const fetchHead = (threadId: string) => cloudCall(api.threadEvents.head.query({ threadId }))
 
 export const fetchEvents = (threadId: string) =>
-  cloudJson({
-    method: EHttpMethod.Get,
-    path: `${threadPath(threadId)}/events?own=true`,
-    schema: z.array(wireEventSchema),
-  })
+  cloudCall(api.threadEvents.read.query({ threadId, own: true }))
 
 export const patchThreadModel = (args: {
   threadId: string
   model: { ref: string; effort: string }
-}) =>
-  cloudSend({
-    method: EHttpMethod.Patch,
-    path: `${threadPath(args.threadId)}/model`,
-    body: args.model,
-  })
+}) => cloudCall(api.threads.chooseModel.mutate({ threadId: args.threadId, ...args.model }))
 
 export const setThreadArchived = (args: { threadId: string; archived: boolean }) =>
-  cloudSend({
-    method: EHttpMethod.Patch,
-    path: `${threadPath(args.threadId)}/archived`,
-    body: { archived: args.archived },
-  })
+  cloudCall(api.threads.archive.mutate(args))

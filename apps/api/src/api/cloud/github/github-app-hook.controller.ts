@@ -14,7 +14,6 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
-import { Public } from '../../../_core/decorators/public.decorator'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { installLandingPage } from './github-app-install-landing'
@@ -52,7 +51,6 @@ export class GithubAppHookController {
    * yet, not that the install failed.
    */
   @Get('callback')
-  @Public()
   @Header('content-type', 'text/html; charset=utf-8')
   async handleInstalled(
     @Query('installation_id') installationId: string | undefined,
@@ -66,7 +64,6 @@ export class GithubAppHookController {
   }
 
   @Post('hook')
-  @Public()
   @HttpCode(200)
   async handleDelivery(
     @Req() request: GithubPrWebhookRequest,

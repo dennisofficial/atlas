@@ -12,7 +12,7 @@ import type { SecretsStore } from '@/features/settings/parts/secrets-store'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { rowOfServer, transportKindOf, upsertOfDraft, upsertOfToggle } from './mcp-mapping'
-import { workspaceBase } from './resource-api'
+import { workspaceOwner } from './resource-api'
 import { librarySecretOf, wireKindOf } from './secrets-mapping'
 import { useMcpResource } from './use-mcp-resource'
 import { useSecretsResource } from './use-secrets-resource'
@@ -26,7 +26,7 @@ export function useWorkspaceSecretsStore(args: { organizationId: string; canEdit
   query: CloudQuery<LibrarySecret[]>
   store: SecretsStore
 } {
-  const { query: raw, save, remove } = useSecretsResource(workspaceBase(args.organizationId))
+  const { query: raw, save, remove } = useSecretsResource(workspaceOwner(args.organizationId))
   const { canEdit } = args
   const secrets = useMemo(
     () =>
@@ -68,7 +68,7 @@ export function useWorkspaceMcpStore(args: { organizationId: string; canEdit: bo
   ready: CloudQuery<unknown>
   store: McpStore
 } {
-  const { query, put, remove } = useMcpResource(workspaceBase(args.organizationId))
+  const { query, put, remove } = useMcpResource(workspaceOwner(args.organizationId))
   const { canEdit } = args
   const raw = query.state === EQueryState.Ready ? query.data : null
   const servers = useMemo<McpServer[]>(

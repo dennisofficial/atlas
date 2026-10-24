@@ -107,7 +107,7 @@ const seedCloudSession = (): void => {
 const isMemoryIndexRequest = (request: RecordedRequest): boolean =>
   request.method === 'GET' &&
   request.url.startsWith(CLOUD_URL) &&
-  new URL(request.url).pathname === '/v1/memories'
+  new URL(request.url).pathname === '/v1/trpc/memories.list'
 
 const memoryIndexRequests = (): RecordedRequest[] => requests.filter(isMemoryIndexRequest)
 
@@ -166,7 +166,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
 
       expect(memoryIndexRequests().length).toBeGreaterThan(0)
       expect(cloudRequests()).toEqual([])
-      expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
+      expect(requests.some((request) => request.url.includes('/accounts.'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
 
       await expect(app.close()).resolves.toBeUndefined()

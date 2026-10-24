@@ -2,6 +2,7 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { resolveMcpSpecs } from '../config/loaders'
+import { trpcData } from '../../cloud/__tests__/trpc-wire'
 import { RemoteMcpSource } from '../config/remote-mcp-source'
 import {
   CompatMcpSource,
@@ -27,10 +28,7 @@ const remoteSource = (servers: readonly Record<string, unknown>[]) =>
   new RemoteMcpSource({
     session: { url: 'http://cloud.test', token: 'sess_test', email: null },
     fetchFn: (async (_input: unknown, _init?: RequestInit) =>
-      new Response(JSON.stringify({ servers }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })) as typeof fetch,
+      trpcData({ servers })) as typeof fetch,
   })
 
 describe('resolveMcpSpecs', () => {

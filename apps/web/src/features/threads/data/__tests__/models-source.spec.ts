@@ -9,7 +9,7 @@ const accounts = [{ provider: 'anthropic', status: 'active' }]
 const live = { providers: [] }
 
 describe('loadModelsSource', () => {
-  it('uses the live response when /v1/models answers', async () => {
+  it('uses the live response when models.list answers', async () => {
     const source = await loadModelsSource({
       loadModels: async () => live,
       loadAccounts: async () => {
@@ -19,7 +19,7 @@ describe('loadModelsSource', () => {
     expect(source).toEqual({ kind: 'live', response: live })
   })
 
-  it('falls back to the accounts when /v1/models fails', async () => {
+  it('falls back to the accounts when models.list fails', async () => {
     const source = await loadModelsSource({
       loadModels: async () => {
         throw new Error('503')

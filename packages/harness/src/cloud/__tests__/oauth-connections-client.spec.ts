@@ -1,3 +1,4 @@
+import { EOauthProvider } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
 
 import { fakeOauthApi } from '../../credentials/__tests__/oauth-api-fake'
@@ -16,18 +17,18 @@ describe('OAuthConnectionsClient', () => {
 
     const access = await api
       .client()
-      .handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
+      .handoff({ connectionId: 'oauth_1', provider: EOauthProvider.Anthropic, tokens })
 
     expect(access.accessToken).toBe('fake-access')
     expect(access.generation).toBe(0)
     expect(JSON.stringify(access)).not.toContain('fake-refresh')
-    expect(api.calls).toEqual(['PUT /v1/oauth-connections/oauth_1'])
+    expect(api.calls).toEqual(['POST /v1/trpc/oauthConnections.upload'])
   })
 
   it('reports the rejected access token to the issuance route and the sandbox assignment route', async () => {
     const api = fakeOauthApi()
     const client = api.client()
-    await client.handoff({ connectionId: 'oauth_1', provider: 'openai', tokens })
+    await client.handoff({ connectionId: 'oauth_1', provider: EOauthProvider.OpenAI, tokens })
 
     const next = await client.accessToken({
       connectionId: 'oauth_1',
@@ -36,16 +37,16 @@ describe('OAuthConnectionsClient', () => {
     await client.assignSandbox({ connectionId: 'oauth_1', threadId: 'thread-1' })
 
     expect(next.generation).toBe(1)
-    expect(api.calls).toContain('PUT /v1/oauth-connections/oauth_1/sandboxes/thread-1')
+    expect(api.calls).toContain('POST /v1/trpc/oauthConnections.assignSandbox')
   })
 
   it('sends predecessor and successor authorization ids on reauthorize and surfaces a stale predecessor', async () => {
     const api = fakeOauthApi()
     const client = api.client()
-    await client.handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
+    await client.handoff({ connectionId: 'oauth_1', provider: EOauthProvider.Anthropic, tokens })
     const reauth = {
       connectionId: 'oauth_1',
-      provider: 'anthropic' as const,
+      provider: EOauthProvider.Anthropic,
       tokens,
       authorizationId: 'auth_2',
       previousAuthorizationId: 'oauth_1',
@@ -63,7 +64,9 @@ describe('OAuthConnectionsClient', () => {
 
   it('allows the server refresh and contention wait to finish before the access request times out', async () => {
     const api = fakeOauthApi()
-    await api.client().handoff({ connectionId: 'oauth_1', provider: 'anthropic', tokens })
+    await api
+      .client()
+      .handoff({ connectionId: 'oauth_1', provider: EOauthProvider.Anthropic, tokens })
     const timeout = AbortSignal.timeout
     const deadlines: number[] = []
     AbortSignal.timeout = (milliseconds: number) => {

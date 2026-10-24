@@ -1,27 +1,10 @@
-export enum EGithubPollStatus {
-  Pending = 'pending',
-  SlowDown = 'slow-down',
-  Denied = 'denied',
-  Expired = 'expired',
-  MissingScopes = 'missing-scopes',
-  Connected = 'connected',
-}
+import type { GithubDeviceCodes, GithubPollResult } from '@dltech/atlas-wire'
 
-export interface GithubDeviceCodesDto {
-  deviceCode: string
-  userCode: string
-  verificationUrl: string
-  expiresInMs: number
-  intervalMs: number
-}
+export { EGithubPollStatus } from '@dltech/atlas-wire'
 
-export type GithubPollResultDto =
-  | { status: EGithubPollStatus.Pending }
-  | { status: EGithubPollStatus.SlowDown }
-  | { status: EGithubPollStatus.Denied }
-  | { status: EGithubPollStatus.Expired }
-  | { status: EGithubPollStatus.MissingScopes; missing: string[] }
-  | { status: EGithubPollStatus.Connected; login: string; scopes: string[] }
+export type GithubDeviceCodesDto = GithubDeviceCodes
+
+export type GithubPollResultDto = GithubPollResult
 
 export type GithubConnectionDto =
   | { connected: false }

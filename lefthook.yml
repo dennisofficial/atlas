@@ -8,3 +8,6 @@ pre-commit:
       run: node_modules/.bin/dotenvx ext precommit
     env-tiers:
       run: bun apps/api/scripts/check-env-tiers.ts
+    trpc-router:
+      glob: '{apps/api/src/**/*.ts,packages/wire/src/**/*.ts}'
+      run: bun run --cwd apps/api generate:trpc && git add packages/api-router/src/generated

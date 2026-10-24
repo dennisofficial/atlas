@@ -1,23 +1,18 @@
 import { createHash } from 'node:crypto'
 
-import {
-  CloudError,
-  cloudRequest,
-  extractContextArchive,
-  sandboxUserLayerTrees,
-} from '@dltech/atlas-harness'
+import { extractContextArchive, sandboxUserLayerTrees } from '@dltech/atlas-harness'
 import {
   PUBLISHED_BUNDLE_MAX_BYTES,
   publishedBundleCurrentSchema,
   type PublishedBundleCurrent,
 } from '@dltech/atlas-wire'
 
+import { createApiClient, httpStatusOf } from './api-client'
 import { fileEntry, writeContextEntries } from './context-entries'
 import { messageOf } from './context-readiness'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 
-const CURRENT_PATH = '/v1/published-bundles/current'
 const LEASE_REGISTRATION_ATTEMPTS = 10
 const LEASE_REGISTRATION_DELAY_MS = 1_000
 const REQUEST_TIMEOUT_MS = 10_000
@@ -47,20 +42,22 @@ const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve,
 const isKeptKey = (key: string): boolean =>
   key === KEPT_EXACT_KEY || KEPT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
 
-const isUnauthorized = (error: unknown): boolean =>
-  error instanceof CloudError && error.status === 401
+const isUnauthorized = (error: unknown): boolean => httpStatusOf(error) === 401
 
-const requestCurrent = (args: CurrentRequest): Promise<unknown> =>
-  cloudRequest({
-    url: args.controlPlaneUrl.replace(/\/+$/, ''),
-    token: args.token,
-    clientVersion: args.clientVersion,
-    fetchFn: args.fetchFn,
-    method: 'GET',
-    path: CURRENT_PATH,
-    allowMissing: true,
-    timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs(args.deadline)),
-  })
+const requestCurrent = async (args: CurrentRequest): Promise<unknown> => {
+  const signal = AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs(args.deadline)))
+  try {
+    return await createApiClient({
+      controlPlaneUrl: args.controlPlaneUrl,
+      token: args.token,
+      clientVersion: args.clientVersion,
+      fetchFn: args.fetchFn,
+    }).publishedBundles.current.query(undefined, { signal })
+  } catch (error) {
+    if (httpStatusOf(error) === 404) return undefined
+    throw error
+  }
+}
 
 const fetchCurrentBody = async (args: CurrentRequest): Promise<unknown> => {
   for (let attempt = 1; ; attempt += 1) {

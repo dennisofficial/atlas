@@ -21,7 +21,7 @@ describe('runSseStream silence watchdog', () => {
     const { drops, opens, handlers } = collect()
     const controller = new AbortController()
     const running = runSseStream({
-      url: server.url,
+      baseUrl: server.url,
       token: 'tok',
       clientVersion: 'test',
       signal: controller.signal,
@@ -39,7 +39,7 @@ describe('runSseStream silence watchdog', () => {
     expect(server.liveStreams()).toBe(0)
   })
 
-  it('keeps a stream alive while heartbeat comment frames arrive', async () => {
+  it('keeps a stream alive while heartbeat frames arrive', async () => {
     server = startServer({
       responses: [{ status: 200, openEnded: true, heartbeatEveryMs: 50 }],
     })
@@ -47,7 +47,7 @@ describe('runSseStream silence watchdog', () => {
     const { drops, opens, handlers } = collect()
     const controller = new AbortController()
     const running = runSseStream({
-      url: server.url,
+      baseUrl: server.url,
       token: 'tok',
       clientVersion: 'test',
       signal: controller.signal,
@@ -75,7 +75,7 @@ describe('runSseStream silence watchdog', () => {
     const { drops, handlers } = collect()
     const controller = new AbortController()
     const running = runSseStream({
-      url: server.url,
+      baseUrl: server.url,
       token: 'tok',
       clientVersion: 'test',
       signal: controller.signal,
@@ -103,7 +103,7 @@ describe('runSseStream silence watchdog', () => {
     const { drops, opens, handlers } = collect()
     const controller = new AbortController()
     const running = runSseStream({
-      url: server.url,
+      baseUrl: server.url,
       token: 'tok',
       clientVersion: 'test',
       signal: controller.signal,
@@ -127,7 +127,7 @@ describe('runSseStream silence watchdog', () => {
     const controller = new AbortController()
     let catchUpStarted = false
     const running = runSseStream({
-      url: server.url,
+      baseUrl: server.url,
       token: 'tok',
       clientVersion: 'test',
       signal: controller.signal,

@@ -31,7 +31,7 @@ const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
 
 const SIGNING_KEY_PATH = '/atlas/home/ssh-signing-key'
-const LEASE_PATH = '/v1/ssh-signing-key'
+const LEASE_PATH = '/v1/trpc/sshSigningKey.lease'
 const USER_NAME = 'Atlas Live'
 const USER_EMAIL = 'atlas-live@example.com'
 
@@ -167,8 +167,19 @@ describeDocker('serve signs commits inside a live pod with the leased key', () =
         leaseRequests.push({ path, authorized })
         if (request.method === 'GET' && path === LEASE_PATH) {
           if (!authorized)
-            return new Response(JSON.stringify({ message: 'no key' }), { status: 404 })
-          return Response.json({ ...keyPair, userName: USER_NAME, userEmail: USER_EMAIL })
+            return Response.json(
+              {
+                error: {
+                  message: 'no key',
+                  code: -32004,
+                  data: { code: 'NOT_FOUND', httpStatus: 404 },
+                },
+              },
+              { status: 404 },
+            )
+          return Response.json({
+            result: { data: { ...keyPair, userName: USER_NAME, userEmail: USER_EMAIL } },
+          })
         }
         console.log(`[fake-api] unexpected ${request.method} ${path}`)
         return new Response(null, { status: 204 })

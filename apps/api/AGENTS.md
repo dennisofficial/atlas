@@ -9,34 +9,39 @@ access tokens, never refresh tokens, from that authority. Persistent ownership s
 and outages; a stale local seed is never a fallback refresher. Model requests still go directly
 to providers. MCP OAuth is separate and remains local; memory is never a synced domain.
 
+Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`threads.create`,
+`sandboxSelf.*`, `models.list` and the rest of the generated `AppRouter`). Only the GitHub webhook
+controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1/github/app/callback`),
+`GET /v1/health` and better-auth's `/api/auth/*` remain REST.
+
 **The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
-`POST /v1/threads` with a `firstMessage` writes the Thread, its first `user-said` Event and the
+`threads.create` with a `firstMessage` writes the Thread, its first `user-said` Event and the
 `CloudSandbox` claim in one transaction, then dispatches the `pod-provision` trigger.dev task
 (`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`), which exits if its
-`wakeClaim` was superseded. `POST /v1/threads/:threadId/sandbox` is Retry. Without `firstMessage`
-the endpoint is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
+`wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
+the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
 rows; a TUI BYO row (none) is never taken over by a web send or Retry.
 
 A thread's owner is fixed at creation (`Thread.organizationId`: the project's workspace, or null).
 `ScopedConfigService.vercelCredentials` resolves `WorkspaceVercelCredential` for a workspace thread
 (the creator must still be a member) or the creator's `UserVercelCredential`
-(`/v1/me/vercel`), each with token, team and project id. Nothing falls back between owners. A
+(`userVercel.*`), each with token, team and project id. Nothing falls back between owners. A
 missing piece still creates the thread and message and answers `not-configured` with the gap. The
 API env `VERCEL_*` only inspect and stop TUI BYO rows; they never create a sandbox.
 
 An API-provisioned sandbox carries **no** Vercel credentials (`injectVercelCredentials: false`).
-Its serve sees `ATLAS_API_PROVISIONED=1` and uses its sandbox token on `/v1/sandboxes/self/*`:
-`ports`, `stop`, `boot-steps` (Agent Running is recorded under the thread lock and must succeed
+Its serve sees `ATLAS_API_PROVISIONED=1` and uses its sandbox token on the `sandboxSelf` procedures:
+`exposePort`, `stop`, `bootSteps` (Agent Running is recorded under the thread lock and must succeed
 before serve hydrates) and `events` (write-behind, idempotent on `(threadId, seq)`). Boot progress
-lives in `SandboxBootStep`, read by the web through `GET /v1/threads/:threadId/pod`. Messages sent
+lives in `SandboxBootStep`, read by the web through `threadPod.status`. Messages sent
 while the pod is parked, absent or failed are appended as Events and start a pod; serve hydrates
-them at boot. `DELETE /v1/threads/:threadId/messages/:sendId` takes back an unrun last message.
+them at boot. `threadMessages.takeBack` takes back an unrun last message.
 
-The TUI still provisions its own BYO sandboxes and registers them through `POST /v1/sandboxes`,
+The TUI still provisions its own BYO sandboxes and registers them through `sandboxes.claim`,
 unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,
 thread discovery, backup sync and PR/CI webhooks.
 
-**`GET /v1/models` serves each user's model list.** `src/api/platform/models/` composes the catalogue from the
+**`models.list` (tRPC) serves each user's model list.** `src/api/platform/models/` composes the catalogue from the
 user's accounts and, when they hold an active OpenAI OAuth connection, replaces the static OpenAI list with
 the live Codex list (`CodexModelsCatalogue`, cached per user in memory for 300 s, revalidated with
 `If-None-Match`; a Codex failure returns the static list plus `liveError`). The code lives in harness behind
@@ -59,13 +64,38 @@ with a synchronous `mock.module` factory over a statically imported fake — an 
 dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTimersByTimeAsync` and
 `waitFor` live in `test/fake-timers.ts`; the other vitest-only helpers come from `@dltech/bun-test-shims`.
 
+## Adding a route
+
+Routes are nestjs-trpc routers, not controllers (the only controllers left are health and the
+GitHub webhooks).
+
+- Write a `@Router({ alias })` class in the feature module and list it as a provider. Each method is a
+  `@Query`, `@Mutation` or `@Subscription` that declares both `input` and `output` as zod schemas
+  from `@dltech/atlas-wire`; the generated file may import only `@trpc/server`, `zod` and wire, and
+  `packages/api-router/src/__tests__/generated-imports.spec.ts` fails a procedure without `output`.
+  Input objects are `z.strictObject`.
+- Authenticate with `@UseMiddlewares(SessionMiddleware)` (a user session) or
+  `@UseMiddlewares(SessionOrSandboxMiddleware)` (a session, a sandbox token or a pod lease token).
+  A procedure opts token kinds in with `meta({ podReachable: true, sandboxReachable: true })` and
+  tunes the throttle with `meta({ throttle: { limit, ttlMs } | false })`
+  (`src/_module/trpc/procedure-meta.ts`). A sandbox token on a threadless procedure needs
+  `sandboxReachable`; a pod token needs `podReachable`.
+- The generated `AppRouter` (`packages/api-router/src/generated/server.ts`) is committed. The
+  pre-commit hook regenerates it when api or wire sources are staged, the CI `check` job fails on
+  drift, and `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.
+- Clients import `AppRouter` types from `@dltech/atlas-api-router` and never from `apps/api`: web
+  uses its `api` client, harness `createHarnessApiClient`, everything else `createApiClient`.
+- Test a router with `createMixedApp` (`src/api/platform/accounts/accounts.router.fixture.ts`) or
+  the feature's `*.router.fixture.ts` and supertest against `/v1/trpc/<alias>.<procedure>`.
+  Queries are GET with `?input=<json>`, mutations POST the input as the JSON body.
+
 ## Layout
 
 ```
 src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
-  _module/    shared injectable modules (session guard + verifier port).
+  _module/    shared injectable modules (session middleware + verifier port, tRPC middlewares).
   api/        the deployable app: app.module.ts + feature modules in two layers —
               platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
               mcp-servers, user-context, github). One-way rule:
@@ -163,7 +193,7 @@ from a `docker run --read-only` container of the same Bun image Vercel runs
 it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
 host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
 on macOS still finds a writable cache. It runs against a throwaway `postgres:17-alpine` container on
-a spec-owned network and hits health, 401, bearer-authenticated, DTO validation, better-auth and the
+a spec-owned network and hits health, 401, bearer-authenticated, tRPC input validation, better-auth and the
 HMAC webhook. Only the `api-bundle` CI job sets `ATLAS_LIVE_DOCKER=1` for it; elsewhere it is skipped. It
 migrates the throwaway database the way `scripts/migrate-deploy.mjs` does (`db migrate --to db`).
 Run it after adding any module or dependency: it catches an import the bundle misses.
@@ -191,10 +221,12 @@ those with the project's protection bypass header. `api.byatlas.io` is the produ
 ## Auth
 
 better-auth is mounted through `@thallesp/nestjs-better-auth` in `src/api/platform/auth/auth.module.ts`,
-with `organization`, `bearer`, and `deviceAuthorization` plugins. Guards never import
+with `organization`, `bearer`, and `deviceAuthorization` plugins. Middlewares and guards never import
 better-auth: they depend on the `SESSION_VERIFIER` port (`src/_core/ports/session-verifier.ts`),
-bound by `SessionModule.withVerifier(...)`. Feature routes opt into protection with
-`@UseGuards(SessionAuthGuard)` and opt out with `@Public()`.
+bound by `SessionModule.withVerifier(...)`. Every procedure is protected by
+its router's `SessionMiddleware` or `SessionOrSandboxMiddleware`, and `meta({ public: true })` opts
+one out. The remaining REST controllers carry no session guard: health is open and the webhooks
+verify an HMAC. `ClientVersionGuard` and `ThrottlerGuard` stay global for those REST routes.
 
 The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
 `byatlas.io`); the API only exposes the better-auth endpoints, and `WEB_ORIGIN` is what points

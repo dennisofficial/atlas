@@ -5,7 +5,25 @@ import { CloudError } from '../cloud-transport'
 import { SigningKeyClient } from '../signing-key-client'
 
 type Call = { method: string; path: string; authorization: string | null; body: unknown }
-type Reply = { status: number; body?: unknown }
+type Reply = { status: number; body?: unknown; code?: string }
+
+const reply = (args: Reply): Response =>
+  args.status < 400
+    ? Response.json({ result: { data: args.body ?? null } })
+    : Response.json(
+        {
+          error: {
+            message: 'refused',
+            code: -32603,
+            data: {
+              code: 'FORBIDDEN',
+              httpStatus: args.status,
+              ...(args.code === undefined ? {} : { details: { code: args.code } }),
+            },
+          },
+        },
+        { status: args.status },
+      )
 
 const fakeApi = (args: { reply: Reply }) => {
   const calls: Call[] = []
@@ -17,9 +35,7 @@ const fakeApi = (args: { reply: Reply }) => {
       authorization: headers.get('authorization'),
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     })
-    return new Response(args.reply.body === undefined ? '' : JSON.stringify(args.reply.body), {
-      status: args.reply.status,
-    })
+    return reply(args.reply)
   }) as typeof fetch
   const client = new SigningKeyClient({
     url: 'https://cloud.test/',
@@ -43,7 +59,7 @@ describe('SigningKeyClient', () => {
     expect(absent.calls).toEqual([
       {
         method: 'GET',
-        path: '/v1/ssh-signing-key/status',
+        path: '/v1/trpc/sshSigningKey.status',
         authorization: 'Bearer sess_1',
         body: undefined,
       },
@@ -57,14 +73,14 @@ describe('SigningKeyClient', () => {
   })
 
   it('posts the private key on register and rotate', async () => {
-    const api = fakeApi({ reply: { status: 201, body: registered } })
+    const api = fakeApi({ reply: { status: 200, body: registered } })
 
     await api.client.register({ privateKey: 'PEM-1' })
     await api.client.rotate({ privateKey: 'PEM-2' })
 
     expect(api.calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      'POST /v1/ssh-signing-key',
-      'POST /v1/ssh-signing-key/rotate',
+      'POST /v1/trpc/sshSigningKey.register',
+      'POST /v1/trpc/sshSigningKey.rotate',
     ])
     expect(api.calls.map((call) => call.body)).toEqual([
       { privateKey: 'PEM-1' },
@@ -73,14 +89,14 @@ describe('SigningKeyClient', () => {
   })
 
   it('deletes on revoke', async () => {
-    const api = fakeApi({ reply: { status: 204 } })
+    const api = fakeApi({ reply: { status: 200 } })
 
     await api.client.revoke()
 
     expect(api.calls).toEqual([
       {
-        method: 'DELETE',
-        path: '/v1/ssh-signing-key',
+        method: 'POST',
+        path: '/v1/trpc/sshSigningKey.revoke',
         authorization: 'Bearer sess_1',
         body: undefined,
       },
@@ -98,10 +114,7 @@ describe('SigningKeyClient', () => {
 
   it('carries the response code and status on a refusal', async () => {
     const api = fakeApi({
-      reply: {
-        status: 403,
-        body: { code: 'github-signing-scope-missing', message: 'reconnect GitHub' },
-      },
+      reply: { status: 403, code: 'github-signing-scope-missing' },
     })
 
     const error = await api.client.register({ privateKey: 'PEM' }).catch((cause: unknown) => cause)

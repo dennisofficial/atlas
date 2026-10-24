@@ -30,7 +30,7 @@ const describeDocker =
 const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
 
-const CURRENT_PATH = '/v1/published-bundles/current'
+const CURRENT_PATH = '/v1/trpc/publishedBundles.current'
 const BLOB_PATH = '/blob/bundle.tar.gz'
 const SKILL_KEY = 'user-layer/skills/.agents/live-pushed/SKILL.md'
 const SKILL_PATH = '/atlas/home/.agents/skills/live-pushed/SKILL.md'
@@ -131,14 +131,27 @@ describeDocker('serve applies the published bundle inside a live pod', () => {
         requests.push({ path, authorized })
         if (request.method === 'GET' && path === CURRENT_PATH) {
           if (!authorized)
-            return new Response(JSON.stringify({ message: 'unauthorized' }), { status: 401 })
+            return Response.json(
+              {
+                error: {
+                  message: 'unauthorized',
+                  code: -32001,
+                  data: { code: 'UNAUTHORIZED', httpStatus: 401 },
+                },
+              },
+              { status: 401 },
+            )
           return Response.json({
-            version: 1,
-            sha256,
-            sizeBytes: tarball.byteLength,
-            manifest: { skills: ['.agents/live-pushed'], instructions: [], mcp: false },
-            createdAt: new Date().toISOString(),
-            downloadUrl: `${hostOrigin}${BLOB_PATH}`,
+            result: {
+              data: {
+                version: 1,
+                sha256,
+                sizeBytes: tarball.byteLength,
+                manifest: { skills: ['.agents/live-pushed'], instructions: [], mcp: false },
+                createdAt: new Date().toISOString(),
+                downloadUrl: `${hostOrigin}${BLOB_PATH}`,
+              },
+            },
           })
         }
         if (request.method === 'GET' && path === BLOB_PATH) return new Response(tarball)

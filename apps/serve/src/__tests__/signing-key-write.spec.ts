@@ -18,6 +18,7 @@ import type { SshSigningKeyLease } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { applySigningKey, applySigningKeyEnv, ESigningKeyEnvResult } from '../signing-key-env'
+import { trpcOk } from './trpc-fake'
 
 const lease: SshSigningKeyLease = {
   publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUBLIC',
@@ -150,7 +151,7 @@ describe('applySigningKeyEnv git config count validation', () => {
         controlPlaneUrl: 'https://api.example.com',
         token: 'pod-token',
         clientVersion: 'dev',
-        fetchFn: asFetch(async () => Response.json(lease)),
+        fetchFn: asFetch(async () => trpcOk(lease)),
       })
 
       expect(lines.map((line) => line.event)).toEqual([EServeEvent.SigningKeyEnvInvalid])

@@ -1,13 +1,8 @@
 import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
 import { podEventOf } from '@dltech/atlas-harness'
-import {
-  MAX_POD_EVENTS_PER_FLUSH,
-  podEventsReplySchema,
-  SANDBOX_SELF_EVENTS_PATH,
-  SANDBOX_SELF_EVENTS_TRUNCATE_PATH,
-  type PodEvent,
-} from '@dltech/atlas-wire'
+import { MAX_POD_EVENTS_PER_FLUSH, type PodEvent } from '@dltech/atlas-wire'
 
+import { type ApiRemote, createApiClient, detailsOf, httpStatusOf } from './api-client'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export enum EFlushReply {
@@ -31,10 +26,13 @@ export class ControlPlaneRefusal extends Error {
 
 const REFUSAL_STATUSES: readonly number[] = [401, 403]
 
-const failedWith = (response: Response): Error =>
-  REFUSAL_STATUSES.includes(response.status)
-    ? new ControlPlaneRefusal({ status: response.status })
-    : new Error(`the control plane answered ${response.status}`)
+const failedWith = (failure: unknown): Error => {
+  const status = httpStatusOf(failure)
+  if (status === undefined) return failure instanceof Error ? failure : new Error(String(failure))
+  return REFUSAL_STATUSES.includes(status)
+    ? new ControlPlaneRefusal({ status })
+    : new Error(`the control plane answered ${status}`)
+}
 
 export type PostPodEvents = (events: readonly PodEvent[]) => Promise<FlushReply>
 
@@ -126,51 +124,27 @@ export function createEventFlusher(args: {
   return { flush, rebase, durableHead: () => durable }
 }
 
-type PodRemote = {
-  controlPlaneUrl: string
-  token: string
-  clientVersion: string
-  fetchFn: typeof fetch
-}
-
-const postTo = (args: { remote: PodRemote; path: string; body: unknown }): Promise<Response> =>
-  args.remote.fetchFn(`${args.remote.controlPlaneUrl.replace(/\/+$/, '')}${args.path}`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${args.remote.token}`,
-      'content-type': 'application/json',
-      'atlas-client-version': args.remote.clientVersion,
-    },
-    body: JSON.stringify(args.body),
-  })
-
-export function httpTruncatePodEvents(remote: PodRemote): TruncatePodEvents {
+export function httpTruncatePodEvents(remote: ApiRemote): TruncatePodEvents {
+  const client = createApiClient(remote)
   return async (toSeq) => {
-    const response = await postTo({
-      remote,
-      path: SANDBOX_SELF_EVENTS_TRUNCATE_PATH,
-      body: { toSeq },
-    })
-    if (!response.ok) throw failedWith(response)
-    return podEventsReplySchema.parse(await response.json()).head
+    try {
+      return (await client.sandboxSelf.truncateEvents.mutate({ toSeq })).head
+    } catch (failure) {
+      throw failedWith(failure)
+    }
   }
 }
 
-export function httpPostPodEvents(remote: PodRemote): PostPodEvents {
+export function httpPostPodEvents(remote: ApiRemote): PostPodEvents {
+  const client = createApiClient(remote)
   return async (events) => {
-    const response = await postTo({ remote, path: SANDBOX_SELF_EVENTS_PATH, body: { events } })
-    if (response.status === 409) {
-      const body: unknown = await response.json().catch(() => ({}))
-      const seq =
-        typeof body === 'object' && body !== null && 'seq' in body && typeof body.seq === 'number'
-          ? body.seq
-          : undefined
-      return { kind: EFlushReply.Conflict, seq }
-    }
-    if (!response.ok) throw failedWith(response)
-    return {
-      kind: EFlushReply.Stored,
-      head: podEventsReplySchema.parse(await response.json()).head,
+    try {
+      const reply = await client.sandboxSelf.events.mutate({ events: [...events] })
+      return { kind: EFlushReply.Stored, head: reply.head }
+    } catch (failure) {
+      if (httpStatusOf(failure) !== 409) throw failedWith(failure)
+      const seq = detailsOf(failure)?.seq
+      return { kind: EFlushReply.Conflict, seq: typeof seq === 'number' ? seq : undefined }
     }
   }
 }

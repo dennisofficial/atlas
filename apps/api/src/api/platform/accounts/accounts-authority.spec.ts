@@ -1,10 +1,10 @@
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { AccountsService } from './accounts.service'
-import { EAccountOrigin, EAuthKind, EAuthProvider } from './accounts.types'
 
 describe('OAuth authority backup metadata', () => {
   const database = useTestDatabase()

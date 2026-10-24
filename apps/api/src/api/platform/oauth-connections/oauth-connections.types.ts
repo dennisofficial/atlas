@@ -1,7 +1,4 @@
-export enum EOauthProvider {
-  Anthropic = 'anthropic',
-  OpenAI = 'openai',
-}
+import type { EOauthProvider } from '@dltech/atlas-wire'
 
 export enum EConnectionStatus {
   Active = 'active',
@@ -12,8 +9,8 @@ export interface ProviderTokens {
   accessToken: string
   refreshToken: string
   expiresAt: string
-  scopes?: string[]
-  accountId?: string
+  scopes?: string[] | undefined
+  accountId?: string | undefined
 }
 
 export interface StoredTokens extends ProviderTokens {

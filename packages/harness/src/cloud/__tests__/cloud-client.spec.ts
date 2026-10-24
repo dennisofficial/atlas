@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CloudClient, CloudError, cloudClientFor } from '../cloud-client'
+import { isTrpcUrl, trpcCallOf, trpcData, trpcError } from './accounts-trpc-fake'
 
 const TOKEN = 'sess_test_token'
 
@@ -36,6 +37,8 @@ type Recorded = {
   method: string
   headers: RequestInit['headers']
   body: unknown
+  procedure?: string
+  input?: unknown
 }
 
 const clientWith = (
@@ -51,9 +54,21 @@ const clientWith = (
       headers: init?.headers,
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     }
+    if (isTrpcUrl(call.url)) {
+      const { procedure, input: trpcInput } = trpcCallOf({ url: call.url, body: call.body })
+      call.procedure = procedure
+      call.input = trpcInput
+    }
     calls.push(call)
 
     const answer = respond(call)
+    if (call.procedure !== undefined) {
+      if (answer.status >= 400) {
+        const message = (answer.body as { message?: string } | undefined)?.message ?? 'failed'
+        return trpcError({ status: answer.status, message })
+      }
+      return trpcData(answer.body ?? null)
+    }
     return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
       status: answer.status,
       headers: { 'content-type': 'application/json' },
@@ -75,7 +90,7 @@ describe('CloudClient', () => {
 
     await client.listAccounts()
 
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/accounts')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/trpc/accounts.list')
   })
 
   it('sends the bearer token on account calls', async () => {
@@ -83,16 +98,18 @@ describe('CloudClient', () => {
 
     await client.listAccounts()
 
-    expect(calls[0]?.headers).toEqual({
+    expect(calls[0]?.headers).toMatchObject({
       authorization: `Bearer ${TOKEN}`,
       'atlas-client-version': 'dev',
     })
   })
 
   it('sends atlas-client-version: dev by default across GET, POST and PUT', async () => {
-    const { client, calls } = clientWith((call) =>
-      call.method === 'POST' ? { status: 201, body: accountBody() } : { status: 204 },
-    )
+    const { client, calls } = clientWith((call) => {
+      if (call.method === 'POST') return { status: 201, body: accountBody() }
+      if (call.method === 'GET') return { status: 200, body: accountBody({ secret }) }
+      return { status: 204 }
+    })
 
     await client.readAccount({ accountId: toAccountId('acc_1') })
     await client.addAccount({
@@ -105,7 +122,7 @@ describe('CloudClient', () => {
     })
     await client.putSecret({ name: 'k', value: 'v' })
 
-    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'PUT'])
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'POST'])
     expect(calls.map((call) => new Headers(call.headers).get('atlas-client-version'))).toEqual([
       'dev',
       'dev',
@@ -131,7 +148,7 @@ describe('CloudClient', () => {
     })
     await client.replaceAccountSecret({ accountId: toAccountId('acc_1'), secret })
 
-    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'PUT'])
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'POST'])
     for (const call of calls) {
       expect(new Headers(call.headers).get('atlas-client-version')).toBe('1.2.3')
     }
@@ -165,6 +182,7 @@ describe('CloudClient', () => {
     const accounts = await client.listAccounts()
 
     expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.procedure).toBe('accounts.list')
     expect(accounts).toHaveLength(1)
     expect(accounts[0]?.id).toBe(toAccountId('acc_1'))
   })
@@ -186,7 +204,8 @@ describe('CloudClient', () => {
 
     const stored = await client.readAccount({ accountId: toAccountId('acc_1') })
 
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/accounts/acc_1')
+    expect(calls[0]?.procedure).toBe('accounts.get')
+    expect(calls[0]?.input).toEqual({ accountId: 'acc_1' })
     expect(stored?.secret).toEqual(secret)
   })
 
@@ -212,7 +231,8 @@ describe('CloudClient', () => {
     const added = await client.addAccount({ draft })
 
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.body).toEqual({
+    expect(calls[0]?.procedure).toBe('accounts.create')
+    expect(calls[0]?.input).toEqual({
       provider: EAuthProvider.OpenAI,
       label: 'personal',
       secret,
@@ -228,9 +248,9 @@ describe('CloudClient', () => {
     await client.replaceAccountSecret({ accountId: toAccountId('acc_1'), secret })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/accounts/acc_1/secret',
-      body: { secret },
+      method: 'POST',
+      procedure: 'accounts.replaceSecret',
+      input: { accountId: 'acc_1', secret },
     })
   })
 
@@ -243,9 +263,9 @@ describe('CloudClient', () => {
     })
 
     expect(calls[0]).toMatchObject({
-      method: 'PATCH',
-      url: 'http://cloud.test/v1/accounts/acc_1/status',
-      body: { status: EAccountStatus.Limited },
+      method: 'POST',
+      procedure: 'accounts.setStatus',
+      input: { accountId: 'acc_1', status: EAccountStatus.Limited },
     })
   })
 
@@ -255,8 +275,9 @@ describe('CloudClient', () => {
     await client.removeAccount({ accountId: toAccountId('acc_1') })
 
     expect(calls[0]).toMatchObject({
-      method: 'DELETE',
-      url: 'http://cloud.test/v1/accounts/acc_1',
+      method: 'POST',
+      procedure: 'accounts.remove',
+      input: { accountId: 'acc_1' },
     })
   })
 
@@ -269,9 +290,9 @@ describe('CloudClient', () => {
     })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/accounts/active',
-      body: { provider: EAuthProvider.Anthropic, accountId: 'acc_1' },
+      method: 'POST',
+      procedure: 'accounts.setActive',
+      input: { provider: EAuthProvider.Anthropic, accountId: 'acc_1' },
     })
   })
 
@@ -280,7 +301,8 @@ describe('CloudClient', () => {
 
     const active = await client.activeAccount({ provider: EAuthProvider.Anthropic })
 
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/accounts/active/anthropic')
+    expect(calls[0]?.procedure).toBe('accounts.active')
+    expect(calls[0]?.input).toEqual({ provider: 'anthropic' })
     expect(active).toBe(toAccountId('acc_1'))
   })
 
@@ -326,32 +348,36 @@ describe('CloudClient', () => {
 
     const secrets = await client.listSecrets()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/secrets' })
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      url: 'http://cloud.test/v1/trpc/secrets.list',
+    })
     expect(secrets).toEqual([
       { name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' },
     ])
   })
 
   it('puts a secret value under its name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.putSecret({ name: 'search.tavily', value: 'tvly-1' })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/secrets/search.tavily',
-      body: { value: 'tvly-1' },
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/secrets.set',
+      body: { name: 'search.tavily', value: 'tvly-1' },
     })
   })
 
   it('deletes a secret by name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.deleteSecret({ name: 'search.tavily' })
 
     expect(calls[0]).toMatchObject({
-      method: 'DELETE',
-      url: 'http://cloud.test/v1/secrets/search.tavily',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/secrets.remove',
+      body: { name: 'search.tavily' },
     })
   })
 
@@ -372,7 +398,10 @@ describe('CloudClient', () => {
 
     const servers = await client.listMcpServers()
 
-    expect(calls[0]).toMatchObject({ method: 'GET', url: 'http://cloud.test/v1/mcp-servers' })
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      url: 'http://cloud.test/v1/trpc/mcpServers.list',
+    })
     expect(servers).toEqual([
       {
         name: 'linear',
@@ -393,7 +422,7 @@ describe('CloudClient', () => {
   })
 
   it('puts an mcp server, omitting absent optional fields from the body', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.putMcpServer({
       name: 'linear',
@@ -401,22 +430,24 @@ describe('CloudClient', () => {
     })
 
     expect(calls[0]).toMatchObject({
-      method: 'PUT',
-      url: 'http://cloud.test/v1/mcp-servers/linear',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/mcpServers.put',
       body: {
+        name: 'linear',
         transport: { kind: 'stdio', command: 'npx', args: ['-y', 'linear-mcp'] },
       },
     })
   })
 
   it('deletes an mcp server by name', async () => {
-    const { client, calls } = clientWith(() => ({ status: 204 }))
+    const { client, calls } = clientWith(() => ({ status: 200 }))
 
     await client.deleteMcpServer({ name: 'linear' })
 
     expect(calls[0]).toMatchObject({
-      method: 'DELETE',
-      url: 'http://cloud.test/v1/mcp-servers/linear',
+      method: 'POST',
+      url: 'http://cloud.test/v1/trpc/mcpServers.remove',
+      body: { name: 'linear' },
     })
   })
 })
@@ -433,17 +464,14 @@ describe('cloudClientFor', () => {
         headers: init?.headers,
         body: undefined,
       })
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+      return trpcData([])
     }) as typeof fetch
 
     const client = cloudClientFor({ session, clientVersion: '3.1.4', fetchFn })
     await client.listAccounts()
 
     expect(client.baseUrl).toBe('http://cloud.test')
-    expect(calls[0]?.headers).toEqual({
+    expect(calls[0]?.headers).toMatchObject({
       authorization: 'Bearer sess_from_session',
       'atlas-client-version': '3.1.4',
     })
@@ -458,10 +486,7 @@ describe('cloudClientFor', () => {
         headers: init?.headers,
         body: undefined,
       })
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+      return trpcData([])
     }) as typeof fetch
 
     const client = cloudClientFor({ session, fetchFn })
@@ -492,30 +517,39 @@ describe('CloudClient projects', () => {
     const projects = await client.listProjects()
 
     expect(calls[0]?.method).toBe('GET')
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/trpc/projects.list')
     expect(projects.map((project) => project.id)).toEqual(['proj_1', 'proj_2'])
   })
 
   it('rejects a list that is not an array of projects', async () => {
-    const { client } = clientWith(() => ({ status: 200, body: { projects: [] } }))
+    const { client } = clientWith(() => ({
+      status: 200,
+      body: { projects: [] },
+    }))
 
     await expect(client.listProjects()).rejects.toThrow()
   })
 
   it('creates a project with a POST of the input', async () => {
-    const { client, calls } = clientWith(() => ({ status: 201, body: projectBody() }))
+    const { client, calls } = clientWith(() => ({
+      status: 200,
+      body: projectBody(),
+    }))
     const input = { name: 'atlas', repo: 'comp-ai/atlas', baseBranch: 'main', additionalRepos: [] }
 
     const created = await client.createProject(input)
 
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.url).toBe('http://cloud.test/v1/projects')
+    expect(calls[0]?.url).toBe('http://cloud.test/v1/trpc/projects.create')
     expect(calls[0]?.body).toEqual(input)
     expect(created.id).toBe('proj_1')
   })
 
   it('surfaces a failed create as a CloudError', async () => {
-    const { client } = clientWith(() => ({ status: 400, body: { message: 'bad repo' } }))
+    const { client } = clientWith(() => ({
+      status: 400,
+      body: { message: 'bad repo' },
+    }))
 
     await expect(
       client.createProject({ name: 'x', repo: null, baseBranch: null, additionalRepos: [] }),

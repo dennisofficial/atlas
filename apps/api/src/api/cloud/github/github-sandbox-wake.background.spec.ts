@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   fakeBoot,
   flushDebounce,
@@ -17,6 +17,10 @@ describe('GithubSandboxWakeService background work', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('hands the lookup to keepAlive, and with no debounce the boot has run once that promise settles', async () => {

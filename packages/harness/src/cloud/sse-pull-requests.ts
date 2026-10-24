@@ -6,6 +6,8 @@ import {
   type PullRequestReading,
   type RepositoryCheckout,
 } from '../plugins/github/pure'
+import { EGithubPrStreamFrame } from '@dltech/atlas-wire'
+
 import type { CloudSession } from './cloud-session'
 import { CloudError, type TransportRetryLog } from './cloud-transport'
 import { deliverPrEvent, type PrEventFrame } from './pr-event-frame'
@@ -176,9 +178,7 @@ export class SsePullRequestPort extends PullRequestPort {
     this.stream = controller
 
     void runSseStream({
-      url: this.client.streamUrl(),
-      token: this.client.token(),
-      clientVersion: this.client.clientVersionHeader(),
+      ...this.client.streamEndpoint(),
       signal: controller.signal,
       ...(this.silenceTimeoutMs === undefined ? {} : { silenceTimeoutMs: this.silenceTimeoutMs }),
       handlers: {
@@ -187,12 +187,11 @@ export class SsePullRequestPort extends PullRequestPort {
           return this.catchUp({ controller, generation: this.generation })
         },
         onFrame: (frame) => {
-          if (frame.event === 'pr-event') {
-            deliverPrEvent({ data: frame.data, onPrEvent: this.onPrEvent, log: this.log })
+          if (frame.type === EGithubPrStreamFrame.PrEvent) {
+            deliverPrEvent({ event: frame.event, onPrEvent: this.onPrEvent, log: this.log })
             return
           }
-          if (frame.event !== 'pr-state') return
-          this.book.applyFrame({ data: frame.data })
+          this.book.applyFrame({ state: frame.state })
         },
         onDrop: () => {
           if (controller.signal.aborted) return

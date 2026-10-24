@@ -2,10 +2,24 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { RemoteSecretsStore } from '../remote-secrets-store'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
-type Recorded = { url: string; method: string; body: unknown }
+type Recorded = { url: string; method: string; body: unknown; procedure: string }
 
 type Answer = { status: number; body?: unknown }
+
+const answerResponse = (answer: Answer): Response => {
+  if (answer.status >= 400) {
+    return trpcFailure({ status: answer.status, message: messageOf(answer.body) })
+  }
+  return answer.body === undefined ? trpcVoid() : trpcData(answer.body)
+}
+
+const messageOf = (body: unknown): string => {
+  const message =
+    typeof body === 'object' && body !== null ? Reflect.get(body, 'message') : undefined
+  return typeof message === 'string' ? message : 'failed'
+}
 
 const storeWith = (
   respond: (call: Recorded) => Answer | Promise<Answer>,
@@ -13,18 +27,17 @@ const storeWith = (
   const calls: Recorded[] = []
 
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
+    const traced = trpcCallOf({ input, init })
     const call: Recorded = {
       url: String(input),
-      method: init?.method ?? 'GET',
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      method: traced.method,
+      body: traced.method === 'GET' ? undefined : traced.input,
+      procedure: traced.procedure,
     }
     calls.push(call)
 
     const answer = await respond(call)
-    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
-      status: answer.status,
-      headers: { 'content-type': 'application/json' },
-    })
+    return answerResponse(answer)
   }) as typeof fetch
 
   const client = new CloudClient({ url: 'http://cloud.test/', token: 'sess_test', fetchFn })
@@ -36,16 +49,15 @@ const noticedStoreWith = (
   onWriteFailure: (args: { name: string; failure: CloudError }) => void,
 ): RemoteSecretsStore => {
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
+    const traced = trpcCallOf({ input, init })
     const call: Recorded = {
       url: String(input),
-      method: init?.method ?? 'GET',
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      method: traced.method,
+      body: traced.method === 'GET' ? undefined : traced.input,
+      procedure: traced.procedure,
     }
     const answer = await respond(call)
-    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
-      status: answer.status,
-      headers: { 'content-type': 'application/json' },
-    })
+    return answerResponse(answer)
   }) as typeof fetch
 
   return new RemoteSecretsStore({
@@ -61,6 +73,9 @@ const secretsBody = (server: Map<string, string>) => ({
     updatedAt: '2026-01-01T00:00:00.000Z',
   })),
 })
+
+const isDoomedSet = (args: { procedure: string; body: unknown }): boolean =>
+  args.procedure === 'secrets.set' && Reflect.get(Object(args.body), 'name') === 'doomed'
 
 const deferred = () => {
   let release!: () => void
@@ -78,25 +93,25 @@ const statefulCloud = (args?: {
   const server = new Map(Object.entries(args?.initial ?? {}))
   const order: string[] = []
 
-  const { store } = storeWith(async ({ method, url, body }) => {
-    const name = url.split('/').at(-1) ?? ''
-    if (method === 'GET') {
+  const { store } = storeWith(async ({ procedure, body }) => {
+    const name = (body as { name?: string } | undefined)?.name ?? ''
+    if (procedure === 'secrets.list') {
       const snapshot = secretsBody(server)
       order.push('GET')
       await args?.holdGet?.()
       return { status: 200, body: snapshot }
     }
-    if (method === 'PUT') {
+    if (procedure === 'secrets.set') {
       order.push(`PUT ${name}`)
       await args?.holdPut?.()
       server.set(name, (body as { value: string }).value)
-      return { status: 204 }
+      return { status: 200 }
     }
-    if (method === 'DELETE') {
+    if (procedure === 'secrets.remove') {
       server.delete(name)
-      return { status: 204 }
+      return { status: 200 }
     }
-    return { status: 204 }
+    return { status: 200 }
   })
 
   return { store, server, order }
@@ -122,7 +137,7 @@ describe('RemoteSecretsStore', () => {
 
     expect(store.read('search.tavily')).toBe('tvly-1')
     expect(store.read('search.exa')).toBe('exa-1')
-    expect(store.origin()).toBe('http://cloud.test/v1/secrets')
+    expect(store.origin()).toBe('http://cloud.test (Atlas Cloud secrets)')
   })
 
   it('reads are synchronous from memory, undefined before warm', () => {
@@ -132,8 +147,8 @@ describe('RemoteSecretsStore', () => {
   })
 
   it('write updates memory immediately and enqueues a PUT, remove a DELETE, in order', async () => {
-    const { store, calls } = storeWith(({ method }) =>
-      method === 'GET' ? { status: 200, body: { secrets: [] } } : { status: 204 },
+    const { store, calls } = storeWith(({ procedure }) =>
+      procedure === 'secrets.list' ? { status: 200, body: { secrets: [] } } : { status: 200 },
     )
     await store.warm()
 
@@ -146,17 +161,19 @@ describe('RemoteSecretsStore', () => {
 
     await store.settled()
 
-    expect(calls.slice(1)).toEqual([
-      { url: 'http://cloud.test/v1/secrets/a', method: 'PUT', body: { value: '1' } },
-      { url: 'http://cloud.test/v1/secrets/b', method: 'PUT', body: { value: '2' } },
-      { url: 'http://cloud.test/v1/secrets/a', method: 'DELETE', body: undefined },
+    expect(
+      calls.slice(1).map(({ procedure, method, body }) => ({ procedure, method, body })),
+    ).toEqual([
+      { procedure: 'secrets.set', method: 'POST', body: { name: 'a', value: '1' } },
+      { procedure: 'secrets.set', method: 'POST', body: { name: 'b', value: '2' } },
+      { procedure: 'secrets.remove', method: 'POST', body: { name: 'a' } },
     ])
     expect(store.failure).toBeNull()
   })
 
   it('settled rejects with the first failure and records it, keeping the in-memory value', async () => {
-    const { store } = storeWith(({ method, url }) =>
-      method === 'PUT' && url.endsWith('/doomed')
+    const { store } = storeWith(({ procedure, body }) =>
+      isDoomedSet({ procedure, body })
         ? { status: 500, body: { message: 'vault sealed' } }
         : { status: 200, body: { secrets: [] } },
     )
@@ -175,9 +192,9 @@ describe('RemoteSecretsStore', () => {
 
   it('clears the recorded failure after a successful drain', async () => {
     let open = false
-    const { store } = storeWith(({ method }) => {
-      if (method === 'GET') return { status: 200, body: { secrets: [] } }
-      return open ? { status: 204 } : { status: 500, body: { message: 'down' } }
+    const { store } = storeWith(({ procedure }) => {
+      if (procedure === 'secrets.list') return { status: 200, body: { secrets: [] } }
+      return open ? { status: 200 } : { status: 500, body: { message: 'down' } }
     })
     await store.warm()
 
@@ -195,8 +212,8 @@ describe('RemoteSecretsStore', () => {
   it('raises each write-behind failure on the callback while settled still rejects', async () => {
     const raised: { name: string; failure: CloudError }[] = []
     const store = noticedStoreWith(
-      ({ method, url }) =>
-        method === 'PUT' && url.endsWith('/doomed')
+      ({ procedure, body }) =>
+        isDoomedSet({ procedure, body })
           ? { status: 500, body: { message: 'vault sealed' } }
           : { status: 200, body: { secrets: [] } },
       (args) => {
@@ -295,12 +312,12 @@ describe('RemoteSecretsStore', () => {
   })
 
   it('a warm keeps the local value of a write the cloud refused', async () => {
-    const { store } = storeWith(({ method, url }) => {
-      if (method === 'GET') return { status: 200, body: { secrets: [] } }
-      if (method === 'PUT' && url.endsWith('/doomed')) {
+    const { store } = storeWith(({ procedure, body }) => {
+      if (procedure === 'secrets.list') return { status: 200, body: { secrets: [] } }
+      if (isDoomedSet({ procedure, body })) {
         return { status: 500, body: { message: 'vault sealed' } }
       }
-      return { status: 204 }
+      return { status: 200 }
     })
     await store.warm()
 

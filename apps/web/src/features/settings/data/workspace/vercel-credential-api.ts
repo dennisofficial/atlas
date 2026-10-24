@@ -1,26 +1,17 @@
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
-import { workspaceBase } from './resource-api'
 import {
-  vercelCredentialSchema,
   viewOfCredential,
   type VercelCredentialView,
   type VercelUpsertBody,
 } from './vercel-credential'
 
-const vercelPath = (organizationId: string) => `${workspaceBase(organizationId)}/vercel`
-
 export async function getVercelCredential(organizationId: string): Promise<VercelCredentialView> {
-  const wire = await cloudJson({
-    method: EHttpMethod.Get,
-    path: vercelPath(organizationId),
-    schema: vercelCredentialSchema,
-  })
-  return viewOfCredential(wire)
+  return viewOfCredential(await cloudCall(api.workspaces.getVercel.query({ organizationId })))
 }
 
 export const putVercelCredential = (args: { organizationId: string; body: VercelUpsertBody }) =>
-  cloudSend({ method: EHttpMethod.Put, path: vercelPath(args.organizationId), body: args.body })
+  cloudCall(api.workspaces.saveVercel.mutate({ organizationId: args.organizationId, ...args.body }))
 
 export const deleteVercelCredential = (organizationId: string) =>
-  cloudSend({ method: EHttpMethod.Delete, path: vercelPath(organizationId) })
+  cloudCall(api.workspaces.removeVercel.mutate({ organizationId }))

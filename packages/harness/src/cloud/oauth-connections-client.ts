@@ -1,8 +1,11 @@
 import type { OauthTokens, ThreadId } from '@dltech/atlas-core'
+import type { ApiClient } from '@dltech/atlas-api-router'
+import { EOauthProvider } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
 import type { CloudSession } from './cloud-session'
-import { CloudError, CloudTransport } from './cloud-transport'
+import { CloudError, DEFAULT_REQUEST_TIMEOUT_MS } from './cloud-transport'
 
 const OAUTH_ACCESS_TIMEOUT_MS = 30_000
 const validInstant = (value: string): boolean => Date.parse(value) > 0
@@ -24,16 +27,27 @@ const metadataSchema = z.object({
   generation: z.number().int().nonnegative(),
 })
 
-export type OauthConnectionProvider = 'anthropic' | 'openai'
+export type OauthConnectionProvider = EOauthProvider
 
-const malformed = (path: string): CloudError =>
+const malformed = (procedure: string): CloudError =>
   new CloudError({
     status: 502,
-    message: `The Atlas Cloud API answered ${path} with a body that is not an OAuth access response.`,
+    message: `The Atlas Cloud API answered ${procedure} with a body that is not an OAuth access response.`,
   })
 
+const parseAccess = (args: { body: unknown; procedure: string }): OauthAccess => {
+  const parsed = oauthAccessResponseSchema.safeParse(args.body)
+  if (!parsed.success) throw malformed(args.procedure)
+
+  return parsed.data
+}
+
+const signalFor = (timeoutMs: number): { signal: AbortSignal } => ({
+  signal: AbortSignal.timeout(timeoutMs),
+})
+
 export class OAuthConnectionsClient {
-  private readonly transport: CloudTransport
+  private readonly api: ApiClient
 
   constructor(args: {
     url: string
@@ -41,7 +55,13 @@ export class OAuthConnectionsClient {
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
   }) {
-    this.transport = new CloudTransport(args)
+    this.api = createHarnessApiClient({
+      url: args.url,
+      token: args.token,
+      clientVersion: args.clientVersion ?? 'dev',
+      fetchFn: args.fetchFn ?? fetch,
+      timeoutMs: null,
+    })
   }
 
   async handoff(args: {
@@ -49,15 +69,14 @@ export class OAuthConnectionsClient {
     provider: OauthConnectionProvider
     tokens: OauthTokens
   }): Promise<OauthAccess> {
-    const path = connectionPath(args.connectionId)
-    const body = await this.transport.request({
-      method: 'PUT',
-      path,
-      body: { provider: args.provider, tokens: args.tokens },
-      retry: false,
-    })
+    const body = await cloudCall(
+      this.api.oauthConnections.upload.mutate(
+        { connectionId: args.connectionId, provider: args.provider, tokens: args.tokens },
+        signalFor(DEFAULT_REQUEST_TIMEOUT_MS),
+      ),
+    )
 
-    return parseAccess({ body, path })
+    return parseAccess({ body, procedure: 'oauthConnections.upload' })
   }
 
   async reauthorize(args: {
@@ -67,27 +86,31 @@ export class OAuthConnectionsClient {
     authorizationId: string
     previousAuthorizationId: string
   }): Promise<OauthAccess> {
-    const path = `${connectionPath(args.connectionId)}/reauthorize`
-    const body = await this.transport.request({
-      method: 'PUT',
-      path,
-      body: {
-        provider: args.provider,
-        tokens: args.tokens,
-        authorizationId: args.authorizationId,
-        previousAuthorizationId: args.previousAuthorizationId,
-      },
-      retry: false,
-    })
+    const body = await cloudCall(
+      this.api.oauthConnections.reauthorize.mutate(
+        {
+          connectionId: args.connectionId,
+          provider: args.provider,
+          tokens: args.tokens,
+          authorizationId: args.authorizationId,
+          previousAuthorizationId: args.previousAuthorizationId,
+        },
+        signalFor(DEFAULT_REQUEST_TIMEOUT_MS),
+      ),
+    )
 
-    return parseAccess({ body, path })
+    return parseAccess({ body, procedure: 'oauthConnections.reauthorize' })
   }
 
   async metadata(args: { connectionId: string }) {
-    const path = connectionPath(args.connectionId)
-    const body = await this.transport.request({ method: 'GET', path })
+    const body = await cloudCall(
+      this.api.oauthConnections.get.query(
+        { connectionId: args.connectionId },
+        signalFor(DEFAULT_REQUEST_TIMEOUT_MS),
+      ),
+    )
     const parsed = metadataSchema.safeParse(body)
-    if (!parsed.success) throw malformed(path)
+    if (!parsed.success) throw malformed('oauthConnections.get')
     return parsed.data
   }
 
@@ -95,37 +118,29 @@ export class OAuthConnectionsClient {
     connectionId: string
     rejectedAccessToken?: string | undefined
   }): Promise<OauthAccess> {
-    const path = `${connectionPath(args.connectionId)}/access-token`
-    const body = await this.transport.request({
-      method: 'POST',
-      path,
-      body:
-        args.rejectedAccessToken === undefined
-          ? {}
-          : { rejectedAccessToken: args.rejectedAccessToken },
-      timeoutMs: OAUTH_ACCESS_TIMEOUT_MS,
-    })
+    const body = await cloudCall(
+      this.api.oauthConnections.accessToken.mutate(
+        {
+          connectionId: args.connectionId,
+          ...(args.rejectedAccessToken === undefined
+            ? {}
+            : { rejectedAccessToken: args.rejectedAccessToken }),
+        },
+        signalFor(OAUTH_ACCESS_TIMEOUT_MS),
+      ),
+    )
 
-    return parseAccess({ body, path })
+    return parseAccess({ body, procedure: 'oauthConnections.accessToken' })
   }
 
   async assignSandbox(args: { connectionId: string; threadId: ThreadId | string }): Promise<void> {
-    await this.transport.request({
-      method: 'PUT',
-      path: `${connectionPath(args.connectionId)}/sandboxes/${encodeURIComponent(args.threadId)}`,
-      retry: false,
-    })
+    await cloudCall(
+      this.api.oauthConnections.assignSandbox.mutate(
+        { connectionId: args.connectionId, threadId: args.threadId },
+        signalFor(DEFAULT_REQUEST_TIMEOUT_MS),
+      ),
+    )
   }
-}
-
-const connectionPath = (connectionId: string): string =>
-  `/v1/oauth-connections/${encodeURIComponent(connectionId)}`
-
-const parseAccess = (args: { body: unknown; path: string }): OauthAccess => {
-  const parsed = oauthAccessResponseSchema.safeParse(args.body)
-  if (!parsed.success) throw malformed(args.path)
-
-  return parsed.data
 }
 
 export const oauthConnectionsClientFor = (args: {

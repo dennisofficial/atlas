@@ -163,9 +163,15 @@ describe('bindAccounts', () => {
         async (input: string | URL | Request) => {
           fetches.push(String(input))
           return Response.json({
-            accessToken: 'fake-cloud-access',
-            expiresAt: minutesAheadOfNow(60),
-            generation: 0,
+            result: {
+              data: {
+                accessToken: 'fake-cloud-access',
+                expiresAt: minutesAheadOfNow(60),
+                refreshAfter: minutesAheadOfNow(30),
+                generation: 0,
+                authorizationId: 'oauth_fake',
+              },
+            },
           })
         },
         { preconnect: () => undefined },
@@ -190,7 +196,7 @@ describe('bindAccounts', () => {
       })
       expect(credential).toMatchObject({ kind: EAuthKind.Oauth, accessToken: 'fake-cloud-access' })
       expect(fetches).toHaveLength(1)
-      expect(fetches[0]).toContain('/v1/oauth-connections/oauth_')
+      expect(fetches[0]).toContain('/v1/trpc/oauthConnections.upload')
       const stored = await container.resolve(registeredPortToken(AccountStorePort)).read(account.id)
       if (stored?.secret.kind !== EAuthKind.Oauth) throw new Error('OAuth account missing')
       expect(stored.secret.tokens.refreshToken).toBe('')
@@ -205,11 +211,17 @@ describe('bindAccounts', () => {
         async (input: string | URL | Request) => {
           const url = String(input)
           fetches.push(url)
-          expect(url.startsWith('http://cloud.test/v1/oauth-connections/')).toBe(true)
+          expect(url.startsWith('http://cloud.test/v1/trpc/oauthConnections.')).toBe(true)
           return Response.json({
-            accessToken: 'fake-cloud-access-2',
-            expiresAt: minutesAheadOfNow(120),
-            generation: 1,
+            result: {
+              data: {
+                accessToken: 'fake-cloud-access-2',
+                expiresAt: minutesAheadOfNow(120),
+                refreshAfter: minutesAheadOfNow(60),
+                generation: 1,
+                authorizationId: 'oauth_fake',
+              },
+            },
           })
         },
         { preconnect: () => undefined },

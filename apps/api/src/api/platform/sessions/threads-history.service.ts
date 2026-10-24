@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db, or, type Tx } from '@dltech/atlas-db'
+import type {
+  CompactThreadInput,
+  ForkThreadInput,
+  RewindThreadInput,
+  SummariseThreadInput,
+} from '@dltech/atlas-wire'
 import { nextEventId, nextRunId, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { toThreadDto } from './rows'
 import { advanceHead } from './thread-head'
-import type {
-  CompactThreadDto,
-  ForkThreadDto,
-  RewindThreadDto,
-  SummariseThreadDto,
-} from './sessions.dto'
 import type { ThreadDto } from './sessions.types'
 
 const SURVIVES_SUMMARY = [
@@ -54,7 +54,11 @@ async function dropRewoundChildren(args: {
 
 @Injectable()
 export class ThreadsHistoryService {
-  async rewind(args: { userId: string; threadId: string; draft: RewindThreadDto }): Promise<void> {
+  async rewind(args: {
+    userId: string
+    threadId: string
+    draft: Omit<RewindThreadInput, 'threadId'>
+  }): Promise<void> {
     await requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
     const at = new Date()
     await db.transaction(async (tx) => {
@@ -72,7 +76,7 @@ export class ThreadsHistoryService {
   async compact(args: {
     userId: string
     threadId: string
-    draft: CompactThreadDto
+    draft: Omit<CompactThreadInput, 'threadId'>
   }): Promise<{ replaced: number }> {
     return this.mark({ ...args, cutAgents: [], discardRows: false })
   }
@@ -80,12 +84,16 @@ export class ThreadsHistoryService {
   async summarise(args: {
     userId: string
     threadId: string
-    draft: SummariseThreadDto
+    draft: Omit<SummariseThreadInput, 'threadId'>
   }): Promise<{ replaced: number }> {
     return this.mark({ ...args, cutAgents: args.draft.cutAgents ?? [], discardRows: true })
   }
 
-  async fork(args: { userId: string; threadId: string; draft: ForkThreadDto }): Promise<ThreadDto> {
+  async fork(args: {
+    userId: string
+    threadId: string
+    draft: Omit<ForkThreadInput, 'threadId'>
+  }): Promise<ThreadDto> {
     const source = await requireOwnedThread({
       reader: db,
       userId: args.userId,
@@ -142,7 +150,7 @@ export class ThreadsHistoryService {
   private async mark(args: {
     userId: string
     threadId: string
-    draft: CompactThreadDto
+    draft: Omit<CompactThreadInput, 'threadId'>
     discardRows: boolean
     cutAgents: readonly string[]
   }): Promise<{ replaced: number }> {

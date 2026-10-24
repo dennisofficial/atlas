@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import {
-  API_PROVISIONED_ENV,
-  SANDBOX_SELF_PORTS_PATH,
-  SANDBOX_SELF_STOP_PATH,
-} from '@dltech/atlas-wire'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
 import { apiPortExposer } from '../api-port-exposer'
 import { sandboxPark } from '../sandbox-park'
 import { ServeProcessPort } from '../serve-process'
+import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 
 type Call = { url: string; headers: Headers; body: unknown }
 
@@ -30,7 +27,7 @@ const controlPlaneUrl = 'https://api.example.com'
 
 describe('apiPortExposer', () => {
   it('posts the port with the serve token and answers the url', async () => {
-    const { calls, fetchFn } = fakeFetch(() => Response.json({ url: 'https://sb-1.vercel.run' }))
+    const { calls, fetchFn } = fakeFetch(() => trpcOk({ url: 'https://sb-1.vercel.run' }))
     const exposer = apiPortExposer({
       controlPlaneUrl,
       token: 'serve-token',
@@ -45,7 +42,7 @@ describe('apiPortExposer', () => {
       exposure: { containerPort: 3000, hostPort: 3000, url: 'https://sb-1.vercel.run' },
     })
     expect(calls).toHaveLength(1)
-    expect(calls[0]?.url).toBe(`${controlPlaneUrl}${SANDBOX_SELF_PORTS_PATH}`)
+    expect(calls[0]?.url).toBe(trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.exposePort' }))
     expect(calls[0]?.body).toEqual({ port: 3000 })
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer serve-token')
     expect(calls[0]?.headers.get('content-type')).toBe('application/json')
@@ -53,7 +50,7 @@ describe('apiPortExposer', () => {
   })
 
   it('turns a non-2xx answer into a refusal carrying the status and body', async () => {
-    const { fetchFn } = fakeFetch(() => new Response('port limit reached', { status: 409 }))
+    const { fetchFn } = fakeFetch(() => trpcFailure({ status: 409, message: 'port limit reached' }))
     const exposer = apiPortExposer({
       controlPlaneUrl,
       token: 'serve-token',
@@ -74,7 +71,7 @@ describe('sandboxPark when api-provisioned', () => {
   const threadId = toThreadId('thread-self-stop')
 
   it('posts the session id to the stop path with the serve token', async () => {
-    const { calls, fetchFn } = fakeFetch(() => Response.json({}))
+    const { calls, fetchFn } = fakeFetch(() => trpcOk(undefined))
     const stop = sandboxPark({
       threadId,
       controlPlaneUrl,
@@ -87,14 +84,14 @@ describe('sandboxPark when api-provisioned', () => {
     expect(calls).toEqual([])
     await stop?.()
 
-    expect(calls[0]?.url).toBe(`${controlPlaneUrl}${SANDBOX_SELF_STOP_PATH}`)
+    expect(calls[0]?.url).toBe(trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.stop' }))
     expect(calls[0]?.body).toEqual({ sessionId: 'session-9' })
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer serve-token')
     expect(calls[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
   })
 
   it('omits an empty session id', async () => {
-    const { calls, fetchFn } = fakeFetch(() => Response.json({}))
+    const { calls, fetchFn } = fakeFetch(() => trpcOk(undefined))
     await sandboxPark({
       threadId,
       controlPlaneUrl,
@@ -107,7 +104,7 @@ describe('sandboxPark when api-provisioned', () => {
   })
 
   it('rejects when the control plane refuses the stop', async () => {
-    const { fetchFn } = fakeFetch(() => new Response('nope', { status: 401 }))
+    const { fetchFn } = fakeFetch(() => trpcFailure({ status: 401, message: 'nope' }))
     const stop = sandboxPark({
       threadId,
       controlPlaneUrl,

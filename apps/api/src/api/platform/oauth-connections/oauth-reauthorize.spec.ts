@@ -4,7 +4,8 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FakeClock, FakeIssuer, FakeStore, grantOf } from './oauth-connections.fakes'
 import { OauthConnectionsService } from './oauth-connections.service'
-import { EConnectionStatus, EOauthProvider, OauthRejectedError } from './oauth-connections.types'
+import { EOauthProvider } from '@dltech/atlas-wire'
+import { EConnectionStatus, OauthRejectedError } from './oauth-connections.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const START = Date.parse('2026-10-05T12:00:00.000Z')

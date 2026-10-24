@@ -14,6 +14,7 @@ import {
 import { memoryAccountStore, type AccountStore } from '../../credentials/account-store'
 import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcData } from './accounts-trpc-fake'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -55,10 +56,7 @@ beforeEach(() => {
       authorization: headers.get('authorization'),
       clientVersion: headers.get('atlas-client-version'),
     })
-    return new Response(JSON.stringify([accountBody]), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })
+    return trpcData([accountBody])
   }) as typeof fetch
 })
 
@@ -106,7 +104,7 @@ describe('AccountStoreProxy with a session', () => {
     const accounts = await proxy.list()
 
     expect(accounts[0]?.label).toBe('remote')
-    expect(fetchCalls[0]?.url).toBe('http://cloud.test/v1/accounts')
+    expect(fetchCalls[0]?.url).toBe('http://cloud.test/v1/trpc/accounts.list')
     expect(fetchCalls[0]?.authorization).toBe('Bearer sess_a')
   })
 
@@ -173,11 +171,7 @@ describe('AccountStoreProxy when the cloud is answering badly', () => {
       headers: { 'content-type': 'application/json' },
     })
 
-  const serving = () =>
-    new Response(JSON.stringify([accountBody]), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })
+  const serving = () => trpcData([accountBody])
 
   beforeEach(() => {
     answer = serving

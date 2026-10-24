@@ -52,16 +52,20 @@ function fakeCloud(args: { putStatus: number }) {
     })
     if (isPut)
       return new Response(args.putStatus === 200 ? '' : 'denied', { status: args.putStatus })
-    if (url.endsWith('/uploads')) {
+    if (url.endsWith('/publishedBundles.issueUpload')) {
       return Response.json({
-        pathname: 'bundles/u/1.tar.gz',
-        uploadUrl: 'https://blob.test/put?sig=1',
-        contentType: 'application/gzip',
-        maximumSizeInBytes: 1_000_000,
-        validUntil: 1,
+        result: {
+          data: {
+            pathname: 'bundles/u/1.tar.gz',
+            uploadUrl: 'https://blob.test/put?sig=1',
+            contentType: 'application/gzip',
+            maximumSizeInBytes: 1_000_000,
+            validUntil: 1,
+          },
+        },
       })
     }
-    return Response.json(summary)
+    return Response.json({ result: { data: summary } })
   }) as typeof fetch
   const client = new PublishedBundleClient({
     url: 'https://cloud.test',
@@ -97,9 +101,7 @@ describe('publishBundle', () => {
     expect(put?.authorization).toBeNull()
     expect(put?.contentType).toBe('application/gzip')
 
-    const commit = cloud.calls.find(
-      (call) => call.method === 'POST' && !call.url.endsWith('/uploads'),
-    )
+    const commit = cloud.calls.find((call) => call.url.endsWith('/publishedBundles.commit'))
     const bytes = cloud.putBody()
     expect(bytes).toBeDefined()
     expect(commit?.body).toEqual({
@@ -120,6 +122,6 @@ describe('publishBundle', () => {
     await expect(
       publishBundle({ items, client: cloud.client, fetchFn: cloud.fetchFn }),
     ).rejects.toThrow(/403: denied/)
-    expect(cloud.calls.filter((call) => call.url.endsWith('/published-bundles'))).toEqual([])
+    expect(cloud.calls.filter((call) => call.url.endsWith('/publishedBundles.commit'))).toEqual([])
   })
 })

@@ -6,13 +6,13 @@ export enum EMcpTransportKind {
 }
 
 export const mcpTransportSchema = z.discriminatedUnion('kind', [
-  z.object({
+  z.strictObject({
     kind: z.literal(EMcpTransportKind.Stdio),
     command: z.string().min(1),
     args: z.array(z.string()).optional(),
     env: z.record(z.string(), z.string()).optional(),
   }),
-  z.object({
+  z.strictObject({
     kind: z.literal(EMcpTransportKind.Http),
     url: z.string().min(1),
     headers: z.record(z.string(), z.string()).optional(),
@@ -28,7 +28,7 @@ export const mcpServerSchema = z.object({
 })
 export type McpServerWire = z.infer<typeof mcpServerSchema>
 
-export const mcpUpsertSchema = z.object({
+export const mcpUpsertSchema = z.strictObject({
   transport: mcpTransportSchema.optional(),
   disabled: z.boolean().optional(),
 })

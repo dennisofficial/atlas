@@ -1,12 +1,11 @@
 import { isValidTreePath } from '@dltech/atlas-core'
+import { MAX_PATHS_PER_GET } from '@dltech/atlas-wire'
 
 import type { UserFileContent, UserFileMeta } from '../cloud/user-files-client'
 
 import { applyRemoteRows } from './apply'
 import type { TreeSyncContext } from './context'
 import { isConflictCopyKey } from './layout'
-
-const MAX_PATHS_PER_GET = 500
 
 const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] => {
   const chunks: T[][] = []

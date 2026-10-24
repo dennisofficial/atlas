@@ -10,6 +10,7 @@ const devOrigins = (process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   transpilePackages: [
+    '@dltech/atlas-api-router',
     '@dltech/atlas-client',
     '@dltech/atlas-core',
     '@dltech/atlas-models',

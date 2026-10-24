@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { ESandboxProvisionState } from '@dltech/atlas-wire/web'
+
+import { fakeFetch, mutationUrl, trpcOk } from './trpc-fake'
 
 import { createThreadBodyOf } from '../create-thread'
 import { createThread } from '../threads-api'
@@ -36,43 +38,38 @@ describe('createThreadBodyOf', () => {
 
 describe('createThread', () => {
   const realFetch = globalThis.fetch
-  let calls: { url: string; method: string | undefined; body: unknown }[]
-
-  beforeEach(() => {
-    calls = []
-    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      calls.push({
-        url: String(input),
-        method: init?.method,
-        body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
-      })
-      return new Response(
-        JSON.stringify({
-          thread: {
-            id: 'thr_1',
-            head: 1,
-            createdAt: 'a',
-            updatedAt: 'b',
-            workspace: null,
-            repo: null,
-            projectId: null,
-          },
-          provision: { state: ESandboxProvisionState.Booting },
-        }),
-        { status: 201, headers: { 'content-type': 'application/json' } },
-      )
-    }) as typeof fetch
-  })
 
   afterEach(() => {
     globalThis.fetch = realFetch
   })
 
-  it('posts the body once and parses the create reply', async () => {
+  it('posts the body once to threads.create and parses the create reply', async () => {
+    const calls = fakeFetch(() =>
+      trpcOk({
+        thread: {
+          id: 'thr_1',
+          head: 1,
+          createdAt: 'a',
+          updatedAt: 'b',
+          workspace: null,
+          repo: null,
+          projectId: null,
+        },
+        provision: { state: ESandboxProvisionState.Booting },
+      }),
+    )
     const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1' })
     const reply = await createThread(body)
-    expect(calls).toEqual([{ url: '/v1/threads', method: 'POST', body }])
+    expect(calls).toEqual([{ url: mutationUrl('threads.create'), method: 'POST', body }])
     expect(reply.thread.id).toBe('thr_1')
     expect(reply.provision.state).toBe(ESandboxProvisionState.Booting)
+  })
+
+  it('rejects a reply that carries no provision', async () => {
+    fakeFetch(() =>
+      trpcOk({ id: 'thr_1', head: 1, createdAt: 'a', updatedAt: 'b', workspace: null, repo: null }),
+    )
+    const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1' })
+    await expect(createThread(body)).rejects.toThrow()
   })
 })

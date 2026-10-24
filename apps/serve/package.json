@@ -9,9 +9,11 @@
     "build:serve": "bun scripts/build-serve.ts"
   },
   "dependencies": {
+    "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
+    "@trpc/client": "^11.19.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

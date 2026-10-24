@@ -75,15 +75,36 @@ describe('api under the bun runtime', () => {
     expect(response.status).toBe(200)
   })
 
-  it('injects the session verifier into SessionAuthGuard', async () => {
-    const response = await fetch(`${base}/v1/secrets`)
+  it('injects the session verifier into SessionMiddleware', async () => {
+    const response = await fetch(`${base}/v1/trpc/secrets.details`)
     expect(response.status).toBe(401)
-    expect(await response.json()).toMatchObject({ message: 'a valid session is required' })
+    expect(await response.json()).toMatchObject({
+      error: { message: 'a valid session is required' },
+    })
   })
 
-  it('injects the session verifier into SessionOrSandboxGuard', async () => {
-    const response = await fetch(`${base}/v1/threads/recent`)
+  it('injects the session verifier into SessionOrSandboxMiddleware', async () => {
+    const input = encodeURIComponent(JSON.stringify({ project: '/repo' }))
+    const response = await fetch(`${base}/v1/trpc/threads.recent?input=${input}`)
     expect(response.status).toBe(401)
+  })
+
+  it('answers 401 on a tRPC procedure without a sandbox token', async () => {
+    const response = await fetch(`${base}/v1/trpc/sandboxSelf.events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events: [] }),
+    })
+    expect(response.status).toBe(401)
+  })
+
+  it('refuses a tRPC body over the 4mb global cap with 413', async () => {
+    const response = await fetch(`${base}/v1/trpc/sandboxSelf.stop`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'x'.repeat(5 * 1024 * 1024) }),
+    })
+    expect(response.status).toBe(413)
   })
 
   it(
@@ -97,7 +118,7 @@ describe('api under the bun runtime', () => {
       })
       expect(probe.status, probe.stderr).toBe(0)
       expect(JSON.parse(probe.stdout.trim().split('\n').pop() ?? '{}')).toEqual({
-        sessionAuthVerifier: true,
+        sessionMiddlewareVerifier: true,
         wakeBootAdapter: true,
       })
     },

@@ -1,19 +1,14 @@
-import { z } from 'zod'
-
 import {
   EMcpTransportKind,
-  mcpServerSchema,
   type McpServerWire,
   type McpTransportWire,
 } from '@dltech/atlas-wire/web'
 
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import { EMcpTransport, type McpServer } from '../../fixtures/settings-mcp'
 import { splitCommandLine } from '../command-line'
 import { targetOf, transportOfDraft } from '../workspace/mcp-mapping'
-
-const listSchema = z.object({ servers: z.array(mcpServerSchema) })
 
 export function transportOf(
   draft: Pick<McpServer, 'transport' | 'target'> & { extra?: string },
@@ -41,11 +36,7 @@ export function toMcpServer(wire: McpServerWire): McpServer {
 }
 
 export async function fetchMcpServers(): Promise<McpServerWire[]> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: '/v1/mcp-servers',
-    schema: listSchema,
-  })
+  const body = await cloudCall(api.mcpServers.list.query())
   return body.servers
 }
 
@@ -54,14 +45,13 @@ export function putMcpServer(args: {
   transport?: McpTransportWire | undefined
   disabled?: boolean | undefined
 }): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Put,
-    path: `/v1/mcp-servers/${encodeURIComponent(args.name)}`,
-    body: {
+  return cloudCall(
+    api.mcpServers.put.mutate({
+      name: args.name,
       ...(args.transport === undefined ? {} : { transport: args.transport }),
       ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
-    },
-  })
+    }),
+  )
 }
 
 export function addMcpServer(
@@ -71,8 +61,5 @@ export function addMcpServer(
 }
 
 export function deleteMcpServer(name: string): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Delete,
-    path: `/v1/mcp-servers/${encodeURIComponent(name)}`,
-  })
+  return cloudCall(api.mcpServers.remove.mutate({ name }))
 }

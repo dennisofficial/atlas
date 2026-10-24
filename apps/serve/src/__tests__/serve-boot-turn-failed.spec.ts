@@ -6,15 +6,12 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { ETurnStatus, type WireEvent } from '@dltech/atlas-harness'
-import {
-  API_PROVISIONED_ENV,
-  podEventsPostSchema,
-  SANDBOX_SELF_EVENTS_PATH,
-} from '@dltech/atlas-wire'
+import { API_PROVISIONED_ENV, podEventsPostSchema } from '@dltech/atlas-wire'
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
@@ -48,17 +45,19 @@ const fakePostgres = () => {
   const head = () => rows.reduce((highest, row) => Math.max(highest, row.seq), 0)
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (url === `${controlPlaneUrl}${SANDBOX_SELF_EVENTS_PATH}`) {
+    if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.events' })) {
       const { events } = podEventsPostSchema.parse(JSON.parse(String(init?.body)))
       for (const event of events) {
-        if (event.seq !== head() + 1) return Response.json({ seq: event.seq }, { status: 409 })
+        if (event.seq !== head() + 1)
+          return trpcFailure({ status: 409, details: { seq: event.seq } })
         rows.push({ id: `pg-${event.seq}`, threadId, ...event })
       }
-      return Response.json({ head: head() })
+      return trpcOk({ head: head() })
     }
-    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
-      return Response.json(rows)
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' }))) {
+      return trpcOk(rows)
     }
+    if (url.startsWith(`${controlPlaneUrl}/v1/trpc/`)) return trpcOk(undefined)
     return new Response(null, { status: 204 })
   }) as unknown as typeof fetch
   return { rows, head, fetchFn }

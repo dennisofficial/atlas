@@ -38,8 +38,9 @@ any inference from code, and `docs/core-contract.md` holds the seams it depends 
 | `@dltech/atlas-storybook` (`apps/storybook`) | ui | The Storybook host: loads the stories co-located in `ui` and owns the `App/` prototypes. |
 | `@dltech/atlas-wire`         | `zod`, `@vercel/sandbox` | The wire contract: channel/session zod schemas, protocol version, serve-env constants — plus the sandbox boot primitives (drive lifecycle, serve install/launch, mount retries) shared by harness and the API. No in-repo deps. |
 | `@dltech/atlas` (`apps/tui`) | core, harness  | OpenTUI + React terminal app; binds its stores into the shared root. |
-| `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
+| `@dltech/atlas-serve` (`apps/serve`) | core, harness, wire, api-router | Websocket transport surface; compiles to the `atlas-serve` binary sandboxes boot. Owns the sandbox image build. |
 | `@dltech/atlas-db` (`packages/db`) | `@prisma/orm-postgres`, `pg` | The Postgres contract (one model per file), Prisma 8 migrations, the lazy `db` client and test databases. No in-repo deps. |
+| `@dltech/atlas-api-router` (`packages/api-router`) | `@dltech/atlas-wire`, `@trpc/client`, `@trpc/server`, `zod` | The generated `AppRouter` type (nestjs-trpc output, committed; the pre-commit hook regenerates it when api or wire sources are staged, CI's `check` job fails on drift, and `nestjs-trpc watch` runs in api dev) and the browser-safe tRPC client (`createApiClient`, bearer or same-origin cookies, SSE subscriptions) every client shares. Clients import it instead of reaching into `apps/api`. |
 | `@dltech/atlas-api` (`apps/api`) | `@dltech/atlas-wire`, `@dltech/atlas-db`, `@dltech/atlas-harness/models` (subpath only) | Atlas Cloud backend (NestJS + better-auth + Prisma 8 over Postgres). |
 | `web` (`apps/web`) | client, core, models, ui, wire | Atlas Cloud frontend (Next.js App Router; deploys to Vercel). |
 

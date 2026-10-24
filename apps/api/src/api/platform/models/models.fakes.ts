@@ -1,4 +1,4 @@
-import type { AccountDto } from '../accounts/accounts.types'
+import type { AccountDto } from '@dltech/atlas-wire'
 import type { ModelsOauth, ModelsAccounts } from './models.service'
 
 export const account = (args: {

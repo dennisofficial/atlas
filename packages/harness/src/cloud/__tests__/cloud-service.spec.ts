@@ -18,6 +18,7 @@ import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -99,84 +100,88 @@ const cloudFake = (): CloudFake => {
     if (path === '/api/auth/device/code') return reply(200, deviceCodeBody)
     if (path === '/api/auth/get-session')
       return reply(200, { user: { email: 'dev@example.com', name: 'Dev' }, session: {} })
-    if (path === '/v1/accounts' && method === 'GET') {
-      if (fake.failAccountsList) return reply(500, { message: 'listing broke' })
-      return reply(200, fake.remoteAccounts)
+    if (path.startsWith('/v1/trpc/accounts.')) {
+      const call = trpcCallOf({ input, init })
+      const procedure = call.procedure
+      const trpcInput = call.input as Record<string, unknown> | undefined
+      if (procedure === 'accounts.list') {
+        if (fake.failAccountsList) return trpcFailure({ status: 500, message: 'listing broke' })
+        return trpcData(fake.remoteAccounts)
+      }
+      if (procedure === 'accounts.create') {
+        const id = `acc_remote_${fake.added.length + 1}`
+        fake.added.push(trpcInput ?? {})
+        const secret = trpcInput?.['secret'] as AccountSecret
+        return trpcData({
+          id,
+          provider: trpcInput?.['provider'],
+          kind: secret.kind,
+          origin: trpcInput?.['origin'],
+          label: trpcInput?.['label'],
+          status: 'active',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        })
+      }
+      if (procedure === 'accounts.setActive') {
+        fake.actives.push({
+          provider: String(trpcInput?.['provider']),
+          accountId: String(trpcInput?.['accountId']),
+        })
+        return trpcData(undefined)
+      }
+      if (procedure === 'accounts.active') {
+        const held = fake.actives.find((active) => active.provider === trpcInput?.['provider'])
+        return trpcData({ accountId: held?.accountId ?? null })
+      }
+      if (procedure === 'accounts.get') {
+        const held = fake.remoteAccounts.find(
+          (account) => account['id'] === trpcInput?.['accountId'],
+        )
+        if (held === undefined) return trpcFailure({ status: 404, message: 'no such account' })
+        return trpcData(held)
+      }
     }
-    if (path === '/v1/accounts' && method === 'POST') {
-      const id = `acc_remote_${fake.added.length + 1}`
-      fake.added.push(body ?? {})
-      const secret = body?.['secret'] as AccountSecret
-      return reply(201, {
-        id,
-        provider: body?.['provider'],
-        kind: secret.kind,
-        origin: body?.['origin'],
-        label: body?.['label'],
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
-    }
-    if (path === '/v1/accounts/active' && method === 'PUT') {
-      fake.actives.push({
-        provider: String(body?.['provider']),
-        accountId: String(body?.['accountId']),
-      })
-      return reply(204)
-    }
-    if (path.startsWith('/v1/accounts/active/') && method === 'GET') {
-      const provider = path.slice('/v1/accounts/active/'.length)
-      const held = fake.actives.find((active) => active.provider === provider)
-      return reply(200, { accountId: held?.accountId ?? null })
-    }
-    if (path.startsWith('/v1/accounts/') && method === 'GET') {
-      const id = path.slice('/v1/accounts/'.length)
-      const held = fake.remoteAccounts.find((account) => account['id'] === id)
-      if (held === undefined) return reply(404, { message: 'no such account' })
-      return reply(200, held)
-    }
-    if (path === '/v1/secrets' && method === 'GET')
-      return reply(200, { secrets: fake.remoteSecrets })
-    if (path.startsWith('/v1/secrets/') && method === 'PUT') {
-      const name = path.slice('/v1/secrets/'.length)
-      fake.putSecrets.push({ name, value: body?.['value'] })
+    const trpc = trpcCallOf({ input, init })
+    const args = trpc.input as Record<string, unknown> | undefined
+    if (trpc.procedure === 'secrets.list') return trpcData({ secrets: fake.remoteSecrets })
+    if (trpc.procedure === 'secrets.set') {
+      const name = String(args?.['name'])
+      fake.putSecrets.push({ name, value: args?.['value'] })
       fake.remoteSecrets.push({
         name,
-        value: String(body?.['value']),
+        value: String(args?.['value']),
         updatedAt: '2026-01-01T00:00:00.000Z',
       })
-      return reply(204)
+      return trpcVoid()
     }
-    if (path === '/v1/settings' && method === 'GET')
-      return reply(200, { settings: fake.remoteSettings })
-    if (path.startsWith('/v1/settings/') && method === 'PUT') {
-      const key = path.slice('/v1/settings/'.length)
-      fake.putSettings.push({ key, value: body?.['value'] })
+    if (trpc.procedure === 'settings.list') return trpcData({ settings: fake.remoteSettings })
+    if (trpc.procedure === 'settings.set') {
+      const key = String(args?.['key'])
+      fake.putSettings.push({ key, value: args?.['value'] })
       const held = fake.remoteSettings.find((setting) => setting.key === key)
       if (held === undefined) {
         fake.remoteSettings.push({
           key,
-          value: String(body?.['value']),
+          value: String(args?.['value']),
           updatedAt: '2026-01-01T00:00:00.000Z',
         })
       } else {
-        held.value = String(body?.['value'])
+        held.value = String(args?.['value'])
       }
-      return reply(204)
+      return trpcVoid()
     }
-    if (path.startsWith('/v1/settings/') && method === 'DELETE') {
-      const key = path.slice('/v1/settings/'.length)
+    if (trpc.procedure === 'settings.remove') {
+      const key = String(args?.['key'])
       fake.remoteSettings = fake.remoteSettings.filter((setting) => setting.key !== key)
-      return reply(204)
+      return trpcVoid()
     }
-    if (path === '/v1/mcp-servers' && method === 'GET')
-      return reply(200, { servers: fake.remoteMcp })
-    if (path.startsWith('/v1/mcp-servers/') && method === 'PUT') {
-      const name = path.slice('/v1/mcp-servers/'.length)
-      fake.putMcp.push({ name, body: body ?? {} })
-      fake.remoteMcp.push({ name, ...(body ?? {}), updatedAt: '2026-01-01T00:00:00.000Z' })
-      return reply(204)
+    if (trpc.procedure === 'mcpServers.list') return trpcData({ servers: fake.remoteMcp })
+    if (trpc.procedure === 'mcpServers.put') {
+      const { name, ...rest } = args ?? {}
+      fake.putMcp.push({ name: String(name), body: rest })
+      fake.remoteMcp.push({ name: String(name), ...rest, updatedAt: '2026-01-01T00:00:00.000Z' })
+      return trpcVoid()
     }
 
     return reply(404, { message: `unhandled ${method} ${path}` })
@@ -565,7 +570,7 @@ describe('CloudService explicit sync', () => {
       value: 'atlas-setting:v1:"img-9"',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })
-    fake.failOn.push('GET /v1/settings')
+    fake.failOn.push('GET /v1/trpc/settings.list')
     const service = serviceWithSettings(fake.fetchFn)
     const seeded = await seedLocal()
     localSecrets.write({ name: 'local.key', value: 'local-1' })

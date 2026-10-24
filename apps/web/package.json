@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.156",
+    "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",

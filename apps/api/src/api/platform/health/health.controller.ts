@@ -1,5 +1,4 @@
 import { Controller, Get, HttpCode, ServiceUnavailableException } from '@nestjs/common'
-import { Public } from '../../../_core/decorators/public.decorator'
 import { DrainStateService } from './drain-state.service'
 import { EMigrationState, MigrationStateService } from './migration-state.service'
 
@@ -19,7 +18,6 @@ export class HealthController {
   ) {}
 
   @Get()
-  @Public()
   @HttpCode(200)
   async handleHealth(): Promise<HealthReport> {
     if (this.drain.isDraining()) {

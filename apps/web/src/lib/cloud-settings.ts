@@ -12,7 +12,7 @@ import {
   type SettingScalar,
 } from '@dltech/atlas-wire/web'
 
-import { cloudJson, cloudSend, EHttpMethod } from './cloud-api'
+import { api, cloudCall } from './api-client'
 import { useCloudQuery, type CloudQuery } from './use-cloud-query'
 
 export enum ESettingsTarget {
@@ -27,24 +27,16 @@ export type SettingsTarget =
 export type SettingValues = ReadonlyMap<string, SettingScalar>
 export type SettingChanges = Record<string, SettingScalar | null>
 
-const settingListSchema = z.object({
-  settings: z.array(z.object({ key: z.string(), value: z.string(), updatedAt: z.string() })),
-})
-
-const pathOf = (target: SettingsTarget): string =>
-  target.kind === ESettingsTarget.Personal
-    ? '/v1/settings'
-    : `/v1/workspaces/${encodeURIComponent(target.organizationId)}/settings`
-
 const registryOf = (target: SettingsTarget): ReadonlyMap<string, CloudSettingEntry> =>
   target.kind === ESettingsTarget.Personal ? CLOUD_SETTING_REGISTRY : WORKSPACE_SETTING_REGISTRY
 
 export async function fetchSettings(target: SettingsTarget): Promise<SettingValues> {
-  const body = await cloudJson({
-    method: EHttpMethod.Get,
-    path: pathOf(target),
-    schema: settingListSchema,
-  })
+  const body =
+    target.kind === ESettingsTarget.Personal
+      ? await cloudCall(api.settings.list.query())
+      : await cloudCall(
+          api.workspaces.listSettings.query({ organizationId: target.organizationId }),
+        )
   return new Map(body.settings.map((setting) => [setting.key, decodeSettingValue(setting.value)]))
 }
 
@@ -57,7 +49,14 @@ export async function saveSettings(args: {
     values[key] = value === null ? null : encodeSettingValue(value)
   }
   if (Object.keys(values).length === 0) return
-  await cloudSend({ method: EHttpMethod.Patch, path: pathOf(args.target), body: { values } })
+  const { target } = args
+  if (target.kind === ESettingsTarget.Personal) {
+    await cloudCall(api.settings.patch.mutate({ values }))
+    return
+  }
+  await cloudCall(
+    api.workspaces.patchSettings.mutate({ organizationId: target.organizationId, values }),
+  )
 }
 
 export function resolveSetting<TValue extends SettingScalar>(args: {

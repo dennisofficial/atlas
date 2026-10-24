@@ -5,6 +5,10 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { projectWorkspaceSpecFetcher } from '../project-workspace-spec'
+import { trpcFailure, trpcOk } from './trpc-fake'
+
+const workspaceUrl = (projectId: string): string =>
+  `https://api.example.com/v1/trpc/projectWorkspace.get?input=${encodeURIComponent(JSON.stringify({ projectId }))}`
 
 const homes: string[] = []
 
@@ -94,7 +98,7 @@ describe('projectWorkspaceSpecFetcher', () => {
       model: 'claude-x',
       projectId: 'proj-1',
     })
-    const { fetchSpec, calls } = fetcherWith({ home, answers: [() => Response.json(WORKSPACE)] })
+    const { fetchSpec, calls } = fetcherWith({ home, answers: [() => trpcOk(WORKSPACE)] })
 
     await expect(fetchSpec()).resolves.toEqual({
       remoteUrl: 'https://github.com/octocat/Hello-World.git',
@@ -106,7 +110,7 @@ describe('projectWorkspaceSpecFetcher', () => {
     })
     expect(calls).toEqual([
       {
-        url: 'https://api.example.com/v1/projects/proj-1/workspace',
+        url: workspaceUrl('proj-1'),
         authorization: 'Bearer serve-token',
       },
     ])
@@ -118,7 +122,7 @@ describe('projectWorkspaceSpecFetcher', () => {
       home,
       answers: [
         () =>
-          Response.json({
+          trpcOk({
             ...WORKSPACE,
             repo: null,
             baseBranch: null,
@@ -142,9 +146,9 @@ describe('projectWorkspaceSpecFetcher', () => {
       home,
       sleeps,
       answers: [
-        () => new Response('no', { status: 401 }),
-        () => new Response('no', { status: 401 }),
-        () => Response.json(WORKSPACE),
+        () => trpcFailure({ status: 401, message: 'no' }),
+        () => trpcFailure({ status: 401, message: 'no' }),
+        () => trpcOk(WORKSPACE),
       ],
     })
 
@@ -163,10 +167,10 @@ describe('projectWorkspaceSpecFetcher', () => {
       home,
       sleeps,
       retryBudgetMs: 6000,
-      answers: [() => new Response('no', { status: 401 })],
+      answers: [() => trpcFailure({ status: 401, message: 'no' })],
     })
 
-    await expect(fetchSpec()).rejects.toThrow('with 401')
+    await expect(fetchSpec()).rejects.toThrow('answered 401')
     expect(sleeps).toEqual([2000, 2000, 2000])
     expect(calls).toHaveLength(4)
   })
@@ -176,10 +180,10 @@ describe('projectWorkspaceSpecFetcher', () => {
     const { fetchSpec, calls } = fetcherWith({
       home,
       requestMs: 5000,
-      answers: [() => new Response('no', { status: 401 })],
+      answers: [() => trpcFailure({ status: 401, message: 'no' })],
     })
 
-    await expect(fetchSpec()).rejects.toThrow('with 401')
+    await expect(fetchSpec()).rejects.toThrow('answered 401')
     expect(calls.length).toBeLessThanOrEqual(9)
     expect(calls.length).toBeGreaterThan(1)
   })
@@ -190,23 +194,23 @@ describe('projectWorkspaceSpecFetcher', () => {
     const { fetchSpec, calls } = fetcherWith({
       home,
       sleeps,
-      answers: [() => new Response('gone', { status: 404 })],
+      answers: [() => trpcFailure({ status: 404, message: 'gone' })],
     })
 
-    await expect(fetchSpec()).rejects.toThrow('with 404')
+    await expect(fetchSpec()).rejects.toThrow('answered 404')
     expect(calls).toHaveLength(1)
     expect(sleeps).toEqual([])
   })
 
-  it('encodes the project id into the path', async () => {
+  it('carries the project id in the query input', async () => {
     const home = homeWith({ remoteUrl: null, githubToken: null, projectId: 'a/b c' })
     const { fetchSpec, calls } = fetcherWith({
       home,
-      answers: [() => new Response('x', { status: 404 })],
+      answers: [() => trpcFailure({ status: 404, message: 'x' })],
     })
 
     await fetchSpec().catch(() => undefined)
 
-    expect(calls[0]?.url).toBe('https://api.example.com/v1/projects/a%2Fb%20c/workspace')
+    expect(calls[0]?.url).toBe(workspaceUrl('a/b c'))
   })
 })

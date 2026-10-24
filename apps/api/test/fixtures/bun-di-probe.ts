@@ -13,13 +13,13 @@ const { AppModule } = await import('../../src/api/app.module')
 const { GithubSandboxWakeService } = await import(
   '../../src/api/cloud/github/github-sandbox-wake.service'
 )
-const { SessionAuthGuard } = await import('../../src/_module/session/session-auth.guard')
+const { SessionMiddleware } = await import('../../src/_module/session/session.middleware')
 
 const context = await NestFactory.createApplicationContext(AppModule, { logger: false })
 
 const result = {
-  sessionAuthVerifier: injectedField({
-    instance: context.get(SessionAuthGuard),
+  sessionMiddlewareVerifier: injectedField({
+    instance: context.get(SessionMiddleware),
     field: 'verifier',
   }),
   wakeBootAdapter: injectedField({

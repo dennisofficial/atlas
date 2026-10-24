@@ -16,7 +16,7 @@ import {
   ATLAS_SECRETS_NAME,
   cipherSecretBox,
   CloudError,
-  cloudRequest,
+  cloudCall,
   decodeSettingValue,
   fileVaultBackend,
   SANDBOX_SERVE_TOKEN_PREFIX,
@@ -24,16 +24,10 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
-import { accountLeaseSchema } from '@dltech/atlas-wire'
-import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
-import { z } from 'zod'
+import { ESecretKind } from '@dltech/atlas-wire/web'
 
-import {
-  cloudConfigPathFor,
-  exportEnvSecrets,
-  mergeCloudMcpServers,
-  type CloudConfig,
-} from './cloud-config'
+import { createApiClient, httpStatusOf } from './api-client'
+import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -43,13 +37,6 @@ const DEFAULT_RETRY_BUDGET_MS = 60_000
 const REQUEST_TIMEOUT_MS = 10_000
 const MAX_ATTEMPTS = 30
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
-
-const settingsResponseSchema = z.object({
-  settings: z.array(z.object({ key: z.string(), value: z.string() })),
-})
-const secretsResponseSchema = z.object({
-  secrets: z.array(z.object({ name: z.string(), value: z.string() })),
-})
 
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -145,34 +132,39 @@ export const applyCloudState = async (args: {
     return left
   }
 
-  const request = (path: string, allowMissing = false): Promise<unknown> =>
-    cloudRequest({
-      allowMissing,
-      url,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-      method: 'GET',
-      path,
-      timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
-    })
+  const isRegistering = (error: unknown): boolean =>
+    (error instanceof CloudError && error.status === UNAUTHORIZED) ||
+    httpStatusOf(error) === UNAUTHORIZED
 
-  const requestPatiently = async (path: string, allowMissing = false): Promise<unknown> => {
-    for (let attempt = 1; ; attempt += 1) {
+  const patiently = async <T>(attempt: () => Promise<T>): Promise<T> => {
+    for (let attempts = 1; ; attempts += 1) {
       try {
-        return await request(path, allowMissing)
+        return await attempt()
       } catch (error) {
-        const registering = error instanceof CloudError && error.status === UNAUTHORIZED
-        if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
+        if (!isRegistering(error) || attempts >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) {
+          throw error
+        }
         await sleep(RETRY_DELAY_MS)
       }
     }
   }
 
+  const api = createApiClient({
+    controlPlaneUrl: url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
+
+  const attemptSignal = () => AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs()))
+
+  const leasePatiently = () =>
+    patiently(() => api.accountLease.get.query(undefined, { signal: attemptSignal() }))
+
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
-      requestPatiently('/v1/settings').then((body) => settingsResponseSchema.parse(body)),
-      requestPatiently('/v1/secrets').then((body) => secretsResponseSchema.parse(body)),
+      patiently(() => api.settings.list.query(undefined, { signal: attemptSignal() })),
+      patiently(() => api.secrets.list.query(undefined, { signal: attemptSignal() })),
     ])
     return {
       settings: settings.settings,
@@ -182,9 +174,13 @@ export const applyCloudState = async (args: {
   }
 
   const scopedConfig = async (): Promise<CloudConfig> => {
-    const body = await requestPatiently(cloudConfigPathFor(args.projectId), true)
-    if (body === undefined) return legacyConfig()
-    const resolved = resolvedSandboxConfigSchema.parse(body)
+    const input = args.projectId ? { projectId: args.projectId } : undefined
+    const resolved = await patiently(() =>
+      cloudCall(api.sandboxConfig.get.query(input, { signal: attemptSignal() }), {
+        allowMissing: true,
+      }),
+    )
+    if (resolved === undefined) return legacyConfig()
     return {
       settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
       secrets: resolved.secrets,
@@ -193,10 +189,7 @@ export const applyCloudState = async (args: {
   }
 
   try {
-    const [lease, config] = await Promise.all([
-      requestPatiently('/v1/account-lease').then((body) => accountLeaseSchema.parse(body)),
-      scopedConfig(),
-    ])
+    const [lease, config] = await Promise.all([leasePatiently(), scopedConfig()])
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
     writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })

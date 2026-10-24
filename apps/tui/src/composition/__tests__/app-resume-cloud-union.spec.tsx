@@ -65,7 +65,7 @@ const cloudWithThreads = (args: {
 }): FakeApp['cloud'] => {
   const fetchFn = (async () => {
     if (args.fail === true) throw new Error('the control plane is unreachable')
-    return new Response(JSON.stringify(args.threads), { status: 200 })
+    return Response.json({ result: { data: args.threads } })
   }) as unknown as typeof fetch
   return fakeCloud({
     sessionsClientFor: ({ session }) =>

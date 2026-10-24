@@ -3,12 +3,19 @@ import { describe, expect, it } from 'bun:test'
 import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire'
 
 import type { CloudSession } from '../../cloud/cloud-session'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from '../../cloud/__tests__/trpc-wire'
 import { CloudMemoryPort } from '../cloud-memory-port'
 import { MemoryEditRefused, MemoryUnavailable } from '../memory-port'
 
 const SESSION: CloudSession = { url: 'https://cloud.test', token: 'tok-1', email: null }
 
-type Call = { url: string; method: string; authorization: string | null; body: unknown }
+type Call = {
+  url: string
+  method: string
+  procedure: string
+  authorization: string | null
+  input: unknown
+}
 
 const SUMMARY = {
   scope: 'global',
@@ -28,11 +35,13 @@ const portWith = (args: {
   const calls: Call[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
+    const traced = trpcCallOf({ input, init })
     const call: Call = {
       url: String(input),
-      method: init?.method ?? 'GET',
+      method: traced.method,
+      procedure: traced.procedure,
       authorization: headers.get('authorization'),
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      input: traced.input,
     }
     calls.push(call)
     return args.respond(call)
@@ -46,24 +55,48 @@ const portWith = (args: {
   return { port, calls }
 }
 
-const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+const refusal = (args: {
+  status: number
+  trpcCode: string
+  code: string
+  message: string
+}): Response =>
+  trpcFailure({
+    status: args.status,
+    message: args.message,
+    trpcCode: args.trpcCode,
+    details: { message: args.message, code: args.code },
+  })
+
+const editArgs = {
+  scope: EMemoryScope.Global,
+  name: 'a',
+  old: 'x',
+  new: 'y',
+  revision: 3,
+} as const
 
 describe('CloudMemoryPort', () => {
-  it('lists with the bearer token and the project query', async () => {
-    const { port, calls } = portWith({ respond: () => json({ memories: [SUMMARY] }) })
+  it('lists with the bearer token and the project input', async () => {
+    const { port, calls } = portWith({ respond: () => trpcData({ memories: [SUMMARY] }) })
 
     expect(await port.list()).toHaveLength(1)
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/memories?project=org%2Frepo')
+    expect(calls[0]?.procedure).toBe('memories.list')
+    expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.input).toEqual({ project: 'org/repo' })
     expect(calls[0]?.authorization).toBe('Bearer tok-1')
   })
 
-  it('lists without a project query when there is no project', async () => {
-    const { port, calls } = portWith({ respond: () => json({ memories: [] }), project: null })
+  it('lists with an empty input when there is no project', async () => {
+    const { port, calls } = portWith({
+      respond: () => trpcData({ memories: [] }),
+      project: null,
+    })
 
     await port.list()
 
-    expect(calls[0]?.url).toBe('https://cloud.test/v1/memories')
+    expect(calls[0]?.url).toStartWith('https://cloud.test/v1/trpc/memories.list')
+    expect(calls[0]?.input).toEqual({})
   })
 
   it('retries a list by default and makes a single bounded attempt under a deadline', async () => {
@@ -71,13 +104,13 @@ describe('CloudMemoryPort', () => {
     const unbounded = portWith({
       respond: () => {
         attempts.unbounded += 1
-        return attempts.unbounded === 1 ? json({}, 503) : json({ memories: [] })
+        return attempts.unbounded === 1 ? trpcFailure({ status: 503 }) : trpcData({ memories: [] })
       },
     })
     const bounded = portWith({
       respond: () => {
         attempts.bounded += 1
-        return json({}, 503)
+        return trpcFailure({ status: 503 })
       },
     })
 
@@ -88,24 +121,25 @@ describe('CloudMemoryPort', () => {
   })
 
   it('reads a 404 as null', async () => {
-    const { port } = portWith({ respond: () => json({ message: 'no' }, 404) })
+    const { port } = portWith({
+      respond: () => refusal({ status: 404, trpcCode: 'NOT_FOUND', code: 'x', message: 'no' }),
+    })
 
     expect(await port.read({ scope: EMemoryScope.Global, name: 'a' })).toBeNull()
   })
 
   it('sends the project on a project-scope read', async () => {
-    const { port, calls } = portWith({ respond: () => json({ ...SUMMARY, body: 'b' }) })
+    const { port, calls } = portWith({ respond: () => trpcData({ ...SUMMARY, body: 'b' }) })
 
     const entry = await port.read({ scope: EMemoryScope.Project, name: 'a' })
 
     expect(entry?.body).toBe('b')
-    expect(calls[0]?.url).toBe(
-      'https://cloud.test/v1/memories/entry?scope=project&name=a&project=org%2Frepo',
-    )
+    expect(calls[0]?.procedure).toBe('memories.get')
+    expect(calls[0]?.input).toEqual({ scope: 'project', name: 'a', project: 'org/repo' })
   })
 
-  it('writes with PUT and returns the new revision', async () => {
-    const { port, calls } = portWith({ respond: () => json(SUMMARY) })
+  it('writes with a mutation and returns the new revision', async () => {
+    const { port, calls } = portWith({ respond: () => trpcData(SUMMARY) })
 
     const saved = await port.write({
       scope: EMemoryScope.Global,
@@ -116,8 +150,9 @@ describe('CloudMemoryPort', () => {
     })
 
     expect(saved.revision).toBe(3)
-    expect(calls[0]?.method).toBe('PUT')
-    expect(calls[0]?.body).toEqual({
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.procedure).toBe('memories.put')
+    expect(calls[0]?.input).toEqual({
       scope: 'global',
       name: 'a',
       description: 'd',
@@ -126,41 +161,60 @@ describe('CloudMemoryPort', () => {
     })
   })
 
-  it('maps a 409 on edit to MemoryEditRefused carrying the code', async () => {
-    const { port } = portWith({
-      respond: () => json({ message: 'stale, current 4', code: 'memory-stale-revision' }, 409),
+  it.each([
+    { status: 409, trpcCode: 'CONFLICT', code: 'memory-stale-revision' },
+    { status: 422, trpcCode: 'UNPROCESSABLE_CONTENT', code: 'memory-edit-no-match' },
+    { status: 422, trpcCode: 'UNPROCESSABLE_CONTENT', code: 'memory-edit-ambiguous' },
+  ])('maps a $status $trpcCode on edit to MemoryEditRefused carrying $code', async (refused) => {
+    const { port, calls } = portWith({
+      respond: () => refusal({ ...refused, message: `refused: ${refused.code}` }),
     })
 
-    const failure = await port
-      .edit({ scope: EMemoryScope.Global, name: 'a', old: 'x', new: 'y', revision: 3 })
-      .catch((error: unknown) => error)
+    const failure = await port.edit(editArgs).catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(MemoryEditRefused)
-    expect((failure as MemoryEditRefused).code).toBe('memory-stale-revision')
-  })
-
-  it('maps a 422 on edit to MemoryEditRefused', async () => {
-    const { port } = portWith({
-      respond: () => json({ message: 'ambiguous', code: 'memory-edit-ambiguous' }, 422),
+    expect((failure as MemoryEditRefused).code).toBe(refused.code)
+    expect((failure as MemoryEditRefused).message).toContain(`refused: ${refused.code}`)
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.procedure).toBe('memories.edit')
+    expect(calls[0]?.input).toEqual({
+      scope: 'global',
+      name: 'a',
+      old: 'x',
+      new: 'y',
+      revision: 3,
     })
-
-    const failure = await port
-      .edit({ scope: EMemoryScope.Global, name: 'a', old: 'x', new: 'y', revision: 3 })
-      .catch((error: unknown) => error)
-
-    expect(failure).toBeInstanceOf(MemoryEditRefused)
   })
 
-  it('deletes with true, and false on 404', async () => {
-    const gone = portWith({ respond: () => new Response(null, { status: 204 }) })
-    const missing = portWith({ respond: () => json({}, 404) })
+  it('lets a non-refusal edit failure through as it is', async () => {
+    const { port } = portWith({ respond: () => trpcFailure({ status: 500, message: 'boom' }) })
+
+    const failure = await port.edit(editArgs).catch((error: unknown) => error)
+
+    expect(failure).not.toBeInstanceOf(MemoryEditRefused)
+    expect((failure as Error).message).toContain('boom')
+  })
+
+  it('deletes with true, and false on a 404', async () => {
+    const gone = portWith({ respond: () => trpcVoid() })
+    const missing = portWith({
+      respond: () => refusal({ status: 404, trpcCode: 'NOT_FOUND', code: 'x', message: 'no' }),
+    })
 
     expect(await gone.port.delete({ scope: EMemoryScope.Global, name: 'a' })).toBe(true)
+    expect(gone.calls[0]?.procedure).toBe('memories.remove')
+    expect(gone.calls[0]?.method).toBe('POST')
     expect(await missing.port.delete({ scope: EMemoryScope.Global, name: 'a' })).toBe(false)
   })
 
+  it('does not swallow a non-404 delete failure', async () => {
+    const { port } = portWith({ respond: () => trpcFailure({ status: 500 }) })
+
+    expect(port.delete({ scope: EMemoryScope.Global, name: 'a' })).rejects.toThrow()
+  })
+
   it('refuses a project-scope call without a project, before any request', async () => {
-    const { port, calls } = portWith({ respond: () => json({}), project: null })
+    const { port, calls } = portWith({ respond: () => trpcVoid(), project: null })
 
     const failure = await port
       .read({ scope: EMemoryScope.Project, name: 'a' })
@@ -172,7 +226,7 @@ describe('CloudMemoryPort', () => {
   })
 
   it('refuses when signed out', async () => {
-    const { port, calls } = portWith({ respond: () => json({}), session: null })
+    const { port, calls } = portWith({ respond: () => trpcVoid(), session: null })
 
     const failure = await port.list().catch((error: unknown) => error)
 
@@ -181,9 +235,9 @@ describe('CloudMemoryPort', () => {
     expect(calls).toHaveLength(0)
   })
 
-  it('rejects a body that is not a memory list', async () => {
-    const { port } = portWith({ respond: () => json({ nope: true }) })
+  it('rejects a body that is not a memory list, naming the procedure', async () => {
+    const { port } = portWith({ respond: () => trpcData({ nope: true }) })
 
-    expect(port.list()).rejects.toThrow('not a memory')
+    expect(port.list()).rejects.toThrow('memories.list with a body that is not a memory')
   })
 })

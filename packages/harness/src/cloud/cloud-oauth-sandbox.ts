@@ -16,7 +16,7 @@ import { CredentialError, ECredentialFailure } from '../credentials/credential-e
 import { isOauthHandoffCandidate } from '../credentials/oauth-eligibility'
 import { sameUrl } from '../credentials/oauth-owned-secret'
 import type { CloudSession } from './cloud-session'
-import { cloudRequest } from './cloud-transport'
+import { OAuthConnectionsClient } from './oauth-connections-client'
 import { SandboxClient } from './sandbox-client'
 
 export type OauthHandoffCallback = (
@@ -140,14 +140,13 @@ export async function prepareSandboxOauth(args: {
     fetchFn: args.fetchFn,
   })
   await client.registerSandbox(args.registration)
+  const oauth = new OAuthConnectionsClient({
+    url: session.url,
+    token: session.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
   for (const connectionId of connectionIds) {
-    await cloudRequest({
-      url: session.url.replace(/\/+$/, ''),
-      token: session.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-      method: 'PUT',
-      path: `/v1/oauth-connections/${encodeURIComponent(connectionId)}/sandboxes/${encodeURIComponent(args.registration.threadId)}`,
-    })
+    await oauth.assignSandbox({ connectionId, threadId: args.registration.threadId })
   }
 }

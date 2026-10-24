@@ -89,6 +89,7 @@ export async function rotationChildFixture() {
     atlasHome: fixture.home,
     env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
     token,
+    clientVersion: 'dev',
     transcript: harness.log,
     log: () => undefined,
   }).capture({ phase: ERuntimePhase.Updating, resume: { parent: false, children: [childId] } })

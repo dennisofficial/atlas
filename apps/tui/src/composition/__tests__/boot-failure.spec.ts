@@ -8,7 +8,7 @@ describe('what the operator sees when Atlas cannot start', () => {
     const report = bootFailureReport({
       error: new CloudError({
         status: 500,
-        message: 'The Atlas Cloud API answered GET /v1/accounts with 500: Internal server error.',
+        message: 'The Atlas Cloud API answered 500: Internal server error.',
       }),
       debug: false,
     })

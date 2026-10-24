@@ -1,5 +1,4 @@
 import type { UserVercelCredential, UserVercelCredentialUpsert } from '@dltech/atlas-wire/web'
-import { userVercelCredentialUpsertSchema } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -27,19 +26,11 @@ export class UserVercelService {
     }
   }
 
-  async write(args: { userId: string; body: unknown }): Promise<void> {
-    const parsed = userVercelCredentialUpsertSchema.safeParse(args.body)
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues[0]?.message ?? 'invalid vercel credential')
-    }
-    await this.upsert({ userId: args.userId, input: parsed.data })
-  }
-
   async remove(args: { userId: string }): Promise<void> {
     await db.orm.public.UserVercelCredential.where({ userId: args.userId }).deleteAndCount()
   }
 
-  private async upsert(args: { userId: string; input: UserVercelCredentialUpsert }): Promise<void> {
+  async write(args: { userId: string; input: UserVercelCredentialUpsert }): Promise<void> {
     const { userId, input } = args
     if (input.token === undefined) {
       const count = await db.orm.public.UserVercelCredential.where({ userId }).updateAndCount({

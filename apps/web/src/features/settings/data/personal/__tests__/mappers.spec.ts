@@ -24,7 +24,7 @@ import {
 } from '../interface-settings'
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
-import { buildGroups, memoryQuery } from '../memory-api'
+import { buildGroups, memoryKeyInput } from '../memory-api'
 import { activePresetOf, modelsChanges, modelsConfigFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
 import { splitSandboxes, ESandboxState } from '../sandboxes-api'
@@ -97,13 +97,16 @@ describe('memory mapping', () => {
     expect(buildGroups([]).map((group) => group.id)).toEqual(['global'])
   })
 
-  it('builds the entry query', () => {
-    expect(memoryQuery({ scope: EMemoryScope.Global, project: null, name: 'n' })).toBe(
-      'scope=global&name=n',
-    )
-    expect(memoryQuery({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })).toBe(
-      'scope=project&name=n&project=a%2Fb',
-    )
+  it('builds the entry input', () => {
+    expect(memoryKeyInput({ scope: EMemoryScope.Global, project: null, name: 'n' })).toEqual({
+      scope: 'global',
+      name: 'n',
+    })
+    expect(memoryKeyInput({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })).toEqual({
+      scope: 'project',
+      name: 'n',
+      project: 'a/b',
+    })
   })
 })
 

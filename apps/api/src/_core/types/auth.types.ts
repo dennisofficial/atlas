@@ -1,5 +1,3 @@
-import type { Request } from 'express'
-
 export interface VerifiedSession {
   userId: string
   sessionId: string
@@ -19,10 +17,4 @@ export interface SandboxPrincipal {
 
 export interface PodPrincipal {
   threadId: string
-}
-
-export interface AuthenticatedRequest extends Request {
-  auth?: VerifiedSession
-  sandbox?: SandboxPrincipal
-  pod?: PodPrincipal
 }

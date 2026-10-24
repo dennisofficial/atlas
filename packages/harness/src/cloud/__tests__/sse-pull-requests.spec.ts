@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EPullRequestLookup, EPullRequestState, EChecksState } from '../../plugins/github/pure'
-import type { RepositoryCheckout } from '../../plugins/github/pure'
 import type { SubscriptionPrState } from '../pr-subscription-client'
 import { createSseSubscriptionBook, readingOfState } from '../sse-pull-request-book'
 
@@ -19,13 +18,6 @@ const state = (over: Partial<SubscriptionPrState> = {}): SubscriptionPrState => 
   mergeable: null,
   updatedAt: '2026-09-28T00:00:00.000Z',
   ...over,
-})
-
-const checkout = (over: Partial<RepositoryCheckout['remote']> = {}): RepositoryCheckout => ({
-  directory: '/repo',
-  branch: 'feature',
-  forge: 0 as never,
-  remote: { host: 'github.com', owner: 'owner', repo: 'repo', ...over },
 })
 
 describe('readingOfState', () => {
@@ -91,9 +83,7 @@ describe('createSseSubscriptionBook', () => {
       state: state(),
     })
 
-    book.applyFrame({
-      data: JSON.stringify(state({ checksRunning: 0, checksPassed: 3, checksFailed: 0 })),
-    })
+    book.applyFrame({ state: state({ checksRunning: 0, checksPassed: 3, checksFailed: 0 }) })
 
     const last = readings[readings.length - 1]
     expect(last?.key).toBe('checkout-key')
@@ -105,7 +95,7 @@ describe('createSseSubscriptionBook', () => {
   it('ignores a frame for a PR nobody subscribed', () => {
     const { readings, onReading } = collect()
     const book = createSseSubscriptionBook({ now: () => 0, onReading })
-    book.applyFrame({ data: JSON.stringify(state({ prNumber: 99 })) })
+    book.applyFrame({ state: state({ prNumber: 99 }) })
     expect(readings).toHaveLength(0)
   })
 
@@ -120,15 +110,13 @@ describe('createSseSubscriptionBook', () => {
     })
     expect(reading.lookup).toBe(EPullRequestLookup.Absent)
 
-    book.applyFrame({ data: JSON.stringify(state()) })
+    book.applyFrame({ state: state() })
 
     const discovered = readings[readings.length - 1]
     expect(discovered?.lookup).toBe(EPullRequestLookup.Found)
 
     book.applyFrame({
-      data: JSON.stringify(
-        state({ headBranch: 'renamed-away', checksRunning: 0, checksPassed: 3 }),
-      ),
+      state: state({ headBranch: 'renamed-away', checksRunning: 0, checksPassed: 3 }),
     })
     const held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
@@ -146,7 +134,7 @@ describe('createSseSubscriptionBook', () => {
     })
     const before = readings.length
 
-    book.applyFrame({ data: JSON.stringify(state({ prNumber: 99, headBranch: 'other-branch' })) })
+    book.applyFrame({ state: state({ prNumber: 99, headBranch: 'other-branch' }) })
 
     expect(readings.length).toBe(before)
     expect(book.holding({ key: 'k' })?.reading.lookup).toBe(EPullRequestLookup.Absent)
@@ -167,22 +155,18 @@ describe('createSseSubscriptionBook', () => {
       state: state({ prNumber: 43, url: 'https://github.com/owner/repo/pull/43' }),
     })
 
-    book.applyFrame({
-      data: JSON.stringify(state({ prNumber: 42, checksRunning: 0, checksPassed: 9 })),
-    })
+    book.applyFrame({ state: state({ prNumber: 42, checksRunning: 0, checksPassed: 9 }) })
     let held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
     expect(held.reading.pullRequest.tally.running).toBe(1)
 
     book.applyFrame({
-      data: JSON.stringify(
-        state({
-          prNumber: 43,
-          url: 'https://github.com/owner/repo/pull/43',
-          checksRunning: 0,
-          checksPassed: 5,
-        }),
-      ),
+      state: state({
+        prNumber: 43,
+        url: 'https://github.com/owner/repo/pull/43',
+        checksRunning: 0,
+        checksPassed: 5,
+      }),
     })
     held = book.holding({ key: 'k' })
     if (held?.reading.lookup !== EPullRequestLookup.Found) throw new Error('expected found')
@@ -202,7 +186,7 @@ describe('createSseSubscriptionBook', () => {
     book.clear()
     const before = readings.length
 
-    book.applyFrame({ data: JSON.stringify(state()) })
+    book.applyFrame({ state: state() })
 
     expect(readings.length).toBe(before)
   })
@@ -217,7 +201,7 @@ describe('createSseSubscriptionBook', () => {
       state: state(),
     })
     const before = readings.length
-    book.applyFrame({ data: JSON.stringify(state()) })
+    book.applyFrame({ state: state() })
     expect(readings.length).toBe(before)
   })
 

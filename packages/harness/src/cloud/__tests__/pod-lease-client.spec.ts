@@ -5,6 +5,18 @@ import { putPodLease } from '../pod-lease-client'
 
 type Seen = { url: string; method: string | undefined; headers: Headers; body: unknown }
 
+const failure = (args: { status: number; code: string; message: string }): Response =>
+  Response.json(
+    {
+      error: {
+        message: args.message,
+        code: -32603,
+        data: { code: args.code, httpStatus: args.status },
+      },
+    },
+    { status: args.status },
+  )
+
 const lease = async (reply: () => Response) => {
   const seen: Seen[] = []
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
@@ -29,22 +41,24 @@ const lease = async (reply: () => Response) => {
 }
 
 describe('putPodLease', () => {
-  it('PUTs the serve token with the session bearer and resolves on 204', async () => {
-    const { seen, run } = await lease(() => new Response(null, { status: 204 }))
+  it('posts the thread and serve token to podLeases.register with the session bearer', async () => {
+    const { seen, run } = await lease(() => Response.json({ result: { data: null } }))
 
     await run()
 
     expect(seen).toHaveLength(1)
-    expect(seen[0]?.url).toBe('https://cloud.test/v1/pod-leases/thr%2F1%20x')
-    expect(seen[0]?.method).toBe('PUT')
+    expect(seen[0]?.url).toBe('https://cloud.test/v1/trpc/podLeases.register')
+    expect(seen[0]?.method).toBe('POST')
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer sess_1')
     expect(seen[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
     expect(seen[0]?.headers.get('content-type')).toBe('application/json')
-    expect(seen[0]?.body).toEqual({ token: 'serve-token' })
+    expect(seen[0]?.body).toEqual({ threadId: 'thr/1 x', token: 'serve-token' })
   })
 
   it('maps a 409 to the leased-elsewhere message', async () => {
-    const { run } = await lease(() => Response.json({ message: 'conflict' }, { status: 409 }))
+    const { run } = await lease(() =>
+      failure({ status: 409, code: 'CONFLICT', message: 'conflict' }),
+    )
 
     const error: unknown = await run().catch((caught: unknown) => caught)
 
@@ -58,7 +72,7 @@ describe('putPodLease', () => {
 
   it('surfaces a 401 as the transport reports it, without retrying', async () => {
     const { seen, run } = await lease(() =>
-      Response.json({ message: 'bad session' }, { status: 401 }),
+      failure({ status: 401, code: 'UNAUTHORIZED', message: 'bad session' }),
     )
 
     const error: unknown = await run().catch((caught: unknown) => caught)

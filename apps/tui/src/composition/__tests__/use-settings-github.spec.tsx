@@ -39,33 +39,50 @@ const remote = (): Remote => ({
 })
 
 const githubFetch = (state: Remote): typeof fetch => {
-  const reply = (status: number, payload?: unknown) =>
-    new Response(payload === undefined ? null : JSON.stringify(payload), {
-      status,
+  const ok = (data?: unknown) =>
+    new Response(JSON.stringify({ result: data === undefined ? {} : { data } }), {
+      status: 200,
       headers: { 'content-type': 'application/json' },
     })
+  const failure = (args: { status: number; message: string; code: string }) =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message: args.message,
+          code: -32603,
+          data: { code: args.code, httpStatus: args.status },
+        },
+      }),
+      { status: args.status, headers: { 'content-type': 'application/json' } },
+    )
 
   return (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).slice(URL.length)
+    const path = (String(input).slice(URL.length).split('?')[0] ?? '').replace(/^\/v1\/trpc\//, '')
     const method = init?.method ?? 'GET'
 
-    if (state.down) return reply(500, { message: 'cloud is down' })
+    if (state.down) {
+      return failure({
+        status: 500,
+        message: 'cloud is down',
+        code: 'INTERNAL_SERVER_ERROR',
+      })
+    }
 
-    if (path === '/v1/github' && method === 'GET') {
-      if (!state.connected) return reply(200, { connected: false })
-      return reply(200, {
+    if (path === 'github.get' && method === 'GET') {
+      if (!state.connected) return ok({ connected: false })
+      return ok({
         connected: true,
         login: state.login,
         scopes: ['repo'],
         connectedAt: CONNECTED_AT,
       })
     }
-    if (path === '/v1/github' && method === 'DELETE') {
+    if (path === 'github.disconnect' && method === 'POST') {
       state.connected = false
-      return reply(204)
+      return ok()
     }
-    if (path === '/v1/github/connect/begin' && method === 'POST') {
-      return reply(200, {
+    if (path === 'github.beginConnect' && method === 'POST') {
+      return ok({
         deviceCode: 'dev_1',
         userCode: 'ABCD-1234',
         verificationUrl: 'https://github.com/login/device',
@@ -73,15 +90,19 @@ const githubFetch = (state: Remote): typeof fetch => {
         intervalMs: 50,
       })
     }
-    if (path === '/v1/github/connect/poll' && method === 'POST') {
+    if (path === 'github.pollConnect' && method === 'POST') {
       state.polls += 1
-      if (state.denied) return reply(200, { status: 'denied' })
-      if (!state.approved) return reply(200, { status: 'pending' })
+      if (state.denied) return ok({ status: 'denied' })
+      if (!state.approved) return ok({ status: 'pending' })
       state.connected = true
-      return reply(200, { status: 'connected', login: state.login, scopes: ['repo'] })
+      return ok({ status: 'connected', login: state.login, scopes: ['repo'] })
     }
 
-    return reply(404, { message: `unhandled ${method} ${path}` })
+    return failure({
+      status: 404,
+      message: `unhandled ${method} ${path}`,
+      code: 'NOT_FOUND',
+    })
   }) as typeof fetch
 }
 

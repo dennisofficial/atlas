@@ -20,6 +20,7 @@ import {
   type WriteThroughBinding,
 } from '../cloud-settings-write-through'
 import { encodeSettingValue } from '../sync-settings'
+import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const URL = 'http://cloud.test'
 
@@ -34,21 +35,12 @@ type ApiFake = {
 const apiFake = (): ApiFake => {
   const remote = new Map<string, string>()
   const calls: ApiFake['calls'] = []
-  const reply = (status: number, payload?: unknown) =>
-    new Response(payload === undefined ? null : JSON.stringify(payload), {
-      status,
-      headers: { 'content-type': 'application/json' },
-    })
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
-    const path = String(input).slice(URL.length)
-    const method = init?.method ?? 'GET'
-    const body =
-      typeof init?.body === 'string'
-        ? (JSON.parse(init.body) as Record<string, unknown>)
-        : undefined
-    calls.push({ method, path, body })
-    if (path === '/v1/settings' && method === 'GET') {
-      return reply(200, {
+    const call = trpcCallOf({ input, init })
+    const body = call.input as Record<string, unknown> | undefined
+    calls.push({ method: call.method, path: call.path, body })
+    if (call.procedure === 'settings.list') {
+      return trpcData({
         settings: [...remote].map(([key, value]) => ({
           key,
           value,
@@ -56,11 +48,11 @@ const apiFake = (): ApiFake => {
         })),
       })
     }
-    if (path.startsWith('/v1/settings/') && method === 'PUT') {
-      remote.set(path.slice('/v1/settings/'.length), String(body?.['value']))
-      return reply(204)
+    if (call.procedure === 'settings.set') {
+      remote.set(String(body?.['key']), String(body?.['value']))
+      return trpcVoid()
     }
-    return reply(404, { message: `unhandled ${method} ${path}` })
+    return trpcFailure({ status: 404, message: `unhandled ${call.method} ${call.path}` })
   }) as typeof fetch
   return { calls, fetchFn }
 }
@@ -94,7 +86,7 @@ afterEach(() => {
 
 const signIn = () => sessions.write({ url: URL, token: 'sess_a', email: 'a@b.c' })
 
-const puts = () => api.calls.filter((call) => call.method === 'PUT')
+const puts = () => api.calls.filter((call) => call.path === '/v1/trpc/settings.set')
 
 class CapturingLog extends LogPort {
   record(entry: LogEntry): void {
@@ -114,8 +106,10 @@ describe('bindCloudSettingsWriteThrough', () => {
     await binding.idle()
 
     expect(puts()).toHaveLength(1)
-    expect(puts()[0]?.path).toBe(`/v1/settings/${ESettingId.PrVerdictTiming}`)
-    expect(puts()[0]?.body).toEqual({ value: encodeSettingValue('settled') })
+    expect(puts()[0]?.body).toEqual({
+      key: ESettingId.PrVerdictTiming,
+      value: encodeSettingValue('settled'),
+    })
   })
 
   it('stays silent while signed out, so a toggle stays local until the next explicit upload', async () => {
@@ -147,7 +141,10 @@ describe('bindCloudSettingsWriteThrough', () => {
     await binding.idle()
 
     expect(puts()).toHaveLength(2)
-    expect(puts()[1]?.body).toEqual({ value: encodeSettingValue('fail-fast') })
+    expect(puts()[1]?.body).toEqual({
+      key: ESettingId.PrVerdictTiming,
+      value: encodeSettingValue('fail-fast'),
+    })
   })
 
   it('cannot echo back: the store writes the API and refreshes its cache without touching local settings', async () => {
@@ -178,7 +175,10 @@ describe('bindCloudSettingsWriteThrough', () => {
     await binding.idle()
 
     expect(puts()).toHaveLength(1)
-    expect(puts()[0]?.body).toEqual({ value: encodeSettingValue('fail-fast') })
+    expect(puts()[0]?.body).toEqual({
+      key: ESettingId.PrVerdictTiming,
+      value: encodeSettingValue('fail-fast'),
+    })
   })
 
   it('stops listening once disposed', async () => {

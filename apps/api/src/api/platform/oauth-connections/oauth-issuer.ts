@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import {
-  EOauthProvider,
-  OauthIssuer,
-  OauthRateLimitedError,
-  OauthRejectedError,
-} from './oauth-connections.types'
+import { EOauthProvider } from '@dltech/atlas-wire'
+import { OauthIssuer, OauthRateLimitedError, OauthRejectedError } from './oauth-connections.types'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const FALLBACK_LIFETIME_SECONDS = 3600

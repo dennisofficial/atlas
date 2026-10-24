@@ -9,6 +9,7 @@ import {
   PUBLISHED_BUNDLE_CONTENT_TYPE,
   PUBLISHED_BUNDLE_MAX_BYTES,
   publishedBundleManifestSchema,
+  type PublishedBundleCommit,
   type PublishedBundleCurrent,
   type PublishedBundleManifest,
   type PublishedBundleSummary,
@@ -16,7 +17,6 @@ import {
 } from '@dltech/atlas-wire'
 import { db, violatedConstraint } from '@dltech/atlas-db'
 import { BundleBlobStore } from './blob-store'
-import type { CommitBundleDto } from './published-bundles.dto'
 
 interface BundleRow {
   version: number
@@ -58,7 +58,10 @@ export class PublishedBundlesService {
     }
   }
 
-  async commit(args: { userId: string; body: CommitBundleDto }): Promise<PublishedBundleSummary> {
+  async commit(args: {
+    userId: string
+    body: PublishedBundleCommit
+  }): Promise<PublishedBundleSummary> {
     const { pathname, sha256 } = args.body
     if (!pathname.startsWith(prefixOf(args.userId))) {
       throw new BadRequestException('pathname does not belong to this account')

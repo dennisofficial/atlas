@@ -4,6 +4,7 @@ import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-w
 
 import { createRuntimeCheckpointCapture, SANDBOX_SESSION_ID_ENV } from '../runtime-checkpoint'
 import { createServeLog, type ServeLogLine } from '../serve-log'
+import { trpcFailure, trpcOk } from './trpc-fake'
 
 export { SANDBOX_SESSION_ID_ENV }
 
@@ -29,6 +30,10 @@ export const saidEvent = (args: { id: string; seq: number; text?: string }): Eve
   text: args.text ?? 'hello',
 })
 
+export const CHECKPOINT_PUT = '/v1/trpc/sandboxCheckpoint.put'
+
+export const CHECKPOINT_GET = '/v1/trpc/sandboxCheckpoint.get'
+
 export const startApi = (args: {
   stored: () => RuntimeCheckpoint | null
   publish: (checkpoint: RuntimeCheckpoint) => void
@@ -37,22 +42,19 @@ export const startApi = (args: {
     port: 0,
     fetch: async (request) => {
       const url = new URL(request.url)
-      if (url.pathname !== `/v1/sandboxes/${threadId}/checkpoint`) {
-        return new Response('not found', { status: 404 })
+      if (url.pathname === CHECKPOINT_GET && request.method === 'GET') {
+        return trpcOk({ checkpoint: args.stored() })
       }
-      if (request.method === 'GET') {
-        return Response.json({ checkpoint: args.stored() })
-      }
-      if (request.method === 'PUT') {
+      if (url.pathname === CHECKPOINT_PUT && request.method === 'POST') {
         const reported = runtimeCheckpointSchema.parse(await request.json())
         const stored = args.stored()
         if (acceptsRuntimeCheckpoint({ stored, reported })) {
           args.publish(reported)
-          return Response.json({ checkpoint: reported })
+          return trpcOk({ checkpoint: reported })
         }
-        return Response.json({ checkpoint: stored })
+        return trpcOk({ checkpoint: stored })
       }
-      return new Response('method not allowed', { status: 405 })
+      return trpcFailure({ status: 404, message: 'not found' })
     },
   })
 
@@ -79,6 +81,7 @@ export const captureFor = (args: {
       ...args.env,
     },
     token: 'serve-token-1',
+    clientVersion: '1.2.3',
     transcript,
     log: createServeLog({ write: (line) => lines.push(JSON.parse(line) as ServeLogLine) }),
     ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),

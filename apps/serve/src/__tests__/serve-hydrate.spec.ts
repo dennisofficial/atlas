@@ -17,6 +17,7 @@ import { API_PROVISIONED_ENV, BOOT_STEP_EVENT_TYPE } from '@dltech/atlas-wire'
 
 import { hydrateServeHistory, hydrateWhenRegistered } from '../serve-hydrate'
 
+import { trpcFailure, trpcOk, trpcQueryUrl } from './trpc-fake'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
 const threadId = toThreadId('thread-hydrate')
@@ -168,7 +169,7 @@ describe('hydrateWhenRegistered', () => {
         url: String(input),
         authorization: new Headers(init?.headers).get('authorization'),
       })
-      return Response.json([userSaid(1, 'first')])
+      return trpcOk([userSaid(1, 'first')])
     }) as unknown as typeof fetch
 
     await hydrateWhenRegistered({
@@ -184,7 +185,11 @@ describe('hydrateWhenRegistered', () => {
 
     expect(requests).toEqual([
       {
-        url: `https://api.example.com/v1/threads/${threadId}/events?own=true`,
+        url: trpcQueryUrl({
+          controlPlaneUrl: 'https://api.example.com',
+          procedure: 'threadEvents.read',
+          input: { threadId, own: true },
+        }),
         authorization: 'Bearer serve-token',
       },
     ])
@@ -202,7 +207,7 @@ describe('hydrateWhenRegistered', () => {
         controlPlaneUrl: 'https://api.example.com',
         token: 't',
         clientVersion: 'dev',
-        fetchFn: (async () => new Response('{}', { status: 403 })) as unknown as typeof fetch,
+        fetchFn: (async () => trpcFailure({ status: 403 })) as unknown as typeof fetch,
         log: (line) => lines.push(line.event),
       }),
     ).rejects.toThrow()
@@ -220,7 +225,7 @@ describe('hydrateWhenRegistered', () => {
       controlPlaneUrl: 'https://api.example.com',
       token: 't',
       clientVersion: 'dev',
-      fetchFn: (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch,
+      fetchFn: (async () => trpcFailure({ status: 401 })) as unknown as typeof fetch,
       log: (line) => lines.push(line.event),
     })
 

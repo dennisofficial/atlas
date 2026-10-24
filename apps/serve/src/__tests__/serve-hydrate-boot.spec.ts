@@ -11,13 +11,13 @@ import {
   bootStepsPostSchema,
   EBootStep,
   EBootStepState,
-  SANDBOX_SELF_BOOT_STEPS_PATH,
   type BootStepEvent,
 } from '@dltech/atlas-wire'
 
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk, trpcQueryUrl, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
 
@@ -59,12 +59,12 @@ const boot = async (args: {
   const eventReads: string[] = []
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    if (url === `${controlPlaneUrl}${SANDBOX_SELF_BOOT_STEPS_PATH}`) {
+    if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.bootSteps' })) {
       const posted = bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps
       steps.push(...posted)
-      return args.bootStepsReply?.(posted) ?? new Response('{}')
+      return args.bootStepsReply?.(posted) ?? trpcOk(undefined)
     }
-    if (url.startsWith(`${controlPlaneUrl}/v1/threads/${threadId}/events`)) {
+    if (url.startsWith(trpcUrl({ controlPlaneUrl, procedure: 'threadEvents.read' }))) {
       eventReads.push(url)
       return args.eventsReply()
     }
@@ -104,7 +104,7 @@ describe('serve boot hydration and resume', () => {
   it('hydrates a lone user-said and resumes it into a turn when api-provisioned', async () => {
     const run = await boot({
       env: { [API_PROVISIONED_ENV]: '1' },
-      eventsReply: () => Response.json([userSaid(1, 'first message')]),
+      eventsReply: () => trpcOk([userSaid(1, 'first message')]),
     })
 
     running.push(await run.start())
@@ -117,13 +117,19 @@ describe('serve boot hydration and resume', () => {
       [1, 'user-said'],
       [2, 'assistant-said'],
     ])
-    expect(run.eventReads).toEqual([`${controlPlaneUrl}/v1/threads/${threadId}/events?own=true`])
+    expect(run.eventReads).toEqual([
+      trpcQueryUrl({
+        controlPlaneUrl,
+        procedure: 'threadEvents.read',
+        input: { threadId, own: true },
+      }),
+    ])
   })
 
   it('neither hydrates nor resumes a sandbox the API did not provision', async () => {
     const run = await boot({
       env: {},
-      eventsReply: () => Response.json([userSaid(1, 'first message')]),
+      eventsReply: () => trpcOk([userSaid(1, 'first message')]),
     })
 
     running.push(await run.start())
@@ -136,7 +142,7 @@ describe('serve boot hydration and resume', () => {
   it('fails the Agent boot step and never composes when hydration fails', async () => {
     const run = await boot({
       env: { [API_PROVISIONED_ENV]: '1' },
-      eventsReply: () => new Response('{"message":"forbidden"}', { status: 403 }),
+      eventsReply: () => trpcFailure({ status: 403, message: 'forbidden' }),
     })
 
     await expect(run.start()).rejects.toThrow()
@@ -149,13 +155,13 @@ describe('serve boot hydration and resume', () => {
   it('never reads events and rejects when the Agent Running post is refused', async () => {
     const run = await boot({
       env: { [API_PROVISIONED_ENV]: '1' },
-      eventsReply: () => Response.json([userSaid(1, 'first message')]),
+      eventsReply: () => trpcOk([userSaid(1, 'first message')]),
       bootStepsReply: (posted) =>
         posted.some(
           (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
         )
-          ? new Response('{"message":"boom"}', { status: 500 })
-          : new Response('{}'),
+          ? trpcFailure({ status: 500, message: 'boom' })
+          : trpcOk(undefined),
     })
 
     await expect(run.start()).rejects.toThrow('500')
@@ -167,13 +173,13 @@ describe('serve boot hydration and resume', () => {
   it('keeps every other boot step best-effort when the API refuses them', async () => {
     const run = await boot({
       env: { [API_PROVISIONED_ENV]: '1' },
-      eventsReply: () => Response.json([]),
+      eventsReply: () => trpcOk([]),
       bootStepsReply: (posted) =>
         posted.some(
           (step) => step.step === EBootStep.Agent && step.state === EBootStepState.Running,
         )
-          ? new Response('{}')
-          : new Response('{"message":"boom"}', { status: 500 }),
+          ? trpcOk(undefined)
+          : trpcFailure({ status: 500, message: 'boom' }),
     })
 
     running.push(await run.start())
@@ -188,11 +194,11 @@ describe('serve boot hydration and resume', () => {
       env: { [API_PROVISIONED_ENV]: '1' },
       eventsReply: () => {
         order.push('events')
-        return Response.json([])
+        return trpcOk([])
       },
       bootStepsReply: (posted) => {
         for (const step of posted) order.push(`${step.step}:${step.state}`)
-        return new Response('{}')
+        return trpcOk(undefined)
       },
     })
 

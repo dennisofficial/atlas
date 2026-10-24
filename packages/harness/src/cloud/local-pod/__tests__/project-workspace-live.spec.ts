@@ -30,7 +30,7 @@ const engine = new DockerEngine({ socketPath: SOCKET })
 const pods = new DockerPodEngine({ socketPath: SOCKET })
 
 const PROJECT_ID = 'proj-live'
-const WORKSPACE_PATH = `/v1/projects/${PROJECT_ID}/workspace`
+const WORKSPACE_PATH = '/v1/trpc/projectWorkspace.get'
 const PRIMARY_DIR = '/atlas/workspaces/Hello-World'
 const EXTRA_DIR = '/atlas/workspaces/Spoon-Knife'
 const PRIMARY_HEAD = 'b3cbd5bbd7e81436d2eee04537ea2b4c0cad4cdf'
@@ -119,16 +119,22 @@ describeDocker('serve clones the project a bootstrap names inside a live pod', (
         requests.push({ path, authorized })
         if (request.method === 'GET' && path === WORKSPACE_PATH && authorized) {
           return Response.json({
-            projectId: PROJECT_ID,
-            repo: 'octocat/Hello-World',
-            baseBranch: 'test',
-            additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
-            githubToken: null,
+            result: {
+              data: {
+                projectId: PROJECT_ID,
+                repo: 'octocat/Hello-World',
+                baseBranch: 'test',
+                additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
+                githubToken: null,
+              },
+            },
           })
         }
-        return new Response(JSON.stringify({ message: 'not found' }), {
-          status: path === WORKSPACE_PATH ? 401 : 404,
-        })
+        const status = path === WORKSPACE_PATH ? 401 : 404
+        return Response.json(
+          { error: { message: 'not found', code: -32603, data: { httpStatus: status } } },
+          { status },
+        )
       },
     })
     devServe = await buildDevServe({ directory: join(workDirectory, 'serve') })
