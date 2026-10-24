@@ -16,10 +16,20 @@ export const wireThreadSchema = z.object({
   model: z.object({ ref: z.string(), effort: z.string() }).optional(),
   worktree: z.object({ path: z.string(), branch: z.string() }).optional(),
   pullRequests: z
-    .array(z.object({ number: z.number(), url: z.string(), repo: z.string(), branch: z.string() }))
+    .array(
+      z.object({
+        number: z.number(),
+        url: z.string(),
+        repo: z.string(),
+        branch: z.string(),
+        state: z.string().optional(),
+      }),
+    )
     .optional(),
   executionLocation: z.string().optional(),
   projectId: z.string().nullable().optional(),
+  pinnedAt: z.string().nullable().optional(),
+  archivedAt: z.string().nullable().optional(),
 })
 
 export type WireThread = z.infer<typeof wireThreadSchema>

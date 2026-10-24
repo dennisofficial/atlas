@@ -25,6 +25,13 @@ const headSchema = z.object({ head: z.number().int() })
 export const fetchProjects = () =>
   cloudJson({ method: EHttpMethod.Get, path: '/v1/projects', schema: z.array(projectSchema) })
 
+export const fetchThreads = (projectId: string) =>
+  cloudJson({
+    method: EHttpMethod.Get,
+    path: `/v1/threads?projectId=${encodeURIComponent(projectId)}`,
+    schema: z.array(wireThreadSchema),
+  })
+
 export const createThread = (body: CreateThreadBody) =>
   cloudJson({
     method: EHttpMethod.Post,

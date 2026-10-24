@@ -23,6 +23,7 @@ export type LinkedPullRequestDto = {
   url: string
   repo: string
   branch: string
+  state?: string | undefined
 }
 
 export type ThreadDraft = {
@@ -50,6 +51,8 @@ export type ThreadDto = {
   pullRequests?: LinkedPullRequestDto[] | undefined
   executionLocation?: string | undefined
   projectId?: string | null | undefined
+  pinnedAt?: string | null | undefined
+  archivedAt?: string | null | undefined
 }
 
 export type EventDto = {
