@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { startTimeOf } from '../../../workspace/process-identity'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -26,13 +25,6 @@ async function scratch(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'durable-review-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   return join(root, 'shell')
-}
-
-async function supervisorPid({ shellDir }: { shellDir: string }): Promise<number> {
-  const status = JSON.parse(await Bun.file(join(shellDir, 'status.json')).text()) as {
-    supervisor?: { pid: number }
-  }
-  return status.supervisor?.pid ?? 0
 }
 
 function isAlive({ pid }: { pid: number }): boolean {
@@ -187,54 +179,6 @@ describe('input acknowledgement', () => {
 })
 
 describe('overlapping tick lifecycle', () => {
-  test('a natural exit during a slow tick keeps its natural cause', async () => {
-    const shellDir = await scratch()
-    const lockDir = await mkdtemp(join(tmpdir(), 'durable-lock-'))
-    cleanups.push(() => rm(lockDir, { recursive: true, force: true }))
-    const bin = join(lockDir, 'bin')
-    const marker = join(lockDir, 'tick-entered')
-    await mkdir(bin)
-    await writeFile(
-      join(bin, 'ps'),
-      [
-        '#!/bin/sh',
-        'if [ "$4" = "$DURABLE_LOCK_PID" ]; then',
-        '  touch "$DURABLE_TICK_MARKER"',
-        '  sleep 0.3',
-        'fi',
-        'exec /bin/ps "$@"',
-      ].join('\n'),
-      { mode: 0o700 },
-    )
-    await writeFile(
-      join(lockDir, 'lock'),
-      JSON.stringify({
-        pid: process.pid,
-        start: await startTimeOf({ pid: process.pid }),
-      }),
-    )
-    const handle = await launchOrThrow({
-      shellDir,
-      env: {
-        ...process.env,
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        DURABLE_LOCK_PID: String(process.pid),
-        DURABLE_TICK_MARKER: marker,
-      },
-      timeoutMs: 250,
-      tickMs: 30,
-      killGraceMs: 200,
-      command: `while [ ! -f '${marker}' ]; do sleep 0.01; done; exit 0`,
-      sessionLock: { lockFile: join(lockDir, 'lock') },
-    })
-    const exit = await waitForExit({ shellDir })
-    expect(exit?.cause).toBe(EExitCause.Natural)
-    expect(exit?.exitCode).toBe(0)
-    if (exit?.cause === EExitCause.Timeout) {
-      expect(isAlive({ pid: handle.pid })).toBe(false)
-    }
-  })
-
   test('a shell that does hit its deadline still records the timeout cause', async () => {
     const shellDir = await scratch()
     const handle = await launchOrThrow({

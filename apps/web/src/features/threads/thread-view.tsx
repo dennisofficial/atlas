@@ -16,6 +16,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+import { liveSteps } from '@dltech/atlas-client/transcript'
 
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
@@ -35,9 +36,10 @@ import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
-import { transcriptViewOf } from './data/transcript'
+import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
 import { useNow } from './data/use-now'
+import { useReveal } from './data/use-reveal'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -54,7 +56,7 @@ const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…
 
 function ThreadMissing() {
   return (
-    <Empty className="m-auto max-w-sm border py-10">
+    <Empty variant="outline" className="m-auto max-w-sm">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileQuestionIcon />
@@ -88,7 +90,10 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
 }
 
 export function ThreadView({ threadId }: { threadId: string }) {
-  const thread = useCloudQuery({ key: threadId, load: () => fetchThread(threadId) })
+  const thread = useCloudQuery({
+    key: threadId,
+    load: () => fetchThread(threadId),
+  })
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const source = useThreadSource({
@@ -96,7 +101,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     liveEligible,
     onModelChanged: model.handleRemoteChange,
   })
-  const { events, signals, outputs, loaded, error, working, sendLive, chooseModel } = source
+  const { events, steps, outputs, loaded, error, working, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -105,9 +110,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
     () => withoutTakenBack({ events, sendIds: takenBack }),
     [events, takenBack],
   )
+  const parsed = useMemo(() => eventsFromWire(visible), [visible])
+  const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
+  const live = useMemo(() => liveSteps({ steps, events: parsed }), [steps, parsed])
+  const reveal = useReveal({ steps, events: parsed })
   const view = useMemo(
-    () => transcriptViewOf({ events: eventsFromWire(visible), signals, outputs }),
-    [visible, signals, outputs],
+    () => transcriptViewOf({ durable, live, outputs, reveal }),
+    [durable, live, outputs, reveal],
   )
   const dock = useComposerDock({
     visible,
@@ -117,7 +126,17 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
-  const { pod, refresh } = usePodStatus({ threadId, awaitingRun })
+  const [wasLive, setWasLive] = useState(false)
+  const [liveLost, setLiveLost] = useState(false)
+  if (source.live !== wasLive) {
+    setWasLive(source.live)
+    setLiveLost(!source.live)
+  }
+  const { pod, refresh } = usePodStatus({
+    threadId,
+    awaitingRun,
+    watchingPark: liveLost,
+  })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
@@ -137,7 +156,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     refresh()
   }
   const handleEscape = async () => {
-    const target = takeBackTargetOf({ events: visible, podState: pod?.state ?? null })
+    const target = takeBackTargetOf({
+      events: visible,
+      podState: pod?.state ?? null,
+    })
     if (target === null) return
     try {
       const outcome = await takeBack({ threadId, sendId: target.sendId })
@@ -177,7 +199,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
         <ThreadTranscript
           items={view.items}
           failure={view.failure}
-          boot={boot}
+          pod={pod}
+          bootNow={now}
           working={working}
           onRetryBoot={() => void handleRetryBoot()}
         />

@@ -40,7 +40,7 @@ export function RowAction({
             aria-label={label}
             {...(onClick === undefined ? {} : { onClick })}
             {...linkProps}
-            className="size-5 text-muted-foreground hover:bg-sidebar-border hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+            className="text-muted-foreground"
           />
         }
       >

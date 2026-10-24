@@ -1,4 +1,4 @@
-import type { StepSignal } from '@dltech/atlas-client/channel'
+import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { CallId, ModelUsage } from '@dltech/atlas-core'
 import type { PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
 
@@ -12,7 +12,7 @@ import type {
 
 export type ThreadSource = {
   events: WireEvent[]
-  signals: StepSignal[]
+  steps: InFlightStep[]
   outputs: ReadonlyMap<CallId, string>
   loaded: boolean
   error: Error | null
@@ -25,7 +25,7 @@ export type ThreadSource = {
   takeBackPending: LiveTakeBackPending
 }
 
-const NO_SIGNALS: StepSignal[] = []
+const NO_STEPS: InFlightStep[] = []
 const NO_PENDING: readonly PendingEntryWire[] = []
 const NO_OUTPUTS: ReadonlyMap<CallId, string> = new Map()
 
@@ -36,7 +36,7 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
   if (live.live) {
     return {
       events: live.events,
-      signals: live.signals,
+      steps: live.steps,
       outputs: live.outputs,
       loaded: true,
       error: null,
@@ -51,7 +51,7 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
   }
   return {
     ...polled,
-    signals: NO_SIGNALS,
+    steps: NO_STEPS,
     outputs: NO_OUTPUTS,
     working: false,
     live: false,

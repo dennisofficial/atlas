@@ -1,3 +1,4 @@
+import { createSignalChatTransport } from '@dltech/atlas-client/chat'
 import {
   createRemoteDeltaChannel,
   EClientRequest,
@@ -16,7 +17,7 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
-import { absorbInto, EMPTY_SIGNALS, settleInto } from './live-signals'
+import { absorbInto, EMPTY_OUTPUTS, isStepSignal, settleInto } from './live-signals'
 import { IDLE_LIVE_THREAD, type LiveSend, type LiveThreadState } from './live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
 
@@ -39,12 +40,15 @@ export type LiveThreadControllerArgs = {
   onChange: (state: LiveThreadState) => void
   onModelChanged?: (model: { ref: string; effort: string }) => void
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
+  onStepOpened?: () => void
+  onReset?: () => void
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
 
 export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const threadId = toThreadId(args.threadId)
+  const signalTransport = createSignalChatTransport({ now: () => new Date() })
   let state: LiveThreadState = IDLE_LIVE_THREAD
   let channel: RemoteDeltaChannel | null = null
   let stopped = false
@@ -73,7 +77,9 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     fellBack = true
     release()
     channel?.close()
-    update({ live: false, working: false, pending: [], reported: null, ...EMPTY_SIGNALS })
+    signalTransport.dropAll()
+    args.onReset?.()
+    update({ live: false, working: false, pending: [], reported: null, ...EMPTY_OUTPUTS })
   }
 
   const commit = (next: LiveThreadState) => {
@@ -147,6 +153,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
     if (signal.type === 'events-appended') void readFromHead(live)
     if (signal.type === 'turn-working') update({ working: signal.working })
+    if (isStepSignal(signal) && signalTransport.absorb(signal).opened) args.onStepOpened?.()
     commit(absorbInto({ state, signal }))
   }
 
@@ -202,6 +209,8 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
         if (!everConnected) fallBack()
       }),
       live.onReload(({ sinceEventSeq }) => {
+        signalTransport.dropAll()
+        args.onReset?.()
         commit(
           settleInto({
             ...state,
@@ -256,13 +265,15 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   }
 
   return {
+    chatTransport: signalTransport.transport,
     start: () => void start(),
     send,
     chooseModel,
     takeBackPending,
     stop: () => {
-      update({ ...EMPTY_SIGNALS })
+      update({ ...EMPTY_OUTPUTS })
       stopped = true
+      signalTransport.dropAll()
       release()
       channel?.close()
     },

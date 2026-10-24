@@ -6,6 +6,7 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
 
 import { ESecretKind, type LibrarySecret } from '../fixtures/settings-library'
 import { LibraryRowMenu } from './library-row-menu'
@@ -27,7 +28,7 @@ export function SecretRow({
   const isEnvVar = secret.kind === ESecretKind.EnvVar
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <CardRow className="flex-row items-center">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate font-mono text-xs font-medium">{secret.key}</span>
         <Badge variant={isEnvVar ? 'outline' : 'secondary'}>
@@ -52,7 +53,7 @@ export function SecretRow({
       {showAddedBy ? (
         <div className="flex w-28 items-center gap-2">
           <Avatar size="sm">
-            <AvatarFallback className="text-[10px]">{secret.addedBy.initials}</AvatarFallback>
+            <AvatarFallback>{secret.addedBy.initials}</AvatarFallback>
           </Avatar>
           <span className="truncate text-xs text-muted-foreground">
             {secret.addedBy.name.split(' ')[0]}
@@ -69,6 +70,6 @@ export function SecretRow({
           { label: 'Delete', onSelect: onDelete, destructive: true },
         ]}
       />
-    </div>
+    </CardRow>
   )
 }

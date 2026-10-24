@@ -131,11 +131,11 @@ export function SettingsRow({
           'flex gap-3',
           hasField
             ? 'flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-8'
-            : 'items-center',
+            : 'flex-wrap items-center',
         )}
       >
         {media ? <div className="flex shrink-0 items-center">{media}</div> : null}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-48 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2 text-sm font-medium">
             {htmlFor ? <Label htmlFor={htmlFor}>{title}</Label> : title}
           </div>
@@ -143,7 +143,7 @@ export function SettingsRow({
             <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
           ) : null}
         </div>
-        {control ? <div className="flex shrink-0 items-center gap-2">{control}</div> : null}
+        {control ? <div className="flex max-w-full items-center gap-2">{control}</div> : null}
         {hasField ? (
           <div className="flex min-w-0 items-center gap-2 sm:w-96 sm:shrink-0 sm:justify-end">
             {children}

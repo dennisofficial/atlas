@@ -55,7 +55,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
         </div>
       </ProjectHoverCard>
       {open && (
-        <SidebarMenu className="gap-0.5">
+        <SidebarMenu>
           {threads.map((thread) => (
             <ThreadRow
               key={thread.id}

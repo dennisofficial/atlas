@@ -81,7 +81,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen }: NodeProps) {
       variant="ghost"
       size="sm"
       aria-current={selected === node.path ? 'true' : undefined}
-      className={cn('w-full justify-start font-mono text-xs', selected === node.path && 'bg-muted')}
+      className="w-full justify-start font-mono text-xs"
       onClick={handleSelect}
     >
       <FileIcon />

@@ -121,3 +121,28 @@ export const SelectedRow: Story = {
     </div>
   ),
 }
+
+export const Framed: Story = {
+  render: () => (
+    <div className="w-[40rem] max-w-full">
+      <Table variant="framed">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Session</TableHead>
+            <TableHead>Model</TableHead>
+            <TableHead className="text-right">Cost</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sessions.map((session) => (
+            <TableRow key={session.name}>
+              <TableCell>{session.name}</TableCell>
+              <TableCell>{session.model}</TableCell>
+              <TableCell className="text-right tabular-nums">${session.cost.toFixed(2)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  ),
+}

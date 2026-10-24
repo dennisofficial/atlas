@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-client/channel'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { createLiveThreadController } from '../live-thread-controller'
+import { createLiveChatSession } from '../live-chat-session'
 import { IDLE_LIVE_THREAD, type LiveThreadState } from '../live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from '../pod-connect'
 
@@ -54,7 +54,7 @@ export function rig(options?: {
   let state: LiveThreadState = IDLE_LIVE_THREAD
   const history: LiveThreadState[] = []
 
-  const controller = createLiveThreadController({
+  const session = createLiveChatSession({
     threadId: 'thr_1',
     mint: async () => {
       mintCount += 1
@@ -88,6 +88,8 @@ export function rig(options?: {
     },
   })
 
+  const { controller, chat } = session
+
   const socket = (): FakeSocket => {
     const live = sockets.at(-1)
     if (live === undefined) throw new Error('no socket opened')
@@ -120,6 +122,8 @@ export function rig(options?: {
   return {
     reply,
     controller,
+    chat,
+    pruneTo: session.pruneTo,
     sockets,
     retries,
     socket,

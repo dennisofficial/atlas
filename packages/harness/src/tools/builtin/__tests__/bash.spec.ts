@@ -3,6 +3,7 @@ import { mkdtemp, realpath, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { z } from 'zod'
 
 import type { ProcessPort, SpawnCommand, ToolOutcome } from '@dltech/atlas-core'
 
@@ -62,6 +63,13 @@ describe('BashTool', () => {
     expect(outcome).toMatchObject({ ok: false })
     expect(!outcome.ok && outcome.reason).toContain('description')
   }, 30_000)
+
+  it('asks for the name before the command, so a row is named while the command still streams', () => {
+    const { inputSchema } = new BashTool(suite.shells)
+    const declared = z.toJSONSchema(inputSchema)
+
+    expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
+  })
 
   it('returns what a command printed and the zero it exited with', async () => {
     const outcome = await invoke({ command: 'echo hello; echo trouble >&2' })

@@ -1,17 +1,18 @@
 import {
+  assembleTranscript,
   classify,
-  deriveTranscript,
+  durableEntries,
   ECallState,
   EEntryKind,
   formatElapsed,
   inputOf,
   str,
   targetOf,
-  type Clock,
+  type InFlightStep,
+  type RevealGate,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
-import type { StepSignal } from '@dltech/atlas-client/channel'
 import type { CallId, Event } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
@@ -188,19 +189,29 @@ function atOf(args: {
   return args.stamps.get(eventIdOf(item.id))
 }
 
+export type DurableTranscript = {
+  entries: TranscriptEntry[]
+  stamps: ReadonlyMap<string, string>
+}
+
+export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
+  entries: durableEntries({ events: args.events }),
+  stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
+})
+
 export function transcriptViewOf(args: {
-  events: readonly Event[]
-  signals: readonly StepSignal[]
+  durable: DurableTranscript
+  live: readonly InFlightStep[]
   outputs?: ReadonlyMap<CallId, string>
-  now?: Clock
+  reveal?: RevealGate | null
 }): ThreadTranscriptView {
-  const model = deriveTranscript({
-    events: args.events,
-    signals: args.signals,
+  const model = assembleTranscript({
+    durable: args.durable.entries,
+    live: args.live,
     outputs: args.outputs,
-    now: args.now ?? (() => new Date()),
+    ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
-  const stamps = new Map(args.events.map((event) => [event.id as string, event.at]))
+  const { stamps } = args.durable
   return {
     items: model.entries.flatMap((entry) => {
       const item = itemOf(entry)

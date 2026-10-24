@@ -66,7 +66,7 @@ export function SignUpForm() {
         />
         <OrDivider />
         <form onSubmit={handleSubmit}>
-          <FieldGroup className="gap-4">
+          <FieldGroup>
             <AuthField
               id="name"
               label="Name"
