@@ -16,10 +16,10 @@
     "plugins:generate": "bun scripts/generate-plugins.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.82",
-    "@ai-sdk/openai": "^4.0.96",
-    "@ai-sdk/openai-compatible": "^3.0.71",
-    "@ai-sdk/provider": "4.0.29",
+    "@ai-sdk/anthropic": "^4.0.87",
+    "@ai-sdk/openai": "^4.0.101",
+    "@ai-sdk/openai-compatible": "^3.0.77",
+    "@ai-sdk/provider": "4.0.33",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
@@ -28,7 +28,7 @@
     "@typesafe-ai/sdk": "^0.6.0",
     "@vercel/sandbox": "^3.3.0",
     "@vscode/ripgrep": "^1.18.0",
-    "ai": "^7.0.143",
+    "ai": "^7.0.152",
     "htmlparser2": "^12.0.0",
     "posthog-node": "^5.54.1",
     "reflect-metadata": "^0.2.2",

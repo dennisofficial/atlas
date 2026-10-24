@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, memo, type ReactNode } from 'react'
 import { BotIcon, CircleAlertIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
@@ -17,6 +17,7 @@ import { useSessionUser } from '@/features/settings/session/use-session-identity
 
 import type { BootView } from './data/boot-view'
 import { clockTimeOf, spanMsOf } from './data/clock-time'
+import { isSameItem } from './data/same-item'
 import { ETranscriptKind, type TranscriptItem } from './data/transcript'
 import { EToolFamily, type ToolCallItem } from './data/transcript-items'
 import { ETurnKind, turnsOf, type AgentTurn } from './data/transcript-turns'
@@ -46,7 +47,7 @@ function ToolRow({ call }: { call: ToolCallItem }) {
   )
 }
 
-function WorkItem({ item }: { item: TranscriptItem }) {
+function WorkItemView({ item }: { item: TranscriptItem }) {
   switch (item.kind) {
     case ETranscriptKind.Thought:
       return <Reasoning text={item.text} running={item.streaming} />
@@ -70,6 +71,10 @@ function WorkItem({ item }: { item: TranscriptItem }) {
       return null
   }
 }
+
+const WorkItem = memo(WorkItemView, (previous, next) =>
+  isSameItem({ previous: previous.item, next: next.item }),
+)
 
 function AgentTurnView({ turn, now }: { turn: AgentTurn; now: number }) {
   const showSummary = turn.work.length > 0 || turn.running

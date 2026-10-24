@@ -16,6 +16,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+import { liveSteps } from '@dltech/atlas-client/transcript'
 
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
@@ -35,9 +36,10 @@ import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
-import { transcriptViewOf } from './data/transcript'
+import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
 import { useNow } from './data/use-now'
+import { useReveal } from './data/use-reveal'
 import { usePodStatus } from './data/use-pod-status'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -96,7 +98,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     liveEligible,
     onModelChanged: model.handleRemoteChange,
   })
-  const { events, signals, outputs, loaded, error, working, sendLive, chooseModel } = source
+  const { events, steps, outputs, loaded, error, working, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
@@ -105,9 +107,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
     () => withoutTakenBack({ events, sendIds: takenBack }),
     [events, takenBack],
   )
+  const parsed = useMemo(() => eventsFromWire(visible), [visible])
+  const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
+  const live = useMemo(() => liveSteps({ steps, events: parsed }), [steps, parsed])
+  const reveal = useReveal({ steps, events: parsed })
   const view = useMemo(
-    () => transcriptViewOf({ events: eventsFromWire(visible), signals, outputs }),
-    [visible, signals, outputs],
+    () => transcriptViewOf({ durable, live, outputs, reveal }),
+    [durable, live, outputs, reveal],
   )
   const dock = useComposerDock({
     visible,
