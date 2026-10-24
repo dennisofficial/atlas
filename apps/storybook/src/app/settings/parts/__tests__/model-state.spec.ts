@@ -35,7 +35,6 @@ import {
   pinnedKeys,
   pinnedRefs,
   resolveRoleModel,
-  selectorOptions,
 } from '../model-state'
 
 const OPUS_REF = 'anthropic/claude-opus-4-7'
@@ -198,18 +197,10 @@ describe('routing', () => {
 })
 
 describe('selector options', () => {
-  test('lists only models on connected routes, with the Auto option first', () => {
+  test('lists only models on connected routes', () => {
     const options = catalogueOptions(ACCESS_OPENROUTER_ONLY)
     expect(options.length).toBeGreaterThan(100)
     expect(options.every((option) => option.provider === 'OpenRouter')).toBe(true)
-    const withAuto = selectorOptions({
-      role: EAgentRole.Main,
-      config: DEFAULT_MODELS_CONFIG,
-      access: ACCESS_OPENROUTER_ONLY,
-      options,
-    })
-    expect(withAuto[0]?.auto).toBe(true)
-    expect(withAuto[0]?.route).toBe('OpenRouter')
   })
 
   test('prices only appear for keyed routes', () => {

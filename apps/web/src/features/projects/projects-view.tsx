@@ -82,26 +82,28 @@ export function ProjectsView() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 px-4 py-16">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-medium tracking-tight">Projects</h1>
-        <Button onClick={handleNewProject}>
-          <PlusIcon data-icon="inline-start" />
-          New project
-        </Button>
-      </header>
-      <QueryGate query={query} label="projects">
-        {(projects) =>
-          projects.length === 0 ? (
-            <NoProjects onNewProject={handleNewProject} />
-          ) : (
-            <ProjectList projects={projects} />
-          )
-        }
-      </QueryGate>
-      {query.data === undefined ? null : (
-        <NewProjectHost open={open} onOpenChange={handleOpenChange} projects={query.data} />
-      )}
-    </main>
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-16">
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-medium tracking-tight">Projects</h1>
+          <Button onClick={handleNewProject}>
+            <PlusIcon data-icon="inline-start" />
+            New project
+          </Button>
+        </header>
+        <QueryGate query={query} label="projects">
+          {(projects) =>
+            projects.length === 0 ? (
+              <NoProjects onNewProject={handleNewProject} />
+            ) : (
+              <ProjectList projects={projects} />
+            )
+          }
+        </QueryGate>
+        {query.data === undefined ? null : (
+          <NewProjectHost open={open} onOpenChange={handleOpenChange} projects={query.data} />
+        )}
+      </div>
+    </div>
   )
 }

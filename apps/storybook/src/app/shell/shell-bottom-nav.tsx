@@ -1,4 +1,4 @@
-import { Activity, FolderKanban, MessagesSquare } from 'lucide-react'
+import { FolderKanban, MessagesSquare } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
@@ -14,7 +14,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { nav: EAppNav.Threads, label: 'Threads', Icon: MessagesSquare },
-  { nav: EAppNav.Activity, label: 'Activity', Icon: Activity },
   { nav: EAppNav.Projects, label: 'Projects', Icon: FolderKanban },
 ]
 

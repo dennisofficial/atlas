@@ -3998,6 +3998,16 @@
                   "kind": "scalar"
                 }
               },
+              "archivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -4069,6 +4079,16 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "pinnedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "projectId": {
@@ -4302,6 +4322,9 @@
                 "agentType": {
                   "column": "agentType"
                 },
+                "archivedAt": {
+                  "column": "archivedAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -4331,6 +4354,9 @@
                 },
                 "parentThreadId": {
                   "column": "parentThreadId"
+                },
+                "pinnedAt": {
+                  "column": "pinnedAt"
                 },
                 "projectId": {
                   "column": "projectId"
@@ -9449,6 +9475,14 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "archivedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -9505,6 +9539,14 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "pinnedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "projectId": {
                   "codecId": "pg/text@1",
@@ -10579,7 +10621,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "9f7bf2b0da764a13cf6bcb46cbb59a8905c8d7f20bdb54ef68455d72613703b0"
+    "storageHash": "3a633b04798a32f8f70949fd0f91021d862a3b94fd983ac5209ac650b3c96178"
   },
   "execution": {
     "executionHash": "df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec",

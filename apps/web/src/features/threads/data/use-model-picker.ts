@@ -27,10 +27,7 @@ export type ModelPicker = {
   onPinnedChange: (ids: string[]) => void
 }
 
-export function useModelPicker(args: {
-  includeAuto: boolean
-  currentId?: string | undefined
-}): ModelPicker {
+export function useModelPicker(args: { currentId?: string | undefined } = {}): ModelPicker {
   const source = useCloudQuery({ key: 'model-picker-source', load: loadSource })
   const settings = useCloudSettings(PERSONAL)
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
@@ -40,10 +37,9 @@ export function useModelPicker(args: {
     () =>
       modelOptionsOfSource({
         source: source.data,
-        includeAuto: args.includeAuto,
         currentId: args.currentId,
       }),
-    [source.data, args.includeAuto, args.currentId],
+    [source.data, args.currentId],
   )
 
   const stored = parsePinnedModels(

@@ -43,6 +43,19 @@ const projectOf = (project: string | undefined): string => {
   return project
 }
 
+const listScopeOf = (args: {
+  project: string | undefined
+  projectId: string | undefined
+}): { project: string } | { projectId: string } => {
+  const { project, projectId } = args
+  const hasProject = project !== undefined && project.length > 0
+  const hasProjectId = projectId !== undefined && projectId.length > 0
+  if (hasProject === hasProjectId) {
+    throw new BadRequestException('exactly one of project or projectId is required')
+  }
+  return hasProjectId ? { projectId } : { project: project ?? '' }
+}
+
 const limitOf = (limit: string | undefined): number | undefined => {
   if (limit === undefined) return undefined
   const parsed = Number.parseInt(limit, 10)
@@ -119,11 +132,12 @@ export class ThreadsController {
   handleList(
     @Req() request: AuthenticatedRequest,
     @Query('project') project: string | undefined,
+    @Query('projectId') projectId: string | undefined,
     @Query('limit') limit: string | undefined,
   ): Promise<ThreadDto[]> {
     return this.threads.list({
       userId: userIdOf(request),
-      project: projectOf(project),
+      ...listScopeOf({ project, projectId }),
       limit: limitOf(limit),
     })
   }

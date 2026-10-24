@@ -3,8 +3,7 @@ import { toast } from 'sonner'
 
 import { changeThreadModel } from './change-thread-model'
 import type { ThreadModelChoice } from './live-thread-view'
-import { AUTO_MODEL_ID } from './model-options'
-import { existingSelectionOf, type ModelSelection } from './model-selection'
+import { existingSelectionOf, UNSET_SELECTION, type ModelSelection } from './model-selection'
 import { patchThreadModel } from './threads-api'
 import { useModelPicker } from './use-model-picker'
 import { messageOf } from './use-send'
@@ -13,8 +12,7 @@ export function useThreadModel(args: { threadId: string; stored: ThreadModelChoi
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const selection = chosen ?? existingSelectionOf(args.stored)
   const picker = useModelPicker({
-    includeAuto: selection.id === AUTO_MODEL_ID,
-    currentId: selection.id === AUTO_MODEL_ID ? undefined : selection.id,
+    currentId: selection.id === UNSET_SELECTION.id ? undefined : selection.id,
   })
 
   const handleRemoteChange = (model: ThreadModelChoice) => setChosen(existingSelectionOf(model))

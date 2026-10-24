@@ -3,6 +3,7 @@ import {
   ESettingId,
   isFavourite,
   nextEffort,
+  outputPriceLabel,
   refKey,
   type EEffort,
   type ModelCard,
@@ -269,6 +270,5 @@ export function resolve(args: {
 }
 
 export function priceLabel(card: ModelCard): string | null {
-  const cost = card.cost
-  return cost === undefined ? null : `$${cost.outputPerMillion.toFixed(2)}/M`
+  return outputPriceLabel(card.cost) ?? null
 }

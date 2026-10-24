@@ -8,6 +8,7 @@ import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { threadPullRequests, threadWorktree } from './places'
+import { withPullRequestStates } from './pull-request-state'
 import { toEventDto, toThreadDto } from './rows'
 import { threadProjectColumn, type ThreadProjectColumns } from './thread-project'
 import type {
@@ -199,27 +200,40 @@ export class ThreadsService {
 
   async list(args: {
     userId: string
-    project: string
+    project?: string | undefined
+    projectId?: string | undefined
     limit?: number | undefined
   }): Promise<ThreadDto[]> {
-    const rows = await db.orm.public.Thread.where({ userId: args.userId })
-      .where((thread) => or(thread.repo.eq(args.project), thread.workspace.eq(args.project)))
+    const { project, projectId } = args
+    const owned = db.orm.public.Thread.where({ userId: args.userId })
+    const scoped =
+      projectId === undefined
+        ? owned.where((thread) =>
+            or(thread.repo.eq(project ?? ''), thread.workspace.eq(project ?? '')),
+          )
+        : owned.where({ projectId })
+    const rows = await scoped
       .orderBy((thread) => thread.updatedAt.desc())
       .limit(args.limit ?? THREAD_LISTING_LIMIT)
       .all()
-    return Promise.all(
+    const enriched = await Promise.all(
       rows.map(async (row) => {
         const [worktree, pullRequests] = await Promise.all([
           threadWorktree({ reader: db, threadId: row.id }),
           threadPullRequests({ reader: db, threadId: row.id }),
         ])
-        return {
-          ...toThreadDto(row),
-          ...(worktree === null ? {} : { worktree }),
-          ...(pullRequests.length === 0 ? {} : { pullRequests }),
-        }
+        return { row, worktree, pullRequests }
       }),
     )
+    const stated = await withPullRequestStates(enriched.map((entry) => entry.pullRequests))
+    return enriched.map(({ row, worktree }, index) => {
+      const pullRequests = stated[index] ?? []
+      return {
+        ...toThreadDto(row),
+        ...(worktree === null ? {} : { worktree }),
+        ...(pullRequests.length === 0 ? {} : { pullRequests }),
+      }
+    })
   }
 
   async rename(args: { userId: string; threadId: string; draft: RenameThreadDto }): Promise<void> {

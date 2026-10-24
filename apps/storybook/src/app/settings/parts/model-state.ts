@@ -29,8 +29,6 @@ import {
   type Route,
 } from './model-routes'
 
-export const AUTO_GROUP = 'Automatic'
-
 export type Resolved = {
   model: CatalogueModel
   row: CatalogueRow
@@ -180,32 +178,6 @@ export function collapsedRouteLabels(access: ProviderAccessMap): string[] {
     const route = routeFor({ provider, access })
     return route.kind === ERouteKind.Key ? [route.label] : []
   })
-}
-
-export function selectorOptions({
-  role,
-  config,
-  access,
-  options,
-}: {
-  role: EAgentRole
-  config: ModelsConfig
-  access: ProviderAccessMap
-  options: ModelOption[]
-}): ModelOption[] {
-  const resolved = resolveAuto({ role, config, access })
-  const auto: ModelOption = {
-    id: AUTO_MODEL,
-    label: resolved ? resolved.row.label : 'Automatic',
-    provider: AUTO_GROUP,
-    auto: true,
-    route: resolved?.route.short,
-    context: resolved ? contextLabel(resolved.row.contextWindow) : undefined,
-    efforts: resolved?.row.efforts,
-    brand: resolved ? familyMark(resolved.model.vendor).brand : undefined,
-    monogram: resolved ? familyMark(resolved.model.vendor).monogram : undefined,
-  }
-  return [auto, ...options]
 }
 
 export function reconnectInfo(access: ProviderAccessMap): {

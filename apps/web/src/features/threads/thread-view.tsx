@@ -30,9 +30,9 @@ import {
   takeBackTargetOf,
   withoutTakenBack,
 } from './data/take-back'
-import { AUTO_MODEL_ID } from './data/model-options'
 import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
+import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
 import { transcriptViewOf } from './data/transcript'
 import { useNow } from './data/use-now'
@@ -49,7 +49,6 @@ import { ThreadTranscript } from './thread-transcript'
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
 const TOO_LATE_NOTICE = 'Atlas already started on that message.'
-const UNTITLED = 'Untitled thread'
 
 function ThreadMissing() {
   return (
@@ -118,10 +117,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     if (!sent) setDraft(text)
     else refresh()
   }
-  const handleModelChange = (next: ModelSelection) => {
-    if (next.id === AUTO_MODEL_ID) return
+  const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
-  }
   const handleRetryBoot = async () => {
     await retryBoot(threadId)
     refresh()
@@ -151,7 +148,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const title = thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ThreadHeader title={title} failed={failed} />
       {error !== null && !loaded ? (
         <div className="mx-auto w-full max-w-3xl px-4 pt-4">
