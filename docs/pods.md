@@ -121,9 +121,9 @@ reaches a pod only through the `atlas push` bundle
 1. **Listen.** Serve starts its token-authenticated listener before anything else, and
    `GET /v1/health` reports `booting: true` (`apps/serve/src/start-serve.ts`,
    `apps/serve/src/serve-boot-listener.ts`).
-2. **Pull the Project and clone.** With a `projectId`, serve calls
-   `GET /v1/projects/:projectId/workspace`, which returns the repo, base branch, additional repos
-   and a clone token the API brokers from the user's GitHub connection
+2. **Pull the Project and clone.** With a `projectId`, serve calls the tRPC query
+   `projectWorkspace.get` (`/v1/trpc/projectWorkspace.get`), which returns the repo, base branch,
+   additional repos and a clone token the API brokers from the user's GitHub connection
    (`apps/serve/src/project-workspace-spec.ts`). A 401 is retried every 2 s for up to 60 s, which
    covers a lease that is still registering. Serve clones the repo with `--branch <baseBranch>`,
    clones the additional repos beside it, and strips the token from each `origin`
@@ -213,7 +213,7 @@ A local pod's lease token is accepted only on routes marked `@PodReachable()`
 (`apps/api/src/_core/decorators/pod-reachable.decorator.ts`) and gets 403 everywhere else, its own
 `:threadId` routes included. On those routes it acts as the lease's owner. The pod-reachable routes:
 
-- `GET /v1/projects/:projectId/workspace`
+- `projectWorkspace.get` and `sandboxConfig.get` (tRPC queries with `meta({ podReachable: true })`)
 - `GET /v1/published-bundles/current`
 - `GET /v1/settings`, `GET /v1/secrets`, `GET /v1/account-lease`
 - `POST /v1/oauth-connections/:connectionId/access-token`
