@@ -19,7 +19,7 @@ import { bootServeFiles } from '../serve-boot'
 import { bootReporterFor } from '../serve-boot-reporter'
 
 import { fakeServeApp } from './fakes'
-import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
+import { trpcOk, trpcUrl } from './trpc-fake'
 
 const threadId = toThreadId('thread-boot-report')
 const controlPlaneUrl = 'https://api.example.com'
