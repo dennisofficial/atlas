@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { cloudRequest } from '@dltech/atlas-harness'
 import { sshSigningKeyLeaseSchema, type SshSigningKeyLease } from '@dltech/atlas-wire'
 
+import { createApiClient } from './api-client'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 const SIGNING_KEY_FILE = 'ssh-signing-key'
@@ -17,15 +17,12 @@ export const fetchSigningKeyLease = async (args: {
   fetchFn: typeof fetch
 }): Promise<SshSigningKeyLease | undefined> => {
   try {
-    const body = await cloudRequest({
-      url: args.controlPlaneUrl.replace(/\/+$/, ''),
+    const body = await createApiClient({
+      controlPlaneUrl: args.controlPlaneUrl,
       token: args.token,
       clientVersion: args.clientVersion,
       fetchFn: args.fetchFn,
-      method: 'GET',
-      path: '/v1/ssh-signing-key',
-      allowMissing: true,
-    })
+    }).sshSigningKey.lease.query()
     const parsed = sshSigningKeyLeaseSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
   } catch {

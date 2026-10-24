@@ -10,6 +10,7 @@ import type { PublishedBundleCurrent } from '@dltech/atlas-wire'
 
 import { applyPublishedBundle } from '../published-bundle'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
+import { trpcFailure, trpcOk } from './trpc-fake'
 import { ATLAS_HOME, fakeFiles } from './workspace-files-fixture'
 
 const API = 'https://api.example.com'
@@ -85,7 +86,7 @@ describe('applyPublishedBundle', () => {
     const requests: Request[] = []
     const fetchFn = asFetch((request) => {
       requests.push(request)
-      return request.url === BLOB_URL ? new Response(bytes) : Response.json(currentOf({ bytes }))
+      return request.url === BLOB_URL ? new Response(bytes) : trpcOk(currentOf({ bytes }))
     })
 
     const { written, lines } = await run({ fetchFn })
@@ -99,7 +100,7 @@ describe('applyPublishedBundle', () => {
     expect(lines[0]).toMatchObject({ version: 3, written: 3 })
 
     const api = requests.find((request) => request.url !== BLOB_URL)
-    expect(new URL(api?.url ?? '').pathname).toBe('/v1/published-bundles/current')
+    expect(new URL(api?.url ?? '').pathname).toBe('/v1/trpc/publishedBundles.current')
     expect(api?.headers.get('authorization')).toBe('Bearer pod-token')
     expect(api?.headers.get('atlas-client-version')).toBe('1.2.3')
     const blob = requests.find((request) => request.url === BLOB_URL)
@@ -108,7 +109,7 @@ describe('applyPublishedBundle', () => {
 
   it('logs absent and writes nothing on a 404', async () => {
     const { written, lines } = await run({
-      fetchFn: asFetch(() => new Response(null, { status: 404 })),
+      fetchFn: asFetch(() => trpcFailure({ status: 404 })),
     })
 
     expect(written.size).toBe(0)
@@ -120,7 +121,7 @@ describe('applyPublishedBundle', () => {
     const fetchFn = asFetch((request) =>
       request.url === BLOB_URL
         ? new Response(bytes)
-        : Response.json(currentOf({ bytes, sha256: 'a'.repeat(64) })),
+        : trpcOk(currentOf({ bytes, sha256: 'a'.repeat(64) })),
     )
 
     const { written, lines } = await run({ fetchFn })
@@ -133,9 +134,7 @@ describe('applyPublishedBundle', () => {
   it('fails when the blob download is not 2xx', async () => {
     const bytes = await fullBundle()
     const fetchFn = asFetch((request) =>
-      request.url === BLOB_URL
-        ? new Response(null, { status: 403 })
-        : Response.json(currentOf({ bytes })),
+      request.url === BLOB_URL ? new Response(null, { status: 403 }) : trpcOk(currentOf({ bytes })),
     )
 
     const { written, lines } = await run({ fetchFn })
@@ -145,7 +144,7 @@ describe('applyPublishedBundle', () => {
   })
 
   it('fails on a malformed current answer', async () => {
-    const { written, lines } = await run({ fetchFn: asFetch(() => Response.json({ version: 1 })) })
+    const { written, lines } = await run({ fetchFn: asFetch(() => trpcOk({ version: 1 })) })
 
     expect(written.size).toBe(0)
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.BundleFailed])
@@ -159,8 +158,8 @@ describe('applyPublishedBundle', () => {
       if (request.url === BLOB_URL) return new Response(bytes)
       apiCalls += 1
       return apiCalls === 1
-        ? Response.json({ message: 'unauthorized' }, { status: 401 })
-        : Response.json(currentOf({ bytes }))
+        ? trpcFailure({ status: 401, message: 'unauthorized' })
+        : trpcOk(currentOf({ bytes }))
     })
 
     const { written, lines } = await run({
@@ -180,7 +179,7 @@ describe('applyPublishedBundle', () => {
     let apiCalls = 0
     const fetchFn = asFetch(() => {
       apiCalls += 1
-      return new Response(null, { status: 503, headers: { 'retry-after': '8' } })
+      return trpcFailure({ status: 503 })
     })
 
     const { written, lines } = await run({ fetchFn })
@@ -194,7 +193,7 @@ describe('applyPublishedBundle', () => {
     const bytes = await fullBundle()
     let blobSignal: AbortSignal | null | undefined
     const fetchFn = asFetch((request) => {
-      if (request.url !== BLOB_URL) return Response.json(currentOf({ bytes }))
+      if (request.url !== BLOB_URL) return trpcOk(currentOf({ bytes }))
       blobSignal = request.signal
       return new Response(bytes)
     })
@@ -209,7 +208,7 @@ describe('applyPublishedBundle', () => {
     let apiCalls = 0
     const fetchFn = asFetch(() => {
       apiCalls += 1
-      return Response.json({ message: 'unauthorized' }, { status: 401 })
+      return trpcFailure({ status: 401, message: 'unauthorized' })
     })
 
     const { written, lines } = await run({ fetchFn })

@@ -9,6 +9,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { EWorkspaceState, startServe, type ServeHandle, type WorkspaceFiles } from '../index'
 
 import { fakeServeApp } from './fakes'
+import { trpcFailure, trpcOk } from './trpc-fake'
 
 const TOKEN = 'session-token'
 const threadId = toThreadId('thread-serve')
@@ -57,10 +58,10 @@ const controlPlane = (args: { leaseStatus: number }): typeof fetch =>
     async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
       const request = requestOf({ input, init })
       const isLease =
-        request.method === 'GET' && new URL(request.url).pathname === '/v1/ssh-signing-key'
+        request.method === 'GET' && new URL(request.url).pathname === '/v1/trpc/sshSigningKey.lease'
       if (!isLease) return new Response(null, { status: 204 })
-      if (args.leaseStatus === 200) return Response.json(lease)
-      return new Response(null, { status: args.leaseStatus })
+      if (args.leaseStatus === 200) return trpcOk(lease)
+      return trpcFailure({ status: args.leaseStatus })
     },
     { preconnect: () => undefined },
   )
