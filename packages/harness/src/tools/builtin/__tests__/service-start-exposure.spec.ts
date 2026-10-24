@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, beforeAll, describe, expect, it } from 'bun:test'
+import { z } from 'zod'
 
 import { toThreadId, type ProcessPort, type ToolOutcome } from '@dltech/atlas-core'
 
@@ -57,6 +58,13 @@ describe('exposing a port from a service', () => {
     })
     expect(outcome.modelText).toContain('http://localhost:3000')
     expect(registry.list()).toHaveLength(1)
+  })
+
+  it('asks for the name before the command, so a row is named while the command still streams', () => {
+    const { inputSchema } = openTool().tool
+    const declared = z.toJSONSchema(inputSchema)
+
+    expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
   })
 
   it('leaves a start without exposePort untouched', async () => {
