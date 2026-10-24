@@ -24,6 +24,13 @@ export * from './signal-wire.js'
 export * from './signing-key-wire.js'
 export * from './memory-wire.js'
 export * from './published-bundle-wire.js'
+export * from './user-files-wire.js'
+export {
+  userVercelCredentialSchema,
+  userVercelCredentialUpsertSchema,
+  type UserVercelCredential,
+  type UserVercelCredentialUpsert,
+} from './web/scoped-config-wire.js'
 export * from './sandbox-errors.js'
 export * from './sandbox-mount.js'
 export * from './sandbox-retry.js'

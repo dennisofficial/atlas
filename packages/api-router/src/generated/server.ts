@@ -13,9 +13,70 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema } from "@dltech/atlas-wire";
+import { publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
+  publishedBundles: t.router({
+    issueUpload: publicProcedure
+      .output(publishedBundleUploadSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    commit: publicProcedure
+      .input(publishedBundleCommitSchema)
+      .output(publishedBundleSummarySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    current: publicProcedure
+      .output(publishedBundleCurrentSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  sshSigningKey: t.router({
+    lease: publicProcedure
+      .output(sshSigningKeyLeaseSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    status: publicProcedure
+      .output(sshSigningKeyStatusSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    register: publicProcedure
+      .input(sshSigningKeyUploadSchema)
+      .output(sshSigningKeyStatusSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    rotate: publicProcedure
+      .input(sshSigningKeyUploadSchema)
+      .output(sshSigningKeyStatusSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    revoke: publicProcedure
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  userFiles: t.router({
+    list: publicProcedure
+      .input(userFilesListRequestSchema)
+      .output(userFilesListReplySchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    get: publicProcedure
+      .input(userFilesGetRequestSchema)
+      .output(userFilesGetReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    put: publicProcedure
+      .input(userFilePutRequestSchema)
+      .output(userFileRevisionSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(userFileRemoveRequestSchema)
+      .output(userFileRevisionSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  userVercel: t.router({
+    get: publicProcedure
+      .output(userVercelCredentialSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    save: publicProcedure
+      .input(userVercelCredentialUpsertSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   sandboxSelf: t.router({
     exposePort: publicProcedure
       .input(sandboxExposePortRequestSchema)

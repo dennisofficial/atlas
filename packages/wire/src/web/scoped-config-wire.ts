@@ -81,6 +81,4 @@ export type WorkspaceVercelCredentialUpsert = VercelCredentialUpsert
 export const userVercelCredentialUpsertSchema = vercelCredentialUpsertSchema
 export type UserVercelCredentialUpsert = VercelCredentialUpsert
 
-export const USER_VERCEL_CREDENTIAL_PATH = '/v1/me/vercel'
-
 export type VercelProvisioningCredentials = { token: string; teamId: string; projectId: string }
