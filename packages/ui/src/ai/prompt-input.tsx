@@ -98,7 +98,7 @@ export function PromptInput({
       <InputGroup>
         {attachments.length > 0 ? (
           <InputGroupAddon align="block-start">
-            <AttachmentGroup className="flex flex-wrap gap-1.5">
+            <AttachmentGroup className="flex-wrap">
               {attachments.map((attachment) => (
                 <Attachment key={attachment.id} size="xs">
                   <AttachmentMedia>
@@ -126,14 +126,13 @@ export function PromptInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           aria-label="Message"
-          className="p-3"
         />
         <InputGroupAddon align="block-end">
           <input ref={fileRef} type="file" multiple hidden onChange={handleFilesChosen} />
           <InputGroupButton
             size="icon-sm"
             variant="outline"
-            className="rounded-full"
+            shape="round"
             aria-label="Attach files"
             onClick={handleAttachClick}
           >
@@ -144,7 +143,7 @@ export function PromptInput({
             <InputGroupButton
               size="icon-sm"
               variant="default"
-              className="rounded-full"
+              shape="round"
               aria-label="Stop"
               onClick={onStop}
             >
@@ -155,7 +154,7 @@ export function PromptInput({
               type="submit"
               size="icon-sm"
               variant="default"
-              className="rounded-full"
+              shape="round"
               disabled={!sendable}
               aria-label="Send"
             >

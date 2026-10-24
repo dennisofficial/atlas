@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react'
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { Item, ItemContent, ItemMedia } from '@dltech/atlas-ui/components/item'
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
-import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { sessionUser, signOut, UNREACHABLE } from '@/lib/auth-api'
 import {
@@ -22,7 +22,7 @@ import {
 } from '@/lib/organization-api'
 import { initialsOf } from '@/features/settings/session/initials'
 
-import { AuthLinkButton, CONTROL_CLASS, FormError, LinkButton } from './auth-controls'
+import { AuthLinkButton, FormError, LinkButton } from './auth-controls'
 import { AuthHeading } from './auth-heading'
 import { PageSpinner } from './page-spinner'
 import { EStatusTone, StatusIcon } from './status-icon'
@@ -44,13 +44,15 @@ const roleLabel = (role: string): string =>
 
 function InviteCard({ invitation }: { invitation: Invitation }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border bg-muted/40 p-4">
-      <Avatar size="lg">
-        <AvatarFallback className="font-display font-semibold">
-          {initialsOf(invitation.organizationName)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex min-w-0 flex-col gap-1">
+    <Item variant="outline">
+      <ItemMedia>
+        <Avatar size="lg">
+          <AvatarFallback className="font-display font-semibold">
+            {initialsOf(invitation.organizationName)}
+          </AvatarFallback>
+        </Avatar>
+      </ItemMedia>
+      <ItemContent className="min-w-0">
         <span className="truncate font-display text-lg font-semibold text-foreground">
           {invitation.organizationName}
         </span>
@@ -58,8 +60,8 @@ function InviteCard({ invitation }: { invitation: Invitation }) {
           <Badge variant="secondary">{roleLabel(invitation.role)}</Badge>
           <span className="truncate">Invited by {invitation.inviterEmail}</span>
         </span>
-      </div>
-    </div>
+      </ItemContent>
+    </Item>
   )
 }
 
@@ -156,7 +158,7 @@ export function InviteFlow({ invitationId }: { invitationId: string }) {
           title="This invitation is for another account"
           description={`You're signed in as ${email}. Sign in with the email address that was invited.`}
         />
-        <Button className={cn(CONTROL_CLASS, 'w-full')} onClick={() => void handleSwitchAccount()}>
+        <Button size="lg" className="w-full" onClick={() => void handleSwitchAccount()}>
           Switch account
         </Button>
       </div>
@@ -190,17 +192,14 @@ export function InviteFlow({ invitationId }: { invitationId: string }) {
       <InviteCard invitation={invitation} />
       {error !== null && <FormError>{error}</FormError>}
       <div className="flex flex-col gap-2">
-        <Button
-          className={cn(CONTROL_CLASS, 'w-full')}
-          disabled={busy}
-          onClick={() => void handleAccept()}
-        >
+        <Button size="lg" className="w-full" disabled={busy} onClick={() => void handleAccept()}>
           {pending === EPending.Accept && <Spinner data-icon="inline-start" />}
           Accept invitation
         </Button>
         <Button
           variant="ghost"
-          className={cn(CONTROL_CLASS, 'w-full')}
+          size="lg"
+          className="w-full"
           disabled={busy}
           onClick={() => void handleDecline()}
         >

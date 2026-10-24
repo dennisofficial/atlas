@@ -33,7 +33,7 @@ export function MemoryList({
 }) {
   if (memories.length === 0) {
     return (
-      <Empty className="border">
+      <Empty variant="outline">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <BrainIcon />

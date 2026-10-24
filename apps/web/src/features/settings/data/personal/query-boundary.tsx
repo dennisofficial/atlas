@@ -5,6 +5,7 @@ import { AlertCircleIcon } from 'lucide-react'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import type { CloudApiError } from '@/lib/cloud-api'
@@ -34,13 +35,13 @@ export function QueryLoading({ rows = DEFAULT_ROWS }: { rows?: number }) {
     <div role="status" aria-busy="true" aria-label="Loading">
       <SettingsCard>
         {Array.from({ length: rows }, (_, index) => (
-          <div key={index} className="flex items-center gap-3 px-4 py-3.5">
+          <CardRow key={index} className="flex-row items-center">
             <Skeleton className="size-8 shrink-0" />
             <div className="flex flex-1 flex-col gap-1.5">
               <Skeleton className="h-3.5 w-1/3" />
               <Skeleton className="h-3 w-2/3" />
             </div>
-          </div>
+          </CardRow>
         ))}
       </SettingsCard>
     </div>

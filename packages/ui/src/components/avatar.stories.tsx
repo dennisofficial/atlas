@@ -12,7 +12,7 @@ import {
 const meta = {
   title: 'Components/Avatar',
   component: Avatar,
-  argTypes: { size: { control: 'inline-radio', options: ['sm', 'default', 'lg'] } },
+  argTypes: { size: { control: 'inline-radio', options: ['xs', 'sm', 'default', 'lg'] } },
   args: { size: 'default' },
 } satisfies Meta<typeof Avatar>
 
@@ -46,7 +46,7 @@ export const FallbackOnly: Story = {
 export const Sizes: Story = {
   render: () => (
     <div className="flex items-center gap-3">
-      {(['sm', 'default', 'lg'] as const).map((size) => (
+      {(['xs', 'sm', 'default', 'lg'] as const).map((size) => (
         <Avatar key={size} size={size}>
           <AvatarFallback>{size.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
@@ -54,6 +54,8 @@ export const Sizes: Story = {
     </div>
   ),
 }
+
+export const ExtraSmall: Story = { args: { size: 'xs' }, render: renderSizedFallback }
 
 export const Small: Story = { args: { size: 'sm' }, render: renderSizedFallback }
 

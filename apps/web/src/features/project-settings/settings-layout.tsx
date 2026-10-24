@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from 'react'
 
-import { Card, CardFooter } from '@dltech/atlas-ui/components/card'
+import { Card, CardFooter, CardRow } from '@dltech/atlas-ui/components/card'
 import { Label } from '@dltech/atlas-ui/components/label'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
@@ -49,9 +49,9 @@ export function SettingsCard({
   className?: string
 }) {
   return (
-    <Card className={cn('gap-0 py-0', className)}>
-      <div className="divide-y">{children}</div>
-      {footer ? <CardFooter className="justify-end gap-2 px-4 py-3">{footer}</CardFooter> : null}
+    <Card variant="list" className={className}>
+      {children}
+      {footer ? <CardFooter className="justify-end">{footer}</CardFooter> : null}
     </Card>
   )
 }
@@ -71,12 +71,7 @@ export function SettingsRow({
 }) {
   const stacked = layout === ERowLayout.Stacked
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-3 px-4 py-4',
-        !stacked && 'sm:flex-row sm:items-center sm:justify-between sm:gap-8',
-      )}
-    >
+    <CardRow className={cn(!stacked && 'sm:flex-row sm:items-center sm:justify-between')}>
       <div className="flex min-w-0 flex-col gap-1">
         {htmlFor ? (
           <Label htmlFor={htmlFor}>{title}</Label>
@@ -98,7 +93,7 @@ export function SettingsRow({
           {children}
         </div>
       ) : null}
-    </div>
+    </CardRow>
   )
 }
 

@@ -63,13 +63,7 @@ export function ThreadHoverCard({
       <HoverCardTrigger delay={350} closeDelay={100} render={<div className={className} />}>
         {children}
       </HoverCardTrigger>
-      <HoverCardContent
-        side="right"
-        align="start"
-        sideOffset={8}
-        alignOffset={-6}
-        className="w-72 p-3"
-      >
+      <HoverCardContent side="right" align="start" sideOffset={8} alignOffset={-6} className="w-72">
         <ThreadHoverCardBody thread={thread} projectName={projectName} />
       </HoverCardContent>
     </HoverCard>

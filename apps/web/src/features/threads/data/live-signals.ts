@@ -1,5 +1,4 @@
 import type { ChannelSignal, StepSignal } from '@dltech/atlas-client/channel'
-import { prunedSignals } from '@dltech/atlas-client/transcript'
 import type { CallId, Event } from '@dltech/atlas-core'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
@@ -7,58 +6,51 @@ import { eventsFromWire } from './events-from-wire'
 
 export const MAX_TAIL_CHARACTERS = 60_000
 
-export type SignalState = { signals: StepSignal[]; outputs: ReadonlyMap<CallId, string> }
+export type OutputState = { outputs: ReadonlyMap<CallId, string> }
 
-export const EMPTY_SIGNALS: SignalState = { signals: [], outputs: new Map() }
+export const EMPTY_OUTPUTS: OutputState = { outputs: new Map() }
 
-const isStepSignal = (signal: ChannelSignal): signal is StepSignal =>
+export const isStepSignal = (signal: ChannelSignal): signal is StepSignal =>
   signal.type === 'turn-working' ||
   signal.type === 'step-started' ||
   signal.type === 'chunk' ||
   signal.type === 'step-ended' ||
   signal.type === 'tool-output'
 
-export function absorbSignal(args: { state: SignalState; signal: ChannelSignal }): SignalState {
+export function absorbOutput(args: { state: OutputState; signal: ChannelSignal }): OutputState {
   const { state, signal } = args
-  if (!isStepSignal(signal) || signal.type === 'turn-working') return state
-  if (signal.type !== 'tool-output') {
-    return { signals: [...state.signals, signal], outputs: state.outputs }
-  }
+  if (signal.type !== 'tool-output') return state
   const outputs = new Map(state.outputs)
   outputs.set(
     signal.callId,
     ((outputs.get(signal.callId) ?? '') + signal.text).slice(-MAX_TAIL_CHARACTERS),
   )
-  return { signals: state.signals, outputs }
+  return { outputs }
 }
 
-export function pruneSignals(args: { state: SignalState; events: readonly Event[] }): SignalState {
+export function pruneOutputs(args: { state: OutputState; events: readonly Event[] }): OutputState {
   const { state, events } = args
-  const signals = prunedSignals({ signals: state.signals, events })
   const settled = new Set<CallId>()
   for (const event of events) {
     if (event.type === 'tool-result' || event.type === 'tool-denied') settled.add(event.callId)
   }
   const kept = [...state.outputs].filter(([callId]) => !settled.has(callId))
-  const outputs = kept.length === state.outputs.size ? state.outputs : new Map(kept)
-  if (signals === state.signals && outputs === state.outputs) return state
-  return { signals: [...signals], outputs }
+  return kept.length === state.outputs.size ? state : { outputs: new Map(kept) }
 }
 
-export type LiveSignalFields = Pick<SignalState, 'signals' | 'outputs'> & { events: WireEvent[] }
+export type LiveOutputFields = OutputState & { events: WireEvent[] }
 
-export function absorbInto<State extends LiveSignalFields>(args: {
+export function absorbInto<State extends LiveOutputFields>(args: {
   state: State
   signal: ChannelSignal
 }): State {
   const { state, signal } = args
-  const absorbed = absorbSignal({ state, signal })
-  if (absorbed === state) return state
-  return settleInto({ ...state, signals: absorbed.signals, outputs: absorbed.outputs })
+  const absorbed = absorbOutput({ state, signal })
+  return absorbed === state ? state : { ...state, outputs: absorbed.outputs }
 }
 
-export function settleInto<State extends LiveSignalFields>(state: State): State {
-  if (state.signals.length === 0 && state.outputs.size === 0) return state
-  const pruned = pruneSignals({ state, events: eventsFromWire(state.events) })
-  return pruned === state ? state : { ...state, signals: pruned.signals, outputs: pruned.outputs }
+export function settleInto<State extends LiveOutputFields>(state: State): State {
+  if (state.outputs.size === 0) return state
+  const pruned = pruneOutputs({ state, events: eventsFromWire(state.events) })
+  return pruned === state ? state : { ...state, outputs: pruned.outputs }
 }

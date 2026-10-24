@@ -4,14 +4,22 @@ import { cn } from 'cn'
 function Card({
   className,
   size = 'default',
+  variant = 'default',
+  tone = 'default',
   ...props
-}: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }) {
+}: React.ComponentProps<'div'> & {
+  size?: 'default' | 'sm'
+  variant?: 'default' | 'list'
+  tone?: 'default' | 'destructive'
+}) {
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-variant={variant}
+      data-tone={tone}
       className={cn(
-        'group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl',
+        'group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl data-[tone=destructive]:ring-destructive/30 data-[variant=list]:gap-0 data-[variant=list]:divide-y data-[variant=list]:py-0 data-[variant=list]:[&>:has(+[data-slot=card-footer])]:border-b-0 data-[variant=list]:[&>[data-slot=table-container]_tr>*:first-child]:pl-(--card-spacing) data-[variant=list]:[&>[data-slot=table-container]_tr>*:last-child]:pr-(--card-spacing)',
         className,
       )}
       {...props}
@@ -76,7 +84,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="card-footer"
       className={cn(
-        'flex items-center rounded-b-xl border-t bg-muted/50 p-(--card-spacing)',
+        'flex items-center gap-2 rounded-b-xl border-t bg-muted/50 p-(--card-spacing)',
         className,
       )}
       {...props}
@@ -84,4 +92,23 @@ function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent }
+function CardRow({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="card-row"
+      className={cn('flex flex-col gap-3 px-(--card-spacing) py-(--card-spacing)', className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardRow,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}

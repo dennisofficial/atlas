@@ -68,7 +68,7 @@ function MemoryView({
 }) {
   return (
     <>
-      <SheetHeader className="gap-2 pr-12">
+      <SheetHeader>
         <div className="flex items-center gap-2">
           <MemoryTypeBadge type={entry.type} />
           <SheetTitle className="min-w-0 truncate font-mono text-sm">{entry.name}</SheetTitle>
@@ -78,7 +78,7 @@ function MemoryView({
           rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
         </Mono>
       </SheetHeader>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <pre className="rounded-lg border bg-muted/30 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
           {entry.body}
         </pre>
@@ -136,13 +136,13 @@ function MemoryEdit({
 
   return (
     <>
-      <SheetHeader className="pr-12">
+      <SheetHeader>
         <SheetTitle>Edit memory</SheetTitle>
         <SheetDescription>
           rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
         </SheetDescription>
       </SheetHeader>
-      <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-4">
+      <FieldGroup className="min-h-0 flex-1 overflow-y-auto">
         <Field>
           <FieldLabel htmlFor="memory-name">Name</FieldLabel>
           <Input id="memory-name" readOnly value={entry.name} className="font-mono text-xs" />
@@ -186,7 +186,7 @@ function MemoryEdit({
             id="memory-body"
             spellCheck={false}
             aria-invalid={bodyTooLong}
-            className="field-sizing-fixed h-64 resize-y font-mono text-xs leading-relaxed"
+            className="field-sizing-fixed min-h-64 resize-y font-mono text-xs leading-relaxed"
             value={draft.value.body}
             onChange={(event) => patch({ body: event.target.value })}
           />

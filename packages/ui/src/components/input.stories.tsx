@@ -8,6 +8,7 @@ const meta = {
   component: Input,
   argTypes: {
     type: { control: 'select', options: ['text', 'email', 'password', 'number', 'search', 'file'] },
+    size: { control: 'inline-radio', options: ['default', 'lg'] },
     disabled: { control: 'boolean' },
   },
   args: { type: 'text', placeholder: 'Search sessions' },
@@ -49,3 +50,5 @@ export const Invalid: Story = {
 }
 
 export const File: Story = { args: { type: 'file' } }
+
+export const Large: Story = { args: { size: 'lg', placeholder: 'you@example.com' } }

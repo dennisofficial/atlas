@@ -153,3 +153,26 @@ export const Loading: Story = {
     </SidebarProvider>
   ),
 }
+
+export const BorderedFooterWithAvatarRow: Story = {
+  render: (args) => (
+    <SidebarProvider className="h-80 min-h-0">
+      <Sidebar {...args} className="absolute">
+        <SidebarContent />
+        <SidebarFooter variant="bordered">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="avatar">
+                <span className="flex size-6 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground">
+                  DL
+                </span>
+                <span className="flex-1 truncate">Dennis Lysenko</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset />
+    </SidebarProvider>
+  ),
+}

@@ -25,7 +25,7 @@ export function WorkspaceDangerZone({
   }
   return (
     <SettingsSection title="Danger zone">
-      <SettingsCard className="border-destructive/30">
+      <SettingsCard tone="destructive">
         <SettingsRow
           title="Transfer ownership"
           description="Not available yet. Transferring a workspace isn't hooked up to Atlas Cloud."

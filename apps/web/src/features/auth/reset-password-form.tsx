@@ -98,7 +98,7 @@ export function ResetPasswordForm() {
         description="Pick something you haven't used with Atlas before."
       />
       <form onSubmit={handleSubmit}>
-        <FieldGroup className="gap-4">
+        <FieldGroup>
           <AuthField
             id="password"
             label="New password"

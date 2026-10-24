@@ -194,7 +194,7 @@ export function ModelSelector({
         <PopoverContent
           align="start"
           initialFocus={hasNoProviders ? true : inputRef}
-          className="w-96 gap-0 p-0"
+          className="w-96"
         >
           {hasNoProviders ? (
             <NoProvidersState canConnect={canManageProviders} onConnect={handleManageProviders} />
@@ -261,7 +261,7 @@ export function ModelSelector({
                       <CommandItem
                         value={MANAGE_PROVIDERS_VALUE}
                         onSelect={handleManageProviders}
-                        className="h-8 text-muted-foreground"
+                        className="text-muted-foreground"
                       >
                         <Settings2Icon className="size-3.5" />
                         Manage providers

@@ -105,10 +105,10 @@ export function WorkspaceMemberRow({
   }
   return (
     <TableRow>
-      <TableCell className="py-2.5 pl-4">
+      <TableCell>
         <div className="flex items-center gap-2.5">
           <Avatar size="sm">
-            <AvatarFallback className="text-[10px]">{member.initials}</AvatarFallback>
+            <AvatarFallback>{member.initials}</AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">
@@ -137,7 +137,7 @@ export function WorkspaceMemberRow({
         <Mono className="text-muted-foreground">{member.joined}</Mono>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">{member.lastActive}</TableCell>
-      <TableCell className="w-10 pr-3 text-right">
+      <TableCell className="w-10 text-right">
         {locked ? null : (
           <MemberActions
             member={member}

@@ -23,8 +23,8 @@ import { logTail, ServiceRegistryPort } from '../../services'
 import { exposureClause, exposureUnsupported } from './bash-prose'
 
 const inputSchema = z.strictObject({
-  command: z.string().min(1),
   description: z.string().min(1),
+  command: z.string().min(1),
   workdir: z.string().min(1).optional(),
   exposePort: z.number().int().min(1).max(65_535).optional(),
 })

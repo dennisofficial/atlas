@@ -51,3 +51,21 @@ export const Disabled: Story = {
     </InputOTP>
   ),
 }
+
+export const Large: Story = {
+  render: () => (
+    <InputOTP maxLength={8} size="lg">
+      <InputOTPGroup>
+        {[0, 1, 2, 3].map((index) => (
+          <InputOTPSlot key={index} index={index} />
+        ))}
+      </InputOTPGroup>
+      <InputOTPSeparator />
+      <InputOTPGroup>
+        {[4, 5, 6, 7].map((index) => (
+          <InputOTPSlot key={index} index={index} />
+        ))}
+      </InputOTPGroup>
+    </InputOTP>
+  ),
+}
