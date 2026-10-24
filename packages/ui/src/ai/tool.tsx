@@ -18,6 +18,7 @@ export enum EToolState {
 
 export interface ToolProps {
   label: string
+  title?: string | undefined
   kind?: EToolKind
   state?: EToolState
   output?: string
@@ -52,6 +53,7 @@ const STEP_STATUS = {
 
 export function ToolLine({
   label,
+  title,
   kind = EToolKind.Shell,
   state = EToolState.Done,
   output,
@@ -79,7 +81,7 @@ export function ToolLine({
   return (
     <Step
       icon={icon ?? <Icon />}
-      title={toolTitle({ kind, state, label })}
+      title={title ?? toolTitle({ kind, state, label })}
       description={elapsed}
       status={status}
       defaultOpen={defaultOpen ?? failed}
@@ -97,7 +99,7 @@ export function Tool(props: ToolProps) {
     return (
       <Confirmation
         icon={props.icon ?? <Icon />}
-        title={toolTitle({ kind, state, label: props.label })}
+        title={props.title ?? toolTitle({ kind, state, label: props.label })}
         state={EConfirmationState.Pending}
         onApprove={props.onApprove}
         onDeny={props.onDeny}
