@@ -22,6 +22,7 @@ import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
+import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
 import { notConfiguredOf } from './data/not-configured'
 import {
@@ -38,6 +39,7 @@ import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
+import { useComposerHandoff } from './data/use-composer-handoff'
 import { useNow } from './data/use-now'
 import { useReveal } from './data/use-reveal'
 import { usePodStatus } from './data/use-pod-status'
@@ -125,6 +127,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
     selection: model.selection,
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
+  const handoff = useComposerHandoff({
+    events: visible,
+    pending: source.pending,
+    onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
+  })
   const awaitingRun = useMemo(() => awaitingRunOf(visible), [visible])
   const [wasLive, setWasLive] = useState(false)
   const [liveLost, setLiveLost] = useState(false)
@@ -146,8 +153,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
 
   const handleSubmit = async (text: string) => {
     const sent = await send({ threadId, text, liveSend: sendLive })
-    if (!sent) setDraft(text)
-    else refresh()
+    if (sent === null) return
+    handoff.begin(sent)
+    source.refreshEvents()
+    refresh()
   }
   const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
@@ -215,7 +224,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
           onValueChange={setDraft}
           onSubmit={handleSubmit}
           onEscape={() => void handleEscape()}
-          disabled={sending}
+          sending={sending || handoff.waiting}
           placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
         >
           <ModelPickerControls

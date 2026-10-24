@@ -16,7 +16,7 @@ const event = (seq: number): WireEvent => ({
   body: '{}',
 })
 
-const polled = { events: [event(1)], loaded: true, error: null }
+const polled = { events: [event(1)], loaded: true, error: null, poke: () => undefined }
 const send = () => false
 const chooseModel = async () => false
 const liveView = (change: Partial<LiveThreadView>): LiveThreadView => ({

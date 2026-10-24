@@ -15,7 +15,11 @@ export function useSend() {
   const attempt = useRef<Attempt | null>(null)
 
   const send = useCallback(
-    async (args: { threadId: string; text: string; liveSend: LiveSend }): Promise<boolean> => {
+    async (args: {
+      threadId: string
+      text: string
+      liveSend: LiveSend
+    }): Promise<Attempt | null> => {
       const sendId =
         attempt.current?.text === args.text ? attempt.current.sendId : crypto.randomUUID()
       attempt.current = { text: args.text, sendId }
@@ -23,10 +27,10 @@ export function useSend() {
       try {
         await deliverMessage({ ...args, sendId })
         attempt.current = null
-        return true
+        return { text: args.text, sendId }
       } catch (failure) {
         toast.error(messageOf(failure))
-        return false
+        return null
       } finally {
         setSending(false)
       }

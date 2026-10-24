@@ -9,7 +9,7 @@ export function ThreadComposer({
   onValueChange,
   onSubmit,
   onEscape,
-  disabled,
+  sending,
   placeholder,
   children,
 }: {
@@ -17,7 +17,7 @@ export function ThreadComposer({
   onValueChange: (value: string) => void
   onSubmit: (text: string) => void
   onEscape?: (() => void) | undefined
-  disabled: boolean
+  sending: boolean
   placeholder?: string | undefined
   children?: ReactNode
 }) {
@@ -26,11 +26,13 @@ export function ThreadComposer({
     onEscape?.()
   }
   return (
-    <fieldset disabled={disabled} onKeyDown={handleKeyDown} className="m-0 min-w-0 border-0 p-0">
+    <fieldset onKeyDown={handleKeyDown} className="m-0 min-w-0 border-0 p-0">
       <PromptInput
         value={value}
         onValueChange={onValueChange}
         onSubmit={onSubmit}
+        sending={sending}
+        clearOnSubmit={false}
         {...(placeholder === undefined ? {} : { placeholder })}
       >
         {children}

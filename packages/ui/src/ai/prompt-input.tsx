@@ -19,6 +19,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '#components/input-group'
+import { Spinner } from '#components/spinner'
 
 export interface PromptAttachment {
   id: string
@@ -32,6 +33,8 @@ export interface PromptInputProps {
   onSubmit?: (text: string) => void
   placeholder?: string
   busy?: boolean
+  sending?: boolean
+  clearOnSubmit?: boolean
   onStop?: () => void
   attachments?: PromptAttachment[]
   onAttachFiles?: (files: File[]) => void
@@ -55,6 +58,8 @@ export function PromptInput({
   onSubmit,
   placeholder = 'Ask the agent to change your code...',
   busy = false,
+  sending = false,
+  clearOnSubmit = true,
   onStop,
   attachments = [],
   onAttachFiles,
@@ -65,7 +70,7 @@ export function PromptInput({
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const text = value ?? draft
-  const sendable = canSend({ text, busy })
+  const sendable = canSend({ text, busy: busy || sending })
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setDraft(event.target.value)
@@ -76,6 +81,7 @@ export function PromptInput({
     event.preventDefault()
     if (!sendable) return
     onSubmit?.(text.trim())
+    if (!clearOnSubmit) return
     setDraft('')
     onValueChange?.('')
   }
@@ -125,6 +131,9 @@ export function PromptInput({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          readOnly={sending}
+          aria-busy={sending}
+          className={sending ? 'text-muted-foreground' : undefined}
           aria-label="Message"
         />
         <InputGroupAddon align="block-end">
@@ -156,9 +165,9 @@ export function PromptInput({
               variant="default"
               shape="round"
               disabled={!sendable}
-              aria-label="Send"
+              aria-label={sending ? 'Sending' : 'Send'}
             >
-              <ArrowUpIcon />
+              {sending ? <Spinner aria-hidden="true" /> : <ArrowUpIcon />}
             </InputGroupButton>
           )}
         </InputGroupAddon>

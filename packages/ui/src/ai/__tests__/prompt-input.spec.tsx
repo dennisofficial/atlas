@@ -24,6 +24,16 @@ describe('PromptInput', () => {
     expect(html).not.toContain('aria-label="Send"')
   })
 
+  it('keeps the text in a read-only field with a spinner while sending', () => {
+    const html = renderToStaticMarkup(<PromptInput defaultValue="fix the build" sending />)
+    const send = html.match(/<button[^>]*aria-label="Sending"[^>]*>/)?.[0] ?? ''
+
+    expect(html).toContain('fix the build')
+    expect(html.match(/<textarea[^>]*>/)?.[0]).toContain('readOnly=""')
+    expect(send).toContain(' disabled=""')
+    expect(html).toContain('data-slot="spinner"')
+  })
+
   it('renders attachment chips with a remove button', () => {
     const html = renderToStaticMarkup(
       <PromptInput attachments={[{ id: '1', name: 'trace.log' }]} />,

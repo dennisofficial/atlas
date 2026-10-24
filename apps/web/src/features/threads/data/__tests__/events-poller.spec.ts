@@ -120,6 +120,39 @@ describe('createEventsPoller', () => {
     expect(test.calls).toEqual({ head: 2, events: 2 })
   })
 
+  it('polls at once on a poke instead of waiting out the idle backoff', async () => {
+    const test = rig()
+    const poller = test.poller()
+    poller.start()
+    await flush()
+    for (let tick = 0; tick < 3; tick += 1) {
+      test.tasks.at(-1)?.run()
+      await flush()
+    }
+    const backedOff = test.tasks.at(-1)
+    expect(backedOff?.delayMs).toBe(5000)
+
+    test.setHead(2)
+    poller.poke()
+    await flush()
+
+    expect(backedOff?.cancelled).toBe(true)
+    expect(test.calls.events).toBe(2)
+    expect(test.tasks.at(-1)?.delayMs).toBe(1000)
+  })
+
+  it('runs one more poll when poked while a poll is in flight', async () => {
+    const test = rig()
+    const poller = test.poller()
+    poller.start()
+    poller.poke()
+    await flush()
+    await flush()
+
+    expect(test.calls.head).toBe(2)
+    expect(test.tasks).toHaveLength(1)
+  })
+
   it('keeps polling after a failure and surfaces the error', async () => {
     const tasks: (() => void)[] = []
     let state = INITIAL_THREAD_EVENTS

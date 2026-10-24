@@ -29,9 +29,12 @@ export function createEventsPoller(args: {
   let lastHead: number | null = null
   let idleTicks = 0
   let cancelNext: (() => void) | undefined
+  let inFlight = false
+  let pokedDuringFlight = false
 
   const poll = async () => {
     if (cancelled) return
+    inFlight = true
     try {
       const { head } = await args.fetchHead(args.threadId)
       if (cancelled) return
@@ -50,11 +53,30 @@ export function createEventsPoller(args: {
       const error = failure instanceof Error ? failure : new Error(String(failure))
       args.onUpdate((current) => ({ ...current, error }))
     }
+    inFlight = false
+    if (pokedDuringFlight) {
+      pokedDuringFlight = false
+      idleTicks = 0
+      void poll()
+      return
+    }
     cancelNext = schedule({ delayMs: idlePollDelayMs(idleTicks), run: () => void poll() })
+  }
+
+  const poke = () => {
+    if (cancelled) return
+    idleTicks = 0
+    if (inFlight) {
+      pokedDuringFlight = true
+      return
+    }
+    cancelNext?.()
+    void poll()
   }
 
   return {
     start: () => void poll(),
+    poke,
     stop: () => {
       cancelled = true
       cancelNext?.()

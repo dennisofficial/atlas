@@ -33,6 +33,10 @@ export const Busy: Story = {
   args: { defaultValue: 'Run the full suite', busy: true },
 }
 
+export const Sending: Story = {
+  args: { defaultValue: 'Fix the flaky checkout test', sending: true },
+}
+
 export const WithAttachments: Story = {
   args: {
     attachments: [

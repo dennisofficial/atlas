@@ -55,7 +55,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
       toast.error(messageOf(failure))
-      setDraft(text)
       setCreating(false)
     }
   }
@@ -65,7 +64,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       value={draft}
       onValueChange={setDraft}
       onSubmit={handleSubmit}
-      disabled={creating}
+      sending={creating}
       placeholder="Describe a task for Atlas…"
     >
       <ModelPickerControls picker={picker} selection={selection} onSelectionChange={setChosen} />

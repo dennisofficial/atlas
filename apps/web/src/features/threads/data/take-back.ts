@@ -19,7 +19,7 @@ export type TakeBackTarget = { sendId: string; text: string }
 
 const userBodySchema = z.object({ text: z.string(), requestId: z.string().optional() })
 
-function userBodyOf(event: WireEvent): z.infer<typeof userBodySchema> | null {
+export function userBodyOf(event: WireEvent): z.infer<typeof userBodySchema> | null {
   if (event.type !== USER_SAID) return null
   try {
     const parsed = userBodySchema.safeParse(JSON.parse(event.body))
