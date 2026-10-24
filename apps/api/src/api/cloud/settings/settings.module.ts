@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
-import { SettingsController } from './settings.controller'
+import { SettingsRouter } from './settings.router'
 import { SettingsService } from './settings.service'
 
 @Module({
   imports: [SessionsModule],
-  controllers: [SettingsController],
-  providers: [SettingsService],
+  providers: [SettingsRouter, SettingsService],
   exports: [SettingsService],
 })
 export class SettingsModule {}

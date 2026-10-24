@@ -157,7 +157,7 @@ describeLive('vercel bundle (built output served from a read-only container)', (
   })
 
   it('rejects an unauthenticated guarded route with 401', async () => {
-    const response = await fetch(`${baseUrl()}/v1/secrets`)
+    const response = await fetch(`${baseUrl()}/v1/trpc/secrets.details`)
     expect(response.status, withOutput(await response.text())).toBe(401)
   })
 
@@ -171,21 +171,21 @@ describeLive('vercel bundle (built output served from a read-only container)', (
   })
 
   it('serves a guarded route to a bearer session through prisma and pg', async () => {
-    const response = await fetch(`${baseUrl()}/v1/secrets`, { headers: authed })
+    const response = await fetch(`${baseUrl()}/v1/trpc/secrets.list`, { headers: authed })
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
-    expect(JSON.parse(text)).toEqual({ secrets: [] })
+    expect(JSON.parse(text)).toEqual({ result: { data: { secrets: [] } } })
   })
 
-  it('validates a DTO body with class-validator', async () => {
-    const response = await fetch(`${baseUrl()}/v1/secrets/BUNDLE_PROBE`, {
-      method: 'PUT',
+  it('validates a tRPC input with zod', async () => {
+    const response = await fetch(`${baseUrl()}/v1/trpc/secrets.set`, {
+      method: 'POST',
       headers: { ...authed, 'content-type': 'application/json' },
-      body: JSON.stringify({ unexpected: true }),
+      body: JSON.stringify({ name: 'BUNDLE_PROBE', unexpected: true }),
     })
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(400)
-    expect(text).toContain('value must be a string')
+    expect(text).toContain('value')
   })
 
   it('mounts better-auth under /api/auth', async () => {

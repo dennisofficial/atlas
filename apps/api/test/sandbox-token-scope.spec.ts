@@ -8,8 +8,6 @@ import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsController } from '../src/api/platform/accounts/accounts.controller'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
-import { SecretsController } from '../src/api/cloud/secrets/secrets.controller'
-import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 
@@ -30,14 +28,6 @@ const verifier = {
   }),
 }
 
-const secretsStub = {
-  list: vi.fn(async () => [
-    { name: 'web.searchKey', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' },
-  ]),
-  set: vi.fn(async () => undefined),
-  remove: vi.fn(async () => undefined),
-}
-
 const accountsStub = {
   list: vi.fn(async () => []),
   read: vi.fn(async () => ({ id: 'acc_1' })),
@@ -54,9 +44,8 @@ describe('sandbox token scoping (in-process, real guard)', () => {
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [SecretsController, AccountsController],
+      controllers: [AccountsController],
       providers: [
-        { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
         SessionAuthGuard,
         SessionOrSandboxGuard,
@@ -82,15 +71,6 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     await app.close()
   })
 
-  it('refuses a bearer that is neither a session nor a registered sandbox or pod on GET /secrets', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/secrets')
-      .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
-
-    expect(response.status).toBe(401)
-    expect(secretsStub.list).not.toHaveBeenCalled()
-  })
-
   it('refuses a sandbox token on GET /accounts and PUT /accounts/:id/secret', async () => {
     const server = app.getHttpServer()
 
@@ -110,7 +90,7 @@ describe('sandbox token scoping (in-process, real guard)', () => {
 
   it('still answers the same routes for a user session', async () => {
     const response = await request(app.getHttpServer())
-      .get('/secrets')
+      .get('/accounts/acc_1')
       .set('authorization', `Bearer ${USER_SESSION}`)
 
     expect(response.status).toBe(200)

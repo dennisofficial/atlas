@@ -12,7 +12,7 @@ const appWithParsers = () => {
   const echoLength: express.RequestHandler = (req, res) => {
     res.status(200).json({ length: (req.body as { blob: string }).blob.length })
   }
-  app.post('/v1/secrets', echoLength)
+  app.post('/v1/trpc/secrets.set', echoLength)
   app.put('/v1/user-files/:tree/*path', echoLength)
   app.post('/v1/user-files/get', echoLength)
   return app
@@ -27,7 +27,7 @@ describe('JSON_BODY_LIMIT', () => {
 
   it('parses a body just under the limit', async () => {
     const response = await request(appWithParsers())
-      .post('/v1/secrets')
+      .post('/v1/trpc/secrets.set')
       .set('content-type', 'application/json')
       .send(blobOf(FOUR_MIB - 1024))
     expect(response.status).toBe(200)
@@ -36,7 +36,7 @@ describe('JSON_BODY_LIMIT', () => {
 
   it('rejects a body over the limit with 413', async () => {
     const response = await request(appWithParsers())
-      .post('/v1/secrets')
+      .post('/v1/trpc/secrets.set')
       .set('content-type', 'application/json')
       .send(blobOf(FOUR_MIB + 1024))
     expect(response.status).toBe(413)

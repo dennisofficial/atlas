@@ -37,3 +37,31 @@ export type MemoryEntry = z.infer<typeof memoryEntrySchema>
 
 export const memoryListSchema = z.object({ memories: z.array(memorySummarySchema) })
 export type MemoryList = z.infer<typeof memoryListSchema>
+
+const memoryProjectSchema = z
+  .string()
+  .transform((project) => project.toLowerCase())
+  .pipe(z.string().regex(MEMORY_PROJECT_PATTERN))
+
+export const memoryProjectQuerySchema = z.strictObject({ project: memoryProjectSchema.optional() })
+export type MemoryProjectQueryWire = z.output<typeof memoryProjectQuerySchema>
+
+export const memoryKeySchema = memoryProjectQuerySchema.extend({
+  scope: z.enum(EMemoryScope),
+  name: z.string().regex(MEMORY_NAME_PATTERN),
+})
+export type MemoryKeyWire = z.output<typeof memoryKeySchema>
+
+export const memoryPutSchema = memoryKeySchema.extend({
+  description: z.string().min(1).max(MAX_MEMORY_DESCRIPTION_CHARS),
+  type: z.enum(EMemoryType),
+  body: z.string().max(MAX_MEMORY_BODY_CHARS),
+})
+export type MemoryPutWire = z.output<typeof memoryPutSchema>
+
+export const memoryEditSchema = memoryKeySchema.extend({
+  old: z.string().min(1).max(MAX_MEMORY_BODY_CHARS),
+  new: z.string().max(MAX_MEMORY_BODY_CHARS),
+  revision: z.number().int().min(1),
+})
+export type MemoryEditWire = z.output<typeof memoryEditSchema>
