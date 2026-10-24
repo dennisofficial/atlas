@@ -1,11 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { Button } from '@dltech/atlas-ui/components/button'
 import type { Project } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/workspace/query-gate'
@@ -85,20 +83,19 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
 export function NewThreadView() {
   const query = useCloudQuery({ key: 'projects', load: fetchProjects })
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">
-      <div className="flex items-baseline justify-between gap-3">
-        <h1 className="text-xl font-medium tracking-tight">What should Atlas work on?</h1>
-        <Button variant="link" size="sm" nativeButton={false} render={<Link href="/projects" />}>
-          Projects
-        </Button>
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">
+        <h1 className="text-center text-xl font-medium tracking-tight">
+          What should Atlas work on?
+        </h1>
+        <QueryGate query={query} label="projects">
+          {(projects) => (
+            <Suspense>
+              <Welcome projects={projects} />
+            </Suspense>
+          )}
+        </QueryGate>
       </div>
-      <QueryGate query={query} label="projects">
-        {(projects) => (
-          <Suspense>
-            <Welcome projects={projects} />
-          </Suspense>
-        )}
-      </QueryGate>
-    </main>
+    </div>
   )
 }

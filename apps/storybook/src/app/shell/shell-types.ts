@@ -1,6 +1,5 @@
 export enum EAppNav {
   Threads = 'threads',
-  Activity = 'activity',
   Projects = 'projects',
 }
 

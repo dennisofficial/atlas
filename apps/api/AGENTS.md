@@ -52,7 +52,9 @@ Bun runs Nest's constructor `@Inject(...)` decorators under this package's tscon
 preloads `nestjs-preload.ts` first (it settles `@nestjs/common` and `@nestjs/core` before the CJS
 `@nestjs/throttler` requires them, working around a Bun loader race that intermittently failed
 specs with `require() async module ... is unsupported`), then the shared root `bun-test.setup.ts`
-and `test.setup.ts` (env). Specs mock `../../../db`
+and `test.setup.ts` (env). `bunfig.toml` preloads apply only to `bun test`, not to `bun <file>` children,
+so `test/fixtures/bun-di-probe.ts` imports `@nestjs/common` and `@nestjs/core` statically and the app graph
+dynamically, like `main.ts` / `create-app.ts` do. Specs mock `../../../db`
 with a synchronous `mock.module` factory over a statically imported fake — an `async` factory that
 dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTimersByTimeAsync` and
 `waitFor` live in `test/fake-timers.ts`; the other vitest-only helpers come from `@dltech/bun-test-shims`.

@@ -18,6 +18,8 @@ model Thread {
   projectId         String?
   organizationId    String?
   userId            String
+  pinnedAt          TimestamptzJsDate(3)?
+  archivedAt        TimestamptzJsDate(3)?
   cloudSandbox      CloudSandbox?
   bootSteps         SandboxBootStep[]
   events            Event[]
