@@ -110,6 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUN_TEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
+      TEST_DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       ATLAS_TEST_DATABASE_URL: postgresql://atlas:atlas@localhost:55441/atlas_test
     services:
       postgres:
@@ -151,6 +152,18 @@ jobs:
             incremental-tests-${{ github.ref }}-
             incremental-tests-refs/heads/main-
 
+      # Same base as the render check: the PR's base sha, or the previous main HEAD on push. When
+      # the base cannot be fetched the suite runs without --changed and the pass-cache alone decides.
+      - name: fetch the diff base
+        id: diff-base
+        if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
+        run: |
+          if git fetch --no-tags --depth=1 origin "$TEST_DIFF_BASE"; then
+            echo "changed=--changed=$TEST_DIFF_BASE" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::could not fetch $TEST_DIFF_BASE; running without --changed"
+          fi
+
       # Each package's `test` script is `bun test` run from the package, so its bunfig.toml preload
       # (bun-test.setup.ts + the bun-test-incremental preload + any test-home-setup.ts) applies. A
       # single `bun test` from the root would skip those preloads and sweep in deprecated/. evals
@@ -159,9 +172,10 @@ jobs:
       # bun-test-incremental's own suite drives child `bun test` runs, so it must never run
       # incrementally against itself; it is excluded here and run in its own step below.
       - name: test
-        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test
+        run: bun run --filter './packages/*' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test ${CHANGED_ARG:+"$CHANGED_ARG"}
         env:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
+          CHANGED_ARG: ${{ steps.diff-base.outputs.changed }}
 
       # The incremental package's own suite spawns child `bun test` runs, so it runs with
       # BUN_TEST_INCREMENTAL unset (the child runs set it themselves as the thing under test).
