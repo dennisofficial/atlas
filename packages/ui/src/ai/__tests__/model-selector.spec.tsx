@@ -317,10 +317,14 @@ describe('ModelSelector', () => {
     expect(html).toContain('aria-haspopup="dialog"')
   })
 
-  it('falls back to the first model', () => {
-    const html = renderToStaticMarkup(<ModelSelector models={MODELS} value="missing" />)
+  it('shows the placeholder and no effort control when the value matches no model', () => {
+    const html = renderToStaticMarkup(
+      <ModelSelector models={MODELS} value="" placeholder="Default" effort={EEffort.High} />,
+    )
 
-    expect(html).toContain('Claude Sonnet 5')
+    expect(html).toContain('Default')
+    expect(html).not.toContain('Claude Sonnet 5')
+    expect(html).not.toContain('Effort:')
   })
 
   it('shows the label and the route on the trigger', () => {

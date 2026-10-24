@@ -76,6 +76,7 @@ export interface ModelSelectorProps {
   collapsedProviders?: string[]
   collapsedLimit?: number
   defaultOpen?: boolean
+  placeholder?: string
   className?: string
 }
 
@@ -95,9 +96,10 @@ export function ModelSelector({
   collapsedProviders = [],
   collapsedLimit = DEFAULT_COLLAPSED_LIMIT,
   defaultOpen = false,
+  placeholder = 'No model',
   className,
 }: ModelSelectorProps) {
-  const current = models.find((model) => model.id === value) ?? models[0]
+  const current = models.find((model) => model.id === value)
   const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<EModelFilter[]>([])
@@ -186,7 +188,7 @@ export function ModelSelector({
         <PopoverTrigger
           render={<InputGroupButton size="sm" className={cn('min-w-0 justify-start', className)} />}
         >
-          <TriggerLabel model={current} />
+          <TriggerLabel model={current} placeholder={placeholder} />
           <ChevronDownIcon className="ml-auto" />
         </PopoverTrigger>
         <PopoverContent
@@ -272,7 +274,7 @@ export function ModelSelector({
           )}
         </PopoverContent>
       </Popover>
-      {effort && effortOptions.length > 0 ? (
+      {effort && current && effortOptions.length > 0 ? (
         <>
           <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
           <EffortMenu efforts={effortOptions} value={effort} onChange={handleEffortChange} />

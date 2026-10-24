@@ -39,8 +39,14 @@ export function ProviderMark({ model }: { model: ModelOption }) {
   )
 }
 
-export function TriggerLabel({ model }: { model: ModelOption | undefined }) {
-  if (!model) return <>No model</>
+export function TriggerLabel({
+  model,
+  placeholder,
+}: {
+  model: ModelOption | undefined
+  placeholder: string
+}) {
+  if (!model) return <span className="min-w-0 truncate">{placeholder}</span>
   return (
     <>
       <ProviderMark model={model} />

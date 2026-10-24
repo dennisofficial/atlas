@@ -70,6 +70,7 @@ export function RoleRow({
               defaultOpen={defaultOpen}
               models={options}
               value={setting.model}
+              placeholder="Default"
               onValueChange={handleModelChange}
               effort={effort ?? undefined}
               onEffortChange={handleEffortChange}
