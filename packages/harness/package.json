@@ -20,6 +20,7 @@
     "@ai-sdk/openai": "^4.0.96",
     "@ai-sdk/openai-compatible": "^3.0.71",
     "@ai-sdk/provider": "4.0.29",
+    "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",

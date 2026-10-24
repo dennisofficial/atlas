@@ -8,8 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun run build && bun test",
-    "build": "bun run --cwd ../../apps/api generate:trpc"
+    "test": "bun test"
   },
   "dependencies": {
     "@dltech/atlas-wire": "workspace:*",

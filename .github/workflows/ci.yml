@@ -51,6 +51,15 @@ jobs:
       - name: typecheck
         run: bun run typecheck
 
+      - name: generated AppRouter matches the routers
+        run: |
+          bun run --cwd apps/api generate:trpc
+          if [ -n "$(git status --porcelain packages/api-router/src/generated)" ]; then
+            git --no-pager diff packages/api-router/src/generated
+            echo "::error::packages/api-router/src/generated is stale; run 'bun run --cwd apps/api generate:trpc' and commit it"
+            exit 1
+          fi
+
       - name: build binary
         run: bun run build
 
