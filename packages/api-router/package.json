@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun run build && bun test",
     "build": "bun run --cwd ../../apps/api generate:trpc"
   },
   "dependencies": {
