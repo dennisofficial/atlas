@@ -4,20 +4,19 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
-import type { TransportDto, UpsertMcpServerDto } from './mcp-servers.dto'
 import { McpServersService } from './mcp-servers.service'
-import { EMcpTransportKind } from './mcp-servers.types'
+import { EMcpTransportKind, type McpSpecDraft, type McpTransportDraft } from './mcp-servers.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
 
-function stdioTransport(extra?: Partial<TransportDto>): TransportDto {
+function stdioTransport(extra?: Partial<McpTransportDraft>): McpTransportDraft {
   return { kind: EMcpTransportKind.Stdio, command: 'npx', args: ['-y', 'some-server'], ...extra }
 }
 
-function httpTransport(extra?: Partial<TransportDto>): TransportDto {
+function httpTransport(extra?: Partial<McpTransportDraft>): McpTransportDraft {
   return {
     kind: EMcpTransportKind.Http,
     url: 'https://mcp.example.com/sse',
@@ -107,7 +106,7 @@ describe('McpServersService', () => {
   it('rejects transport record values that are not strings', async () => {
     const spec = {
       transport: { kind: 'stdio', command: 'npx', env: { LEVEL: 3 } },
-    } as unknown as UpsertMcpServerDto
+    } as unknown as McpSpecDraft
 
     await expect(service.put({ userId: USER_A, name: 'fs', spec })).rejects.toBeInstanceOf(
       BadRequestException,
