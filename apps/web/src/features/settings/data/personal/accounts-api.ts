@@ -1,4 +1,4 @@
-import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-wire'
+import { EAccountOrigin, EAuthKind, EAuthProvider } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { api, cloudCall } from '@/lib/api-client'
