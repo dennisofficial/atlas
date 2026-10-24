@@ -21,7 +21,6 @@ import {
   pinnedRefs,
   reconnectInfo,
   resolveRoleModel,
-  selectorOptions,
 } from './model-state'
 
 export function RoleRow({
@@ -69,8 +68,9 @@ export function RoleRow({
             <ModelSelector
               className="flex-1"
               defaultOpen={defaultOpen}
-              models={selectorOptions({ role, config, access, options })}
+              models={options}
               value={setting.model}
+              placeholder="Default"
               onValueChange={handleModelChange}
               effort={effort ?? undefined}
               onEffortChange={handleEffortChange}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
 
-import { AUTO_MODEL_ID, modelOptionsFromResponse } from '../model-options'
+import { modelOptionsFromResponse } from '../model-options'
 
 const response = (providers: ModelsResponse['providers']): ModelsResponse => ({ providers })
 
@@ -19,6 +19,7 @@ const openAi = response([
         contextWindow: 400_000,
         efforts: ['low', 'high', 'bogus'],
         inputPerMillion: 1.25,
+        outputPerMillion: 10,
       },
       {
         id: 'openai/gpt-cheap',
@@ -26,6 +27,7 @@ const openAi = response([
         contextWindow: 1_048_576,
         efforts: [],
         inputPerMillion: 0.2,
+        outputPerMillion: 0.8,
       },
       { id: 'openai/gpt-free', label: 'Unpriced', contextWindow: 128_000, efforts: [] },
     ],
@@ -36,27 +38,23 @@ describe('modelOptionsFromResponse', () => {
   it('maps each live model to an option with brand, context label, rate and efforts', () => {
     const { models, reconnectProviders } = modelOptionsFromResponse({ response: openAi })
 
-    expect(models[0]).toEqual({ id: AUTO_MODEL_ID, label: 'Atlas picks', auto: true, efforts: [] })
-    expect(models[1]).toMatchObject({
+    expect(models[0]).toMatchObject({
       id: 'openai/gpt-live',
       label: 'GPT Live',
       provider: 'OpenAI',
       context: '400k',
       contextTokens: 400_000,
       efforts: ['low', 'high'],
-      rate: '$$',
+      rate: '$10.00/M',
       monogram: 'O',
     })
-    expect(models[1]?.brand).toBeDefined()
-    expect(models[2]).toMatchObject({ context: '1M', rate: '$' })
-    expect(models[3]?.rate).toBeUndefined()
+    expect(models[0]?.brand).toBeDefined()
+    expect(models[1]).toMatchObject({ context: '1M', rate: '$0.80/M' })
+    expect(models[2]?.rate).toBeUndefined()
     expect(reconnectProviders).toEqual([])
   })
 
-  it('omits Auto when asked and has none without models', () => {
-    expect(modelOptionsFromResponse({ response: openAi, includeAuto: false }).models[0]?.id).toBe(
-      'openai/gpt-live',
-    )
+  it('has no models when no provider is connected', () => {
     expect(modelOptionsFromResponse({ response: response([]) })).toEqual({
       models: [],
       reconnectProviders: [],

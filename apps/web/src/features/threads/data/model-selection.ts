@@ -1,18 +1,16 @@
 import { EEffort, EFFORT_LADDER, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
-import { AUTO_MODEL_ID } from './model-options'
-
 export type ModelSelection = { id: string; effort: EEffort }
 
 export const DEFAULT_EFFORT = EEffort.Medium
 
-export const AUTO_SELECTION: ModelSelection = { id: AUTO_MODEL_ID, effort: DEFAULT_EFFORT }
+export const UNSET_SELECTION: ModelSelection = { id: '', effort: DEFAULT_EFFORT }
 
 export const effortOfName = (name: string | undefined): EEffort =>
   EFFORT_LADDER.find((effort) => effort === name) ?? DEFAULT_EFFORT
 
 export function createFieldsOf(selection: ModelSelection): { model?: string; effort?: string } {
-  if (selection.id === AUTO_MODEL_ID) return {}
+  if (selection.id === UNSET_SELECTION.id) return {}
   return { model: selection.id, effort: selection.effort }
 }
 
@@ -43,11 +41,12 @@ export function defaultSelectionOf(args: {
   personalId: string
   personalEffort: string
 }): ModelSelection {
-  const offered = args.models.some((model) => model.id === args.personalId && model.auto !== true)
-  if (!offered) return AUTO_SELECTION
+  const personal = args.models.find((model) => model.id === args.personalId)
+  const picked = personal ?? args.models[0]
+  if (picked === undefined) return UNSET_SELECTION
   return selectionAfterPick({
     models: args.models,
-    id: args.personalId,
+    id: picked.id,
     effort: effortOfName(args.personalEffort),
   })
 }
@@ -55,6 +54,6 @@ export function defaultSelectionOf(args: {
 export function existingSelectionOf(
   model: { ref: string; effort: string } | undefined,
 ): ModelSelection {
-  if (model === undefined) return AUTO_SELECTION
+  if (model === undefined) return UNSET_SELECTION
   return { id: model.ref, effort: effortOfName(model.effort) }
 }

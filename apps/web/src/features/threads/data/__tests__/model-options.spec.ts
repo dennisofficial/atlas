@@ -2,32 +2,21 @@ import { describe, expect, it } from 'bun:test'
 
 import { cardsForProvider } from '@dltech/atlas-models'
 
-import { AUTO_MODEL_ID, modelOptionsOf } from '../model-options'
+import { modelOptionsOf } from '../model-options'
 
 const account = (provider: string, status = 'active') => ({ provider, kind: 'oauth', status })
 
 describe('modelOptionsOf', () => {
-  it('lists Auto first, then only the connected providers in catalogue order', () => {
+  it('lists only the connected providers in catalogue order', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('openai'), account('anthropic')],
     })
-    expect(models[0]).toEqual({
-      id: AUTO_MODEL_ID,
-      label: 'Atlas picks',
-      auto: true,
-      efforts: [],
-    })
-    const providers = [...new Set(models.slice(1).map((model) => model.provider))]
+    const providers = [...new Set(models.map((model) => model.provider))]
     expect(providers).toEqual(['Anthropic', 'OpenAI'])
-    expect(models.length - 1).toBe(
+    expect(models.length).toBe(
       cardsForProvider('anthropic').length + cardsForProvider('openai').length,
     )
     expect(reconnectProviders).toEqual([])
-  })
-
-  it('omits Auto when asked', () => {
-    const { models } = modelOptionsOf({ accounts: [account('anthropic')], includeAuto: false })
-    expect(models.some((model) => model.auto === true)).toBe(false)
   })
 
   it('turns a provider whose only accounts expired into a reconnect row without models', () => {
@@ -54,7 +43,7 @@ describe('modelOptionsOf', () => {
     expect(reconnectProviders).toEqual([])
   })
 
-  it('has no models and no Auto without accounts', () => {
+  it('has no models without accounts', () => {
     expect(modelOptionsOf({ accounts: [] })).toEqual({ models: [], reconnectProviders: [] })
   })
 
@@ -65,6 +54,13 @@ describe('modelOptionsOf', () => {
     expect(option?.label).toBe(card?.label)
     expect(option?.efforts?.length).toBeGreaterThan(0)
     expect(option?.context).toMatch(/^\d+(\.\d)?[kM]$/)
+  })
+
+  it('shows the output price per million from the card', () => {
+    const card = cardsForProvider('anthropic').find((candidate) => candidate.cost !== undefined)
+    const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
+    const option = models.find((model) => model.id === `anthropic/${card?.ref.modelId}`)
+    expect(option?.rate).toBe(`$${card?.cost?.outputPerMillion.toFixed(2)}/M`)
   })
 
   it('gives a card with no effort ladder an empty effort list', () => {
