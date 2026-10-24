@@ -22,7 +22,6 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../sessions/session-or-sandbox.middleware'
-import { markNoStore } from '../no-store'
 import { OauthConnectionsService } from './oauth-connections.service'
 
 @Router({ alias: 'oauthConnections' })
@@ -38,7 +37,6 @@ export class OauthConnectionsRouter {
     @Input() input: UploadConnectionInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<OauthAccessToken> {
-    markNoStore(ctx)
     const { connectionId, ...draft } = input
     return this.connections.upload({ userId: ctx.auth.userId, connectionId, draft })
   }
@@ -46,7 +44,6 @@ export class OauthConnectionsRouter {
   @Query({ input: connectionRefSchema, output: oauthConnectionMetadataSchema })
   @UseMiddlewares(SessionMiddleware)
   get(@Input() input: ConnectionRef, @Ctx() ctx: SessionTrpcCtx): Promise<OauthConnectionMetadata> {
-    markNoStore(ctx)
     return this.connections.metadata({ userId: ctx.auth.userId, connectionId: input.connectionId })
   }
 
@@ -59,7 +56,6 @@ export class OauthConnectionsRouter {
     @Input() input: ReauthorizeConnectionInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<OauthAccessToken> {
-    markNoStore(ctx)
     const { connectionId, ...draft } = input
     return this.connections.reauthorize({ userId: ctx.auth.userId, connectionId, draft })
   }
@@ -74,7 +70,6 @@ export class OauthConnectionsRouter {
     @Input() input: OauthAccessTokenRequest,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<OauthAccessToken> {
-    markNoStore(ctx)
     return this.connections.issueAccessToken({
       userId: ctx.auth.userId,
       connectionId: input.connectionId,

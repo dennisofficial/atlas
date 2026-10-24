@@ -6,7 +6,6 @@ import {
   type SessionOrSandboxTrpcCtx,
 } from '../sessions/session-or-sandbox.middleware'
 import { AccountsService } from './accounts.service'
-import { markNoStore } from '../no-store'
 
 @Router({ alias: 'accountLease' })
 @UseMiddlewares(SessionOrSandboxMiddleware)
@@ -18,7 +17,6 @@ export class AccountLeaseRouter {
     meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   get(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<AccountLease> {
-    markNoStore(ctx)
     return this.accounts.lease({ userId: ctx.auth.userId })
   }
 }
