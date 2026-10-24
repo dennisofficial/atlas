@@ -1,11 +1,11 @@
-import { modelsResponseSchema, type ModelsResponse } from '@dltech/atlas-wire/web'
+import type { ModelsResponse } from '@dltech/atlas-wire/web'
 
-import { cloudJson, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import type { AccountSummary, ModelsSource } from './model-options'
 
 export function fetchModels(): Promise<ModelsResponse> {
-  return cloudJson({ method: EHttpMethod.Get, path: '/v1/models', schema: modelsResponseSchema })
+  return cloudCall(api.models.list.query())
 }
 
 export async function loadModelsSource(args: {

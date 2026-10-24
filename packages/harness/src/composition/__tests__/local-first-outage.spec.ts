@@ -166,7 +166,7 @@ describe('a composed local session while Atlas Cloud is down', () => {
 
       expect(memoryIndexRequests().length).toBeGreaterThan(0)
       expect(cloudRequests()).toEqual([])
-      expect(requests.some((request) => request.url.includes('/v1/accounts'))).toBe(false)
+      expect(requests.some((request) => request.url.includes('/accounts.'))).toBe(false)
       expect(requests.some((request) => request.url.includes('/v1/mcp'))).toBe(false)
 
       await expect(app.close()).resolves.toBeUndefined()

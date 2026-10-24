@@ -24,10 +24,10 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
-import { accountLeaseSchema } from '@dltech/atlas-wire'
 import { ESecretKind, resolvedSandboxConfigSchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
+import { createApiClient, httpStatusOf } from './api-client'
 import {
   cloudConfigPathFor,
   exportEnvSecrets,
@@ -157,17 +157,39 @@ export const applyCloudState = async (args: {
       timeoutMs: Math.min(REQUEST_TIMEOUT_MS, remainingMs()),
     })
 
-  const requestPatiently = async (path: string, allowMissing = false): Promise<unknown> => {
-    for (let attempt = 1; ; attempt += 1) {
+  const isRegistering = (error: unknown): boolean =>
+    (error instanceof CloudError && error.status === UNAUTHORIZED) ||
+    httpStatusOf(error) === UNAUTHORIZED
+
+  const patiently = async <T>(attempt: () => Promise<T>): Promise<T> => {
+    for (let attempts = 1; ; attempts += 1) {
       try {
-        return await request(path, allowMissing)
+        return await attempt()
       } catch (error) {
-        const registering = error instanceof CloudError && error.status === UNAUTHORIZED
-        if (!registering || attempt >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) throw error
+        if (!isRegistering(error) || attempts >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) {
+          throw error
+        }
         await sleep(RETRY_DELAY_MS)
       }
     }
   }
+
+  const requestPatiently = (path: string, allowMissing = false): Promise<unknown> =>
+    patiently(() => request(path, allowMissing))
+
+  const api = createApiClient({
+    controlPlaneUrl: url,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  })
+
+  const leasePatiently = () =>
+    patiently(() =>
+      api.accountLease.get.query(undefined, {
+        signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs())),
+      }),
+    )
 
   const legacyConfig = async (): Promise<CloudConfig> => {
     const [settings, secrets] = await Promise.all([
@@ -193,10 +215,7 @@ export const applyCloudState = async (args: {
   }
 
   try {
-    const [lease, config] = await Promise.all([
-      requestPatiently('/v1/account-lease').then((body) => accountLeaseSchema.parse(body)),
-      scopedConfig(),
-    ])
+    const [lease, config] = await Promise.all([leasePatiently(), scopedConfig()])
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
     writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })

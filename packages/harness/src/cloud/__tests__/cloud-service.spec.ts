@@ -18,6 +18,7 @@ import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
+import { trpcCallOf, trpcData, trpcError } from './accounts-trpc-fake'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -99,42 +100,47 @@ const cloudFake = (): CloudFake => {
     if (path === '/api/auth/device/code') return reply(200, deviceCodeBody)
     if (path === '/api/auth/get-session')
       return reply(200, { user: { email: 'dev@example.com', name: 'Dev' }, session: {} })
-    if (path === '/v1/accounts' && method === 'GET') {
-      if (fake.failAccountsList) return reply(500, { message: 'listing broke' })
-      return reply(200, fake.remoteAccounts)
-    }
-    if (path === '/v1/accounts' && method === 'POST') {
-      const id = `acc_remote_${fake.added.length + 1}`
-      fake.added.push(body ?? {})
-      const secret = body?.['secret'] as AccountSecret
-      return reply(201, {
-        id,
-        provider: body?.['provider'],
-        kind: secret.kind,
-        origin: body?.['origin'],
-        label: body?.['label'],
-        status: 'active',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      })
-    }
-    if (path === '/v1/accounts/active' && method === 'PUT') {
-      fake.actives.push({
-        provider: String(body?.['provider']),
-        accountId: String(body?.['accountId']),
-      })
-      return reply(204)
-    }
-    if (path.startsWith('/v1/accounts/active/') && method === 'GET') {
-      const provider = path.slice('/v1/accounts/active/'.length)
-      const held = fake.actives.find((active) => active.provider === provider)
-      return reply(200, { accountId: held?.accountId ?? null })
-    }
-    if (path.startsWith('/v1/accounts/') && method === 'GET') {
-      const id = path.slice('/v1/accounts/'.length)
-      const held = fake.remoteAccounts.find((account) => account['id'] === id)
-      if (held === undefined) return reply(404, { message: 'no such account' })
-      return reply(200, held)
+    if (path.startsWith('/v1/trpc/accounts.')) {
+      const call = trpcCallOf({ url: String(input), body })
+      const procedure = call.procedure
+      const trpcInput = call.input as Record<string, unknown> | undefined
+      if (procedure === 'accounts.list') {
+        if (fake.failAccountsList) return trpcError({ status: 500, message: 'listing broke' })
+        return trpcData(fake.remoteAccounts)
+      }
+      if (procedure === 'accounts.create') {
+        const id = `acc_remote_${fake.added.length + 1}`
+        fake.added.push(trpcInput ?? {})
+        const secret = trpcInput?.['secret'] as AccountSecret
+        return trpcData({
+          id,
+          provider: trpcInput?.['provider'],
+          kind: secret.kind,
+          origin: trpcInput?.['origin'],
+          label: trpcInput?.['label'],
+          status: 'active',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        })
+      }
+      if (procedure === 'accounts.setActive') {
+        fake.actives.push({
+          provider: String(trpcInput?.['provider']),
+          accountId: String(trpcInput?.['accountId']),
+        })
+        return trpcData(undefined)
+      }
+      if (procedure === 'accounts.active') {
+        const held = fake.actives.find((active) => active.provider === trpcInput?.['provider'])
+        return trpcData({ accountId: held?.accountId ?? null })
+      }
+      if (procedure === 'accounts.get') {
+        const held = fake.remoteAccounts.find(
+          (account) => account['id'] === trpcInput?.['accountId'],
+        )
+        if (held === undefined) return trpcError({ status: 404, message: 'no such account' })
+        return trpcData(held)
+      }
     }
     if (path === '/v1/secrets' && method === 'GET')
       return reply(200, { secrets: fake.remoteSecrets })

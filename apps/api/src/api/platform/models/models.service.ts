@@ -1,5 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
+import {
+  EAccountStatus,
+  EAuthKind,
+  EModelProviderStatus,
+  type AccountDto,
+  type ModelsResponse,
+} from '@dltech/atlas-wire'
 import {
   CODEX_VERSION,
   codexCatalogueFor,
@@ -8,8 +14,6 @@ import {
   type CodexModelsPorts,
 } from '@dltech/atlas-harness/models'
 import { AccountsService } from '../accounts/accounts.service'
-import type { AccountDto } from '../accounts/accounts.types'
-import { EAccountStatus, EAuthKind } from '../accounts/accounts.types'
 import { OauthConnectionsService } from '../oauth-connections/oauth-connections.service'
 import type { AccessTokenDto } from '../oauth-connections/oauth-connections.types'
 import { CodexCacheRegistry, sha256Identity } from './api-codex-ports'

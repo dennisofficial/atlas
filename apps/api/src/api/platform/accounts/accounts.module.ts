@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common'
 import { SessionsModule } from '../sessions/sessions.module'
-import { AccountLeaseController } from './account-lease.controller'
-import { AccountsController } from './accounts.controller'
+import { AccountLeaseRouter } from './account-lease.router'
+import { AccountsRouter } from './accounts.router'
 import { AccountsService } from './accounts.service'
 
 @Module({
   imports: [SessionsModule],
-  controllers: [AccountsController, AccountLeaseController],
-  providers: [AccountsService],
+  providers: [AccountsService, AccountsRouter, AccountLeaseRouter],
   exports: [AccountsService],
 })
 export class AccountsModule {}
