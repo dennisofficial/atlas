@@ -77,6 +77,7 @@ export async function rotationFixture() {
     atlasHome: home,
     env: { ATLAS_SANDBOX_SESSION_ID: sourceSession },
     token,
+    clientVersion: 'dev',
     transcript: store.log,
     log: () => undefined,
   })

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
+import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { registerSandboxRow, stampRegistrationMetadata } from './sandbox-claim'
@@ -14,7 +15,7 @@ export type RegisterSandboxArgs = {
   clientToken: string
   serveUrl: string | undefined
   serveVersion?: string | undefined
-  metadata?: { title?: string; repo?: string; model?: string } | undefined
+  metadata?: RegisterSandboxMetadata | undefined
 }
 
 export async function registerSandbox(

@@ -2,12 +2,11 @@ import 'reflect-metadata'
 import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
 import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
-import { SandboxesController } from './platform/sandboxes/sandboxes.controller'
 import { EventsController } from './platform/sessions/events.controller'
 import { ThreadsController } from './platform/sessions/threads.controller'
 import { TurnsController } from './platform/sessions/turns.controller'
 
-const readRoutes = [EventsController, ThreadsController, TurnsController, SandboxesController]
+const readRoutes = [EventsController, ThreadsController, TurnsController]
 
 describe('the first-party read routes', () => {
   for (const controller of readRoutes) {

@@ -91,6 +91,7 @@ export async function finishServeBoot(args: {
       atlasHome,
       env,
       token,
+      clientVersion,
       transcript: app.log,
       log,
       fetchFn,

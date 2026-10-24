@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Db, type Row, type Tx } from '@dltech/atlas-db'
 import { sandboxNameFor } from './sandbox-names'
 import { ESandboxState } from './sandboxes.types'
@@ -47,7 +48,7 @@ export async function registerSandboxRow(args: {
 
 export async function stampRegistrationMetadata(args: {
   thread: Row<'Thread'>
-  metadata: { title?: string; repo?: string; model?: string } | undefined
+  metadata: RegisterSandboxMetadata | undefined
 }): Promise<void> {
   const metadata = args.metadata
   await db.orm.public.Thread.where({ id: args.thread.id })

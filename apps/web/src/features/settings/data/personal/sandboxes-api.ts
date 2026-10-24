@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
+import { api, cloudCall } from '@/lib/api-client'
 
 import type { SandboxRow } from '../../fixtures/settings-usage-rows'
 import { relativeTime } from './relative-time'
@@ -22,19 +22,13 @@ const sandboxSchema = z.object({
 
 export type SandboxEntry = z.infer<typeof sandboxSchema>
 
-export function fetchSandboxes(): Promise<SandboxEntry[]> {
-  return cloudJson({
-    method: EHttpMethod.Get,
-    path: '/v1/sandboxes',
-    schema: z.array(sandboxSchema),
-  })
+export async function fetchSandboxes(): Promise<SandboxEntry[]> {
+  const entries = await cloudCall(api.sandboxes.list.query())
+  return z.array(sandboxSchema).parse(entries)
 }
 
-export function destroySandbox(threadId: string): Promise<void> {
-  return cloudSend({
-    method: EHttpMethod.Post,
-    path: `/v1/sandboxes/${encodeURIComponent(threadId)}/destroy`,
-  })
+export async function destroySandbox(threadId: string): Promise<void> {
+  await cloudCall(api.sandboxes.destroy.mutate({ threadId }))
 }
 
 export function toSandboxRow(args: { entry: SandboxEntry; now?: number }): SandboxRow {
