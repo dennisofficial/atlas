@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 
 import { CloudApiError } from './cloud-api'
 
@@ -27,7 +27,8 @@ export function useCloudQuery<TData>(args: {
   key: string
   load: () => Promise<TData>
 }): CloudQuery<TData> {
-  const { key, load } = args
+  const { key } = args
+  const load = useEffectEvent(() => args.load())
   const [generation, setGeneration] = useState(0)
   const [result, setResult] = useState<
     { key: string; data: TData } | { key: string; error: CloudApiError } | null
@@ -46,7 +47,7 @@ export function useCloudQuery<TData>(args: {
     return () => {
       cancelled = true
     }
-  }, [key, generation, load])
+  }, [key, generation])
 
   const reload = useCallback(() => setGeneration((current) => current + 1), [])
 
