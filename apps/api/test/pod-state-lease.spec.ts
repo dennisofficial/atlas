@@ -9,14 +9,12 @@ import { seedUsers } from './session-seed'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
-import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SettingsRouter } from '../src/api/cloud/settings/settings.router'
 import { SettingsService } from '../src/api/cloud/settings/settings.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../src/api/platform/sandboxes/token-principal'
-import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 import { AccountLeaseRouter } from '../src/api/platform/accounts/account-lease.router'
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
@@ -135,8 +133,6 @@ describe('account lease and pod-reachable settings and secrets', () => {
         AccountsService,
         SettingsService,
         SecretsService,
-        SessionAuthGuard,
-        SessionOrSandboxGuard,
         SessionMiddleware,
         SessionOrSandboxMiddleware,
         { provide: SecretCipherService, useValue: cipher },

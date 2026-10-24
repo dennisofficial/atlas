@@ -83,15 +83,6 @@ describe('api under the bun runtime', () => {
     })
   })
 
-  it('injects the session verifier into SessionOrSandboxGuard', async () => {
-    const response = await fetch(`${base}/v1/github/subscriptions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ repoFullName: 'owner/repo' }),
-    })
-    expect(response.status).toBe(401)
-  })
-
   it('injects the session verifier into SessionOrSandboxMiddleware', async () => {
     const input = encodeURIComponent(JSON.stringify({ project: '/repo' }))
     const response = await fetch(`${base}/v1/trpc/threads.recent?input=${input}`)
@@ -127,7 +118,7 @@ describe('api under the bun runtime', () => {
       })
       expect(probe.status, probe.stderr).toBe(0)
       expect(JSON.parse(probe.stdout.trim().split('\n').pop() ?? '{}')).toEqual({
-        sessionAuthVerifier: true,
+        sessionMiddlewareVerifier: true,
         wakeBootAdapter: true,
       })
     },

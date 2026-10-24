@@ -11,7 +11,6 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
-import { Public } from '../../../_core/decorators/public.decorator'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '@dltech/atlas-db'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -35,7 +34,6 @@ export class GithubHookController {
   ) {}
 
   @Post(':repo')
-  @Public()
   @HttpCode(200)
   async handleDelivery(
     @Req() request: GithubPrWebhookRequest,

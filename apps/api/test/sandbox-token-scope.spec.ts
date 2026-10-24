@@ -1,9 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
-import { Reflector } from '@nestjs/core'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
-import { SessionAuthGuard } from '../src/_module/session/session-auth.guard'
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
 import { SessionMiddleware } from '../src/_module/session/session.middleware'
@@ -11,7 +9,6 @@ import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
-import { SessionOrSandboxGuard } from '../src/api/platform/sessions/session-or-sandbox.guard'
 import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session-or-sandbox.middleware'
 
 const SANDBOX_TOKEN = 'sandbox-token'
@@ -58,12 +55,9 @@ describe('sandbox token scoping (in-process, real guard)', () => {
         SecretsRouter,
         { provide: SecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
-        SessionAuthGuard,
-        SessionOrSandboxGuard,
         SessionMiddleware,
         SessionOrSandboxMiddleware,
         { provide: SandboxesService, useValue: { verifyTokenPrincipal: vi.fn(async () => null) } },
-        Reflector,
         { provide: SESSION_VERIFIER, useValue: verifier },
       ],
     })

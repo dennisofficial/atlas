@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
 import { EventsService } from './events.service'
-import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
@@ -22,9 +21,8 @@ import { TurnsService } from './turns.service'
     ThreadsRouter,
     ThreadEventsRouter,
     ThreadTurnsRouter,
-    SessionOrSandboxGuard,
     SessionOrSandboxMiddleware,
   ],
-  exports: [SessionOrSandboxGuard, SessionOrSandboxMiddleware, SandboxesModule, ThreadsService],
+  exports: [SessionOrSandboxMiddleware, SandboxesModule, ThreadsService],
 })
 export class SessionsModule {}
