@@ -22,6 +22,8 @@ export function toThreadDto(row: Row<'Thread'>): ThreadDto {
       : { model: { ref: row.modelRef, effort: row.modelEffort } }),
     ...(row.executionLocation === null ? {} : { executionLocation: row.executionLocation }),
     projectId: row.projectId,
+    pinnedAt: row.pinnedAt === null ? null : row.pinnedAt.toISOString(),
+    archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
   }
 }
 
