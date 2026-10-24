@@ -1,39 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
 import * as realApiClient from '@/lib/api-client'
 
-mock.module('@/lib/api-client', () => ({
-  ...realApiClient,
-  api: createApiClient({
-    baseUrl: '',
-    fetchFn: Object.assign(
-      (input: Parameters<typeof fetch>[0], init?: RequestInit) => globalThis.fetch(input, init),
-      { preconnect: fetch.preconnect },
-    ),
-  }),
-}))
-
-const { createProject } = await import('@/features/project-settings/data/project-api')
-const { fetchGithubBranches, fetchGithubRepos } = await import('../github-repos-api')
-
 let calls: { url: string; init?: RequestInit }[]
-const realFetch = globalThis.fetch
-
-const answerWith = (response: Response): void => {
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), ...(init === undefined ? {} : { init }) })
-    return response
-  }) as typeof fetch
-}
-
-const json = (body: unknown): Response =>
-  new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  })
-
 let trpcResponse: Response
 
 const fakeTrpcFetch = Object.assign(
@@ -49,7 +20,18 @@ mock.module('@/lib/api-client', () => ({
   api: createApiClient({ baseUrl: '', fetchFn: fakeTrpcFetch }),
 }))
 
+const { createProject } = await import('@/features/project-settings/data/project-api')
 const { fetchGithubBranches, fetchGithubRepos } = await import('../github-repos-api')
+
+const answerWith = (response: Response): void => {
+  trpcResponse = response
+}
+
+const json = (body: unknown): Response =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })
 
 const trpcOk = (data: unknown): void => {
   trpcResponse = Response.json({ result: { data } })
@@ -59,10 +41,6 @@ const pathOf = (url: string | undefined): string => new URL(url ?? '', 'http://x
 
 beforeEach(() => {
   calls = []
-})
-
-afterEach(() => {
-  globalThis.fetch = realFetch
 })
 
 describe('createProject', () => {
