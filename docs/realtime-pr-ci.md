@@ -114,12 +114,12 @@ GithubPrState
 `GithubPrState` replaces `GithubPullRequest`. The rename is deliberate: it is a last-known
 mailbox written by deliveries and subscribe-pulls, not a read-through cache with fills.
 
-## API surface (apps/api, NestJS, versioned `/v1`)
+## API surface (apps/api, NestJS; tRPC under `/v1/trpc`, the webhook receiver under `/v1`)
 
-All routes require a caller the session layer recognizes — a better-auth session or a
-thread-scoped sandbox token (`SessionOrSandboxGuard` + `@SandboxReachable`, the guard resolving
-the sandbox to its owning user so everything downstream still acts as that user) — except the
-webhook receiver. The serve process inside a container holds only the sandbox token, and these
+Every procedure requires a caller the session layer recognizes — a better-auth session or a
+thread-scoped sandbox token (`SessionOrSandboxMiddleware` + `meta({ sandboxReachable: true })`, the
+middleware resolving the sandbox to its owning user so everything downstream still acts as that
+user) — except the webhook receiver, which is a plain REST controller. The serve process inside a container holds only the sandbox token, and these
 routes are exactly why it exists: when the realtime stack shipped (2026-09-28) they were
 session-only, the serve's every call 401ed, and cloud sessions went silently untracked until
 this guard opened to it.
@@ -153,7 +153,7 @@ githubPrs.stream                 subscription (SSE)  -> pr-state | pr-event | he
 ### Webhook receiver (github-facing)
 
 ```
-POST /v1/github/hooks/:repoFullName    (HMAC-verified, @Public, unthrottled)
+POST /v1/github/hooks/:repoFullName    (HMAC-verified, no session, unthrottled)
 ```
 
 The hook URL embeds the repo so the handler can load the per-repo secret without guessing.
@@ -216,10 +216,10 @@ credentials (signed in or serve); the `gh` poller stays for signed-out sessions.
   from the pull-on-subscribe response, and from then on the service's readings are fed by
   the stream.
 - Heartbeats ride a single timer per session (one beat per subscription per 60s).
-- The SSE client is **`@microsoft/fetch-event-source`** (as used in rs-crm): a fetch wrapper
-  that runs under Bun, with response-level control so a 401 (dead cloud session) is
-  distinguished from a dropped connection — 401 surfaces as `Unavailable(non-retryable)`,
-  a drop reconnects with backoff and then does a catch-up pull.
+- The stream client is a tRPC `httpSubscriptionLink` over the `eventsource` v3 ponyfill, whose
+  `fetch` adds the bearer token and client version. Every reconnect signal is treated as a drop,
+  so a 401 (dead cloud session) is distinguished from a dropped connection — 401 surfaces as
+  `Unavailable(non-retryable)`, a drop reconnects with backoff and then does a catch-up pull.
 - On reconnect: resubscribe (idempotent, refreshes `expiresAt`) and apply the returned
   current state before resuming the stream.
 
@@ -348,7 +348,7 @@ state instead.
 | Failure | Behavior |
 | --- | --- |
 | Signed out | `gh` polling, unchanged (degraded mode) |
-| Serve holds only a thread-scoped sandbox token | The realtime routes accept it through `SessionOrSandboxGuard` + `@SandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it |
+| Serve holds only a thread-scoped sandbox token | The realtime procedures accept it through `SessionOrSandboxMiddleware` + `sandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it |
 | Direct (never-lifted) cloud arrival | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker |
 | Cloud session dead (401) | Tile shows last-known state muted; re-sign-in restores |
 | User not repo admin (hook create 403/404) | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream |
