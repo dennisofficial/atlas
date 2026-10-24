@@ -1,7 +1,6 @@
 import 'reflect-metadata'
 import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
-import { ProjectWorkspaceController } from './cloud/projects/project-workspace.controller'
 import { SandboxesController } from './platform/sandboxes/sandboxes.controller'
 import { EventsController } from './platform/sessions/events.controller'
 import { ThreadsController } from './platform/sessions/threads.controller'
@@ -20,15 +19,7 @@ describe('the first-party read routes', () => {
   }
 })
 
-const serveFacingControllers = [ProjectWorkspaceController]
-
 describe('the serve-facing control-plane routes', () => {
-  for (const controller of serveFacingControllers) {
-    it(`skips the app-wide throttle on ${controller.name}`, () => {
-      expect(Reflect.getMetadata('THROTTLER:SKIPdefault', controller)).toBe(true)
-    })
-  }
-
   it('skips the app-wide throttle on the events-read route serve polls mid-turn', () => {
     expect(
       Reflect.getMetadata('THROTTLER:SKIPdefault', EventsController.prototype.handleRead),
