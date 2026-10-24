@@ -5,6 +5,7 @@ import {
   IDLE_LIVE_THREAD,
   type LiveChooseModel,
   type LiveSend,
+  type LiveTakeBackPending,
   type LiveThreadState,
   type LiveThreadView,
   type ThreadModelChoice,
@@ -14,6 +15,7 @@ import { fetchEvents, fetchThread } from './threads-api'
 
 const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
+const NOT_TAKEABLE: LiveTakeBackPending = async () => null
 
 export function useLiveThread(args: {
   threadId: string
@@ -24,6 +26,7 @@ export function useLiveThread(args: {
   const [state, setState] = useState<LiveThreadState>(IDLE_LIVE_THREAD)
   const sendRef = useRef<LiveSend>(NOT_LIVE)
   const chooseRef = useRef<LiveChooseModel>(NOT_CHOOSABLE)
+  const takeBackRef = useRef<LiveTakeBackPending>(NOT_TAKEABLE)
   const modelChangedRef = useRef(args.onModelChanged)
   modelChangedRef.current = args.onModelChanged
 
@@ -39,10 +42,12 @@ export function useLiveThread(args: {
     })
     sendRef.current = controller.send
     chooseRef.current = controller.chooseModel
+    takeBackRef.current = controller.takeBackPending
     controller.start()
     return () => {
       sendRef.current = NOT_LIVE
       chooseRef.current = NOT_CHOOSABLE
+      takeBackRef.current = NOT_TAKEABLE
       controller.stop()
       setState(IDLE_LIVE_THREAD)
     }
@@ -50,5 +55,6 @@ export function useLiveThread(args: {
 
   const send = useMemo<LiveSend>(() => (sent) => sendRef.current(sent), [])
   const chooseModel = useMemo<LiveChooseModel>(() => (model) => chooseRef.current(model), [])
-  return { ...state, send, chooseModel }
+  const takeBackPending = useMemo<LiveTakeBackPending>(() => () => takeBackRef.current(), [])
+  return { ...state, send, chooseModel, takeBackPending }
 }

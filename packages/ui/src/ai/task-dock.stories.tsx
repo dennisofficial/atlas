@@ -49,6 +49,16 @@ export const WithQueue: Story = { args: { queued: QUEUED } }
 
 export const ExpandedWithQueue: Story = { args: { queued: QUEUED, defaultOpen: true } }
 
+export const QueueNewestRemovable: Story = {
+  args: {
+    queued: QUEUED.map((message, index) => ({
+      ...message,
+      removable: index === QUEUED.length - 1,
+    })),
+    defaultOpen: true,
+  },
+}
+
 export const AllDone: Story = {
   args: { steps: STEPS.map((step) => ({ ...step, status: EStepStatus.Done })) },
 }
