@@ -10,7 +10,12 @@ const CODE_BY_STATUS: ReadonlyMap<number, TRPC_ERROR_CODE_KEY> = new Map([
   [HttpStatus.NOT_FOUND, 'NOT_FOUND'],
   [HttpStatus.CONFLICT, 'CONFLICT'],
   [HttpStatus.PAYLOAD_TOO_LARGE, 'PAYLOAD_TOO_LARGE'],
+  [HttpStatus.PRECONDITION_FAILED, 'PRECONDITION_FAILED'],
+  [HttpStatus.UNPROCESSABLE_ENTITY, 'UNPROCESSABLE_CONTENT'],
+  [HttpStatus.TOO_MANY_REQUESTS, 'TOO_MANY_REQUESTS'],
   [HttpStatus.BAD_GATEWAY, 'BAD_GATEWAY'],
+  [HttpStatus.SERVICE_UNAVAILABLE, 'SERVICE_UNAVAILABLE'],
+  [HttpStatus.GATEWAY_TIMEOUT, 'GATEWAY_TIMEOUT'],
 ])
 
 export const isTrpcError = (value: unknown): value is Error & { code: string } =>
