@@ -67,13 +67,18 @@ const inputGroupButtonVariants = cva('flex items-center gap-2 text-sm shadow-non
   variants: {
     size: {
       xs: "h-6 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
-      sm: '',
+      sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2 [&>svg:not([class*='size-'])]:size-3.5",
       'icon-xs': 'size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0',
       'icon-sm': 'size-8 p-0 has-[>svg]:p-0',
+    },
+    shape: {
+      default: '',
+      round: 'rounded-full',
     },
   },
   defaultVariants: {
     size: 'xs',
+    shape: 'default',
   },
 })
 
@@ -82,6 +87,7 @@ function InputGroupButton({
   type = 'button',
   variant = 'ghost',
   size = 'xs',
+  shape = 'default',
   ...props
 }: Omit<React.ComponentProps<typeof Button>, 'size' | 'type'> &
   VariantProps<typeof inputGroupButtonVariants> & {
@@ -91,8 +97,9 @@ function InputGroupButton({
     <Button
       type={type}
       data-size={size}
+      data-shape={shape}
       variant={variant}
-      className={cn(inputGroupButtonVariants({ size }), className)}
+      className={cn(inputGroupButtonVariants({ size, shape }), className)}
       {...props}
     />
   )
@@ -110,7 +117,7 @@ function InputGroupText({ className, ...props }: React.ComponentProps<'span'>) {
   )
 }
 
-function InputGroupInput({ className, ...props }: React.ComponentProps<'input'>) {
+function InputGroupInput({ className, ...props }: React.ComponentProps<typeof Input>) {
   return (
     <Input
       data-slot="input-group-control"

@@ -90,11 +90,11 @@ function AppearanceEditor({
         <RadioGroup
           value={value.theme}
           onValueChange={handleThemeChange}
-          className="grid-cols-3 gap-3"
+          className="grid-cols-3"
           aria-label="Theme"
         >
           {THEMES.map((theme) => (
-            <ThemeCard key={theme} theme={theme} selected={value.theme === theme} />
+            <ThemeCard key={theme} theme={theme} />
           ))}
         </RadioGroup>
       </SettingsSection>

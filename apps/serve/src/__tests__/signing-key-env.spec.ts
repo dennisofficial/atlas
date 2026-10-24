@@ -16,6 +16,7 @@ import type { SshSigningKeyLease } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { applySigningKey, applySigningKeyEnv, fetchSigningKeyLease } from '../signing-key-env'
+import { trpcFailure, trpcOk } from './trpc-fake'
 
 const PEM = '-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----'
 
@@ -153,7 +154,7 @@ describe('fetchSigningKeyLease', () => {
     const seen: Request[] = []
     const fetchFn = answering((request) => {
       seen.push(request)
-      return Response.json(lease)
+      return trpcOk(lease)
     })
 
     const fetched = await fetchWith(fetchFn)
@@ -161,17 +162,17 @@ describe('fetchSigningKeyLease', () => {
     expect(fetched).toEqual(lease)
     expect(seen).toHaveLength(1)
     expect(seen[0]?.method).toBe('GET')
-    expect(new URL(seen[0]?.url ?? '').pathname).toBe('/v1/ssh-signing-key')
+    expect(new URL(seen[0]?.url ?? '').pathname).toBe('/v1/trpc/sshSigningKey.lease')
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer pod-token')
     expect(seen[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
   })
 
   it('returns undefined for a 404', async () => {
-    expect(await fetchWith(answering(() => new Response(null, { status: 404 })))).toBeUndefined()
+    expect(await fetchWith(answering(() => trpcFailure({ status: 404 })))).toBeUndefined()
   })
 
   it('returns undefined for a 500', async () => {
-    const fetchFn = answering(() => Response.json({ message: 'boom' }, { status: 500 }))
+    const fetchFn = answering(() => trpcFailure({ status: 500, message: 'boom' }))
 
     expect(await fetchWith(fetchFn)).toBeUndefined()
   })
@@ -185,7 +186,7 @@ describe('fetchSigningKeyLease', () => {
   })
 
   it('returns undefined for a malformed body', async () => {
-    expect(await fetchWith(answering(() => Response.json({ publicKey: 'only' })))).toBeUndefined()
+    expect(await fetchWith(answering(() => trpcOk({ publicKey: 'only' })))).toBeUndefined()
   })
 })
 
@@ -208,7 +209,7 @@ describe('applySigningKey', () => {
   it('applies the lease and logs readiness without the key', async () => {
     const atlasHome = tempHome()
 
-    const { env, lines } = await run({ atlasHome, fetchFn: answering(() => Response.json(lease)) })
+    const { env, lines } = await run({ atlasHome, fetchFn: answering(() => trpcOk(lease)) })
 
     expect(env.GIT_CONFIG_COUNT).toBe('14')
     expect(lines.map((line) => line.event)).toEqual([EServeEvent.SigningKeyReady])
@@ -220,7 +221,7 @@ describe('applySigningKey', () => {
 
     const { env, lines } = await run({
       atlasHome,
-      fetchFn: answering(() => new Response(null, { status: 404 })),
+      fetchFn: answering(() => trpcFailure({ status: 404 })),
     })
 
     expect(existsSync(join(atlasHome, 'ssh-signing-key'))).toBe(false)
@@ -235,7 +236,7 @@ describe('applySigningKey', () => {
 
     const { env, lines } = await run({
       atlasHome: join(blocker, 'home'),
-      fetchFn: answering(() => Response.json(lease)),
+      fetchFn: answering(() => trpcOk(lease)),
     })
 
     expect(env).toEqual(preExistingGitEnv())

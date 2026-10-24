@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
 import {
   Dialog,
   DialogClose,
@@ -112,9 +113,9 @@ export function AccountProfileCard({
 }) {
   return (
     <SettingsCard>
-      <div className="flex items-center gap-4 px-4 py-4">
-        <Avatar size="lg" className="size-10">
-          <AvatarFallback className="text-sm">{initialsOf(profile.name)}</AvatarFallback>
+      <CardRow className="flex-row items-center">
+        <Avatar size="lg">
+          <AvatarFallback>{initialsOf(profile.name)}</AvatarFallback>
         </Avatar>
         <div className="flex min-w-0 flex-1 items-start justify-between gap-5">
           <ProfileField label="Name">{profile.name}</ProfileField>
@@ -128,7 +129,7 @@ export function AccountProfileCard({
           <ProfileField label="Member since">{memberSince ?? NOT_AVAILABLE}</ProfileField>
         </div>
         <EditProfileDialog profile={profile} saving={saving} onSave={onSave} />
-      </div>
+      </CardRow>
     </SettingsCard>
   )
 }

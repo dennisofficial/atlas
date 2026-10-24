@@ -37,7 +37,7 @@ export function Bucket({ label, hint, entries, activeThreadId }: BucketProps) {
         entries.map(({ project, threads }) => (
           <div key={project.id} className="flex flex-col gap-0.5">
             <p className="truncate px-2 pt-1 text-xs text-muted-foreground">{project.name}</p>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu>
               {threads.map((thread) => (
                 <ThreadRow
                   key={thread.id}

@@ -24,11 +24,7 @@ export function AccountMenu({ user, initials }: { user: SessionUser | null; init
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <SidebarMenuButton className="h-10 gap-2 px-2 group-data-[collapsible=icon]:px-1!" />
-        }
-      >
+      <DropdownMenuTrigger render={<SidebarMenuButton size="avatar" />}>
         <Avatar size="sm">
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>

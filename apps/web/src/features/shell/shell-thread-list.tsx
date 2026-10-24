@@ -37,7 +37,7 @@ export function ThreadList({ entries, activeThreadId }: ThreadListProps) {
 
   if (entries.length === 0) {
     return (
-      <SidebarGroup className="gap-3 px-2 py-2">
+      <SidebarGroup>
         <NoProjects />
       </SidebarGroup>
     )
@@ -45,31 +45,37 @@ export function ThreadList({ entries, activeThreadId }: ThreadListProps) {
 
   const hasBuckets = partition.inactive.length > 0 || partition.archived.length > 0
   return (
-    <SidebarGroup className="gap-3 px-2 py-2">
-      {partition.groups.map((entry) => (
-        <ProjectGroup
-          key={entry.project.id}
-          entry={entry}
-          open={!collapsed.includes(entry.project.id)}
-          onOpenChange={(open) => handleOpenChange(entry.project.id, open)}
-          activeThreadId={activeThreadId}
-        />
-      ))}
-      {hasBuckets && (
-        <div className="flex flex-col gap-0.5">
-          {partition.inactive.length > 0 && (
-            <Bucket
-              label="Inactive"
-              hint="Last 72h"
-              entries={partition.inactive}
-              activeThreadId={activeThreadId}
-            />
-          )}
-          {partition.archived.length > 0 && (
-            <Bucket label="Archived" entries={partition.archived} activeThreadId={activeThreadId} />
-          )}
-        </div>
-      )}
+    <SidebarGroup>
+      <div className="flex flex-col gap-3">
+        {partition.groups.map((entry) => (
+          <ProjectGroup
+            key={entry.project.id}
+            entry={entry}
+            open={!collapsed.includes(entry.project.id)}
+            onOpenChange={(open) => handleOpenChange(entry.project.id, open)}
+            activeThreadId={activeThreadId}
+          />
+        ))}
+        {hasBuckets && (
+          <div className="flex flex-col gap-0.5">
+            {partition.inactive.length > 0 && (
+              <Bucket
+                label="Inactive"
+                hint="Last 72h"
+                entries={partition.inactive}
+                activeThreadId={activeThreadId}
+              />
+            )}
+            {partition.archived.length > 0 && (
+              <Bucket
+                label="Archived"
+                entries={partition.archived}
+                activeThreadId={activeThreadId}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </SidebarGroup>
   )
 }

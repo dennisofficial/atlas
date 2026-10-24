@@ -27,7 +27,7 @@ const NOT_FOUND = 404
 
 function ProjectNotFound() {
   return (
-    <Empty className="border py-10">
+    <Empty variant="outline">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FolderXIcon />

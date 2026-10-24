@@ -44,7 +44,7 @@ export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
         <SidebarContent className="group-data-[collapsible=icon]:hidden">
           <ShellSidebarContent query={query} activeThreadId={activeThreadId} />
         </SidebarContent>
-        <SidebarFooter className="gap-1 border-t border-sidebar-border p-2 group-data-[collapsible=icon]:mt-auto">
+        <SidebarFooter variant="bordered" className="group-data-[collapsible=icon]:mt-auto">
           <ShellBottomNav activeNav={activeNav} />
           <SidebarMenu>
             <SidebarMenuItem>

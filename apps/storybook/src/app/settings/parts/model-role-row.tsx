@@ -61,7 +61,6 @@ export function RoleRow({
     <SettingsRow
       title={meta.title}
       description={meta.description}
-      className="[&>div:first-child>div:nth-child(2)]:min-w-0"
       control={
         <InputGroup className="w-[31rem] max-w-full">
           <InputGroupAddon className="min-w-0 flex-1 gap-0.5 py-0 pr-0.5 pl-0.5">

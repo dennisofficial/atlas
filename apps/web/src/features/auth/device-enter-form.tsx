@@ -21,7 +21,7 @@ import { AuthHeading } from './auth-heading'
 
 const CODE_LENGTH = 8
 const CODE_PATTERN = '^[a-zA-Z0-9]*$'
-const SLOT_CLASS = 'h-11 w-9 font-mono text-lg font-medium uppercase sm:w-10'
+const SLOT_CLASS = 'font-mono uppercase'
 
 export function DeviceEnterForm() {
   const router = useRouter()
@@ -57,8 +57,9 @@ export function DeviceEnterForm() {
               pattern={CODE_PATTERN}
               value={code}
               onChange={(value) => setCode(value.toUpperCase())}
+              size="lg"
               autoFocus
-              containerClassName={cn('gap-2', CENTER_ROW)}
+              containerClassName={CENTER_ROW}
             >
               <InputOTPGroup>
                 {[0, 1, 2, 3].map((index) => (

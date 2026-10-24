@@ -90,7 +90,7 @@ export function SetupFlow() {
         description="A workspace holds your threads, repos, and teammates. You can rename it later."
       />
       <form onSubmit={handleSubmit}>
-        <FieldGroup className="gap-4">
+        <FieldGroup>
           <AuthField
             id="workspace"
             label="Workspace name"

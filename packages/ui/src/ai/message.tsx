@@ -101,7 +101,7 @@ function CopyAction({ text }: { text: string }) {
 function Meta({ author, timestamp }: Pick<UserMessageProps, 'author' | 'timestamp'>) {
   if (!author && !timestamp) return null
   return (
-    <MessageHeader className="gap-2 px-0">
+    <MessageHeader>
       {author ? <span>{author}</span> : null}
       {timestamp ? <span className="font-normal tabular-nums">{timestamp}</span> : null}
     </MessageHeader>
@@ -161,7 +161,7 @@ export function AgentMessage({
 
   return (
     <Message>
-      <MessageContent className="gap-2">
+      <MessageContent>
         <Meta author={author} timestamp={timestamp} />
         <div className="text-sm leading-relaxed text-pretty">
           {children}
@@ -173,7 +173,7 @@ export function AgentMessage({
           ) : null}
         </div>
         {hasActions && !streaming ? (
-          <MessageFooter className="gap-0.5 px-0">
+          <MessageFooter>
             {copyText ? <CopyAction text={copyText} /> : null}
             {onFeedback ? (
               <>

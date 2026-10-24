@@ -78,7 +78,7 @@ function ModelsEditor({
           onValueChange={handlePresetChange}
         >
           {PRESET_ORDER.map((preset) => (
-            <ToggleGroupItem key={preset} value={preset} className="px-4">
+            <ToggleGroupItem key={preset} value={preset}>
               {PRESET_LABELS[preset]}
             </ToggleGroupItem>
           ))}

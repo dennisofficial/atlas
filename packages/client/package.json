@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./channel": "./src/channel/index.ts",
+    "./chat": "./src/chat/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",
     "./transcript-tool-fixture": "./src/transcript/__tests__/tool-fixture.ts",
@@ -18,6 +19,7 @@
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
+    "ai": "^7.0.152",
     "zod": "^4.4.3"
   },
   "devDependencies": {

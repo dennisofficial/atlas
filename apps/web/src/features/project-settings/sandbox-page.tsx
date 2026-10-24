@@ -5,10 +5,17 @@ import { ArrowUpRightIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  FieldTitle,
+} from '@dltech/atlas-ui/components/field'
 import { Label } from '@dltech/atlas-ui/components/label'
 import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
-import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { QueryGate } from '@/features/settings/data/workspace/query-gate'
 import { runAction } from '@/features/settings/data/workspace/run-action'
@@ -34,26 +41,19 @@ import {
 function SizeCard({ size }: { size: SandboxSize }) {
   const id = `sandbox-size-${size.id}`
   return (
-    <Label
-      htmlFor={id}
-      className={cn(
-        'flex cursor-pointer flex-col items-stretch gap-3 rounded-lg border bg-card p-3 font-normal transition-colors',
-        'hover:bg-muted/50 has-data-checked:border-primary has-data-checked:bg-primary/5',
-        'has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
-      )}
-    >
-      <span className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {size.vcpus === null ? 'Account default' : `${size.vcpus} vCPU`}
-        </span>
+    <FieldLabel htmlFor={id}>
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldTitle>{size.vcpus === null ? 'Account default' : `${size.vcpus} vCPU`}</FieldTitle>
+          <FieldDescription className="font-mono text-xs">
+            {size.memoryGb === null
+              ? 'Uses your Sandbox size setting'
+              : `${size.memoryGb} GB RAM (${MEMORY_GB_PER_VCPU} GB per vCPU)`}
+          </FieldDescription>
+        </FieldContent>
         <RadioGroupItem id={id} value={size.id} />
-      </span>
-      <span className="font-mono text-xs leading-relaxed text-muted-foreground">
-        {size.memoryGb === null
-          ? 'Uses your Sandbox size setting'
-          : `${size.memoryGb} GB RAM (${MEMORY_GB_PER_VCPU} GB per vCPU)`}
-      </span>
-    </Label>
+      </Field>
+    </FieldLabel>
   )
 }
 
@@ -91,18 +91,18 @@ function SizePicker({
           </>
         }
       >
-        <div className="p-4">
+        <CardRow>
           <RadioGroup
             aria-label="Sandbox size"
             value={selected}
             onValueChange={handleValueChange}
-            className="grid-cols-2 gap-3 lg:grid-cols-5"
+            className="grid-cols-2 lg:grid-cols-5"
           >
             {SANDBOX_SIZE_OPTIONS.map((size) => (
               <SizeCard key={size.id} size={size} />
             ))}
           </RadioGroup>
-        </div>
+        </CardRow>
       </SettingsCard>
     </SettingsSection>
   )

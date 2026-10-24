@@ -6,7 +6,10 @@ const meta = {
   title: 'Components/Brand Mark',
   component: BrandMark,
   args: { brand: EBrand.Claude },
-  argTypes: { brand: { control: 'select', options: Object.values(EBrand) } },
+  argTypes: {
+    brand: { control: 'select', options: Object.values(EBrand) },
+    size: { control: 'inline-radio', options: ['default', 'sm'] },
+  },
 } satisfies Meta<typeof BrandMark>
 
 export default meta
@@ -53,3 +56,5 @@ export const AllBrands: Story = {
     </div>
   ),
 }
+
+export const Small: Story = { args: { size: 'sm' } }

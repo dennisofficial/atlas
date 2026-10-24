@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common'
-import { UserVercelController } from './user-vercel.controller'
+import { UserVercelRouter } from './user-vercel.router'
 import { UserVercelService } from './user-vercel.service'
 
 @Module({
-  controllers: [UserVercelController],
-  providers: [UserVercelService],
+  providers: [UserVercelRouter, UserVercelService],
 })
 export class UserVercelModule {}

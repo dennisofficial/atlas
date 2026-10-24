@@ -28,7 +28,8 @@ const clientVersionOf = (request: Request): string | undefined => {
 
 @Injectable()
 export class ApiTrpcContext implements TRPCContext {
-  create({ req }: CreateExpressContextOptions): ApiTrpcCtx {
+  create({ req, res }: CreateExpressContextOptions): ApiTrpcCtx {
+    res.setHeader('cache-control', 'no-store')
     return { req, bearerToken: bearerTokenOf(req), clientVersion: clientVersionOf(req) }
   }
 }

@@ -37,7 +37,11 @@ export class ThreadPodService {
     await ownedThread({ reader: db, userId, threadId })
     const row = await db.orm.public.CloudSandbox.first({ threadId })
     const steps = await readBootSteps({ threadId })
-    return { state: stateOf({ row, steps }), steps: latestAttemptOf(steps) }
+    return {
+      state: stateOf({ row, steps }),
+      steps: latestAttemptOf(steps),
+      history: steps,
+    }
   }
 
   async connect(args: { userId: string; threadId: string }): Promise<PodConnectReply> {

@@ -36,7 +36,7 @@ export function ProjectSelect({
   }
   return (
     <Select items={items} value={projectId ?? NO_PROJECT} onValueChange={handleValueChange}>
-      <SelectTrigger size="sm" aria-label="Project" className="max-w-56 min-w-0 border-0">
+      <SelectTrigger size="sm" variant="ghost" aria-label="Project" className="max-w-56 min-w-0">
         {projectId === null ? <FolderXIcon /> : <FolderGit2Icon />}
         <SelectValue />
       </SelectTrigger>

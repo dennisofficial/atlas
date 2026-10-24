@@ -1,10 +1,9 @@
-import type { StepSignal } from '@dltech/atlas-client/channel'
+import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { CallId, ModelUsage } from '@dltech/atlas-core'
 import type { PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
 
 export type LiveThreadState = {
   events: WireEvent[]
-  signals: StepSignal[]
   outputs: ReadonlyMap<CallId, string>
   working: boolean
   live: boolean
@@ -21,6 +20,7 @@ export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
 export type LiveTakeBackPending = () => Promise<string | null>
 
 export type LiveThreadView = LiveThreadState & {
+  steps: InFlightStep[]
   send: LiveSend
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
@@ -28,7 +28,6 @@ export type LiveThreadView = LiveThreadState & {
 
 export const IDLE_LIVE_THREAD: LiveThreadState = {
   events: [],
-  signals: [],
   outputs: new Map(),
   working: false,
   live: false,

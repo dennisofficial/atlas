@@ -1,17 +1,28 @@
-import { CloudError, CloudTransport, type TransportRetryLog } from './cloud-transport'
-import type { CloudSession } from './cloud-session'
-import {
-  userFileContentResponseSchema,
-  userFileListResponseSchema,
-  userFileRevisionResponseSchema,
-  type UserFileMeta,
-} from './cloud-resource-schemas'
+import type { ApiClient } from '@dltech/atlas-api-router'
+import { userFileTreeSchema, type UserFileMeta, type EUserFileTree } from '@dltech/atlas-wire'
 
-export type { UserFileMeta } from './cloud-resource-schemas'
+import { cloudCall, createHarnessApiClient } from './api-trpc-client'
+import {
+  backoffDelayMs,
+  defaultSleep,
+  isRetryableStatus,
+  noteRetry,
+  type TransportRetryLog,
+} from './cloud-retry'
+import {
+  CloudError,
+  DEFAULT_RETRY_BASE_DELAY_MS,
+  DEFAULT_RETRY_CEILING_DELAY_MS,
+  DEFAULT_RETRY_MAX_ATTEMPTS,
+} from './cloud-transport'
+import type { CloudSession } from './cloud-session'
+
+export type { UserFileMeta } from '@dltech/atlas-wire'
 
 export type UserFileContent = UserFileMeta & { content: Uint8Array | null }
 
 const CONFLICT_STATUS = 409
+const NETWORK_FAILURE_STATUS = 0
 
 export class UserFileConflict extends Error {
   readonly currentRevision: number
@@ -25,11 +36,17 @@ export class UserFileConflict extends Error {
   }
 }
 
-const filePath = (args: { tree: string; path: string }): string =>
-  `/v1/user-files/${encodeURIComponent(args.tree)}/${args.path.split('/').map(encodeURIComponent).join('/')}`
+const isRetryable = (error: unknown): boolean =>
+  error instanceof CloudError &&
+  (error.status === NETWORK_FAILURE_STATUS || isRetryableStatus(error.status))
+
+const treeOf = (tree: string): EUserFileTree => userFileTreeSchema.parse(tree)
 
 export class CloudUserFilesClient {
-  private readonly transport: CloudTransport
+  private readonly api: ApiClient
+  private readonly log: TransportRetryLog | undefined
+  private readonly sleep: (ms: number) => Promise<void>
+  private readonly randomFn: () => number
 
   constructor(args: {
     url: string
@@ -37,34 +54,45 @@ export class CloudUserFilesClient {
     clientVersion?: string | undefined
     fetchFn?: typeof fetch | undefined
     log?: TransportRetryLog | undefined
+    sleep?: ((ms: number) => Promise<void>) | undefined
+    randomFn?: (() => number) | undefined
   }) {
-    this.transport = new CloudTransport(args)
+    this.log = args.log
+    this.sleep = args.sleep ?? defaultSleep
+    this.randomFn = args.randomFn ?? Math.random
+    this.api = createHarnessApiClient({
+      url: args.url,
+      token: args.token,
+      clientVersion: args.clientVersion ?? 'dev',
+      fetchFn: args.fetchFn ?? fetch,
+      log: args.log,
+      sleep: args.sleep,
+      randomFn: args.randomFn,
+    })
   }
 
   async listUserFiles(args: {
     tree: string
     sinceRevision?: number
   }): Promise<readonly UserFileMeta[]> {
-    const since = args.sinceRevision === undefined ? '' : `&sinceRevision=${args.sinceRevision}`
-    const body = await this.transport.request({
-      method: 'GET',
-      path: `/v1/user-files?tree=${encodeURIComponent(args.tree)}${since}`,
-      retry: true,
-    })
-    return userFileListResponseSchema.parse(body).files
+    const reply = await cloudCall(
+      this.api.userFiles.list.query({
+        tree: treeOf(args.tree),
+        ...(args.sinceRevision === undefined ? {} : { sinceRevision: args.sinceRevision }),
+      }),
+    )
+    return reply.files
   }
 
   async getUserFiles(args: {
     tree: string
     paths: readonly string[]
   }): Promise<readonly UserFileContent[]> {
-    const body = await this.transport.request({
-      method: 'POST',
-      path: '/v1/user-files/get',
-      body: { tree: args.tree, paths: args.paths },
-      retry: true,
-    })
-    return userFileContentResponseSchema.parse(body).files.map((file) => ({
+    const tree = treeOf(args.tree)
+    const reply = await this.retried(() =>
+      cloudCall(this.api.userFiles.get.mutate({ tree, paths: [...args.paths] })),
+    )
+    return reply.files.map((file) => ({
       ...file,
       content: file.content === null ? null : new Uint8Array(Buffer.from(file.content, 'base64')),
     }))
@@ -77,16 +105,17 @@ export class CloudUserFilesClient {
     contentHash: string
     baseRevision: number
   }): Promise<{ revision: number }> {
-    return this.mutate({
-      tree: args.tree,
-      path: args.path,
-      method: 'PUT',
-      body: {
-        content: Buffer.from(args.content).toString('base64'),
-        contentHash: args.contentHash,
-        baseRevision: args.baseRevision,
-      },
-    })
+    return this.mutate(args, () =>
+      cloudCall(
+        this.api.userFiles.put.mutate({
+          tree: treeOf(args.tree),
+          path: args.path,
+          content: Buffer.from(args.content).toString('base64'),
+          contentHash: args.contentHash,
+          baseRevision: args.baseRevision,
+        }),
+      ),
+    )
   }
 
   async deleteUserFile(args: {
@@ -94,27 +123,49 @@ export class CloudUserFilesClient {
     path: string
     baseRevision: number
   }): Promise<{ revision: number }> {
-    return this.mutate({
-      tree: args.tree,
-      path: args.path,
-      method: 'DELETE',
-      body: { baseRevision: args.baseRevision },
-    })
+    return this.mutate(args, () =>
+      cloudCall(
+        this.api.userFiles.remove.mutate({
+          tree: treeOf(args.tree),
+          path: args.path,
+          baseRevision: args.baseRevision,
+        }),
+      ),
+    )
   }
 
-  private async mutate(args: {
-    tree: string
-    path: string
-    method: 'PUT' | 'DELETE'
-    body: unknown
-  }): Promise<{ revision: number }> {
+  private async retried<T>(call: () => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await call()
+      } catch (error) {
+        const cause = error instanceof CloudError ? `status ${error.status}` : String(error)
+        if (!isRetryable(error) || attempt >= DEFAULT_RETRY_MAX_ATTEMPTS - 1) throw error
+        const delayMs = backoffDelayMs({
+          attempt,
+          baseDelayMs: DEFAULT_RETRY_BASE_DELAY_MS,
+          ceilingDelayMs: DEFAULT_RETRY_CEILING_DELAY_MS,
+          randomFn: this.randomFn,
+        })
+        noteRetry({
+          log: this.log,
+          method: 'POST',
+          path: 'userFiles.get',
+          cause,
+          attempt,
+          delayMs,
+        })
+        await this.sleep(delayMs)
+      }
+    }
+  }
+
+  private async mutate(
+    args: { tree: string; path: string },
+    call: () => Promise<{ revision: number }>,
+  ): Promise<{ revision: number }> {
     try {
-      const body = await this.transport.request({
-        method: args.method,
-        path: filePath(args),
-        body: args.body,
-      })
-      return userFileRevisionResponseSchema.parse(body)
+      return await call()
     } catch (error) {
       if (!(error instanceof CloudError) || error.status !== CONFLICT_STATUS) throw error
       throw await this.conflictAt(args)

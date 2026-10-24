@@ -60,10 +60,7 @@ export function ProjectSettingsShell({
                     size="sm"
                     nativeButton={false}
                     aria-current={current ? 'page' : undefined}
-                    className={cn(
-                      'w-full justify-start',
-                      current ? 'bg-muted text-foreground' : 'text-muted-foreground',
-                    )}
+                    className={cn('w-full justify-start', !current && 'text-muted-foreground')}
                     render={
                       <Link href={hrefOfProjectSection({ projectId, section: item.section })} />
                     }

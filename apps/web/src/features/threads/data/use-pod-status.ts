@@ -7,11 +7,15 @@ import { fetchPod } from './threads-api'
 
 const POLL_MS = 2000
 
-export function usePodStatus(args: { threadId: string; awaitingRun: boolean }): {
+export function usePodStatus(args: {
+  threadId: string
+  awaitingRun: boolean
+  watchingPark: boolean
+}): {
   pod: PodStatus | null
   refresh: () => void
 } {
-  const { threadId, awaitingRun } = args
+  const { threadId, awaitingRun, watchingPark } = args
   const [pod, setPod] = useState<PodStatus | null>(null)
   const [kick, setKick] = useState(0)
 
@@ -24,7 +28,7 @@ export function usePodStatus(args: { threadId: string; awaitingRun: boolean }): 
         const next = await fetchPod(threadId)
         if (cancelled) return
         setPod(next)
-        if (!shouldPollPod({ pod: next, awaitingRun })) return
+        if (!shouldPollPod({ pod: next, awaitingRun, watchingPark })) return
       } catch {
         if (cancelled) return
       }
@@ -36,7 +40,7 @@ export function usePodStatus(args: { threadId: string; awaitingRun: boolean }): 
       cancelled = true
       clearTimeout(timer)
     }
-  }, [threadId, awaitingRun, kick])
+  }, [threadId, awaitingRun, watchingPark, kick])
 
   const refresh = useCallback(() => setKick((count) => count + 1), [])
   return { pod, refresh }

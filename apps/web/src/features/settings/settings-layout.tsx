@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { Card, CardFooter, CardRow } from '@dltech/atlas-ui/components/card'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { PageStatusSlot } from './status/page-status-scope'
@@ -74,23 +75,19 @@ export function SettingsSection({
 export function SettingsCard({
   className,
   footer,
+  tone,
   children,
 }: {
   className?: string
   footer?: ReactNode
+  tone?: 'default' | 'destructive'
   children: ReactNode
 }) {
   return (
-    <div
-      className={cn('overflow-hidden rounded-lg border bg-card text-card-foreground', className)}
-    >
-      <div className="divide-y">{children}</div>
-      {footer ? (
-        <div className="flex items-center justify-end gap-2 border-t bg-muted/30 px-4 py-2.5">
-          {footer}
-        </div>
-      ) : null}
-    </div>
+    <Card variant="list" tone={tone} className={className}>
+      {children}
+      {footer ? <CardFooter className="justify-end">{footer}</CardFooter> : null}
+    </Card>
   )
 }
 
@@ -110,17 +107,17 @@ export function SettingsRow({
   className?: string
 }) {
   return (
-    <div className={cn('flex flex-col gap-3 px-4 py-3.5', className)}>
-      <div className="flex items-center gap-3">
+    <CardRow className={className}>
+      <div className="flex flex-wrap items-center gap-3">
         {media ? <div className="flex shrink-0 items-center">{media}</div> : null}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-48 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2 text-sm font-medium">{title}</div>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {control ? <div className="flex shrink-0 items-center gap-2">{control}</div> : null}
+        {control ? <div className="flex max-w-full items-center gap-2">{control}</div> : null}
       </div>
       {children}
-    </div>
+    </CardRow>
   )
 }
 
@@ -161,7 +158,7 @@ export type DangerAction = {
 export function DangerZone({ actions }: { actions: DangerAction[] }) {
   return (
     <SettingsSection title="Danger zone">
-      <SettingsCard className="border-destructive/30">
+      <SettingsCard tone="destructive">
         {actions.map((action) => (
           <SettingsRow
             key={action.title}

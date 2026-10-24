@@ -14,6 +14,7 @@ import {
 const meta = {
   title: 'Components/Empty',
   component: Empty,
+  argTypes: { variant: { control: 'inline-radio', options: ['default', 'outline'] } },
 } satisfies Meta<typeof Empty>
 
 export default meta
@@ -22,7 +23,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: (args) => (
-    <Empty className="w-[28rem] border border-dashed border-border" {...args}>
+    <Empty className="w-[28rem]" variant="outline" {...args}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <SquareTerminalIcon />
@@ -49,6 +50,18 @@ export const NoMedia: Story = {
       <EmptyContent>
         <Button variant="outline">Clear filters</Button>
       </EmptyContent>
+    </Empty>
+  ),
+}
+
+export const Outline: Story = {
+  args: { variant: 'outline' },
+  render: (args) => (
+    <Empty className="w-[28rem]" {...args}>
+      <EmptyHeader>
+        <EmptyTitle>No API keys</EmptyTitle>
+        <EmptyDescription>Create a key to use Atlas from CI.</EmptyDescription>
+      </EmptyHeader>
     </Empty>
   ),
 }

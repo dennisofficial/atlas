@@ -70,11 +70,11 @@ const recordCloud = (
   return { calls, restore: () => (globalThis.fetch = realFetch) }
 }
 
-const EMPTY_LISTS = Response.json({ files: [] })
+const emptyLists = (): Response => Response.json({ result: { data: { files: [] } } })
 
 describe('serve launch user-layer sync', () => {
   it('a Vercel-shaped serve with no pod name makes zero user-files calls', async () => {
-    const cloud = recordCloud(() => EMPTY_LISTS)
+    const cloud = recordCloud(emptyLists)
     const previousPodName = process.env.ATLAS_POD_NAME
     delete process.env.ATLAS_POD_NAME
     try {
@@ -88,7 +88,7 @@ describe('serve launch user-layer sync', () => {
       app.markActiveThread({ threadId: 'thread-opened', title: 'opened', started: false })
       await new Promise((resolve) => setTimeout(resolve, 200))
 
-      expect(cloud.calls.filter((call) => call.url.includes('/v1/user-files'))).toEqual([])
+      expect(cloud.calls.filter((call) => call.url.includes('/v1/trpc/userFiles.'))).toEqual([])
       expect(app.workspace.workspace.length).toBeGreaterThan(0)
     } finally {
       if (previousPodName !== undefined) process.env.ATLAS_POD_NAME = previousPodName
@@ -97,7 +97,7 @@ describe('serve launch user-layer sync', () => {
   })
 
   it('a local pod makes zero user-files calls either', async () => {
-    const cloud = recordCloud(() => EMPTY_LISTS)
+    const cloud = recordCloud(emptyLists)
     const previousPodName = process.env.ATLAS_POD_NAME
     process.env.ATLAS_POD_NAME = 'atlas-pod-spec'
     try {
@@ -108,7 +108,7 @@ describe('serve launch user-layer sync', () => {
           })
         },
       })
-      expect(cloud.calls.filter((call) => call.url.includes('/v1/user-files'))).toEqual([])
+      expect(cloud.calls.filter((call) => call.url.includes('/v1/trpc/userFiles.'))).toEqual([])
       expect(app.workspace.workspace.length).toBeGreaterThan(0)
     } finally {
       if (previousPodName === undefined) delete process.env.ATLAS_POD_NAME
@@ -132,7 +132,7 @@ describe('serve launch user-layer sync', () => {
   })
 
   it('prefers the stored cloud session on a non-serve launch and stays quiet until a conversation opens', async () => {
-    const cloud = recordCloud(() => EMPTY_LISTS)
+    const cloud = recordCloud(emptyLists)
 
     try {
       new CloudSessionStore({
@@ -169,7 +169,7 @@ describe('serve launch user-layer sync', () => {
         await new Promise((resolve) => setTimeout(resolve, 20))
       }
       expect(
-        cloud.calls.some((call) => call.url.startsWith('https://cloud.test/v1/user-files')),
+        cloud.calls.some((call) => call.url.startsWith('https://cloud.test/v1/trpc/userFiles.')),
       ).toBe(true)
     } finally {
       cloud.restore()
