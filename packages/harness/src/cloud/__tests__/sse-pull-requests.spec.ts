@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EPullRequestLookup, EPullRequestState, EChecksState } from '../../plugins/github/pure'
-import type { RepositoryCheckout } from '../../plugins/github/pure'
 import type { SubscriptionPrState } from '../pr-subscription-client'
 import { createSseSubscriptionBook, readingOfState } from '../sse-pull-request-book'
 
@@ -19,13 +18,6 @@ const state = (over: Partial<SubscriptionPrState> = {}): SubscriptionPrState => 
   mergeable: null,
   updatedAt: '2026-09-28T00:00:00.000Z',
   ...over,
-})
-
-const checkout = (over: Partial<RepositoryCheckout['remote']> = {}): RepositoryCheckout => ({
-  directory: '/repo',
-  branch: 'feature',
-  forge: 0 as never,
-  remote: { host: 'github.com', owner: 'owner', repo: 'repo', ...over },
 })
 
 describe('readingOfState', () => {

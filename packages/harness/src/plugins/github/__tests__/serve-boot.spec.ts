@@ -1,17 +1,13 @@
-import { afterEach, describe, expect, it } from 'bun:test'
-
-import { toThreadId } from '@dltech/atlas-core'
+import { describe, expect, it } from 'bun:test'
 
 import { SsePullRequestPort } from '../../../cloud/sse-pull-requests'
 
 import { inputOf, procedureOf, trpcOk } from '../../../cloud/__tests__/trpc-fakes'
 import { createSessionFacts } from '../session'
 import { createPullRequestService } from '../pull-request-service'
-import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from '../pure'
+import { checkoutKey } from '../pure'
 import { aCheckout, pullRequestsByKey, wasFound } from '../testing'
 import { createCheckoutTracking } from '../tracking'
-
-const THREAD = toThreadId('thread-boot')
 
 const CLOUD_SESSION = { url: 'https://api.test', token: 'tok', email: null }
 

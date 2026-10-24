@@ -1,18 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { runSseStream, SseRefused } from '../sse-client'
-import {
-  collect,
-  dataFrame,
-  opened,
-  prStateFrame,
-  returnEvent,
-  serializedError,
-  startServer,
-  text,
-  waitFor,
-  type TestServer,
-} from './sse-test-server'
+import { collect, startServer, waitFor, type TestServer } from './sse-test-server'
 describe('runSseStream catch-up', () => {
   let server: TestServer | null = null
   afterEach(() => {
