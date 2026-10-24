@@ -108,13 +108,13 @@ export function SettingsRow({
 }) {
   return (
     <CardRow className={className}>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {media ? <div className="flex shrink-0 items-center">{media}</div> : null}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-48 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2 text-sm font-medium">{title}</div>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {control ? <div className="flex shrink-0 items-center gap-2">{control}</div> : null}
+        {control ? <div className="flex max-w-full items-center gap-2">{control}</div> : null}
       </div>
       {children}
     </CardRow>

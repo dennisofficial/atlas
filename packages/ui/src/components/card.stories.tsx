@@ -91,3 +91,20 @@ export const List: Story = {
     </Card>
   ),
 }
+
+export const DestructiveList: Story = {
+  args: { variant: 'list', tone: 'destructive' },
+  render: (args) => (
+    <Card className="w-96" {...args}>
+      <CardRow>
+        <div className="font-medium">Delete workspace</div>
+        <div className="text-muted-foreground">Removes every project, thread and secret.</div>
+      </CardRow>
+      <CardFooter className="justify-end">
+        <Button size="sm" variant="destructive">
+          Delete
+        </Button>
+      </CardFooter>
+    </Card>
+  ),
+}
