@@ -62,4 +62,19 @@ describe('Tool', () => {
   it('shows elapsed time next to the title', () => {
     expect(render(EToolState.Done, { elapsed: '1.2s' })).toContain('1.2s')
   })
+
+  it('shows a title override instead of the verb and label', () => {
+    const html = render(EToolState.Done, { title: 'Spawned vault audit' })
+
+    expect(html).toContain('Spawned vault audit')
+    expect(html).not.toContain('Ran git status --short')
+  })
+
+  it('shows the title override on an approval prompt', () => {
+    expect(
+      render(EToolState.AwaitingApproval, {
+        title: 'Waiting on you agent_spawn',
+      }),
+    ).toContain('Waiting on you agent_spawn')
+  })
 })

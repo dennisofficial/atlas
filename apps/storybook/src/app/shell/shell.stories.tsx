@@ -21,6 +21,10 @@ export const ProjectHoverCard: Story = {
   args: { demo: { projectCardId: 'rs-crm' } },
 }
 
+export const ArchivedThread: Story = {
+  args: { demo: { archivedThreadIds: ['thr-wire-zod'], archivedBucketOpen: true } },
+}
+
 export const AccountMenu: Story = {
   args: { demo: { accountMenuOpen: true } },
 }

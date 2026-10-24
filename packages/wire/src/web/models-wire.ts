@@ -12,6 +12,7 @@ export const modelEntrySchema = z.object({
   imageTier: z.string().optional(),
   efforts: z.array(z.string()),
   inputPerMillion: z.number().optional(),
+  outputPerMillion: z.number().optional(),
 })
 
 export const modelProviderSchema = z.object({

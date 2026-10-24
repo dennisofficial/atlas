@@ -1,4 +1,4 @@
-import { Archive, ExternalLink, Pin } from 'lucide-react'
+import { Archive, ArchiveRestore, ExternalLink, Pin } from 'lucide-react'
 
 import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -6,6 +6,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { type AppThread, EThreadStatus } from '../../fixtures/app'
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
+import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
 
 export interface ThreadRowProps {
@@ -19,6 +20,9 @@ function hasPullRequest(thread: AppThread): boolean {
 }
 
 export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
+  const { onToggleArchive } = useThreadActions()
+  const archived = thread.archived === true
+  const handleArchive = () => onToggleArchive(thread.id)
   return (
     <SidebarMenuItem>
       <ThreadHoverCard
@@ -41,8 +45,11 @@ export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
           <RowAction label="Pin thread">
             <Pin />
           </RowAction>
-          <RowAction label="Archive thread">
-            <Archive />
+          <RowAction
+            label={archived ? 'Unarchive thread' : 'Archive thread'}
+            onClick={handleArchive}
+          >
+            {archived ? <ArchiveRestore /> : <Archive />}
           </RowAction>
           {hasPullRequest(thread) && (
             <RowAction label="Open pull request on GitHub">

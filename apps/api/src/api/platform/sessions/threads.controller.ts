@@ -21,6 +21,7 @@ import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import {
   AdoptThreadDto,
+  ArchiveThreadDto,
   ChooseModelDto,
   CompactThreadDto,
   CreateThreadDto,
@@ -33,6 +34,7 @@ import {
 } from './sessions.dto'
 import { userIdOf } from './session-user'
 import type { ThreadDto } from './sessions.types'
+import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
 
@@ -41,6 +43,19 @@ const projectOf = (project: string | undefined): string => {
     throw new BadRequestException('a project query parameter is required')
   }
   return project
+}
+
+const listScopeOf = (args: {
+  project: string | undefined
+  projectId: string | undefined
+}): { project: string } | { projectId: string } => {
+  const { project, projectId } = args
+  const hasProject = project !== undefined && project.length > 0
+  const hasProjectId = projectId !== undefined && projectId.length > 0
+  if (hasProject === hasProjectId) {
+    throw new BadRequestException('exactly one of project or projectId is required')
+  }
+  return hasProjectId ? { projectId } : { project: project ?? '' }
 }
 
 const limitOf = (limit: string | undefined): number | undefined => {
@@ -61,6 +76,7 @@ export class ThreadsController {
     private readonly history: ThreadsHistoryService,
     private readonly sandboxes: SandboxesService,
     private readonly launcher: ThreadLauncher,
+    private readonly archive: ThreadArchiveService,
   ) {}
 
   @Post()
@@ -119,11 +135,12 @@ export class ThreadsController {
   handleList(
     @Req() request: AuthenticatedRequest,
     @Query('project') project: string | undefined,
+    @Query('projectId') projectId: string | undefined,
     @Query('limit') limit: string | undefined,
   ): Promise<ThreadDto[]> {
     return this.threads.list({
       userId: userIdOf(request),
-      project: projectOf(project),
+      ...listScopeOf({ project, projectId }),
       limit: limitOf(limit),
     })
   }
@@ -152,6 +169,20 @@ export class ThreadsController {
     @Body() body: RenameThreadDto,
   ): Promise<void> {
     await this.threads.rename({ userId: userIdOf(request), threadId, draft: body })
+  }
+
+  @Patch(':threadId/archived')
+  @HttpCode(204)
+  async handleArchive(
+    @Req() request: AuthenticatedRequest,
+    @Param('threadId') threadId: string,
+    @Body() body: ArchiveThreadDto,
+  ): Promise<void> {
+    await this.archive.setArchived({
+      userId: userIdOf(request),
+      threadId,
+      archived: body.archived,
+    })
   }
 
   @Patch(':threadId/model')

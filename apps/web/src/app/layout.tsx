@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Atlas Cloud',
-  description: 'Sign in to Atlas Cloud',
+  description: 'Atlas Cloud',
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -28,6 +28,7 @@ export function ModelPickerControls({
     <ModelSelector
       models={models}
       value={selection.id}
+      placeholder="Default"
       onValueChange={handleValueChange}
       effort={selection.effort}
       onEffortChange={(effort) => onSelectionChange({ ...selection, effort })}

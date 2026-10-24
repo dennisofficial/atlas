@@ -4,6 +4,7 @@ import { EventsController } from './events.controller'
 import { EventsService } from './events.service'
 import { SessionOrSandboxGuard } from './session-or-sandbox.guard'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadsController } from './threads.controller'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
@@ -15,6 +16,7 @@ import { TurnsService } from './turns.service'
   controllers: [ThreadsController, EventsController, TurnsController],
   providers: [
     ThreadsService,
+    ThreadArchiveService,
     ThreadsHistoryService,
     EventsService,
     TurnsService,

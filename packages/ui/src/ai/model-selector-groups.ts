@@ -65,7 +65,6 @@ export interface ModelOption {
   route?: string
   brand?: EBrand
   monogram?: string
-  auto?: boolean
   efforts?: EEffort[]
   images?: boolean
   contextTokens?: number
@@ -99,7 +98,6 @@ export enum EModelSelectorState {
 
 export interface ModelSelectorGroups {
   state: EModelSelectorState
-  auto: ModelOption | undefined
   pinned: ModelOption[]
   providers: ProviderGroup[]
   showManageProviders: boolean
@@ -148,7 +146,7 @@ export function matchesQuery({
   model: ModelOption
   terms: readonly string[]
 }): boolean {
-  const text = `${model.auto ? 'auto' : ''} ${model.label} ${model.id} ${providerOf(model)} ${model.route ?? ''}`
+  const text = `${model.label} ${model.id} ${providerOf(model)} ${model.route ?? ''}`
   return includesAll({ text, terms })
 }
 
@@ -216,14 +214,7 @@ export function modelSelectorGroups({
   const reconnecting = new Set(reconnectProviders)
   const collapsed = new Set(collapsedProviders)
   const expanded = new Set(expandedProviders)
-  const selectable = models.filter((model) => !model.auto)
-  const usable = selectable.filter((model) => !reconnecting.has(providerOf(model)))
-
-  const autoOption = models.find((model) => model.auto)
-  const auto =
-    autoOption !== undefined && filters.length === 0 && matchesQuery({ model: autoOption, terms })
-      ? autoOption
-      : undefined
+  const usable = models.filter((model) => !reconnecting.has(providerOf(model)))
 
   const byId = new Map(usable.map((model) => [model.id, model]))
   const pinnedInOrder = [...new Set(pinned)].flatMap((id) => {
@@ -236,10 +227,7 @@ export function modelSelectorGroups({
     groupByProvider(usable).map((group) => [group.provider, group.models]),
   )
   const providerOrder = [
-    ...new Set([
-      ...groupByProvider(selectable).map((group) => group.provider),
-      ...reconnectProviders,
-    ]),
+    ...new Set([...groupByProvider(models).map((group) => group.provider), ...reconnectProviders]),
   ]
 
   const limitFor = (provider: string): number => {
@@ -272,12 +260,11 @@ export function modelSelectorGroups({
   const pinnedShown = pinnedInOrder.filter(matches)
   const state = stateOf({
     hasProviders: models.length > 0 || reconnectProviders.length > 0,
-    hasResults: auto !== undefined || pinnedShown.length > 0 || providers.length > 0,
+    hasResults: pinnedShown.length > 0 || providers.length > 0,
   })
 
   return {
     state,
-    auto,
     pinned: pinnedShown,
     providers,
     showManageProviders: canManageProviders && state !== EModelSelectorState.NoProviders,
@@ -285,7 +272,6 @@ export function modelSelectorGroups({
 }
 
 export function firstItemValue(groups: ModelSelectorGroups): string | undefined {
-  if (groups.auto !== undefined) return groups.auto.id
   const firstPinned = groups.pinned[0]
   if (firstPinned !== undefined) return firstPinned.id
   const firstGroup = groups.providers[0]

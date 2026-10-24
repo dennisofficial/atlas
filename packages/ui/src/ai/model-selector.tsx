@@ -76,6 +76,7 @@ export interface ModelSelectorProps {
   collapsedProviders?: string[]
   collapsedLimit?: number
   defaultOpen?: boolean
+  placeholder?: string
   className?: string
 }
 
@@ -95,14 +96,15 @@ export function ModelSelector({
   collapsedProviders = [],
   collapsedLimit = DEFAULT_COLLAPSED_LIMIT,
   defaultOpen = false,
+  placeholder = 'No model',
   className,
 }: ModelSelectorProps) {
-  const current = models.find((model) => model.id === value) ?? models[0]
+  const current = models.find((model) => model.id === value)
   const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<EModelFilter[]>([])
   const [expanded, setExpanded] = useState<string[]>([])
-  const [highlighted, setHighlighted] = useState(current?.id ?? '')
+  const [highlighted, setHighlighted] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const canManageProviders = onManageProviders !== undefined
@@ -137,15 +139,11 @@ export function ModelSelector({
     setQuery('')
     setFilters([])
     setExpanded([])
-    if (next)
-      setHighlighted(
-        current?.id ?? firstItemValue(groupsFor({ nextQuery: '', nextFilters: [] })) ?? '',
-      )
+    if (next) setHighlighted(firstItemValue(groupsFor({ nextQuery: '', nextFilters: [] })) ?? '')
   }
   const handleQueryChange = (next: string) => {
     setQuery(next)
-    const first = firstItemValue(groupsFor({ nextQuery: next, nextFilters: filters })) ?? ''
-    setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first)
+    setHighlighted(firstItemValue(groupsFor({ nextQuery: next, nextFilters: filters })) ?? '')
   }
   const handleFilterToggle = (filter: EModelFilter) => {
     const next = filters.includes(filter)
@@ -190,7 +188,7 @@ export function ModelSelector({
         <PopoverTrigger
           render={<InputGroupButton size="sm" className={cn('min-w-0 justify-start', className)} />}
         >
-          <TriggerLabel model={current} />
+          <TriggerLabel model={current} placeholder={placeholder} />
           <ChevronDownIcon className="ml-auto" />
         </PopoverTrigger>
         <PopoverContent
@@ -228,9 +226,6 @@ export function ModelSelector({
                   <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">
                     No models match{query.trim() ? ` “${query.trim()}”` : ' these filters'}
                   </p>
-                ) : null}
-                {groups.auto ? (
-                  <CommandGroup heading="Auto">{renderRow(groups.auto, false)}</CommandGroup>
                 ) : null}
                 {groups.pinned.length > 0 ? (
                   <CommandGroup heading="Pinned">
@@ -279,7 +274,7 @@ export function ModelSelector({
           )}
         </PopoverContent>
       </Popover>
-      {effort && effortOptions.length > 0 ? (
+      {effort && current && effortOptions.length > 0 ? (
         <>
           <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
           <EffortMenu efforts={effortOptions} value={effort} onChange={handleEffortChange} />

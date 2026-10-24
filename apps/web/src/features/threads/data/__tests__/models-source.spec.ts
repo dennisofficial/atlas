@@ -33,8 +33,8 @@ describe('loadModelsSource', () => {
 describe('modelOptionsOfSource', () => {
   it('builds the static catalogue options on the fallback path', () => {
     const { models } = modelOptionsOfSource({ source: { kind: 'accounts', accounts } })
-    expect(models[0]?.auto).toBe(true)
-    expect(models.slice(1).every((model) => model.provider === 'Anthropic')).toBe(true)
+    expect(models.length).toBeGreaterThan(0)
+    expect(models.every((model) => model.provider === 'Anthropic')).toBe(true)
   })
 
   it('builds the live options on the live path', () => {
@@ -50,7 +50,7 @@ describe('modelOptionsOfSource', () => {
       ],
     }
     const { models } = modelOptionsOfSource({ source: { kind: 'live', response } })
-    expect(models.map((model) => model.id)).toEqual(['auto', 'openai/only'])
+    expect(models.map((model) => model.id)).toEqual(['openai/only'])
   })
 
   it('is empty before the source loads', () => {

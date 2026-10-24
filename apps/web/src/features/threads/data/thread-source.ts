@@ -1,9 +1,14 @@
 import type { StepSignal } from '@dltech/atlas-client/channel'
-import type { CallId } from '@dltech/atlas-core'
-import type { WireEvent } from '@dltech/atlas-wire/web'
+import type { CallId, ModelUsage } from '@dltech/atlas-core'
+import type { PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
 
 import type { ThreadEvents } from './events-poller'
-import type { LiveChooseModel, LiveSend, LiveThreadView } from './live-thread-view'
+import type {
+  LiveChooseModel,
+  LiveSend,
+  LiveTakeBackPending,
+  LiveThreadView,
+} from './live-thread-view'
 
 export type ThreadSource = {
   events: WireEvent[]
@@ -15,9 +20,13 @@ export type ThreadSource = {
   live: boolean
   sendLive: LiveSend
   chooseModel: LiveChooseModel
+  pending: readonly PendingEntryWire[]
+  reported: ModelUsage | null
+  takeBackPending: LiveTakeBackPending
 }
 
 const NO_SIGNALS: StepSignal[] = []
+const NO_PENDING: readonly PendingEntryWire[] = []
 const NO_OUTPUTS: ReadonlyMap<CallId, string> = new Map()
 
 export const pollingEnabledFor = (live: LiveThreadView): boolean => !live.live
@@ -35,6 +44,9 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
       live: true,
       sendLive: live.send,
       chooseModel: live.chooseModel,
+      pending: live.pending,
+      reported: live.reported,
+      takeBackPending: live.takeBackPending,
     }
   }
   return {
@@ -45,5 +57,8 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
     live: false,
     sendLive: live.send,
     chooseModel: live.chooseModel,
+    pending: NO_PENDING,
+    reported: null,
+    takeBackPending: live.takeBackPending,
   }
 }

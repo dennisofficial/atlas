@@ -2,13 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import { EEffort } from '@dltech/atlas-ui/ai/model-selector'
 
-import { AUTO_MODEL_ID, modelOptionsOf } from '../model-options'
+import { modelOptionsOf } from '../model-options'
 import {
-  AUTO_SELECTION,
   createFieldsOf,
   defaultSelectionOf,
   existingSelectionOf,
   selectionAfterPick,
+  UNSET_SELECTION,
 } from '../model-selection'
 
 const { models } = modelOptionsOf({
@@ -17,12 +17,12 @@ const { models } = modelOptionsOf({
     { provider: 'openai', status: 'active' },
   ],
 })
-const withLadder = models.find((model) => (model.efforts?.length ?? 0) > 0 && !model.auto)
+const withLadder = models.find((model) => (model.efforts?.length ?? 0) > 0)
 const withoutLadder = models.find((model) => model.efforts?.length === 0)
 
 describe('createFieldsOf', () => {
-  it('omits model and effort for Auto', () => {
-    expect(createFieldsOf(AUTO_SELECTION)).toEqual({})
+  it('omits model and effort before any model is known', () => {
+    expect(createFieldsOf(UNSET_SELECTION)).toEqual({})
   })
 
   it('sends both for a picked model', () => {
@@ -40,12 +40,17 @@ describe('defaultSelectionOf', () => {
     ).toEqual({ id: withLadder?.id ?? '', effort: EEffort.Low })
   })
 
-  it('falls back to Auto when the personal ref is not offered or empty', () => {
-    expect(defaultSelectionOf({ models, personalId: 'nope/none', personalEffort: 'low' })).toEqual(
-      AUTO_SELECTION,
+  it('falls back to the first offered model when the personal ref is not offered or empty', () => {
+    const first = models[0]?.id ?? ''
+    expect(defaultSelectionOf({ models, personalId: 'nope/none', personalEffort: 'low' }).id).toBe(
+      first,
     )
-    expect(defaultSelectionOf({ models, personalId: '', personalEffort: 'low' })).toEqual(
-      AUTO_SELECTION,
+    expect(defaultSelectionOf({ models, personalId: '', personalEffort: 'low' }).id).toBe(first)
+  })
+
+  it('stays unset while no model is offered', () => {
+    expect(defaultSelectionOf({ models: [], personalId: '', personalEffort: 'low' })).toEqual(
+      UNSET_SELECTION,
     )
   })
 
@@ -77,24 +82,20 @@ describe('selectionAfterPick', () => {
     ).toBe(withLadder?.efforts?.includes(EEffort.Max) ? EEffort.Max : top)
   })
 
-  it('keeps the effort for a model with no ladder and for Auto', () => {
+  it('keeps the effort for a model with no ladder', () => {
     expect(
       selectionAfterPick({ models, id: withoutLadder?.id ?? '', effort: EEffort.High }).effort,
     ).toBe(EEffort.High)
-    expect(selectionAfterPick({ models, id: AUTO_MODEL_ID, effort: EEffort.High })).toEqual({
-      id: AUTO_MODEL_ID,
-      effort: EEffort.High,
-    })
   })
 })
 
 describe('existingSelectionOf', () => {
-  it('reads the thread model, or Auto when it has none', () => {
+  it('reads the thread model, or unset when it has none', () => {
     expect(existingSelectionOf({ ref: 'a/b', effort: 'high' })).toEqual({
       id: 'a/b',
       effort: EEffort.High,
     })
-    expect(existingSelectionOf(undefined)).toEqual(AUTO_SELECTION)
+    expect(existingSelectionOf(undefined)).toEqual(UNSET_SELECTION)
     expect(existingSelectionOf({ ref: 'a/b', effort: 'weird' }).effort).toBe(EEffort.Medium)
   })
 })

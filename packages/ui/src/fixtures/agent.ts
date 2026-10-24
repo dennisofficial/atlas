@@ -73,28 +73,28 @@ export const MODELS: ModelOption[] = [
     label: 'Claude Opus',
     provider: 'Anthropic',
     context: '1M',
-    rate: '$$$',
+    rate: '$25.00/M',
   },
   {
     id: 'claude-sonnet',
     label: 'Claude Sonnet',
     provider: 'Anthropic',
     context: '1M',
-    rate: '$$',
+    rate: '$15.00/M',
   },
   {
     id: 'gpt-codex',
     label: 'GPT Codex',
     provider: 'OpenAI',
     context: '400k',
-    rate: '$$',
+    rate: '$10.00/M',
   },
   {
     id: 'gpt-mini',
     label: 'GPT mini',
     provider: 'OpenAI',
     context: '400k',
-    rate: '$',
+    rate: '$2.00/M',
   },
 ]
 

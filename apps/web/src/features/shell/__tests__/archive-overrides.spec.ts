@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'bun:test'
+
+import { applyArchiveOverrides, settleArchiveOverrides } from '../archive-overrides'
+import { agoIso, projectOf, threadOf } from './fixtures'
+
+const entries = [
+  {
+    project: projectOf('p1'),
+    threads: [
+      threadOf({ id: 'a' }),
+      threadOf({ id: 'b', archivedAt: agoIso(2) }),
+      threadOf({ id: 'c', archivedAt: null }),
+    ],
+  },
+]
+
+describe('applyArchiveOverrides', () => {
+  it('returns the entries unchanged when there are no overrides', () => {
+    expect(applyArchiveOverrides({ entries, overrides: new Map() })).toEqual(entries)
+  })
+
+  it('stamps an archived override and clears an unarchive override', () => {
+    const stamp = agoIso(0)
+    const result = applyArchiveOverrides({
+      entries,
+      overrides: new Map([
+        ['a', stamp],
+        ['b', null],
+      ]),
+    })
+    const threads = result[0]?.threads ?? []
+    expect(threads.map((thread) => thread.archivedAt)).toEqual([stamp, null, null])
+  })
+
+  it('does not mutate the source entries', () => {
+    applyArchiveOverrides({ entries, overrides: new Map([['a', agoIso(0)]]) })
+    expect(entries[0]?.threads[0]?.archivedAt).toBeUndefined()
+  })
+})
+
+describe('settleArchiveOverrides', () => {
+  it('drops an override once the server agrees on archived-ness', () => {
+    const overrides = new Map<string, string | null>([
+      ['a', agoIso(0)],
+      ['b', null],
+    ])
+    const settled = settleArchiveOverrides({ entries, overrides })
+    expect([...settled.keys()]).toEqual(['a', 'b'])
+    const synced = settleArchiveOverrides({
+      entries: [
+        {
+          project: projectOf('p1'),
+          threads: [threadOf({ id: 'a', archivedAt: agoIso(0) }), threadOf({ id: 'b' })],
+        },
+      ],
+      overrides,
+    })
+    expect(synced.size).toBe(0)
+  })
+
+  it('treats null and undefined archivedAt as the same unarchived state', () => {
+    const settled = settleArchiveOverrides({
+      entries,
+      overrides: new Map([
+        ['a', null],
+        ['c', null],
+      ]),
+    })
+    expect(settled.size).toBe(0)
+  })
+
+  it('keeps overrides for threads the server data does not contain', () => {
+    const overrides = new Map<string, string | null>([['gone', agoIso(0)]])
+    expect(settleArchiveOverrides({ entries, overrides })).toBe(overrides)
+  })
+})

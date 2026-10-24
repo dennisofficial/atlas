@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'9f7bf2b0da764a13cf6bcb46cbb59a8905c8d7f20bdb54ef68455d72613703b0'>;
+  StorageHashBase<'3a633b04798a32f8f70949fd0f91021d862a3b94fd983ac5209ac650b3c96178'>;
 export type ExecutionHash =
   ExecutionHashBase<'df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec'>;
 export type ProfileHash =
@@ -667,6 +667,7 @@ export namespace Models {
   };
   export type public_Thread = {
     agentType: FieldOutputTypes['public']['Thread']['agentType'];
+    archivedAt: FieldOutputTypes['public']['Thread']['archivedAt'];
     createdAt: FieldOutputTypes['public']['Thread']['createdAt'];
     executionLocation: FieldOutputTypes['public']['Thread']['executionLocation'];
     forkMode: FieldOutputTypes['public']['Thread']['forkMode'];
@@ -677,6 +678,7 @@ export namespace Models {
     modelRef: FieldOutputTypes['public']['Thread']['modelRef'];
     organizationId: FieldOutputTypes['public']['Thread']['organizationId'];
     parentThreadId: FieldOutputTypes['public']['Thread']['parentThreadId'];
+    pinnedAt: FieldOutputTypes['public']['Thread']['pinnedAt'];
     projectId: FieldOutputTypes['public']['Thread']['projectId'];
     repo: FieldOutputTypes['public']['Thread']['repo'];
     spawnerThreadId: FieldOutputTypes['public']['Thread']['spawnerThreadId'];
@@ -3746,6 +3748,13 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly archivedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -3809,6 +3818,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly pinnedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly projectId: {
@@ -7171,6 +7187,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly archivedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -7214,6 +7238,14 @@ type ContractBase = Omit<
               readonly parentThreadId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly pinnedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly projectId: {
                 readonly nullable: true;
@@ -7376,6 +7408,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly agentType: { readonly column: 'agentType' };
+                readonly archivedAt: { readonly column: 'archivedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly executionLocation: { readonly column: 'executionLocation' };
                 readonly forkMode: { readonly column: 'forkMode' };
@@ -7386,6 +7419,7 @@ type ContractBase = Omit<
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly organizationId: { readonly column: 'organizationId' };
                 readonly parentThreadId: { readonly column: 'parentThreadId' };
+                readonly pinnedAt: { readonly column: 'pinnedAt' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly repo: { readonly column: 'repo' };
                 readonly spawnerThreadId: { readonly column: 'spawnerThreadId' };
