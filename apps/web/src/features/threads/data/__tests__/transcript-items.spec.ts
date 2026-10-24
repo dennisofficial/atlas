@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EStepEnd, toStepId, type StepSignal } from '@dltech/atlas-client/channel'
+import { liveSteps, stepsOfSignals } from '@dltech/atlas-client/transcript'
 import { toCallId } from '@dltech/atlas-core'
 import { EToolState } from '@dltech/atlas-ui/ai/tool'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '../events-from-wire'
 import {
+  durableTranscriptOf,
   EToolFamily,
   ETranscriptKind,
   isTextStreaming,
@@ -37,11 +39,13 @@ const chunk = (body: Extract<StepSignal, { type: 'chunk' }>['chunk']): StepSigna
   stepId: step,
   chunk: body,
 })
-const viewOf = (args: { events: WireEvent[]; signals?: StepSignal[] }) =>
-  transcriptViewOf({
-    events: eventsFromWire(args.events),
-    signals: args.signals ?? [],
+const viewOf = (args: { events: WireEvent[]; signals?: StepSignal[] }) => {
+  const events = eventsFromWire(args.events)
+  return transcriptViewOf({
+    durable: durableTranscriptOf({ events }),
+    live: liveSteps({ steps: stepsOfSignals(args.signals ?? []), events }),
   })
+}
 
 describe('transcriptViewOf', () => {
   it('shows streaming text as a streaming agent item after the user message', () => {

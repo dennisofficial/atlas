@@ -1,9 +1,15 @@
 import { BOOT_STEP_EVENT_TYPE, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from './events-from-wire'
-import { ETranscriptKind, transcriptViewOf, type TranscriptItem } from './transcript-items'
+import {
+  durableTranscriptOf,
+  ETranscriptKind,
+  transcriptViewOf,
+  type TranscriptItem,
+} from './transcript-items'
 
 export {
+  durableTranscriptOf,
   ETranscriptKind,
   isTextStreaming,
   transcriptViewOf,
@@ -18,7 +24,10 @@ export const coreEventsOf = (events: readonly WireEvent[]): WireEvent[] =>
   events.filter((event) => event.type !== BOOT_STEP_EVENT_TYPE)
 
 export const transcriptOf = (events: readonly WireEvent[]): TranscriptItem[] =>
-  transcriptViewOf({ events: eventsFromWire(events), signals: [] }).items.filter(
+  transcriptViewOf({
+    durable: durableTranscriptOf({ events: eventsFromWire(events) }),
+    live: [],
+  }).items.filter(
     (item) => item.kind === ETranscriptKind.User || item.kind === ETranscriptKind.Agent,
   )
 
