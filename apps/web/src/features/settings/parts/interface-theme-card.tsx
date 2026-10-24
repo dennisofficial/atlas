@@ -1,5 +1,11 @@
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  FieldTitle,
+} from '@dltech/atlas-ui/components/field'
 import { RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
-import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { ETheme } from '../fixtures/settings-interface'
 
@@ -48,25 +54,21 @@ function ThemePreview({ theme }: { theme: ETheme }) {
   )
 }
 
-export function ThemeCard({ theme, selected }: { theme: ETheme; selected: boolean }) {
+export function ThemeCard({ theme }: { theme: ETheme }) {
   const label = THEME_LABELS[theme]
+  const id = `theme-${theme}`
   return (
-    <label
-      className={cn(
-        'flex cursor-pointer flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30',
-        selected && 'border-foreground/70 hover:border-foreground/70',
-      )}
-    >
-      <div className="h-24">
-        <ThemePreview theme={theme} />
-      </div>
-      <div className="flex items-center gap-2.5">
-        <RadioGroupItem value={theme} aria-label={label.title} />
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">{label.title}</span>
-          <span className="text-xs text-muted-foreground">{label.hint}</span>
-        </div>
-      </div>
-    </label>
+    <FieldLabel htmlFor={id}>
+      <Field orientation="horizontal">
+        <FieldContent>
+          <div className="mb-2 h-24">
+            <ThemePreview theme={theme} />
+          </div>
+          <FieldTitle>{label.title}</FieldTitle>
+          <FieldDescription>{label.hint}</FieldDescription>
+        </FieldContent>
+        <RadioGroupItem value={theme} id={id} aria-label={label.title} />
+      </Field>
+    </FieldLabel>
   )
 }

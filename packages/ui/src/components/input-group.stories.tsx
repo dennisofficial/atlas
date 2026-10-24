@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { CopyIcon, SearchIcon } from 'lucide-react'
+import { ArrowUpIcon, CopyIcon, SearchIcon } from 'lucide-react'
 
 import {
   InputGroup,
@@ -73,6 +73,31 @@ export const Textarea: Story = {
         <InputGroupText>0 / 4000</InputGroupText>
         <InputGroupButton variant="default" size="sm" className="ml-auto">
           Send
+        </InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
+  ),
+}
+
+export const ButtonSizes: Story = {
+  render: () => (
+    <InputGroup>
+      <InputGroupInput placeholder="Message" />
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton size="xs">xs</InputGroupButton>
+        <InputGroupButton size="sm">sm</InputGroupButton>
+      </InputGroupAddon>
+    </InputGroup>
+  ),
+}
+
+export const RoundButton: Story = {
+  render: () => (
+    <InputGroup>
+      <InputGroupInput placeholder="Ask Atlas" />
+      <InputGroupAddon align="inline-end">
+        <InputGroupButton aria-label="Send" variant="default" size="icon-xs" shape="round">
+          <ArrowUpIcon />
         </InputGroupButton>
       </InputGroupAddon>
     </InputGroup>

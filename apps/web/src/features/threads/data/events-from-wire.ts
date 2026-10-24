@@ -30,11 +30,26 @@ function eventOfWire(wire: WireEvent): Event | null {
   }
 }
 
-export function eventsFromWire(wire: readonly WireEvent[]): Event[] {
-  return wire
+const parsedRows = new WeakMap<WireEvent, Event | null>()
+const parsedArrays = new WeakMap<readonly WireEvent[], readonly Event[]>()
+
+function memoizedEventOfWire(row: WireEvent): Event | null {
+  const known = parsedRows.get(row)
+  if (known !== undefined) return known
+  const event = eventOfWire(row)
+  parsedRows.set(row, event)
+  return event
+}
+
+export function eventsFromWire(wire: readonly WireEvent[]): readonly Event[] {
+  const known = parsedArrays.get(wire)
+  if (known !== undefined) return known
+  const events = wire
     .flatMap((row) => {
-      const event = eventOfWire(row)
+      const event = memoizedEventOfWire(row)
       return event === null ? [] : [event]
     })
     .sort((left, right) => left.seq - right.seq)
+  parsedArrays.set(wire, events)
+  return events
 }

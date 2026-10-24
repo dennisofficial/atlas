@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowUpRightIcon, EllipsisIcon, GlobeIcon, PlugIcon, TerminalIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +43,7 @@ function ServerRow({
 }) {
   const TransportIcon = server.kind === EMcpTransportKind.Stdio ? TerminalIcon : GlobeIcon
   return (
-    <div className={cn('flex items-center gap-3 px-4 py-3', !server.enabled && 'opacity-60')}>
+    <CardRow className={cn('flex-row items-center', !server.enabled && 'opacity-60')}>
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
         <TransportIcon className="size-4" />
       </span>
@@ -73,13 +74,13 @@ function ServerRow({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </CardRow>
   )
 }
 
 function ServersEmpty() {
   return (
-    <Empty className="py-10">
+    <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <PlugIcon />

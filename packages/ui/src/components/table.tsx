@@ -3,12 +3,28 @@
 import * as React from 'react'
 import { cn } from 'cn'
 
-function Table({ className, ...props }: React.ComponentProps<'table'>) {
+function Table({
+  className,
+  variant = 'default',
+  ...props
+}: React.ComponentProps<'table'> & { variant?: 'default' | 'framed' }) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      data-slot="table-container"
+      data-variant={variant}
+      className={cn(
+        'relative w-full overflow-x-auto',
+        variant === 'framed' && 'overflow-hidden rounded-lg border bg-card',
+      )}
+    >
       <table
         data-slot="table"
-        className={cn('w-full caption-bottom text-sm', className)}
+        data-variant={variant}
+        className={cn(
+          'w-full caption-bottom text-sm',
+          variant === 'framed' && '[&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4',
+          className,
+        )}
         {...props}
       />
     </div>
@@ -16,7 +32,13 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
-  return <thead data-slot="table-header" className={cn('[&_tr]:border-b', className)} {...props} />
+  return (
+    <thead
+      data-slot="table-header"
+      className={cn('[&_tr]:border-b [&_tr]:hover:bg-transparent', className)}
+      {...props}
+    />
+  )
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {

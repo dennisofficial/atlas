@@ -10,7 +10,7 @@ import {
 
 export function UsageSandboxEmpty() {
   return (
-    <Empty className="border">
+    <Empty variant="outline">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <ServerIcon />

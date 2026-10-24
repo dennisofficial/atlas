@@ -3,8 +3,6 @@ import type { ChangeEvent, ReactNode } from 'react'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 
-import { CONTROL_CLASS } from './auth-controls'
-
 export type AuthFieldProps = {
   id: string
   label: string
@@ -59,7 +57,7 @@ export function AuthField({
         autoFocus={autoFocus}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={CONTROL_CLASS}
+        size="lg"
       />
       {error ? (
         <FieldError id={`${id}-error`}>{error}</FieldError>

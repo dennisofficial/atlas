@@ -42,7 +42,7 @@ import { projectSecretRows } from './data/project-secrets'
 import { useProjectSecrets } from './data/use-project-secrets'
 import { ESecretScope, type SecretRow } from './fixtures/project-settings'
 import { AddSecretDialog, BulkAddDialog, type SecretPair } from './secrets-dialogs'
-import { SettingsCard, SettingsSection } from './settings-layout'
+import { SettingsSection } from './settings-layout'
 
 const MASK = '••••••••••••'
 
@@ -135,14 +135,14 @@ function SecretsTable({
   onEdit: (name: string) => void
 }) {
   return (
-    <Table className="table-fixed">
+    <Table variant="framed" className="table-fixed">
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead className="w-[28%] pl-4">Name</TableHead>
+        <TableRow>
+          <TableHead className="w-[28%]">Name</TableHead>
           <TableHead className="w-[24%]">Value</TableHead>
           <TableHead className="w-[30%]">Scope</TableHead>
           <TableHead className="w-[12%]">Updated</TableHead>
-          <TableHead className="w-12 pr-4">
+          <TableHead className="w-12">
             <span className="sr-only">Actions</span>
           </TableHead>
         </TableRow>
@@ -150,9 +150,7 @@ function SecretsTable({
       <TableBody>
         {rows.map((row) => (
           <TableRow key={`${row.scope}-${row.name}`}>
-            <TableCell className="truncate pl-4 font-mono text-xs font-medium">
-              {row.name}
-            </TableCell>
+            <TableCell className="truncate font-mono text-xs font-medium">{row.name}</TableCell>
             <TableCell>
               <MaskedValue row={row} />
             </TableCell>
@@ -160,7 +158,7 @@ function SecretsTable({
               <ScopeBadge row={row} />
             </TableCell>
             <TableCell className="text-muted-foreground">{row.updated}</TableCell>
-            <TableCell className="pr-4 text-right">
+            <TableCell className="text-right">
               <RowMenu
                 row={row}
                 onDelete={() => onDelete(row.name)}
@@ -176,7 +174,7 @@ function SecretsTable({
 
 function SecretsEmpty() {
   return (
-    <Empty className="py-10">
+    <Empty variant="outline">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <KeyRoundIcon />
@@ -207,25 +205,23 @@ function SecretsContent({
   return (
     <>
       <InheritedStatus inherited={inherited} />
-      <SettingsCard>
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <h3 className="text-sm font-medium">
-            Values
-            {rows.length > 0 ? (
-              <span className="ml-2 font-mono text-xs text-muted-foreground">{rows.length}</span>
-            ) : null}
-          </h3>
-          <div className="flex items-center gap-2">
-            <BulkAddDialog onAdd={handleAdd} />
-            <AddSecretDialog onAdd={(pair) => handleAdd([pair])} />
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-medium">
+          Values
+          {rows.length > 0 ? (
+            <span className="ml-2 font-mono text-xs text-muted-foreground">{rows.length}</span>
+          ) : null}
+        </h3>
+        <div className="flex items-center gap-2">
+          <BulkAddDialog onAdd={handleAdd} />
+          <AddSecretDialog onAdd={(pair) => handleAdd([pair])} />
         </div>
-        {rows.length === 0 ? (
-          <SecretsEmpty />
-        ) : (
-          <SecretsTable rows={rows} onDelete={onRemove} onEdit={setOverriding} />
-        )}
-      </SettingsCard>
+      </div>
+      {rows.length === 0 ? (
+        <SecretsEmpty />
+      ) : (
+        <SecretsTable rows={rows} onDelete={onRemove} onEdit={setOverriding} />
+      )}
       {overriding === null ? null : (
         <AddSecretDialog
           key={overriding}

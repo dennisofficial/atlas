@@ -15,7 +15,7 @@ export const GITHUB_HINT = 'Connect GitHub from the terminal with `atlas`.'
 
 export function ConnectGithub() {
   return (
-    <Empty className="rounded-xl border border-dashed border-border py-10">
+    <Empty variant="outline">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <PlugZapIcon />

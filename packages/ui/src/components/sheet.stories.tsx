@@ -32,7 +32,7 @@ export const Default: Story = {
           <SheetTitle>Session settings</SheetTitle>
           <SheetDescription>Changes apply to the next turn.</SheetDescription>
         </SheetHeader>
-        <FieldGroup className="px-4">
+        <FieldGroup>
           <Field>
             <FieldLabel htmlFor="sheet-name">Name</FieldLabel>
             <Input id="sheet-name" defaultValue="fix flaky ws reconnect" />

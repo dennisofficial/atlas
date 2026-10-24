@@ -58,13 +58,40 @@ Inside the package, use the `imports` aliases: `#components/*`, `#lib/*`, `#hook
 
 - Owned by the shadcn CLI. Add or update with `bunx --bun shadcn@latest add <name>`; compare with
   `bunx --bun shadcn@latest add <name> --diff`. Config is `components.json`.
-- **Do not hand-edit them.** A hand-edited vendored file is a fork and breaks `add --diff`. The one
-  allowed change is a token or color class we cannot get from the variables.
+- **Do not hand-edit them.** A hand-edited vendored file is a fork and breaks `add --diff`. The
+  allowed changes are a token or color class we cannot get from the variables, and a spacing
+  guarantee or variant listed under "Deliberate forks" below.
 - They are exempt from repo house style (300-line cap, no comments, `handle` prefix, named
   parameters, `E`-enums). Everything else in this package follows it, including `src/ai`,
   `src/tokens`, and the specs.
 - Compose, don't restyle: variants via the component's own props, `className` only for layout.
+  Enforced by `src/ai/__tests__/no-chrome-overrides.spec.ts` and `apps/web/src/__tests__/no-chrome-overrides.spec.ts`, which fail on a chrome class (padding, gap, height/size, radius, border, ring, shadow, background) passed to a DS component.
 - A component is not done without a `<name>.stories.tsx` next to it.
+
+### Deliberate forks
+
+Each container owns its inset; callers never add it. `shadcn add --diff` noise on these files is
+expected.
+
+- `select.tsx`: the inset moved from the optional `SelectGroup` onto the internal `SelectPrimitive.List`, so ungrouped items are inset too. `SelectTrigger` gained `variant: 'default' | 'ghost'` (borderless, Button-ghost hover) so consumers never fake it with `border-0`.
+- `command.tsx`: `CommandGroup` lost its extra `p-1`, and items use the shared menu row (`rounded-md px-1.5 py-1 gap-1.5`), so Command rows match DropdownMenu.
+- `popover.tsx`: a popover whose direct child is a `Command` drops its own padding and gap, so consumers never pass `p-0 gap-0`.
+- `sheet.tsx`: `SheetContent` owns `p-4`; `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button.
+- `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`; `DrawerHeader`/`DrawerFooter` carry no padding.
+- `attachment.tsx`: content padding sits on the base of each size instead of behind `has-data-[slot=attachment-content]`, with the media override kept.
+- `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).
+- `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7` (it inherited Button's `h-8`); `shape: 'default' | 'round'`; `InputGroupInput` accepts Input's `size`.
+- `input-otp.tsx`: `size: 'default' | 'lg'` on `InputOTP`, read by every slot.
+- `table.tsx`: header rows never take the body hover; `Table` `variant: 'default' | 'framed'` (bordered card container, `pl-4`/`pr-4` edge cells).
+- `empty.tsx`: `variant: 'default' | 'outline'`.
+- `avatar.tsx`: `size="xs"`; `AvatarFallback` text follows the avatar size.
+- `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` gained `variant: 'default' | 'bordered'` (top `border-sidebar-border` edge) and `SidebarMenuButton` gained `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row.
+- `card.tsx`: `CardFooter` owns `gap-2` between its buttons; `variant: 'default' | 'list'` and the `CardRow` part, for divided settings lists; a table directly inside a list card gets the card's edge inset; `tone: 'default' | 'destructive'` tints the ring for danger zones.
+- `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`, so nav and tree rows never add `bg-muted` themselves.
+- `message.tsx`: `MessageHeader`/`MessageFooter` take the `px-3` bubble inset only when the message has a bubble, and the header owns `gap-2`.
+- `message-scroller.tsx`: `MessageScrollerContent` owns the transcript gutter (`px-4 py-6`).
+- `item.tsx`: `size="sm"` is smaller than default (it was identical).
+- `brand-mark.tsx`: `size: 'default' | 'sm'` (compact, borderless).
 
 ## AI patterns (`src/ai`)
 
