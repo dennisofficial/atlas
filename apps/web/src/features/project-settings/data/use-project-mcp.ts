@@ -10,7 +10,7 @@ import {
   upsertOfToggle,
   type McpRow,
 } from '@/features/settings/data/workspace/mcp-mapping'
-import { projectBase } from '@/features/settings/data/workspace/resource-api'
+import { projectOwner } from '@/features/settings/data/workspace/resource-api'
 import { useMcpResource } from '@/features/settings/data/workspace/use-mcp-resource'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
@@ -35,7 +35,7 @@ export type ProjectMcp = {
 }
 
 export function useProjectMcp(projectId: string): ProjectMcp {
-  const { query: raw, put, remove } = useMcpResource(projectBase(projectId))
+  const { query: raw, put, remove } = useMcpResource(projectOwner(projectId))
   const servers: McpServerWire[] = raw.state === EQueryState.Ready ? raw.data : []
   const query = useMemo<CloudQuery<McpRow[]>>(
     () => (raw.state === EQueryState.Ready ? { ...raw, data: raw.data.map(rowOfServer) } : raw),

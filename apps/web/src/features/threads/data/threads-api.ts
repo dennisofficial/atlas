@@ -12,8 +12,8 @@ import {
   wireEventSchema,
   wireThreadSchema,
 } from '@dltech/atlas-wire/web'
-import { projectSchema } from '@dltech/atlas-wire/web'
 
+import { api, cloudCall } from '@/lib/api-client'
 import { cloudJson, cloudSend, EHttpMethod } from '@/lib/cloud-api'
 
 import type { CreateThreadBody } from './create-thread'
@@ -22,8 +22,7 @@ const threadPath = (threadId: string) => `/v1/threads/${encodeURIComponent(threa
 
 const headSchema = z.object({ head: z.number().int() })
 
-export const fetchProjects = () =>
-  cloudJson({ method: EHttpMethod.Get, path: '/v1/projects', schema: z.array(projectSchema) })
+export const fetchProjects = () => cloudCall(api.projects.list.query())
 
 export const fetchThreads = (projectId: string) =>
   cloudJson({

@@ -6,7 +6,13 @@ import type { McpServerWire, McpUpsertWire } from '@dltech/atlas-wire/web'
 
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
-import { deleteMcpServer, listMcpServers, putMcpServer } from './resource-api'
+import {
+  deleteMcpServer,
+  listMcpServers,
+  ownerKeyOf,
+  putMcpServer,
+  type ResourceOwner,
+} from './resource-api'
 
 export type McpResource = {
   query: CloudQuery<McpServerWire[]>
@@ -14,23 +20,24 @@ export type McpResource = {
   remove: (name: string) => Promise<void>
 }
 
-export function useMcpResource(base: string): McpResource {
-  const load = useCallback(() => listMcpServers(base), [base])
-  const query = useCloudQuery({ key: `mcp:${base}`, load })
+export function useMcpResource(owner: ResourceOwner): McpResource {
+  const ownerKey = ownerKeyOf(owner)
+  const load = useCallback(() => listMcpServers(owner), [ownerKey])
+  const query = useCloudQuery({ key: `mcp:${ownerKey}`, load })
   const { reload } = query
   const put = useCallback(
     async (args: { name: string; spec: McpUpsertWire }) => {
-      await putMcpServer({ base, ...args })
+      await putMcpServer({ owner, ...args })
       reload()
     },
-    [base, reload],
+    [ownerKey, reload],
   )
   const remove = useCallback(
     async (name: string) => {
-      await deleteMcpServer({ base, name })
+      await deleteMcpServer({ owner, name })
       reload()
     },
-    [base, reload],
+    [ownerKey, reload],
   )
   return { query, put, remove }
 }
