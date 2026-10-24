@@ -28,7 +28,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   )
   const [draft, setDraft] = useState('')
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
-  const picker = useModelPicker({ includeAuto: true })
+  const picker = useModelPicker()
   const selection =
     chosen ??
     defaultSelectionOf({

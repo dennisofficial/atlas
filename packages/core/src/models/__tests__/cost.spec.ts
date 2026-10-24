@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { estimateCostUsd } from '../cost'
+import { estimateCostUsd, outputPriceLabel } from '../cost'
 
 const COST = { inputPerMillion: 3, outputPerMillion: 15 }
 
@@ -73,5 +73,16 @@ describe('what a turn cost', () => {
 
   it('costs nothing when nothing was spent', () => {
     expect(estimateCostUsd({ spend: spendOf({ inputTokens: 0 }), cost: COST })).toBe(0)
+  })
+})
+
+describe('the output price label', () => {
+  it('spells the output price per million to the cent', () => {
+    expect(outputPriceLabel({ inputPerMillion: 1, outputPerMillion: 5 })).toBe('$5.00/M')
+    expect(outputPriceLabel({ inputPerMillion: 1, outputPerMillion: 0.8 })).toBe('$0.80/M')
+  })
+
+  it('says nothing when the cost is unknown', () => {
+    expect(outputPriceLabel(undefined)).toBeUndefined()
   })
 })

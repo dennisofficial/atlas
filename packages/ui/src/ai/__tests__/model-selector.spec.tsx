@@ -130,7 +130,6 @@ describe('modelSelectorGroups', () => {
 
     expect(groups).toEqual({
       state: EModelSelectorState.NoMatches,
-      auto: undefined,
       pinned: [],
       providers: [],
       showManageProviders: false,
@@ -197,9 +196,8 @@ describe('modelSelectorGroups at scale', () => {
   })
 })
 
-describe('modelSelectorGroups auto, filters and fuzzy search', () => {
+describe('modelSelectorGroups filters and fuzzy search', () => {
   const rich: ModelOption[] = [
-    { id: 'auto', label: 'Claude Opus 4.7', provider: 'Automatic', auto: true, route: 'Max' },
     {
       id: 'anthropic/claude-opus-4-7',
       label: 'Claude Opus 4.7',
@@ -225,22 +223,20 @@ describe('modelSelectorGroups auto, filters and fuzzy search', () => {
     },
   ]
 
-  it('lifts the auto option out of the provider groups', () => {
+  it('groups by provider and highlights the first model', () => {
     const groups = modelSelectorGroups({ models: rich })
 
-    expect(groups.auto?.id).toBe('auto')
     expect(groups.providers.map((group) => group.provider)).toEqual([
       'Claude Max',
       'OpenRouter',
       'Inference.net',
     ])
-    expect(firstItemValue(groups)).toBe('auto')
+    expect(firstItemValue(groups)).toBe('anthropic/claude-opus-4-7')
   })
 
-  it('hides auto while a filter is active', () => {
+  it('keeps only models that pass the active filter', () => {
     const groups = modelSelectorGroups({ models: rich, filters: [EModelFilter.Images] })
 
-    expect(groups.auto).toBeUndefined()
     expect(summary(groups.providers)).toEqual([
       { provider: 'Claude Max', ids: ['anthropic/claude-opus-4-7'] },
     ])
@@ -327,17 +323,14 @@ describe('ModelSelector', () => {
     expect(html).toContain('Claude Sonnet 5')
   })
 
-  it('shows the provider mark, the route and the Auto prefix on the trigger', () => {
+  it('shows the label and the route on the trigger', () => {
     const html = renderToStaticMarkup(
       <ModelSelector
-        models={[
-          { id: 'auto', label: 'Claude Opus 4.7', provider: 'Automatic', auto: true, route: 'Max' },
-        ]}
-        value="auto"
+        models={[{ id: 'opus', label: 'Claude Opus 4.7', provider: 'Anthropic', route: 'Max' }]}
+        value="opus"
       />,
     )
 
-    expect(html).toContain('Auto')
     expect(html).toContain('Claude Opus 4.7')
     expect(html).toContain('Max')
   })

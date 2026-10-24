@@ -18,34 +18,24 @@ const CATALOGUE: ModelOption[] = MODEL_CATALOGUE
 
 const SCALE_ROUTES = ['Anthropic', 'OpenAI', 'OpenRouter', 'Inference.net', 'AI Gateway']
 
-const SCALE_MODELS: ModelOption[] = [
-  {
-    id: 'auto',
-    label: 'Claude Opus 4.7',
-    provider: 'Automatic',
-    auto: true,
-    route: 'Max',
-    efforts: [EEffort.Low, EEffort.Medium, EEffort.High, EEffort.XHigh, EEffort.Max],
-  },
-  ...SCALE_ROUTES.flatMap((route) =>
-    CATALOGUE_MODELS.flatMap((model) =>
-      model.rows
-        .filter((row) => PROVIDER_LABELS[row.provider] === route)
-        .map((row) => ({
-          id: row.ref,
-          label: row.label,
-          provider: route,
-          context: contextLabel(row.contextWindow),
-          contextTokens: row.contextWindow,
-          rate: priceLabel(row.cost),
-          images: row.images,
-          efforts: row.efforts,
-          brand: familyMark(model.vendor).brand,
-          monogram: familyMark(model.vendor).monogram,
-        })),
-    ),
+const SCALE_MODELS: ModelOption[] = SCALE_ROUTES.flatMap((route) =>
+  CATALOGUE_MODELS.flatMap((model) =>
+    model.rows
+      .filter((row) => PROVIDER_LABELS[row.provider] === route)
+      .map((row) => ({
+        id: row.ref,
+        label: row.label,
+        provider: route,
+        context: contextLabel(row.contextWindow),
+        contextTokens: row.contextWindow,
+        rate: priceLabel(row.cost),
+        images: row.images,
+        efforts: row.efforts,
+        brand: familyMark(model.vendor).brand,
+        monogram: familyMark(model.vendor).monogram,
+      })),
   ),
-]
+)
 
 const RECONNECT_PROVIDERS = ['OpenRouter']
 
@@ -125,9 +115,13 @@ function CatalogueDemo({
   )
 }
 
-export const ModelOnly: Story = { render: () => <SelectorDemo withEffort={false} /> }
+export const ModelOnly: Story = {
+  render: () => <SelectorDemo withEffort={false} />,
+}
 
-export const ModelAndEffort: Story = { render: () => <SelectorDemo withEffort /> }
+export const ModelAndEffort: Story = {
+  render: () => <SelectorDemo withEffort />,
+}
 
 export const FullCatalogue: Story = {
   render: () => (
@@ -196,6 +190,8 @@ function ScaleDemo({ defaultOpen }: { defaultOpen: boolean }) {
   )
 }
 
-export const AtScale: Story = { render: () => <ScaleDemo defaultOpen={false} /> }
+export const AtScale: Story = {
+  render: () => <ScaleDemo defaultOpen={false} />,
+}
 
 export const AtScaleOpen: Story = { render: () => <ScaleDemo defaultOpen /> }

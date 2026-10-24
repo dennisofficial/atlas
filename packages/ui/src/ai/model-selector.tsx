@@ -102,7 +102,7 @@ export function ModelSelector({
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<EModelFilter[]>([])
   const [expanded, setExpanded] = useState<string[]>([])
-  const [highlighted, setHighlighted] = useState(current?.id ?? '')
+  const [highlighted, setHighlighted] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const canManageProviders = onManageProviders !== undefined
@@ -137,15 +137,11 @@ export function ModelSelector({
     setQuery('')
     setFilters([])
     setExpanded([])
-    if (next)
-      setHighlighted(
-        current?.id ?? firstItemValue(groupsFor({ nextQuery: '', nextFilters: [] })) ?? '',
-      )
+    if (next) setHighlighted(firstItemValue(groupsFor({ nextQuery: '', nextFilters: [] })) ?? '')
   }
   const handleQueryChange = (next: string) => {
     setQuery(next)
-    const first = firstItemValue(groupsFor({ nextQuery: next, nextFilters: filters })) ?? ''
-    setHighlighted(next.trim().length === 0 ? (current?.id ?? first) : first)
+    setHighlighted(firstItemValue(groupsFor({ nextQuery: next, nextFilters: filters })) ?? '')
   }
   const handleFilterToggle = (filter: EModelFilter) => {
     const next = filters.includes(filter)
@@ -228,9 +224,6 @@ export function ModelSelector({
                   <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">
                     No models match{query.trim() ? ` “${query.trim()}”` : ' these filters'}
                   </p>
-                ) : null}
-                {groups.auto ? (
-                  <CommandGroup heading="Auto">{renderRow(groups.auto, false)}</CommandGroup>
                 ) : null}
                 {groups.pinned.length > 0 ? (
                   <CommandGroup heading="Pinned">

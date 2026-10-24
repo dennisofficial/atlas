@@ -39,22 +39,13 @@ export function ProviderMark({ model }: { model: ModelOption }) {
   )
 }
 
-export function ModelName({ model }: { model: ModelOption }) {
-  return (
-    <>
-      {model.auto ? <span className="text-muted-foreground">Auto · </span> : null}
-      {model.label}
-    </>
-  )
-}
-
 export function TriggerLabel({ model }: { model: ModelOption | undefined }) {
   if (!model) return <>No model</>
   return (
     <>
       <ProviderMark model={model} />
       <span className="min-w-0 truncate">
-        <ModelName model={model} />
+        {model.label}
         {model.route ? <span className="text-muted-foreground"> · {model.route}</span> : null}
       </span>
     </>
@@ -97,14 +88,14 @@ export function ModelRow({
     <CommandItem value={model.id} data-checked={checked} onSelect={handleSelect} className="h-8">
       <ProviderMark model={model} />
       <span className="min-w-0 flex-1 truncate" title={model.label}>
-        <ModelName model={model} />
+        {model.label}
       </span>
       <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
         {showRoute && model.route ? <span>{model.route}</span> : null}
         {model.context ? <span className="w-9 text-right">{model.context}</span> : null}
         {showRate && model.rate ? <span className="min-w-16 text-right">{model.rate}</span> : null}
       </span>
-      {canPin && !model.auto ? (
+      {canPin ? (
         <button
           type="button"
           aria-label={pinned ? `Unpin ${model.label}` : `Pin ${model.label}`}

@@ -41,3 +41,7 @@ export function estimateCostUsd(args: { spend: TokenSpend; cost: ModelCost }): n
 
   return dollars / PER_MILLION
 }
+
+export function outputPriceLabel(cost: ModelCost | undefined): string | undefined {
+  return cost === undefined ? undefined : `$${cost.outputPerMillion.toFixed(2)}/M`
+}

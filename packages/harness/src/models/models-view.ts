@@ -22,6 +22,7 @@ export type ModelsViewModel = {
   imageTier: string
   efforts: string[]
   inputPerMillion?: number
+  outputPerMillion?: number
 }
 
 export type ModelsViewProvider = {
@@ -52,7 +53,12 @@ const toModel = (card: ModelCard): ModelsViewModel => ({
   contextWindow: card.contextWindow,
   imageTier: card.imageTier,
   efforts: [...supportedEfforts(card.effort)],
-  ...(card.cost === undefined ? {} : { inputPerMillion: card.cost.inputPerMillion }),
+  ...(card.cost === undefined
+    ? {}
+    : {
+        inputPerMillion: card.cost.inputPerMillion,
+        outputPerMillion: card.cost.outputPerMillion,
+      }),
 })
 
 export function modelsView(args: {
