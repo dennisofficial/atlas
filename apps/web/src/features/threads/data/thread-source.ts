@@ -2,7 +2,7 @@ import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { CallId, ModelUsage } from '@dltech/atlas-core'
 import type { PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
 
-import type { ThreadEvents } from './events-poller'
+import type { PolledThreadEvents } from './use-thread-events'
 import type {
   LiveChooseModel,
   LiveSend,
@@ -23,15 +23,20 @@ export type ThreadSource = {
   pending: readonly PendingEntryWire[]
   reported: ModelUsage | null
   takeBackPending: LiveTakeBackPending
+  refreshEvents: () => void
 }
 
 const NO_STEPS: InFlightStep[] = []
 const NO_PENDING: readonly PendingEntryWire[] = []
 const NO_OUTPUTS: ReadonlyMap<CallId, string> = new Map()
+const STREAMED = () => undefined
 
 export const pollingEnabledFor = (live: LiveThreadView): boolean => !live.live
 
-export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvents }): ThreadSource {
+export function threadSourceOf(args: {
+  live: LiveThreadView
+  polled: PolledThreadEvents
+}): ThreadSource {
   const { live, polled } = args
   if (live.live) {
     return {
@@ -47,10 +52,13 @@ export function threadSourceOf(args: { live: LiveThreadView; polled: ThreadEvent
       pending: live.pending,
       reported: live.reported,
       takeBackPending: live.takeBackPending,
+      refreshEvents: STREAMED,
     }
   }
+  const { poke, ...events } = polled
   return {
-    ...polled,
+    ...events,
+    refreshEvents: poke,
     steps: NO_STEPS,
     outputs: NO_OUTPUTS,
     working: false,
