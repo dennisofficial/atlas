@@ -1,5 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import type { EventDraftInput } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import {
@@ -11,17 +12,16 @@ import {
   USER_A,
   USER_B,
 } from '../../../../test/session-seed'
-import type { EventDraftDto } from './sessions.dto'
 import { EventsService } from './events.service'
 
 const allEvents = () => db.orm.public.Event.all()
 
-const draft = (type: string, body: Record<string, unknown> = {}): EventDraftDto => ({
+const draft = (type: string, body: Record<string, unknown> = {}): EventDraftInput => ({
   type,
   body: JSON.stringify({ type, ...body }),
 })
 
-const contextDraft = (slot: string, key: string, digest: string): EventDraftDto => ({
+const contextDraft = (slot: string, key: string, digest: string): EventDraftInput => ({
   type: 'context-loaded',
   body: JSON.stringify({ type: 'context-loaded', slot, key, content: digest }),
   contextSlot: slot,

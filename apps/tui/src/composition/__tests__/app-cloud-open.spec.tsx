@@ -40,7 +40,7 @@ const speaking = (): FakeApp =>
         new SessionsClient({
           url: session.url,
           token: session.token,
-          fetchFn: (async () => Response.json([])) as unknown as typeof fetch,
+          fetchFn: (async () => Response.json({ result: { data: [] } })) as unknown as typeof fetch,
         }),
     }),
   })

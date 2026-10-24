@@ -48,7 +48,7 @@ describe('progressive local and cloud listing', () => {
 
     expect((await published.promise).map((row) => row.title)).toContain('local')
     expect(finished).toBe(false)
-    response.resolve(Response.json([]))
+    response.resolve(Response.json({ result: { data: [] } }))
     expect((await listing).map((row) => row.id)).toContain(thread.id)
   })
 
@@ -65,7 +65,7 @@ describe('progressive local and cloud listing', () => {
             fetchFn: Object.assign(
               async () => {
                 requested.resolve()
-                return Response.json([])
+                return Response.json({ result: { data: [] } })
               },
               { preconnect: fetch.preconnect },
             ),
@@ -83,7 +83,7 @@ describe('progressive local and cloud listing', () => {
     const localReady = deferred<readonly ThreadSummary[]>()
     const app = fakeApp({
       model: unusedModel(),
-      cloud: cloudWithResponse(Promise.resolve(Response.json([]))),
+      cloud: cloudWithResponse(Promise.resolve(Response.json({ result: { data: [] } }))),
     })
     app.threads.list = async () => localReady.promise
     const emissions: (readonly ThreadSummary[])[] = []
@@ -114,7 +114,11 @@ describe('progressive local and cloud listing', () => {
     const app = fakeApp({ model: unusedModel(), cloud: cloudWithResponse(response.promise) })
     const local = await app.threads.create({ workspace: app.config.cwd, title: 'local wins' })
     response.resolve(
-      Response.json([{ ...local, title: 'remote', executionLocation: EExecutionLocation.Cloud }]),
+      Response.json({
+        result: {
+          data: [{ ...local, title: 'remote', executionLocation: EExecutionLocation.Cloud }],
+        },
+      }),
     )
     const rows = await cloudListing(app).list({ project: app.config.cwd })
     expect(rows).toHaveLength(1)
