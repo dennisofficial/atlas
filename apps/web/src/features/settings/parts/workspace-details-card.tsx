@@ -52,7 +52,7 @@ export function WorkspaceDetailsCard({ details }: { details: WorkspaceDetails })
           control={
             <span className="flex items-center gap-2 text-sm">
               <Avatar size="sm">
-                <AvatarFallback className="text-[10px]">{details.ownerInitials}</AvatarFallback>
+                <AvatarFallback>{details.ownerInitials}</AvatarFallback>
               </Avatar>
               {details.ownerName}
             </span>

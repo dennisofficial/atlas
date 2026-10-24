@@ -63,6 +63,8 @@ const renderVariantItem: Story['render'] = (args) => (
   </Item>
 )
 
+export const Small: Story = { args: { size: 'sm' }, render: renderVariantItem }
+
 export const DefaultVariant: Story = { args: { variant: 'default' }, render: renderVariantItem }
 
 export const Muted: Story = { args: { variant: 'muted' }, render: renderVariantItem }

@@ -28,14 +28,12 @@ export function NotifyMatrixTable({
   return (
     <Table>
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
-          <TableHead className="h-9 px-4 text-xs font-normal text-muted-foreground">
-            Event
-          </TableHead>
+        <TableRow>
+          <TableHead className="text-xs font-normal text-muted-foreground">Event</TableHead>
           {COLUMNS.map((column) => (
             <TableHead
               key={column.channel}
-              className="h-9 w-20 px-4 text-center text-xs font-normal text-muted-foreground"
+              className="w-20 text-center text-xs font-normal text-muted-foreground"
             >
               {column.label}
             </TableHead>
@@ -45,14 +43,14 @@ export function NotifyMatrixTable({
       <TableBody>
         {NOTIFY_EVENTS.map((event) => (
           <TableRow key={event.id}>
-            <TableCell className="px-4 py-3">
+            <TableCell>
               <div className="flex flex-col gap-0.5">
                 <span className="font-medium">{event.title}</span>
                 <span className="text-xs text-muted-foreground">{event.description}</span>
               </div>
             </TableCell>
             {COLUMNS.map((column) => (
-              <TableCell key={column.channel} className="px-4 py-3">
+              <TableCell key={column.channel}>
                 <div className="flex justify-center">
                   <Checkbox
                     checked={matrix[event.id]?.[column.channel] ?? false}

@@ -10,8 +10,6 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { GoogleLogo } from './google-logo'
 
-export const CONTROL_CLASS = 'h-10'
-
 const LINK_CLASS =
   'rounded-sm font-medium text-link underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50'
 
@@ -35,7 +33,8 @@ export function LinkButton({
   return (
     <Button
       variant={variant}
-      className={cn(CONTROL_CLASS, 'w-full')}
+      size="lg"
+      className="w-full"
       nativeButton={false}
       render={<Link href={href} />}
     >
@@ -59,7 +58,8 @@ export function GoogleButton({
     <Button
       type="button"
       variant="outline"
-      className={cn(CONTROL_CLASS, 'w-full gap-2')}
+      size="lg"
+      className="w-full"
       disabled={disabled || busy}
       onClick={onPress}
     >
@@ -98,7 +98,7 @@ export function SubmitButton({
   children: ReactNode
 }) {
   return (
-    <Button type="submit" className={cn(CONTROL_CLASS, 'w-full')} disabled={busy || disabled}>
+    <Button type="submit" size="lg" className="w-full" disabled={busy || disabled}>
       {busy && <Spinner data-icon="inline-start" />}
       {children}
     </Button>

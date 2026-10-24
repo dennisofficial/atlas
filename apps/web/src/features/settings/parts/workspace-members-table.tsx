@@ -45,7 +45,7 @@ export function WorkspaceMembersToolbar({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <InputGroup className="h-8 flex-1">
+      <InputGroup className="flex-1">
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>
@@ -83,38 +83,36 @@ export function WorkspaceMembersTable({
   onRemove: (id: string) => void
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="h-9 pl-4 text-xs">Member</TableHead>
-            <TableHead className="h-9 text-xs">Role</TableHead>
-            <TableHead className="h-9 text-xs">Joined</TableHead>
-            <TableHead className="h-9 text-xs">Last active</TableHead>
-            <TableHead className="h-9 w-10" />
+    <Table variant="framed">
+      <TableHeader>
+        <TableRow>
+          <TableHead className="text-xs">Member</TableHead>
+          <TableHead className="text-xs">Role</TableHead>
+          <TableHead className="text-xs">Joined</TableHead>
+          <TableHead className="text-xs">Last active</TableHead>
+          <TableHead className="w-10" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {members.map((member) => (
+          <WorkspaceMemberRow
+            key={member.id}
+            member={member}
+            workspaceName={workspaceName}
+            canEdit={canEdit}
+            isSelf={member.userId === currentUserId}
+            onRoleChange={(role) => onRoleChange({ id: member.id, role })}
+            onRemove={() => onRemove(member.id)}
+          />
+        ))}
+        {members.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+              No members match your filters.
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {members.map((member) => (
-            <WorkspaceMemberRow
-              key={member.id}
-              member={member}
-              workspaceName={workspaceName}
-              canEdit={canEdit}
-              isSelf={member.userId === currentUserId}
-              onRoleChange={(role) => onRoleChange({ id: member.id, role })}
-              onRemove={() => onRemove(member.id)}
-            />
-          ))}
-          {members.length === 0 ? (
-            <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                No members match your filters.
-              </TableCell>
-            </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
-    </div>
+        ) : null}
+      </TableBody>
+    </Table>
   )
 }

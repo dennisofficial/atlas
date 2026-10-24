@@ -91,7 +91,7 @@ export function SecretsView({
         }
       >
         {secrets.length === 0 ? (
-          <Empty className="border">
+          <Empty variant="outline">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <KeyRoundIcon />

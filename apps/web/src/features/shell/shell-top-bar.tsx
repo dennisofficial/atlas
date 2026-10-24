@@ -7,7 +7,7 @@ import { SidebarHeader } from '@dltech/atlas-ui/components/sidebar'
 
 export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
   return (
-    <SidebarHeader className="flex-row items-center gap-1.5 p-2 group-data-[collapsible=icon]:flex-col">
+    <SidebarHeader className="flex-row items-center group-data-[collapsible=icon]:flex-col">
       <button
         type="button"
         onClick={onSearch}
@@ -19,11 +19,11 @@ export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
         <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd>
       </button>
       <Button
-        size="icon-xs"
+        size="icon-sm"
         aria-label="New thread"
         nativeButton={false}
         render={<Link href="/threads/new" />}
-        className="size-7 shrink-0 rounded-md"
+        className="shrink-0"
       >
         <Plus />
       </Button>

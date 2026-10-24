@@ -5,24 +5,36 @@ import { cn } from 'cn'
 import { OTPInput, OTPInputContext } from 'input-otp'
 import { MinusIcon } from 'lucide-react'
 
+type InputOTPSize = 'default' | 'lg'
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+
+const InputOTPSizeContext = React.createContext<InputOTPSize>('default')
+
 function InputOTP({
   className,
   containerClassName,
+  size = 'default',
   ...props
-}: React.ComponentProps<typeof OTPInput> & {
+}: DistributiveOmit<React.ComponentProps<typeof OTPInput>, 'size'> & {
   containerClassName?: string
+  size?: InputOTPSize
 }) {
   return (
-    <OTPInput
-      data-slot="input-otp"
-      containerClassName={cn(
-        'cn-input-otp flex items-center has-disabled:opacity-50',
-        containerClassName,
-      )}
-      spellCheck={false}
-      className={cn('disabled:cursor-not-allowed', className)}
-      {...props}
-    />
+    <InputOTPSizeContext.Provider value={size}>
+      <OTPInput
+        data-slot="input-otp"
+        data-size={size}
+        containerClassName={cn(
+          'cn-input-otp flex items-center has-disabled:opacity-50',
+          size === 'lg' && 'gap-2',
+          containerClassName,
+        )}
+        spellCheck={false}
+        className={cn('disabled:cursor-not-allowed', className)}
+        {...props}
+      />
+    </InputOTPSizeContext.Provider>
   )
 }
 
@@ -47,14 +59,16 @@ function InputOTPSlot({
   index: number
 }) {
   const inputOTPContext = React.useContext(OTPInputContext)
+  const size = React.useContext(InputOTPSizeContext)
   const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {}
 
   return (
     <div
       data-slot="input-otp-slot"
       data-active={isActive}
+      data-size={size}
       className={cn(
-        'relative flex size-8 items-center justify-center border-y border-r border-input text-sm transition-all outline-none first:rounded-l-lg first:border-l last:rounded-r-lg aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20 dark:bg-input/30 dark:data-[active=true]:aria-invalid:ring-destructive/40',
+        'relative flex size-8 items-center justify-center border-y border-r border-input text-sm transition-all outline-none first:rounded-l-lg data-[size=lg]:h-11 data-[size=lg]:w-9 data-[size=lg]:text-lg data-[size=lg]:font-medium sm:data-[size=lg]:w-10 first:border-l last:rounded-r-lg aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20 dark:bg-input/30 dark:data-[active=true]:aria-invalid:ring-destructive/40',
         className,
       )}
       {...props}

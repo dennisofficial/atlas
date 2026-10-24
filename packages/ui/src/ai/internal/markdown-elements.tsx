@@ -67,11 +67,7 @@ function MarkdownLink({
 }
 
 function MarkdownTable({ node: _node, className, ...props }: ComponentProps<'table'> & ExtraProps) {
-  return (
-    <div className="overflow-hidden rounded-lg border">
-      <Table className={className} {...props} />
-    </div>
-  )
+  return <Table variant="framed" className={className} {...props} />
 }
 
 function MarkdownTableHeader({ node: _node, ...props }: ComponentProps<'thead'> & ExtraProps) {
@@ -91,7 +87,7 @@ function MarkdownTableHead({
   className,
   ...props
 }: ComponentProps<'th'> & ExtraProps) {
-  return <TableHead className={cn('bg-muted/50 whitespace-normal', className)} {...props} />
+  return <TableHead className={cn('whitespace-normal', className)} {...props} />
 }
 
 function MarkdownTableCell({

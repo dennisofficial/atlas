@@ -27,8 +27,7 @@ import {
 } from '../model-selector-groups'
 
 export function ProviderMark({ model }: { model: ModelOption }) {
-  if (model.brand)
-    return <BrandMark brand={model.brand} className="size-5 border-0 bg-transparent" />
+  if (model.brand) return <BrandMark brand={model.brand} size="sm" />
   return (
     <span
       aria-hidden
@@ -91,7 +90,7 @@ export function ModelRow({
   }
 
   return (
-    <CommandItem value={model.id} data-checked={checked} onSelect={handleSelect} className="h-8">
+    <CommandItem value={model.id} data-checked={checked} onSelect={handleSelect}>
       <ProviderMark model={model} />
       <span className="min-w-0 flex-1 truncate" title={model.label}>
         {model.label}
@@ -138,7 +137,7 @@ export function ShowAllRow({
       value={showAllItemValue(provider)}
       onSelect={handleSelect}
       aria-label={`Show all ${total} ${provider} models`}
-      className="h-8 text-muted-foreground"
+      className="text-muted-foreground"
     >
       <span className="size-5 shrink-0" aria-hidden />
       Show all {total}
@@ -167,7 +166,6 @@ export function FilterChips({
           variant="outline"
           pressed={active.includes(filter)}
           onPressedChange={() => onToggle(filter)}
-          className="h-6 min-w-0 px-2 text-xs"
         >
           {MODEL_FILTER_LABELS[filter]}
         </Toggle>
@@ -191,7 +189,6 @@ export function ReconnectRow({
       value={reconnectItemValue(provider)}
       onSelect={handleSelect}
       aria-label={`${provider}: ${note ?? 'sign-in expired'}. Reconnect`}
-      className="h-8"
     >
       <TriangleAlertIcon className="size-3.5 text-warning/80" />
       <span className="min-w-0 flex-1 truncate text-muted-foreground">

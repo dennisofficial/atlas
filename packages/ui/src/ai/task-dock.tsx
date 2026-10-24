@@ -66,9 +66,7 @@ export function dockStatus(steps: PlanStep[]): EStepStatus {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-      {children}
-    </p>
+    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{children}</p>
   )
 }
 
@@ -82,7 +80,7 @@ function QueuedRow({
   const handleRemove = () => onRemove?.(message.id)
 
   return (
-    <li className="flex items-center gap-2 rounded-md px-1 text-sm">
+    <li className="flex items-center gap-2 text-sm">
       <span className="min-w-0 flex-1 truncate text-foreground">{message.text}</span>
       {message.removable === false ? null : (
         <Button
@@ -140,7 +138,7 @@ function DockBody({
       {steps.length > 0 ? (
         <section className="flex flex-col gap-2">
           <SectionLabel>Plan</SectionLabel>
-          <Trace className="px-1">
+          <Trace>
             {steps.map((step) => (
               <StepLine
                 key={step.id}
@@ -193,9 +191,7 @@ export function TaskDock({
         <DockBody steps={steps} queued={queued} onRemoveQueued={onRemoveQueued} />
       </CollapsibleContent>
       <Strip steps={steps} queued={queued} />
-      {total > 0 ? (
-        <Progress value={(done / total) * 100} aria-label="Plan progress" className="gap-0" />
-      ) : null}
+      {total > 0 ? <Progress value={(done / total) * 100} aria-label="Plan progress" /> : null}
     </Collapsible>
   )
 }

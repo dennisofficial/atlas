@@ -139,7 +139,7 @@ function DrawerContent({ className, children, ...props }: DrawerPrimitive.Popup.
           <DrawerPrimitive.Content
             data-slot="drawer-content"
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden overscroll-contain rounded-[inherit] transition-opacity duration-300 ease-[cubic-bezier(0.45,1.005,0,1.005)] select-text group-data-nested-drawer-open/drawer-popup:opacity-0 group-data-nested-drawer-swiping/drawer-popup:opacity-100 group-data-swiping/drawer-popup:select-none',
+              'flex min-h-0 flex-1 flex-col gap-4 overflow-hidden overscroll-contain rounded-[inherit] p-4 transition-opacity duration-300 ease-[cubic-bezier(0.45,1.005,0,1.005)] select-text group-data-nested-drawer-open/drawer-popup:opacity-0 group-data-nested-drawer-swiping/drawer-popup:opacity-100 group-data-swiping/drawer-popup:select-none',
             )}
           >
             {children}
@@ -155,7 +155,7 @@ function DrawerHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="drawer-header"
       className={cn(
-        'flex shrink-0 flex-col gap-0.5 p-4 pb-0 group-data-[swipe-axis=y]/drawer-popup:text-center md:gap-0.5 md:text-left',
+        'flex shrink-0 flex-col gap-0.5 group-data-[swipe-axis=y]/drawer-popup:text-center md:gap-0.5 md:text-left',
         className,
       )}
       {...props}
@@ -167,7 +167,7 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="drawer-footer"
-      className={cn('mt-auto flex shrink-0 flex-col gap-2 p-4 pt-0', className)}
+      className={cn('mt-auto flex shrink-0 flex-col gap-2', className)}
       {...props}
     />
   )

@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
+import { CardRow } from '@dltech/atlas-ui/components/card'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
@@ -78,7 +79,7 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
           </div>
         }
       >
-        <div className="flex items-start justify-between gap-4 px-4 py-3.5">
+        <CardRow className="flex-row items-start justify-between">
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="font-mono text-sm font-medium">Global ATLAS.md</h2>
             <p className="text-sm text-muted-foreground">
@@ -94,17 +95,17 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </Button>
-        </div>
-        <div className="p-4">
+        </CardRow>
+        <CardRow>
           <Textarea
             aria-label="Global ATLAS.md"
             spellCheck={false}
             placeholder="Machine-wide rules for every repository."
-            className="field-sizing-fixed h-96 resize-y font-mono text-xs leading-relaxed"
+            className="field-sizing-fixed min-h-96 resize-y font-mono text-xs leading-relaxed"
             value={draft.value}
             onChange={(event) => draft.setValue(event.target.value)}
           />
-        </div>
+        </CardRow>
       </SettingsCard>
     </SettingsPage>
   )

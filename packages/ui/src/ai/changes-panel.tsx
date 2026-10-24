@@ -191,8 +191,9 @@ function ScopeSwitcher({ scopes, scope, onScopeChange }: ScopeSwitcherProps) {
     <Select items={items} value={scope} onValueChange={handleValueChange}>
       <SelectTrigger
         size="sm"
+        variant="ghost"
         aria-label="Change scope"
-        className="w-full min-w-0 border-transparent text-xs text-muted-foreground"
+        className="w-full min-w-0 text-xs text-muted-foreground"
       >
         <SelectValue />
       </SelectTrigger>

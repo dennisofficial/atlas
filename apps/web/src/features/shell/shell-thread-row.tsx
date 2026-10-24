@@ -39,7 +39,7 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           isActive={active}
           size="sm"
           render={<Link href={`/threads/${encodeURIComponent(thread.id)}`} />}
-          className="h-7 min-w-0 flex-1 text-sm hover:bg-transparent data-active:bg-transparent"
+          className="min-w-0 flex-1 text-sm"
         >
           <ThreadStatusIcon status={threadStatusOf(thread)} />
           <span>{thread.title ?? UNTITLED}</span>

@@ -39,7 +39,7 @@ export function PageStatusCard({
   if (status === EPageStatus.Live) return null
   const { title, body, icon: Icon } = STATUS_COPY[status]
   return (
-    <Alert role="status" data-status={status} className="bg-muted/30">
+    <Alert role="status" data-status={status}>
       <Icon />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>

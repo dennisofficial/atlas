@@ -140,7 +140,7 @@ function GeneralForm({
                   </InputGroupAddon>
                   <InputGroupInput
                     aria-label="Workspace slug"
-                    className="pl-0.5! font-mono text-xs md:text-xs"
+                    className="font-mono text-xs md:text-xs"
                     value={draft.slug}
                     onChange={(event) => handleChange({ slug: sanitizeSlug(event.target.value) })}
                   />

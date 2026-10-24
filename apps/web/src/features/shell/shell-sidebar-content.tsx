@@ -15,10 +15,12 @@ const SKELETON_ROWS = ['one', 'two', 'three', 'four', 'five']
 
 function ThreadsSkeleton() {
   return (
-    <SidebarGroup role="status" aria-label="Loading threads" className="gap-2 px-2 py-2">
-      {SKELETON_ROWS.map((row) => (
-        <Skeleton key={row} className="h-7 w-full" />
-      ))}
+    <SidebarGroup role="status" aria-label="Loading threads">
+      <div className="flex flex-col gap-2">
+        {SKELETON_ROWS.map((row) => (
+          <Skeleton key={row} className="h-7 w-full" />
+        ))}
+      </div>
     </SidebarGroup>
   )
 }
@@ -39,7 +41,7 @@ export function ShellSidebarContent({
   if (query.state === EQueryState.Loading) return <ThreadsSkeleton />
   if (query.state === EQueryState.Failed) {
     return (
-      <SidebarGroup className="px-2 py-2">
+      <SidebarGroup>
         <LoadFailed label="threads" message={query.error.message} onRetry={query.reload} />
       </SidebarGroup>
     )

@@ -102,12 +102,8 @@ export function AddMcpServerDialog({
             value={[transport]}
             onValueChange={handleTransportChange}
           >
-            <ToggleGroupItem value={EMcpTransport.Stdio} className="px-3">
-              Command (stdio)
-            </ToggleGroupItem>
-            <ToggleGroupItem value={EMcpTransport.Http} className="px-3">
-              Remote (HTTP)
-            </ToggleGroupItem>
+            <ToggleGroupItem value={EMcpTransport.Stdio}>Command (stdio)</ToggleGroupItem>
+            <ToggleGroupItem value={EMcpTransport.Http}>Remote (HTTP)</ToggleGroupItem>
           </ToggleGroup>
         </Field>
         <Field>

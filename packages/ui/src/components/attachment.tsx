@@ -11,10 +11,9 @@ const attachmentVariants = cva(
   {
     variants: {
       size: {
-        default:
-          'gap-2 text-sm has-data-[slot=attachment-content]:px-2.5 has-data-[slot=attachment-content]:py-2 has-data-[slot=attachment-media]:p-2',
-        sm: 'gap-2.5 text-xs has-data-[slot=attachment-content]:px-2 has-data-[slot=attachment-content]:py-1.5 has-data-[slot=attachment-media]:p-1.5',
-        xs: 'gap-1.5 rounded-lg text-xs has-data-[slot=attachment-content]:px-1.5 has-data-[slot=attachment-content]:py-1 has-data-[slot=attachment-media]:p-1',
+        default: 'gap-2 px-2.5 py-2 text-sm has-data-[slot=attachment-media]:p-2',
+        sm: 'gap-2.5 px-2 py-1.5 text-xs has-data-[slot=attachment-media]:p-1.5',
+        xs: 'gap-1.5 rounded-lg px-1.5 py-1 text-xs has-data-[slot=attachment-media]:p-1',
       },
       orientation: {
         horizontal: 'min-w-40 items-center',

@@ -30,9 +30,7 @@ export function Chat({ children, autoScroll = true, className, contentClassName 
     <MessageScrollerProvider autoScroll={autoScroll}>
       <MessageScroller className={className}>
         <MessageScrollerViewport>
-          <MessageScrollerContent
-            className={cn('mx-auto w-full max-w-3xl px-4 py-6', contentClassName)}
-          >
+          <MessageScrollerContent className={cn('mx-auto w-full max-w-3xl', contentClassName)}>
             {children}
           </MessageScrollerContent>
         </MessageScrollerViewport>

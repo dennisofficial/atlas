@@ -33,7 +33,7 @@ export function McpServerList({
 }) {
   if (servers.length === 0) {
     return (
-      <Empty className="border py-10">
+      <Empty variant="outline">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <PlugIcon />

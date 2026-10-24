@@ -68,6 +68,34 @@ export const Small: Story = {
   ),
 }
 
+export const Ungrouped: Story = {
+  render: (args) => (
+    <Select items={items} defaultValue="sonnet" {...args}>
+      <SelectTrigger className="w-56" aria-label="Model">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ),
+}
+
+export const Ghost: Story = {
+  render: (args) => (
+    <Select items={items} defaultValue="sonnet" {...args}>
+      <SelectTrigger variant="ghost" className="w-48" aria-label="Model">
+        <SelectValue />
+      </SelectTrigger>
+      <Options />
+    </Select>
+  ),
+}
+
 export const Disabled: Story = {
   render: (args) => (
     <Select items={items} defaultValue="opus" disabled {...args}>
