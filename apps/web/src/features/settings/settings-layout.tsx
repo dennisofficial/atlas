@@ -33,12 +33,14 @@ export function SettingsPage({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
-        <header className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-col gap-1">
             <h1 className="text-lg font-semibold">{title}</h1>
             {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
           </div>
-          {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>
+          ) : null}
         </header>
         <PageStatusSlot />
       </div>
@@ -60,12 +62,14 @@ export function SettingsSection({
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-sm font-medium">{title}</h2>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>
+        ) : null}
       </div>
       {children}
     </section>
@@ -114,7 +118,9 @@ export function SettingsRow({
           <div className="flex items-center gap-2 text-sm font-medium">{title}</div>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {control ? <div className="flex max-w-full items-center gap-2">{control}</div> : null}
+        {control ? (
+          <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">{control}</div>
+        ) : null}
       </div>
       {children}
     </CardRow>

@@ -63,7 +63,9 @@ export function StepLine({ icon, title, description, status, trailing }: StepLin
     <TraceLine status={status}>
       {icon ? <TraceIcon>{icon}</TraceIcon> : null}
       <TraceTitle>{title}</TraceTitle>
-      {description ? <TraceDescription>{description}</TraceDescription> : null}
+      {description ? (
+        <TraceDescription className="min-w-0 flex-1 truncate">{description}</TraceDescription>
+      ) : null}
       {trailing ? <TraceIcon>{trailing}</TraceIcon> : null}
     </TraceLine>
   )

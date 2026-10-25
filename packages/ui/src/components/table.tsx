@@ -14,7 +14,7 @@ function Table({
       data-variant={variant}
       className={cn(
         'relative w-full overflow-x-auto',
-        variant === 'framed' && 'overflow-hidden rounded-lg border bg-card',
+        variant === 'framed' && 'rounded-lg border bg-card',
       )}
     >
       <table

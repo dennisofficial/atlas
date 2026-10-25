@@ -28,8 +28,8 @@ export function SecretRow({
   const isEnvVar = secret.kind === ESecretKind.EnvVar
 
   return (
-    <CardRow className="flex-row items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+    <CardRow className="flex-row flex-wrap items-center">
+      <div className="flex min-w-40 flex-1 items-center gap-2">
         <span className="truncate font-mono text-xs font-medium">{secret.key}</span>
         <Badge variant={isEnvVar ? 'outline' : 'secondary'}>
           {isEnvVar ? 'Env var' : 'Secret'}

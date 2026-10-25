@@ -124,7 +124,7 @@ function GeneralForm({
               control={
                 <Input
                   aria-label="Workspace name"
-                  className="w-64"
+                  className="w-64 max-w-full"
                   value={draft.name}
                   onChange={(event) => handleChange({ name: event.target.value })}
                 />
@@ -134,7 +134,7 @@ function GeneralForm({
               title="Slug"
               description="Changing the slug breaks existing links to this workspace."
               control={
-                <InputGroup className="w-64">
+                <InputGroup className="w-64 max-w-full">
                   <InputGroupAddon>
                     <InputGroupText className="font-mono text-xs">atlas.dev/</InputGroupText>
                   </InputGroupAddon>

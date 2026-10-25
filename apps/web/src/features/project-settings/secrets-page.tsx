@@ -135,7 +135,7 @@ function SecretsTable({
   onEdit: (name: string) => void
 }) {
   return (
-    <Table variant="framed" className="table-fixed">
+    <Table variant="framed" className="min-w-2xl table-fixed">
       <TableHeader>
         <TableRow>
           <TableHead className="w-[28%]">Name</TableHead>
