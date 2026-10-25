@@ -6,7 +6,6 @@ import { fakeFetch, mutationUrl, queryUrl, trpcFailure, trpcOk } from './trpc-fa
 
 import {
   fetchEvents,
-  fetchHead,
   fetchPod,
   fetchThread,
   fetchThreads,
@@ -71,14 +70,6 @@ describe('thread reads', () => {
     const calls = fakeFetch(() => trpcOk(thread))
     expect(await fetchThread('thr_1')).toEqual(thread)
     expect(calls[0]?.url).toBe(queryUrl({ procedure: 'threads.get', input: { threadId: 'thr_1' } }))
-  })
-
-  it('reads the head through threadEvents.head', async () => {
-    const calls = fakeFetch(() => trpcOk({ head: 7 }))
-    expect(await fetchHead('thr_1')).toEqual({ head: 7 })
-    expect(calls[0]?.url).toBe(
-      queryUrl({ procedure: 'threadEvents.head', input: { threadId: 'thr_1' } }),
-    )
   })
 
   it('reads own events through threadEvents.read', async () => {

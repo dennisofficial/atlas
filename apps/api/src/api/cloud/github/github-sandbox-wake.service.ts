@@ -13,6 +13,7 @@ import {
   type SandboxLifecycleColumns,
 } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
@@ -21,11 +22,7 @@ import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-s
 export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 
-export type {
-  SandboxWakeBoot,
-  WakeBootArgs,
-  WakeBootResult,
-} from './github-sandbox-wake-boot'
+export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
 
 type WakeTarget = {
   threadId: string
@@ -63,6 +60,7 @@ export class GithubSandboxWakeService {
     @Inject(SANDBOX_WAKE_BOOT) private readonly bootAdapter: SandboxWakeBoot,
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(WAKE_DEBOUNCE) private readonly debounceMs: number,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
@@ -193,6 +191,7 @@ export class GithubSandboxWakeService {
       )
       return
     }
+    await this.signals.podChanged({ threadId: args.threadId })
     try {
       await this.bootClaimed({ row })
     } catch (failure) {
@@ -229,6 +228,7 @@ export class GithubSandboxWakeService {
       lastActivityAt: at,
       updatedAt: at,
     })
+    await this.signals.podChanged({ threadId: row.threadId })
     this.logger.log(
       `woke sandbox ${row.name} for thread ${row.threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
     )
@@ -265,5 +265,6 @@ export class GithubSandboxWakeService {
       threadId: args.threadId,
       wakeClaim: args.wakeClaim,
     }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
+    await this.signals.podChanged({ threadId: args.threadId })
   }
 }

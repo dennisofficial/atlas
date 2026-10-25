@@ -11,6 +11,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
+import { inertSignals } from '../sessions/thread-signals.fixture'
 
 export const THREAD = 'brn_thread_1'
 
@@ -46,6 +47,10 @@ export async function prepareSandboxes(): Promise<{
   await seedUsers(USER_A, USER_B)
   await seedThreadRow({ id: THREAD, workspace: '/repo', repo: '/repo', executionLocation: 'cloud' })
   const client = stubClient()
-  const service = new SandboxesService(client as unknown as VercelSandboxClient, cipher)
+  const service = new SandboxesService(
+    client as unknown as VercelSandboxClient,
+    cipher,
+    inertSignals(),
+  )
   return { client, service }
 }

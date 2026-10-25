@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
@@ -15,6 +16,17 @@ import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
 import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
 
+type ClaimArgs = {
+  userId: string
+  threadId: string
+  gitToken?: string | undefined
+  contextPending?: boolean | undefined
+  clientToken?: string | undefined
+  serveUrl?: string | undefined
+  serveVersion?: string | undefined
+  metadata?: RegisterSandboxMetadata | undefined
+}
+
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
@@ -27,6 +39,7 @@ export class SandboxesService {
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly cipher: SecretCipherService,
+    private readonly signals: ThreadSignalsService,
   ) {
     this.endpoints = new SandboxEndpointService(vercel, cipher)
   }
@@ -37,16 +50,13 @@ export class SandboxesService {
    * Every claim mints a fresh session token, and re-seals the git credential that rode up with
    * the claim; a claim that omits it leaves the stored one in place.
    */
-  async claim(args: {
-    userId: string
-    threadId: string
-    gitToken?: string | undefined
-    contextPending?: boolean | undefined
-    clientToken?: string | undefined
-    serveUrl?: string | undefined
-    serveVersion?: string | undefined
-    metadata?: RegisterSandboxMetadata | undefined
-  }): Promise<SandboxAttachmentDto> {
+  async claim(args: ClaimArgs): Promise<SandboxAttachmentDto> {
+    const attachment = await this.claimWithoutSignal(args)
+    await this.signals.podChanged({ threadId: args.threadId })
+    return attachment
+  }
+
+  private async claimWithoutSignal(args: ClaimArgs): Promise<SandboxAttachmentDto> {
     const clientToken = args.clientToken
     if (clientToken !== undefined) {
       return this.register({
@@ -131,6 +141,7 @@ export class SandboxesService {
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
     await ownedSandbox(args)
     await db.orm.public.CloudSandbox.where({ threadId: args.threadId }).delete()
+    await this.signals.podChanged({ threadId: args.threadId })
   }
 
   async verifySessionToken(args: { threadId: string; token: string }): Promise<{ userId: string }> {
@@ -184,6 +195,7 @@ export class SandboxesService {
       state: ESandboxState.Parked,
       updatedAt: new Date(),
     })
+    await this.signals.podChanged({ threadId: args.row.threadId })
   }
 
   /** Best-effort: a sandbox that cannot be reached must still stop, so every failure is swallowed. */

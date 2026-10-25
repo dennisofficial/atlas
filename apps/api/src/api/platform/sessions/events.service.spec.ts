@@ -13,6 +13,7 @@ import {
   USER_B,
 } from '../../../../test/session-seed'
 import { EventsService } from './events.service'
+import { inertSignals } from './thread-signals.fixture'
 
 const allEvents = () => db.orm.public.Event.all()
 
@@ -35,7 +36,7 @@ describe('EventsService', () => {
 
   beforeEach(async () => {
     await seedUsers(USER_A, USER_B)
-    service = new EventsService()
+    service = new EventsService(inertSignals())
   })
 
   it('append claims a missing thread for the caller and stamps sequential seqs', async () => {

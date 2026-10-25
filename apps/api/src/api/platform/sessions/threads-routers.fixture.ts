@@ -10,10 +10,13 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
+import { DrainStateService } from '../health/drain-state.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { EventsService } from './events.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { inertSignals } from './thread-signals.fixture'
+import { ThreadSignalsService } from './thread-signals.service'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadTurnsRouter } from './thread-turns.router'
@@ -79,6 +82,8 @@ export type RouterFakes = {
   launcher?: object
   events?: object
   turns?: object
+  signals?: ThreadSignalsService
+  drain?: DrainStateService
 }
 
 export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestExpressApplication> {
@@ -87,6 +92,8 @@ export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestEx
     providers: [
       ThreadsRouter,
       ThreadEventsRouter,
+      { provide: ThreadSignalsService, useValue: fakes.signals ?? inertSignals() },
+      { provide: DrainStateService, useValue: fakes.drain ?? new DrainStateService() },
       ThreadTurnsRouter,
       SessionOrSandboxMiddleware,
       { provide: SESSION_VERIFIER, useValue: { verify: verifySession } },

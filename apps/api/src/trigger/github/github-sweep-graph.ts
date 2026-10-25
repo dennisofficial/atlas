@@ -22,6 +22,7 @@ import { GithubService } from '../../api/cloud/github/github.service'
 import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
 import { ScopedConfigService } from '../../api/cloud/scoped-config/scoped-config.service'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
+import { buildWorkerThreadSignals } from '../thread-signals-graph'
 
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
@@ -53,6 +54,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,
+    buildWorkerThreadSignals({ env }).signals,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
 

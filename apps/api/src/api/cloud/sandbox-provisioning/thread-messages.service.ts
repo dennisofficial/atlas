@@ -22,6 +22,7 @@ import {
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { appendWithin, nextRunId } from '../../platform/sessions/append'
 import { ownedThread } from '../../platform/sessions/ownership'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { lockThread, retreatHead } from '../../platform/sessions/thread-head'
 import { failureText } from '../github/github-sandbox-wake-boot'
 import { findUserSaid, userSaidDraftOf } from './first-message'
@@ -51,6 +52,7 @@ export class ThreadMessagesService {
     private readonly endpoints: SandboxEndpointService,
     @Inject(SERVE_SEND) private readonly serve: ServeSend,
     private readonly pod: PodLaunchService,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async send(args: {
@@ -73,7 +75,8 @@ export class ThreadMessagesService {
       return { state: EThreadMessageState.Delivered }
     }
 
-    const { existing, relaunch } = await this.appendOnce({ userId, threadId, sendId, text })
+    const { existing, relaunch, head } = await this.appendOnce({ userId, threadId, sendId, text })
+    if (head !== undefined) await this.signals.headMoved({ threadId, head })
     if (!relaunch) return { state: EThreadMessageState.Queued }
     const { dispatchFailed } = await this.pod.launch({ thread, existing })
     if (dispatchFailed) {
@@ -88,7 +91,7 @@ export class ThreadMessagesService {
     if ((await this.endpoints.runningEndpoint({ userId, threadId })) !== null) {
       throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
     }
-    await db.transaction(async (tx) => {
+    const head = await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       const event = await findUserSaid({ reader: tx, threadId, sendId })
       if (event === null) throw new NotFoundException(TAKE_BACK_NOT_FOUND_MESSAGE)
@@ -98,7 +101,9 @@ export class ThreadMessagesService {
       if (attempt.some(agentStarted)) throw new ConflictException(TAKE_BACK_TOO_LATE_MESSAGE)
       await tx.orm.public.Event.where({ id: event.id }).delete()
       await retreatHead({ tx, threadId, at: new Date() })
+      return thread.head - 1
     })
+    await this.signals.headMoved({ threadId, head })
   }
 
   private appendOnce(args: {
@@ -106,7 +111,7 @@ export class ThreadMessagesService {
     threadId: string
     sendId: string
     text: string
-  }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean }> {
+  }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean; head?: number }> {
     const { userId, threadId, sendId, text } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
@@ -118,14 +123,14 @@ export class ThreadMessagesService {
       const delivered = (await findUserSaid({ reader: tx, threadId, sendId })) !== null
       if (delivered) return { existing, relaunch }
       if (!appendableOf(existing)) throw new ConflictException(SANDBOX_BUSY_MESSAGE)
-      await appendWithin({
+      const [appended] = await appendWithin({
         tx,
         threadId,
         userId,
         runId: nextRunId(),
         drafts: [userSaidDraftOf({ sendId, text })],
       })
-      return { existing, relaunch }
+      return { existing, relaunch, ...(appended === undefined ? {} : { head: appended.seq }) }
     })
   }
 }

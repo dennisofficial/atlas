@@ -3,6 +3,7 @@ import { seedOrganization, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { eventsOf, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
 import { ThreadsService } from './threads.service'
+import { inertSignals } from './thread-signals.fixture'
 
 describe('ThreadsService owner', () => {
   useTestDatabase()
@@ -10,7 +11,7 @@ describe('ThreadsService owner', () => {
 
   beforeEach(async () => {
     await seedUsers(USER_A, USER_B)
-    service = new ThreadsService()
+    service = new ThreadsService(inertSignals())
   })
 
   it('create stores the project workspace as the thread owner, and null for a personal project', async () => {

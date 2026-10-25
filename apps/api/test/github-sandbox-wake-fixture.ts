@@ -15,6 +15,7 @@ import {
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
+import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
 import { advanceTimersByTimeAsync } from './fake-timers'
 
@@ -149,6 +150,7 @@ export function serviceWith(args: {
     args.boot,
     background,
     args.debounceMs ?? WAKE_DEBOUNCE_MS,
+    inertSignals(),
   )
 }
 

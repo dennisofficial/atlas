@@ -10,12 +10,26 @@ import {
   type PodProvisionPayload,
   type PodProvisionTask,
 } from '../../api/cloud/sandbox-provisioning/pod-provision.contract'
-import { workerPodProvisionDeps } from './pod-provision-graph'
+import { workerPodProvisionGraph } from './pod-provision-graph'
 
 export async function runPodProvisionTask(
   payload: PodProvisionPayload,
 ): Promise<PodProvisionOutput> {
-  return runPodProvision({ payload, deps: workerPodProvisionDeps() })
+  const { deps, dispose } = workerPodProvisionGraph()
+  try {
+    return await runPodProvision({ payload, deps })
+  } finally {
+    await dispose()
+  }
+}
+
+async function failPodProvisionTask(payload: PodProvisionPayload): Promise<void> {
+  const { deps, dispose } = workerPodProvisionGraph()
+  try {
+    await failPodProvision({ payload, signals: deps.signals })
+  } finally {
+    await dispose()
+  }
 }
 
 export const podProvisionTask = schemaTask({
@@ -24,5 +38,5 @@ export const podProvisionTask = schemaTask({
   retry: { maxAttempts: 1 },
   maxDuration: 300,
   run: runPodProvisionTask,
-  onFailure: ({ payload }) => failPodProvision({ payload }),
+  onFailure: ({ payload }) => failPodProvisionTask(payload),
 }) satisfies PodProvisionTask

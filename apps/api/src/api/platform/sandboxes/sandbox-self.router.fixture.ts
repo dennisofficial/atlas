@@ -14,11 +14,15 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { JSON_BODY_LIMIT } from '../../../_lib/body-limits'
+import { recordingSignals } from '../sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 import { VercelSandboxClient } from './vercel-sandbox.client'
+
+export const routerSignals = recordingSignals()
 
 export const SANDBOX_TOKEN = 'sandbox-token'
 export const POD_TOKEN = 'pod-token'
@@ -54,6 +58,7 @@ export async function createSandboxSelfApp(): Promise<NestExpressApplication> {
     ],
     providers: [
       SandboxSelfRouter,
+      { provide: ThreadSignalsService, useValue: routerSignals.signals },
       SandboxTokenMiddleware,
       { provide: VercelSandboxClient, useValue: vercel },
       {

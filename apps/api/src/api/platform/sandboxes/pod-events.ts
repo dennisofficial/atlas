@@ -3,6 +3,7 @@ import { POD_EVENT_CONFLICT_CODE, type PodEvent, type PodEventsReply } from '@dl
 import { db, type Row } from '@dltech/atlas-db'
 import { nextEventId } from '../sessions/append'
 import { lockThread } from '../sessions/thread-head'
+import type { ThreadSignalPublisher } from '../sessions/thread-signals.service'
 
 const conflictAt = (seq: number): ConflictException =>
   new ConflictException({
@@ -21,12 +22,13 @@ const sameContent = (row: Row<'Event'>, event: PodEvent): boolean =>
   row.contextKey === (event.contextKey ?? null) &&
   row.contextDigest === (event.contextDigest ?? null)
 
-export function applyPodEvents(args: {
+export async function applyPodEvents(args: {
   threadId: string
   events: readonly PodEvent[]
+  signals: ThreadSignalPublisher
 }): Promise<PodEventsReply> {
   const { threadId, events } = args
-  return db.transaction(async (tx) => {
+  const { head, moved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const seqs = events.map((event) => event.seq)
@@ -49,7 +51,7 @@ export function applyPodEvents(args: {
       fresh.push(event)
     }
 
-    if (fresh.length === 0) return { head: thread.head }
+    if (fresh.length === 0) return { head: thread.head, moved: false }
     await tx.orm.public.Event.createAndCount(
       fresh.map((event) => ({
         id: nextEventId(),
@@ -69,25 +71,29 @@ export function applyPodEvents(args: {
     )
     const head = Math.max(thread.head, previous)
     await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
-    return { head }
+    return { head, moved: true }
   })
+  if (moved) await args.signals.headMoved({ threadId, head })
+  return { head }
 }
 
-export function truncatePodEvents(args: {
+export async function truncatePodEvents(args: {
   threadId: string
   toSeq: number
+  signals: ThreadSignalPublisher
 }): Promise<PodEventsReply> {
   const { threadId, toSeq } = args
-  return db.transaction(async (tx) => {
+  const { head, moved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     await tx.orm.public.Event.where({ threadId })
       .where((row) => row.seq.gt(toSeq))
       .deleteAndCount()
     const head = Math.min(thread.head, toSeq)
-    if (head !== thread.head) {
-      await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
-    }
-    return { head }
+    if (head === thread.head) return { head, moved: false }
+    await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
+    return { head, moved: true }
   })
+  if (moved) await args.signals.headMoved({ threadId, head })
+  return { head }
 }

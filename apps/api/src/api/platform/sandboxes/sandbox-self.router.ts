@@ -20,6 +20,7 @@ import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { lockThread } from '../sessions/thread-head'
+import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
@@ -38,12 +39,12 @@ async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
 @Router({ alias: 'sandboxSelf' })
 @UseMiddlewares(SandboxTokenMiddleware)
 export class SandboxSelfRouter {
-  constructor(private readonly vercel: VercelSandboxClient) {}
+  constructor(
+    private readonly vercel: VercelSandboxClient,
+    private readonly signals: ThreadSignalsService,
+  ) {}
 
-  @Mutation({
-    input: sandboxExposePortRequestSchema,
-    output: sandboxExposePortReplySchema,
-  })
+  @Mutation({ input: sandboxExposePortRequestSchema, output: sandboxExposePortReplySchema })
   async exposePort(
     @Input() input: SandboxExposePortRequest,
     @Ctx() ctx: SandboxTrpcCtx,
@@ -66,6 +67,7 @@ export class SandboxSelfRouter {
       await lockThread({ tx, threadId })
       await recordBootSteps({ writer: tx, threadId, steps: input.steps })
     })
+    await this.signals.podChanged({ threadId })
   }
 
   @Mutation({
@@ -74,7 +76,11 @@ export class SandboxSelfRouter {
     meta: meta({ podReachable: true }),
   })
   events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
-    return applyPodEvents({ threadId: ctx.sandbox.threadId, events: input.events })
+    return applyPodEvents({
+      threadId: ctx.sandbox.threadId,
+      events: input.events,
+      signals: this.signals,
+    })
   }
 
   @Mutation({
@@ -86,6 +92,10 @@ export class SandboxSelfRouter {
     @Input() input: PodEventsTruncate,
     @Ctx() ctx: SandboxTrpcCtx,
   ): Promise<PodEventsReply> {
-    return truncatePodEvents({ threadId: ctx.sandbox.threadId, toSeq: input.toSeq })
+    return truncatePodEvents({
+      threadId: ctx.sandbox.threadId,
+      toSeq: input.toSeq,
+      signals: this.signals,
+    })
   }
 }

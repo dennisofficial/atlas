@@ -11,6 +11,7 @@ import {
   USER_A,
 } from '../../../../test/session-seed'
 import { ThreadsHistoryService } from './threads-history.service'
+import { inertSignals } from './thread-signals.fixture'
 
 const seedThreadWithEvents = async (types: string[]): Promise<void> => {
   await seedThreadRow({ id: 'brn_one', head: types.length })
@@ -31,17 +32,13 @@ describe('ThreadsHistoryService', () => {
 
   beforeEach(async () => {
     await seedUsers(USER_A)
-    service = new ThreadsHistoryService()
+    service = new ThreadsHistoryService(inertSignals())
   })
 
   it('rewind drops events past the target and resets the head', async () => {
     await seedThreadWithEvents(['user-said', 'assistant-said', 'user-said', 'assistant-said'])
 
-    await service.rewind({
-      userId: USER_A,
-      threadId: 'brn_one',
-      draft: { toSeq: 2 },
-    })
+    await service.rewind({ userId: USER_A, threadId: 'brn_one', draft: { toSeq: 2 } })
 
     expect((await eventsOf('brn_one')).map((row) => row.seq)).toEqual([1, 2])
     expect((await threadById('brn_one'))?.head).toBe(2)

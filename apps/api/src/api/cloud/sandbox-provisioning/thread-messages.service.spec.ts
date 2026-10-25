@@ -16,6 +16,7 @@ import {
   seedThread,
   threadRow,
 } from './sandbox-provisioning.fixture'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
@@ -117,7 +118,11 @@ describe('ThreadMessagesService.send', () => {
   it('appends after the pod answer a parked pod flushed, continuing its seq', async () => {
     const { service, dispatch } = messagesWith()
     await service.send(ARGS)
-    await applyPodEvents({ threadId: 'thr-1', events: [podAnswer(2), podAnswer(3)] })
+    await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [podAnswer(2), podAnswer(3)],
+    })
     await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
       state: 'parked',
       wakeClaim: null,

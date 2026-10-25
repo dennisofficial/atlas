@@ -9,6 +9,7 @@ import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { failureText, type SandboxWakeBoot } from '../github/github-sandbox-wake-boot'
+import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import {
   EPodProvisionOutcome,
@@ -24,6 +25,7 @@ export type PodProvisionDeps = {
   cipher: SecretCipherService
   scoped: ScopedConfigService
   boot: SandboxWakeBoot
+  signals: Pick<ThreadSignalsService, 'podChanged'>
   image: string
   cloudUrl: string
   log: (line: string) => void
@@ -49,6 +51,7 @@ export async function runPodProvision(args: {
       if (!(await claimHeld({ threadId, wakeClaim }))) return
       if (steps.some((step) => step.state === EBootStepState.Error)) errorReported = true
       await recordBootSteps({ threadId, steps })
+      await deps.signals.podChanged({ threadId })
     },
   })
 
@@ -74,6 +77,7 @@ export async function runPodProvision(args: {
     })
     const marked = await markRunning({ threadId, wakeClaim, serveUrl })
     if (!marked) return { outcome: EPodProvisionOutcome.Superseded }
+    await deps.signals.podChanged({ threadId })
     deps.log(`provisioned sandbox ${row.name} for thread ${threadId} — serve at ${serveUrl}`)
     return { outcome: EPodProvisionOutcome.Running }
   } catch (failure) {
@@ -82,6 +86,7 @@ export async function runPodProvision(args: {
     )
     const matched = await markFailed({ threadId, wakeClaim })
     if (matched === 0) return { outcome: EPodProvisionOutcome.Superseded }
+    await deps.signals.podChanged({ threadId })
     if (!errorReported) {
       await recordBootSteps({
         threadId,
@@ -89,23 +94,24 @@ export async function runPodProvision(args: {
           { step: EBootStep.Provision, state: EBootStepState.Error, error: failureText(failure) },
         ],
       })
+      await deps.signals.podChanged({ threadId })
     }
     return { outcome: EPodProvisionOutcome.Failed }
   }
 }
 
-export async function failPodProvision(args: { payload: PodProvisionPayload }): Promise<void> {
+export async function failPodProvision(args: {
+  payload: PodProvisionPayload
+  signals: Pick<ThreadSignalsService, 'podChanged'>
+}): Promise<void> {
   const { threadId, wakeClaim } = args.payload
   const matched = await markFailed({ threadId, wakeClaim: new Date(wakeClaim) })
   if (matched === 0) return
   await recordBootSteps({
     threadId,
     steps: [
-      {
-        step: EBootStep.Provision,
-        state: EBootStepState.Error,
-        error: PROVISION_TIMEOUT_MESSAGE,
-      },
+      { step: EBootStep.Provision, state: EBootStepState.Error, error: PROVISION_TIMEOUT_MESSAGE },
     ],
   })
+  await args.signals.podChanged({ threadId })
 }

@@ -2,36 +2,43 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { usePageVisible } from '@/lib/use-page-visible'
 
-import { createEventsPoller, INITIAL_THREAD_EVENTS, type ThreadEvents } from './events-poller'
-import { fetchEvents, fetchHead } from './threads-api'
+import { createEventsReader, INITIAL_THREAD_EVENTS, type ThreadEvents } from './events-reader'
+import type { ThreadSignalHub } from './thread-signal-hub'
+import { fetchEvents } from './threads-api'
 
-export type { ThreadEvents } from './events-poller'
+export type { ThreadEvents } from './events-reader'
 
 export type PolledThreadEvents = ThreadEvents & { poke: () => void }
 
-const NOT_POLLING = () => undefined
+const NOT_READING = () => undefined
 
-export function useThreadEvents(threadId: string, enabled = true): PolledThreadEvents {
+export function useThreadEvents(args: {
+  threadId: string
+  signals: ThreadSignalHub
+  enabled: boolean
+}): PolledThreadEvents {
+  const { threadId, signals, enabled } = args
   const [state, setState] = useState(INITIAL_THREAD_EVENTS)
-  const pokeRef = useRef<() => void>(NOT_POLLING)
+  const pokeRef = useRef<() => void>(NOT_READING)
   const visible = usePageVisible()
-  const polling = enabled && visible
+  const reading = enabled && visible
 
   useEffect(() => {
-    if (!polling) return undefined
-    const poller = createEventsPoller({
+    if (!reading) return undefined
+    const reader = createEventsReader({
       threadId,
-      fetchHead,
       fetchEvents,
       onUpdate: (update) => setState(update),
     })
-    pokeRef.current = poller.poke
-    poller.start()
+    const unlisten = signals.listen({ onHead: reader.handleHead })
+    pokeRef.current = reader.poke
+    reader.start()
     return () => {
-      pokeRef.current = NOT_POLLING
-      poller.stop()
+      pokeRef.current = NOT_READING
+      unlisten()
+      reader.stop()
     }
-  }, [threadId, polling])
+  }, [threadId, signals, reading])
 
   const poke = useCallback(() => pokeRef.current(), [])
   return { ...state, poke }

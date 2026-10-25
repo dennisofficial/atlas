@@ -12,6 +12,7 @@ import {
   USER_B,
 } from '../../../../test/session-seed'
 import { EventsService } from './events.service'
+import { inertSignals } from './thread-signals.fixture'
 
 const AT = '2026-10-22T10:00:00.000Z'
 const eventAt = (seq: number, extra: Partial<PodEvent> = {}): PodEvent => ({
@@ -41,7 +42,7 @@ describe('importing a local mirror into a thread', () => {
         at: new Date(AT),
       })
     }
-    service = new EventsService()
+    service = new EventsService(inertSignals())
   })
 
   it('skips the seqs Postgres already holds identically and stores the rest', async () => {

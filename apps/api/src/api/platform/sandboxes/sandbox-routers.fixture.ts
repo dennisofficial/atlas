@@ -14,6 +14,8 @@ import { SandboxThreadTokenMiddleware } from './sandbox-thread-token.middleware'
 import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
+import { inertSignals } from '../sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../sessions/thread-signals.service'
 
 export const USER_HEADER = 'x-test-user'
 
@@ -47,7 +49,7 @@ const verifier = {
 export const inertVercel = {} as unknown as VercelSandboxClient
 
 export const sandboxRoutersService = (): SandboxesService =>
-  new SandboxesService(inertVercel, cipher)
+  new SandboxesService(inertVercel, cipher, inertSignals())
 
 export function createSandboxRoutersApp(
   service: SandboxesService = sandboxRoutersService(),
@@ -58,6 +60,7 @@ export function createSandboxRoutersApp(
     providers: [
       SandboxesRouter,
       SandboxCheckpointRouter,
+      { provide: ThreadSignalsService, useValue: inertSignals() },
       SessionMiddleware,
       SandboxThreadTokenMiddleware,
       { provide: SESSION_VERIFIER, useValue: verifier },

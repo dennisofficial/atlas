@@ -5,7 +5,6 @@ import { BOOT_STEP_EVENT_TYPE, EPodState, type WireEvent } from '@dltech/atlas-w
 import { fakeFetch, mutationUrl, trpcFailure, trpcOk } from './trpc-fake'
 
 import {
-  awaitingRunOf,
   ETakeBackOutcome,
   restoredDraftOf,
   takeBack,
@@ -141,14 +140,6 @@ describe('takeBack', () => {
   it('rethrows any other failure', async () => {
     fakeFetch(() => trpcFailure({ status: 500, message: 'nope' }))
     await expect(takeBack({ threadId: 't1', sendId: 's1' })).rejects.toThrow()
-  })
-})
-
-describe('awaitingRunOf', () => {
-  it('is true while the last core event is a user message', () => {
-    expect(awaitingRunOf([said(1, 'hi', 's1'), legacyBoot(2)])).toBe(true)
-    expect(awaitingRunOf([said(1, 'hi', 's1'), answered(2)])).toBe(false)
-    expect(awaitingRunOf([])).toBe(false)
   })
 })
 

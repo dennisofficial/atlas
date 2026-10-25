@@ -4,6 +4,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { eventsOf, seedEventRow, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
 import { ThreadsService } from './threads.service'
+import { inertSignals } from './thread-signals.fixture'
 
 describe('ThreadsService', () => {
   useTestDatabase()
@@ -11,7 +12,7 @@ describe('ThreadsService', () => {
 
   beforeEach(async () => {
     await seedUsers(USER_A, USER_B)
-    service = new ThreadsService()
+    service = new ThreadsService(inertSignals())
   })
 
   it('create mints a brn_ id and find returns the thread', async () => {
