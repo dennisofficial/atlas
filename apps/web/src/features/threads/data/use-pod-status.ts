@@ -1,47 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
-import { shouldPollPod } from './boot-view'
+import { createPodStatusReader } from './pod-status-reader'
+import type { ThreadSignalHub } from './thread-signal-hub'
 import { fetchPod } from './threads-api'
 
-const POLL_MS = 2000
+const NOT_READING = () => undefined
 
-export function usePodStatus(args: {
-  threadId: string
-  awaitingRun: boolean
-  watchingPark: boolean
-}): {
+export function usePodStatus(args: { threadId: string; signals: ThreadSignalHub }): {
   pod: PodStatus | null
   refresh: () => void
 } {
-  const { threadId, awaitingRun, watchingPark } = args
+  const { threadId, signals } = args
   const [pod, setPod] = useState<PodStatus | null>(null)
-  const [kick, setKick] = useState(0)
+  const refreshRef = useRef<() => void>(NOT_READING)
 
   useEffect(() => {
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-
-    const poll = async () => {
-      try {
-        const next = await fetchPod(threadId)
-        if (cancelled) return
-        setPod(next)
-        if (!shouldPollPod({ pod: next, awaitingRun, watchingPark })) return
-      } catch {
-        if (cancelled) return
-      }
-      timer = setTimeout(() => void poll(), POLL_MS)
-    }
-
-    void poll()
+    const reader = createPodStatusReader({ threadId, fetchPod, onPod: setPod })
+    const unlisten = signals.listen({ onPod: reader.refresh, onStarted: reader.refresh })
+    refreshRef.current = reader.refresh
+    reader.refresh()
     return () => {
-      cancelled = true
-      clearTimeout(timer)
+      refreshRef.current = NOT_READING
+      unlisten()
+      reader.stop()
     }
-  }, [threadId, awaitingRun, watchingPark, kick])
+  }, [threadId, signals])
 
-  const refresh = useCallback(() => setKick((count) => count + 1), [])
+  const refresh = useCallback(() => refreshRef.current(), [])
   return { pod, refresh }
 }

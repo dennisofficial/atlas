@@ -1,0 +1,27 @@
+import { useEffect, useState } from 'react'
+
+import { usePageVisible } from '@/lib/use-page-visible'
+
+import { createThreadSignalHub, type ThreadSignalHub } from './thread-signal-hub'
+import { createThreadSignals } from './thread-signals'
+import { subscribeThreadStream } from './threads-api'
+
+export function useThreadSignals(threadId: string): ThreadSignalHub {
+  const [hub] = useState(createThreadSignalHub)
+  const visible = usePageVisible()
+
+  useEffect(() => {
+    if (!visible) return undefined
+    const signals = createThreadSignals({
+      threadId,
+      subscribe: subscribeThreadStream,
+      onHead: hub.emitHead,
+      onPod: hub.emitPod,
+      onStarted: hub.emitStarted,
+    })
+    signals.start()
+    return signals.stop
+  }, [threadId, hub, visible])
+
+  return hub
+}

@@ -8,6 +8,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
+import { inertSignals } from '../sessions/thread-signals.fixture'
 
 const TOKEN = 'b'.repeat(64)
 const SERVE_URL = 'https://atlas-3000-abc.vercel.run'
@@ -22,7 +23,7 @@ describe('registering a client token that a pod lease already holds', () => {
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
-    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
+    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals())
     await db.orm.public.LocalPodLease.create({
       id: 'lease_1',
       userId: 'user-b',

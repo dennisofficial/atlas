@@ -12,6 +12,7 @@ import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
+import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import {
   SandboxThreadTokenMiddleware,
@@ -25,6 +26,8 @@ const clientRead = meta({ throttle: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs
 
 @Router({ alias: 'sandboxCheckpoint' })
 export class SandboxCheckpointRouter {
+  constructor(private readonly signals: ThreadSignalsService) {}
+
   @Query({
     input: sandboxThreadInputSchema,
     output: readRuntimeCheckpointReplySchema,
@@ -76,7 +79,10 @@ export class SandboxCheckpointRouter {
         runtimeCheckpointRevision: revision,
         updatedAt: new Date(),
       })
-    if (updated === 1) return { checkpoint: input }
+    if (updated === 1) {
+      await this.signals.podChanged({ threadId })
+      return { checkpoint: input }
+    }
 
     const stored = await db.orm.public.CloudSandbox.where({ threadId, userId })
       .select(...CHECKPOINT_COLUMNS)

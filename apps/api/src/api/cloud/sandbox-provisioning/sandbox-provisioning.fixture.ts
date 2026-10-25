@@ -9,6 +9,8 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { ThreadsService } from '../../platform/sessions/threads.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { appendWithin } from '../../platform/sessions/append'
 import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
@@ -114,10 +116,19 @@ export function fakeDispatcher(options: { failWith?: Error } = {}) {
 }
 
 export function podLaunchWith(
-  args: { scoped?: ScopedConfigService; dispatcher?: ReturnType<typeof fakeDispatcher> } = {},
+  args: {
+    scoped?: ScopedConfigService
+    dispatcher?: ReturnType<typeof fakeDispatcher>
+    signals?: ThreadSignalsService
+  } = {},
 ) {
   const dispatching = args.dispatcher ?? fakeDispatcher()
-  const pod = new PodLaunchService(args.scoped ?? fakeScoped(), cipher, dispatching.dispatcher)
+  const pod = new PodLaunchService(
+    args.scoped ?? fakeScoped(),
+    cipher,
+    dispatching.dispatcher,
+    args.signals ?? inertSignals(),
+  )
   return { pod, dispatch: dispatching.dispatch }
 }
 
@@ -133,7 +144,7 @@ export function launchWith(
 ) {
   const launched = podLaunchWith(args)
   return {
-    service: new ThreadLaunchService(new ThreadsService(), launched.pod),
+    service: new ThreadLaunchService(new ThreadsService(inertSignals()), launched.pod),
     dispatch: launched.dispatch,
   }
 }
@@ -150,14 +161,17 @@ export function messagesWith(
     serveFails?: Error
     scoped?: ScopedConfigService
     dispatcher?: ReturnType<typeof fakeDispatcher>
+    signals?: ThreadSignalsService
   } = {},
 ) {
+  const signals = args.signals ?? inertSignals()
   const endpoint = args.endpoint ?? null
   const runningEndpoint = vi.fn(async () => endpoint)
   const serve = vi.fn(async (_delivery: ServeSendArgs) => {
     if (args.serveFails !== undefined) throw args.serveFails
   })
   const launched = podLaunchWith({
+    signals,
     ...(args.scoped === undefined ? {} : { scoped: args.scoped }),
     ...(args.dispatcher === undefined ? {} : { dispatcher: args.dispatcher }),
   })
@@ -165,6 +179,7 @@ export function messagesWith(
     { runningEndpoint } as unknown as SandboxEndpointService,
     serve,
     launched.pod,
+    signals,
   )
   return { service, serve, runningEndpoint, dispatch: launched.dispatch }
 }
@@ -246,11 +261,18 @@ export async function appendRaw(args: { type: string; body: string; threadId?: s
   )
 }
 
-export function runDepsWith(args: { boot?: SandboxWakeBoot; scoped?: ScopedConfigService } = {}) {
+export function runDepsWith(
+  args: {
+    boot?: SandboxWakeBoot
+    scoped?: ScopedConfigService
+    signals?: ThreadSignalsService
+  } = {},
+) {
   return {
     cipher,
     scoped: args.scoped ?? fakeScoped(),
     boot: args.boot ?? fakeBoot().boot,
+    signals: args.signals ?? inertSignals(),
     image: 'atlas-sandbox:latest',
     cloudUrl: 'https://api.byatlas.io',
     log: () => undefined,

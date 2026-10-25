@@ -129,17 +129,5 @@ export function isPodSettled(pod: PodStatus): boolean {
   return foldBootSteps(pod.steps.map(eventOf))[EBootStep.Agent].state === EBootStepState.Done
 }
 
-export function shouldPollPod(args: {
-  pod: PodStatus | null
-  awaitingRun: boolean
-  watchingPark?: boolean
-}): boolean {
-  const { pod } = args
-  if (pod === null) return true
-  if (args.watchingPark === true && pod.state === EPodState.Running) return true
-  if (pod.state === EPodState.None) return args.awaitingRun
-  return !isPodSettled(pod)
-}
-
 export const isPodLiveEligible = (pod: PodStatus | null): boolean =>
   pod !== null && pod.state === EPodState.Running && isPodSettled(pod)

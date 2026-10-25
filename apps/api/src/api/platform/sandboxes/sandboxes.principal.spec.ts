@@ -9,6 +9,7 @@ import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
+import { inertSignals } from '../sessions/thread-signals.fixture'
 
 const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
@@ -20,7 +21,7 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
-    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher)
+    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals())
     await seedSandboxRow({
       id: 'sbx_1',
       userId: 'user-a',

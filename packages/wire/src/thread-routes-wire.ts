@@ -145,9 +145,7 @@ export const readEventsInputSchema = threadIdInputSchema.extend({
 })
 export type ReadEventsInput = z.infer<typeof readEventsInputSchema>
 
-export const importEventsInputSchema = podEventsPostSchema.extend({
-  threadId: z.string().min(1),
-})
+export const importEventsInputSchema = podEventsPostSchema.extend({ threadId: z.string().min(1) })
 export type ImportEventsInput = z.infer<typeof importEventsInputSchema>
 
 export const threadHeadReplySchema = z.object({ head: z.number().int() })
@@ -184,3 +182,24 @@ export const threadMessageTakeBackInputSchema = threadIdInputSchema.extend({
   sendId: z.string().min(1),
 })
 export type ThreadMessageTakeBackInput = z.infer<typeof threadMessageTakeBackInputSchema>
+
+export enum EThreadStreamFrame {
+  Head = 'head',
+  Pod = 'pod',
+  Heartbeat = 'heartbeat',
+}
+
+export const threadStreamFrameSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal(EThreadStreamFrame.Head), head: z.number().int() }),
+  z.object({ type: z.literal(EThreadStreamFrame.Pod) }),
+  z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
+])
+export type ThreadStreamFrame = z.infer<typeof threadStreamFrameSchema>
+
+const isAsyncIterable = (value: unknown): value is AsyncIterable<ThreadStreamFrame> =>
+  typeof value === 'object' && value !== null && Symbol.asyncIterator in value
+
+export const threadStreamOutputSchema = z.custom<AsyncIterable<ThreadStreamFrame>>(isAsyncIterable)
+
+export const threadStreamInputSchema = z.strictObject({ threadId: z.string().min(1) })
+export type ThreadStreamInput = z.infer<typeof threadStreamInputSchema>

@@ -17,6 +17,7 @@ import {
   seedSandboxRow,
   seedThread,
 } from './sandbox-provisioning.fixture'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const payloadOf = async () => {
   const [row] = await sandboxRows()
@@ -237,7 +238,7 @@ describe('failPodProvision', () => {
     await seedThread()
     await seedSandboxRow()
 
-    await failPodProvision({ payload: await payloadOf() })
+    await failPodProvision({ payload: await payloadOf(), signals: inertSignals() })
 
     const [row] = await sandboxRows()
     expect(row?.wakeClaim).toBeNull()
@@ -255,7 +256,7 @@ describe('failPodProvision', () => {
       wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
     })
 
-    await failPodProvision({ payload })
+    await failPodProvision({ payload, signals: inertSignals() })
 
     const [row] = await sandboxRows()
     expect(row?.wakeFailedAt).toBeNull()

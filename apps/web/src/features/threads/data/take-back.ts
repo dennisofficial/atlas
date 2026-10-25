@@ -34,11 +34,6 @@ const lastCoreOf = (events: readonly WireEvent[]): WireEvent | undefined =>
     .sort((left, right) => left.seq - right.seq)
     .at(-1)
 
-export const awaitingRunOf = (events: readonly WireEvent[]): boolean => {
-  const last = lastCoreOf(events)
-  return last !== undefined && last.type === USER_SAID
-}
-
 export function takeBackTargetOf(args: {
   events: readonly WireEvent[]
   podState: EPodState | null

@@ -11,6 +11,7 @@ import {
   threadRow,
 } from './sandbox-provisioning.fixture'
 import { TAKE_BACK_TOO_LATE_MESSAGE } from './thread-messages.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
@@ -83,7 +84,7 @@ describe('ThreadMessagesService.takeBack', () => {
   it('refuses with 409 once the pod answer reached Postgres', async () => {
     const { service } = messagesWith()
     await service.send(ARGS)
-    await applyPodEvents({ threadId: 'thr-1', events: [podAnswer(2)] })
+    await applyPodEvents({ signals: inertSignals(), threadId: 'thr-1', events: [podAnswer(2)] })
 
     await expect(service.takeBack(target)).rejects.toMatchObject({
       status: 409,

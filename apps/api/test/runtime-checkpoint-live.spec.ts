@@ -14,6 +14,8 @@ import {
 import { SandboxCheckpointRouter } from '../src/api/platform/sandboxes/sandbox-checkpoint.router'
 import { SandboxThreadTokenMiddleware } from '../src/api/platform/sandboxes/sandbox-thread-token.middleware'
 import { hashSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
+import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../src/api/platform/sessions/thread-signals.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import type { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import type { VercelSandboxClient } from '../src/api/platform/sandboxes/vercel-sandbox.client'
@@ -100,11 +102,13 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     const sandboxes = new SandboxesService(
       {} as unknown as VercelSandboxClient,
       {} as unknown as SecretCipherService,
+      inertSignals(),
     )
     app = await createMiddlewareApp({
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       providers: [
         SandboxCheckpointRouter,
+        { provide: ThreadSignalsService, useValue: inertSignals() },
         SessionMiddleware,
         SandboxThreadTokenMiddleware,
         { provide: SESSION_VERIFIER, useValue: verifier },

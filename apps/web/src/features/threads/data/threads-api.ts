@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { CreateThreadBody } from './create-thread'
+import type { SubscribeThreadStream } from './thread-signals'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
@@ -25,8 +26,6 @@ export const takeBackMessage = (args: { threadId: string; sendId: string }) =>
 export const postMessage = (args: { threadId: string; sendId: string; text: string }) =>
   cloudCall(api.threadMessages.send.mutate(args))
 
-export const fetchHead = (threadId: string) => cloudCall(api.threadEvents.head.query({ threadId }))
-
 export const fetchEvents = (threadId: string) =>
   cloudCall(api.threadEvents.read.query({ threadId, own: true }))
 
@@ -37,3 +36,6 @@ export const patchThreadModel = (args: {
 
 export const setThreadArchived = (args: { threadId: string; archived: boolean }) =>
   cloudCall(api.threads.archive.mutate(args))
+
+export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handlers }) =>
+  api.threadEvents.stream.subscribe({ threadId }, handlers)

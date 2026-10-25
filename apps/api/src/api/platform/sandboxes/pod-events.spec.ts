@@ -4,6 +4,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { eventsOf, seedEventRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
+import { inertSignals } from '../sessions/thread-signals.fixture'
 
 const AT = '2026-10-22T10:00:00.000Z'
 const eventAt = (seq: number, extra: Partial<PodEvent> = {}): PodEvent => ({
@@ -37,6 +38,7 @@ describe('applyPodEvents', () => {
 
   it('appends contiguous events with the pod seq and time, owned by the thread owner', async () => {
     const reply = await applyPodEvents({
+      signals: inertSignals(),
       threadId: 'thr-1',
       events: [
         eventAt(2, {
@@ -68,9 +70,13 @@ describe('applyPodEvents', () => {
   })
 
   it('treats an identical re-post as a no-op', async () => {
-    await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2)] })
+    await applyPodEvents({ signals: inertSignals(), threadId: 'thr-1', events: [eventAt(2)] })
 
-    const reply = await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(3)] })
+    const reply = await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(2), eventAt(3)],
+    })
 
     expect(reply).toEqual({ head: 3 })
     expect(await eventsOf('thr-1')).toHaveLength(3)
@@ -79,6 +85,7 @@ describe('applyPodEvents', () => {
   it('answers 409 with the seq when a row exists with different content, writing nothing', async () => {
     const failure = await conflictOf(
       applyPodEvents({
+        signals: inertSignals(),
         threadId: 'thr-1',
         events: [eventAt(1, { body: '{"type":"other"}' }), eventAt(2)],
       }),
@@ -92,6 +99,7 @@ describe('applyPodEvents', () => {
 
   it('accepts a gapped batch and sets the head to its highest seq', async () => {
     const reply = await applyPodEvents({
+      signals: inertSignals(),
       threadId: 'thr-1',
       events: [eventAt(2), eventAt(4), eventAt(9)],
     })
@@ -105,7 +113,11 @@ describe('applyPodEvents', () => {
     await seedEventRow({ threadId: 'thr-1', seq: 2 })
     await db.orm.public.Thread.where({ id: 'thr-1' }).update({ head: 2 })
 
-    const reply = await applyPodEvents({ threadId: 'thr-1', events: [eventAt(5), eventAt(6)] })
+    const reply = await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(5), eventAt(6)],
+    })
 
     expect(reply).toEqual({ head: 6 })
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 5, 6])
@@ -113,10 +125,18 @@ describe('applyPodEvents', () => {
 
   it('answers 409 for a batch that goes backwards or repeats a seq, writing nothing', async () => {
     const backwards = await conflictOf(
-      applyPodEvents({ threadId: 'thr-1', events: [eventAt(4), eventAt(3)] }),
+      applyPodEvents({
+        signals: inertSignals(),
+        threadId: 'thr-1',
+        events: [eventAt(4), eventAt(3)],
+      }),
     )
     const repeated = await conflictOf(
-      applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(2)] }),
+      applyPodEvents({
+        signals: inertSignals(),
+        threadId: 'thr-1',
+        events: [eventAt(2), eventAt(2)],
+      }),
     )
 
     expect(backwards?.status).toBe(409)
@@ -132,7 +152,11 @@ describe('applyPodEvents', () => {
     await db.orm.public.Thread.where({ id: 'thr-1' }).update({ head: 5 })
 
     const failure = await conflictOf(
-      applyPodEvents({ threadId: 'thr-1', events: [eventAt(3), eventAt(6)] }),
+      applyPodEvents({
+        signals: inertSignals(),
+        threadId: 'thr-1',
+        events: [eventAt(3), eventAt(6)],
+      }),
     )
 
     expect(failure?.status).toBe(409)
@@ -142,10 +166,20 @@ describe('applyPodEvents', () => {
   })
 
   it('accepts a gapped tail re-flushed after a truncate', async () => {
-    await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2), eventAt(3), eventAt(4)] })
+    await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(2), eventAt(3), eventAt(4)],
+    })
 
-    expect(await truncatePodEvents({ threadId: 'thr-1', toSeq: 3 })).toEqual({ head: 3 })
-    const reply = await applyPodEvents({ threadId: 'thr-1', events: [eventAt(5), eventAt(7)] })
+    expect(
+      await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 3 }),
+    ).toEqual({ head: 3 })
+    const reply = await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(5), eventAt(7)],
+    })
 
     expect(reply).toEqual({ head: 7 })
     expect(await head()).toBe(7)
@@ -156,6 +190,7 @@ describe('applyPodEvents', () => {
     await db.orm.public.Thread.where({ id: 'thr-1' }).update({ head: 5 })
 
     const reply = await applyPodEvents({
+      signals: inertSignals(),
       threadId: 'thr-1',
       events: [
         eventAt(1, { body: '{"type":"user-said"}', runId: 'run_1', depth: 0, type: 'user-said' }),
@@ -176,14 +211,18 @@ describe('truncatePodEvents', () => {
   })
 
   it('deletes events past toSeq and sets the head to it', async () => {
-    expect(await truncatePodEvents({ threadId: 'thr-1', toSeq: 1 })).toEqual({ head: 1 })
+    expect(
+      await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 1 }),
+    ).toEqual({ head: 1 })
 
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1])
     expect(await head()).toBe(1)
   })
 
   it('never raises the head', async () => {
-    expect(await truncatePodEvents({ threadId: 'thr-1', toSeq: 9 })).toEqual({ head: 3 })
+    expect(
+      await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 9 }),
+    ).toEqual({ head: 3 })
 
     expect(await eventsOf('thr-1')).toHaveLength(3)
     expect(await head()).toBe(3)

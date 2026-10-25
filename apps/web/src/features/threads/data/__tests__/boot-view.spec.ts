@@ -14,9 +14,7 @@ import {
   isPodFailed,
   isPodLiveEligible,
   isPodSettled,
-  shouldPollPod,
 } from '../boot-view'
-import { awaitingRunOf } from '../take-back'
 
 const T0 = Date.parse('2026-10-22T10:00:00.000Z')
 const isoAt = (offsetMs: number) => new Date(T0 + offsetMs).toISOString()
@@ -152,7 +150,7 @@ describe('bootViewOf', () => {
   })
 })
 
-describe('isPodSettled and shouldPollPod', () => {
+describe('isPodSettled', () => {
   it('settles on failed, and on running once every step is done or none were recorded', () => {
     expect(isPodSettled(pod(EPodState.Failed))).toBe(true)
     expect(isPodSettled(pod(EPodState.Running))).toBe(true)
@@ -167,54 +165,6 @@ describe('isPodSettled and shouldPollPod', () => {
     ).toBe(false)
     expect(isPodSettled(pod(EPodState.Booting))).toBe(false)
     expect(isPodSettled(pod(EPodState.None))).toBe(false)
-  })
-
-  it('polls while booting, and while a pending message waits on a pod that has not started', () => {
-    expect(shouldPollPod({ pod: pod(EPodState.Booting), awaitingRun: false })).toBe(true)
-    expect(shouldPollPod({ pod: pod(EPodState.None), awaitingRun: true })).toBe(true)
-    expect(shouldPollPod({ pod: pod(EPodState.None), awaitingRun: false })).toBe(false)
-    expect(shouldPollPod({ pod: pod(EPodState.Running, allDone), awaitingRun: true })).toBe(false)
-    expect(shouldPollPod({ pod: pod(EPodState.Failed), awaitingRun: true })).toBe(false)
-  })
-
-  it('stops polling once the pod is parked, whatever is waiting on it', () => {
-    expect(isPodSettled(pod(EPodState.Parked))).toBe(true)
-    expect(shouldPollPod({ pod: pod(EPodState.Parked), awaitingRun: false })).toBe(false)
-    expect(shouldPollPod({ pod: pod(EPodState.Parked, allDone), awaitingRun: true })).toBe(false)
-  })
-
-  it('stops polling a running pod whose agent is done, and keeps polling while it starts', () => {
-    expect(shouldPollPod({ pod: pod(EPodState.Running, allDone), awaitingRun: false })).toBe(false)
-    expect(
-      shouldPollPod({
-        pod: pod(EPodState.Running, [
-          step({ step: EBootStep.Agent, state: EBootStepState.Running, offsetMs: 0 }),
-        ]),
-        awaitingRun: false,
-      }),
-    ).toBe(true)
-  })
-
-  it('does not poll forever for a pod that is none once the thread has been answered', () => {
-    const answered = [
-      { seq: 1, type: 'user-said' },
-      { seq: 2, type: 'assistant-said' },
-    ].map(({ seq, type }) => ({
-      id: `evt_${seq}`,
-      threadId: 'thr_1',
-      seq,
-      runId: 'run_1',
-      depth: 0,
-      at: isoAt(0),
-      type,
-      body: '{}',
-    }))
-    expect(shouldPollPod({ pod: pod(EPodState.None), awaitingRun: awaitingRunOf(answered) })).toBe(
-      false,
-    )
-    expect(
-      shouldPollPod({ pod: pod(EPodState.None), awaitingRun: awaitingRunOf(answered.slice(0, 1)) }),
-    ).toBe(true)
   })
 })
 

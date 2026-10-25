@@ -9,6 +9,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { failureText } from '../github/github-sandbox-wake-boot'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import { ScopedConfigService, type ThreadOwner } from '../scoped-config/scoped-config.service'
@@ -43,6 +44,7 @@ export class PodLaunchService {
     private readonly scoped: ScopedConfigService,
     private readonly cipher: SecretCipherService,
     @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async credentialsOf(owner: ThreadOwner): Promise<VercelNotConfiguredError | null> {
@@ -140,11 +142,13 @@ export class PodLaunchService {
     })
     if (gap !== null) {
       await this.reportGap({ threadId: thread.id, failure: gap })
+      await this.signals.podChanged({ threadId: thread.id })
       return { reply: notConfiguredReplyOf(gap), dispatchFailed: false }
     }
     const booting = { state: ESandboxProvisionState.Booting }
     const claim = await this.claim({ thread, existing })
     if (claim === null) return { reply: booting, dispatchFailed: false }
+    await this.signals.podChanged({ threadId: thread.id })
     const dispatched = await this.dispatch({ threadId: thread.id, claim })
     return { reply: booting, dispatchFailed: !dispatched }
   }
@@ -162,6 +166,7 @@ export class PodLaunchService {
           },
         ],
       })
+      await this.signals.podChanged({ threadId: args.threadId })
     } catch (failure) {
       this.logger.warn(
         `recording the dispatch failure of thread ${args.threadId} failed: ${failureText(failure)}`,

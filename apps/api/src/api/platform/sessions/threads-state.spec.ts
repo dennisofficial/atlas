@@ -10,6 +10,7 @@ import {
   USER_B,
 } from '../../../../test/session-seed'
 import { ThreadsService } from './threads.service'
+import { inertSignals } from './thread-signals.fixture'
 
 const PINNED = new Date('2026-09-16T10:00:00.000Z')
 const ARCHIVED = new Date('2026-09-17T10:00:00.000Z')
@@ -35,7 +36,7 @@ describe('ThreadsService thread state reads', () => {
     await seedUsers(USER_A, USER_B)
     await db.orm.public.Project.create({ id: 'prj_a', name: 'a', ownerUserId: USER_A })
     await db.orm.public.Project.create({ id: 'prj_b', name: 'b', ownerUserId: USER_A })
-    service = new ThreadsService()
+    service = new ThreadsService(inertSignals())
   })
 
   it('reports null pinnedAt and archivedAt for a thread that is neither', async () => {

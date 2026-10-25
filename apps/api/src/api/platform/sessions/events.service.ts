@@ -9,17 +9,20 @@ import type {
 import { applyPodEvents } from '../sandboxes/pod-events'
 import { appendWithin, nextEventId, readComposedRows, readOwnRows } from './append'
 import { ownedThread } from './ownership'
+import { ThreadSignalsService } from './thread-signals.service'
 import { toEventDto } from './rows'
 import type { EventDto } from './sessions.types'
 
 @Injectable()
 export class EventsService {
-  append(args: {
+  constructor(private readonly signals: ThreadSignalsService) {}
+
+  async append(args: {
     userId: string
     threadId: string
     draft: Omit<AppendEventsInput, 'threadId'>
   }): Promise<EventDto[]> {
-    return db.transaction((tx) =>
+    const events = await db.transaction((tx) =>
       appendWithin({
         tx,
         threadId: args.threadId,
@@ -30,9 +33,24 @@ export class EventsService {
         drafts: args.draft.drafts,
       }),
     )
+    if (events.length > 0) {
+      const head = Math.max(...events.map((event) => event.seq))
+      await this.signals.headMoved({ threadId: args.threadId, head })
+    }
+    return events
   }
 
-  replace(args: {
+  async replace(args: {
+    userId: string
+    threadId: string
+    draft: Omit<ReplaceEventsInput, 'threadId'>
+  }): Promise<EventDto[]> {
+    const events = await this.replaceWithin(args)
+    await this.signals.headMoved({ threadId: args.threadId, head: events.length })
+    return events
+  }
+
+  private replaceWithin(args: {
     userId: string
     threadId: string
     draft: Omit<ReplaceEventsInput, 'threadId'>
@@ -109,7 +127,7 @@ export class EventsService {
     events: readonly PodEvent[]
   }): Promise<PodEventsReply> {
     await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
-    return applyPodEvents({ threadId: args.threadId, events: args.events })
+    return applyPodEvents({ threadId: args.threadId, events: args.events, signals: this.signals })
   }
 
   async head(args: { userId: string; threadId: string }): Promise<{ head: number }> {

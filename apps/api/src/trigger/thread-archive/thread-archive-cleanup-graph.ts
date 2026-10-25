@@ -6,6 +6,7 @@ import { SandboxesService } from '../../api/platform/sandboxes/sandboxes.service
 import { VercelSandboxClient } from '../../api/platform/sandboxes/vercel-sandbox.client'
 import type { ThreadArchiveCleanupDeps } from '../../api/platform/sessions/thread-archive-cleanup-run'
 import { workerEnvService } from '../github/github-sweep-graph'
+import { buildWorkerThreadSignals } from '../thread-signals-graph'
 
 export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): ThreadArchiveCleanupDeps {
   const { env } = args
@@ -13,7 +14,8 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
   const vercel = new VercelSandboxClient(
     new ThreadSandboxCredentialsService(new ScopedConfigService(cipher), env),
   )
-  const sandboxes = new SandboxesService(vercel, cipher)
+  const { signals } = buildWorkerThreadSignals({ env })
+  const sandboxes = new SandboxesService(vercel, cipher, signals)
   return { park: (parkArgs) => sandboxes.park(parkArgs) }
 }
 
