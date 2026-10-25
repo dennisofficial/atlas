@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
+import type { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
 import { ArrowUpIcon, FileIcon, PlusIcon, SquareIcon, XIcon } from 'lucide-react'
 
 import {
@@ -51,6 +51,9 @@ export function canSend({ text, busy }: SendInput): boolean {
   return !busy && text.trim().length > 0
 }
 
+const insertedByEditor = (text: string): boolean =>
+  typeof document.execCommand === 'function' && document.execCommand('insertText', false, text)
+
 export function PromptInput({
   value,
   defaultValue = '',
@@ -84,6 +87,22 @@ export function PromptInput({
     if (!clearOnSubmit) return
     setDraft('')
     onValueChange?.('')
+  }
+
+  // Chromium drops a native paste when the clipboard changes mid-paste, which clipboard-restoring
+  // dictation tools (Wispr Flow) trigger; the paste event's own data survives. See
+  // third_party/blink/renderer/core/editing/commands/clipboard_commands.cc (SequenceNumber checks).
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const field = event.currentTarget
+    const pasted = event.clipboardData.getData('text/plain')
+    if (pasted === '' || field.readOnly) return
+    event.preventDefault()
+    if (insertedByEditor(pasted)) return
+    const caret = field.selectionStart + pasted.length
+    field.setRangeText(pasted, field.selectionStart, field.selectionEnd)
+    field.setSelectionRange(caret, caret)
+    setDraft(field.value)
+    onValueChange?.(field.value)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -129,6 +148,7 @@ export function PromptInput({
         <InputGroupTextarea
           value={text}
           onChange={handleChange}
+          onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           readOnly={sending}
