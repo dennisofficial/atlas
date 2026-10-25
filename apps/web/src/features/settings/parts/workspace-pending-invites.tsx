@@ -52,7 +52,7 @@ export function WorkspacePendingInvites({
           </EmptyHeader>
         </Empty>
       ) : (
-        <Table variant="framed">
+        <Table variant="framed" className="min-w-xl">
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs">Email</TableHead>

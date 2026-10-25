@@ -64,7 +64,7 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
     <SettingsPage title="Instructions">
       <SettingsCard
         footer={
-          <div className="flex w-full items-center justify-between gap-2">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <Mono className={overLimit ? 'text-destructive' : 'text-muted-foreground'}>
               {length.toLocaleString('en-US')} / {INSTRUCTIONS_CHAR_LIMIT.toLocaleString('en-US')}{' '}
               characters

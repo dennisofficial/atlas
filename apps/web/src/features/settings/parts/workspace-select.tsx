@@ -31,7 +31,7 @@ export function WorkspaceSelect({
   }
   return (
     <Select items={options} value={value} onValueChange={handleValueChange}>
-      <SelectTrigger size={size} aria-label={label} className={cn('w-64', className)}>
+      <SelectTrigger size={size} aria-label={label} className={cn('w-64 max-w-full', className)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false}>

@@ -113,11 +113,11 @@ export function AccountProfileCard({
 }) {
   return (
     <SettingsCard>
-      <CardRow className="flex-row items-center">
+      <CardRow className="items-start lg:flex-row lg:items-center">
         <Avatar size="lg">
           <AvatarFallback>{initialsOf(profile.name)}</AvatarFallback>
         </Avatar>
-        <div className="flex min-w-0 flex-1 items-start justify-between gap-5">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-4 sm:grid-cols-3 lg:flex lg:flex-1 lg:items-start lg:justify-between lg:gap-5">
           <ProfileField label="Name">{profile.name}</ProfileField>
           <ProfileField label="Email">{profile.email}</ProfileField>
           <ProfileField label="GitHub">

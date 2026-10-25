@@ -15,6 +15,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
+import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
@@ -74,8 +75,9 @@ function ThreadMissing() {
 
 function ThreadHeader({ title, failed }: { title: string | null; failed: boolean }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
+    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
+        <SidebarTrigger aria-label="Open navigation" size="icon-lg" className="md:hidden" />
         {title === null ? (
           <Skeleton className="h-4 w-48" />
         ) : (
@@ -83,9 +85,15 @@ function ThreadHeader({ title, failed }: { title: string | null; failed: boolean
         )}
         {failed ? <Badge variant="destructive">Failed</Badge> : null}
       </div>
-      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/threads/new" />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="New thread"
+        nativeButton={false}
+        render={<Link href="/threads/new" />}
+      >
         <PlusIcon />
-        New thread
+        <span className="hidden sm:inline">New thread</span>
       </Button>
     </header>
   )

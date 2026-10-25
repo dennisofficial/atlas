@@ -26,7 +26,7 @@ export function ProjectSettingsShell({
 }) {
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b bg-background px-3">
+      <header className="sticky top-0 z-10 grid h-12 grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 md:grid-cols-[1fr_auto_1fr]">
         <Button
           variant="ghost"
           size="sm"
@@ -35,9 +35,9 @@ export function ProjectSettingsShell({
           render={<Link href="/" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
-          Back to Atlas
+          <span className="sr-only sm:not-sr-only">Back to Atlas</span>
         </Button>
-        <h1 className="truncate text-sm font-medium">
+        <h1 className="min-w-0 truncate text-sm font-medium">
           Project Settings
           {title === '' ? null : (
             <>
@@ -47,14 +47,14 @@ export function ProjectSettingsShell({
           )}
         </h1>
       </header>
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8 md:flex-row md:gap-10">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-10 md:px-6 md:py-8">
         <nav aria-label="Project settings" className="shrink-0 md:w-44">
-          <ul className="flex gap-0.5 overflow-x-auto md:sticky md:top-20 md:flex-col">
+          <ul className="flex gap-0.5 overflow-x-auto pb-1 md:sticky md:top-20 md:flex-col">
             {PROJECT_NAV.map((item) => {
               const current = item.section === active
               const Icon = item.icon
               return (
-                <li key={item.section}>
+                <li key={item.section} className="shrink-0">
                   <Button
                     variant="ghost"
                     size="sm"

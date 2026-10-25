@@ -155,7 +155,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
       title={PAGE_TITLE}
       description={PAGE_DESCRIPTION}
       actions={
-        <InputGroup className="w-48">
+        <InputGroup className="w-full sm:w-48">
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>

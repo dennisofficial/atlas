@@ -14,7 +14,7 @@ export function ConfigFooter({
   onSave: () => void
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-8 -mb-10 mt-4 border-t bg-background px-8 py-3 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-background before:to-transparent">
+    <div className="sticky bottom-0 z-10 -mx-4 -mb-6 mt-4 border-t bg-background px-4 py-3 md:-mx-8 md:-mb-10 md:px-8 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-background before:to-transparent">
       <div className="flex items-center justify-between gap-3">
         <span
           className={cn(

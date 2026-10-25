@@ -44,8 +44,8 @@ export function WorkspaceMembersToolbar({
   onRoleFilterChange: (role: string) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <InputGroup className="flex-1">
+    <div className="flex flex-wrap items-center gap-2">
+      <InputGroup className="min-w-48 flex-1">
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>
@@ -83,7 +83,7 @@ export function WorkspaceMembersTable({
   onRemove: (id: string) => void
 }) {
   return (
-    <Table variant="framed">
+    <Table variant="framed" className="min-w-xl">
       <TableHeader>
         <TableRow>
           <TableHead className="text-xs">Member</TableHead>

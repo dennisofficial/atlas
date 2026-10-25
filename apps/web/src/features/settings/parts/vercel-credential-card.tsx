@@ -152,7 +152,7 @@ export function VercelCredentialCard({
           control={
             <Input
               id={teamId}
-              className="w-72 font-mono text-xs md:text-xs"
+              className="w-72 max-w-full font-mono text-xs md:text-xs"
               placeholder="team_…"
               autoComplete="off"
               spellCheck={false}
@@ -168,7 +168,7 @@ export function VercelCredentialCard({
           control={
             <Input
               id={projectId}
-              className="w-72 font-mono text-xs md:text-xs"
+              className="w-72 max-w-full font-mono text-xs md:text-xs"
               placeholder="prj_…"
               autoComplete="off"
               spellCheck={false}
@@ -191,7 +191,7 @@ export function VercelCredentialCard({
                 id={tokenId}
                 ref={tokenRef}
                 type="password"
-                className="w-72"
+                className="w-72 max-w-full"
                 autoComplete="new-password"
                 placeholder={tokenLocked ? 'Token saved and hidden' : 'Paste a Vercel access token'}
                 disabled={disabled || tokenLocked}

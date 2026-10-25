@@ -39,7 +39,7 @@ export function UsageSandboxTable({
   onAction: (id: string) => void
 }) {
   return (
-    <Table variant="framed">
+    <Table variant="framed" className="min-w-xl">
       <TableHeader>
         <TableRow>
           <TableHead className="text-xs text-muted-foreground">Thread</TableHead>
