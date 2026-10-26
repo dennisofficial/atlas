@@ -1,14 +1,14 @@
 # @dltech/atlas-storybook
 
 The component workshop for `@dltech/atlas-ui`. Storybook 10 (nextjs-vite) with Tailwind v4. It is the
-single Storybook host: it loads the stories co-located in `packages/ui/src` plus the prototypes here.
+single Storybook host: it loads the stories co-located in `packages/ui/src`.
 
 ## Run
 
 ```sh
 bun run --filter @dltech/atlas-storybook dev     # http://localhost:6006
 bun run --filter @dltech/atlas-storybook build   # static build to storybook-static/
-bun run --filter @dltech/atlas-storybook test    # prototype specs and the sitemap guard
+bun run --filter @dltech/atlas-storybook test    # affected-stories specs
 ```
 
 ## Render check
@@ -40,13 +40,8 @@ The toolbar **Theme** menu switches Dark (default) and Light. It toggles the `li
 | A vendored component                   | `packages/ui/src/components/<name>.stories.tsx`  | `Components/`  |
 | An AI pattern                          | `packages/ui/src/ai/<name>.stories.tsx`          | `AI/`          |
 | Colors and type                        | `packages/ui/src/tokens/`                        | `Foundations/` |
-| Page prototypes (never shipped)        | `apps/storybook/src/app/<route>/`                | `App/`         |
 
-Prototype folders and titles mirror the app sitemap: `src/app/auth/sign-in.stories.tsx` is
-`App/Auth/Sign in`, `src/app/projects/settings/<section>.stories.tsx` is
-`App/Projects/Settings/<Label>`, `src/app/settings/<slug>.stories.tsx` is `App/Settings/<Label>`
-(the slug is the `ESettingsPage` value). Storybook is the design source of truth; `apps/web`
-implements from it. `__tests__/sitemap.spec.ts` guards the layout.
+Page prototypes live in `apps/prototype`, not here.
 
 The filename matches the component file. `packages/ui/src/__tests__/story-coverage.spec.ts` fails
 when a component or AI pattern has no story next to it. Large stories split their data into a
