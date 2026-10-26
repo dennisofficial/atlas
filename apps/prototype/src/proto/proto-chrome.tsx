@@ -8,7 +8,7 @@ import { availableSpace, fitViewport, type Viewport } from './fit-viewport'
 import { FrameStage } from './frame-stage'
 import { chromeUrl } from './frame-path'
 import { PageSidebar } from './page-sidebar'
-import type { TreeNode } from './page-tree'
+import { staticPagePaths, type TreeNode } from './page-tree'
 import { matchRoute } from './route-samples'
 import { PROTO_SAMPLES } from './samples'
 import { TopStrip } from './top-strip'
@@ -36,9 +36,10 @@ export function ProtoChrome({
   const bridge = useFrameBridge({ iframeRef, initialPath, theme })
   const { currentPath, navigate } = bridge
 
+  const staticPaths = useMemo(() => staticPagePaths(tree), [tree])
   const route = useMemo(
-    () => matchRoute({ path: currentPath, samples: PROTO_SAMPLES }),
-    [currentPath],
+    () => matchRoute({ path: currentPath, samples: PROTO_SAMPLES, staticPaths }),
+    [currentPath, staticPaths],
   )
 
   const fit = fitViewport({

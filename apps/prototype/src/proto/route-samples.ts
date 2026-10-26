@@ -15,15 +15,21 @@ function isDynamicSegment(segment: string): boolean {
   return segment.startsWith('[') && segment.endsWith(']')
 }
 
+const NO_STATIC_PATHS: ReadonlySet<string> = new Set()
+
 export function patternMatchesPath({
   pattern,
   pathname,
+  staticPaths = NO_STATIC_PATHS,
 }: {
   pattern: string
   pathname: string
+  staticPaths?: ReadonlySet<string>
 }): boolean {
+  const bare = splitFramePath(pathname).pathname
+  if (pattern !== bare && staticPaths.has(bare)) return false
   const patternSegments = segmentsOf(pattern)
-  const pathSegments = segmentsOf(splitFramePath(pathname).pathname)
+  const pathSegments = segmentsOf(bare)
   if (patternSegments.length !== pathSegments.length) return false
   return patternSegments.every(
     (segment, index) => isDynamicSegment(segment) || segment === pathSegments[index],
@@ -33,13 +39,15 @@ export function patternMatchesPath({
 export function matchRoute({
   path,
   samples,
+  staticPaths = NO_STATIC_PATHS,
 }: {
   path: string
   samples: Record<string, ProtoSample[]>
+  staticPaths?: ReadonlySet<string>
 }): RouteMatch | null {
   const { pathname } = splitFramePath(path)
   const entry = Object.entries(samples).find(([pattern]) =>
-    patternMatchesPath({ pattern, pathname }),
+    patternMatchesPath({ pattern, pathname, staticPaths }),
   )
   if (!entry) return null
   const [pattern, routeSamples] = entry
