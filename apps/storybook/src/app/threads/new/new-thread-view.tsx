@@ -155,6 +155,7 @@ export function NewThreadView({
           placeholder={placeholderOf({ pod, message })}
           busy={message === EFirstMessage.Running}
           queued={flow.queued}
+          onSaveQueued={flow.handleSaveQueued}
           onRemoveQueued={flow.handleRemoveQueued}
           showContext={false}
           onEscape={flow.handleTakeBack}

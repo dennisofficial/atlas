@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import type { QueuedMessage } from '@dltech/atlas-ui/ai/task-dock'
+import type { QueuedMessageEntry, QueuedMessageSave } from '@dltech/atlas-ui/ai/queued-messages'
 
 import {
   FIRST_TURN_STEPS,
@@ -32,12 +32,13 @@ export interface NewThreadFlow extends ThreadCore {
   elapsed: number
   visibleSteps: number
   replyWords: number
-  queued: QueuedMessage[]
+  queued: QueuedMessageEntry[]
   handleDraftChange: (value: string) => void
   handleProjectChange: (projectId: string | null) => void
   handleSend: (text: string) => void
   handleTakeBack: () => void
   handleRetry: () => void
+  handleSaveQueued: (save: QueuedMessageSave) => void
   handleRemoveQueued: (id: string) => void
 }
 
@@ -56,7 +57,7 @@ export function useNewThreadFlow({
   const [elapsed, setElapsed] = useState(seededElapsed(initialPod))
   const [visibleSteps, setVisibleSteps] = useState(seededProgress.steps)
   const [replyWords, setReplyWords] = useState(seededProgress.words)
-  const [queued, setQueued] = useState<QueuedMessage[]>([])
+  const [queued, setQueued] = useState<QueuedMessageEntry[]>([])
   const { pod, message } = core
 
   useEffect(() => {
@@ -109,7 +110,10 @@ export function useNewThreadFlow({
       setCore(started)
       return
     }
-    setQueued((previous) => [...previous, { id: `q-${previous.length + 1}-${text.length}`, text }])
+    setQueued((previous) => [
+      ...previous,
+      { id: `q-${previous.length + 1}-${text.length}`, text, attachments: [] },
+    ])
   }
 
   const handleTakeBack = () => setCore(takeBackFrom(core))
@@ -118,6 +122,11 @@ export function useNewThreadFlow({
     setElapsed(0)
     setCore(retryFrom({ core, outcome }))
   }
+
+  const handleSaveQueued = ({ id, text, attachments }: QueuedMessageSave) =>
+    setQueued((previous) =>
+      previous.map((entry) => (entry.id === id ? { ...entry, text, attachments } : entry)),
+    )
 
   const handleRemoveQueued = (id: string) =>
     setQueued((previous) => previous.filter((entry) => entry.id !== id))
@@ -134,6 +143,7 @@ export function useNewThreadFlow({
     handleSend,
     handleTakeBack,
     handleRetry,
+    handleSaveQueued,
     handleRemoveQueued,
   }
 }

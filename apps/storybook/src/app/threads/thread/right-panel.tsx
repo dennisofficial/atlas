@@ -1,5 +1,11 @@
 import { useState } from 'react'
 
+import {
+  AgentsPanel,
+  type AgentsPanelAgent,
+  type AgentsPanelTeammate,
+  runningAgentCount,
+} from '@dltech/atlas-ui/ai/agents-panel'
 import { ChangesPanel, type ChangeScopeOption } from '@dltech/atlas-ui/ai/changes-panel'
 import { FileTree } from '@dltech/atlas-ui/ai/file-tree'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
@@ -21,9 +27,16 @@ export interface RightPanelProps {
   initialTerminalConnection?: ETerminalConnection
   initialPreviewId?: string
   pod?: PodPanelState
+  agents: AgentsPanelAgent[]
+  teammates: AgentsPanelTeammate[]
+  detailId?: string
+  onDetailChange: (id: string | undefined) => void
+  onOpenTeammate: (id: string) => void
+  onJumpToSpawn: (id: string) => void
 }
 
 const TAB_LABEL: Record<ERightTab, string> = {
+  [ERightTab.Agents]: 'Agents',
   [ERightTab.Changes]: 'Changes',
   [ERightTab.Files]: 'Files',
   [ERightTab.Terminal]: 'Terminal',
@@ -40,7 +53,14 @@ export function RightPanel({
   initialTerminalConnection,
   initialPreviewId,
   pod,
+  agents,
+  teammates,
+  detailId,
+  onDetailChange,
+  onOpenTeammate,
+  onJumpToSpawn,
 }: RightPanelProps) {
+  const running = runningAgentCount(agents)
   const [scope, setScope] = useState('all')
   const [selectedFile, setSelectedFile] = useState<string>()
 
@@ -57,9 +77,22 @@ export function RightPanel({
         {Object.values(ERightTab).map((value) => (
           <TabsTrigger key={value} value={value} className="flex-none px-1">
             {TAB_LABEL[value]}
+            {value === ERightTab.Agents && running > 0 ? (
+              <span className="font-mono text-xs tabular-nums">{running}</span>
+            ) : null}
           </TabsTrigger>
         ))}
       </TabsList>
+      <TabsContent value={ERightTab.Agents} className="min-h-0 flex-1">
+        <AgentsPanel
+          agents={agents}
+          teammates={teammates}
+          detailId={detailId}
+          onDetailChange={onDetailChange}
+          onOpenTeammate={onOpenTeammate}
+          onJumpToSpawn={onJumpToSpawn}
+        />
+      </TabsContent>
       <TabsContent value={ERightTab.Changes} className="min-h-0 flex-1">
         {pod ? (
           <PodChanges pod={pod} expanded={expanded} onExpandedChange={onExpandedChange} />

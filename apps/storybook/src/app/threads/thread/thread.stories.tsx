@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
+import { FOCUS_ID } from './agent-fixtures'
+import { RICH_QUEUE } from './queue-fixtures'
 import { SessionView } from './session-view'
 import { ETerminalConnection } from './sandbox-terminal'
 import { EPodState, RUNNING_POD } from './pod-status'
@@ -67,3 +69,15 @@ export const PodResizePending: Story = {
     header: { podStatus: { status: { ...RUNNING_POD, pendingVcpus: 8 }, defaultOpen: true } },
   },
 }
+
+export const AgentsTab: Story = { args: { initialTab: ERightTab.Agents } }
+
+export const AgentDetail: Story = {
+  args: { initialTab: ERightTab.Agents, initialDetailId: FOCUS_ID },
+}
+
+export const TeammateOpen: Story = {
+  args: { shell: { activeThreadId: 'tm-gutter-tokens' } },
+}
+
+export const QueuedMessages: Story = { args: { initialQueue: RICH_QUEUE } }

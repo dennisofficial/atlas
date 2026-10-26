@@ -250,6 +250,12 @@ export function findProject(projectId: string): AppProject {
   return project
 }
 
+export function findThread(threadId: string): AppThread {
+  const thread = THREADS.find((candidate) => candidate.id === threadId)
+  if (!thread) throw new Error(`Unknown thread ${threadId}`)
+  return thread
+}
+
 export function threadsOf(projectId: string): AppThread[] {
   return THREADS.filter((thread) => thread.projectId === projectId)
 }

@@ -6,7 +6,11 @@ import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { Trace } from '@dltech/atlas-ui/components/trace'
 
+import type { AgentRun } from './agent-run'
+import { isLiveAgent } from './agent-run'
+import { REPORT_GROUPS } from './agent-fixtures'
 import { ESessionState } from './session-types'
+import { ReportNotice, SpawnTurn } from './transcript-agents'
 import {
   FIRST_PROMPT,
   FIRST_TURN_REASONING,
@@ -23,6 +27,9 @@ export interface TranscriptProps {
   onApprove: () => void
   onDeny: () => void
   onOpenFile: (path: string) => void
+  agents?: AgentRun[]
+  flashId?: string
+  onOpenAgent?: (id: string) => void
 }
 
 export interface StepsProps {
@@ -140,7 +147,31 @@ function SecondTurn({ state, approval, onApprove, onDeny, onOpenFile }: Transcri
   )
 }
 
+const noop = () => undefined
+
+function AgentTurns({
+  agents,
+  flashId,
+  onOpenAgent,
+}: Required<Pick<TranscriptProps, 'agents' | 'onOpenAgent'>> & Pick<TranscriptProps, 'flashId'>) {
+  if (agents.length === 0) return null
+  return (
+    <>
+      <SpawnTurn agents={agents} flashId={flashId} onOpenAgent={onOpenAgent} />
+      {REPORT_GROUPS.map((ids, index) => (
+        <ReportNotice
+          key={ids.join('-')}
+          id={`n-${index}`}
+          runs={agents.filter((run) => ids.includes(run.id) && !isLiveAgent(run))}
+          onOpenAgent={onOpenAgent}
+        />
+      ))}
+    </>
+  )
+}
+
 export function Transcript(props: TranscriptProps) {
+  const { agents = [], flashId, onOpenAgent = noop } = props
   return (
     <Chat className="min-h-0 flex-1">
       <ChatItem id="u1" anchor>
@@ -149,6 +180,7 @@ export function Transcript(props: TranscriptProps) {
         </UserMessage>
       </ChatItem>
       <FirstTurn onOpenFile={props.onOpenFile} />
+      <AgentTurns agents={agents} flashId={flashId} onOpenAgent={onOpenAgent} />
       <ChatItem id="u2">
         <UserMessage author="Dennis" timestamp="14:36">
           {SECOND_PROMPT}

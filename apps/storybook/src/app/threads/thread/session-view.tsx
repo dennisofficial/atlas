@@ -1,27 +1,25 @@
 import { useState, type ReactNode } from 'react'
 
-import { EConfirmationState } from '@dltech/atlas-ui/ai/confirmation'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@dltech/atlas-ui/components/resizable'
 import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
+import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 
-import { SESSION_THREAD_ID } from '../../../fixtures/app'
+import { findThread, SESSION_THREAD_ID } from '../../../fixtures/app'
+import { findTeammate, teammatesOf } from '../../../fixtures/teammates'
 import { AppShell, type AppShellProps } from '../../shell/app-shell'
-import { Composer } from './composer'
+import { agentsFor } from './agent-fixtures'
 import type { ETerminalConnection } from './sandbox-terminal'
-import { RightPanel } from './right-panel'
 import type { PodPanelState } from './pod-state'
-import { SessionHeader, type SessionHeaderProps } from './session-header'
+import { INITIAL_QUEUE } from './queue-fixtures'
+import type { SessionHeaderProps } from './session-header'
+import { SessionPane } from './session-pane'
 import { ERightTab, ESessionState } from './session-types'
-import { INITIAL_QUEUE, planFor } from './transcript-data'
-import { Transcript } from './transcript'
+import { teammateHeader, teammateSessionState } from './teammate-view'
 
 export interface SessionViewProps {
   state?: ESessionState
   initialTab?: ERightTab
+  initialDetailId?: string
+  initialQueue?: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
   initialPreviewId?: string
   header?: Pick<SessionHeaderProps, 'title' | 'subtitle' | 'detail' | 'badgeLabel' | 'podStatus'>
@@ -33,7 +31,9 @@ export interface SessionViewProps {
 
 export function SessionView({
   state = ESessionState.Running,
-  initialTab = ERightTab.Changes,
+  initialTab = ERightTab.Agents,
+  initialDetailId,
+  initialQueue,
   initialTerminalConnection,
   initialPreviewId,
   header,
@@ -42,70 +42,50 @@ export function SessionView({
   renderTranscript,
   composer,
 }: SessionViewProps) {
-  const [tab, setTab] = useState(initialTab)
-  const [expanded, setExpanded] = useState<string[]>([])
-  const [approval, setApproval] = useState(EConfirmationState.Pending)
-  const [queued, setQueued] = useState(INITIAL_QUEUE[state])
-  const busy = state === ESessionState.Running
+  const [openId, setOpenId] = useState(shell?.activeThreadId ?? SESSION_THREAD_ID)
+  const teammate = findTeammate(openId)
+  const navigable = renderTranscript === undefined
 
-  const handleOpenFile = (path: string) => {
-    setTab(ERightTab.Changes)
-    setExpanded((previous) => (previous.includes(path) ? previous : [...previous, path]))
+  const handleOpenThread = (threadId: string) => {
+    if (!navigable) return
+    if (threadId === SESSION_THREAD_ID || findTeammate(threadId)) setOpenId(threadId)
   }
+  const handleOpenParent = () => handleOpenThread(SESSION_THREAD_ID)
 
-  const handleRemoveQueued = (id: string) =>
-    setQueued((previous) => previous.filter((message) => message.id !== id))
-
-  const handleSend = (text: string) => {
-    if (!busy) return
-    setQueued((previous) => [...previous, { id: `q-${previous.length + 1}-${text.length}`, text }])
-  }
+  const paneState = teammate ? teammateSessionState(teammate) : state
+  const paneHeader: SessionHeaderProps = teammate
+    ? teammateHeader({
+        teammate,
+        parentTitle: findThread(teammate.parentId).title,
+        onOpenParent: handleOpenParent,
+      })
+    : { state, ...header }
+  const isMain = !teammate && navigable
 
   return (
     <TooltipProvider>
       <AppShell
-        activeThreadId={shell?.activeThreadId ?? SESSION_THREAD_ID}
+        activeThreadId={openId}
         pendingThread={shell?.pendingThread}
+        onOpenThread={handleOpenThread}
       >
-        <SessionHeader state={state} {...header} />
-        <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-          <ResizablePanel id="transcript" minSize="35%">
-            <div className="flex h-full min-w-0 flex-col">
-              {renderTranscript ? (
-                renderTranscript({ onOpenFile: handleOpenFile })
-              ) : (
-                <Transcript
-                  state={state}
-                  approval={approval}
-                  onApprove={() => setApproval(EConfirmationState.Approved)}
-                  onDeny={() => setApproval(EConfirmationState.Denied)}
-                  onOpenFile={handleOpenFile}
-                />
-              )}
-              {composer ?? (
-                <Composer
-                  steps={planFor(state)}
-                  queued={queued}
-                  busy={busy}
-                  onRemoveQueued={handleRemoveQueued}
-                  onSend={handleSend}
-                />
-              )}
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel id="right-panel" defaultSize="40%" minSize="26%" maxSize="60%">
-            <RightPanel
-              tab={tab}
-              onTabChange={setTab}
-              expanded={expanded}
-              onExpandedChange={setExpanded}
-              initialTerminalConnection={initialTerminalConnection}
-              initialPreviewId={initialPreviewId}
-              pod={pod}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <SessionPane
+          key={openId}
+          state={paneState}
+          header={paneHeader}
+          agents={isMain ? agentsFor(state) : []}
+          teammates={isMain ? teammatesOf(SESSION_THREAD_ID) : []}
+          openedTeammate={teammate}
+          initialTab={initialTab}
+          initialDetailId={initialDetailId}
+          initialQueue={initialQueue ?? (teammate ? [] : INITIAL_QUEUE[state])}
+          initialTerminalConnection={initialTerminalConnection}
+          initialPreviewId={initialPreviewId}
+          pod={pod}
+          renderTranscript={renderTranscript}
+          composer={composer}
+          onOpenThread={handleOpenThread}
+        />
       </AppShell>
     </TooltipProvider>
   )

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
+import { SESSION_THREAD_ID } from '../../fixtures/app'
 import { AppShell } from './app-shell'
 
 const meta = {
@@ -31,4 +32,12 @@ export const AccountMenu: Story = {
 
 export const SidebarCollapsed: Story = {
   args: { defaultOpen: false },
+}
+
+export const TeammatesFolder: Story = {
+  args: { activeThreadId: SESSION_THREAD_ID },
+}
+
+export const TeammatesFolderCollapsed: Story = {
+  args: { activeThreadId: 'thr-snapshots' },
 }

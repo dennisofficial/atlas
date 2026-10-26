@@ -19,9 +19,16 @@ export interface AppSidebarProps {
   activeNav: EAppNav
   demo?: ShellDemoState
   pendingThread?: AppThread
+  onOpenThread?: (threadId: string) => void
 }
 
-export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: AppSidebarProps) {
+export function AppSidebar({
+  activeThreadId,
+  activeNav,
+  demo,
+  pendingThread,
+  onOpenThread,
+}: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <ShellTopBar />
@@ -33,6 +40,7 @@ export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: A
           archivedThreadIds={demo?.archivedThreadIds}
           archivedBucketOpen={demo?.archivedBucketOpen}
           pendingThread={pendingThread}
+          onOpenThread={onOpenThread}
         />
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border p-2 group-data-[collapsible=icon]:mt-auto">

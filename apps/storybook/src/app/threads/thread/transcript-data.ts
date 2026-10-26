@@ -1,6 +1,5 @@
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import { EStepStatus, type PlanStep } from '@dltech/atlas-ui/ai/plan'
-import type { QueuedMessage } from '@dltech/atlas-ui/ai/task-dock'
 
 import {
   BUN_TEST_OUTPUT,
@@ -22,6 +21,11 @@ export interface StepSpec {
 
 export const FIRST_PROMPT =
   'Rebase packages/ui on shadcn base-nova, keep our colors, and fix the diff viewer.'
+
+export const SPAWN_PROMPT =
+  'While that settles, find what still uses the legacy home page and audit focus rings in ui.'
+
+export const SPAWN_REPLY = 'I started four checks. They run in the background and report back here.'
 
 export const SECOND_PROMPT =
   'Looks good. Finish it: typecheck, run the specs, drop the legacy page, then open a PR.'
@@ -173,13 +177,4 @@ export function planFor(state: ESessionState): PlanStep[] {
     if (index === done) return { id, title, status: CURRENT_STATUS[state] }
     return { id, title, status: EStepStatus.Pending }
   })
-}
-
-export const INITIAL_QUEUE: Record<ESessionState, QueuedMessage[]> = {
-  [ESessionState.Running]: [
-    { id: 'q1', text: 'Also bump the storybook addon versions while you are in there' },
-    { id: 'q2', text: 'Squash the commits before opening the PR' },
-  ],
-  [ESessionState.ApprovalPending]: [],
-  [ESessionState.Idle]: [],
 }
