@@ -10,6 +10,7 @@ export {
   chipLabel,
   EPodState,
   ramOf,
+  ResizeDeclinedError,
   sizeLabel,
   VCPU_STEPS,
   type PodStatus,

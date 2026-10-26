@@ -43,4 +43,20 @@ describe('useRightPanel', () => {
     expect(state().changesPath).toBe('src/a.ts')
     expect(state().sheetOpen).toBe(true)
   })
+
+  it('openAgent selects the agent, switches to Agents and opens the sheet', async () => {
+    const state = await mount()
+    await act(async () => state().openChanges('a.ts'))
+    await act(async () => state().openAgent('agent-1'))
+    expect(state().tab).toBe(ERightTab.Agents)
+    expect(state().agentId).toBe('agent-1')
+    expect(state().sheetOpen).toBe(true)
+  })
+
+  it('clearAgent returns to the agent list', async () => {
+    const state = await mount()
+    await act(async () => state().openAgent('agent-1'))
+    await act(async () => state().clearAgent())
+    expect(state().agentId).toBeUndefined()
+  })
 })

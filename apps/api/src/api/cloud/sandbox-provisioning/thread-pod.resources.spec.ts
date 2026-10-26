@@ -1,7 +1,8 @@
-import { EPodResizeApplies } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxMissingError } from '../../platform/sandboxes/vercel-sandbox.client'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import { podServiceOver, realEndpoints } from './thread-pod.fixture'
@@ -73,21 +74,6 @@ describe('ThreadPodService resources', () => {
     expect(pod.resources).toEqual({ sandboxId: 'sbx-9', region: 'iad1' })
   })
 
-  it('resizes through Vercel and says it applies at the next wake', async () => {
-    const row = await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1' })
-    const updateResources = vi.fn(async () => undefined)
-    const service = podServiceOver(realEndpoints(), vercelWith({ updateResources }))
-
-    const reply = await service.resize({ ...scope, vcpus: 4 })
-
-    expect(reply).toEqual({ vcpus: 4, appliesAt: EPodResizeApplies.Restart })
-    expect(updateResources).toHaveBeenCalledWith({
-      threadId: 'thr-1',
-      name: row.name,
-      vcpus: 4,
-    })
-  })
-
   it('answers 404 resizing a thread with no pod, another user, or a vanished sandbox', async () => {
     const service = podServiceOver(realEndpoints(), vercelWith({}))
     await expect(service.resize({ ...scope, vcpus: 4 })).rejects.toMatchObject({
@@ -101,6 +87,10 @@ describe('ThreadPodService resources', () => {
       status: 404,
     })
 
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Done }],
+    })
     const gone = podServiceOver(
       realEndpoints(),
       vercelWith({

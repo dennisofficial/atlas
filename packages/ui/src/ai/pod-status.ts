@@ -8,6 +8,13 @@ export enum EPodState {
 
 export const VCPU_STEPS = [2, 4, 8]
 
+export class ResizeDeclinedError extends Error {
+  constructor() {
+    super('the resize was declined')
+    this.name = 'ResizeDeclinedError'
+  }
+}
+
 const RAM_PER_VCPU_GB = 2
 
 export interface PodStatus {

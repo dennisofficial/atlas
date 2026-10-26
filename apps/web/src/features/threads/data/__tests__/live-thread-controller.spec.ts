@@ -21,6 +21,22 @@ describe('createLiveThreadController', () => {
     expect(test.state().events.map((entry) => entry.seq)).toEqual([1, 2])
   })
 
+  it('exposes the serve channel once opened and drops it on stop', async () => {
+    const test = rig()
+    expect(test.state().channel).toBeNull()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    const channel = test.state().channel
+    expect(channel).not.toBeNull()
+    expect(typeof channel?.onTerminalOutput).toBe('function')
+    expect(typeof channel?.request).toBe('function')
+
+    test.controller.stop()
+    expect(test.state().channel).toBeNull()
+  })
+
   it('reads past the head over the channel on events-appended and dedupes by seq', async () => {
     const test = rig()
     test.controller.start()

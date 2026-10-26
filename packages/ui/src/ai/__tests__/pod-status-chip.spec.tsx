@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { EPodState, type PodStatus } from '../pod-status'
+import { EPodState, ResizeDeclinedError, type PodStatus } from '../pod-status'
 import { PodPopoverBody } from '../internal/pod-popover-body'
 import { PodStatusChip } from '../pod-status-chip'
 
@@ -62,7 +62,37 @@ describe('PodStatusChip resize', () => {
     await click(buttonNamed('8 vCPU'))
     await click(buttonNamed('Apply'))
     expect(onResize).toHaveBeenCalledWith(8)
-    expect(document.body.textContent).toContain('Applies at next wake: 8 vCPU · 16 GB')
+    expect(document.body.textContent).toContain('Restarting with 8 vCPU · 16 GB')
+    expect(document.body.textContent).not.toContain('next wake')
+    await view.unmount()
+  })
+
+  it('says a parked pod takes the size when it next starts', async () => {
+    const onResize = mock(() => Promise.resolve())
+    const parked = { ...RUNNING, state: EPodState.Parked }
+    const view = await mount(<PodPopoverBody status={parked} onResize={onResize} />)
+    expect(document.body.textContent).toContain('Applies on next start')
+    await click(buttonNamed('8 vCPU'))
+    await click(buttonNamed('Apply'))
+    expect(document.body.textContent).toContain('Starts with 8 vCPU · 16 GB')
+    await view.unmount()
+  })
+
+  it('warns that applying restarts a running pod', async () => {
+    const view = await mount(
+      <PodPopoverBody status={RUNNING} onResize={mock(() => Promise.resolve())} />,
+    )
+    expect(document.body.textContent).toContain('Applying restarts the pod')
+    await view.unmount()
+  })
+
+  it('stays quiet when the resize is declined', async () => {
+    const onResize = mock(() => Promise.reject(new ResizeDeclinedError()))
+    const view = await mount(<PodPopoverBody status={RUNNING} onResize={onResize} />)
+    await click(buttonNamed('8 vCPU'))
+    await click(buttonNamed('Apply'))
+    expect(document.body.textContent).not.toContain('Could not resize the pod.')
+    expect(document.body.textContent).not.toContain('Restarting with')
     await view.unmount()
   })
 

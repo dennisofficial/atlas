@@ -200,7 +200,6 @@ export type PodResizeInput = z.infer<typeof podResizeInputSchema>
 
 export enum EPodResizeApplies {
   Live = 'live',
-  Restart = 'restart',
 }
 
 export const podResizeReplySchema = z.object({

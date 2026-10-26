@@ -8,6 +8,7 @@ import {
   canResize,
   EPodState,
   ramOf,
+  ResizeDeclinedError,
   sizeLabel,
   STATE_LABEL,
   VCPU_STEPS,
@@ -24,11 +25,18 @@ interface SizeNoteProps {
 function SizeNote({ status, pending, canChange, failed }: SizeNoteProps) {
   if (failed) return <p className="text-xs text-destructive">Could not resize the pod.</p>
   if (pending !== undefined) {
+    const lead = status.state === EPodState.Parked ? 'Starts with' : 'Restarting with'
     return (
-      <p className="text-xs text-muted-foreground">Applies at next wake: {sizeLabel(pending)}</p>
+      <p className="text-xs text-muted-foreground">
+        {lead} {sizeLabel(pending)}
+      </p>
     )
   }
-  if (canChange) return null
+  if (canChange) {
+    const reason =
+      status.state === EPodState.Parked ? 'Applies on next start' : 'Applying restarts the pod'
+    return <p className="text-xs text-muted-foreground">{reason}</p>
+  }
   const reason =
     status.state === EPodState.Starting
       ? 'Size can be changed once the pod is up.'
@@ -78,8 +86,8 @@ export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBod
     try {
       await onResize(selected)
       setRequested(selected)
-    } catch {
-      setFailed(true)
+    } catch (failure) {
+      setFailed(!(failure instanceof ResizeDeclinedError))
     } finally {
       setApplying(false)
     }

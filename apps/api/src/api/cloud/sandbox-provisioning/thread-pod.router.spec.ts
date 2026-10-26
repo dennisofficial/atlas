@@ -11,11 +11,13 @@ import {
 } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { callMutation, callQuery, createRouterApp } from './sandbox-provisioning.router.fixture'
 import { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { PodLaunchService } from './pod-launch.service'
 import { ThreadPodRouter } from './thread-pod.router'
 import { ThreadPodService } from './thread-pod.service'
 import { realEndpoints, SERVE_TOKEN, SERVE_URL, seedServingPod } from './thread-pod.fixture'
@@ -36,6 +38,8 @@ describe('ThreadPodRouter', () => {
       ThreadPodService,
       { provide: SandboxEndpointService, useValue: realEndpoints() },
       { provide: VercelSandboxClient, useValue: resizableVercel },
+      { provide: SandboxesService, useValue: {} },
+      { provide: PodLaunchService, useValue: {} },
     ])
   })
 
@@ -169,14 +173,18 @@ describe('ThreadPodRouter', () => {
     })
 
     it('answers the owner the applied size and when it lands', async () => {
-      await seedServingPod({ threadId: 'thr-1', userId: 'usr-1' })
+      await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', state: 'parked' })
+      await recordBootSteps({
+        threadId: 'thr-1',
+        steps: [{ step: EBootStep.Provision, state: EBootStepState.Done }],
+      })
 
       const reply = await post('session-a')
 
       expect(reply.status).toBe(200)
       expect(podResizeReplySchema.parse(reply.body.result.data)).toEqual({
         vcpus: 4,
-        appliesAt: EPodResizeApplies.Restart,
+        appliesAt: EPodResizeApplies.Live,
       })
     })
   })

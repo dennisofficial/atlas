@@ -8,6 +8,7 @@ import type {
   LiveSend,
   LiveTakeBackPending,
   LiveThreadView,
+  ServeChannel,
 } from './live-thread-view'
 
 export type ThreadSource = {
@@ -18,6 +19,7 @@ export type ThreadSource = {
   error: Error | null
   working: boolean
   live: boolean
+  channel: ServeChannel | null
   sendLive: LiveSend
   chooseModel: LiveChooseModel
   pending: readonly PendingEntryWire[]
@@ -47,6 +49,7 @@ export function threadSourceOf(args: {
       error: null,
       working: live.working,
       live: true,
+      channel: live.channel,
       sendLive: live.send,
       chooseModel: live.chooseModel,
       pending: live.pending,
@@ -63,6 +66,7 @@ export function threadSourceOf(args: {
     outputs: NO_OUTPUTS,
     working: false,
     live: false,
+    channel: null,
     sendLive: live.send,
     chooseModel: live.chooseModel,
     pending: NO_PENDING,

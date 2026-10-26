@@ -42,9 +42,9 @@ describe('pod resources wire', () => {
     expect(
       podResizeReplySchema.safeParse({
         vcpus: 4,
-        appliesAt: EPodResizeApplies.Restart,
+        appliesAt: EPodResizeApplies.Live,
       }).success,
     ).toBe(true)
-    expect(podResizeReplySchema.safeParse({ vcpus: 4, appliesAt: 'later' }).success).toBe(false)
+    expect(podResizeReplySchema.safeParse({ vcpus: 4, appliesAt: 'restart' }).success).toBe(false)
   })
 })

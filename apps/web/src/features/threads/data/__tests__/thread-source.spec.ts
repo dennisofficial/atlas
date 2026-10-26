@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { IDLE_LIVE_THREAD, type LiveThreadView } from '../live-thread-view'
+import { IDLE_LIVE_THREAD, type LiveThreadView, type ServeChannel } from '../live-thread-view'
 import { pollingEnabledFor, threadSourceOf } from '../thread-source'
 
 const event = (seq: number): WireEvent => ({
@@ -42,6 +42,20 @@ describe('threadSourceOf', () => {
     })
     expect(source).toMatchObject({ live: true, working: true, loaded: true, error: null })
     expect(source.events).toBe(streamed)
+  })
+})
+
+describe('threadSourceOf channel', () => {
+  const channel = {} as ServeChannel
+
+  it('carries the live channel while streaming', () => {
+    const source = threadSourceOf({ live: liveView({ live: true, channel }), polled })
+    expect(source.channel).toBe(channel)
+  })
+
+  it('has no channel while polling', () => {
+    const source = threadSourceOf({ live: liveView({ channel }), polled })
+    expect(source.channel).toBeNull()
   })
 })
 

@@ -40,9 +40,13 @@ export const Resuming: Story = { args: { status: { ...RUNNING, state: EPodState.
 
 export const Parked: Story = { args: { status: { ...RUNNING, state: EPodState.Parked } } }
 
+export const ParkedResizeQueued: Story = {
+  args: { status: { ...RUNNING, state: EPodState.Parked, pendingVcpus: 8 } },
+}
+
 export const Stopped: Story = { args: { status: { ...RUNNING, state: EPodState.Stopped } } }
 
-export const ResizePending: Story = { args: { status: { ...RUNNING, pendingVcpus: 8 } } }
+export const Restarting: Story = { args: { status: { ...RUNNING, pendingVcpus: 8 } } }
 
 export const ResizeFails: Story = { args: { onResize: fail } }
 
