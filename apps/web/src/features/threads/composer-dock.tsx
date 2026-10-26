@@ -1,6 +1,7 @@
 'use client'
 
 import { Context } from '@dltech/atlas-ui/ai/context'
+import { QueuedMessages } from '@dltech/atlas-ui/ai/queued-messages'
 import { TaskDock } from '@dltech/atlas-ui/ai/task-dock'
 
 import type { ContextUsage } from './data/context-usage'
@@ -10,11 +11,14 @@ export type ComposerDockState = ReturnType<typeof useComposerDock>
 
 export function ComposerDock({ dock }: { dock: ComposerDockState }) {
   return (
-    <TaskDock
-      steps={dock.steps}
-      queued={dock.queued}
-      onRemoveQueued={(id) => void dock.handleRemoveQueued(id)}
-    />
+    <>
+      <TaskDock steps={dock.steps} />
+      <QueuedMessages
+        messages={dock.queued}
+        onSave={(save) => void dock.handleSaveQueued(save)}
+        onRemove={(id) => void dock.handleRemoveQueued(id)}
+      />
+    </>
   )
 }
 

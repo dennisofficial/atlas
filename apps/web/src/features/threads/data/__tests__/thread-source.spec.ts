@@ -69,3 +69,22 @@ describe('pollingEnabledFor', () => {
     expect(states.map((live) => pollingEnabledFor(live))).toEqual([true, false, true])
   })
 })
+
+describe('threadSourceOf operator input', () => {
+  const request = { requestId: 'opin_1', description: 'Paste the code', path: '/tmp/code' }
+
+  it('surfaces the pending request while live', () => {
+    const source = threadSourceOf({
+      live: liveView({ live: true, operatorInput: request }),
+      polled,
+    })
+    expect(source.operatorInput).toBe(request)
+    expect(source.waitingOnOperator).toBe(true)
+  })
+
+  it('is not waiting without a request or while polling', () => {
+    expect(threadSourceOf({ live: liveView({ live: true }), polled }).waitingOnOperator).toBe(false)
+    const polling = threadSourceOf({ live: liveView({ operatorInput: request }), polled })
+    expect(polling).toMatchObject({ operatorInput: null, waitingOnOperator: false })
+  })
+})

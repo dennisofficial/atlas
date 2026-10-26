@@ -55,6 +55,7 @@ describe('ThreadHeader', () => {
     expect(render({ state: EHeaderState.Running })).toContain('Running')
     expect(render({ state: EHeaderState.Idle })).toContain('Idle')
     expect(render({ state: EHeaderState.Failed })).toContain('Failed')
+    expect(render({ state: EHeaderState.NeedsYou })).toContain('Needs you')
   })
 
   it('renders the pod chip slot content', () => {

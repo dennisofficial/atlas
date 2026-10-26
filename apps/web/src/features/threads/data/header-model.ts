@@ -4,6 +4,7 @@ import { linkedPullRequestOf } from '@/features/shell/thread-status'
 
 export enum EHeaderState {
   Failed = 'failed',
+  NeedsYou = 'needs-you',
   Running = 'running',
   Idle = 'idle',
 }
@@ -16,12 +17,18 @@ export type PullRequestBadge = {
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'Failed',
+  [EHeaderState.NeedsYou]: 'Needs you',
   [EHeaderState.Running]: 'Running',
   [EHeaderState.Idle]: 'Idle',
 }
 
-export function headerStateOf(args: { failed: boolean; working: boolean }): EHeaderState {
+export function headerStateOf(args: {
+  failed: boolean
+  working: boolean
+  waitingOnOperator: boolean
+}): EHeaderState {
   if (args.failed) return EHeaderState.Failed
+  if (args.waitingOnOperator) return EHeaderState.NeedsYou
   return args.working ? EHeaderState.Running : EHeaderState.Idle
 }
 

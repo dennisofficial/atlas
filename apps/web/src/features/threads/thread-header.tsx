@@ -32,6 +32,13 @@ export type ThreadHeaderProps = {
   onOpenPanel: () => void
 }
 
+const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
+  [EHeaderState.Failed]: 'destructive',
+  [EHeaderState.NeedsYou]: 'default',
+  [EHeaderState.Running]: 'secondary',
+  [EHeaderState.Idle]: 'secondary',
+}
+
 function ParentCrumb({ parent }: { parent: HeaderParent }) {
   return (
     <nav
@@ -88,9 +95,7 @@ export function ThreadHeader(props: ThreadHeaderProps) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {pullRequest ? <PullRequestLink pullRequest={pullRequest} /> : null}
-        <Badge variant={state === EHeaderState.Failed ? 'destructive' : 'secondary'}>
-          {STATE_LABEL[state]}
-        </Badge>
+        <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
         {podChip}
         <Button
           variant="ghost"

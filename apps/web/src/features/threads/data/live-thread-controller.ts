@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
-import { absorbInto, EMPTY_OUTPUTS, isStepSignal, settleInto } from './live-signals'
+import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
 import {
   IDLE_LIVE_THREAD,
   type LiveSend,
@@ -90,7 +90,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       pending: [],
       reported: null,
       channel: null,
-      ...EMPTY_OUTPUTS,
+      ...RELEASED_FIELDS,
     })
   }
 
@@ -283,7 +283,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     chooseModel,
     takeBackPending,
     stop: () => {
-      update({ channel: null, ...EMPTY_OUTPUTS })
+      update({ channel: null, ...RELEASED_FIELDS })
       stopped = true
       signalTransport.dropAll()
       release()

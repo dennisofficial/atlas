@@ -6,6 +6,7 @@ import { threadOf } from '@/features/shell/__tests__/fixtures'
 import {
   branchOf,
   EHeaderState,
+  STATE_LABEL,
   headerStateOf,
   pullRequestBadgeOf,
   spawnerIdOf,
@@ -78,11 +79,23 @@ describe('pullRequestBadgeOf', () => {
 
 describe('headerStateOf', () => {
   it('lets a failed pod win over a working turn', () => {
-    expect(headerStateOf({ failed: true, working: true })).toBe(EHeaderState.Failed)
+    expect(headerStateOf({ failed: true, working: true, waitingOnOperator: true })).toBe(
+      EHeaderState.Failed,
+    )
   })
 
   it('reports Running while a turn works and Idle otherwise', () => {
-    expect(headerStateOf({ failed: false, working: true })).toBe(EHeaderState.Running)
-    expect(headerStateOf({ failed: false, working: false })).toBe(EHeaderState.Idle)
+    expect(headerStateOf({ failed: false, working: true, waitingOnOperator: false })).toBe(
+      EHeaderState.Running,
+    )
+    expect(headerStateOf({ failed: false, working: false, waitingOnOperator: false })).toBe(
+      EHeaderState.Idle,
+    )
+  })
+
+  it('reads Needs you while the operator is awaited, even mid-turn', () => {
+    const state = headerStateOf({ failed: false, working: true, waitingOnOperator: true })
+    expect(state).toBe(EHeaderState.NeedsYou)
+    expect(STATE_LABEL[state]).toBe('Needs you')
   })
 })

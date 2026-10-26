@@ -1,6 +1,6 @@
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { CallId, ModelUsage } from '@dltech/atlas-core'
-import type { PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
+import type { OperatorInputRequestWire, PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
 
 import type { PolledThreadEvents } from './use-thread-events'
 import type {
@@ -24,6 +24,8 @@ export type ThreadSource = {
   chooseModel: LiveChooseModel
   pending: readonly PendingEntryWire[]
   reported: ModelUsage | null
+  operatorInput: OperatorInputRequestWire | null
+  waitingOnOperator: boolean
   takeBackPending: LiveTakeBackPending
   refreshEvents: () => void
 }
@@ -54,6 +56,8 @@ export function threadSourceOf(args: {
       chooseModel: live.chooseModel,
       pending: live.pending,
       reported: live.reported,
+      operatorInput: live.operatorInput,
+      waitingOnOperator: live.operatorInput !== null,
       takeBackPending: live.takeBackPending,
       refreshEvents: STREAMED,
     }
@@ -71,6 +75,8 @@ export function threadSourceOf(args: {
     chooseModel: live.chooseModel,
     pending: NO_PENDING,
     reported: null,
+    operatorInput: null,
+    waitingOnOperator: false,
     takeBackPending: live.takeBackPending,
   }
 }

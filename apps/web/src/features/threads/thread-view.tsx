@@ -36,6 +36,7 @@ import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerHandoff } from './data/use-composer-handoff'
+import { useOperatorInput } from './data/use-operator-input'
 import { useNow } from './data/use-now'
 import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
@@ -48,6 +49,7 @@ import { useThreadSource } from './data/use-thread-source'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
+import { OperatorInputCard } from './operator-input-card'
 import { ThreadPanelProvider, type ThreadPanelValue } from './panel/thread-panel-context'
 import { useRightPanel } from './panel/use-right-panel'
 import { isBootStarting } from './sandbox-boot-props'
@@ -111,12 +113,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
     [durable, live, outputs, reveal],
   )
   const dock = useComposerDock({
+    threadId,
     visible,
     source,
     picker: model.picker,
     selection: model.selection,
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
+  const operator = useOperatorInput(source)
   const handoff = useComposerHandoff({
     events: visible,
     pending: source.pending,
@@ -189,7 +193,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const header = (
     <ThreadHeader
       title={title}
-      state={headerStateOf({ failed, working })}
+      state={headerStateOf({
+        failed,
+        working,
+        waitingOnOperator: source.waitingOnOperator,
+      })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
       pullRequest={pullRequestBadgeOf(thread.data)}
@@ -231,6 +239,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
             {notConfigured === null ? null : (
               <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
+            )}
+            {operator.request === null ? null : (
+              <OperatorInputCard
+                key={operator.request.requestId}
+                request={operator.request}
+                submitting={operator.submitting}
+                onSubmit={(value) => void operator.handleSubmit(value)}
+              />
             )}
             <ComposerDock dock={dock} />
             <ThreadComposer
