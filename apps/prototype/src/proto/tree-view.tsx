@@ -2,16 +2,23 @@
 
 import { Collapsible, CollapsibleContent } from './ui/collapsible'
 import { FileIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { splitFramePath } from './frame-path'
-import { ENodeType, type FolderNode, type PageNode, type TreeNode } from './page-tree'
+import {
+  ENodeType,
+  type FolderNode,
+  type PageNode,
+  staticPagePaths,
+  type TreeNode,
+} from './page-tree'
 import { patternMatchesPath } from './route-samples'
 import { TreeFolderRow } from './tree-folder-row'
 import { cn } from './ui/utils'
 
 interface TreeContext {
   activePathname: string
+  staticPaths: ReadonlySet<string>
   forceOpen: boolean
   collapsed: ReadonlySet<string>
   onToggle: (id: string) => void
@@ -20,7 +27,11 @@ interface TreeContext {
 
 function PageRow({ node, context }: { node: PageNode; context: TreeContext }) {
   const isActive = node.pattern
-    ? patternMatchesPath({ pattern: node.pattern, pathname: context.activePathname })
+    ? patternMatchesPath({
+        pattern: node.pattern,
+        pathname: context.activePathname,
+        staticPaths: context.staticPaths,
+      })
     : splitFramePath(node.url).pathname === context.activePathname
   const handleClick = () => context.onSelect(node.url)
   return (
@@ -89,8 +100,10 @@ export function TreeView({
       if (!next.delete(id)) next.add(id)
       return next
     })
+  const staticPaths = useMemo(() => staticPagePaths(nodes), [nodes])
   const context: TreeContext = {
     activePathname,
+    staticPaths,
     forceOpen: isFiltering,
     collapsed,
     onToggle: handleToggle,

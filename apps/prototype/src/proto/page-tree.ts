@@ -187,6 +187,14 @@ export function filterTree({ nodes, query }: { nodes: TreeNode[]; query: string 
   })
 }
 
+export function staticPagePaths(nodes: TreeNode[]): ReadonlySet<string> {
+  const paths = nodes.flatMap(function collect(node: TreeNode): string[] {
+    if (node.type === ENodeType.Folder) return node.children.flatMap(collect)
+    return node.pattern ? [] : [node.url]
+  })
+  return new Set(paths)
+}
+
 export function firstPageUrl(nodes: TreeNode[]): string | null {
   for (const node of nodes) {
     if (node.type === ENodeType.Page) return node.url

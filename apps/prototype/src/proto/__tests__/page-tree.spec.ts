@@ -7,6 +7,7 @@ import {
   filterTree,
   firstPageUrl,
   folderKindOf,
+  staticPagePaths,
   type FolderNode,
   type TreeNode,
 } from '../page-tree'
@@ -169,5 +170,18 @@ describe('firstPageUrl', () => {
   test('finds the first leaf depth-first', () => {
     expect(firstPageUrl(tree())).toBe('/projects/rs-crm/settings/overview')
     expect(firstPageUrl([])).toBeNull()
+  })
+})
+
+describe('staticPagePaths', () => {
+  test('lists the URL of every static page and skips dynamic ones', () => {
+    const nodes = buildPageTree({
+      pageDirs: [
+        ['(private)', '(shell)', 'threads', 'new'],
+        ['(private)', '(shell)', 'threads', '[threadId]'],
+      ],
+      samples: { '/threads/[threadId]': [{ label: 'Session', path: '/threads/thr-1' }] },
+    })
+    expect([...staticPagePaths(nodes)]).toEqual(['/threads/new'])
   })
 })

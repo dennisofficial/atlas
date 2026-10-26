@@ -58,3 +58,33 @@ describe('matchRoute', () => {
     expect(matchRoute({ path: '/', samples: SAMPLES })).toBeNull()
   })
 })
+
+describe('static routes win over dynamic ones', () => {
+  const STATIC_PATHS = new Set(['/threads/new'])
+
+  test('a static sibling does not match the dynamic pattern', () => {
+    expect(
+      patternMatchesPath({
+        pattern: '/threads/[threadId]',
+        pathname: '/threads/new',
+        staticPaths: STATIC_PATHS,
+      }),
+    ).toBe(false)
+  })
+
+  test('other ids still match the dynamic pattern', () => {
+    expect(
+      patternMatchesPath({
+        pattern: '/threads/[threadId]',
+        pathname: '/threads/thr-1',
+        staticPaths: STATIC_PATHS,
+      }),
+    ).toBe(true)
+  })
+
+  test('matchRoute gives a static sibling no route samples', () => {
+    expect(
+      matchRoute({ path: '/threads/new', samples: SAMPLES, staticPaths: STATIC_PATHS }),
+    ).toBeNull()
+  })
+})
