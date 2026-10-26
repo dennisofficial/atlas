@@ -2,10 +2,12 @@ import type { ReactNode } from 'react'
 import { CircleCheckIcon, LoaderCircleIcon } from 'lucide-react'
 
 import { Badge } from '#components/badge'
+import { Button } from '#components/button'
 import { Trace } from '#components/trace'
 import { EToolKind } from './internal/kinds'
 import { Tool, EToolState, type ToolProps } from './tool'
 import { Step } from './internal/step'
+import { earlierCallsLabel, visibleCalls } from './subagent-calls'
 
 export { EToolKind, EToolState }
 
@@ -17,8 +19,30 @@ export interface SubagentProps {
   tools?: string[]
   prompt?: string
   calls?: ToolProps[]
+  maxVisibleCalls?: number
+  onShowAllCalls?: () => void
   result?: ReactNode
   defaultOpen?: boolean
+}
+
+interface EarlierCallsProps {
+  hidden: number
+  onShowAll?: () => void
+}
+
+function EarlierCalls({ hidden, onShowAll }: EarlierCallsProps) {
+  const label = earlierCallsLabel(hidden)
+  if (!onShowAll) return <span className="text-xs text-muted-foreground">{label}</span>
+  return (
+    <Button
+      variant="ghost"
+      size="xs"
+      className="self-start text-muted-foreground"
+      onClick={onShowAll}
+    >
+      {label}
+    </Button>
+  )
 }
 
 export function Subagent({
@@ -29,9 +53,14 @@ export function Subagent({
   tools = [],
   prompt,
   calls = [],
+  maxVisibleCalls,
+  onShowAllCalls,
   result,
   defaultOpen,
 }: SubagentProps) {
+  const { hidden, visible } = visibleCalls({ calls, maxVisibleCalls })
+  const firstVisible = hidden
+
   return (
     <Trace>
       <Step
@@ -56,8 +85,9 @@ export function Subagent({
         {prompt ? <p>{prompt}</p> : null}
         {calls.length > 0 ? (
           <Trace>
-            {calls.map((call) => (
-              <Tool key={call.label} {...call} />
+            {hidden > 0 ? <EarlierCalls hidden={hidden} onShowAll={onShowAllCalls} /> : null}
+            {visible.map((call, index) => (
+              <Tool key={`${firstVisible + index}-${call.label}`} {...call} />
             ))}
           </Trace>
         ) : null}

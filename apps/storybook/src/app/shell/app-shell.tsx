@@ -16,9 +16,10 @@ export interface AppShellProps {
   defaultOpen?: boolean
   demo?: ShellDemoState
   pendingThread?: AppThread
+  onOpenThread?: (threadId: string) => void
 }
 
-const SIDEBAR_STYLE = { '--sidebar-width': '14rem' } as CSSProperties
+const SIDEBAR_STYLE = { '--sidebar-width': '18rem' } as CSSProperties
 
 export function EmptyHome() {
   return (
@@ -35,6 +36,7 @@ export function AppShell({
   defaultOpen = true,
   demo,
   pendingThread,
+  onOpenThread,
 }: AppShellProps) {
   return (
     <SidebarProvider defaultOpen={defaultOpen} className="h-svh min-h-0" style={SIDEBAR_STYLE}>
@@ -43,6 +45,7 @@ export function AppShell({
         activeNav={activeNav}
         demo={demo}
         pendingThread={pendingThread}
+        onOpenThread={onOpenThread}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
         {children ?? <EmptyHome />}

@@ -16,7 +16,10 @@ export interface ThreadListProps {
   pendingThread?: AppThread
   archivedThreadIds?: string[]
   archivedBucketOpen?: boolean
+  onOpenThread?: (threadId: string) => void
 }
+
+const noop = () => undefined
 
 const NO_PROJECT: AppProject = { id: 'no-project', owner: '', name: 'No project' }
 
@@ -53,6 +56,7 @@ export function ThreadList({
   pendingThread,
   archivedThreadIds = [],
   archivedBucketOpen = false,
+  onOpenThread = noop,
 }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])
   const [archivedIds, setArchivedIds] = useState<string[]>(archivedThreadIds)
@@ -62,7 +66,7 @@ export function ThreadList({
       current.includes(threadId) ? current.filter((id) => id !== threadId) : [...current, threadId],
     )
   }
-  const actions = { onToggleArchive: handleToggleArchive }
+  const actions = { onToggleArchive: handleToggleArchive, onOpenThread }
 
   const withFlag = (thread: AppThread): AppThread => ({
     ...thread,
@@ -102,7 +106,7 @@ export function ThreadList({
               <ThreadRow
                 key={thread.id}
                 thread={thread}
-                active={thread.id === activeThreadId}
+                activeThreadId={activeThreadId}
                 defaultCardOpen={thread.id === threadCardId}
               />
             ))}

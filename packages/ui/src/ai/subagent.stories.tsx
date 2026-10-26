@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 
+import { generateToolCalls } from './agents-panel.fixtures'
 import { EToolKind, EToolState, Subagent } from './subagent'
 
 const meta = {
@@ -51,4 +52,12 @@ export const Running: Story = {
 
 export const Minimal: Story = {
   args: { model: undefined, tools: [], prompt: undefined, calls: [] },
+}
+
+export const ManyCalls: Story = {
+  args: {
+    calls: generateToolCalls({ count: 300, running: false }),
+    maxVisibleCalls: 5,
+    onShowAllCalls: () => undefined,
+  },
 }

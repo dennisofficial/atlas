@@ -1,15 +1,7 @@
-import {
-  GitBranchIcon,
-  GitPullRequestIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
-  type LucideIcon,
-} from 'lucide-react'
+import { ChevronRightIcon, GitBranchIcon, GitPullRequestIcon, type LucideIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
-import { Button } from '@dltech/atlas-ui/components/button'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
 import { PodStatusChip } from './pod-status-chip'
 import type { PodChipConfig } from './pod-status'
@@ -20,15 +12,19 @@ export interface HeaderSubtitle {
   icon: LucideIcon
 }
 
+export interface HeaderParent {
+  title: string
+  onOpen: () => void
+}
+
 export interface SessionHeaderProps {
+  parent?: HeaderParent
   state?: ESessionState
   title?: string
   subtitle?: HeaderSubtitle
   detail?: string
   badgeLabel?: string | null
   podStatus?: PodChipConfig
-  panelOpen: boolean
-  onTogglePanel: () => void
 }
 
 const DEFAULT_TITLE = 'Rebase ui on shadcn base-nova'
@@ -51,11 +47,8 @@ export function SessionHeader({
   detail,
   badgeLabel,
   podStatus,
-  panelOpen,
-  onTogglePanel,
+  parent,
 }: SessionHeaderProps) {
-  const label = panelOpen ? 'Hide panel' : 'Show panel'
-  const PanelIcon = panelOpen ? PanelRightCloseIcon : PanelRightOpenIcon
   const hasPullRequest = badgeLabel === undefined && state === ESessionState.Idle
   const badge = badgeLabel === undefined ? STATE_LABEL[state] : badgeLabel
   const SubtitleIcon = subtitle.icon
@@ -63,6 +56,18 @@ export function SessionHeader({
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-3">
       <SidebarTrigger />
+      {parent ? (
+        <nav aria-label="Breadcrumb" className="flex min-w-0 shrink items-center gap-1 text-sm">
+          <button
+            type="button"
+            onClick={parent.onOpen}
+            className="max-w-48 truncate rounded-sm text-muted-foreground outline-hidden hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            {parent.title}
+          </button>
+          <ChevronRightIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        </nav>
+      ) : null}
       <h1 className="truncate text-sm font-medium">{title}</h1>
       <span className="flex min-w-0 items-center gap-1 font-mono text-xs text-muted-foreground">
         <SubtitleIcon className="size-3.5 shrink-0" />
@@ -79,22 +84,6 @@ export function SessionHeader({
           <Badge variant="secondary">{badge}</Badge>
         ) : null}
         {podStatus ? <PodStatusChip {...podStatus} /> : null}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={label}
-                aria-pressed={panelOpen}
-                onClick={onTogglePanel}
-              />
-            }
-          >
-            <PanelIcon />
-          </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>
       </div>
     </header>
   )

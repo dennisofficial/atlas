@@ -4,15 +4,21 @@ import { Context } from '@dltech/atlas-ui/ai/context'
 import { EEffort, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 import type { PlanStep } from '@dltech/atlas-ui/ai/plan'
 import { PromptInput } from '@dltech/atlas-ui/ai/prompt-input'
-import { TaskDock, type QueuedMessage } from '@dltech/atlas-ui/ai/task-dock'
+import {
+  QueuedMessages,
+  type QueuedMessageEntry,
+  type QueuedMessageSave,
+} from '@dltech/atlas-ui/ai/queued-messages'
+import { TaskDock } from '@dltech/atlas-ui/ai/task-dock'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { MODELS } from '@dltech/atlas-ui/fixtures/agent'
 
 export interface ComposerProps {
   steps?: PlanStep[]
-  queued?: QueuedMessage[]
+  queued?: QueuedMessageEntry[]
   busy?: boolean
+  onSaveQueued?: (save: QueuedMessageSave) => void
   onRemoveQueued?: (id: string) => void
   onSend: (text: string) => void
   value?: string
@@ -26,6 +32,8 @@ export interface ComposerProps {
   children?: ReactNode
 }
 
+const noop = () => undefined
+
 const CONTEXT_BREAKDOWN = [
   { label: 'System prompt', tokens: 6_200 },
   { label: 'Tools', tokens: 14_800 },
@@ -36,7 +44,8 @@ export function Composer({
   steps = [],
   queued = [],
   busy = false,
-  onRemoveQueued,
+  onSaveQueued = noop,
+  onRemoveQueued = noop,
   onSend,
   value,
   onValueChange,
@@ -75,13 +84,15 @@ export function Composer({
       onKeyDown={handleKeyDown}
       className={cn('mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4', className)}
     >
-      <TaskDock steps={steps} queued={queued} onRemoveQueued={onRemoveQueued} />
+      <TaskDock steps={steps} queued={[]} />
+      <QueuedMessages messages={queued} onSave={onSaveQueued} onRemove={onRemoveQueued} />
       <fieldset disabled={disabled} className="m-0 min-w-0 border-0 p-0">
         <PromptInput
           value={draft}
           onValueChange={handleDraftChange}
           onSubmit={handleSubmit}
           busy={busy}
+          queueWhileBusy
           placeholder={
             placeholder ?? (busy ? 'Queue a message for when Atlas is done…' : undefined)
           }

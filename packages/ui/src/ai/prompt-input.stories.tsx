@@ -90,3 +90,7 @@ function ComposedPrompt() {
 export const Composed: Story = {
   render: () => <ComposedPrompt />,
 }
+
+export const QueueWhileBusy: Story = {
+  args: { defaultValue: 'Also bump the storybook addons', busy: true, queueWhileBusy: true },
+}

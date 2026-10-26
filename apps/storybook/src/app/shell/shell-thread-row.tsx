@@ -1,63 +1,35 @@
-import { Archive, ArchiveRestore, ExternalLink, Pin } from 'lucide-react'
+import { SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
 
-import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
-import { cn } from '@dltech/atlas-ui/lib/utils'
-
-import { type AppThread, EThreadStatus } from '../../fixtures/app'
-import { RowAction } from './shell-row-action'
-import { ThreadStatusIcon } from './shell-status-icon'
-import { useThreadActions } from './thread-actions-context'
-import { ThreadHoverCard } from './thread-hover-card'
+import type { AppThread } from '../../fixtures/app'
+import { teammatesOf } from '../../fixtures/teammates'
+import { ThreadFolder } from './shell-thread-folder'
+import { ThreadRowBody } from './shell-thread-row-body'
 
 export interface ThreadRowProps {
   thread: AppThread
-  active: boolean
+  activeThreadId?: string
   defaultCardOpen: boolean
 }
 
-function hasPullRequest(thread: AppThread): boolean {
-  return thread.status === EThreadStatus.PrOpen || thread.status === EThreadStatus.PrMerged
-}
-
-export function ThreadRow({ thread, active, defaultCardOpen }: ThreadRowProps) {
-  const { onToggleArchive } = useThreadActions()
-  const archived = thread.archived === true
-  const handleArchive = () => onToggleArchive(thread.id)
+export function ThreadRow({ thread, activeThreadId, defaultCardOpen }: ThreadRowProps) {
+  const teammates = teammatesOf(thread.id)
+  if (teammates.length > 0) {
+    return (
+      <ThreadFolder
+        thread={thread}
+        teammates={teammates}
+        activeThreadId={activeThreadId}
+        defaultCardOpen={defaultCardOpen}
+      />
+    )
+  }
   return (
     <SidebarMenuItem>
-      <ThreadHoverCard
+      <ThreadRowBody
         thread={thread}
-        defaultOpen={defaultCardOpen}
-        className={cn(
-          'group/thread flex items-center rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
-          active && 'bg-sidebar-accent',
-        )}
-      >
-        <SidebarMenuButton
-          isActive={active}
-          size="sm"
-          className="h-7 min-w-0 flex-1 text-sm hover:bg-transparent data-active:bg-transparent"
-        >
-          <ThreadStatusIcon status={thread.status} />
-          <span>{thread.title}</span>
-        </SidebarMenuButton>
-        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
-          <RowAction label="Pin thread">
-            <Pin />
-          </RowAction>
-          <RowAction
-            label={archived ? 'Unarchive thread' : 'Archive thread'}
-            onClick={handleArchive}
-          >
-            {archived ? <ArchiveRestore /> : <Archive />}
-          </RowAction>
-          {hasPullRequest(thread) && (
-            <RowAction label="Open pull request on GitHub">
-              <ExternalLink />
-            </RowAction>
-          )}
-        </div>
-      </ThreadHoverCard>
+        active={thread.id === activeThreadId}
+        defaultCardOpen={defaultCardOpen}
+      />
     </SidebarMenuItem>
   )
 }

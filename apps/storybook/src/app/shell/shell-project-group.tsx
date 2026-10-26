@@ -68,7 +68,7 @@ export function ProjectGroup({
             <ThreadRow
               key={thread.id}
               thread={thread}
-              active={thread.id === activeThreadId}
+              activeThreadId={activeThreadId}
               defaultCardOpen={thread.id === threadCardId}
             />
           ))}
