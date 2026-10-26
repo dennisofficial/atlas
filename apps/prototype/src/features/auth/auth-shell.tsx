@@ -1,0 +1,49 @@
+'use client'
+
+import { usePathname, useSearchParams } from 'next/navigation'
+import { Suspense, type ReactNode } from 'react'
+
+import { cn } from '@dltech/atlas-ui/lib/utils'
+
+import { CENTERED_PANEL } from './auth-align'
+import { AuthBrand } from './auth-brand'
+import { AUTH_PATHS } from './auth-paths'
+import { AuthTerminal } from './auth-terminal'
+
+function ShellTerminal() {
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const onDevicePage = pathname === AUTH_PATHS.device
+  const code = onDevicePage ? (params.get('user_code') ?? undefined) : undefined
+  return <AuthTerminal code={code} />
+}
+
+export function AuthShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid min-h-screen bg-background md:grid-cols-2">
+      <aside className="hidden flex-col justify-between gap-12 border-r bg-card p-12 md:flex">
+        <AuthBrand />
+        <div className="flex max-w-md flex-col gap-8">
+          <h2 className="font-display text-3xl leading-tight font-semibold tracking-tight text-balance text-foreground">
+            Start an agent in the cloud. Finish it from your terminal.
+          </h2>
+          <Suspense fallback={<AuthTerminal />}>
+            <ShellTerminal />
+          </Suspense>
+        </div>
+        <p className="text-xs text-muted-foreground">Atlas Cloud</p>
+      </aside>
+      <main className="flex flex-col items-center px-4 py-10 md:justify-center md:px-12">
+        <div
+          {...CENTERED_PANEL}
+          className={cn(CENTERED_PANEL.className, 'flex w-full max-w-sm flex-col gap-10 md:gap-0')}
+        >
+          <header className="flex justify-center md:hidden">
+            <AuthBrand />
+          </header>
+          {children}
+        </div>
+      </main>
+    </div>
+  )
+}
