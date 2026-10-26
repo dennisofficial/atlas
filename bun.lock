@@ -67,6 +67,28 @@
         "typescript": "6.0.3",
       },
     },
+    "apps/prototype": {
+      "name": "@dltech/atlas-prototype",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-ui": "workspace:*",
+        "lucide-react": "^1.59.0",
+        "next": "16.3.5",
+        "next-themes": "0.4.6",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "recharts": "3.8.0",
+        "sonner": "^2.0.8",
+      },
+      "devDependencies": {
+        "@tailwindcss/postcss": "^4",
+        "@types/bun": "latest",
+        "@types/node": "^26.3.0",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "typescript": "6.0.3",
+      },
+    },
     "apps/serve": {
       "name": "@dltech/atlas-serve",
       "version": "0.1.0",
@@ -88,12 +110,9 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-ui": "workspace:*",
-        "lucide-react": "^1.59.0",
         "next-themes": "0.4.6",
         "react": "19.2.7",
         "react-dom": "19.2.7",
-        "recharts": "3.8.0",
-        "sonner": "^2.0.8",
       },
       "devDependencies": {
         "@storybook/nextjs-vite": "10.6.0",
@@ -702,6 +721,8 @@
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
+
+    "@dltech/atlas-prototype": ["@dltech/atlas-prototype@workspace:apps/prototype"],
 
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 
