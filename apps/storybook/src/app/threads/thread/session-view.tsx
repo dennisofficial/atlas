@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { EConfirmationState } from '@dltech/atlas-ui/ai/confirmation'
 import {
@@ -19,13 +19,9 @@ import { ERightTab, ESessionState } from './session-types'
 import { INITIAL_QUEUE, planFor } from './transcript-data'
 import { Transcript } from './transcript'
 
-type PanelRefProp = NonNullable<ComponentProps<typeof ResizablePanel>['panelRef']>
-type PanelHandle = Extract<PanelRefProp, { current: unknown }>['current']
-
 export interface SessionViewProps {
   state?: ESessionState
   initialTab?: ERightTab
-  initialPanelOpen?: boolean
   initialTerminalConnection?: ETerminalConnection
   initialPreviewId?: string
   header?: Pick<SessionHeaderProps, 'title' | 'subtitle' | 'detail' | 'badgeLabel' | 'podStatus'>
@@ -38,7 +34,6 @@ export interface SessionViewProps {
 export function SessionView({
   state = ESessionState.Running,
   initialTab = ERightTab.Changes,
-  initialPanelOpen = true,
   initialTerminalConnection,
   initialPreviewId,
   header,
@@ -47,25 +42,15 @@ export function SessionView({
   renderTranscript,
   composer,
 }: SessionViewProps) {
-  const panelRef = useRef<PanelHandle>(null)
-  const [panelOpen, setPanelOpen] = useState(initialPanelOpen)
   const [tab, setTab] = useState(initialTab)
   const [expanded, setExpanded] = useState<string[]>([])
   const [approval, setApproval] = useState(EConfirmationState.Pending)
   const [queued, setQueued] = useState(INITIAL_QUEUE[state])
   const busy = state === ESessionState.Running
 
-  const handleTogglePanel = () => {
-    if (panelOpen) panelRef.current?.collapse()
-    else panelRef.current?.expand()
-  }
-
-  const handlePanelResize = (size: { asPercentage: number }) => setPanelOpen(size.asPercentage > 0)
-
   const handleOpenFile = (path: string) => {
     setTab(ERightTab.Changes)
     setExpanded((previous) => (previous.includes(path) ? previous : [...previous, path]))
-    if (panelRef.current?.isCollapsed()) panelRef.current.expand()
   }
 
   const handleRemoveQueued = (id: string) =>
@@ -82,12 +67,7 @@ export function SessionView({
         activeThreadId={shell?.activeThreadId ?? SESSION_THREAD_ID}
         pendingThread={shell?.pendingThread}
       >
-        <SessionHeader
-          state={state}
-          {...header}
-          panelOpen={panelOpen}
-          onTogglePanel={handleTogglePanel}
-        />
+        <SessionHeader state={state} {...header} />
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
           <ResizablePanel id="transcript" minSize="35%">
             <div className="flex h-full min-w-0 flex-col">
@@ -114,16 +94,7 @@ export function SessionView({
             </div>
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel
-            id="right-panel"
-            panelRef={panelRef}
-            collapsible
-            collapsedSize="0%"
-            defaultSize={initialPanelOpen ? '40%' : '0%'}
-            minSize="26%"
-            maxSize="60%"
-            onResize={handlePanelResize}
-          >
+          <ResizablePanel id="right-panel" defaultSize="40%" minSize="26%" maxSize="60%">
             <RightPanel
               tab={tab}
               onTabChange={setTab}

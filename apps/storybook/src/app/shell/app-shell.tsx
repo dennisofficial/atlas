@@ -18,7 +18,7 @@ export interface AppShellProps {
   pendingThread?: AppThread
 }
 
-const SIDEBAR_STYLE = { '--sidebar-width': '14rem' } as CSSProperties
+const SIDEBAR_STYLE = { '--sidebar-width': '18rem' } as CSSProperties
 
 export function EmptyHome() {
   return (

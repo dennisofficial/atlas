@@ -20,8 +20,6 @@ export const Idle: Story = { args: { state: ESessionState.Idle } }
 
 export const ApprovalPending: Story = { args: { state: ESessionState.ApprovalPending } }
 
-export const PanelCollapsed: Story = { args: { initialPanelOpen: false } }
-
 export const TerminalConnected: Story = {
   args: {
     initialTab: ERightTab.Terminal,
