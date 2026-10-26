@@ -31,6 +31,8 @@ import { moveLocalPlacement } from '../execution/local-placement-move'
 import { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import { createPendingQueues } from '../pending'
 import { PromptRegistry } from '../prompt/registry'
+import { GitChangesPort } from '../changes/git-changes.port'
+import { TerminalPort } from '../terminal/terminal.port'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { atlasDirectory } from '../store/paths'
@@ -263,6 +265,8 @@ export async function composeHarness<
   const agents = container.resolve(registeredPortToken(AgentRegistryPort))
   const services = container.resolve(registeredPortToken(ServiceRegistryPort))
   const operatorInput = container.resolve(registeredPortToken(OperatorInputPort))
+  const changes = container.resolve(registeredPortToken(GitChangesPort))
+  const terminal = container.resolve(registeredPortToken(TerminalPort))
 
   const channel = createDeltaChannel({
     onListenerError: (cause) =>
@@ -363,6 +367,8 @@ export async function composeHarness<
     agents,
     services,
     operatorInput,
+    changes,
+    terminal,
     sandbox,
     containerStatus,
     mcp: mcp.servers,

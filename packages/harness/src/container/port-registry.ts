@@ -1,5 +1,6 @@
 import type { PortRegistryEntry } from '@dltech/atlas-core'
 
+import type { GitChangesPort } from '../changes/git-changes.port'
 import type { AgentRegistryPort } from '../agents/registry/port'
 import type { TurnLedgerPort } from '../ledger/turn-ledger.port'
 import type { FileReadStatePort } from '../files/read-state'
@@ -17,6 +18,7 @@ import type { ShellLauncherPort, ShellRegistryPort } from '../shells/port'
 import type { SkillRegistryPort } from '../skills/port'
 import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
+import type { TerminalPort } from '../terminal/terminal.port'
 import type { ToolRegistry } from '../tools/registry'
 import type { ToolDispatcher } from '../tools/dispatch'
 import type { UserLayerSyncPort } from '../user-layer-sync/port'
@@ -70,5 +72,7 @@ declare module '@dltech/atlas-core' {
       readonly transport: 'none'
     }
     readonly MemoryPort: PortRegistryEntry<MemoryPort> & { readonly transport: 'none' }
+    readonly GitChangesPort: PortRegistryEntry<GitChangesPort> & { readonly transport: 'none' }
+    readonly TerminalPort: PortRegistryEntry<TerminalPort> & { readonly transport: 'none' }
   }
 }

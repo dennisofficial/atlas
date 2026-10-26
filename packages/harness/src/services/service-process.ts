@@ -7,6 +7,7 @@ import {
   EStopAction,
   stopActionFor,
   type ClockPort,
+  type PortExposure,
   type ProcessHandle,
   type ProcessPort,
   type ThreadId,
@@ -28,6 +29,7 @@ export type ServiceSnapshot = {
   logPath: string
   startedAt: string
   endedAt?: string | undefined
+  exposure?: PortExposure | undefined
 }
 
 export type Service = {
@@ -74,6 +76,7 @@ export function startService(spec: {
   clock: ClockPort
   processes: ProcessPort
   threadId: ThreadId
+  exposure?: PortExposure | undefined
   onExit: (service: Service) => void
 }): StartedService {
   let fd: number
@@ -155,6 +158,7 @@ export function startService(spec: {
       logPath: spec.logPath,
       startedAt,
       endedAt,
+      ...(spec.exposure === undefined ? {} : { exposure: spec.exposure }),
     }),
 
     stop,

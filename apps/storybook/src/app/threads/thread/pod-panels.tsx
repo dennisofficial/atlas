@@ -3,10 +3,10 @@ import { FileDiffIcon, FolderIcon, GlobeIcon, TerminalIcon } from 'lucide-react'
 
 import { ChangesPanel, type ChangeScopeOption } from '@dltech/atlas-ui/ai/changes-panel'
 import { FileTree } from '@dltech/atlas-ui/ai/file-tree'
+import { Notice } from '@dltech/atlas-ui/ai/notice'
 
 import { EPodPhase, terminalConnectionOf, type PodPanelState } from './pod-state'
 import { TerminalTab } from './terminal-tab'
-import { Notice } from './terminal-states'
 
 interface PodPanelProps {
   pod: PodPanelState

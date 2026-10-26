@@ -16,7 +16,7 @@ describe('mention wire schemas', () => {
     expect(String(EClientRequest.ListMentionFiles)).toBe('list-mention-files')
     expect(String(EClientRequest.MentionFileExists)).toBe('mention-file-exists')
     expect(String(EClientRequest.ReadMentionFile)).toBe('read-mention-file')
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(25)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(26)
   })
 
   it('wants exactly a thread and a directory or path', () => {

@@ -36,10 +36,12 @@ import { CardFileCapabilities } from '../tools/builtin/file-capabilities'
 import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
 import { registerExecution } from '../execution/register-execution'
+import { registerChanges } from '../changes/register-changes'
 import { registerServices } from '../services/register-services'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { withEventsAppendedPublishing } from '../channel/events-appended-log'
 import { registerOperatorInput } from '../operator-input/register-operator-input'
+import { registerTerminal } from '../terminal/register-terminal'
 import { registerShells } from '../shells/register-shells'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { registerSkills } from '../skills/register-skills'
@@ -259,6 +261,8 @@ export function createHarnessContainer(): DependencyContainer {
   registerExecution({ container: harness })
   registerShells({ container: harness })
   registerServices({ container: harness })
+  registerChanges({ container: harness })
+  registerTerminal({ container: harness })
   registerOperatorInput({ container: harness })
   registerSkills({ container: harness })
   registerAgents({ container: harness })

@@ -5,6 +5,7 @@ import {
   type SaidFile,
   type SaidImage,
 } from '@dltech/atlas-core'
+import { EPendingEdit } from '@dltech/atlas-wire'
 import type { InputBatch } from '../intake/input-batch'
 
 export type PendingSaid = {
@@ -42,6 +43,8 @@ export type PendingQueue<Command = never> = {
   prepare(): InputBatch
   enqueueCommand(args: { text: string; command: Command }): void
   takeBackLast(): PendingSaid | null
+  update(args: { id: string; text: string }): EPendingEdit
+  remove(args: { id: string }): EPendingEdit
   drain(): readonly PendingSaid[]
   drainCommands(): readonly PendingCommand<Command>[]
 }
@@ -55,6 +58,9 @@ const NO_COMMANDS: readonly PendingCommand<never>[] = Object.freeze([])
 const NO_IMAGES: readonly SaidImage[] = Object.freeze([])
 
 const NO_FILES: readonly SaidFile[] = Object.freeze([])
+
+const isOperatorMessage = <Command>(entry: PendingEntry<Command>): entry is PendingMessage =>
+  entry.kind === 'message' && (entry.via === undefined || entry.via === EMessageOrigin.Operator)
 
 const isCommand = <Command>(entry: PendingEntry<Command>): entry is PendingCommand<Command> =>
   entry.kind === 'command'
@@ -122,6 +128,26 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
       if (last.kind === 'command') return { text: last.text, images: NO_IMAGES, files: NO_FILES }
       const { kind, id, ...said } = last
       return said
+    },
+
+    update({ id, text }) {
+      const held = entries.find((entry) => entry.id === id)
+      if (held === undefined) return EPendingEdit.Missing
+      if (reserved.has(id)) return EPendingEdit.Reserved
+      if (!isOperatorMessage(held)) return EPendingEdit.NotEditable
+
+      settle(entries.map((entry) => (entry.id === id ? { ...held, text } : entry)))
+      return EPendingEdit.Done
+    },
+
+    remove({ id }) {
+      const held = entries.find((entry) => entry.id === id)
+      if (held === undefined) return EPendingEdit.Missing
+      if (reserved.has(id)) return EPendingEdit.Reserved
+      if (held.kind === 'message' && !isOperatorMessage(held)) return EPendingEdit.NotEditable
+
+      settle(entries.filter((entry) => entry.id !== id))
+      return EPendingEdit.Done
     },
 
     prepare() {

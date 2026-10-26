@@ -30,6 +30,8 @@ import type { PendingQueues } from '../pending'
 import type { MessageIntake } from '../intake'
 import type { ContributedProjection } from '../plugins/projection'
 import type { ContributedSurface } from '../plugins/surface'
+import type { GitChangesPort } from '../changes/git-changes.port'
+import type { TerminalPort } from '../terminal/terminal.port'
 import type { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
 import type { ShellRegistryPort } from '../shells/shell-registry'
@@ -106,6 +108,8 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   agents: AgentRegistryPort
   operatorInput: OperatorInputPort
   services: ServiceRegistryPort
+  changes?: GitChangesPort | undefined
+  terminal?: TerminalPort | undefined
   sandbox: SandboxControl
   containerStatus: SandboxStatusState
   model: ModelChoice

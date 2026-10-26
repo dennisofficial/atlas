@@ -5,7 +5,9 @@ import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 
 import { ETerminalEntry, type UserTerminal } from '../thread/sandbox-terminal'
 import { EPodPhase, type PodPanelState } from '../thread/pod-state'
-import { EPodState, RUNNING_POD, type PodChipConfig } from '../thread/pod-status'
+import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
+
+import { RUNNING_POD, type PodChipConfig } from '../thread/pod-status'
 import { FIRST_TURN_STEPS } from './new-thread-data'
 import { EPodProgress, isFailedPod, isStartingPod } from './new-thread-types'
 

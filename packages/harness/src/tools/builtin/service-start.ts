@@ -110,6 +110,7 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
       command: input.command,
       description: input.description,
       cwd,
+      exposure: exposure.exposure,
     })
     if (!started.ok) return started
 

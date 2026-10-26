@@ -6,6 +6,7 @@ import {
   EServiceStatus,
   type ClockPort,
   type EventDraft,
+  type PortExposure,
   type ProcessPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -100,6 +101,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     command: string
     description: string
     cwd?: string | undefined
+    exposure?: PortExposure | undefined
   }): Promise<StartedServiceOutcome> {
     this.started += 1
     const serviceId = `svc_${this.started}`
@@ -113,6 +115,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       clock: this.clock,
       processes: this.processes,
       threadId: args.threadId,
+      exposure: args.exposure,
       onExit: (service) => this.announceExit(service),
     })
     if (!opened.ok) return opened

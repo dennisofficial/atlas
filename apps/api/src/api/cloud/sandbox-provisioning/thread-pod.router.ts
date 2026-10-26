@@ -1,8 +1,12 @@
 import {
   podConnectReplySchema,
+  podResizeInputSchema,
+  podResizeReplySchema,
   podStatusSchema,
   threadIdInputSchema,
   type PodConnectReply,
+  type PodResizeInput,
+  type PodResizeReply,
   type PodStatus,
   type ThreadIdInput,
 } from '@dltech/atlas-wire'
@@ -23,5 +27,14 @@ export class ThreadPodRouter {
   @Mutation({ input: threadIdInputSchema, output: podConnectReplySchema })
   connect(@Input() input: ThreadIdInput, @Ctx() ctx: SessionTrpcCtx): Promise<PodConnectReply> {
     return this.pods.connect({ userId: ctx.auth.userId, threadId: input.threadId })
+  }
+
+  @Mutation({ input: podResizeInputSchema, output: podResizeReplySchema })
+  resize(@Input() input: PodResizeInput, @Ctx() ctx: SessionTrpcCtx): Promise<PodResizeReply> {
+    return this.pods.resize({
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      vcpus: input.vcpus,
+    })
   }
 }

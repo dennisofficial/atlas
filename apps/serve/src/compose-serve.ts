@@ -150,6 +150,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     toolEffect: (name) => app.tools.find(name)?.effect,
     pending: app.pending,
+    changes: app.changes,
+    terminal: app.terminal,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     adoptChildren: async ({ threadId, resumeChildren }) => {
       await adoptTransferredChildren({ agents: app.agents, threadId })

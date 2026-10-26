@@ -149,6 +149,7 @@ export async function finishServeBoot(args: {
     agents: app.agents,
     operatorInput: app.operatorInput,
     pending: app.pending,
+    tools: { changes: app.changes, terminal: app.terminal },
     ...handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
   })
 

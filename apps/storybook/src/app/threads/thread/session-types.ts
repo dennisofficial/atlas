@@ -17,9 +17,3 @@ const RIGHT_TABS: string[] = Object.values(ERightTab)
 export function isRightTab(value: unknown): value is ERightTab {
   return typeof value === 'string' && RIGHT_TABS.includes(value)
 }
-
-export enum EDotTone {
-  Live = 'live',
-  Pending = 'pending',
-  Idle = 'idle',
-}

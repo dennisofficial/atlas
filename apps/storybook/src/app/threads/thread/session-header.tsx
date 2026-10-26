@@ -3,8 +3,9 @@ import { ChevronRightIcon, GitBranchIcon, GitPullRequestIcon, type LucideIcon } 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 
-import { PodStatusChip } from './pod-status-chip'
-import type { PodChipConfig } from './pod-status'
+import { PodStatusChip } from '@dltech/atlas-ui/ai/pod-status-chip'
+
+import { simulateResize, type PodChipConfig } from './pod-status'
 import { ESessionState } from './session-types'
 
 export interface HeaderSubtitle {
@@ -83,7 +84,9 @@ export function SessionHeader({
         ) : badge ? (
           <Badge variant="secondary">{badge}</Badge>
         ) : null}
-        {podStatus ? <PodStatusChip {...podStatus} /> : null}
+        {podStatus ? (
+          <PodStatusChip {...podStatus} onResize={simulateResize} settingsHref="#" />
+        ) : null}
       </div>
     </header>
   )

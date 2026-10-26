@@ -3,6 +3,8 @@ import type {
   PrStateWire,
   RosterWire,
   RuntimeCheckpoint,
+  TerminalExitWire,
+  TerminalOutputWire,
 } from '@dltech/atlas-wire/web'
 
 import { EClientFrame } from './channel-wire'
@@ -83,6 +85,8 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     readies: registryOf<ChannelReady>(),
     rosters: registryOf<RosterWire>(),
     prStates: registryOf<readonly PrStateWire[]>(),
+    terminalOutputs: registryOf<TerminalOutputWire>(),
+    terminalExits: registryOf<TerminalExitWire>(),
     pendingChanges: registryOf<readonly PendingEntryWire[]>(),
     threadRenames: registryOf<ThreadRenamedFrame>(),
     threadModelChanges: registryOf<ThreadModelChangedFrame>(),

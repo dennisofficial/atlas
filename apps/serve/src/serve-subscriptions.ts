@@ -1,5 +1,6 @@
 import { createSessionContextReader } from '@dltech/atlas-harness'
 
+import { terminalFrameOf } from './terminal-frames'
 import type { FrameBuffer } from './frame-buffer'
 import type { ServeApp } from './serve-app'
 import { subscribeThreadBroadcasts } from './serve-thread-broadcasts'
@@ -35,11 +36,16 @@ export function bindServeSubscriptions(args: {
     handlers.broadcastPrStates()
   })
   const unsubscribePending = app.pending?.subscribe(note)
+  const unsubscribeTerminal = app.terminal?.subscribe((event) => {
+    note()
+    handlers.broadcast(terminalFrameOf(event))
+  })
   return () => {
     unsubscribeRoster?.()
     unsubscribePrStates?.()
     unsubscribeThreads?.()
     unsubscribeContext()
     unsubscribePending?.()
+    unsubscribeTerminal?.()
   }
 }

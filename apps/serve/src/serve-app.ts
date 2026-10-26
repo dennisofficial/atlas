@@ -17,6 +17,7 @@ import type {
   PlacementController,
   RecoveredAgents,
 } from '@dltech/atlas-harness'
+import type { GitChangesPort, TerminalPort } from '@dltech/atlas-harness'
 import type { FileBrowser, MentionReader } from '@dltech/atlas-harness'
 import type { MessageIntake } from '@dltech/atlas-harness'
 import type { PendingQueues } from '@dltech/atlas-harness'
@@ -146,6 +147,8 @@ export type ServeApp = {
   /** Resolves a tool's declared effect by name for crash recovery; absent in fakes, where nothing runs. */
   toolEffect?: ((name: string) => EToolEffect | undefined) | undefined
   pending?: PendingQueues | undefined
+  changes?: GitChangesPort | undefined
+  terminal?: TerminalPort | undefined
   /** The shared message intake driving this serve's idle wake; absent in fakes. */
   intake?: MessageIntake | undefined
   /** Resumes the served thread's transferred children — see adopt-children.ts for why it must. */

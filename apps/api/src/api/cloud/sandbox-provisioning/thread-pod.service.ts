@@ -1,8 +1,11 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   EBootStepState,
   ESandboxProvisionState,
+  EPodResizeApplies,
   EPodState,
+  type PodResizeReply,
+  type PodResources,
   type PodConnectReply,
   type PodStatus,
   mintChannelTicket,
@@ -10,6 +13,10 @@ import {
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
+import {
+  SandboxMissingError,
+  VercelSandboxClient,
+} from '../../platform/sandboxes/vercel-sandbox.client'
 import { parkedOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { latestAttemptOf, readBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
@@ -30,7 +37,12 @@ const TICKET_TTL_SECONDS = 60
 
 @Injectable()
 export class ThreadPodService {
-  constructor(private readonly endpoints: SandboxEndpointService) {}
+  private readonly logger = new Logger(ThreadPodService.name)
+
+  constructor(
+    private readonly endpoints: SandboxEndpointService,
+    private readonly vercel: VercelSandboxClient,
+  ) {}
 
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
     const { userId, threadId } = args
@@ -39,8 +51,34 @@ export class ThreadPodService {
     const steps = await readBootSteps({ threadId })
     return {
       state: stateOf({ row, steps }),
+      ...(row === null ? {} : { resources: await this.resourcesOf(row) }),
       steps: latestAttemptOf(steps),
       history: steps,
+    }
+  }
+
+  async resize(args: { userId: string; threadId: string; vcpus: number }): Promise<PodResizeReply> {
+    const { userId, threadId, vcpus } = args
+    await ownedThread({ reader: db, userId, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    if (row === null) throw new NotFoundException('this thread has no pod to resize')
+    try {
+      await this.vercel.updateResources({ threadId, name: row.name, vcpus })
+    } catch (failure) {
+      if (failure instanceof SandboxMissingError) throw new NotFoundException(failure.message)
+      throw failure
+    }
+    return { vcpus, appliesAt: EPodResizeApplies.Restart }
+  }
+
+  private async resourcesOf(row: Row<'CloudSandbox'>): Promise<PodResources> {
+    const identity = { sandboxId: row.sandboxId, region: row.region }
+    try {
+      const live = await this.vercel.readResources({ threadId: row.threadId, name: row.name })
+      return { ...identity, ...live }
+    } catch (failure) {
+      this.logger.warn(`reading resources of ${row.name} failed: ${String(failure)}`)
+      return identity
     }
   }
 

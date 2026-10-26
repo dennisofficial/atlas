@@ -8,15 +8,20 @@ import { ThreadPodService } from './thread-pod.service'
 export const SERVE_TOKEN = 'raw-serve-token-never-leaves-the-api'
 export const SERVE_URL = 'https://serve.example.test'
 
-export const podServiceOver = (endpoints: SandboxEndpointService): ThreadPodService =>
-  new ThreadPodService(endpoints)
-
 export const unreachableVercel = (): VercelSandboxClient =>
   ({
     inspect: vi.fn(async () => {
       throw new Error('vercel is not reachable in this spec')
     }),
+    readResources: vi.fn(async () => {
+      throw new Error('vercel is not reachable in this spec')
+    }),
   }) as unknown as VercelSandboxClient
+
+export const podServiceOver = (
+  endpoints: SandboxEndpointService,
+  vercel: VercelSandboxClient = unreachableVercel(),
+): ThreadPodService => new ThreadPodService(endpoints, vercel)
 
 export const realEndpoints = (): SandboxEndpointService =>
   new SandboxEndpointService(unreachableVercel(), cipher)

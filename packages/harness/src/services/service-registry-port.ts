@@ -1,4 +1,4 @@
-import type { EKilledBy, EStopAction, EventDraft, ThreadId } from '@dltech/atlas-core'
+import type { EKilledBy, EStopAction, EventDraft, PortExposure, ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
 import type { ServiceSnapshot } from './service-process'
@@ -22,6 +22,7 @@ export abstract class ServiceRegistryPort {
     command: string
     description: string
     cwd?: string | undefined
+    exposure?: PortExposure | undefined
   }): Promise<StartedServiceOutcome>
   abstract stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome
   /**

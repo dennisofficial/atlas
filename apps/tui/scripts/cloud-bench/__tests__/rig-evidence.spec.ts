@@ -133,12 +133,12 @@ describe('writeEvidence', () => {
 })
 
 describe('trustOf', () => {
-  test('trusts a dev- build on protocol 25', () => {
-    expect(trustOf({ version: 'dev-abc', protocol: 25 }).trusted).toBe(true)
+  test('trusts a dev- build on protocol 26', () => {
+    expect(trustOf({ version: 'dev-abc', protocol: 26 }).trusted).toBe(true)
   })
 
   test('does not trust a released build', () => {
-    expect(trustOf({ version: '1.70.0', protocol: 25 }).trusted).toBe(false)
+    expect(trustOf({ version: '1.70.0', protocol: 26 }).trusted).toBe(false)
   })
 
   test('does not trust another protocol', () => {
@@ -148,7 +148,7 @@ describe('trustOf', () => {
   test('does not trust unread stamps', () => {
     expect(trustOf({ version: null, protocol: null }).trusted).toBe(false)
     expect(trustOf({ version: 'dev-abc', protocol: null }).trusted).toBe(false)
-    expect(trustOf({ version: null, protocol: 25 }).trusted).toBe(false)
+    expect(trustOf({ version: null, protocol: 26 }).trusted).toBe(false)
   })
 })
 

@@ -1,12 +1,5 @@
 import { BUN_TEST_OUTPUT } from '@dltech/atlas-ui/fixtures/agent'
 
-export enum ETerminalConnection {
-  Connecting = 'connecting',
-  Connected = 'connected',
-  Paused = 'paused',
-  Disconnected = 'disconnected',
-}
-
 export enum ETerminalEntry {
   Command = 'command',
   Output = 'output',

@@ -14,9 +14,8 @@ import type {
 } from '@dltech/atlas-wire'
 import { appendWithin, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
-import { threadPullRequests, threadWorktree } from './places'
-import { withPullRequestStates } from './pull-request-state'
 import { toEventDto, toThreadDto } from './rows'
+import { enrichThreads } from './thread-enrichment'
 import { ThreadSignalsService } from './thread-signals.service'
 import { threadProjectColumn, type ThreadProjectColumns } from './thread-project'
 import type { EventDto, ThreadDraft, ThreadDto } from './sessions.types'
@@ -191,7 +190,9 @@ export class ThreadsService {
   }
 
   async find(args: { userId: string; threadId: string }): Promise<ThreadDto> {
-    return toThreadDto(await this.ownedThread(args))
+    const [thread] = await enrichThreads([await this.ownedThread(args)])
+    if (thread === undefined) throw new NotFoundException('thread not found')
+    return thread
   }
 
   async spawned(args: { userId: string; threadId: string }): Promise<ThreadDto[]> {
@@ -231,24 +232,7 @@ export class ThreadsService {
       .orderBy((thread) => thread.updatedAt.desc())
       .limit(args.limit ?? THREAD_LISTING_LIMIT)
       .all()
-    const enriched = await Promise.all(
-      rows.map(async (row) => {
-        const [worktree, pullRequests] = await Promise.all([
-          threadWorktree({ reader: db, threadId: row.id }),
-          threadPullRequests({ reader: db, threadId: row.id }),
-        ])
-        return { row, worktree, pullRequests }
-      }),
-    )
-    const stated = await withPullRequestStates(enriched.map((entry) => entry.pullRequests))
-    return enriched.map(({ row, worktree }, index) => {
-      const pullRequests = stated[index] ?? []
-      return {
-        ...toThreadDto(row),
-        ...(worktree === null ? {} : { worktree }),
-        ...(pullRequests.length === 0 ? {} : { pullRequests }),
-      }
-    })
+    return enrichThreads(rows)
   }
 
   async rename(args: {

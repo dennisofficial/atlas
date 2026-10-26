@@ -1,10 +1,11 @@
+import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
+import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 
 import { FOCUS_ID } from './agent-fixtures'
 import { RICH_QUEUE } from './queue-fixtures'
 import { SessionView } from './session-view'
-import { ETerminalConnection } from './sandbox-terminal'
-import { EPodState, RUNNING_POD } from './pod-status'
+import { RUNNING_POD } from './pod-status'
 import { ERightTab, ESessionState } from './session-types'
 
 const meta = {

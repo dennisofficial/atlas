@@ -4,6 +4,8 @@ import type {
   PrStateWire,
   RosterWire,
   RuntimeCheckpoint,
+  TerminalExitWire,
+  TerminalOutputWire,
 } from '@dltech/atlas-wire/web'
 
 import type { DeltaChannel, Unsubscribe } from './delta-channel-types'
@@ -89,6 +91,11 @@ export type RemoteDeltaChannel = DeltaChannel & {
   /** Sends the far side has not yet acknowledged committing. */
   unackedSendCount(): number
   close(): void
+}
+
+export type TerminalFrameChannel = {
+  onTerminalOutput(listener: (output: TerminalOutputWire) => void): Unsubscribe
+  onTerminalExit(listener: (exit: TerminalExitWire) => void): Unsubscribe
 }
 
 export type RemoteDeltaChannelOptions = {

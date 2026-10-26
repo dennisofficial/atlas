@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { EVercelCredentialGap } from './sandbox-self-wire'
+import { sandboxVcpusSchema } from './web/setting-enums'
 
 export enum EBootStep {
   Provision = 'provision',
@@ -182,8 +183,35 @@ export enum EPodState {
   Failed = 'failed',
 }
 
+export const podResourcesSchema = z.object({
+  sandboxId: z.string(),
+  region: z.string(),
+  vcpus: z.number().int().positive().optional(),
+  memoryMb: z.number().int().positive().optional(),
+  pendingVcpus: z.number().int().positive().optional(),
+})
+export type PodResources = z.infer<typeof podResourcesSchema>
+
+export const podResizeInputSchema = z.strictObject({
+  threadId: z.string().min(1),
+  vcpus: sandboxVcpusSchema,
+})
+export type PodResizeInput = z.infer<typeof podResizeInputSchema>
+
+export enum EPodResizeApplies {
+  Live = 'live',
+  Restart = 'restart',
+}
+
+export const podResizeReplySchema = z.object({
+  vcpus: z.number().int().positive(),
+  appliesAt: z.enum(EPodResizeApplies),
+})
+export type PodResizeReply = z.infer<typeof podResizeReplySchema>
+
 export const podStatusSchema = z.object({
   state: z.enum(EPodState),
+  resources: podResourcesSchema.optional(),
   steps: z.array(recordedBootStepSchema),
   history: z.array(recordedBootStepSchema).optional(),
 })

@@ -3,6 +3,7 @@ import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { RotationStateWire } from '@dltech/atlas-wire'
 
+import { answerSessionTool, isSessionToolOp, type SessionTools } from './session-tool-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
 import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
@@ -49,6 +50,7 @@ export function createRequestRouter(args: {
   transcript?: TranscriptReaders | undefined
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
+  tools?: SessionTools | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -183,6 +185,21 @@ export function createRequestRouter(args: {
       })
     )
       return
+
+    if (isSessionToolOp(frame.op)) {
+      void answerSessionTool({ frame, tools: args.tools ?? {} })
+        .then((reply) => send({ socket, frame: reply }))
+        .catch((error: unknown) =>
+          send({
+            socket,
+            frame: refusedRequest({
+              replyTo: frame.id,
+              message: messageOf(error, 'the session tool failed'),
+            }),
+          }),
+        )
+      return
+    }
 
     if (isTranscriptReadOp(frame.op)) {
       if (transcript === undefined) {

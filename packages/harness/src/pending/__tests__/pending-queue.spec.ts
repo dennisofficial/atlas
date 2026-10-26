@@ -1,6 +1,8 @@
 import { EMessageOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
+import { EPendingEdit } from '@dltech/atlas-wire'
+
 import { createPendingQueue } from '../pending-queue'
 
 const textsOf = (queue: { getSnapshot: () => readonly { text: string }[] }) =>
@@ -218,5 +220,49 @@ describe('which queued entries a prepared batch has reserved', () => {
     const late = queue.getSnapshot().at(-1)
     expect(queue.reserved(late?.id ?? '')).toBe(false)
     batch.release?.()
+  })
+})
+
+describe('editing a queued entry by id', () => {
+  it('updates the text of an operator entry in place', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'first' })
+    queue.enqueue({ text: 'second' })
+    const [first] = queue.getSnapshot()
+
+    expect(queue.update({ id: first?.id ?? '', text: 'edited' })).toBe(EPendingEdit.Done)
+    expect(textsOf(queue)).toEqual(['edited', 'second'])
+  })
+
+  it('removes an entry by id wherever it sits', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'first' })
+    queue.enqueue({ text: 'second' })
+    const [first] = queue.getSnapshot()
+
+    expect(queue.remove({ id: first?.id ?? '' })).toBe(EPendingEdit.Done)
+    expect(textsOf(queue)).toEqual(['second'])
+    expect(queue.remove({ id: 'pending-99' })).toBe(EPendingEdit.Missing)
+    expect(queue.update({ id: 'pending-99', text: 'x' })).toBe(EPendingEdit.Missing)
+  })
+
+  it('refuses entries the running turn has reserved', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'in flight' })
+    const [held] = queue.getSnapshot()
+    queue.prepare()
+
+    expect(queue.update({ id: held?.id ?? '', text: 'x' })).toBe(EPendingEdit.Reserved)
+    expect(queue.remove({ id: held?.id ?? '' })).toBe(EPendingEdit.Reserved)
+    expect(textsOf(queue)).toEqual(['in flight'])
+  })
+
+  it('refuses entries an agent sent, as take-back does', () => {
+    const queue = createPendingQueue()
+    queue.enqueue({ text: 'from the parent', via: EMessageOrigin.ParentAgent })
+    const [held] = queue.getSnapshot()
+
+    expect(queue.update({ id: held?.id ?? '', text: 'x' })).toBe(EPendingEdit.NotEditable)
+    expect(queue.remove({ id: held?.id ?? '' })).toBe(EPendingEdit.NotEditable)
   })
 })
