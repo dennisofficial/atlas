@@ -90,6 +90,7 @@ expected.
 - `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`, so nav and tree rows never add `bg-muted` themselves.
 - `message.tsx`: `MessageHeader`/`MessageFooter` take the `px-3` bubble inset only when the message has a bubble, and the header owns `gap-2`.
 - `message-scroller.tsx`: `MessageScrollerContent` owns the transcript gutter (`px-4 py-6`).
+- `bubble.tsx`: `variant: 'pending'` (muted surface, dashed border: the unsent look; a `BubbleContent` hosting a textarea shows the focus ring on the bubble border).
 - `item.tsx`: `size="sm"` is smaller than default (it was identical).
 - `brand-mark.tsx`: `size: 'default' | 'sm'` (compact, borderless).
 

@@ -9,6 +9,7 @@ const variants = [
   'tinted',
   'outline',
   'ghost',
+  'pending',
   'destructive',
 ] as const
 
@@ -56,6 +57,11 @@ export const Tinted: Story = { args: { variant: 'tinted' }, render: renderVarian
 export const Outline: Story = { args: { variant: 'outline' }, render: renderVariantBubble }
 
 export const Ghost: Story = { args: { variant: 'ghost' }, render: renderVariantBubble }
+
+export const Pending: Story = {
+  args: { variant: 'pending', align: 'end' },
+  render: renderVariantBubble,
+}
 
 export const Destructive: Story = { args: { variant: 'destructive' }, render: renderVariantBubble }
 

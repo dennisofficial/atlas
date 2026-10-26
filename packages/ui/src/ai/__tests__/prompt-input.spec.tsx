@@ -48,4 +48,22 @@ describe('PromptInput', () => {
     expect(canSend({ text: 'go', busy: true })).toBe(false)
     expect(canSend({ text: 'go', busy: false })).toBe(true)
   })
+
+  it('canSend allows a busy submit only when queueing is on', () => {
+    expect(canSend({ text: 'go', busy: true, queueWhileBusy: true })).toBe(true)
+    expect(canSend({ text: '  ', busy: true, queueWhileBusy: true })).toBe(false)
+    expect(canSend({ text: 'go', busy: true, queueWhileBusy: false })).toBe(false)
+  })
+
+  it('canSend never allows a send while sending', () => {
+    expect(canSend({ text: 'go', busy: false, sending: true, queueWhileBusy: true })).toBe(false)
+  })
+
+  it('keeps send beside stop when queueing while busy', () => {
+    const html = renderToStaticMarkup(<PromptInput defaultValue="x" busy queueWhileBusy />)
+    const send = html.match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
+
+    expect(html).toContain('aria-label="Stop"')
+    expect(send).not.toContain(' disabled=""')
+  })
 })

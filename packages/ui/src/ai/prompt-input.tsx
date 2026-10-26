@@ -33,6 +33,7 @@ export interface PromptInputProps {
   onSubmit?: (text: string) => void
   placeholder?: string
   busy?: boolean
+  queueWhileBusy?: boolean
   sending?: boolean
   clearOnSubmit?: boolean
   onStop?: () => void
@@ -45,10 +46,19 @@ export interface PromptInputProps {
 interface SendInput {
   text: string
   busy: boolean
+  sending?: boolean
+  queueWhileBusy?: boolean
 }
 
-export function canSend({ text, busy }: SendInput): boolean {
-  return !busy && text.trim().length > 0
+export function canSend({
+  text,
+  busy,
+  sending = false,
+  queueWhileBusy = false,
+}: SendInput): boolean {
+  if (sending) return false
+  if (busy && !queueWhileBusy) return false
+  return text.trim().length > 0
 }
 
 const insertedByEditor = (text: string): boolean =>
@@ -61,6 +71,7 @@ export function PromptInput({
   onSubmit,
   placeholder = 'Ask the agent to change your code...',
   busy = false,
+  queueWhileBusy = false,
   sending = false,
   clearOnSubmit = true,
   onStop,
@@ -73,7 +84,7 @@ export function PromptInput({
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const text = value ?? draft
-  const sendable = canSend({ text, busy: busy || sending })
+  const sendable = canSend({ text, busy, sending, queueWhileBusy })
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setDraft(event.target.value)
@@ -178,7 +189,8 @@ export function PromptInput({
             >
               <SquareIcon />
             </InputGroupButton>
-          ) : (
+          ) : null}
+          {busy && !queueWhileBusy ? null : (
             <InputGroupButton
               type="submit"
               size="icon-sm"
