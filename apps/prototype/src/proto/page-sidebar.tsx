@@ -1,7 +1,7 @@
 'use client'
 
-import { Input } from '@dltech/atlas-ui/components/input'
-import { ScrollArea } from '@dltech/atlas-ui/components/scroll-area'
+import { Input } from './ui/input'
+import { ScrollArea } from './ui/scroll-area'
 import { SearchIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 

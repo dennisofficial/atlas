@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dltech/atlas-ui/components/button'
+import { Button } from './ui/button'
 import { CheckIcon, CopyIcon, ExternalLinkIcon, MoonIcon, SunIcon } from 'lucide-react'
 import { useState } from 'react'
 
@@ -37,7 +37,7 @@ export function TopStrip({
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
       <code
         data-testid="frame-url"
-        className="min-w-0 flex-1 truncate rounded-md bg-muted px-2.5 py-1 font-mono text-xs"
+        className="min-w-0 flex-1 truncate rounded-md bg-muted px-2.5 py-1 proto-mono text-xs"
       >
         {currentPath}
       </code>

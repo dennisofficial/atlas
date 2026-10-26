@@ -73,6 +73,15 @@ const { state, queued } = usePrototype({
 
 ## `src/proto/`
 
-The prototype kit: the chrome, `usePrototype`, and the samples. It must stay free of Atlas imports.
-Only `react`, `next`, `@dltech/atlas-ui` and `lucide-react` are allowed, so it can be lifted out
-into its own package later by moving files.
+The prototype kit: the chrome, `usePrototype`, and the samples. It must stay free of Atlas imports,
+so it can be lifted out into its own package later by moving files.
+
+The chrome deliberately does not look like Atlas. It uses its own vendored stock shadcn (base-nova,
+neutral) in `src/proto/ui/`, themed by `src/proto/proto-chrome.css` under a `.proto-chrome` class
+(`light` is added when the chrome's theme toggle is light). Only the iframed pages look like Atlas.
+Portaled overlays read the class from `chrome-theme.tsx`; mono text uses `.proto-mono`.
+
+`src/proto/` and `src/app/proto/` may import only `react`, `next`, `lucide-react`,
+`@base-ui/react`, `class-variance-authority`, `clsx`, `tailwind-merge` and their own files. They
+must not import `@dltech/atlas-ui` or `@/features`; `__tests__/chrome-imports.spec.ts` fails if
+they do.

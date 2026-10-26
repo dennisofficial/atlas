@@ -78,23 +78,51 @@ describe('buildPageTree', () => {
     expect(urls(roots).some((url) => url.includes('('))).toBe(false)
   })
 
-  test('dynamic segments are folders whose leaves are the samples', () => {
+  test('a dynamic leaf is one page named as on disk that opens the first sample', () => {
     const shell = folder(folder(tree(), '(private)').children, '(shell)')
     const threads = folder(shell.children, 'threads')
-    const dynamic = folder(threads.children, '[threadId]')
-    expect(dynamic.kind).toBe(EFolderKind.Dynamic)
-    expect(dynamic.children.map((node) => (node.type === ENodeType.Page ? node.url : ''))).toEqual([
-      '/threads/thr-1',
-      '/threads/thr-2',
+    expect(threads.children).toEqual([
+      {
+        type: ENodeType.Page,
+        id: '(private)/(shell)/threads/[threadId]::page',
+        label: '[threadId]',
+        url: '/threads/thr-1',
+        pattern: '/threads/[threadId]',
+      },
     ])
   })
 
-  test('a folder with its own page lists an index leaf before nested folders', () => {
+  test('static nesting stays as folders down to the dynamic leaf', () => {
+    const shell = folder(folder(tree(), '(private)').children, '(shell)')
+    const projects = folder(shell.children, 'projects')
+    const byId = folder(projects.children, '[projectId]')
+    const settings = folder(byId.children, 'settings')
+    const leaf = settings.children.find(
+      (node) => node.type === ENodeType.Page && node.label === '[section]',
+    )
+    expect(leaf?.type === ENodeType.Page && leaf.url).toBe('/projects/rs-crm/settings/overview')
+  })
+
+  test('a dynamic segment with a page and nested routes lists the page first', () => {
+    const roots = buildPageTree({
+      pageDirs: [
+        ['a', '[x]'],
+        ['a', '[x]', 'b'],
+      ],
+      samples: { '/a/[x]': [{ label: 'One', path: '/a/1' }] },
+    })
+    const dynamic = folder(folder(roots, 'a').children, '[x]')
+    expect(dynamic.kind).toBe(EFolderKind.Dynamic)
+    const [first] = dynamic.children
+    expect(first?.type === ENodeType.Page && first.pattern).toBe('/a/[x]')
+  })
+
+  test('a folder with its own page lists an index leaf before the dynamic leaf', () => {
     const shell = folder(folder(tree(), '(private)').children, '(shell)')
     const settings = folder(shell.children, 'settings')
     const [first, second] = settings.children
     expect(first?.type === ENodeType.Page && first.url).toBe('/settings')
-    expect(second?.type).toBe(ENodeType.Folder)
+    expect(second?.type === ENodeType.Page && second.label).toBe('[page]')
   })
 
   test('dynamic folders without samples are dropped', () => {
@@ -119,8 +147,8 @@ describe('filterTree', () => {
   })
 
   test('matches the URL path and keeps the enclosing groups', () => {
-    const result = filterTree({ nodes: tree(), query: 'thr-2' })
-    expect(urls(result)).toEqual(['/threads/thr-2'])
+    const result = filterTree({ nodes: tree(), query: 'thr-1' })
+    expect(urls(result)).toEqual(['/threads/thr-1'])
     const priv = folder(result, '(private)')
     expect(folder(priv.children, '(shell)').children).toHaveLength(1)
   })

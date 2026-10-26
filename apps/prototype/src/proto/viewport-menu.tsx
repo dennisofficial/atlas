@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dltech/atlas-ui/components/button'
+import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,8 +8,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@dltech/atlas-ui/components/dropdown-menu'
-import { Input } from '@dltech/atlas-ui/components/input'
+} from './ui/dropdown-menu'
+import { Input } from './ui/input'
 import { MonitorIcon, RotateCwIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
