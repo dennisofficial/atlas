@@ -1,11 +1,11 @@
 'use client'
 
-import { CollapsibleTrigger } from '@dltech/atlas-ui/components/collapsible'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
-import { cn } from '@dltech/atlas-ui'
+import { CollapsibleTrigger } from './ui/collapsible'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { ChevronRightIcon, FolderDotIcon, FolderIcon } from 'lucide-react'
 
 import { EFolderKind, type FolderNode } from './page-tree'
+import { cn } from './ui/utils'
 
 const GROUP_TOOLTIP = 'Route group, not in the URL'
 
@@ -40,7 +40,7 @@ export function TreeFolderRow({ node, open }: { node: FolderNode; open: boolean 
         )}
       />
       <FolderGlyph kind={node.kind} />
-      <span className={cn('truncate', node.kind === EFolderKind.Dynamic && 'font-mono text-xs')}>
+      <span className={cn('truncate', node.kind === EFolderKind.Dynamic && 'proto-mono text-xs')}>
         {node.name}
       </span>
     </CollapsibleTrigger>

@@ -1,13 +1,13 @@
 'use client'
 
-import { Collapsible, CollapsibleContent } from '@dltech/atlas-ui/components/collapsible'
-import { cn } from '@dltech/atlas-ui'
+import { Collapsible, CollapsibleContent } from './ui/collapsible'
 import { FileIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { splitFramePath } from './frame-path'
 import { ENodeType, type FolderNode, type PageNode, type TreeNode } from './page-tree'
 import { TreeFolderRow } from './tree-folder-row'
+import { cn } from './ui/utils'
 
 interface TreeContext {
   activePathname: string

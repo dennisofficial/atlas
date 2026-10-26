@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dltech/atlas-ui/components/button'
+import { Button } from './ui/button'
 import { RotateCcwIcon } from 'lucide-react'
 
 import type { ControlValue } from './bridge-messages'
