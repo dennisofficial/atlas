@@ -1,18 +1,25 @@
 'use client'
 
 import { Button } from './ui/button'
+import { Separator } from './ui/separator'
 import { RotateCcwIcon } from 'lucide-react'
 
 import type { ControlValue } from './bridge-messages'
+import type { RouteMatch } from './route-samples'
+import { RouteTweak } from './route-tweak'
 import { TweakField } from './tweak-controls'
 import type { AnnouncedControls } from './use-frame-bridge'
 
 export function TweaksPanel({
   announced,
+  route,
+  onRouteSelect,
   onChange,
   onReset,
 }: {
   announced: AnnouncedControls | null
+  route: RouteMatch | null
+  onRouteSelect: (path: string) => void
   onChange: (change: { key: string; value: ControlValue }) => void
   onReset: () => void
 }) {
@@ -29,19 +36,20 @@ export function TweaksPanel({
         )}
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
-        {entries.length === 0 ? (
+        {route && <RouteTweak match={route} onSelect={onRouteSelect} />}
+        {route && entries.length > 0 && <Separator />}
+        {!route && entries.length === 0 && (
           <p className="text-sm text-muted-foreground">This page has no tweaks</p>
-        ) : (
-          entries.map(([key, control]) => (
-            <TweakField
-              key={`${announced?.path ?? ''}:${key}`}
-              name={key}
-              control={control}
-              value={announced?.values[key]}
-              onChange={(value) => onChange({ key, value })}
-            />
-          ))
         )}
+        {entries.map(([key, control]) => (
+          <TweakField
+            key={`${announced?.path ?? ''}:${key}`}
+            name={key}
+            control={control}
+            value={announced?.values[key]}
+            onChange={(value) => onChange({ key, value })}
+          />
+        ))}
       </div>
     </aside>
   )

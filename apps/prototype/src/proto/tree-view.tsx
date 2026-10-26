@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { splitFramePath } from './frame-path'
 import { ENodeType, type FolderNode, type PageNode, type TreeNode } from './page-tree'
+import { patternMatchesPath } from './route-samples'
 import { TreeFolderRow } from './tree-folder-row'
 import { cn } from './ui/utils'
 
@@ -18,7 +19,9 @@ interface TreeContext {
 }
 
 function PageRow({ node, context }: { node: PageNode; context: TreeContext }) {
-  const isActive = splitFramePath(node.url).pathname === context.activePathname
+  const isActive = node.pattern
+    ? patternMatchesPath({ pattern: node.pattern, pathname: context.activePathname })
+    : splitFramePath(node.url).pathname === context.activePathname
   const handleClick = () => context.onSelect(node.url)
   return (
     <button
@@ -34,7 +37,7 @@ function PageRow({ node, context }: { node: PageNode; context: TreeContext }) {
       )}
     >
       <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="truncate">{node.label}</span>
+      <span className={cn('truncate', node.pattern && 'proto-mono text-xs')}>{node.label}</span>
     </button>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ETheme } from './bridge-messages'
 import { ChromeThemeProvider } from './chrome-theme'
@@ -9,6 +9,8 @@ import { FrameStage } from './frame-stage'
 import { chromeUrl } from './frame-path'
 import { PageSidebar } from './page-sidebar'
 import type { TreeNode } from './page-tree'
+import { matchRoute } from './route-samples'
+import { PROTO_SAMPLES } from './samples'
 import { TopStrip } from './top-strip'
 import { TweaksPanel } from './tweaks-panel'
 import { cn } from './ui/utils'
@@ -33,6 +35,11 @@ export function ProtoChrome({
   const themeClass = theme === ETheme.Light ? 'proto-chrome light' : 'proto-chrome'
   const bridge = useFrameBridge({ iframeRef, initialPath, theme })
   const { currentPath, navigate } = bridge
+
+  const route = useMemo(
+    () => matchRoute({ path: currentPath, samples: PROTO_SAMPLES }),
+    [currentPath],
+  )
 
   const fit = fitViewport({
     viewport,
@@ -78,6 +85,8 @@ export function ProtoChrome({
         </main>
         <TweaksPanel
           announced={bridge.announced}
+          route={route}
+          onRouteSelect={handleSelect}
           onChange={bridge.setControl}
           onReset={bridge.resetControls}
         />

@@ -16,6 +16,7 @@ export interface PageNode {
   id: string
   label: string
   url: string
+  pattern?: string
 }
 
 export interface FolderNode {
@@ -86,15 +87,25 @@ function ownPages({
 }): PageNode[] {
   if (!dir.hasPage) return []
   if (kind === EFolderKind.Dynamic) {
-    const samples = context.samples[url] ?? []
-    return samples.map((sample) => ({
-      type: ENodeType.Page,
-      id: `${id}::${sample.path}`,
-      label: sample.label,
-      url: sample.path,
-    }))
+    return dynamicLeaf({ name: INDEX_LABEL, id, pattern: url, context })
   }
   return [{ type: ENodeType.Page, id: `${id}::${INDEX_LABEL}`, label: INDEX_LABEL, url }]
+}
+
+function dynamicLeaf({
+  name,
+  id,
+  pattern,
+  context,
+}: {
+  name: string
+  id: string
+  pattern: string
+  context: ConvertContext
+}): PageNode[] {
+  const first = context.samples[pattern]?.[0]
+  if (!first) return []
+  return [{ type: ENodeType.Page, id: `${id}::page`, label: name, url: first.path, pattern }]
 }
 
 function convertChildren({
@@ -135,8 +146,12 @@ function convertDir({
     urlSegments: childUrlSegments,
     context,
   })
-  const isPlainLeaf = kind === EFolderKind.Static && child.hasPage && nested.length === 0
-  if (isPlainLeaf) return [{ type: ENodeType.Page, id: `${id}::page`, label: child.name, url }]
+  if (child.hasPage && nested.length === 0 && kind === EFolderKind.Static) {
+    return [{ type: ENodeType.Page, id: `${id}::page`, label: child.name, url }]
+  }
+  if (child.hasPage && nested.length === 0 && kind === EFolderKind.Dynamic) {
+    return dynamicLeaf({ name: child.name, id, pattern: url, context })
+  }
   const children = [...ownPages({ dir: child, kind, id, url, context }), ...nested]
   if (children.length === 0) return []
   return [{ type: ENodeType.Folder, id, name: child.name, kind, children }]

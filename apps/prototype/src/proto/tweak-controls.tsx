@@ -8,9 +8,8 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 import { useEffect, useState } from 'react'
 
 import type { ControlValue } from './bridge-messages'
+import { ESelectLayout, humanizeOption, selectLayout } from './tweak-options'
 import type { Control } from './use-prototype'
-
-const TOGGLE_GROUP_MAX_OPTIONS = 4
 
 interface ControlProps<T extends Control> {
   id: string
@@ -26,7 +25,7 @@ function SelectControl({
   onChange,
 }: ControlProps<Extract<Control, { type: 'select' }>>) {
   const current = typeof value === 'string' ? value : control.default
-  if (control.options.length <= TOGGLE_GROUP_MAX_OPTIONS) {
+  if (selectLayout({ options: control.options }) === ESelectLayout.Segmented) {
     const handleValueChange = (next: string[]) => {
       const picked = next[0]
       if (picked !== undefined) onChange(picked)
@@ -39,11 +38,10 @@ function SelectControl({
         variant="outline"
         size="sm"
         spacing={0}
-        className="flex-wrap"
       >
         {control.options.map((option) => (
           <ToggleGroupItem key={option} value={option}>
-            {option}
+            {humanizeOption(option)}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
@@ -52,7 +50,7 @@ function SelectControl({
   const handleValueChange = (next: string | null) => {
     if (next !== null) onChange(next)
   }
-  const items = control.options.map((option) => ({ value: option, label: option }))
+  const items = control.options.map((option) => ({ value: option, label: humanizeOption(option) }))
   return (
     <Select items={items} value={current} onValueChange={handleValueChange}>
       <SelectTrigger id={id} aria-labelledby={`${id}-label`} className="w-full">
@@ -61,7 +59,7 @@ function SelectControl({
       <SelectContent alignItemWithTrigger={false}>
         {control.options.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {humanizeOption(option)}
           </SelectItem>
         ))}
       </SelectContent>
