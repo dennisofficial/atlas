@@ -56,9 +56,12 @@ export class ThreadsService {
       userId: args.userId,
       projectId: args.draft.projectId,
     })
-    const row = await db.orm.public.Thread.create(
-      createColumnsOf({ userId: args.userId, draft: args.draft, project }),
-    )
+    const columns = createColumnsOf({ userId: args.userId, draft: args.draft, project })
+    const row = await db.transaction(async (tx) => {
+      const taken = await tx.orm.public.Thread.where({ id: columns.id }).select('id').first()
+      if (taken !== null) throw new ConflictException('thread id is already in use')
+      return tx.orm.public.Thread.create(columns)
+    })
     return toThreadDto(row)
   }
 

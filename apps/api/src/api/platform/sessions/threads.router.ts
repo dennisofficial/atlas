@@ -91,6 +91,9 @@ export class ThreadsRouter {
     if (ctx.sandbox !== undefined && input.firstMessage !== undefined) {
       throw new ForbiddenException('a sandbox token cannot start a thread with a first message')
     }
+    if (ctx.sandbox !== undefined && input.id !== undefined) {
+      throw new ForbiddenException('a sandbox token cannot choose a thread id')
+    }
     await assertSandboxSpawn({ sandboxes: this.sandboxes, ctx, agent: input.agent })
     const userId = ctx.auth.userId
     if (input.firstMessage === undefined) return this.threads.create({ userId, draft: input })
