@@ -74,6 +74,47 @@ describe('ThreadsRouter', () => {
       expect(create).not.toHaveBeenCalled()
     })
 
+    it('hands a client-chosen id with the firstMessage to the launcher', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.session,
+        body: { id: 'brn_fixed', firstMessage: FIRST },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(launch).toHaveBeenCalledWith({
+        userId: USER_ID,
+        draft: { id: 'brn_fixed', firstMessage: FIRST },
+        firstMessage: FIRST,
+      })
+    })
+
+    it('rejects a client-chosen id that comes without a firstMessage', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.session,
+        body: { id: 'brn_fixed', title: 'x' },
+      })
+
+      expect(reply.status).toBe(400)
+      expect(create).not.toHaveBeenCalled()
+      expect(launch).not.toHaveBeenCalled()
+    })
+
+    it('rejects an empty client-chosen id', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.session,
+        body: { id: '', firstMessage: FIRST },
+      })
+
+      expect(reply.status).toBe(400)
+      expect(launch).not.toHaveBeenCalled()
+    })
+
     it('creates a plain thread for a session with no firstMessage', async () => {
       const reply = await mutate({
         app,

@@ -28,6 +28,16 @@ describe('ThreadsService', () => {
     expect(found.id).toBe(created.id)
   })
 
+  it('createWithin keeps a client-chosen id and mints a brn_ id otherwise', async () => {
+    const [chosen, minted] = await db.transaction(async (tx) => [
+      await service.createWithin({ tx, userId: USER_A, draft: { id: 'brn_chosen' }, project: {} }),
+      await service.createWithin({ tx, userId: USER_A, draft: {}, project: {} }),
+    ])
+
+    expect(chosen?.id).toBe('brn_chosen')
+    expect(minted?.id).toMatch(/^brn_/)
+  })
+
   it('find scopes to the owning user', async () => {
     const created = await service.create({ userId: USER_A, draft: {} })
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { ConflictException, Injectable } from '@nestjs/common'
 import {
   EBootStepState,
   ESandboxProvisionState,
@@ -48,7 +48,16 @@ export class ThreadLaunchService extends ThreadLauncher {
         userId,
         sendId: firstMessage.sendId,
       })
-      if (prior !== null) return { threadId: prior.id, claim: null, existing: true }
+      if (prior !== null) {
+        if (draft.id !== undefined && draft.id !== prior.id) {
+          throw new ConflictException('sendId already launched a different thread')
+        }
+        return { threadId: prior.id, claim: null, existing: true }
+      }
+      if (draft.id !== undefined) {
+        const taken = await tx.orm.public.Thread.where({ id: draft.id }).select('id').first()
+        if (taken !== null) throw new ConflictException('thread id is already in use')
+      }
       const thread = await this.threads.createWithin({ tx, userId, draft, project })
       await appendWithin({
         tx,

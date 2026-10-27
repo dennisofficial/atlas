@@ -27,6 +27,7 @@ export type LinkedPullRequestDto = {
 }
 
 export type ThreadDraft = {
+  id?: string | undefined
   title?: string | undefined
   workspace?: string | undefined
   repo?: string | null | undefined
