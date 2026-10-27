@@ -382,7 +382,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
     relayed: z.boolean().optional(),
-    waitingOn: z.string().optional(),
+    leftServices: z.array(z.string()).optional(),
   }),
   z.object({
     type: z.literal('agent-restarted'),

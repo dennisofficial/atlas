@@ -95,14 +95,14 @@ describe('the built-in agent types', () => {
     const teammate = await named('teammate')
 
     expect(teammate.prompt).toContain('report_to_main')
-    expect(teammate.prompt).toContain('that pause is bookkeeping')
+    expect(teammate.prompt).toContain('Ending your turn never tells it anything')
     expect(teammate.prompt).toContain('cannot ask the developer')
   })
 
   it('tells the teammate that going quiet between reports is how it is meant to run', async () => {
     const teammate = await named('teammate')
 
-    expect(teammate.prompt).toContain('relays your ending to the main agent')
+    expect(teammate.prompt).toContain('Only a failure or a stop reaches the main agent by itself')
     expect(teammate.prompt).toContain('going quiet between reports')
   })
 

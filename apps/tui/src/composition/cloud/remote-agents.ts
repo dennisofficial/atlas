@@ -83,16 +83,6 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
     return this.steer({ op: EClientRequest.SayToAgent, params: args })
   }
 
-  sayToPeer(args: {
-    agentId: ThreadId
-    threadId: ThreadId
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-  }): Promise<AgentOutcome> {
-    return this.say(args)
-  }
-
   reportToParent(_args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
     return remoteActionRefused(
       'a cloud session reports to its main agent in its sandbox, not on this machine',

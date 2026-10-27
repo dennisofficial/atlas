@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentRestart } from '../../agents/restart'
+import { EAgentStatus } from '../../agents/status'
 import { toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { transcriptOfRange } from '../render-range'
@@ -19,6 +20,25 @@ import {
 } from './fixture'
 
 describe('transcriptOfRange', () => {
+  it('leaves out a bookkeeping ending, which the model never saw', () => {
+    const events = eventsFrom([
+      said('start the teammate'),
+      {
+        type: 'agent-ended',
+        agentId: toThreadId('thread-child'),
+        agentType: 'teammate',
+        intent: 'port the sidebar',
+        status: EAgentStatus.Finished,
+        prose: 'turn over',
+        turns: 1,
+        toolCalls: 0,
+        relayed: false,
+      },
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 2 })).toBe('Operator: start the teammate')
+  })
+
   it('renders a spoken exchange as labelled turns', () => {
     const events = eventsFrom([said('build the parser'), replied('done')])
 

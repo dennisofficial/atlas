@@ -41,13 +41,6 @@ export abstract class AgentRegistryPort {
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
   }): Promise<AgentOutcome>
-  abstract sayToPeer(args: {
-    agentId: ThreadId
-    threadId: ThreadId
-    text: string
-    images?: readonly SaidImage[] | undefined
-    files?: readonly SaidFile[] | undefined
-  }): Promise<AgentOutcome>
   abstract reportToParent(args: {
     threadId: ThreadId
     text: string

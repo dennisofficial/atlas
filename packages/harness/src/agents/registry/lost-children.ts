@@ -10,13 +10,13 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ThreadStorePort } from '../../store'
-import { boundedTail, isStepping, snapshotOf, type ChildState } from './child-state'
+import { boundedTail, isRunning, snapshotOf, type ChildState } from './child-state'
 import type { AgentSnapshot, UnloggedChild } from './snapshot'
 
 const NOTHING_SETTLED: readonly AgentSnapshot[] = Object.freeze([])
 
 export const wasLost = (child: ChildState): boolean =>
-  !isStepping(child) && child.endedAt === undefined
+  !isRunning(child) && child.endedAt === undefined
 
 export async function settleLostChildren({
   log,

@@ -2,8 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { ChildWake } from '../../../composition/child-wake'
-import { agentTypeNamed, openSupervisor, settled, finished, interrupted } from './fixtures'
+import { openSupervisor, settled, finished, interrupted } from './fixtures'
 
 describe('a supervisor waking a stopped child', () => {
   it('restarts a child whose turn ended, so queued notices reach it', async () => {
@@ -79,46 +78,6 @@ describe('a supervisor waking a stopped child', () => {
 
     expect(woken.ok).toBe(false)
     expect(s.runners.started).toHaveLength(0)
-    await s.close()
-  })
-
-  it('wakes a stopped teammate when its own builder reports, through the notice queue', async () => {
-    const s = await openSupervisor({
-      agentTypes: [agentTypeNamed({ name: 'teammate' }), agentTypeNamed({ name: 'builder' })],
-    })
-    new ChildWake({ agents: s.supervisor, sources: [s.supervisor] })
-
-    const teammate = await s.supervisor.spawn({
-      threadId: s.parent,
-      agentType: 'teammate',
-      brief: 'coordinate',
-      intent: 'coordinate',
-    })
-    expect(teammate.ok).toBe(true)
-    if (!teammate.ok) return
-
-    const builder = await s.supervisor.spawn({
-      threadId: teammate.snapshot.agentId,
-      agentType: 'builder',
-      brief: 'build a slice',
-      intent: 'build',
-    })
-    expect(builder.ok).toBe(true)
-    if (!builder.ok) return
-
-    s.runners.started[0]?.settle(finished())
-    await settled()
-    expect(s.runners.started).toHaveLength(2)
-
-    s.runners.started[1]?.settle(finished())
-    await settled()
-
-    for (let attempt = 0; attempt < 50 && s.runners.started.length < 3; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1))
-    }
-
-    expect(s.runners.started).toHaveLength(3)
-    expect(s.runners.started[2]?.threadId).toBe(teammate.snapshot.agentId)
     await s.close()
   })
 })

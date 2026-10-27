@@ -154,7 +154,6 @@ export type AgentEndedEntry = {
   agentId: string
   report: string
   failed: boolean
-  quiet?: boolean | undefined
 }
 
 export type AgentReportedEntry = {

@@ -29,15 +29,6 @@ async function open(): Promise<OpenedSupervisor> {
   return entry
 }
 
-async function openWithLiveWork(): Promise<OpenedSupervisor> {
-  const entry = await openSupervisor({
-    agentTypes: [agentTypeNamed({ name: 'explore' }), TEAMMATE],
-    liveWork: () => 'bash "bun test"',
-  })
-  opened.push(entry)
-  return entry
-}
-
 afterEach(async () => {
   for (const entry of opened.splice(0)) await entry.close()
 })
@@ -221,31 +212,16 @@ describe('preparing agent notices without acknowledging', () => {
 })
 
 describe('enumerating threads with anything queued', () => {
-  it('queues nothing for a teammate that pauses with live work of its own still running', async () => {
-    const entry = await openWithLiveWork()
-    await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
-    entry.runners.started[0]?.settle(finished())
-    await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
-
-    expect(entry.supervisor.threadsAwaitingNotice()).toEqual([])
-    expect(entry.supervisor.threadsWithPendingInput()).toEqual([])
-
-    const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
-    expect(drained.wakesTurn).toBe(false)
-    expect(drained.drafts).toHaveLength(0)
-  })
-
-  it('relays a teammate ending with no live work left to wake it, like a sub-agent ending', async () => {
+  it('queues no notice for a teammate that finishes, though the ending is recorded', async () => {
     const entry = await open()
     await spawnEnded(entry, TEAMMATE_AGENT_TYPE)
     entry.runners.started[0]?.settle(finished())
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
-    expect(entry.supervisor.threadsAwaitingNotice()).toEqual([entry.parent])
+    expect(entry.supervisor.threadsAwaitingNotice()).toEqual([])
 
     const drained = entry.supervisor.drainNotifications({ threadId: entry.parent })
-    expect(drained.wakesTurn).toBe(true)
-    expect(drained.drafts).toEqual([])
+    expect(drained.wakesTurn).toBe(false)
     expect(
       await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
     ).toHaveLength(1)

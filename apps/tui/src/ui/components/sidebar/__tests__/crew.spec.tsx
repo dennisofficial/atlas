@@ -1,13 +1,14 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import { EChecksState, EPullRequestState } from '@dltech/atlas-harness'
+import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
+import React, { act } from 'react'
 
-import { ECrewStanding } from '../../../../store/crew-retirement'
 import type { SidebarSubagent } from '../../../../store/subagent-row'
 import { teardown } from '../../../markdown/__tests__/harness'
-import { SubagentsSection } from '../crew'
+import { theme } from '../../../theme'
+import { AgentsSection } from '../crew'
 
 const WIDTH = 40
 
@@ -15,366 +16,295 @@ const HEIGHT = 20
 
 const row = (over: Partial<SidebarSubagent> & { id: string }): SidebarSubagent => ({
   name: 'vault audit',
+  agentType: 'explore',
   status: EAgentStatus.Running,
-  startedAt: '2026-01-01T00:00:00.000Z',
-  endedAt: null,
-  state: '1m 4s',
-  model: null,
+  value: '1m 4s',
   selected: false,
-  failureReason: null,
   ...over,
 })
 
-const settledRows = (args: {
-  prefix: string
-  count: number
-  agentType: string
-}): { rows: readonly SidebarSubagent[]; standings: ReadonlyMap<string, ECrewStanding> } => {
-  const rows = Array.from({ length: args.count }, (_, at) =>
-    row({
-      id: `${args.prefix}-${at}`,
-      name: `${args.prefix} ${at}`,
-      agentType: args.agentType,
-      status: EAgentStatus.Finished,
-      endedAt: '2026-01-01T00:01:00.000Z',
-      state: '',
-    }),
-  )
+const settled = (id: string, status = EAgentStatus.Finished): SidebarSubagent =>
+  row({ id, name: `settled ${id}`, status, value: 'done' })
 
-  return { rows, standings: new Map(rows.map((one) => [one.id, ECrewStanding.Settled])) }
-}
+type Props = Partial<React.ComponentProps<typeof AgentsSection>>
 
-const mountCrew = (props: React.ComponentProps<typeof SubagentsSection>) =>
+const mountCrew = (props: Props) =>
   testRender(
     <box flexDirection="column" width={WIDTH} height={HEIGHT}>
-      <SubagentsSection {...props} />
+      <AgentsSection subagents={[]} expanded={false} cells={WIDTH} {...props} />
     </box>,
     { width: WIDTH, height: HEIGHT },
   )
 
-async function rowsOf(
-  props: React.ComponentProps<typeof SubagentsSection>,
-): Promise<readonly string[]> {
+async function linesOf(props: Props): Promise<string[]> {
   const setup = await mountCrew(props)
-
   try {
     await setup.flush()
-    return setup.captureCharFrame().split('\n')
+    return setup
+      .captureCharFrame()
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .filter((line) => line !== '')
   } finally {
     await teardown(setup)
   }
 }
 
-describe('the crew panel splits into a teammate tier and a sub-agent tier', () => {
-  it('draws teammates first, then sub-agents, told apart by agentType', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({ id: 't1', name: 'feature work', agentType: 'teammate' }),
-          row({ id: 's1', name: 'vault audit', agentType: 'explore' }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('TEAMMATES')
-    expect(frame).toContain('SUB-AGENTS')
-    expect(frame.indexOf('TEAMMATES')).toBeLessThan(frame.indexOf('SUB-AGENTS'))
+describe('the agents panel', () => {
+  it('draws nothing for an empty roster', async () => {
+    expect(await linesOf({})).toEqual([])
   })
 
-  it('hides the teammate header when nothing in the roster is a teammate', async () => {
+  it('titles one section AGENTS with the running count on the right edge', async () => {
+    const lines = await linesOf({
+      subagents: [
+        row({ id: 'a' }),
+        row({ id: 'b', status: EAgentStatus.Blocked, value: 'approve?' }),
+      ],
+    })
+
+    expect(lines[0]).toBe(
+      `AGENTS${' '.repeat(WIDTH - 'AGENTS'.length - '2 running'.length)}2 running`,
+    )
+  })
+
+  it('omits the count when nothing runs', async () => {
+    const lines = await linesOf({ subagents: [row({ id: 'a', status: EAgentStatus.Paused })] })
+
+    expect(lines[0]).toBe('AGENTS')
+  })
+
+  it('splits no teammate tier from the sub-agents', async () => {
     const frame = (
-      await rowsOf({ subagents: [row({ id: 's1', agentType: 'explore' })], cells: WIDTH })
+      await linesOf({
+        subagents: [row({ id: 't', agentType: 'teammate' }), row({ id: 's' })],
+      })
     ).join('\n')
 
     expect(frame).not.toContain('TEAMMATES')
-    expect(frame).toContain('SUB-AGENTS')
-  })
-
-  it('hides the sub-agent header when the whole roster is teammates', async () => {
-    const frame = (
-      await rowsOf({ subagents: [row({ id: 't1', agentType: 'teammate' })], cells: WIDTH })
-    ).join('\n')
-
-    expect(frame).toContain('TEAMMATES')
     expect(frame).not.toContain('SUB-AGENTS')
   })
 
-  it('draws nothing for an empty roster', async () => {
-    const frame = (await rowsOf({ subagents: [], cells: WIDTH })).join('\n')
-
-    expect(frame.trim()).toBe('')
-  })
-
-  it('renders a teammate row with the same fields a sub-agent row carries', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({
-            id: 't1',
-            name: 'feature work',
-            agentType: 'teammate',
-            model: 'Claude Haiku 4.5',
-          }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('feature work')
-    expect(frame).toContain('1m 4s')
-    expect(frame).toContain('Claude Haiku 4.5')
-  })
-
-  it('folds each tier behind its own settled line, counting the full tier in its header', async () => {
-    const teammates = settledRows({ prefix: 'mate', count: 4, agentType: 'teammate' })
-    const subagents = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
-    const frame = (
-      await rowsOf({
-        subagents: [...teammates.rows, ...subagents.rows],
-        standings: new Map([...teammates.standings, ...subagents.standings]),
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('TEAMMATES  0/4')
-    expect(frame).toContain('SUB-AGENTS  0/5')
-    expect(frame).toContain('2 settled ▸')
-    expect(frame).toContain('3 settled ▸')
-    expect(frame).not.toContain('mate 0')
-    expect(frame).toContain('mate 3')
-    expect(frame).not.toContain('sub 2')
-    expect(frame).toContain('sub 4')
-  })
-
-  it('keeps a row that is live or held out of the fold however many rows settled around it', async () => {
-    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
-    const live = row({ id: 'live', name: 'live audit', agentType: 'explore' })
-    const held = row({
-      id: 'held',
-      name: 'held audit',
-      agentType: 'explore',
-      status: EAgentStatus.Failed,
+  it('draws one line per row with a shape-coded glyph and the right value', async () => {
+    const lines = await linesOf({
+      subagents: [
+        row({ id: 'run', name: 'Composer queue fix', value: '3m 12s' }),
+        row({
+          id: 'held',
+          name: 'Visual review',
+          waitingOn: 'bash "bun test"',
+          value: 'bash "bun test"',
+        }),
+        row({ id: 'blk', name: 'Fix serve wake', status: EAgentStatus.Blocked, value: 'approve?' }),
+        row({ id: 'pau', name: 'Paused one', status: EAgentStatus.Paused, value: 'paused' }),
+      ],
     })
-    const frame = (
-      await rowsOf({
-        subagents: [live, held, ...settled.rows],
-        standings: new Map([
-          ...settled.standings,
-          ['live', ECrewStanding.Live],
-          ['held', ECrewStanding.Held],
-        ]),
-        cells: WIDTH,
-      })
-    ).join('\n')
 
-    expect(frame).toContain('live audit')
-    expect(frame).toContain('held audit')
-    expect(frame).toContain('3 settled ▸')
+    expect(lines).toHaveLength(5)
+    expect(lines[1]).toMatch(/^● Composer queue fix\s+3m 12s$/)
+    expect(lines[2]).toMatch(/^◷ Visual review\s+bash "bun test"$/)
+    expect(lines[3]).toMatch(/^! Fix serve wake\s+approve\?$/)
+    expect(lines[4]).toMatch(/^! Paused one\s+paused$/)
   })
 
-  it('says one failed on the line when a collapsed row went wrong', async () => {
-    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
-    const [first, ...rest] = settled.rows
-    const failed = {
-      ...(first as SidebarSubagent),
-      status: EAgentStatus.Failed,
-      name: 'sub failed',
-    }
-    const frame = (
-      await rowsOf({ subagents: [failed, ...rest], standings: settled.standings, cells: WIDTH })
-    ).join('\n')
+  it('truncates a long title once, keeping the value whole', async () => {
+    const lines = await linesOf({
+      subagents: [row({ id: 'a', name: 'Rotate every refresh token and reject the reused ones' })],
+    })
 
-    expect(frame).not.toContain('sub failed')
-    expect(frame).toContain('3 settled ▸')
-    expect(frame).toContain('one failed')
+    expect(lines[1]?.length).toBeLessThanOrEqual(WIDTH)
+    expect(lines[1]).toContain('…')
+    expect(lines[1]?.endsWith('1m 4s')).toBe(true)
   })
 
-  it('shows no settled line when the settled rows all fit in the tail', async () => {
-    const settled = settledRows({ prefix: 'sub', count: 3, agentType: 'explore' })
-    const frame = (
-      await rowsOf({ subagents: settled.rows, standings: settled.standings, cells: WIDTH })
-    ).join('\n')
+  it('puts the pull request inline before a teammate title', async () => {
+    const lines = await linesOf({
+      subagents: [
+        row({
+          id: 't',
+          name: 'Teammate: web settings',
+          agentType: 'teammate',
+          value: '4m',
+          pullRequest: {
+            label: '#1421',
+            url: 'https://example.test/1421',
+            state: EPullRequestState.Open,
+            checks: EChecksState.None,
+            pollBacked: false,
+          },
+        }),
+      ],
+    })
 
-    expect(frame).not.toContain('settled ▸')
-    expect(frame).toContain('sub 0')
+    expect(lines[1]).toMatch(/^#1421 ● Teammate: web settings\s+4m$/)
   })
 
-  it('brings the collapsed rows back when the settled line is clicked, and folds them again on a second click', async () => {
-    const settled = settledRows({ prefix: 'sub', count: 5, agentType: 'explore' })
+  it('lists teammates before sub-agents whatever the roster order', async () => {
+    const lines = await linesOf({
+      subagents: [
+        row({ id: 's', name: 'sub one' }),
+        row({ id: 't', name: 'mate one', agentType: 'teammate' }),
+      ],
+    })
+
+    expect(lines[1]).toContain('mate one')
+    expect(lines[2]).toContain('sub one')
+  })
+})
+
+describe('the fold line', () => {
+  it('folds every settled sub-agent into one summary line', async () => {
+    const lines = await linesOf({
+      subagents: [
+        row({ id: 'run' }),
+        settled('d1'),
+        settled('d2'),
+        settled('f1', EAgentStatus.Failed),
+      ],
+    })
+
+    expect(lines).toHaveLength(3)
+    expect(lines[2]).toBe('✓ 2 done · ✗ 1 failed  ▸')
+  })
+
+  it('omits a zero part', async () => {
+    const onlyDone = await linesOf({ subagents: [settled('d1'), settled('d2')] })
+    const onlyFailed = await linesOf({ subagents: [settled('f1', EAgentStatus.Failed)] })
+    const stopped = await linesOf({ subagents: [settled('s1', EAgentStatus.Stopped)] })
+
+    expect(onlyDone[1]).toBe('✓ 2 done  ▸')
+    expect(onlyFailed[1]).toBe('✗ 1 failed  ▸')
+    expect(stopped[1]).toBe('✗ 1 stopped  ▸')
+  })
+
+  it('shows the folded rows with a down chevron when expanded', async () => {
+    const lines = await linesOf({ subagents: [settled('d1')], expanded: true })
+
+    expect(lines[1]).toBe('✓ 1 done  ▾')
+    expect(lines[2]).toMatch(/^✓ settled d1\s+done$/)
+  })
+
+  it('keeps the row being viewed out of the fold', async () => {
+    const lines = await linesOf({
+      subagents: [{ ...settled('d1'), selected: true }, settled('d2')],
+    })
+
+    expect(lines.join('\n')).toContain('settled d1')
+    expect(lines.join('\n')).not.toContain('settled d2')
+    expect(lines.at(-1)).toBe('✓ 1 done  ▸')
+  })
+
+  it('never folds a teammate', async () => {
+    const lines = await linesOf({
+      subagents: [{ ...settled('t1'), agentType: 'teammate' }],
+    })
+
+    expect(lines.join('\n')).toContain('settled t1')
+    expect(lines.join('\n')).not.toContain('▸')
+  })
+
+  it('toggles from a click on the fold line', async () => {
+    const toggled: string[] = []
     const setup = await mountCrew({
-      subagents: settled.rows,
-      standings: settled.standings,
-      cells: WIDTH,
+      subagents: [settled('d1')],
+      onToggle: () => toggled.push('toggle'),
     })
 
     try {
       await setup.flush()
-      const lineAt = (): number =>
-        setup
-          .captureCharFrame()
-          .split('\n')
-          .findIndex((line) => line.includes('settled'))
-      const columnAt = (): number =>
-        setup.captureCharFrame().split('\n')[lineAt()]?.indexOf('settled') ?? -1
-
-      expect(setup.captureCharFrame()).not.toContain('sub 0')
-
-      await setup.mockMouse.click(columnAt(), lineAt())
+      const y = setup
+        .captureCharFrame()
+        .split('\n')
+        .findIndex((line) => line.includes('1 done'))
+      await act(async () => {
+        await setup.mockMouse.click(3, y)
+      })
       await setup.flush()
-      const open = setup.captureCharFrame()
-      expect(open).toContain('sub 0')
-      expect(open).toContain('3 settled ▾')
 
-      await setup.mockMouse.click(columnAt(), lineAt())
-      await setup.flush()
-      expect(setup.captureCharFrame()).not.toContain('sub 0')
+      expect(toggled).toEqual(['toggle'])
     } finally {
       await teardown(setup)
     }
-  })
-
-  it('lights a row that still runs something of its own, numbers only', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({
-            id: 't1',
-            name: 'feature work',
-            agentType: 'teammate',
-            status: EAgentStatus.Finished,
-            activity: { shells: 2, subagents: 1 },
-          }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('⏺ feature work')
-    expect(frame).toContain('2 shells')
-    expect(frame).toContain('1 agent')
-  })
-
-  it('reads a finished row with nothing running as settled', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({
-            id: 't1',
-            name: 'feature work',
-            agentType: 'teammate',
-            status: EAgentStatus.Finished,
-          }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('⏺ feature work')
-  })
-
-  it('leaves a row with nothing running bare of chips', async () => {
-    const frame = (
-      await rowsOf({ subagents: [row({ id: 's1', agentType: 'explore' })], cells: WIDTH })
-    ).join('\n')
-
-    expect(frame).not.toContain('shell')
-    expect(frame).not.toContain('agent')
-  })
-
-  it('names why a failed child failed on the figures line', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({
-            id: 's1',
-            status: EAgentStatus.Failed,
-            endedAt: '2026-01-01T00:01:00.000Z',
-            state: 'failed',
-            failureReason: 'provider inference.net returned 402',
-          }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
-
-    expect(frame).toContain('provider inference.net returned 402')
-  })
-
-  it('clips a long cause to the row rather than letting it wrap the panel', async () => {
-    const lines = await rowsOf({
-      subagents: [
-        row({
-          id: 's1',
-          status: EAgentStatus.Failed,
-          endedAt: '2026-01-01T00:01:00.000Z',
-          state: 'failed',
-          failureReason:
-            'provider inference.net returned 402: credit exhausted after a very long and detailed explanation that will not fit',
-        }),
-      ],
-      cells: WIDTH,
-    })
-
-    const reasonLines = lines.filter((line) => line.includes('402'))
-    expect(reasonLines).toHaveLength(1)
-    expect(reasonLines[0]).toContain('…')
-  })
-
-  it('spends no line on a cause a failed child never recorded', async () => {
-    const lines = await rowsOf({
-      subagents: [
-        row({
-          id: 's1',
-          status: EAgentStatus.Failed,
-          endedAt: '2026-01-01T00:01:00.000Z',
-          state: 'failed',
-        }),
-      ],
-      cells: WIDTH,
-    })
-
-    expect(lines.join('\n')).toContain('failed')
-    expect(lines.filter((line) => line.trim() !== '')).toHaveLength(2)
-  })
-
-  it('treats a row with no agentType as a sub-agent rather than dropping it', async () => {
-    const frame = (
-      await rowsOf({ subagents: [row({ id: 's1', name: 'legacy child' })], cells: WIDTH })
-    ).join('\n')
-
-    expect(frame).toContain('legacy child')
-    expect(frame).toContain('SUB-AGENTS')
-    expect(frame).not.toContain('TEAMMATES')
-  })
+  }, 30_000)
 })
 
-describe('a teammate row carries its pull request pill', () => {
-  it('puts the pill on the row beside the model, and leaves a row without one bare', async () => {
-    const frame = (
-      await rowsOf({
-        subagents: [
-          row({
-            id: 't1',
-            name: 'feature work',
-            agentType: 'teammate',
-            model: 'sonnet',
-            pullRequest: {
-              label: '#88',
-              url: 'https://github.com/dennisofficial/atlas/pull/88',
-              state: EPullRequestState.Open,
-              checks: EChecksState.Passing,
-              pollBacked: false,
-            },
-          }),
-          row({ id: 't2', name: 'other work', agentType: 'teammate', model: 'haiku' }),
-        ],
-        cells: WIDTH,
-      })
-    ).join('\n')
+type Colour = { equals: (other: unknown) => boolean }
 
-    const lines = frame.split('\n')
-    expect(lines.find((line) => line.includes('sonnet'))).toContain('#88')
-    expect(lines.find((line) => line.includes('haiku'))).not.toContain('#')
-  })
+type Painted = { text: string; bg: Colour }
+
+type Spans = { lines: ({ spans: Painted[] } | undefined)[] }
+
+const paintedAt = (spans: Spans, y: number, x: number): Painted | undefined => {
+  let column = 0
+  for (const span of spans.lines[y]?.spans ?? []) {
+    const width = [...span.text].length
+    if (x < column + width) return span
+    column += width
+  }
+  return undefined
+}
+
+describe('hover and click', () => {
+  it('opens the row on click and washes it while the pointer is over it', async () => {
+    const opened: string[] = []
+    const setup = await mountCrew({
+      subagents: [row({ id: 'a', name: 'hoverable' })],
+      onOpen: (id) => opened.push(id),
+    })
+
+    try {
+      await setup.flush()
+      const y = setup
+        .captureCharFrame()
+        .split('\n')
+        .findIndex((line) => line.includes('hoverable'))
+      expect(
+        paintedAt(setup.captureSpans() as unknown as Spans, y, 4)?.bg.equals(
+          parseColor(theme.hoverBg),
+        ),
+      ).toBe(false)
+
+      await act(async () => {
+        await setup.mockMouse.moveTo(4, y)
+      })
+      await setup.flush()
+      expect(
+        paintedAt(setup.captureSpans() as unknown as Spans, y, 4)?.bg.equals(
+          parseColor(theme.hoverBg),
+        ),
+      ).toBe(true)
+
+      await act(async () => {
+        await setup.mockMouse.click(4, y)
+      })
+      await setup.flush()
+      expect(opened).toEqual(['a'])
+    } finally {
+      await teardown(setup)
+    }
+  }, 30_000)
+
+  it('washes the fold line too', async () => {
+    const setup = await mountCrew({ subagents: [settled('d1')], onToggle: () => undefined })
+
+    try {
+      await setup.flush()
+      const y = setup
+        .captureCharFrame()
+        .split('\n')
+        .findIndex((line) => line.includes('1 done'))
+      await act(async () => {
+        await setup.mockMouse.moveTo(4, y)
+      })
+      await setup.flush()
+
+      expect(
+        paintedAt(setup.captureSpans() as unknown as Spans, y, 4)?.bg.equals(
+          parseColor(theme.hoverBg),
+        ),
+      ).toBe(true)
+    } finally {
+      await teardown(setup)
+    }
+  }, 30_000)
 })

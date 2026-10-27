@@ -1,14 +1,8 @@
-import {
-  EOperatorInputOutcome,
-  type Event,
-  type EventId,
-  type EventOfType,
-} from '@dltech/atlas-core'
+import { EOperatorInputOutcome, type Event } from '@dltech/atlas-core'
 
 import {
   agentEndedLine,
   agentEndingFailed,
-  agentQuietLine,
   agentReportedKindLine,
   agentRestartedLine,
 } from './agent-ended-line'
@@ -20,14 +14,11 @@ import { shellMatchedLine, shellStillRunningEntryLine } from './shell-lines'
 import type { ShellEndingFilter } from './shell-ending-filter'
 import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
 
-type QuietEnding = EventOfType<'agent-ended'>
-
 export function noticeEntriesOf(args: {
   event: Event
-  quietEndings: ReadonlyMap<EventId, QuietEnding>
   shellFilter: ShellEndingFilter
 }): TranscriptEntry[] | null {
-  const { event, quietEndings, shellFilter } = args
+  const { event, shellFilter } = args
 
   if (event.type === 'background-shell-ended') {
     if (shellFilter.isRedundantEnding(event)) return []
@@ -99,22 +90,7 @@ export function noticeEntriesOf(args: {
   }
 
   if (event.type === 'agent-ended') {
-    if (event.relayed === false) {
-      const latest = quietEndings.get(event.id)
-      if (latest === undefined) return []
-      return [
-        {
-          kind: EEntryKind.AgentEnded,
-          author: EAuthor.Model,
-          key: event.id,
-          text: agentQuietLine(latest),
-          agentId: latest.agentId,
-          report: latest.prose,
-          failed: agentEndingFailed(latest),
-          quiet: true,
-        },
-      ]
-    }
+    if (event.relayed === false) return []
 
     return [
       {

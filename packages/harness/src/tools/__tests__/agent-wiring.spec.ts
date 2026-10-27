@@ -22,7 +22,7 @@ import { createTempHome, type TempHome } from '../../loop/__tests__/temp-home'
 import { AgentTypesToken } from '../builtin/agent-tokens'
 import { ToolRegistry } from '../registry'
 
-const AGENT_TOOLS = ['agent_list', 'agent_resume', 'agent_say', 'agent_spawn', 'agent_stop']
+const AGENT_TOOLS = ['agent_list', 'agent_say', 'agent_spawn', 'agent_stop']
 
 const opened: { temp: TempHome; previousHome: string | undefined }[] = []
 
@@ -67,7 +67,7 @@ afterAll(() => {
 })
 
 describe('the agent tools the container hands out', () => {
-  it('resolves all five without recursing back through the tool registry that builds them', () => {
+  it('resolves all four without recursing back through the tool registry that builds them', () => {
     const names = resolveSet({ container: wired(), token: portToken(ToolDefinition) })
       .map((tool) => tool.name)
       .filter((name) => name.startsWith('agent_'))

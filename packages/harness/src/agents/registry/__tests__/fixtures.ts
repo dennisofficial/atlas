@@ -17,15 +17,16 @@ import { ETurnStatus, type TurnOutcome } from '../../../loop/turn-outcome'
 import type { PauseSignal } from '../../../loop/pause-signal'
 import type { TurnRunner } from '../../../loop/turn-runner.port'
 import { scriptedModel } from '../../../model/testing/scripted-model'
-import type { AgentType } from '../../types'
+import { ESpeech, TEAMMATE_AGENT_TYPE, type AgentType } from '../../types'
 import type { ChildRunnerRequest, ChildRunnerSource } from '../child-runner'
-import type { InheritOrphanedNotices } from '../deps'
+import type { EndShells, InheritOrphanedNotices, LeftServicesProbe } from '../deps'
 import { AgentSupervisor } from '../supervisor'
 
 export const agentTypeNamed = (args: Partial<AgentType> & { name: string }): AgentType => ({
   whenToUse: `use ${args.name}`,
   prompt: `You are the ${args.name} sub-agent.`,
   origin: EDefinitionOrigin.BuiltIn,
+  speaks: args.name === TEAMMATE_AGENT_TYPE ? ESpeech.ByReport : ESpeech.OnEnd,
   ...args,
 })
 
@@ -140,13 +141,19 @@ export type OpenedSupervisor = {
 export async function openSupervisor({
   agentTypes = [agentTypeNamed({ name: 'explore' }), agentTypeNamed({ name: 'builder' })],
   sink,
-  liveWork,
+  runningShell,
+  endShells,
+  leftServices,
   inheritOrphanedNotices,
+  onChildEnded,
 }: {
   agentTypes?: readonly AgentType[]
   sink?: ExecutionLocationSinkPort | undefined
-  liveWork?: ((threadId: ThreadId) => string | undefined) | undefined
+  runningShell?: ((threadId: ThreadId) => string | undefined) | undefined
+  endShells?: EndShells | undefined
+  leftServices?: LeftServicesProbe | undefined
   inheritOrphanedNotices?: InheritOrphanedNotices | undefined
+  onChildEnded?: ((threadId: ThreadId) => void) | undefined
 } = {}): Promise<OpenedSupervisor> {
   const temp = createTempHome()
   const harness = await buildHarness({
@@ -167,8 +174,11 @@ export async function openSupervisor({
       runners: runners.source,
       launchDirectory: '/launch',
       ...(sink === undefined ? {} : { sink }),
-      ...(liveWork === undefined ? {} : { liveWork }),
+      ...(runningShell === undefined ? {} : { runningShell }),
+      ...(endShells === undefined ? {} : { endShells }),
+      ...(leftServices === undefined ? {} : { leftServices }),
       ...(inheritOrphanedNotices === undefined ? {} : { inheritOrphanedNotices }),
+      ...(onChildEnded === undefined ? {} : { onChildEnded }),
     }),
     parent: (await harness.threads.create({})).id,
     close: async () => {

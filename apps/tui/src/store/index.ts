@@ -1,7 +1,6 @@
 export {
   agentEndedLine,
   agentEndingFailed,
-  agentQuietLine,
   type AgentEndingRow,
 } from '@dltech/atlas-client/transcript'
 export { createConversationStore, type ConversationStore } from './conversation-store'
@@ -93,7 +92,6 @@ export {
   IDLE_SIDEBAR,
   type SidebarModel,
   type SidebarTask,
-  type SidebarTeammate,
 } from './sidebar-model'
 export { cloudPillOf, isResting, type SidebarCloud } from './cloud-state'
 export type { SidebarCrewFold, SidebarSubagent } from './subagent-row'

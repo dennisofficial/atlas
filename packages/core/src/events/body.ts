@@ -257,10 +257,9 @@ export type EventBody =
       failureCause?: string | undefined
       turns: number
       toolCalls: number
-      /** False when the child still owned live work, so the ending was recorded without waking the parent. */
+      /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
       relayed?: boolean | undefined
-      /** For an unrelayed ending: what still holds the child open, e.g. "CI on #1366". */
-      waitingOn?: string | undefined
+      leftServices?: readonly string[] | undefined
     }
   | {
       type: 'agent-restarted'

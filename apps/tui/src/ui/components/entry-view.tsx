@@ -190,7 +190,6 @@ function DerivedEntryView(props: {
           text={entry.text}
           body={entry.report}
           failed={entry.failed}
-          quiet={entry.quiet === true}
           width={props.width}
           openHint={AGENT_REPORT_HINT}
           silentNote={REPORTED_NOTHING}

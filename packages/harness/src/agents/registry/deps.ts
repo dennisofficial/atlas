@@ -1,5 +1,6 @@
 import type {
   ClockPort,
+  EKilledBy,
   EventLogPort,
   ExecutionLocationSinkPort,
   IdPort,
@@ -18,13 +19,19 @@ export type IntakeChanged = Pick<MessageIntake, 'changed' | 'prepare'>
 export type IntakeSubmit = Pick<MessageIntake, 'changed' | 'submit' | 'hold' | 'commit'>
 
 /**
- * What the thread itself still holds that can wake it again — a shell, a service, pending CI —
- * worded for a reader ("bash \"bun test\""), or undefined when it holds nothing. The supervisor
- * widens this across the thread's sub-agents; a teammate whose subtree holds nothing will never
- * speak again unless someone messages it, so its ending is relayed to the parent rather than
- * recorded quietly.
+ * The running background shell the thread owns, worded for a reader (`bash "bun test"`), or
+ * undefined when it owns none. A sub-agent that ends its turn while this is defined is held, not
+ * ended: the shell's ending wakes it again.
  */
-export type LiveWorkProbe = (threadId: ThreadId) => string | undefined
+export type RunningShellProbe = (threadId: ThreadId) => string | undefined
+
+export type LeftServicesProbe = (threadId: ThreadId) => readonly string[]
+
+/**
+ * Kills the running background shells the thread owns and resolves once their endings are queued,
+ * so a settled child hands them to its parent instead of leaving them on a thread nobody drains.
+ */
+export type EndShells = (args: { threadId: ThreadId; by: EKilledBy }) => Promise<void>
 
 /**
  * A finished child never drains again, so its pending service and shell notices move to the
@@ -47,7 +54,9 @@ export type SupervisorDeps = {
   telemetry?: TelemetryPort | undefined
   intake?: IntakeChanged | undefined
   input?: (() => IntakeSubmit | undefined) | undefined
-  liveWork?: LiveWorkProbe | undefined
+  runningShell?: RunningShellProbe | undefined
+  endShells?: EndShells | undefined
+  leftServices?: LeftServicesProbe | undefined
   inheritOrphanedNotices?: InheritOrphanedNotices | undefined
   /** Fired when a child's ending is recorded, so live wiring can hand back what ending orphans (its worktree claim). */
   onChildEnded?: ((threadId: ThreadId) => void) | undefined

@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { isStepping, snapshotOf, withWaitingOn, type ChildState } from './child-state'
+import { snapshotOf, type ChildState } from './child-state'
 import type { AgentSnapshot } from './snapshot'
 
 const NOTHING_LISTED: readonly AgentSnapshot[] = Object.freeze([])
@@ -16,12 +16,6 @@ export class AgentRoster {
   private everywhere: readonly AgentSnapshot[] = NOTHING_LISTED
   private owned: ReadonlyMap<ThreadId, readonly AgentSnapshot[]> = NOTHING_OWNED
   private readonly listeners = new Set<() => void>()
-  private readonly waitingOn: (child: ChildState) => string | undefined
-
-  constructor(args?: { waitingOn?: ((child: ChildState) => string | undefined) | undefined }) {
-    this.waitingOn = args?.waitingOn ?? (() => undefined)
-  }
-
   add(child: ChildState): void {
     this.children.set(child.agentId, child)
     this.settle()
@@ -63,12 +57,7 @@ export class AgentRoster {
   }
 
   private settle(): void {
-    const everywhere = this.states().map((child) =>
-      withWaitingOn({
-        snapshot: snapshotOf(child),
-        waitingOn: isStepping(child) ? undefined : this.waitingOn(child),
-      }),
-    )
+    const everywhere = this.states().map(snapshotOf)
 
     const owned = new Map<ThreadId, AgentSnapshot[]>()
     for (const snapshot of everywhere) {

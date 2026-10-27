@@ -28,8 +28,8 @@ const report = (kind?: EReportKind): EventDraft => ({
 })
 
 describe('which agent events hand the turn to the parent', () => {
-  it('does not for an ending recorded without waking the parent', () => {
-    expect(isTurnTaking(ending({ relayed: false, waitingOn: 'CI on #1366' }))).toBe(false)
+  it('does not for a bookkeeping ending recorded without waking the parent', () => {
+    expect(isTurnTaking(ending({ relayed: false }))).toBe(false)
   })
 
   it('does for a relayed ending, flagged or legacy', () => {

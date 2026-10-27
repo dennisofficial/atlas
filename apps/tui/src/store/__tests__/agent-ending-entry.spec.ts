@@ -25,8 +25,7 @@ const ending = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-const quiet = (over: Record<string, unknown> = {}) =>
-  ending({ relayed: false, waitingOn: 'CI on #1366', ...over })
+const bookkeeping = (over: Record<string, unknown> = {}) => ending({ relayed: false, ...over })
 
 const report = (over: Record<string, unknown> = {}) => ({
   type: 'agent-reported' as const,
@@ -47,77 +46,43 @@ const reported = (events: readonly Event[]): AgentReportedEntry[] =>
     (entry): entry is AgentReportedEntry => entry.kind === EEntryKind.AgentReported,
   )
 
-describe('quiet endings in the transcript', () => {
-  it('fold into one row carrying the latest turns and what the agent waits on', () => {
-    const rows = ended(
-      log([
-        quiet({ turns: 171 }),
-        quiet({ turns: 173, waitingOn: 'CI on #1367' }),
-        quiet({ turns: 174, prose: 'Latest prose.' }),
-      ]),
-    )
+describe('agent endings in the transcript', () => {
+  it('render nothing for a bookkeeping ending, old waiting reasons included', () => {
+    const events = log([bookkeeping(), bookkeeping({ waitingOn: 'CI on #1366', turns: 173 })])
 
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.text).toBe(
-      'Teammate Web thread provisioning paused · waiting on CI on #1366 · 174 turns',
-    )
-    expect(rows[0]?.key).toBe('event-1')
-    expect(rows[0]?.report).toBe('Latest prose.')
-    expect(rows[0]?.quiet).toBe(true)
-    expect(rows[0]?.text).not.toContain('finished')
+    expect(ended(events)).toHaveLength(0)
   })
 
-  it('leaves out the wait when the ending did not name one', () => {
-    const [row] = ended(log([quiet({ waitingOn: undefined, turns: 1 })]))
-
-    expect(row?.text).toBe('Teammate Web thread provisioning paused · 1 turn')
-  })
-
-  it('names a sub-agent as a sub-agent', () => {
-    const [row] = ended(log([quiet({ agentType: 'explore' })]))
-
-    expect(row?.text.startsWith('Sub-agent ')).toBe(true)
-  })
-
-  it('render nothing once a relayed ending from the same agent follows', () => {
-    const rows = ended(log([quiet(), quiet({ turns: 173 }), ending({ turns: 180 })]))
-
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.quiet).not.toBe(true)
-    expect(rows[0]?.text).toContain('finished after 180 turns')
-  })
-
-  it('render nothing once a waking report from the same agent follows', () => {
-    const events = log([quiet(), report({ kind: EReportKind.Done })])
+  it('show a teammate report alongside its silent bookkeeping ending', () => {
+    const events = log([bookkeeping(), report({ kind: EReportKind.Done })])
 
     expect(ended(events)).toHaveLength(0)
     expect(reported(events)).toHaveLength(1)
   })
 
-  it('stay a row when only a progress report follows', () => {
-    expect(ended(log([quiet(), report({ kind: EReportKind.Progress })]))).toHaveLength(1)
-  })
-
-  it('keep one row per agent', () => {
-    const other = toThreadId('thread-other')
-    const rows = ended(
-      log([quiet(), quiet({ agentId: other, intent: 'Review the diff' }), quiet()]),
-    )
-
-    expect(rows.map((row) => row.agentId)).toEqual([teammate, other])
-  })
-
-  it('keep a prose fold', () => {
-    expect(isExpandable(ended(log([quiet()]))[0] as AgentEndedEntry)).toBe(true)
-  })
-
-  it('leave an ending without the fields exactly as it was', () => {
+  it('render a relayed ending as one row', () => {
     const [row] = ended(log([ending({ turns: 3, toolCalls: 12 })]))
 
     expect(row?.text).toBe(
       'Teammate Web thread provisioning finished after 3 turns and 12 tool calls',
     )
-    expect(row?.quiet).not.toBe(true)
+  })
+
+  it('name a sub-agent as a sub-agent', () => {
+    const [row] = ended(log([ending({ agentType: 'explore' })]))
+
+    expect(row?.text.startsWith('Sub-agent ')).toBe(true)
+  })
+
+  it('keep one row per relayed ending', () => {
+    const other = toThreadId('thread-other')
+    const rows = ended(log([ending(), ending({ agentId: other, intent: 'Review the diff' })]))
+
+    expect(rows.map((row) => row.agentId)).toEqual([teammate, other])
+  })
+
+  it('keep a prose fold', () => {
+    expect(isExpandable(ended(log([ending()]))[0] as AgentEndedEntry)).toBe(true)
   })
 
   it('still marks a failed relayed ending as failed', () => {

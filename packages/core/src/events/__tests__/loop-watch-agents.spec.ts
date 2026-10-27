@@ -60,26 +60,16 @@ const stateAround = (event: EventDraft): string =>
   }) ?? ''
 
 describe('the loop watchdog reading agent events', () => {
-  it('renders a quiet ending as a pause naming what it waits on', () => {
-    const state = stateAround(ended({ relayed: false, waitingOn: 'CI on #1366' }))
-
-    expect(state).toContain('sub-agent "port the sidebar" paused (waiting on CI on #1366)')
-    expect(state).not.toContain('Draft PR #598')
-  })
-
-  it('renders a quiet ending with no waitingOn as a bare pause', () => {
-    const state = stateAround(ended({ relayed: false }))
-
-    expect(state).toContain('sub-agent "port the sidebar" paused')
-    expect(state).not.toContain('waiting on')
-  })
-
   it('renders a relayed ending as before', () => {
     const state = stateAround(ended())
 
     expect(state).toContain(
       'sub-agent "port the sidebar" (teammate) finished: Done. Draft PR #598 opened.',
     )
+  })
+
+  it('skips a bookkeeping ending, which is not something the model was told', () => {
+    expect(stateAround(ended({ relayed: false }))).not.toContain('finished')
   })
 
   it('renders a report with its kind', () => {

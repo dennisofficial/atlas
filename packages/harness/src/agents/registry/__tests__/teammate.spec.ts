@@ -3,7 +3,6 @@ import { z } from 'zod'
 
 import {
   defaultPipeline,
-  EMessageOrigin,
   EMPTY_PROMPT,
   EPromptAgent,
   EToolEffect,
@@ -122,98 +121,7 @@ describe('spawning a teammate', () => {
     expect(fromTeammate.ok ? '' : fromTeammate.reason).toMatch(/only the main session/)
   })
 
-  it('pauses without a word while it still owns live work: the ending is recorded but not relayed', async () => {
-    const temp = createTempHome()
-    const harness = await buildHarness({
-      home: temp.home,
-      model: scriptedModel({ script: [] }),
-    })
-    opened.push({ harness, temp })
-
-    const runners = fakeRunners()
-    const supervisor = new AgentSupervisor({
-      log: harness.log,
-      threads: harness.threads,
-      ids: harness.ids,
-      clock: harness.clock,
-      agentTypes: [TEAMMATE, BUILDER],
-      runners: runners.source,
-      launchDirectory: '/launch',
-      liveWork: () => 'bash "bun test"',
-    })
-    const parent = (await harness.threads.create({})).id
-
-    const outcome = await supervisor.spawn({
-      threadId: parent,
-      agentType: TEAMMATE_AGENT_TYPE,
-      brief: 'own the billing workstream',
-      intent: 'billing workstream',
-    })
-    if (!outcome.ok) throw new Error(outcome.reason)
-    await settled()
-
-    runners.started[0]?.settle(finished())
-    await supervisor.whenChildrenSettled({ threadId: parent })
-
-    expect(supervisor.threadsAwaitingNotice()).toEqual([])
-    expect(supervisor.pendingNotices({ threadId: parent })).toHaveLength(0)
-
-    const drained = supervisor.drainNotifications({ threadId: parent })
-    expect(drained.wakesTurn).toBe(false)
-    expect(drained.drafts).toHaveLength(0)
-
-    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
-  })
-
-  it('records its ending even while live work keeps the relay quiet, so a restart finds no orphan', async () => {
-    const temp = createTempHome()
-    const harness = await buildHarness({
-      home: temp.home,
-      model: scriptedModel({ script: [] }),
-    })
-    opened.push({ harness, temp })
-
-    const runners = fakeRunners()
-    const supervisor = new AgentSupervisor({
-      log: harness.log,
-      threads: harness.threads,
-      ids: harness.ids,
-      clock: harness.clock,
-      agentTypes: [TEAMMATE, BUILDER],
-      runners: runners.source,
-      launchDirectory: '/launch',
-      liveWork: () => 'bash "bun test"',
-    })
-    const parent = (await harness.threads.create({})).id
-
-    const outcome = await supervisor.spawn({
-      threadId: parent,
-      agentType: TEAMMATE_AGENT_TYPE,
-      brief: 'own the billing workstream',
-      intent: 'billing workstream',
-    })
-    if (!outcome.ok) throw new Error(outcome.reason)
-    await settled()
-
-    runners.started[0]?.settle(finished())
-    await supervisor.whenChildrenSettled({ threadId: parent })
-
-    const reopened = new AgentSupervisor({
-      log: harness.log,
-      threads: harness.threads,
-      ids: harness.ids,
-      clock: harness.clock,
-      agentTypes: [TEAMMATE, BUILDER],
-      runners: fakeRunners().source,
-      launchDirectory: '/launch',
-      liveWork: () => 'bash "bun test"',
-    })
-    const recovered = await reopened.recordLostAgents({ threadId: parent })
-    expect(recovered.settled).toHaveLength(0)
-    expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
-  })
-
-  it('relays its ending to the main session once nothing it owns can wake it again', async () => {
+  it('records a bookkeeping ending that does not wake the main session when it finishes', async () => {
     const { harness, runners, supervisor, parent } = await open()
     const outcome = await supervisor.spawn({
       threadId: parent,
@@ -227,10 +135,10 @@ describe('spawning a teammate', () => {
     runners.started[0]?.settle(finished())
     await supervisor.whenChildrenSettled({ threadId: parent })
 
-    expect(supervisor.threadsAwaitingNotice()).toEqual([parent])
+    expect(supervisor.threadsAwaitingNotice()).toEqual([])
 
     const drained = supervisor.drainNotifications({ threadId: parent })
-    expect(drained.wakesTurn).toBe(true)
+    expect(drained.wakesTurn).toBe(false)
     expect(drained.drafts).toEqual([])
     expect(await loggedOfType({ harness, threadId: parent, type: 'agent-ended' })).toHaveLength(1)
   })
@@ -316,119 +224,6 @@ describe('a teammate reporting to the main session', () => {
 
     expect(refused.ok).toBe(false)
     expect(refused.ok ? '' : refused.reason).toMatch(/not a teammate/)
-  })
-})
-
-describe('a teammate messaging a teammate', () => {
-  const spawnTwo = async (opened: Awaited<ReturnType<typeof open>>) => {
-    const first = await opened.supervisor.spawn({
-      threadId: opened.parent,
-      agentType: TEAMMATE_AGENT_TYPE,
-      brief: 'own billing',
-      intent: 'billing',
-    })
-    if (!first.ok) throw new Error(first.reason)
-    const second = await opened.supervisor.spawn({
-      threadId: opened.parent,
-      agentType: TEAMMATE_AGENT_TYPE,
-      brief: 'own auth',
-      intent: 'auth',
-    })
-    if (!second.ok) throw new Error(second.reason)
-    await settled()
-    return { first: first.snapshot.agentId, second: second.snapshot.agentId }
-  }
-
-  it('queues a peer message for a teammate mid-turn, steered in at the next step', async () => {
-    const opened = await open()
-    const { first, second } = await spawnTwo(opened)
-
-    const outcome = await opened.supervisor.sayToPeer({
-      agentId: second,
-      threadId: first,
-      text: 'billing needs your token model',
-    })
-
-    expect(outcome.ok).toBe(true)
-    const events = await opened.harness.log.read({ threadId: second })
-    expect(events.map((event) => event.type)).toEqual(['user-said'])
-    expect(opened.runners.started[1]?.request.steering().peek()).toEqual([
-      { text: 'billing needs your token model', via: EMessageOrigin.PeerAgent },
-    ])
-  })
-
-  it('starts a fresh turn on a settled teammate, attributed to the peer', async () => {
-    const opened = await open()
-    const { first, second } = await spawnTwo(opened)
-    opened.runners.started[1]?.settle(finished())
-    await settled()
-
-    const outcome = await opened.supervisor.sayToPeer({
-      agentId: second,
-      threadId: first,
-      text: 'how did you model seats?',
-    })
-    await settled()
-
-    expect(outcome.ok).toBe(true)
-    expect(opened.runners.started).toHaveLength(3)
-    const events = await opened.harness.log.read({ threadId: second })
-    const last = events.at(-1)
-    expect(last?.type === 'user-said' ? last.via : undefined).toBe(EMessageOrigin.PeerAgent)
-  })
-
-  it('refuses a caller that is not a teammate, and a target that is not a sibling teammate', async () => {
-    const opened = await open()
-    const { first, second } = await spawnTwo(opened)
-
-    const fromMain = await opened.supervisor.sayToPeer({
-      agentId: second,
-      threadId: opened.parent,
-      text: 'main checking in',
-    })
-    expect(fromMain.ok).toBe(false)
-    expect(fromMain.ok ? '' : fromMain.reason).toMatch(/not a teammate/)
-
-    const subAgent = await opened.supervisor.spawn({
-      threadId: opened.parent,
-      agentType: 'builder',
-      brief: 'build a thing',
-      intent: 'a build',
-    })
-    if (!subAgent.ok) throw new Error(subAgent.reason)
-    await settled()
-
-    const atSubAgent = await opened.supervisor.sayToPeer({
-      agentId: subAgent.snapshot.agentId,
-      threadId: first,
-      text: 'hello down there',
-    })
-    expect(atSubAgent.ok).toBe(false)
-    expect(atSubAgent.ok ? '' : atSubAgent.reason).toMatch(new RegExp(`your teammates: ${second}`))
-  })
-
-  it('refuses a teammate of a different main session', async () => {
-    const opened = await open()
-    const { first } = await spawnTwo(opened)
-
-    const otherMain = (await opened.harness.threads.create({})).id
-    const stranger = await opened.supervisor.spawn({
-      threadId: otherMain,
-      agentType: TEAMMATE_AGENT_TYPE,
-      brief: 'own search',
-      intent: 'search',
-    })
-    if (!stranger.ok) throw new Error(stranger.reason)
-    await settled()
-
-    const outcome = await opened.supervisor.sayToPeer({
-      agentId: stranger.snapshot.agentId,
-      threadId: first,
-      text: 'hello stranger',
-    })
-
-    expect(outcome.ok).toBe(false)
-    expect(outcome.ok ? '' : outcome.reason).toMatch(/not a teammate of yours/)
   })
 })
 
@@ -522,13 +317,6 @@ describe("a teammate's session", () => {
     })
 
     const parent = (await harness.threads.create({})).id
-    const ended = new Promise<void>((resolve) => {
-      const forget = supervisor.onNotice(() => {
-        forget()
-        resolve()
-      })
-    })
-
     const outcome = await supervisor.spawn({
       threadId: parent,
       agentType: TEAMMATE_AGENT_TYPE,
@@ -536,7 +324,7 @@ describe("a teammate's session", () => {
       intent: 'billing workstream',
     })
     if (!outcome.ok) throw new Error(outcome.reason)
-    await ended
+    await supervisor.whenChildrenSettled({ threadId: parent })
 
     return { harness, model }
   }

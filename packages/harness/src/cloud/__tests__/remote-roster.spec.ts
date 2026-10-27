@@ -217,4 +217,13 @@ describe('the roster filters', () => {
     const own = rosterAgents({ roster, threadId: THREAD })
     expect(own[0]?.failureCause).toBe('provider inference.net returned 402: credit exhausted')
   })
+
+  it('carries the shell a held sub-agent waits on onto the snapshot', () => {
+    const roster: RosterWire = {
+      ...SHELL_ROSTER,
+      agents: [{ ...SHELL_ROSTER.agents[0]!, waitingOn: 'bash "bun test"' }],
+    }
+
+    expect(rosterAgents({ roster, threadId: THREAD })[0]?.waitingOn).toBe('bash "bun test"')
+  })
 })

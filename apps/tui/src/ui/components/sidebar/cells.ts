@@ -101,7 +101,7 @@ export function clipSpans(args: { spans: readonly Span[]; cells: number }): Span
   return kept
 }
 
-const SIDE_GAP_CELLS = 2
+export const SIDE_GAP_CELLS = 2
 
 /**
  * The two sides of a split row with the gap between them padded out to the column width. The right

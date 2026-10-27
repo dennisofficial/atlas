@@ -28,7 +28,10 @@ export function WorkspaceSidebar(props: {
   scopedWorktree: string | null
   shells: Pick<ShellsControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
   services: Pick<ServicesControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
-  agentView: Pick<AgentView, 'scopedTo' | 'backLabel' | 'handleBack' | 'handleSelect'>
+  agentView: Pick<
+    AgentView,
+    'scopedTo' | 'backLabel' | 'handleBack' | 'handleSelect' | 'crewExpanded' | 'handleToggleCrew'
+  >
   contextBrowser: Pick<ContextControl, 'tree'>
   onRevokeGrant: Conversation['handleRevokeGrant']
 }): React.ReactNode {
@@ -71,6 +74,8 @@ export function WorkspaceSidebar(props: {
         onOpenShell={shells.handleOpen}
         onOpenService={services.handleOpen}
         onSelectSubagent={agentView.handleSelect}
+        crewExpanded={agentView.crewExpanded}
+        onToggleCrew={agentView.handleToggleCrew}
         context={context}
       />
     )
@@ -95,6 +100,8 @@ export function WorkspaceSidebar(props: {
       onOpenShell={shells.handleOpen}
       onOpenService={services.handleOpen}
       onSelectSubagent={agentView.handleSelect}
+      crewExpanded={agentView.crewExpanded}
+      onToggleCrew={agentView.handleToggleCrew}
       context={context}
       onRevokeGrant={props.onRevokeGrant}
       {...(back === undefined ? {} : { back })}

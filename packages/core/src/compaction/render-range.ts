@@ -53,6 +53,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return `${event.name} was denied: ${clipped(event.reason, payloadLimit)}`
 
   if (event.type === 'agent-ended') {
+    if (event.relayed === false) return undefined
     return `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, payloadLimit)}`
   }
 

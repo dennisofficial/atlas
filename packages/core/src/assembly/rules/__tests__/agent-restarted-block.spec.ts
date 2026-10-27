@@ -25,7 +25,7 @@ describe('handing a restarted agent to the model', () => {
 
     expect(block).toContain('brn_child')
     expect(block).toContain('teammate "port #336 to comp-v3"')
-    expect(block).toContain('your agent_resume call')
+    expect(block).toContain('an explicit resume')
   })
 
   it('warns that no ending has been recorded since, so a session restart means it is not running', () => {

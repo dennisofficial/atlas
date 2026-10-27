@@ -1,6 +1,6 @@
 import { EKilledBy } from '@dltech/atlas-core'
 
-import { isStepping, type ChildState } from './child-state'
+import { isHeld, isStepping, type ChildState } from './child-state'
 import type { ChildSteps } from './child-steps'
 import type { AgentRoster } from './roster'
 
@@ -16,13 +16,23 @@ export async function stopAllChildren({
   steps: ChildSteps
 }): Promise<void> {
   for (const child of roster.states()) {
+    if (isHeld(child)) steps.endHeld({ child, killedBy: EKilledBy.SessionEnd })
     if (isStepping(child) && child.killedBy === undefined) child.killedBy = EKilledBy.SessionEnd
     child.abort.abort()
   }
   await steps.whenSettled()
 }
 
-export function stopChild({ child, by }: { child: ChildState; by: EKilledBy }): void {
+export function stopChild({
+  child,
+  by,
+  steps,
+}: {
+  child: ChildState
+  by: EKilledBy
+  steps: ChildSteps
+}): void {
+  if (isHeld(child)) return steps.endHeld({ child, killedBy: by })
   if (!isStepping(child)) return
   child.killedBy = by
   child.abort.abort()

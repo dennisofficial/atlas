@@ -268,7 +268,7 @@ const nolongerRunning = async (agents: AgentRegistryPort, agentId: ThreadId): Pr
 
 const ENDING_RECORD_GRACE_MS = 200
 
-describe('live work that decides whether a child ending is queued to its parent', () => {
+describe('a service the ending child leaves running', () => {
   async function endWithServiceOwnedBy(args: { owner: 'child' | 'parent' }): Promise<number> {
     const { model, release } = gatedModel()
     const { agents, services, parent, cwd } = await composed({ bind: true, model })
@@ -299,7 +299,7 @@ describe('live work that decides whether a child ending is queued to its parent'
     expect(await endWithServiceOwnedBy({ owner: 'parent' })).toBe(1)
   }, 30_000)
 
-  it('records the ending without queueing it while a service of the ending child still runs', async () => {
-    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(0)
+  it('queues the ending at once even while a service of the ending child still runs', async () => {
+    expect(await endWithServiceOwnedBy({ owner: 'child' })).toBe(1)
   }, 30_000)
 })

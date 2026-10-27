@@ -177,7 +177,7 @@ describe('resuming a terminal agent', () => {
     expect(ended).toHaveLength(1)
   })
 
-  it('still resumes a child that failed, which is what agent_resume is for', async () => {
+  it('still resumes a child that failed, which relocation resume still relies on', async () => {
     const entry = await open()
     opened.push(entry)
     const teammateId = await spawnTeammate(entry)

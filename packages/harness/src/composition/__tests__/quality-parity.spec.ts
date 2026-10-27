@@ -9,7 +9,7 @@ import {
   toThreadId,
 } from '@dltech/atlas-core'
 
-import { buildChildRunner, drainedSteering } from '../../agents/registry/child-runner'
+import { buildChildRunner } from '../../agents/registry/child-runner'
 import type { AgentType } from '../../agents/types'
 import { ChildRunnerDepsToken } from '../../container/create-harness-container'
 import { registeredPortToken } from '../../container/injection'
@@ -71,7 +71,7 @@ async function runChildWrite(args: { rig: QualityRig; agentType: AgentType }) {
     observe: () => undefined,
     observeContext: () => undefined,
     observeModel: () => undefined,
-    steering: () => drainedSteering(() => []),
+    steering: () => ({ peek: () => [], acknowledge: () => undefined }),
     deps: { ...deps, modelFor: async () => writingModel(rig) },
   })
   await runner.runTurn({ threadId })

@@ -1,148 +1,127 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { foldCrew } from '../crew-fold'
-import { ECrewStanding } from '../crew-retirement'
+import { foldCrew, foldParts } from '../crew-fold'
 
-type Row = { id: string; status: EAgentStatus }
+type Row = { id: string; status: EAgentStatus; agentType?: string }
 
-const row = (id: string, status: EAgentStatus = EAgentStatus.Finished): Row => ({ id, status })
+const row = (id: string, status: EAgentStatus, agentType = 'explore'): Row => ({
+  id,
+  status,
+  agentType,
+})
 
-const WENT_WRONG: Record<EAgentStatus, boolean> = {
-  [EAgentStatus.Running]: false,
-  [EAgentStatus.Blocked]: false,
-  [EAgentStatus.Finished]: false,
-  [EAgentStatus.Failed]: true,
-  [EAgentStatus.Stopped]: true,
-  [EAgentStatus.Paused]: false,
-}
-
-const wentWrong = (one: Row): boolean => WENT_WRONG[one.status]
-
-const keyOf = (one: Row): string => one.id
-
-const RUNNING = row('running', EAgentStatus.Running)
-
-const HELD = row('held')
-
-const settledRows = (count: number): readonly Row[] =>
-  Array.from({ length: count }, (_, at) => row(`settled-${at}`))
-
-const standings = (
-  entries: readonly (readonly [string, ECrewStanding])[],
-): ReadonlyMap<string, ECrewStanding> => new Map(entries)
-
-const allSettled = (rows: readonly Row[]): ReadonlyMap<string, ECrewStanding> =>
-  standings(rows.map((one) => [one.id, ECrewStanding.Settled] as const))
-
-const ids = (rows: readonly Row[]): readonly string[] => rows.map(keyOf)
-
-const fold = (args: {
-  rows: readonly Row[]
-  standings: ReadonlyMap<string, ECrewStanding>
-  expanded?: boolean
-}) =>
+const fold = (args: { rows: Row[]; expanded?: boolean; viewing?: string | null }) =>
   foldCrew({
     rows: args.rows,
-    standings: args.standings,
     expanded: args.expanded ?? false,
-    keyOf,
-    wentWrong,
+    viewing: args.viewing ?? null,
+    idOf: (one) => one.id,
   })
 
-describe('crew fold', () => {
-  it('shows live and held rows whatever else is settled', () => {
-    const rows = [RUNNING, HELD, ...settledRows(6)]
-    const folded = fold({
-      rows,
-      standings: standings([
-        [RUNNING.id, ECrewStanding.Live],
-        [HELD.id, ECrewStanding.Held],
-        ...[...allSettled(settledRows(6))],
-      ]),
+const idsOf = (rows: readonly Row[]): string[] => rows.map((one) => one.id)
+
+describe('the one fold rule', () => {
+  it('folds every finished, failed and stopped sub-agent, however few', () => {
+    const result = fold({
+      rows: [
+        row('a', EAgentStatus.Finished),
+        row('b', EAgentStatus.Failed),
+        row('c', EAgentStatus.Stopped),
+      ],
     })
 
-    expect(ids(folded.shown)).toEqual(['running', 'held', 'settled-4', 'settled-5'])
-    expect(folded.collapsed).toHaveLength(4)
+    expect(idsOf(result.folded)).toEqual(['a', 'b', 'c'])
+    expect(result.visible).toEqual([])
   })
 
-  it('keeps the newest two settled rows as a tail and collapses the rest', () => {
-    const rows = settledRows(5)
-    const folded = fold({ rows, standings: allSettled(rows) })
-
-    expect(ids(folded.shown)).toEqual(['settled-3', 'settled-4'])
-    expect(ids(folded.collapsed)).toEqual(['settled-0', 'settled-1', 'settled-2'])
-  })
-
-  it('folds nothing when the overflow beyond the tail is a single row', () => {
-    const rows = settledRows(3)
-    const folded = fold({ rows, standings: allSettled(rows) })
-
-    expect(ids(folded.shown)).toEqual(ids(rows))
-    expect(folded.collapsed).toEqual([])
-  })
-
-  it('folds once the overflow beyond the tail reaches two rows', () => {
-    const rows = settledRows(4)
-    const folded = fold({ rows, standings: allSettled(rows) })
-
-    expect(ids(folded.shown)).toEqual(['settled-2', 'settled-3'])
-    expect(ids(folded.collapsed)).toEqual(['settled-0', 'settled-1'])
-  })
-
-  it('brings every row back when expanded, and still reports the count beyond the tail', () => {
-    const rows = settledRows(5)
-    const folded = fold({ rows, standings: allSettled(rows), expanded: true })
-
-    expect(ids(folded.shown)).toEqual(ids(rows))
-    expect(folded.collapsed).toHaveLength(3)
-  })
-
-  it('keeps shown rows in the order it was given', () => {
-    const rows = [...settledRows(4), RUNNING]
-    const folded = fold({
-      rows,
-      standings: standings([...[...allSettled(settledRows(4))], [RUNNING.id, ECrewStanding.Live]]),
+  it('keeps running, blocked and paused rows visible', () => {
+    const result = fold({
+      rows: [
+        row('a', EAgentStatus.Running),
+        row('b', EAgentStatus.Blocked),
+        row('c', EAgentStatus.Paused),
+      ],
     })
 
-    expect(ids(folded.shown)).toEqual(['settled-2', 'settled-3', 'running'])
+    expect(idsOf(result.visible)).toEqual(['a', 'b', 'c'])
+    expect(result.folded).toEqual([])
   })
 
-  it('reads a row with no recorded standing as live', () => {
-    const folded = fold({ rows: [RUNNING], standings: standings([]) })
+  it('keeps the row being viewed visible even when it has settled', () => {
+    const result = fold({
+      rows: [row('a', EAgentStatus.Finished), row('b', EAgentStatus.Finished)],
+      viewing: 'a',
+    })
 
-    expect(folded.shown).toEqual([RUNNING])
-    expect(folded.collapsed).toEqual([])
+    expect(idsOf(result.visible)).toEqual(['a'])
+    expect(idsOf(result.folded)).toEqual(['b'])
   })
 
-  it('says when a collapsed row failed', () => {
-    const rows = [row('failed', EAgentStatus.Failed), ...settledRows(3)]
-    const folded = fold({ rows, standings: allSettled(rows) })
+  it('never folds a teammate, whatever its status', () => {
+    const result = fold({
+      rows: [
+        row('t1', EAgentStatus.Finished, 'teammate'),
+        row('t2', EAgentStatus.Failed, 'teammate'),
+      ],
+    })
 
-    expect(ids(folded.collapsed)).toEqual(['failed', 'settled-0'])
-    expect(folded.collapsedFailed).toBe(true)
+    expect(idsOf(result.teammates)).toEqual(['t1', 't2'])
+    expect(result.folded).toEqual([])
   })
 
-  it('says when a collapsed row was stopped', () => {
-    const rows = [row('stopped', EAgentStatus.Stopped), ...settledRows(3)]
-    const folded = fold({ rows, standings: allSettled(rows) })
+  it('lists teammates before sub-agents, keeping the roster order within each', () => {
+    const result = fold({
+      rows: [
+        row('s1', EAgentStatus.Running),
+        row('t1', EAgentStatus.Running, 'teammate'),
+        row('s2', EAgentStatus.Running),
+      ],
+    })
 
-    expect(folded.collapsedFailed).toBe(true)
+    expect(idsOf(result.visible)).toEqual(['t1', 's1', 's2'])
   })
 
-  it('stays quiet when the collapsed rows all finished', () => {
-    const rows = settledRows(5)
-    const folded = fold({ rows, standings: allSettled(rows) })
+  it('adds the folded rows after the visible ones when expanded', () => {
+    const rows = [row('a', EAgentStatus.Finished), row('b', EAgentStatus.Running)]
 
-    expect(folded.collapsed).toHaveLength(3)
-    expect(folded.collapsedFailed).toBe(false)
+    expect(idsOf(fold({ rows, expanded: true }).visible)).toEqual(['b', 'a'])
+    expect(idsOf(fold({ rows }).visible)).toEqual(['b'])
   })
 
-  it('does not call out a failure that sits in the visible tail', () => {
-    const rows = [...settledRows(3), row('failed-tail', EAgentStatus.Failed)]
-    const folded = fold({ rows, standings: allSettled(rows) })
+  it('counts done, failed and stopped separately', () => {
+    const result = fold({
+      rows: [
+        row('a', EAgentStatus.Finished),
+        row('b', EAgentStatus.Finished),
+        row('c', EAgentStatus.Failed),
+        row('d', EAgentStatus.Stopped),
+      ],
+    })
 
-    expect(ids(folded.shown)).toContain('failed-tail')
-    expect(folded.collapsedFailed).toBe(false)
+    expect([result.done, result.failed, result.stopped]).toEqual([2, 1, 1])
+  })
+})
+
+describe('the words of the fold line', () => {
+  it('writes every part that has a count', () => {
+    expect(foldParts({ done: 11, failed: 1, stopped: 2 }).map((one) => one.label)).toEqual([
+      '11 done',
+      '1 failed',
+      '2 stopped',
+    ])
+  })
+
+  it('omits a part with a zero count', () => {
+    expect(foldParts({ done: 3, failed: 0, stopped: 0 }).map((one) => one.label)).toEqual([
+      '3 done',
+    ])
+    expect(foldParts({ done: 0, failed: 2, stopped: 0 }).map((one) => one.label)).toEqual([
+      '2 failed',
+    ])
+  })
+
+  it('writes nothing when nothing folded', () => {
+    expect(foldParts({ done: 0, failed: 0, stopped: 0 })).toEqual([])
   })
 })

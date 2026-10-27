@@ -29,7 +29,7 @@ export type AgentSnapshot = {
   context?: ChildContext | undefined
   /** Absent for a child recovered from the log, whose model this process never observed. */
   model?: ProviderIdentity | undefined
-  /** What still holds a quietly-ended child open, e.g. "CI on #1366" — absent once nothing does. */
+  /** The running background shell that holds an idle child open, e.g. `bash "bun test"` — absent once nothing does. */
   waitingOn?: string | undefined
 }
 

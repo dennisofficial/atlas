@@ -12,6 +12,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+import type { AgentSnapshot } from '../../agents/registry/snapshot'
 import { type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({
@@ -25,6 +26,24 @@ const description = [
   'Its work up to that point is kept, so an agent you stopped can be sent on with agent_say.',
   'Reach for it when the task is no longer wanted or the agent is going somewhere useless; steer it with agent_say when it is still worth finishing.',
 ].join(' ')
+
+function stopText({
+  agentId,
+  snapshot,
+  alreadyOver,
+  held,
+}: {
+  agentId: string
+  snapshot: AgentSnapshot
+  alreadyOver: boolean
+  held: string | undefined
+}): string {
+  if (alreadyOver) return `Agent ${agentId} ${agentEnding(snapshot)}, so nothing was interrupted.`
+  if (held !== undefined) {
+    return `Agent ${agentId} was idle, waiting on ${held}, so no step was interrupted. It is stopping now and that shell is being killed; you will be handed its Stopped ending.`
+  }
+  return `Signalled agent ${agentId} to stop. It ends after the step it is taking, and you will be handed how it ended.`
+}
 
 export class AgentStopTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'agent_stop'
@@ -42,11 +61,18 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const agentId = toThreadId(input.agentId)
-    const outcome = await this.agents().stop({ agentId, threadId, by: EKilledBy.Model })
+    const registry = this.agents()
+    const before = registry.list({ threadId }).find((one) => one.agentId === agentId)
+    const outcome = await registry.stop({
+      agentId,
+      threadId,
+      by: EKilledBy.Model,
+    })
     if (!outcome.ok) return outcome
 
     const { snapshot } = outcome
-    const alreadyOver = snapshot.status !== EAgentStatus.Running
+    const wasHeld = before?.status === EAgentStatus.Running && before.steppingSince === undefined
+    const alreadyOver = !wasHeld && snapshot.status !== EAgentStatus.Running
 
     return {
       ok: true,
@@ -57,9 +83,12 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
         status: snapshot.status,
         ...(alreadyOver ? { killedBy: snapshot.killedBy } : { stopRequestedBy: EKilledBy.Model }),
       },
-      modelText: alreadyOver
-        ? `Agent ${agentId} ${agentEnding(snapshot)}, so nothing was interrupted.`
-        : `Signalled agent ${agentId} to stop. It ends after the step it is taking, and you will be handed how it ended.`,
+      modelText: stopText({
+        agentId,
+        snapshot,
+        alreadyOver,
+        held: wasHeld ? before?.waitingOn : undefined,
+      }),
     }
   }
 }

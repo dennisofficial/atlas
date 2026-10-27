@@ -3,7 +3,6 @@ import {
   ENoticeTone,
   EPromptAgent,
   ESettingId,
-  isTurnTaking,
   NOTICE_WARN_MS,
   promptContextFor,
   promptModelOf,
@@ -17,7 +16,6 @@ import {
   QualityReviewPort,
   TelemetryPort,
   rangeValueOf,
-  type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -70,15 +68,6 @@ export type TurnWiring = {
   recordTeardownEndings: () => Promise<void>
   intake: MessageIntake
 }
-
-export const noticesWakeTurn = (args: {
-  agentWakes: boolean
-  shellDrafts: readonly EventDraft[]
-  serviceDrafts: readonly EventDraft[]
-}): boolean =>
-  args.agentWakes ||
-  args.shellDrafts.some((draft) => isTurnTaking(draft)) ||
-  args.serviceDrafts.some((draft) => isTurnTaking(draft))
 
 export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const {

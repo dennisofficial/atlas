@@ -72,7 +72,7 @@ describe('handing a finished delegate to the parent that spawned it', () => {
 
     expect(block).toContain('<no content>')
     expect(block).toMatch(/ended with no reply content/)
-    expect(block).toMatch(/[Rr]esume it|resume it/)
+    expect(block).toMatch(/agent_say to try again/)
     expect(block).toMatch(/compensate/)
     expect(block).toContain('finished after 4 turns and 11 tool calls')
   })
@@ -80,7 +80,9 @@ describe('handing a finished delegate to the parent that spawned it', () => {
   it('keeps other ending advice intact alongside the no-content guidance', () => {
     const block =
       blocksOf(
-        assembleWith({ drafts: [ended({ prose: '<no content>', killedBy: EKilledBy.User })] }),
+        assembleWith({
+          drafts: [ended({ prose: '<no content>', killedBy: EKilledBy.User })],
+        }),
       )[0] ?? ''
 
     expect(block).toContain('The user stopped this agent deliberately')
@@ -108,7 +110,9 @@ describe('handing a finished delegate to the parent that spawned it', () => {
 
 describe('a spawned delegate', () => {
   it('renders as nothing at all: the tool result already said it started', () => {
-    const assembled = assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, spawned()] })
+    const assembled = assembleWith({
+      drafts: [{ type: 'user-said', text: 'go' }, spawned()],
+    })
 
     expect(textsOf(assembled)).toEqual([operatorSaidAs('go')])
   })
@@ -197,7 +201,10 @@ describe('two waves separated by the parent working', () => {
         drafts: [
           ended({ agentId: toThreadId('thread-child-1'), prose: 'first wave' }),
           { type: 'user-said', text: 'carry on' },
-          ended({ agentId: toThreadId('thread-child-2'), prose: 'second wave' }),
+          ended({
+            agentId: toThreadId('thread-child-2'),
+            prose: 'second wave',
+          }),
         ],
       }),
     )
@@ -228,7 +235,10 @@ describe('two waves separated by the parent working', () => {
 describe('a delegate ending that lands while a tool call is still open', () => {
   const lateSettledCall = (): EventDraft[] => [
     { type: 'user-said', text: 'go' },
-    { type: 'assistant-said', parts: [{ type: 'text', text: 'checking with the teammate' }] },
+    {
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'checking with the teammate' }],
+    },
     {
       type: 'tool-called',
       callId: toCallId('agent_say_1'),
@@ -268,8 +278,11 @@ describe('a teammate ending stays in the record even when it woke nobody', () =>
 
   it('renders with the other endings: the log is transparent, whether or not the ending woke the parent', () => {
     const block =
-      blocksOf(assembleWith({ drafts: [{ type: 'user-said', text: 'go' }, teammateEnded()] }))[0] ??
-      ''
+      blocksOf(
+        assembleWith({
+          drafts: [{ type: 'user-said', text: 'go' }, teammateEnded()],
+        }),
+      )[0] ?? ''
 
     expect(block).toContain('build the admin app')
   })
@@ -316,7 +329,11 @@ describe('an agent the operator stopped', () => {
       assembleWith({
         drafts: [
           spawned(),
-          ended({ status: EAgentStatus.Stopped, killedBy, prose: 'I had read four files.' }),
+          ended({
+            status: EAgentStatus.Stopped,
+            killedBy,
+            prose: 'I had read four files.',
+          }),
         ],
       }),
     )[0] ?? ''
@@ -359,5 +376,66 @@ describe('an agent the operator stopped', () => {
     expect(block).toContain('the agent is resuming there')
     expect(block).toContain('It will report again when it actually ends')
     expect(block).not.toContain('The user stopped this agent deliberately')
+  })
+})
+
+describe('a bookkeeping ending, and the retry line on endings that went wrong', () => {
+  it('is not rendered to the model, whether or not older logs gave it a waitingOn', () => {
+    const quiet = ended({ relayed: false })
+    expect(textsOf(assembleWith({ drafts: [spawned(), quiet] }))).toEqual([])
+    expect(
+      textsOf(
+        assembleWith({
+          drafts: [spawned(), { ...quiet, waitingOn: 'CI on #1' } as never],
+        }),
+      ),
+    ).toEqual([])
+  })
+
+  it('does not hide a real ending in the same wave', () => {
+    const block =
+      blocksOf(
+        assembleWith({
+          drafts: [ended({ relayed: false }), ended({ prose: 'REAL' })],
+        }),
+      )[0] ?? ''
+    expect(block).toContain('1 agent you spawned ended')
+    expect(block).toContain('REAL')
+  })
+
+  it.each([EAgentStatus.Failed, EAgentStatus.Stopped])(
+    'tells the parent to agent_say to a %s agent to retry',
+    (status) => {
+      const block = blocksOf(assembleWith({ drafts: [ended({ status })] }))[0] ?? ''
+      expect(block).toContain('agent_say to it to retry')
+    },
+  )
+
+  it('does not suggest a retry for a finished agent', () => {
+    const block = blocksOf(assembleWith({ drafts: [ended()] }))[0] ?? ''
+    expect(block).not.toContain('agent_say to it to retry')
+  })
+})
+
+describe('services a finished delegate left running', () => {
+  it('names each one and says the parent owns it now', () => {
+    const block =
+      blocksOf(
+        assembleWith({
+          drafts: [spawned(), ended({ leftServices: ['bun run dev', 'docs preview'] })],
+        }),
+      )[0] ?? ''
+
+    expect(block).toContain(
+      'It left 2 services running, which you own now: bun run dev; docs preview.',
+    )
+    expect(block).toContain('service_stop')
+  })
+
+  it('says nothing when it left none', () => {
+    const block =
+      blocksOf(assembleWith({ drafts: [spawned(), ended({ leftServices: [] })] }))[0] ?? ''
+
+    expect(block).not.toContain('service')
   })
 })

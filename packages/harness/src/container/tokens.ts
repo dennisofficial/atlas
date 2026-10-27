@@ -20,14 +20,11 @@ import type { HookChain, HookChainSource } from '../hooks/registry'
 import type { ModelCardSource } from '../model/ai-sdk-model-port'
 import type { SelectableModel } from '../composition/model-selection'
 import type { SleepPrevention } from '../power/sleep-prevention'
-import type { LiveWorkSources } from '../agents/registry/live-work-sources'
 import type { InjectionToken } from './injection'
 
 export const SessionRegistryToken: InjectionToken<SessionRegistry> = Symbol('atlas.SessionRegistry')
 
 export const AtlasHomeToken: InjectionToken<string> = Symbol('atlas.AtlasHome')
-
-export const LiveWorkSourcesToken: InjectionToken<LiveWorkSources> = Symbol('atlas.LiveWorkSources')
 
 export const DeltaChannelToken: InjectionToken<DeltaChannel> = Symbol('atlas.DeltaChannel')
 
