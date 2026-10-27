@@ -22,6 +22,14 @@ export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Idle]: 'Idle',
 }
 
+export function sandboxSettingsHrefOf(
+  thread: { projectId?: string | null } | undefined,
+): string | undefined {
+  const projectId = thread?.projectId
+  if (!projectId) return undefined
+  return `/projects/${encodeURIComponent(projectId)}/settings/sandbox`
+}
+
 export function headerStateOf(args: {
   failed: boolean
   working: boolean

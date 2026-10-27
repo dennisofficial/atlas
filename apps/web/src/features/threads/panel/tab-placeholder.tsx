@@ -11,7 +11,7 @@ import {
 export function TabPlaceholder(props: { icon: ReactNode; title: string; description: string }) {
   const { icon, title, description } = props
   return (
-    <div className="flex h-full p-4">
+    <div className="flex p-4">
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="icon">{icon}</EmptyMedia>

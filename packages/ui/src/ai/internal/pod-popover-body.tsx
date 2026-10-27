@@ -134,7 +134,7 @@ export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBod
         <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
           Default size for new pods:{' '}
           <a href={settingsHref} className="text-foreground underline underline-offset-3">
-            Settings → Cloud
+            Settings → Sandbox
           </a>
         </p>
       ) : null}

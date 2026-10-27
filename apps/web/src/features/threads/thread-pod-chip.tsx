@@ -78,16 +78,17 @@ export type ThreadPodChipProps = {
   pod: PodStatus | null
   working: boolean
   onResize: (vcpus: number) => Promise<void>
+  settingsHref?: string | undefined
 }
 
-export function ThreadPodChip({ pod, working, onResize }: ThreadPodChipProps) {
+export function ThreadPodChip({ pod, working, onResize, settingsHref }: ThreadPodChipProps) {
   const { confirmation, handleResize } = useResizeConfirmation({ working, onResize })
   const status = chipStatusOf(pod)
   if (status === null) return null
 
   return (
     <>
-      <PodStatusChip status={status} onResize={handleResize} />
+      <PodStatusChip status={status} onResize={handleResize} settingsHref={settingsHref} />
       <RestartConfirmDialog confirmation={confirmation} />
     </>
   )

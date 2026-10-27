@@ -4,11 +4,12 @@ import { linkedPullRequestOf } from '@/features/shell/thread-status'
 import { threadOf } from '@/features/shell/__tests__/fixtures'
 
 import {
-  branchOf,
   EHeaderState,
   STATE_LABEL,
+  branchOf,
   headerStateOf,
   pullRequestBadgeOf,
+  sandboxSettingsHrefOf,
   spawnerIdOf,
 } from '../header-model'
 
@@ -97,5 +98,16 @@ describe('headerStateOf', () => {
     const state = headerStateOf({ failed: false, working: true, waitingOnOperator: true })
     expect(state).toBe(EHeaderState.NeedsYou)
     expect(STATE_LABEL[state]).toBe('Needs you')
+  })
+})
+
+describe('sandboxSettingsHrefOf', () => {
+  it('links to the project sandbox settings', () => {
+    expect(sandboxSettingsHrefOf({ projectId: 'prj 1' })).toBe('/projects/prj%201/settings/sandbox')
+  })
+
+  it('omits the link for a thread without a project', () => {
+    expect(sandboxSettingsHrefOf({ projectId: null })).toBeUndefined()
+    expect(sandboxSettingsHrefOf(undefined)).toBeUndefined()
   })
 })

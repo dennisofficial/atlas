@@ -79,7 +79,7 @@ export function ThreadHeader(props: ThreadHeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
-        <SidebarTrigger aria-label="Open navigation" size="icon-lg" className="md:hidden" />
+        <SidebarTrigger aria-label="Open navigation" />
         {parent ? <ParentCrumb parent={parent} /> : null}
         {title === null ? (
           <Skeleton className="h-4 w-48" />

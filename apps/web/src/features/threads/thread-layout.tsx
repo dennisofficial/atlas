@@ -37,12 +37,14 @@ export function ThreadLayout(props: ThreadLayoutProps) {
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
           <SheetContent side="right">
-            <SheetHeader>
-              <SheetTitle>Thread panel</SheetTitle>
-              <SheetDescription>
-                Agents, changes, files, terminal and preview for this thread.
-              </SheetDescription>
-            </SheetHeader>
+            <div className="sr-only">
+              <SheetHeader>
+                <SheetTitle>Thread panel</SheetTitle>
+                <SheetDescription>
+                  Agents, changes, files, terminal and preview for this thread.
+                </SheetDescription>
+              </SheetHeader>
+            </div>
             <div className="min-h-0 flex-1 overflow-hidden rounded-lg">
               <RightPanel tab={tab} onTabChange={onTabChange} />
             </div>

@@ -17,7 +17,13 @@ import { liveSteps } from '@dltech/atlas-client/transcript'
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { branchOf, headerStateOf, pullRequestBadgeOf, spawnerIdOf } from './data/header-model'
+import {
+  branchOf,
+  headerStateOf,
+  pullRequestBadgeOf,
+  sandboxSettingsHrefOf,
+  spawnerIdOf,
+} from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
@@ -216,7 +222,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
       pullRequest={pullRequestBadgeOf(thread.data)}
-      podChip={<ThreadPodChip pod={pod} working={working} onResize={handleResize} />}
+      podChip={
+        <ThreadPodChip
+          pod={pod}
+          working={working}
+          onResize={handleResize}
+          settingsHref={sandboxSettingsHrefOf(thread.data)}
+        />
+      }
       onOpenPanel={() => rightPanel.setSheetOpen(true)}
     />
   )
