@@ -6,15 +6,15 @@ import {
   EProjectSettingsSection,
   PROJECT_NAV,
   hrefOfProjectSection,
-  parseProjectSection,
+  projectSectionOfPath,
 } from '../project-settings-nav'
 
 describe('project settings routes', () => {
-  test('builds hrefs and parses sections back', () => {
+  test('builds hrefs and resolves sections back from the path', () => {
     for (const item of PROJECT_NAV) {
       const href = hrefOfProjectSection({ projectId: 'rs-crm', section: item.section })
       expect(href).toBe(`/projects/rs-crm/settings/${item.section}`)
-      expect(parseProjectSection(href.split('/').at(-1) ?? '')).toBe(item.section)
+      expect(projectSectionOfPath(href)).toBe(item.section)
     }
   })
 
@@ -24,8 +24,11 @@ describe('project settings routes', () => {
     ).toBe('/projects/a%2Fb/settings/overview')
   })
 
-  test('rejects unknown sections', () => {
-    expect(parseProjectSection('billing')).toBeNull()
+  test('returns null for unknown or foreign paths', () => {
+    expect(projectSectionOfPath('/projects/rs-crm/settings/billing')).toBeNull()
+    expect(projectSectionOfPath('/projects/rs-crm/settings')).toBeNull()
+    expect(projectSectionOfPath('/settings/mcp')).toBeNull()
+    expect(projectSectionOfPath('/')).toBeNull()
   })
 
   test('resolves fixture project ids only', () => {
@@ -35,12 +38,15 @@ describe('project settings routes', () => {
     expect(Object.keys(PROJECTS_BY_ID)).toContain('rs-crm')
   })
 
-  test('the project sample resolves', () => {
-    const samples = PROTO_SAMPLES['/projects/[projectId]/settings/[section]'] ?? []
-    for (const sample of samples) {
-      const [, , projectId, , section] = sample.path.split('/')
-      expect(projectById(projectId ?? '')).not.toBeNull()
-      expect(parseProjectSection(section ?? '')).not.toBeNull()
+  test('every section has a sample key whose projects resolve', () => {
+    for (const item of PROJECT_NAV) {
+      const samples = PROTO_SAMPLES[`/projects/[projectId]/settings/${item.section}`] ?? []
+      expect(samples.length).toBeGreaterThan(0)
+      for (const sample of samples) {
+        const [, , projectId] = sample.path.split('/')
+        expect(projectById(projectId ?? '')).not.toBeNull()
+        expect(projectSectionOfPath(sample.path)).toBe(item.section)
+      }
     }
   })
 })

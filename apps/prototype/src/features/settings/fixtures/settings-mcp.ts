@@ -19,6 +19,7 @@ export enum EMcpOAuthState {
 export enum EMcpScope {
   Personal = 'personal',
   Project = 'project',
+  Workspace = 'workspace',
 }
 
 export type McpEntry = { key: string; value: string; secret: boolean }

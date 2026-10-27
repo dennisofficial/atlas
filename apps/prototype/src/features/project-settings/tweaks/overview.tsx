@@ -5,7 +5,7 @@ import { optionOf } from '../../shared/option-of'
 import { EShipBehavior } from '../fixtures/project-settings'
 import { EOverviewPicker } from '../overview-model'
 import { OverviewPage } from '../overview-page'
-import type { ProjectSectionProps } from '../project-settings-pages'
+import { useProjectFixture } from '../project-fixture-context'
 
 const PICKERS: Record<string, EOverviewPicker | undefined> = {
   none: undefined,
@@ -18,7 +18,8 @@ const CONTROLS = {
   picker: { type: 'select', label: 'Picker open', options: Object.keys(PICKERS), default: 'none' },
 } satisfies Record<string, Control>
 
-export function OverviewTweaked({ project }: ProjectSectionProps) {
+export function OverviewTweaked() {
+  const project = useProjectFixture()
   const { edited, picker } = usePrototype(CONTROLS)
   return (
     <OverviewPage

@@ -11,11 +11,13 @@ export interface ViewportPreset {
 }
 
 export const VIEWPORT_PRESETS: readonly ViewportPreset[] = [
-  { label: '1920 × 1080', width: 1920, height: 1080 },
-  { label: 'Desktop', width: 1440, height: 900 },
-  { label: 'Laptop', width: 1280, height: 800 },
+  { label: '4K', width: 2560, height: 1440 },
+  { label: 'Laptop L', width: 1440, height: 900 },
+  { label: 'Laptop', width: 1024, height: 768 },
   { label: 'Tablet', width: 768, height: 1024 },
-  { label: 'Mobile', width: 390, height: 844 },
+  { label: 'Mobile L', width: 425, height: 812 },
+  { label: 'Mobile M', width: 375, height: 667 },
+  { label: 'Mobile S', width: 320, height: 568 },
 ]
 
 export const FULL_VIEWPORT: Viewport = { kind: EViewportKind.Full }

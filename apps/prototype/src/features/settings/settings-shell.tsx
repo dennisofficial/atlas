@@ -1,5 +1,7 @@
+'use client'
+
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 import {
   ArrowLeftIcon,
@@ -30,8 +32,17 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@dltech/atlas-ui/components/sidebar'
+import { Tabs, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
-import { ESettingsPage, PERSONAL_NAV, filterNav, hrefOfPage } from './settings-nav'
+import {
+  ESettingsScope,
+  filterNav,
+  firstPageOf,
+  hrefOfPage,
+  navForScope,
+  scopeOfPage,
+  settingsPageOfPath,
+} from './settings-nav'
 
 const HELP_LINKS = [
   { label: 'Docs', icon: BookOpenIcon },
@@ -40,7 +51,38 @@ const HELP_LINKS = [
   { label: 'Email us', icon: MailIcon },
 ]
 
-function SettingsTopBar() {
+const SCOPE_LABELS: Record<ESettingsScope, string> = {
+  [ESettingsScope.Personal]: 'Personal',
+  [ESettingsScope.Workspace]: 'Workspace',
+}
+
+function ScopeTabs({
+  scope,
+  onScopeChange,
+}: {
+  scope: ESettingsScope
+  onScopeChange: (scope: ESettingsScope) => void
+}) {
+  return (
+    <Tabs value={scope} onValueChange={(value) => onScopeChange(value as ESettingsScope)}>
+      <TabsList>
+        {Object.values(ESettingsScope).map((value) => (
+          <TabsTrigger key={value} value={value}>
+            {SCOPE_LABELS[value]}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  )
+}
+
+function SettingsTopBar({
+  scope,
+  onScopeChange,
+}: {
+  scope: ESettingsScope
+  onScopeChange: (scope: ESettingsScope) => void
+}) {
   return (
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
       <Button
@@ -53,7 +95,7 @@ function SettingsTopBar() {
         <ArrowLeftIcon data-icon="inline-start" />
         Back to Atlas
       </Button>
-      <span className="text-sm font-medium">Settings</span>
+      <ScopeTabs scope={scope} onScopeChange={onScopeChange} />
       <span />
     </header>
   )
@@ -76,10 +118,10 @@ function HelpCard() {
   )
 }
 
-function SettingsNav() {
+function SettingsNav({ scope }: { scope: ESettingsScope }) {
   const pathname = usePathname()
   const [query, setQuery] = useState('')
-  const groups = filterNav({ groups: PERSONAL_NAV, query })
+  const groups = filterNav({ groups: navForScope(scope), query })
   return (
     <Sidebar collapsible="none" className="w-60 border-r">
       <SidebarHeader className="pt-3">
@@ -133,20 +175,20 @@ function SettingsNav() {
   )
 }
 
-export function SettingsShell({
-  page,
-  renderPage,
-}: {
-  page: ESettingsPage
-  renderPage: (page: ESettingsPage) => ReactNode
-}) {
+export function SettingsShell({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const page = settingsPageOfPath(usePathname())
+  const scope = page ? scopeOfPage(page) : ESettingsScope.Personal
+
+  const handleScopeChange = (next: ESettingsScope) => router.push(hrefOfPage(firstPageOf(next)))
+
   return (
     <SidebarProvider className="h-svh min-h-0 flex-col">
-      <SettingsTopBar />
+      <SettingsTopBar scope={scope} onScopeChange={handleScopeChange} />
       <div className="flex min-h-0 flex-1">
-        <SettingsNav />
+        <SettingsNav scope={scope} />
         <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-8 py-10">{renderPage(page)}</div>
+          <div className="mx-auto w-full max-w-3xl px-8 py-10">{children}</div>
         </main>
       </div>
     </SidebarProvider>

@@ -25,11 +25,13 @@ export enum EMcpDialogTab {
 const SCOPE_NOTES: Record<EMcpScope, string> = {
   [EMcpScope.Personal]: 'Applies to every project.',
   [EMcpScope.Project]: 'Applies to this project. Overrides a personal server with the same name.',
+  [EMcpScope.Workspace]: "Applies to every member's threads.",
 }
 
 const SCOPE_LABELS: Record<EMcpScope, string> = {
   [EMcpScope.Personal]: 'personal',
   [EMcpScope.Project]: 'project',
+  [EMcpScope.Workspace]: 'workspace',
 }
 
 function isTab(value: unknown): value is EMcpDialogTab {

@@ -148,8 +148,10 @@ export function filterNav({
     .filter((group) => group.items.length > 0)
 }
 
-export function parseSettingsPage(value: string): ESettingsPage | null {
-  return Object.values(ESettingsPage).find((page) => page === value) ?? null
+export function settingsPageOfPath(pathname: string): ESettingsPage | null {
+  if (!pathname.startsWith('/settings/')) return null
+  const segment = pathname.split('/')[2]
+  return Object.values(ESettingsPage).find((page) => page === segment) ?? null
 }
 
 export function hrefOfPage(page: ESettingsPage): string {
