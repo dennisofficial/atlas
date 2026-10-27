@@ -17,6 +17,8 @@ const base: ThreadPanelValue = {
   openChanges: () => undefined,
   openAgent: () => undefined,
   clearAgent: () => undefined,
+  closePanel: () => undefined,
+  refreshPod: () => undefined,
 }
 
 const render = (node: React.ReactNode, value: Partial<ThreadPanelValue> = {}): string =>

@@ -22,6 +22,8 @@ const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   openChanges: () => undefined,
   openAgent: () => undefined,
   clearAgent: () => undefined,
+  closePanel: () => undefined,
+  refreshPod: () => undefined,
 })
 
 const router = { push: () => undefined } as unknown as AppRouterInstance

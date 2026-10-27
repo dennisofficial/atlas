@@ -13,6 +13,8 @@ const value: ThreadPanelValue = {
   openChanges: () => undefined,
   openAgent: () => undefined,
   clearAgent: () => undefined,
+  closePanel: () => undefined,
+  refreshPod: () => undefined,
 }
 
 function Probe() {

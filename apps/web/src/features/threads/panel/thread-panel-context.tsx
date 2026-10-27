@@ -16,6 +16,8 @@ export type ThreadPanelValue = {
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
   clearAgent: () => void
+  closePanel: () => void
+  refreshPod: () => void
 }
 
 const ThreadPanelContext = createContext<ThreadPanelValue | null>(null)

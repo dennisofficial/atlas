@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { FileQuestionIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -134,7 +134,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
   const handleResize = usePodResize({ threadId, refresh })
-  const { changesPath, agentId, openChanges, openAgent, clearAgent } = rightPanel
+  const { changesPath, agentId, openChanges, openAgent, clearAgent, setSheetOpen } = rightPanel
+  const closePanel = useCallback(() => setSheetOpen(false), [setSheetOpen])
   const panel = useMemo<ThreadPanelValue>(
     () => ({
       threadId,
@@ -146,8 +147,22 @@ export function ThreadView({ threadId }: { threadId: string }) {
       openChanges,
       openAgent,
       clearAgent,
+      closePanel,
+      refreshPod: refresh,
     }),
-    [threadId, channel, pod, working, changesPath, agentId, openChanges, openAgent, clearAgent],
+    [
+      threadId,
+      channel,
+      pod,
+      working,
+      changesPath,
+      agentId,
+      openChanges,
+      openAgent,
+      clearAgent,
+      closePanel,
+      refresh,
+    ],
   )
 
   const handleSubmit = async (text: string) => {

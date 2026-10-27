@@ -33,6 +33,8 @@ const panelOf = (overrides: Partial<ThreadPanelValue>): ThreadPanelValue => ({
   openChanges: () => undefined,
   openAgent: () => undefined,
   clearAgent: () => undefined,
+  closePanel: () => undefined,
+  refreshPod: () => undefined,
   ...overrides,
 })
 

@@ -16,7 +16,7 @@ import { useThreadPanel } from './thread-panel-context'
 
 export function AgentsTab(props: { data: AgentsData }) {
   const { agents, teammates, loaded, error } = props.data
-  const { agentId, openAgent, clearAgent, channel, pod } = useThreadPanel()
+  const { agentId, openAgent, clearAgent, closePanel, channel, pod } = useThreadPanel()
   const router = useRouter()
   const now = useNow(agents.some((agent) => agent.live))
   const selected = agents.find((agent) => agent.id === agentId)
@@ -38,6 +38,7 @@ export function AgentsTab(props: { data: AgentsData }) {
   }
   const handleOpenTeammate = (id: string) => router.push(`/threads/${encodeURIComponent(id)}`)
   const handleJumpToSpawn = (id: string) => {
+    closePanel()
     jumpToSpawn({ agentId: id, lookup: documentLookup })
   }
 

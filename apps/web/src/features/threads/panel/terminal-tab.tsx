@@ -18,7 +18,7 @@ import { useThreadPanel } from './thread-panel-context'
 const DISCONNECTED_MESSAGE = 'Connection lost. Reconnect to open fresh shells.'
 
 export function TerminalTab() {
-  const { channel, pod, threadId } = useThreadPanel()
+  const { channel, pod, threadId, refreshPod } = useThreadPanel()
   const { retryBoot } = useSend()
   const channelConnection = useChannelConnection(channel)
   const connection = terminalConnectionOf({
@@ -36,7 +36,7 @@ export function TerminalTab() {
       channel.reconnect()
       return
     }
-    void retryBoot(threadId)
+    void retryBoot(threadId).then(refreshPod)
   }
   const handleActiveChange = (id: string) => set?.select(id)
   const handleNew = () => void set?.add()

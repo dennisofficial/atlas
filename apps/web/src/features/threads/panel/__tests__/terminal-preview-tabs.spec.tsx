@@ -17,6 +17,8 @@ const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   openChanges: () => undefined,
   openAgent: () => undefined,
   clearAgent: () => undefined,
+  closePanel: () => undefined,
+  refreshPod: () => undefined,
 })
 
 const render = (args: { pod: PodStatus | null; body: React.ReactNode }): string =>
