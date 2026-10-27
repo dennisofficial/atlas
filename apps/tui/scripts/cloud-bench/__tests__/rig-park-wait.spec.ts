@@ -10,7 +10,7 @@ const runningProbe = (logTail: string): BoxProbe => ({
   record: null,
   recordError: null,
   version: 'dev-abc123',
-  protocol: 25,
+  protocol: 26,
   servePid: '41',
   logTail,
 })
@@ -81,7 +81,7 @@ describe('waitForPark', () => {
       ['parked', 'parked', 'running'],
       ['parked', 'parked', 'snapshotting'],
     ])
-    expect(result.observations[0]?.stamps).toBe('dev-abc123 / protocol 25')
+    expect(result.observations[0]?.stamps).toBe('dev-abc123 / protocol 26')
     expect(result.observations[2]?.stamps).toBeNull()
     expect(boxCalls).toEqual([
       { name: 'atlas-thr-rig', logLines: 60 },

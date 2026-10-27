@@ -3,19 +3,30 @@ import {
   channelTicketValid,
   EBootStep,
   EBootStepState,
+  EPodResizeApplies,
   EPodState,
   podConnectReplySchema,
+  podResizeReplySchema,
   podStatusSchema,
 } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { callMutation, callQuery, createRouterApp } from './sandbox-provisioning.router.fixture'
+import { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { PodLaunchService } from './pod-launch.service'
 import { ThreadPodRouter } from './thread-pod.router'
 import { ThreadPodService } from './thread-pod.service'
 import { realEndpoints, SERVE_TOKEN, SERVE_URL, seedServingPod } from './thread-pod.fixture'
+
+const resizableVercel = {
+  inspect: async () => ({ state: 'parked' }),
+  readResources: async () => ({ vcpus: 2, memoryMb: 4096 }),
+  updateResources: async () => undefined,
+}
 
 describe('ThreadPodRouter', () => {
   useTestDatabase()
@@ -26,6 +37,9 @@ describe('ThreadPodRouter', () => {
       ThreadPodRouter,
       ThreadPodService,
       { provide: SandboxEndpointService, useValue: realEndpoints() },
+      { provide: VercelSandboxClient, useValue: resizableVercel },
+      { provide: SandboxesService, useValue: {} },
+      { provide: PodLaunchService, useValue: {} },
     ])
   })
 
@@ -131,6 +145,47 @@ describe('ThreadPodRouter', () => {
       ).toBe(true)
       expect(JSON.stringify(reply.body)).not.toContain(SERVE_TOKEN)
       expect(reply.text).not.toContain(SERVE_TOKEN)
+    })
+  })
+
+  describe('resize', () => {
+    const post = (token?: string, input: unknown = { threadId: 'thr-1', vcpus: 4 }) =>
+      callMutation({
+        app,
+        procedure: 'threadPod.resize',
+        input,
+        ...(token === undefined ? {} : { token }),
+      })
+
+    it('answers 401 without a session', async () => {
+      expect((await post()).status).toBe(401)
+    })
+
+    it('answers 400 for a size outside the vCPU steps', async () => {
+      expect((await post('session-a', { threadId: 'thr-1', vcpus: 3 })).status).toBe(400)
+      expect((await post('session-a', { threadId: 'thr-1', vcpus: 16 })).status).toBe(400)
+    })
+
+    it("answers 404 for someone else's thread", async () => {
+      await seedServingPod({ threadId: 'thr-1', userId: 'usr-1' })
+
+      expect((await post('session-b')).status).toBe(404)
+    })
+
+    it('answers the owner the applied size and when it lands', async () => {
+      await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', state: 'parked' })
+      await recordBootSteps({
+        threadId: 'thr-1',
+        steps: [{ step: EBootStep.Provision, state: EBootStepState.Done }],
+      })
+
+      const reply = await post('session-a')
+
+      expect(reply.status).toBe(200)
+      expect(podResizeReplySchema.parse(reply.body.result.data)).toEqual({
+        vcpus: 4,
+        appliesAt: EPodResizeApplies.Live,
+      })
     })
   })
 })

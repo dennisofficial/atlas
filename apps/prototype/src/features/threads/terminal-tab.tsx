@@ -1,23 +1,11 @@
-import { useState } from 'react'
-import { PlusIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
 
-import { Button } from '@dltech/atlas-ui/components/button'
-import { Tabs, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
+import { TerminalPanel } from '@dltech/atlas-ui/ai/terminal-panel'
+import { TerminalScreen, type TerminalScreenHandle } from '@dltech/atlas-ui/ai/terminal-screen'
+import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 
-import {
-  ETerminalConnection,
-  ETerminalEntry,
-  INITIAL_TERMINALS,
-  type CommandEntry,
-  type UserTerminal,
-} from './sandbox-terminal'
-import { TerminalScreen } from './terminal-screen'
-import {
-  ConnectingNotice,
-  ConnectionHeader,
-  DisconnectedBar,
-  PausedNotice,
-} from './terminal-states'
+import { INITIAL_TERMINALS, SANDBOX, type UserTerminal } from './sandbox-terminal'
+import { nextInputOf, promptOf, scrollbackOf } from './terminal-ansi'
 
 export interface TerminalTabProps {
   initialConnection?: ETerminalConnection
@@ -31,15 +19,38 @@ function freshTerminal(index: number): UserTerminal {
   return { id: `term-${index}`, label: `Terminal ${index}`, cwd: '~/workspace', entries: [] }
 }
 
-function appendCommand({
-  terminal,
-  command,
-}: {
+interface SimulatedShellProps {
   terminal: UserTerminal
-  command: string
-}): UserTerminal {
-  const entry: CommandEntry = { kind: ETerminalEntry.Command, cwd: terminal.cwd, command }
-  return { ...terminal, entries: [...terminal.entries, entry] }
+  live: boolean
+}
+
+function SimulatedShell({ terminal, live }: SimulatedShellProps) {
+  const screen = useRef<TerminalScreenHandle>(null)
+  const buffer = useRef('')
+  const prompt = promptOf({ cwd: terminal.cwd, host: terminal.host })
+
+  const handleReady = () => {
+    screen.current?.write(scrollbackOf(terminal))
+    if (live) screen.current?.write(prompt)
+  }
+
+  const handleData = (data: string) => {
+    const next = nextInputOf({ buffer: buffer.current, data })
+    buffer.current = next.buffer
+    screen.current?.write(next.echo)
+    if (next.command !== undefined) screen.current?.write(prompt)
+  }
+
+  return (
+    <TerminalScreen
+      ref={screen}
+      label={`${terminal.label} scrollback`}
+      readOnly={!live}
+      dimmed={!live}
+      onReady={handleReady}
+      onData={handleData}
+    />
+  )
 }
 
 export function TerminalTab({
@@ -53,25 +64,11 @@ export function TerminalTab({
   const [terminals, setTerminals] = useState(initialTerminals)
   const [activeId, setActiveId] = useState(initialTerminals[0]?.id ?? '')
   const active = terminals.find((terminal) => terminal.id === activeId) ?? terminals[0]
-  const showScreen =
-    connection === ETerminalConnection.Connected || connection === ETerminalConnection.Disconnected
-
-  const handleTabChange = (value: unknown) => {
-    if (typeof value === 'string') setActiveId(value)
-  }
 
   const handleNewTerminal = () => {
     const terminal = freshTerminal(terminals.length + 1)
     setTerminals([...terminals, terminal])
     setActiveId(terminal.id)
-  }
-
-  const handleRun = (command: string) => {
-    setTerminals((previous) =>
-      previous.map((terminal) =>
-        terminal.id === activeId ? appendCommand({ terminal, command }) : terminal,
-      ),
-    )
   }
 
   const handleReconnect = () => {
@@ -80,44 +77,24 @@ export function TerminalTab({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <ConnectionHeader connection={connection} noun={noun} />
-      <Tabs
-        value={active?.id ?? ''}
-        onValueChange={handleTabChange}
-        className="shrink-0 gap-0 border-b border-border"
-      >
-        <div className="flex h-9 items-center gap-1 pr-2">
-          <TabsList
-            variant="line"
-            className="h-9 min-w-0 flex-1 justify-start gap-3 overflow-x-auto px-3"
-          >
-            {terminals.map((terminal) => (
-              <TabsTrigger key={terminal.id} value={terminal.id} className="flex-none px-1 text-xs">
-                {terminal.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <Button size="xs" variant="ghost" onClick={handleNewTerminal}>
-            <PlusIcon data-icon="inline-start" />
-            New terminal
-          </Button>
-        </div>
-      </Tabs>
-      {connection === ETerminalConnection.Connecting ? <ConnectingNotice noun={noun} /> : null}
-      {connection === ETerminalConnection.Paused ? (
-        <PausedNotice onResume={handleReconnect} />
-      ) : null}
-      {active && showScreen ? (
-        <TerminalScreen
+    <TerminalPanel
+      connection={connection}
+      tabs={terminals.map(({ id, label }) => ({ id, label }))}
+      activeId={active?.id ?? ''}
+      onActiveChange={setActiveId}
+      onNew={handleNewTerminal}
+      onReconnect={handleReconnect}
+      noun={noun}
+      detail={SANDBOX.size}
+      disconnectedMessage={disconnectedMessage}
+    >
+      {active ? (
+        <SimulatedShell
+          key={`${active.id}-${connection}`}
           terminal={active}
           live={connection === ETerminalConnection.Connected}
-          onRun={handleRun}
         />
       ) : null}
-      {connection === ETerminalConnection.Disconnected ? (
-        <DisconnectedBar onReconnect={handleReconnect} message={disconnectedMessage} />
-      ) : null}
-    </div>
+    </TerminalPanel>
   )
 }

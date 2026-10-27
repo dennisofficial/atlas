@@ -172,21 +172,21 @@ describe('failedEvidence', () => {
 
 describe('trust', () => {
   test('needs both the box stamps and the Ready protocol', () => {
-    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 25, readyProtocol: 25 }).trusted).toBe(
+    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: 26 }).trusted).toBe(
       true,
     )
-    expect(combinedTrust({ version: '0.40.1', boxProtocol: 25, readyProtocol: 25 })).toMatchObject({
+    expect(combinedTrust({ version: '0.40.1', boxProtocol: 26, readyProtocol: 26 })).toMatchObject({
       trusted: false,
       reason: expect.stringContaining('box stamps'),
     })
-    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 25, readyProtocol: 24 })).toMatchObject(
+    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: 24 })).toMatchObject(
       {
         trusted: false,
         reason: expect.stringContaining('Ready'),
       },
     )
     expect(
-      combinedTrust({ version: 'dev-abc', boxProtocol: 25, readyProtocol: null }).trusted,
+      combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: null }).trusted,
     ).toBe(false)
   })
 
@@ -236,7 +236,7 @@ describe('summary', () => {
       startedAt: 's',
       finishedAt: 'f',
       threadId: 'thr_1',
-      trust: { trusted: true, reason: 'dev-abc on 25' },
+      trust: { trusted: true, reason: 'dev-abc on 26' },
       results,
       created: ['atlas-thread-abc'],
       destroyed: ['atlas-thread-abc'],

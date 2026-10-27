@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, spyOn } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import type { WireEvent } from '@dltech/atlas-harness'
@@ -20,11 +20,14 @@ const controlPlaneUrl = 'https://api.example.com'
 const homes: string[] = []
 const running: ServeHandle[] = []
 let heldAtlasHome: string | undefined
+let globalFetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined
 
 afterEach(async () => {
   if (heldAtlasHome === undefined) delete process.env.ATLAS_HOME
   else process.env.ATLAS_HOME = heldAtlasHome
   heldAtlasHome = undefined
+  globalFetchSpy?.mockRestore()
+  globalFetchSpy = undefined
   while (running.length > 0) await running.pop()?.close()
   for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
@@ -103,6 +106,7 @@ describe('serve write-behind', () => {
     homes.push(home)
     heldAtlasHome = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home
+    globalFetchSpy = spyOn(globalThis, 'fetch')
     const postgres = fakePostgres()
     postgres.appendFromApi({ text: 'first message', sendId: 'send-1' })
 
@@ -130,5 +134,6 @@ describe('serve write-behind', () => {
       [4, 'assistant-said'],
     ])
     await eventually(() => postgres.head() === 4)
+    expect(globalFetchSpy).not.toHaveBeenCalled()
   })
 })

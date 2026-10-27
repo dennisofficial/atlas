@@ -3,9 +3,11 @@ import type { DiffLine } from '@dltech/atlas-ui/ai/diff-viewer'
 import type { FileNode } from '@dltech/atlas-ui/ai/file-tree'
 import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 
+import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
+
 import { ETerminalEntry, type UserTerminal } from './sandbox-terminal'
 import { EPodPhase, type PodPanelState } from './pod-state'
-import { EPodState, RUNNING_POD, type PodChipConfig } from './pod-status'
+import { RUNNING_POD, type PodChipConfig } from './pod-status'
 import { FIRST_TURN_STEPS } from './new-thread-data'
 import { EPodProgress, isFailedPod, isStartingPod } from './new-thread-types'
 

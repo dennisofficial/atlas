@@ -1,5 +1,5 @@
+import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { EMessageOrigin } from '@dltech/atlas-core'
-import type { QueuedMessage } from '@dltech/atlas-ui/ai/task-dock'
 import type { PendingEntryWire } from '@dltech/atlas-wire/web'
 
 export const TOO_LATE_NOTICE = 'Atlas already started on that message.'
@@ -11,11 +11,5 @@ const isTakeBackable = (entry: PendingEntryWire): boolean =>
 export const takeBackableIdOf = (pending: readonly PendingEntryWire[]): string | null =>
   pending.findLast(isTakeBackable)?.id ?? null
 
-export const queuedOf = (pending: readonly PendingEntryWire[]): QueuedMessage[] => {
-  const removableId = takeBackableIdOf(pending)
-  return pending.map((entry) => ({
-    id: entry.id,
-    text: entry.text,
-    removable: entry.id === removableId,
-  }))
-}
+export const queuedOf = (pending: readonly PendingEntryWire[]): QueuedMessageEntry[] =>
+  pending.map((entry) => ({ id: entry.id, text: entry.text, attachments: [] }))

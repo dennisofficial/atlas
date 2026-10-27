@@ -1,3 +1,5 @@
+import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
+import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { FolderGit2Icon } from 'lucide-react'
 
 import type { Control, Values } from '@/proto/use-prototype'
@@ -5,9 +7,8 @@ import type { Control, Values } from '@/proto/use-prototype'
 import { type AppThread, SESSION_THREAD_ID } from '../shell/fixtures/app'
 import { enumValueOf } from './enum-value'
 import { projectLabelOf } from './new-thread-data'
-import { RUNNING_POD, EPodState, type PodChipConfig } from './pod-status'
+import { RUNNING_POD, type PodChipConfig } from './pod-status'
 import { MAX_QUEUED } from './queue-fixtures'
-import { ETerminalConnection } from './sandbox-terminal'
 import type { SessionViewProps } from './session-view'
 import { ERightTab, ESessionState } from './session-types'
 

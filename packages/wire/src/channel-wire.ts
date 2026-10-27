@@ -6,6 +6,7 @@ import { rosterWireSchema } from './roster-wire'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire'
 import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
+import { terminalExitWireSchema, terminalOutputWireSchema } from './terminal-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 
@@ -15,7 +16,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 25
+export const CHANNEL_PROTOCOL_VERSION = 26
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -43,6 +44,8 @@ export enum EServeFrame {
   Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
+  TerminalOutput = 'terminal-output',
+  TerminalExit = 'terminal-exit',
   Error = 'error',
 }
 
@@ -88,6 +91,13 @@ export enum EClientRequest {
   Rotate = 'rotate',
   ReadSessionManifest = 'read-session-manifest',
   ReadSessionFiles = 'read-session-files',
+  ReadGitChanges = 'read-git-changes',
+  TerminalOpen = 'terminal-open',
+  TerminalWrite = 'terminal-write',
+  TerminalResize = 'terminal-resize',
+  TerminalClose = 'terminal-close',
+  UpdatePending = 'update-pending',
+  RemovePending = 'remove-pending',
 }
 
 export enum ETurnStatus {
@@ -213,6 +223,8 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     threadId: threadIdWireSchema,
     model: threadModelWireSchema,
   }),
+  z.object({ kind: z.literal(EServeFrame.TerminalOutput), ...terminalOutputWireSchema.shape }),
+  z.object({ kind: z.literal(EServeFrame.TerminalExit), ...terminalExitWireSchema.shape }),
   z.object({ kind: z.literal(EServeFrame.Error), message: z.string() }),
 ])
 

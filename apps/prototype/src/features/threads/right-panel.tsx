@@ -16,7 +16,7 @@ import { PodChanges, PodFiles, PodPreview, PodTerminal } from './pod-panels'
 import type { PodPanelState } from './pod-state'
 import { ERightTab, isRightTab } from './session-types'
 import { PreviewTab } from './preview-tab'
-import type { ETerminalConnection } from './sandbox-terminal'
+import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { TerminalTab } from './terminal-tab'
 
 export interface RightPanelProps {

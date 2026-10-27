@@ -8,6 +8,7 @@ import {
   type ServeFrame,
 } from '@dltech/atlas-harness'
 
+import { answerPendingEdit, isPendingEditOp } from './pending-requests'
 import {
   answerTakeBackPending,
   answeredRequest,
@@ -27,7 +28,8 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
     frame.op === EClientRequest.ReadContextFile ||
     frame.op === EClientRequest.ListMentionFiles ||
     frame.op === EClientRequest.MentionFileExists ||
-    frame.op === EClientRequest.ReadMentionFile)
+    frame.op === EClientRequest.ReadMentionFile ||
+    frame.op === EClientRequest.ReadGitChanges)
 
 export function createMutationTracker(args: { changed?: (() => void) | undefined }) {
   const open = new Map<string, number>()
@@ -87,7 +89,10 @@ export function routeStateRequest(args: {
     })
     return true
   }
-  void answerTakeBackPending({ frame, pending })
+  const answer = isPendingEditOp(frame.op)
+    ? answerPendingEdit({ frame, pending })
+    : answerTakeBackPending({ frame, pending })
+  void answer
     .then((reply) => send({ socket, frame: reply }))
     .catch((error: unknown) =>
       send({

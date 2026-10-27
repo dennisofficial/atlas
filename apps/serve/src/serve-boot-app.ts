@@ -63,6 +63,7 @@ export async function bootServeApp(args: {
         clientVersion,
         env,
         notice,
+        fetchFn,
       })
     },
   })

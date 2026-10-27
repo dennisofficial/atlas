@@ -21,6 +21,7 @@ import type { FileBrowser, PendingQueues } from '@dltech/atlas-harness'
 import type { TurnLedgerPort } from '@dltech/atlas-harness'
 import type { ThreadStorePort } from '@dltech/atlas-harness'
 
+import { isPendingEditOp } from './pending-requests'
 import { wireEventOf, wireThreadOf, wireTurnOf } from './session-wires'
 import type { ServeLog } from './serve-log'
 import { answerSetThreadModel } from './thread-model'
@@ -118,7 +119,8 @@ export const pendingEntriesOf = (args: { pending: PendingQueues; threadId: Threa
   }))
 }
 
-export const isPendingOp = (op: EClientRequest): boolean => op === EClientRequest.TakeBackPending
+export const isPendingOp = (op: EClientRequest): boolean =>
+  op === EClientRequest.TakeBackPending || isPendingEditOp(op)
 
 export async function answerTakeBackPending(args: {
   frame: RequestFrame

@@ -39,3 +39,6 @@ export const setThreadArchived = (args: { threadId: string; archived: boolean })
 
 export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handlers }) =>
   api.threadEvents.stream.subscribe({ threadId }, handlers)
+
+export const resizePod = (args: { threadId: string; vcpus: number }) =>
+  cloudCall(api.threadPod.resize.mutate(args))

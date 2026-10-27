@@ -1,13 +1,10 @@
 'use client'
 
-import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { FileQuestionIcon, PlusIcon } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { FileQuestionIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
-import { Badge } from '@dltech/atlas-ui/components/badge'
-import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Empty,
   EmptyDescription,
@@ -15,13 +12,18 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
-import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
-import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
+import {
+  branchOf,
+  headerStateOf,
+  pullRequestBadgeOf,
+  sandboxSettingsHrefOf,
+  spawnerIdOf,
+} from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
@@ -40,8 +42,11 @@ import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerHandoff } from './data/use-composer-handoff'
+import { useOperatorInput } from './data/use-operator-input'
 import { useNow } from './data/use-now'
 import { useReveal } from './data/use-reveal'
+import { useParentTitle } from './data/use-parent-title'
+import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
@@ -50,8 +55,14 @@ import { useThreadSource } from './data/use-thread-source'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
+import { OperatorInputCard } from './operator-input-card'
+import { ThreadPanelProvider, type ThreadPanelValue } from './panel/thread-panel-context'
+import { useRightPanel } from './panel/use-right-panel'
 import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
+import { ThreadHeader } from './thread-header'
+import { ThreadLayout } from './thread-layout'
+import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
 
 const NOT_FOUND = 404
@@ -73,32 +84,6 @@ function ThreadMissing() {
   )
 }
 
-function ThreadHeader({ title, failed }: { title: string | null; failed: boolean }) {
-  return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <SidebarTrigger aria-label="Open navigation" size="icon-lg" className="md:hidden" />
-        {title === null ? (
-          <Skeleton className="h-4 w-48" />
-        ) : (
-          <h1 className="truncate text-sm font-medium">{title}</h1>
-        )}
-        {failed ? <Badge variant="destructive">Failed</Badge> : null}
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label="New thread"
-        nativeButton={false}
-        render={<Link href="/threads/new" />}
-      >
-        <PlusIcon />
-        <span className="hidden sm:inline">New thread</span>
-      </Button>
-    </header>
-  )
-}
-
 export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({
     key: threadId,
@@ -113,8 +98,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
     liveEligible,
     onModelChanged: model.handleRemoteChange,
   })
-  const { events, steps, outputs, loaded, error, working, sendLive, chooseModel } = source
+  const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
+  const rightPanel = useRightPanel()
+  const spawnerId = spawnerIdOf(thread.data)
+  const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
@@ -131,12 +119,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
     [durable, live, outputs, reveal],
   )
   const dock = useComposerDock({
+    threadId,
     visible,
     source,
     picker: model.picker,
     selection: model.selection,
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
+  const operator = useOperatorInput(source)
   const handoff = useComposerHandoff({
     events: visible,
     pending: source.pending,
@@ -149,6 +139,37 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const now = useNow(isBootStarting(probe))
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
+  const handleResize = usePodResize({ threadId, refresh })
+  const { changesPath, agentId, openChanges, openAgent, clearAgent, setSheetOpen } = rightPanel
+  const closePanel = useCallback(() => setSheetOpen(false), [setSheetOpen])
+  const panel = useMemo<ThreadPanelValue>(
+    () => ({
+      threadId,
+      channel,
+      pod,
+      working,
+      changesPath,
+      agentId,
+      openChanges,
+      openAgent,
+      clearAgent,
+      closePanel,
+      refreshPod: refresh,
+    }),
+    [
+      threadId,
+      channel,
+      pod,
+      working,
+      changesPath,
+      agentId,
+      openChanges,
+      openAgent,
+      clearAgent,
+      closePanel,
+      refresh,
+    ],
+  )
 
   const handleSubmit = async (text: string) => {
     const sent = await send({ threadId, text, liveSend: sendLive })
@@ -190,50 +211,90 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const failed = isPodFailed(pod)
   const title = thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ThreadHeader title={title} failed={failed} />
-      {error !== null && !loaded ? (
-        <div className="mx-auto w-full max-w-3xl px-4 pt-4">
-          <Alert variant="destructive">
-            <AlertTitle>Couldn&apos;t load this thread</AlertTitle>
-            <AlertDescription>
-              {error instanceof CloudApiError ? error.message : String(error)}
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : null}
-      <div className="min-h-0 flex-1">
-        <ThreadTranscript
-          items={view.items}
-          failure={view.failure}
+  const header = (
+    <ThreadHeader
+      title={title}
+      state={headerStateOf({
+        failed,
+        working,
+        waitingOnOperator: source.waitingOnOperator,
+      })}
+      parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
+      branch={branchOf(thread.data)}
+      pullRequest={pullRequestBadgeOf(thread.data)}
+      podChip={
+        <ThreadPodChip
           pod={pod}
-          bootNow={now}
           working={working}
-          onRetryBoot={() => void handleRetryBoot()}
+          onResize={handleResize}
+          settingsHref={sandboxSettingsHrefOf(thread.data)}
         />
-      </div>
-      <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-        {notConfigured === null ? null : (
-          <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
-        )}
-        <ComposerDock dock={dock} />
-        <ThreadComposer
-          value={draft}
-          onValueChange={setDraft}
-          onSubmit={handleSubmit}
-          onEscape={() => void handleEscape()}
-          sending={sending || handoff.waiting}
-          placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+      }
+      onOpenPanel={() => rightPanel.setSheetOpen(true)}
+    />
+  )
+
+  return (
+    <ThreadPanelProvider value={panel}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {header}
+        <ThreadLayout
+          tab={rightPanel.tab}
+          onTabChange={rightPanel.setTab}
+          sheetOpen={rightPanel.sheetOpen}
+          onSheetOpenChange={rightPanel.setSheetOpen}
         >
-          <ModelPickerControls
-            picker={model.picker}
-            selection={model.selection}
-            onSelectionChange={handleModelChange}
-          />
-          <ComposerContext usage={dock.usage} />
-        </ThreadComposer>
+          {error !== null && !loaded ? (
+            <div className="mx-auto w-full max-w-3xl px-4 pt-4">
+              <Alert variant="destructive">
+                <AlertTitle>Couldn&apos;t load this thread</AlertTitle>
+                <AlertDescription>
+                  {error instanceof CloudApiError ? error.message : String(error)}
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
+          <div className="min-h-0 flex-1">
+            <ThreadTranscript
+              items={view.items}
+              failure={view.failure}
+              pod={pod}
+              bootNow={now}
+              working={working}
+              onRetryBoot={() => void handleRetryBoot()}
+            />
+          </div>
+          <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
+            {notConfigured === null ? null : (
+              <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
+            )}
+            {operator.request === null ? null : (
+              <OperatorInputCard
+                key={operator.request.requestId}
+                request={operator.request}
+                submitting={operator.submitting}
+                onSubmit={(value) => void operator.handleSubmit(value)}
+              />
+            )}
+            <ComposerDock dock={dock} />
+            <ThreadComposer
+              value={draft}
+              onValueChange={setDraft}
+              onSubmit={handleSubmit}
+              onEscape={() => void handleEscape()}
+              sending={sending || handoff.waiting}
+              placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+            >
+              <ModelPickerControls
+                picker={model.picker}
+                selection={model.selection}
+                onSelectionChange={handleModelChange}
+              />
+              <ComposerContext usage={dock.usage} />
+            </ThreadComposer>
+          </div>
+        </ThreadLayout>
       </div>
-    </div>
+    </ThreadPanelProvider>
   )
 }

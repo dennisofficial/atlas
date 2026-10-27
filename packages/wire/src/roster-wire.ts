@@ -110,6 +110,7 @@ export const serviceSnapshotWireSchema = z.object({
   logPath: z.string(),
   startedAt: z.string(),
   endedAt: z.string().optional(),
+  exposure: portExposureSchema.optional(),
 })
 
 export type ServiceSnapshotWire = z.infer<typeof serviceSnapshotWireSchema>

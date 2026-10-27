@@ -1,56 +1,10 @@
-export enum EPodState {
-  Starting = 'starting',
-  Running = 'running',
-  Resuming = 'resuming',
-  Parked = 'parked',
-  Stopped = 'stopped',
-}
+import { EPodState, type PodStatus } from '@dltech/atlas-ui/ai/pod-status-chip'
 
-export const VCPU_STEPS = [2, 4, 8]
-
-const RAM_PER_VCPU_GB = 2
-
-export interface PodStatus {
-  state: EPodState
-  vcpus: number
-  podId: string
-  region: string
-  pendingVcpus?: number
-}
+const RESIZE_DELAY_MS = 700
 
 export interface PodChipConfig {
   status: PodStatus
   defaultOpen?: boolean
-}
-
-export const STATE_LABEL: Record<EPodState, string> = {
-  [EPodState.Starting]: 'Starting',
-  [EPodState.Running]: 'Running',
-  [EPodState.Resuming]: 'Resuming',
-  [EPodState.Parked]: 'Parked',
-  [EPodState.Stopped]: 'Stopped',
-}
-
-export function ramOf(vcpus: number): number {
-  return vcpus * RAM_PER_VCPU_GB
-}
-
-export function sizeLabel(vcpus: number): string {
-  return `${vcpus} vCPU · ${ramOf(vcpus)} GB`
-}
-
-export function showsSize(state: EPodState): boolean {
-  return state === EPodState.Running || state === EPodState.Resuming
-}
-
-export function chipLabel(status: PodStatus): string {
-  if (status.state === EPodState.Running) return sizeLabel(status.vcpus)
-  const label = STATE_LABEL[status.state]
-  return showsSize(status.state) ? `${label} · ${sizeLabel(status.vcpus)}` : label
-}
-
-export function canResize(state: EPodState): boolean {
-  return state !== EPodState.Starting && state !== EPodState.Stopped
 }
 
 export const RUNNING_POD: PodStatus = {
@@ -58,4 +12,8 @@ export const RUNNING_POD: PodStatus = {
   vcpus: 4,
   podId: 'pod_8f3k2a91',
   region: 'iad1',
+}
+
+export function simulateResize(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, RESIZE_DELAY_MS))
 }

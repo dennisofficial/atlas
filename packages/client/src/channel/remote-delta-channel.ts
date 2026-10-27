@@ -6,7 +6,11 @@ import { createChannelCore } from './remote-channel-core'
 import { createChannelLifecycle } from './remote-channel-lifecycle'
 import { NOTHING_IN_FLIGHT } from './remote-channel-in-flight'
 import { RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
-import type { RemoteDeltaChannel, RemoteDeltaChannelOptions } from './remote-delta-channel-types'
+import type {
+  RemoteDeltaChannel,
+  RemoteDeltaChannelOptions,
+  TerminalFrameChannel,
+} from './remote-delta-channel-types'
 
 export {
   RemotePublishRefused,
@@ -21,7 +25,9 @@ export type {
 export * from './remote-delta-channel-types'
 export type { RuntimeCheckpoint } from '@dltech/atlas-wire/web'
 
-export function createRemoteDeltaChannel(args: RemoteDeltaChannelOptions): RemoteDeltaChannel {
+export function createRemoteDeltaChannel(
+  args: RemoteDeltaChannelOptions,
+): RemoteDeltaChannel & TerminalFrameChannel {
   const core = createChannelCore(args)
   const { state, on, facts, upstream, checkpoints, inFlight, listeners } = core
   const lifecycle = createChannelLifecycle(core)
@@ -97,6 +103,8 @@ export function createRemoteDeltaChannel(args: RemoteDeltaChannelOptions): Remot
     onInterruptAck: (listener) => on.interruptAcks.add(listener),
     onRoster: (listener) => on.rosters.add(listener),
     onPrStates: (listener) => on.prStates.add(listener),
+    onTerminalOutput: (listener) => on.terminalOutputs.add(listener),
+    onTerminalExit: (listener) => on.terminalExits.add(listener),
     pendingEntries: () => state.heldPending,
     onPendingChanged: (listener) => on.pendingChanges.add(listener),
     onThreadRenamed: (listener) => on.threadRenames.add(listener),

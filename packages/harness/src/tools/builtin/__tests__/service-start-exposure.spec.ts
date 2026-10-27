@@ -58,6 +58,11 @@ describe('exposing a port from a service', () => {
     })
     expect(outcome.modelText).toContain('http://localhost:3000')
     expect(registry.list()).toHaveLength(1)
+    expect(registry.list()[0]?.exposure).toEqual({
+      containerPort: 3000,
+      hostPort: 3000,
+      url: 'http://localhost:3000',
+    })
   })
 
   it('asks for the name before the command, so a row is named while the command still streams', () => {

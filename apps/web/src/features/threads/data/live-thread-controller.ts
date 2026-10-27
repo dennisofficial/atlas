@@ -17,8 +17,13 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
-import { absorbInto, EMPTY_OUTPUTS, isStepSignal, settleInto } from './live-signals'
-import { IDLE_LIVE_THREAD, type LiveSend, type LiveThreadState } from './live-thread-view'
+import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
+import {
+  IDLE_LIVE_THREAD,
+  type LiveSend,
+  type LiveThreadState,
+  type ServeChannel,
+} from './live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
 
 export type LiveChannelOptions = Pick<
@@ -50,7 +55,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   const threadId = toThreadId(args.threadId)
   const signalTransport = createSignalChatTransport({ now: () => new Date() })
   let state: LiveThreadState = IDLE_LIVE_THREAD
-  let channel: RemoteDeltaChannel | null = null
+  let channel: ServeChannel | null = null
   let stopped = false
   let fellBack = false
   let everConnected = false
@@ -79,7 +84,14 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     channel?.close()
     signalTransport.dropAll()
     args.onReset?.()
-    update({ live: false, working: false, pending: [], reported: null, ...EMPTY_OUTPUTS })
+    update({
+      live: false,
+      working: false,
+      pending: [],
+      reported: null,
+      channel: null,
+      ...RELEASED_FIELDS,
+    })
   }
 
   const commit = (next: LiveThreadState) => {
@@ -199,7 +211,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       maxAttempts: 0,
     })
     channel = live
-    update({ pending: live.pendingEntries() })
+    update({ pending: live.pendingEntries(), channel: live })
     releases.push(
       live.onPendingChanged((entries) => update({ pending: entries })),
       live.subscribe({ threadId, listener: handleSignal(live) }),
@@ -271,7 +283,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     chooseModel,
     takeBackPending,
     stop: () => {
-      update({ ...EMPTY_OUTPUTS })
+      update({ channel: null, ...RELEASED_FIELDS })
       stopped = true
       signalTransport.dropAll()
       release()

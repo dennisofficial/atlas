@@ -48,6 +48,8 @@ export const sharedPortBindings = {
   AppInstallRecommendationSink: { runtime: 'shared', transport: null },
   UserLayerSyncPort: { runtime: 'shared', transport: null },
   MemoryPort: { runtime: 'shared', transport: null },
+  GitChangesPort: { runtime: 'shared', transport: null },
+  TerminalPort: { runtime: 'shared', transport: null },
 } satisfies Partial<ComposedPortBindings>
 
 /**

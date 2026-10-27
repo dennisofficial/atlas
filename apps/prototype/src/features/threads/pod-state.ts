@@ -1,7 +1,9 @@
 import type { ChangedFile } from '@dltech/atlas-ui/ai/changes-panel'
 import type { FileNode } from '@dltech/atlas-ui/ai/file-tree'
 
-import { ETerminalConnection, type UserTerminal } from './sandbox-terminal'
+import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
+
+import type { UserTerminal } from './sandbox-terminal'
 
 export enum EPodPhase {
   None = 'none',

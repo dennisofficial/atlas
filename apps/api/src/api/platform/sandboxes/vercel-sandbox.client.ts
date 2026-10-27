@@ -46,6 +46,30 @@ const stateOf = (status: string): ESandboxState => {
   return ESandboxState.Parked
 }
 
+export interface SandboxResourcesObservation {
+  vcpus?: number
+  memoryMb?: number
+  pendingVcpus?: number
+}
+
+const resourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
+  const configured = sandbox.vcpus
+  if (sandbox.status !== 'running') {
+    return {
+      ...(configured === undefined ? {} : { vcpus: configured }),
+      ...(sandbox.memory === undefined ? {} : { memoryMb: sandbox.memory }),
+    }
+  }
+  const session = sandbox.currentSession()
+  return {
+    vcpus: session.vcpus,
+    memoryMb: session.memory,
+    ...(configured === undefined || configured === session.vcpus
+      ? {}
+      : { pendingVcpus: configured }),
+  }
+}
+
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
@@ -108,6 +132,32 @@ export class VercelSandboxClient {
         )
       }
       return sandbox.domain(args.port)
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asBadGateway(failure)
+    }
+  }
+
+  async readResources(args: {
+    threadId: string
+    name: string
+  }): Promise<SandboxResourcesObservation> {
+    try {
+      return resourcesOf(await this.get({ ...args, resume: false }))
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asBadGateway(failure)
+    }
+  }
+
+  /** Vercel stores the new size on the sandbox; the running session keeps its own until the next resume. */
+  async updateResources(args: { threadId: string; name: string; vcpus: number }): Promise<void> {
+    try {
+      const sandbox = await this.get({ ...args, resume: false })
+      await sandbox.update(
+        { resources: { vcpus: args.vcpus } },
+        { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+      )
     } catch (failure) {
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asBadGateway(failure)

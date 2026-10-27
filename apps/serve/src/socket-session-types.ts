@@ -7,6 +7,7 @@ import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
 
+import type { SessionTools } from './session-tool-requests'
 import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
@@ -80,5 +81,6 @@ export type SessionHandlersArgs = {
   /** Re-pins the running loop's model for a set-thread-model op; absent in fakes. */
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
+  tools?: SessionTools | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
 }

@@ -1,6 +1,6 @@
 import type { ChannelSignal, StepSignal } from '@dltech/atlas-client/channel'
 import type { CallId, Event } from '@dltech/atlas-core'
-import type { WireEvent } from '@dltech/atlas-wire/web'
+import type { OperatorInputRequestWire, WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from './events-from-wire'
 
@@ -38,13 +38,22 @@ export function pruneOutputs(args: { state: OutputState; events: readonly Event[
   return kept.length === state.outputs.size ? state : { outputs: new Map(kept) }
 }
 
-export type LiveOutputFields = OutputState & { events: WireEvent[] }
+export const RELEASED_FIELDS: OutputState & { operatorInput: null } = {
+  ...EMPTY_OUTPUTS,
+  operatorInput: null,
+}
+
+export type LiveOutputFields = OutputState & {
+  events: WireEvent[]
+  operatorInput: OperatorInputRequestWire | null
+}
 
 export function absorbInto<State extends LiveOutputFields>(args: {
   state: State
   signal: ChannelSignal
 }): State {
   const { state, signal } = args
+  if (signal.type === 'operator-input') return { ...state, operatorInput: signal.request }
   const absorbed = absorbOutput({ state, signal })
   return absorbed === state ? state : { ...state, outputs: absorbed.outputs }
 }

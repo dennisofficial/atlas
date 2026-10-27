@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { IDLE_LIVE_THREAD, type LiveThreadView } from '../live-thread-view'
+import { IDLE_LIVE_THREAD, type LiveThreadView, type ServeChannel } from '../live-thread-view'
 import { pollingEnabledFor, threadSourceOf } from '../thread-source'
 
 const event = (seq: number): WireEvent => ({
@@ -45,6 +45,20 @@ describe('threadSourceOf', () => {
   })
 })
 
+describe('threadSourceOf channel', () => {
+  const channel = {} as ServeChannel
+
+  it('carries the live channel while streaming', () => {
+    const source = threadSourceOf({ live: liveView({ live: true, channel }), polled })
+    expect(source.channel).toBe(channel)
+  })
+
+  it('has no channel while polling', () => {
+    const source = threadSourceOf({ live: liveView({ channel }), polled })
+    expect(source.channel).toBeNull()
+  })
+})
+
 describe('pollingEnabledFor', () => {
   it('polls until the stream is live, stops while live, and resumes after a fallback', () => {
     const states = [
@@ -53,5 +67,24 @@ describe('pollingEnabledFor', () => {
       liveView({ live: false, working: false }),
     ]
     expect(states.map((live) => pollingEnabledFor(live))).toEqual([true, false, true])
+  })
+})
+
+describe('threadSourceOf operator input', () => {
+  const request = { requestId: 'opin_1', description: 'Paste the code', path: '/tmp/code' }
+
+  it('surfaces the pending request while live', () => {
+    const source = threadSourceOf({
+      live: liveView({ live: true, operatorInput: request }),
+      polled,
+    })
+    expect(source.operatorInput).toBe(request)
+    expect(source.waitingOnOperator).toBe(true)
+  })
+
+  it('is not waiting without a request or while polling', () => {
+    expect(threadSourceOf({ live: liveView({ live: true }), polled }).waitingOnOperator).toBe(false)
+    const polling = threadSourceOf({ live: liveView({ operatorInput: request }), polled })
+    expect(polling).toMatchObject({ operatorInput: null, waitingOnOperator: false })
   })
 })
