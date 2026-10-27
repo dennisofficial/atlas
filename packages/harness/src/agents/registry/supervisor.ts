@@ -1,10 +1,8 @@
 import {
   EKilledBy,
   type EReportKind,
-  NoopExecutionLocationSink,
   type EExecutionLocation,
   type EventLogPort,
-  type ExecutionLocationSinkPort,
   type IdPort,
   type SaidImage,
   type ThreadId,
@@ -12,20 +10,20 @@ import {
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentType } from '../types'
-import { ChildSteps } from './child-steps'
+import type { ChildSteps } from './child-steps'
 import type { SupervisorDeps } from './deps'
 import { snapshotOf, type ChildState } from './child-state'
-import { NoticeDelivery, type NoticeDrain } from './delivery'
-import { AgentJournal } from './agent-journal'
-import { AgentNoticeQueue } from './notices'
-import { NoticeWake } from './notice-wake'
+import type { NoticeDelivery, NoticeDrain } from './delivery'
+import type { AgentJournal } from './agent-journal'
+import type { AgentNoticeQueue } from './notices'
+import type { NoticeWake } from './notice-wake'
 import { followAgentModels } from './model-follow'
 import { forgetRemovedChildren } from './remove-children'
 import { AgentRegistryPort, type AgentOutcome, type RelocateChildrenArgs } from './port'
-import { ChildRecovery } from './recovery'
+import { pauseThreadChildren } from './pause-thread-children'
+import type { ChildRecovery } from './recovery'
 import {
   markThreadChildrenRelocated,
-  pauseThreadChildren,
   relocateThreadChildren,
   resumeChild,
   stopThreadChildren,
@@ -33,22 +31,22 @@ import {
 } from './relocate-children'
 import { unknownAgent } from './reasons'
 import { reportToParent, say } from './say'
-import { AgentRoster } from './roster'
-import { ChildSpawner } from './spawn-child'
+import type { AgentRoster } from './roster'
+import type { ChildSpawner } from './spawn-child'
 import type { AgentSnapshot, RecoveredAgents } from './snapshot'
 import { stopAllChildren, stopChild } from './stop-all'
+import { wireSupervisor } from './supervisor-wiring'
 
 export class AgentSupervisor extends AgentRegistryPort {
   private readonly log: EventLogPort
   private readonly ids: IdPort
   private readonly agentTypes: readonly AgentType[]
   private readonly roster: AgentRoster
-  private readonly notices = new AgentNoticeQueue()
+  private readonly notices: AgentNoticeQueue
   private readonly journal: AgentJournal
   private readonly delivery: NoticeDelivery
   private readonly steps: ChildSteps
   private readonly recovery: ChildRecovery
-  private readonly sink: ExecutionLocationSinkPort
   private readonly deps: SupervisorDeps
   private readonly relocation: Relocation
   private readonly noticeWake: NoticeWake
@@ -60,63 +58,16 @@ export class AgentSupervisor extends AgentRegistryPort {
     this.log = args.log
     this.ids = args.ids
     this.agentTypes = args.agentTypes
-    this.sink = args.sink ?? new NoopExecutionLocationSink()
-    this.roster = new AgentRoster()
-    this.journal = new AgentJournal({ log: args.log, ids: args.ids })
-    this.steps = new ChildSteps({
-      runners: args.runners,
-      roster: this.roster,
-      notices: this.notices,
-      journal: this.journal,
-      clock: args.clock,
-      ...(args.telemetry === undefined ? {} : { telemetry: args.telemetry }),
-      ...(args.runningShell === undefined ? {} : { runningShell: args.runningShell }),
-      ...(args.endShells === undefined ? {} : { endShells: args.endShells }),
-      ...(args.leftServices === undefined ? {} : { leftServices: args.leftServices }),
-      ...(args.inheritOrphanedNotices === undefined
-        ? {}
-        : { inheritOrphanedNotices: args.inheritOrphanedNotices }),
-      ...(args.onChildEnded === undefined ? {} : { onEnded: args.onChildEnded }),
-    })
-    this.spawner = new ChildSpawner({
-      threads: args.threads,
-      log: args.log,
-      ids: args.ids,
-      clock: args.clock,
-      roster: this.roster,
-      steps: this.steps,
-      agentTypes: args.agentTypes,
-      sink: this.sink,
-      deps: args,
-    })
-    this.noticeWake = new NoticeWake({
-      roster: this.roster,
-      steps: this.steps,
-      agentTypes: args.agentTypes,
-      deps: args,
-    })
-    this.delivery = new NoticeDelivery({
-      notices: this.notices,
-      roster: this.roster,
-      clock: args.clock,
-    })
-    this.recovery = new ChildRecovery({
-      log: args.log,
-      threads: args.threads,
-      ids: args.ids,
-      clock: args.clock,
-      roster: this.roster,
-      notices: this.notices,
-      launchDirectory: args.launchDirectory,
-    })
-    this.relocation = {
-      deps: args,
-      sink: this.sink,
-      roster: this.roster,
-      steps: this.steps,
-      recovery: this.recovery,
-      delivery: this.delivery,
-    }
+    const parts = wireSupervisor(args)
+    this.roster = parts.roster
+    this.notices = parts.notices
+    this.journal = parts.journal
+    this.steps = parts.steps
+    this.spawner = parts.spawner
+    this.noticeWake = parts.noticeWake
+    this.delivery = parts.delivery
+    this.recovery = parts.recovery
+    this.relocation = parts.relocation
 
     followAgentModels({ threads: args.threads, roster: this.roster })
   }
