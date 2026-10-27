@@ -28,7 +28,8 @@ Open http://localhost:3100/proto. That is the entry point; the app also works st
   filter box narrows it.
 - **Centre**: the page in an iframe, so `h-svh`, `fixed` and `md:` breakpoints see the frame size.
   The top strip shows the URL (copy, open in a new tab), a dark/light toggle and a viewport menu
-  (Full, 1920×1080, 1440×900, 1280×800, 768×1024, 390×844, rotate, custom W×H). Fixed sizes are
+  (Full, then Chrome DevTools' responsive widths: 4K 2560, Laptop L 1440, Laptop 1024, Tablet 768,
+  Mobile L 425, Mobile M 375, Mobile S 320; rotate, custom W×H). Fixed sizes are
   scaled down to fit and never above 100%.
 - **Right**: the tweaks the current page declares, or "This page has no tweaks".
 

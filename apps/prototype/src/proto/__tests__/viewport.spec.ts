@@ -8,6 +8,7 @@ import {
   FULL_VIEWPORT,
   parseViewportParam,
   rotateViewport,
+  VIEWPORT_PRESETS,
 } from '../viewport-param'
 
 const fixed = (width: number, height: number) =>
@@ -77,6 +78,21 @@ describe('viewport param', () => {
   test('rotate swaps width and height, full is unchanged', () => {
     expect(rotateViewport(fixed(768, 1024))).toEqual(fixed(1024, 768))
     expect(rotateViewport(FULL_VIEWPORT)).toBe(FULL_VIEWPORT)
+  })
+
+  test('presets follow Chrome DevTools responsive widths, widest first', () => {
+    expect(VIEWPORT_PRESETS.map((preset) => preset.width)).toEqual([
+      2560, 1440, 1024, 768, 425, 375, 320,
+    ])
+    expect(VIEWPORT_PRESETS.map((preset) => preset.label)).toEqual([
+      '4K',
+      'Laptop L',
+      'Laptop',
+      'Tablet',
+      'Mobile L',
+      'Mobile M',
+      'Mobile S',
+    ])
   })
 
   test('describes size and zoom', () => {
