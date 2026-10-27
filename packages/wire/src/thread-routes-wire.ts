@@ -27,16 +27,22 @@ export const supervisedAgentSchema = z.object({
 })
 export type SupervisedAgentInput = z.infer<typeof supervisedAgentSchema>
 
-export const createThreadInputSchema = z.object({
-  title: z.string().optional(),
-  workspace: z.string().optional(),
-  repo: z.string().nullable().optional(),
-  projectId: z.string().min(1).optional(),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-  firstMessage: threadMessageRequestSchema.optional(),
-  agent: supervisedAgentSchema.optional(),
-})
+export const createThreadInputSchema = z
+  .object({
+    id: z.string().min(1).optional(),
+    title: z.string().optional(),
+    workspace: z.string().optional(),
+    repo: z.string().nullable().optional(),
+    projectId: z.string().min(1).optional(),
+    model: z.string().min(1).optional(),
+    effort: z.string().min(1).optional(),
+    firstMessage: threadMessageRequestSchema.optional(),
+    agent: supervisedAgentSchema.optional(),
+  })
+  .refine((input) => input.id === undefined || input.firstMessage !== undefined, {
+    message: 'id is only allowed together with firstMessage',
+    path: ['id'],
+  })
 export type CreateThreadInput = z.infer<typeof createThreadInputSchema>
 
 export const createThreadOutputSchema = z.union([wireThreadSchema, createThreadReplySchema])

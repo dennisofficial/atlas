@@ -31,7 +31,7 @@ const createColumnsOf = (args: {
 }) => {
   const { draft } = args
   return {
-    id: nextThreadId(),
+    id: draft.id ?? nextThreadId(),
     userId: args.userId,
     createdAt: new Date(),
     updatedAt: new Date(),
