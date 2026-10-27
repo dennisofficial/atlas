@@ -25,6 +25,7 @@ import {
   readBootSteps,
 } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
 import {
   failedAfterClaim,
@@ -58,6 +59,7 @@ export class ThreadPodService {
     private readonly vercel: VercelSandboxClient,
     private readonly sandboxes: SandboxesService,
     private readonly pod: PodLaunchService,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
@@ -86,6 +88,20 @@ export class ThreadPodService {
     await this.saveSize({ threadId, name: row.name, vcpus })
     if (standing === ESandboxProvisionState.Running) await this.restart({ thread, row })
     return { vcpus, appliesAt: EPodResizeApplies.Live }
+  }
+
+  async destroy(args: { userId: string; threadId: string }): Promise<void> {
+    const { userId, threadId } = args
+    await ownedThread({ reader: db, userId, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    if (row === null) return
+    await db.orm.public.CloudSandbox.where({ id: row.id }).updateAndCount({
+      wakeClaim: null,
+      updatedAt: new Date(),
+    })
+    await this.vercel.delete({ threadId, name: row.name })
+    await db.orm.public.CloudSandbox.where({ id: row.id }).delete()
+    await this.signals.podChanged({ threadId })
   }
 
   private async saveSize(args: { threadId: string; name: string; vcpus: number }): Promise<void> {

@@ -213,6 +213,10 @@ const appRouter = t.router({
     resize: publicProcedure
       .input(podResizeInputSchema)
       .output(podResizeReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    destroy: publicProcedure
+      .input(threadIdInputSchema)
+      .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   sandboxConfig: t.router({

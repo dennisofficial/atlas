@@ -11,6 +11,7 @@ import {
   type ThreadIdInput,
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ThreadPodService } from './thread-pod.service'
 
@@ -36,5 +37,10 @@ export class ThreadPodRouter {
       threadId: input.threadId,
       vcpus: input.vcpus,
     })
+  }
+
+  @Mutation({ input: threadIdInputSchema, output: z.void() })
+  destroy(@Input() input: ThreadIdInput, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
+    return this.pods.destroy({ userId: ctx.auth.userId, threadId: input.threadId })
   }
 }
