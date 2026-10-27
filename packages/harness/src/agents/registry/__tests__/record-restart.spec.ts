@@ -33,7 +33,7 @@ const spawnAndFinish = async (s: Awaited<ReturnType<typeof openSupervisor>>) => 
 }
 
 describe('recording a child restart in the parent log', () => {
-  it('records an agent_resume restart, so the log says the child left its ending', async () => {
+  it('records a resume restart, so the log says the child left its ending', async () => {
     const s = await openSupervisor()
     const spawned = await s.supervisor.spawn({
       threadId: s.parent,

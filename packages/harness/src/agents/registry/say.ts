@@ -19,13 +19,7 @@ import { agentTypeNamed, type SupervisorDeps } from './deps'
 import type { AgentJournal } from './agent-journal'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentOutcome } from './port'
-import {
-  NOT_A_TEAMMATE,
-  notYourTeammate,
-  reportNotRecorded,
-  retiredAgentType,
-  unknownAgent,
-} from './reasons'
+import { NOT_A_TEAMMATE, reportNotRecorded, retiredAgentType, unknownAgent } from './reasons'
 import { recordRestart } from './record-restart'
 import { childDirectory } from './relocate-children'
 import type { AgentRoster } from './roster'
@@ -90,7 +84,6 @@ async function deliverAdmitted({
       text: args.text,
       images: args.images,
       files: args.files,
-      ...(via === EMessageOrigin.PeerAgent ? { via } : {}),
     }
     child.pending.push(queued)
     return { ok: true, snapshot: snapshotOf(child) }
@@ -151,36 +144,6 @@ export async function say(args: SaidArgs & SayChannels): Promise<AgentOutcome> {
     known: unknownAgent({ agentId: args.agentId, known: args.roster.list(args.threadId) }),
     channels: args,
   })
-}
-
-export async function sayToPeer(args: SaidArgs & SayChannels): Promise<AgentOutcome> {
-  const { roster } = args
-  const caller = roster.find(args.threadId)
-  const target = roster.find(args.agentId)
-
-  if (caller === undefined || !isTeammateType(caller.agentType)) {
-    return { ok: false, reason: NOT_A_TEAMMATE }
-  }
-
-  const teammates = roster
-    .states()
-    .filter(
-      (child) =>
-        child.agentId !== caller.agentId &&
-        child.spawnedBy === caller.spawnedBy &&
-        isTeammateType(child.agentType),
-    )
-  const known = notYourTeammate({ agentId: args.agentId, known: teammates.map(snapshotOf) })
-
-  if (
-    target === undefined ||
-    !isTeammateType(target.agentType) ||
-    target.spawnedBy !== caller.spawnedBy
-  ) {
-    return { ok: false, reason: known }
-  }
-
-  return deliver({ args, via: EMessageOrigin.PeerAgent, child: target, known, channels: args })
 }
 
 export async function reportToParent(

@@ -1,7 +1,6 @@
 import {
   agentDisplayName,
   agentEnding,
-  countedNoun,
   EAgentRestart,
   EAgentStatus,
   EReportKind,
@@ -47,16 +46,6 @@ export const agentReportedLine = (report: { agentType: string; intent: string })
 
 export const agentEndingFailed = (ending: { status: EAgentStatus }): boolean =>
   NEEDS_ATTENTION[ending.status]
-
-export const agentQuietLine = (
-  ending: AgentEndingRow & { waitingOn?: string | undefined },
-): string => {
-  const who = `${isTeammateType(ending.agentType) ? 'Teammate' : 'Sub-agent'} ${agentDisplayName(ending)}`
-  const waiting = ending.waitingOn === undefined ? [] : [`waiting on ${ending.waitingOn}`]
-  return [`${who} paused`, ...waiting, countedNoun({ count: ending.turns, noun: 'turn' })].join(
-    ' · ',
-  )
-}
 
 const REPORT_VERB: Record<EReportKind, string> = {
   [EReportKind.Done]: 'reported done',

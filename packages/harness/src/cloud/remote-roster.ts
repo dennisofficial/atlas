@@ -101,6 +101,7 @@ export const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapsh
   ...(wire.deliveredAt === undefined ? {} : { deliveredAt: wire.deliveredAt }),
   ...(wire.context === undefined ? {} : { context: wire.context }),
   ...(wire.model === undefined ? {} : { model: wire.model }),
+  ...(wire.waitingOn === undefined ? {} : { waitingOn: wire.waitingOn }),
 })
 
 export const rosterAgents = (args: {

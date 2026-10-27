@@ -10,7 +10,7 @@ function viaPhrase(via: EAgentRestart): string {
   if (via === EAgentRestart.Message) return 'a message you sent it'
   if (via === EAgentRestart.Wake) return 'a queued notice that woke it'
   if (via === EAgentRestart.Relocation) return 'the conversation moving where it runs'
-  return 'your agent_resume call'
+  return 'an explicit resume'
 }
 
 export function agentRestartedBlock(event: EventOfType<'agent-restarted'>): string {

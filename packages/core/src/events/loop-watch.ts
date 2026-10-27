@@ -61,10 +61,7 @@ const lineOf = (event: Event): string | undefined => {
     return `harness: ${clip(event.text, RESULT_CLIP)}`
   }
   if (event.type === 'agent-ended') {
-    if (event.relayed === false) {
-      const waiting = event.waitingOn === undefined ? '' : ` (waiting on ${event.waitingOn})`
-      return `sub-agent "${clip(event.intent, 120)}" paused${waiting}`
-    }
+    if (event.relayed === false) return undefined
     return `sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
   }
   if (event.type === 'agent-reported') {

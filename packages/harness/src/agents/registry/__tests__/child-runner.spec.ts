@@ -261,14 +261,7 @@ describe("a child's tools", () => {
       tools: [...AGENT_TOOL_NAMES.map(toolNamed), toolNamed('read')],
     })
 
-    expect(AGENT_TOOL_NAMES).toEqual([
-      'agent_spawn',
-      'agent_say',
-      'agent_resume',
-      'agent_list',
-      'agent_stop',
-      'teammate_message',
-    ])
+    expect(AGENT_TOOL_NAMES).toEqual(['agent_spawn', 'agent_say', 'agent_list', 'agent_stop'])
     expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual(['read'])
   })
 

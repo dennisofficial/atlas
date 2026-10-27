@@ -2,14 +2,14 @@ import { EAgentStatus, toRunId, toThreadId } from '@dltech/atlas-core'
 import { EKilledBy } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React, { act } from 'react'
+import { act } from 'react'
 
 import { frameSettled, frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { SIDEBAR_WIDTH } from '../../ui/theme'
 import { App } from '../app'
 import { until } from './app-fixture'
-import { FAKE_CONFIG, fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
+import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { fakeAgentSnapshot } from './fake-agents'
 
 await grammarsReady()
@@ -143,7 +143,7 @@ describe('viewing a sub-agent', () => {
 
       const after = setup.captureCharFrame()
       expect(after).toContain('the parent')
-      expect(after).toContain('SUB-AGENTS  1/1')
+      expect(after).toMatch(/AGENTS\s+1 running/)
       expect(after).toContain(CHILD_INTENT)
     } finally {
       await teardown(setup)
@@ -323,6 +323,14 @@ describe('viewing a sub-agent', () => {
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
       await frameSettled({ setup, within: 3000 })
+
+      const fold = sidebarRowOf(setup, '1 done')
+      expect(fold).toBeGreaterThan(-1)
+      const foldColumn = (setup.captureCharFrame().split('\n')[fold] ?? '').indexOf('1 done')
+      await act(async () => {
+        await setup.mockMouse.click(foldColumn, fold)
+      })
+      await setup.flush()
 
       await selectChild(setup)
 
@@ -652,7 +660,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const before = await frameShowing({ setup, text: CHILD_SAID })
       expect(before).toContain(CHILD_SAID)
-      expect(before).toContain('SUB-AGENTS  1/1')
+      expect(before).toMatch(/AGENTS\s+1 running/)
       expect(app.agents.stopped).toEqual([])
 
       setup.mockInput.pressEscape()
@@ -660,7 +668,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const armed = setup.captureCharFrame()
       expect(app.agents.stopped).toEqual([])
-      expect(armed).toContain('SUB-AGENTS  1/1')
+      expect(armed).toMatch(/AGENTS\s+1 running/)
 
       /**
        * Two escapes pressed without a pause reach OpenTUI's parser as `\x1b\x1b`, which it reads as
@@ -671,9 +679,8 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const after = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
+      const after = await frameShowing({ setup, text: 'stopped' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
-      expect(after).toContain('SUB-AGENTS  0/1')
       expect(after).toContain('stopped')
     } finally {
       await teardown(setup)
@@ -702,7 +709,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const still = setup.captureCharFrame()
       expect(app.agents.stopped).toEqual([])
-      expect(still).toContain('SUB-AGENTS  1/1')
+      expect(still).toMatch(/AGENTS\s+1 running/)
     } finally {
       await teardown(setup)
     }
@@ -725,7 +732,7 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const frame = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
+      const frame = await frameShowing({ setup, text: 'stopped' })
       expect(frame).toContain(CHILD_SAID)
       expect(frame).not.toContain(PARENT_SAID)
     } finally {
@@ -776,7 +783,7 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const stopped = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
+      const stopped = await frameShowing({ setup, text: 'stopped' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       expect(stopped).toContain(CHILD_SAID)
 

@@ -5,6 +5,8 @@ export {
   WORKTREE_TOOL_NAMES,
   AgentTypeSource,
   EAgentTypeRefusal,
+  ESpeech,
+  speechOf,
   isTeammateType,
   parseAgentType,
   type AgentType,

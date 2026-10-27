@@ -111,14 +111,6 @@ export type SteeringBatch = {
   release?: (() => void) | undefined
 }
 
-export const drainedSteering = (drain: () => readonly SteerMessage[]): SteeringBatch => {
-  const held = drain()
-  return {
-    peek: () => held,
-    acknowledge: () => undefined,
-  }
-}
-
 const peekSteering = (steering: () => SteeringBatch): (() => InputBatch) => {
   let held: SteeringBatch | undefined
   return () => {

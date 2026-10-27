@@ -1,7 +1,7 @@
 import { EAgentStatus, EKilledBy } from '@dltech/atlas-core'
 
 import type { AgentJournal } from './agent-journal'
-import { agentEndedDraft, quietEndedDraft, snapshotOf, type ChildState } from './child-state'
+import { agentEndedDraft, bookkeepingEndedDraft, snapshotOf, type ChildState } from './child-state'
 import type { AgentNoticeQueue, EAgentNotice } from './notices'
 import type { AgentRoster } from './roster'
 
@@ -15,17 +15,17 @@ export async function recordEnding({
   roster,
   child,
   kind,
-  waitingOn,
+  leftServices,
 }: {
   journal: AgentJournal
   notices: AgentNoticeQueue
   roster: AgentRoster
   child: ChildState
   kind: EAgentNotice | undefined
-  waitingOn?: string | undefined
+  leftServices: readonly string[]
 }): Promise<void> {
-  const draft =
-    waitingOn === undefined ? agentEndedDraft(child) : quietEndedDraft({ child, waitingOn })
+  const ended = kind === undefined ? bookkeepingEndedDraft(child) : agentEndedDraft(child)
+  const draft = leftServices.length === 0 ? ended : { ...ended, leftServices }
   const snapshot = snapshotOf(child)
   const generation = child.abort.signal
 

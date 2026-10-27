@@ -20,8 +20,8 @@ import {
 } from '../composition/execution-location-state'
 
 import { childRunnerSource, type ChildRunnerDepsSource } from '../agents/registry/child-runner'
-import { LiveWorkSources } from '../agents/registry/live-work-sources'
-import { ownLiveWork } from '../agents/registry/own-live-work'
+import { leftServicesOf } from '../agents/registry/left-services'
+import { endShellsOf, runningShellOf } from '../agents/registry/running-shell'
 import { AgentRegistryPort } from '../agents/registry/port'
 import { AgentSupervisor } from '../agents/registry/supervisor'
 import type { AgentType } from '../agents/types/agent-type'
@@ -76,7 +76,6 @@ import {
   ClientVersionToken,
   DeltaChannelToken,
   HookChainToken,
-  LiveWorkSourcesToken,
   LanguageModelToken,
   ModelCardSourceToken,
   SessionRegistryToken,
@@ -103,10 +102,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
   let live: AgentSupervisor | undefined
 
   container.register(AgentTypesToken, { useValue: embeddedAgentTypes() })
-
-  container.register(LiveWorkSourcesToken, {
-    useFactory: instanceCachingFactory(() => new LiveWorkSources()),
-  })
 
   container.register(registeredPortToken(ExecutionLocationSinkPort), {
     useClass: NoopExecutionLocationSink,
@@ -144,12 +139,21 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           if (!resolver.isRegistered(ChildRunnerDepsToken, true)) return undefined
           return resolver.resolve(ChildRunnerDepsToken)().intake
         },
-        liveWork: (threadId) =>
-          ownLiveWork({
+        runningShell: (threadId) =>
+          runningShellOf({
             threadId,
             shells: resolver.resolve(registeredPortToken(ShellRegistryPort)),
+          }),
+        endShells: ({ threadId, by }) =>
+          endShellsOf({
+            threadId,
+            by,
+            shells: resolver.resolve(registeredPortToken(ShellRegistryPort)),
+          }),
+        leftServices: (threadId) =>
+          leftServicesOf({
+            threadId,
             services: resolver.resolve(registeredPortToken(ServiceRegistryPort)),
-            sources: resolver.resolve(LiveWorkSourcesToken),
           }),
         inheritOrphanedNotices: ({ from, to }) => {
           resolver.resolve(registeredPortToken(ShellRegistryPort)).reassignNotices({ from, to })
@@ -163,9 +167,6 @@ function registerAgents({ container }: { container: DependencyContainer }): void
           }).catch(() => undefined)
         },
       })
-      const refreshWaiting = () => live?.refreshWaiting()
-      resolver.resolve(registeredPortToken(ShellRegistryPort)).subscribe(refreshWaiting)
-      resolver.resolve(registeredPortToken(ServiceRegistryPort)).subscribe(refreshWaiting)
       return live
     }),
   })

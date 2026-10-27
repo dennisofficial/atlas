@@ -1,5 +1,4 @@
 export { cloudOutageMessage, isCloudOutage } from './cloud-outage'
-export { ChildWake, type WakeSource, type WakeTarget } from './child-wake'
 export { MainWake, MAX_WAKE_ATTEMPTS } from './main-wake'
 export { composeHarness } from './compose'
 export { inProcessPortBindings, sharedPortBindings } from './port-bindings'

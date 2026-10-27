@@ -41,7 +41,7 @@ export function bindIntake<Command>(args: {
         const current = agents.listEverywhere().find((agent) => agent.agentId === threadId)
         return (
           current === undefined ||
-          current.status === EAgentStatus.Running ||
+          (current.status === EAgentStatus.Running && current.steppingSince !== undefined) ||
           current.killedBy !== undefined
         )
       },

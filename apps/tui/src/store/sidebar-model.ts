@@ -2,7 +2,6 @@ import { EExecutionLocation, EPlanStatus, type Event, type Grant } from '@dltech
 
 import {
   EShellStatus,
-  TEAMMATE_AGENT_TYPE,
   type BoundPort,
   type SandboxContainer,
   type SandboxLimits,
@@ -22,7 +21,6 @@ import {
   type SidebarSpend,
 } from './sidebar-spend'
 import { oneLineOf } from './sidebar-text'
-import type { ECrewStanding } from './crew-retirement'
 import type { SidebarSubagent } from './subagent-row'
 
 export enum ESidebarTaskState {
@@ -38,12 +36,6 @@ export type SidebarTask = {
   activeForm?: string | undefined
 }
 
-export type SidebarTeammate = {
-  id: string
-  name: string
-  activity: string | null
-}
-
 export type SidebarModel = {
   title: string | null
   turnCount: number
@@ -51,8 +43,6 @@ export type SidebarModel = {
   lastActivity: string | null
   todo?: readonly SidebarTask[]
   subagents?: readonly SidebarSubagent[]
-  crewStandings?: ReadonlyMap<string, ECrewStanding>
-  teammates?: readonly SidebarTeammate[]
   sections?: readonly SidebarSection[]
   classifier?: ClassifierFold
   grants?: readonly Grant[]
@@ -93,8 +83,6 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.lastActivity === right.lastActivity &&
   left.todo === right.todo &&
   left.subagents === right.subagents &&
-  left.crewStandings === right.crewStandings &&
-  left.teammates === right.teammates &&
   left.sections === right.sections &&
   left.classifier === right.classifier &&
   left.grants === right.grants
@@ -182,34 +170,13 @@ export function deriveSidebar(args: {
   })
 }
 
-/**
- * Every child stays in the model: nothing leaves the sidebar, so the rows arrive whole and the
- * standings ride beside them. The fold itself is the section's to compute — its expanded state is
- * the section's own, and routing a toggle through the composition layer would rebuild the model
- * for a purely visual choice.
- */
 export function withCrew(args: {
   model: SidebarModel
   subagents: readonly SidebarSubagent[]
-  standings?: ReadonlyMap<string, ECrewStanding>
 }): SidebarModel {
-  const { model, subagents, standings } = args
-  if (subagents.length === 0) return model
-  if (standings === undefined) return { ...model, subagents }
+  if (args.subagents.length === 0) return args.model
 
-  return { ...model, subagents, crewStandings: standings }
-}
-
-export type CrewTiers = {
-  teammates: readonly SidebarSubagent[]
-  subagents: readonly SidebarSubagent[]
-}
-
-export function crewTiersOf(subagents: readonly SidebarSubagent[]): CrewTiers {
-  return {
-    teammates: subagents.filter((subagent) => subagent.agentType === TEAMMATE_AGENT_TYPE),
-    subagents: subagents.filter((subagent) => subagent.agentType !== TEAMMATE_AGENT_TYPE),
-  }
+  return { ...args.model, subagents: args.subagents }
 }
 
 export function withSections(args: {

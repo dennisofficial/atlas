@@ -9,7 +9,7 @@ import { buildHarness, type AtlasHarness } from '../../../loop/build-harness'
 import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { InMemoryToolRegistry } from '../../../tools/registry'
-import { buildChildRunner, drainedSteering } from '../child-runner'
+import { buildChildRunner } from '../child-runner'
 import { agentTypeNamed } from './fixtures'
 
 const PROJECT_DIRECTORY = '/w'
@@ -63,7 +63,7 @@ async function childTurnWatched(): Promise<{
     observe: () => undefined,
     observeContext: () => undefined,
     observeModel: () => undefined,
-    steering: () => drainedSteering(() => []),
+    steering: () => ({ peek: () => [], acknowledge: () => undefined }),
     deps: {
       turn: {
         log: harness.log,

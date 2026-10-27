@@ -17,7 +17,7 @@ import { CloudSection } from './sidebar/cloud'
 import { ContainerSection } from './sidebar/container'
 import { ContextSection, type ContextSectionProps } from './sidebar/context'
 import { ContributedSections } from './sidebar/contributed'
-import { SubagentsSection, TeammatesSection } from './sidebar/crew'
+import { AgentsSection } from './sidebar/crew'
 import { GrantsSection } from './sidebar/grants'
 import { HeadSection } from './sidebar/head'
 import type { NamingState } from './naming-line'
@@ -114,6 +114,8 @@ function DerivedSidebar(props: {
   onOpenService?: (serviceId: string) => void
   context?: Omit<ContextSectionProps, 'cells'>
   onSelectSubagent?: (agentId: string) => void
+  crewExpanded?: boolean
+  onToggleCrew?: () => void
   onRevokeGrant?: (grantId: string) => void
   naming?: NamingState | null | undefined
   back?: { label: string; onBack: () => void } | undefined
@@ -191,13 +193,13 @@ function DerivedSidebar(props: {
               {...(props.onRevokeGrant === undefined ? {} : { onRevoke: props.onRevokeGrant })}
             />
             <TodoSection tasks={model.todo ?? []} cells={cells} />
-            <SubagentsSection
+            <AgentsSection
               subagents={model.subagents ?? []}
               cells={cells}
-              standings={model.crewStandings}
+              expanded={props.crewExpanded === true}
+              onToggle={props.onToggleCrew}
               {...(props.onSelectSubagent === undefined ? {} : { onOpen: props.onSelectSubagent })}
             />
-            <TeammatesSection teammates={model.teammates ?? []} cells={cells} />
             <ContributedSections
               sections={model.sections ?? []}
               place={ESidebarPlace.Panels}

@@ -6,12 +6,11 @@ import type { Event, EventOfType } from '../../events/envelope'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
-import { isQuietEnding, quietStatusLine, supersededQuietEndingIds } from './quiet-endings'
 
 const REPORTED_NOTHING = 'It reported nothing.'
 
 const NO_REPLY_CONTENT =
-  'It ended with no reply content: the provider dropped its final reply even after Atlas retried the request and nudged it, so Atlas ended the turn cleanly instead of failing the thread. There is no answer here to act on. Resume it to try again, or compensate for what it never delivered — do not read this as a quiet success.'
+  'It ended with no reply content: the provider dropped its final reply even after Atlas retried the request and nudged it, so Atlas ended the turn cleanly instead of failing the thread. There is no answer here to act on. Send it a message with agent_say to try again, or compensate for what it never delivered — do not read this as a quiet success.'
 
 const USER_STOPPED =
   'The user stopped this agent deliberately; you did not, and nothing went wrong with it. Do not spawn it again to finish what it was doing unless the user asks.'
@@ -21,6 +20,14 @@ const LOST_AGENT =
 
 const RELOCATED =
   'This agent was not stopped: the conversation moved where it runs, and the agent is resuming there. It will report again when it actually ends.'
+
+const RETRY = 'agent_say to it to retry: a message restarts it with its thread intact.'
+
+const retryAdvice = (event: Ending): readonly string[] =>
+  (event.status === EAgentStatus.Failed || event.status === EAgentStatus.Stopped) &&
+  event.killedBy !== EKilledBy.ContainerSwitch
+    ? [RETRY]
+    : []
 
 const failedCauseAdvice = (event: Ending): readonly string[] => {
   if (event.status !== EAgentStatus.Failed || event.failureCause === undefined) return []
@@ -46,55 +53,50 @@ function advice(event: Ending): readonly string[] {
   if (event.status === 'paused' || event.killedBy === EKilledBy.ContainerSwitch) {
     return [RELOCATED, ...noContentAdvice(event)]
   }
-  if (event.killedBy === EKilledBy.User) return [USER_STOPPED, ...noContentAdvice(event)]
-  if (event.killedBy === EKilledBy.Unrecorded) return [LOST_AGENT, ...noContentAdvice(event)]
-  return [...failedCauseAdvice(event), ...noContentAdvice(event)]
+  if (event.killedBy === EKilledBy.User) {
+    return [USER_STOPPED, ...retryAdvice(event), ...noContentAdvice(event)]
+  }
+  if (event.killedBy === EKilledBy.Unrecorded) {
+    return [LOST_AGENT, ...retryAdvice(event), ...noContentAdvice(event)]
+  }
+  return [...failedCauseAdvice(event), ...retryAdvice(event), ...noContentAdvice(event)]
 }
+
+const leftServicesAdvice = (event: Ending): readonly string[] =>
+  event.leftServices === undefined || event.leftServices.length === 0
+    ? []
+    : [
+        `It left ${countedNoun({ count: event.leftServices.length, noun: 'service' })} running, which you own now: ${event.leftServices.join('; ')}. Stop ${event.leftServices.length === 1 ? 'it' : 'them'} with service_stop when no longer needed.`,
+      ]
 
 function sectionOf(event: Ending): string {
   const headline = `Agent ${event.agentId} ${agentLabel(event)} ${agentEnding(event)}.`
-  return [headline, ...advice(event), reportOf(event)].join('\n\n')
+  return [headline, ...advice(event), ...leftServicesAdvice(event), reportOf(event)].join('\n\n')
 }
 
 export function agentEndingsText({ endings }: { endings: readonly Ending[] }): string {
-  const relayed = endings.filter((ending) => !isQuietEnding(ending))
-  const quiet = endings.filter(isQuietEnding)
-
-  if (relayed.length === 0) {
-    const roster = `${countedNoun({ count: quiet.length, noun: 'agent' })} you spawned ${quiet.length === 1 ? 'is' : 'are'} still working. Status update only: nothing ended.`
-    return systemNotice({
-      kind: 'agents-status',
-      content: [roster, ...quiet.map(quietStatusLine)].join('\n\n'),
-    })
-  }
-
-  const roster = `${countedNoun({ count: relayed.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
+  const roster = `${countedNoun({ count: endings.length, noun: 'agent' })} you spawned ended. ${NOT_YOUR_HISTORY}`
 
   return systemNotice({
     kind: 'agents-ended',
-    content: [roster, ...relayed.map(sectionOf), ...quiet.map(quietStatusLine)].join('\n\n'),
+    content: [roster, ...endings.map(sectionOf)].join('\n\n'),
   })
 }
 
-const carriesEnding = (event: Event): event is Ending => event.type === 'agent-ended'
+const carriesEnding = (event: Event): event is Ending =>
+  event.type === 'agent-ended' && event.relayed !== false
 
-function waves({
-  events,
-  superseded,
-}: {
-  events: readonly Event[]
-  superseded: ReadonlySet<string>
-}): readonly (readonly Ending[])[] {
+function waves({ events }: { events: readonly Event[] }): readonly (readonly Ending[])[] {
   const grouped: Ending[][] = []
   let open: Ending[] | undefined
 
   for (const event of events) {
+    if (event.type === 'agent-ended' && event.relayed === false) continue
+
     if (!carriesEnding(event)) {
       open = undefined
       continue
     }
-
-    if (superseded.has(event.id)) continue
 
     if (open === undefined) {
       open = [event]
@@ -171,10 +173,7 @@ export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const grouped = waves({
-        events: ctx.events,
-        superseded: supersededQuietEndingIds({ events: ctx.events }),
-      })
+      const grouped = waves({ events: ctx.events })
       if (grouped.length === 0) return input
 
       const blocks = grouped.flatMap((endings) => blockFor({ endings }))

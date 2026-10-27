@@ -40,12 +40,10 @@ import { ThreadStorePort } from '../store/thread-store'
 import { CompositeToolRegistry } from './composite-registry'
 import { AgentRegistrySourceToken, AgentTypesToken } from './builtin/agent-tokens'
 import { AgentListTool } from './builtin/agent-list'
-import { AgentResumeTool } from './builtin/agent-resume'
 import { AgentSayTool } from './builtin/agent-say'
 import { AgentSpawnTool } from './builtin/agent-spawn'
 import { AgentStopTool } from './builtin/agent-stop'
 import { ReportToMainTool } from './builtin/report-to-main'
-import { TeammateMessageTool } from './builtin/teammate-message'
 import { BashTool } from './builtin/bash'
 import { EditTool } from './builtin/edit'
 import { EnterWorktreeTool } from './builtin/enter-worktree'
@@ -196,16 +194,10 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
     useFactory: (resolver) => new AgentSayTool(agentRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new AgentResumeTool(agentRegistry(resolver)),
-  })
-  container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new AgentListTool(agentRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new AgentStopTool(agentRegistry(resolver)),
-  })
-  container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new TeammateMessageTool(agentRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ReportToMainTool(agentRegistry(resolver)),

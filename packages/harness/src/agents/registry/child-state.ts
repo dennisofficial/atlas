@@ -32,6 +32,7 @@ export type ChildState = {
   steppingSince: string | undefined
   endedAt: string | undefined
   deliveredAt: string | undefined
+  waitingOn: string | undefined
   abort: AbortController
   pause: PauseSignal
   pending: SteerMessage[]
@@ -52,7 +53,13 @@ export const LAST_TEXT_TAIL_CHARACTERS = 4_000
 export const boundedTail = (text: string): string =>
   text.length <= LAST_TEXT_TAIL_CHARACTERS ? text : text.slice(-LAST_TEXT_TAIL_CHARACTERS)
 
-export const isStepping = (child: ChildState): boolean => child.status === EAgentStatus.Running
+export const isRunning = (child: ChildState): boolean => child.status === EAgentStatus.Running
+
+export const isStepping = (child: ChildState): boolean =>
+  isRunning(child) && child.steppingSince !== undefined
+
+export const isHeld = (child: ChildState): boolean =>
+  isRunning(child) && child.steppingSince === undefined
 
 export function freshChild({
   agentId,
@@ -86,6 +93,7 @@ export function freshChild({
     steppingSince: undefined,
     endedAt: undefined,
     deliveredAt: undefined,
+    waitingOn: undefined,
     abort: new AbortController(),
     pause: new PauseSignal(),
     pending: [],
@@ -121,6 +129,7 @@ export function recoveredChild({
     steppingSince: undefined,
     endedAt: agent.endedAt,
     deliveredAt: undefined,
+    waitingOn: undefined,
     abort: new AbortController(),
     pause: new PauseSignal(),
     pending: [],
@@ -151,6 +160,7 @@ export function reviseFromTransfer({
   child.steppingSince = undefined
   child.endedAt = agent.endedAt
   child.deliveredAt = undefined
+  child.waitingOn = undefined
   child.abort = new AbortController()
   child.pause = new PauseSignal()
   child.context = undefined
@@ -174,27 +184,12 @@ export function snapshotOf(child: ChildState): AgentSnapshot {
     deliveredAt: child.deliveredAt,
     context: child.context,
     model: child.model,
+    ...(child.waitingOn === undefined ? {} : { waitingOn: child.waitingOn }),
   }
 }
 
-export function withWaitingOn({
-  snapshot,
-  waitingOn,
-}: {
-  snapshot: AgentSnapshot
-  waitingOn: string | undefined
-}): AgentSnapshot {
-  return waitingOn === undefined ? snapshot : { ...snapshot, waitingOn }
-}
-
-export function quietEndedDraft({
-  child,
-  waitingOn,
-}: {
-  child: ChildState
-  waitingOn: string
-}): EventDraft {
-  return { ...agentEndedDraft(child), relayed: false, waitingOn }
+export function bookkeepingEndedDraft(child: ChildState): EventDraft {
+  return { ...agentEndedDraft(child), relayed: false }
 }
 
 export function agentEndedDraft(child: ChildState): EventDraft & { type: 'agent-ended' } {

@@ -42,14 +42,12 @@ export class AgentSayTool extends SchemaTool<typeof inputSchema> {
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const agentId = toThreadId(input.agentId)
     const registry = this.agents()
-    const before = registry
-      .list({ threadId })
-      .find((snapshot) => snapshot.agentId === agentId)?.status
+    const before = registry.list({ threadId }).find((snapshot) => snapshot.agentId === agentId)
 
     const outcome = await registry.say({ agentId, threadId, text: input.text })
     if (!outcome.ok) return outcome
 
-    const queued = before === EAgentStatus.Running
+    const queued = before?.status === EAgentStatus.Running && before.steppingSince !== undefined
 
     return {
       ok: true,

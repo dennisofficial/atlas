@@ -205,8 +205,8 @@ Local TUI and serve drivers register with this intake and announce transitions b
 scheduler rechecks all pending sources on those transitions, not only when a notice first arrives.
 Child roster changes trigger the same recheck, so a child's late shell notice cannot strand itself
 behind that child's final drain. Asynchronous wakes are reserved per thread, with a bounded retry
-for a turn that fails before its first drain. Quiet teammate endings are durable bookkeeping but
-never wake a parent; explicit teammate reports use the normal speech path.
+for a turn that fails before its first drain. A teammate's `Finished` ending is durable bookkeeping
+and never wakes a parent; explicit teammate reports use the normal speech path.
 
 A model request that fails yields back to intake before another attempt. The next attempt drains,
 re-reads, and reassembles the durable log with the same context and exchange checks as an ordinary
@@ -216,7 +216,7 @@ component with a pending variant. Committed does not mean the provider has succe
 
 Recovery settles unresolved work from earlier boots, never a current-boot job or one whose live
 registry still holds its ending. Concurrent recovery joins one per-thread reconciliation, and a
-failed reconciliation is retryable. Teardown flushes quiet bookkeeping as well as speech through
+failed reconciliation is retryable. Teardown flushes bookkeeping as well as speech through
 prepare/acknowledge; lifecycle settlement remains distinct from a fresh message to the model.
 
 ## Background shells
@@ -440,19 +440,38 @@ workspace, the write access — is identical.
 ### The speech model
 
 **How a child's speech reaches its parent is a property of the agent type, declared once and read
-everywhere — never a branch on the type's name.** `ESpeechModel` (core/agents/kind) has two
-members. `ReportOnEnd` — every built-in type but one: the ending *is* the report, so the notice
-wakes the parent, `agentEndingsBlock` renders it to the model as `<agents-ended>`, it counts as
-turn-taking, and the transcript shows the ending line. `DeliberateReport` — `teammate`: the child
-is a peer session whose turns end for reasons of its own, so it speaks only by calling
-`report_to_main` (which lands as `agent-reported` and renders as `<teammate-reported>`). Its
+everywhere — never a branch on the type's name.** `AgentType.speaks` (harness/agents/types) is an
+`ESpeech`. `OnEnd` — the default, every built-in type but one: the ending *is* the report, so the
+notice wakes the parent, `agentEndingsBlock` renders it to the model as `<agents-ended>`, it counts
+as turn-taking, and the transcript shows the ending line. `ByReport` — `teammate`: the child is a
+peer session whose turns end for reasons of its own, so it speaks only by calling `report_to_main`
+(which lands as `agent-reported` and renders as `<teammate-reported>`). Its `Finished`
 `agent-ended` is still written to the parent's log — roster rebuild, rewind survival, and the
-compaction cut-set all read it there — but it is bookkeeping: it never wakes the thread, never
-renders to the model, and never counts as turn-taking.
+compaction cut-set all read it there — but it is bookkeeping, recorded as `relayed: false`: it never
+wakes the thread, never renders to the model, and never counts as turn-taking. A teammate that
+`Failed` or is `Stopped` speaks like any other child, so a crashed teammate is never silent.
+Because the event alone must say whether it renders, `relayed: false` rides on the `agent-ended`
+body instead of assembly looking the type up.
+
+**A sub-agent is held, not ended, while it owns a running background bash shell.** When an `OnEnd`
+child finishes a turn with a shell of its own still running, `ChildSteps` leaves it `Running` but
+idle (`steppingSince` cleared), sets `waitingOn` to `bash "<description or command>"`, writes no
+`agent-ended` and queues no notice. The shell's own ending notice wakes the child through intake
+and it steps again; the one `agent-ended` is written when a turn ends with no shell left. Nothing
+else holds a child: services outlive it by design (their notices move to the parent on settle) and
+CI belongs to the main agent. `agent_stop` on a held child, and session close, settle it as
+`Stopped`; a held child whose process died has a spawn and no ending, and rebuilds as `Stopped`.
+Teammates are never held. `waitingOn` crosses the wire on the roster snapshot.
+
+**Saying anything to a settled child restarts it.** There is no resume tool: `agent_say` is the
+retry, and the `<agents-ended>` section for a `Failed` or `Stopped` child says so. The registry's
+internal `resumeChild` remains because relocation restarts children through it. Teammates do not
+message each other; coordination goes through the main agent. `EMessageOrigin.PeerAgent` and
+`EAgentRestart.Resume` stay in the schema so old logs parse.
 
 **One projection decides, and the turn loop trusts it.** `isTurnTaking` (core/agents/kind) is the
 single function that says whether an event hands the turn to the assistant; `awaitsReply` and the
-loop's drain-continuation both read it, so a quiet ending cannot keep a turn stepping past the
+loop's drain-continuation both read it, so a bookkeeping ending cannot keep a turn stepping past the
 assistant's reply — which is the failure that motivated the seam: a drained bookkeeping event used
 to count as "something changed," and the next step assembled a prompt ending in the assistant's
 own speech, which `exchangeFaults` rightly refuses to send.
@@ -569,15 +588,14 @@ rows carry the child's `threadId` — and it must stay that way. What the parent
 `agent-spawned` row, live counts on it, and one `agent-ended` carrying the child's final prose.
 
 **The same rule has a second door, and `agentEndingsBlock` is what shuts it.** Twenty children
-finishing is twenty `agent-ended` rows each carrying prose, and rendering all of them verbatim is
-the context blowup arriving from the other side. So the rule groups *contiguous* endings into a
-wave and renders one `<agents-ended>` block per wave, spending **one shared prose budget** across
-it: endings are allotted shortest-first, each taking at most an equal share of what is left, so a
-short report is never clipped and the remainder concentrates on the long ones. A clipped report
-says how many characters went and why. The headline states the count and then says the quiet part
-out loud — none of the children's own steps are in the parent's history and none are coming, so
-what is quoted here is all of it. Two endings carry an extra sentence of advice, because the status
-alone invites the wrong response: one the user stopped, and one that was lost.
+finishing is twenty `agent-ended` rows each carrying prose, so the rule groups *contiguous* endings
+into a wave and renders one `<agents-ended>` block per wave. The headline states the count and then
+says the quiet part out loud — none of the children's own steps are in the parent's history and
+none are coming, so what is quoted here is all of it. Some endings carry an extra sentence of
+advice, because the status alone invites the wrong response: one the user stopped, one that was
+lost, one that failed on a named error, and any `Failed` or `Stopped` child, which is told to
+`agent_say` to it to retry. Bookkeeping endings (`relayed: false`, including those older logs wrote
+for a child that still held live work) are not rendered at all.
 
 **A wave is spliced in at its anchor, not appended after the conversation.** `mergeBySeq` places
 each block at the seq of the last ending it collapses, so the report sits where it happened,
@@ -715,9 +733,8 @@ if it bites is the event-log read path, not a pool.
 declares itself concurrency-safe, so a model that emits five spawn calls in one step genuinely fans
 out through `Promise.all`. One agent per call is deliberate: a wave form let a model split one
 completion's output budget across several briefs, and dual-form schemas (flat fields or an `agents`
-array) made models trained on all-properties-required schemas fill in both and fail. `agent_say` steers. `agent_resume` re-runs a child that died on a provider
-error, appending nothing. `agent_list` reports the caller's own children. `agent_stop` aborts one,
-which still delivers an ending. A child gets none of the five.
+array) made models trained on all-properties-required schemas fill in both and fail. `agent_say` steers a running child and restarts a settled one. `agent_list` reports the caller's
+own children. `agent_stop` aborts one, which still delivers an ending. A child gets none of the four.
 
 **`agent_stop` reports two different facts under two different names, and they must not be
 unified.** A child still stepping returns `stopRequestedBy` — a request whose outcome is
@@ -757,7 +774,7 @@ render or a `getSnapshot`. Nothing auto-resumes a recovered child. That is the o
 because one that died mid-`bash` may have left the tree changed.
 
 **A restart is recorded, because an unrecorded one rebuilds as the stale ending before it.**
-`agent_resume`, a message to a stopped child, a queued-notice wake, and a relocation each append
+A message to a settled child, a queued-notice wake, and a relocation each append
 one `agent-restarted` row to the parent's log before the child steps again. Without it, a process
 that dies mid-restart leaves the parent's log saying the child *ended* — and the rebuilt roster
 shows that stale ending with its old counts, which the sidebar and `agent_list` then report as
@@ -775,8 +792,8 @@ have carried less than that row does and would not have persisted in scrollback.
 **The unlogged case is different, and gets a veil panel on open.** A child thread that exists in
 the store while the parent's log holds no `agent-spawned` cannot be rendered as a transcript row,
 because the conversation holds no record to render. So `unloggedChildren` names and times them in
-a report-only panel with no affordance — deliberately no affordance, since `agent_say` and
-`agent_resume` would both answer `unknownAgent` for a child the parent never recorded.
+a report-only panel with no affordance — deliberately no affordance, since `agent_say`
+would answer `unknownAgent` for a child the parent never recorded.
 
 **Healing one by forging the missing row was considered and rejected.** `@@unique([threadId, seq])`
 means a reconstructed `agent-spawned` can only land at `head + 1`, where it would read as a spawn the

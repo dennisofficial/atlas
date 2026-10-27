@@ -18,9 +18,9 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Report to the main agent: the session that spawned you and stands between you and the developer.',
-  'Only teammates report this way, and this is the way you speak to the main agent.',
-  'Ending your turn while anything in your subtree is still live \u2014 a background shell, a service, pending CI on your pull request, a sub-agent \u2014 tells it nothing: that pause is bookkeeping, and silence between reports is normal. A failure always reaches it.',
-  'Ending with nothing live in your subtree relays your ending to the main agent \u2014 so a pause you mean to resume must leave a wake behind, and when you are done or blocked, report deliberately rather than relying on the relay: the report is your voice, the relay only says you stopped.',
+  'Only teammates report this way, and it is the only way the main agent hears you.',
+  'Ending your turn never tells it anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches it by itself.',
+  'So when you are done or blocked, report deliberately \u2014 the report is your voice, ending your turn is not.',
   'Every report carries a kind. done, blocked and needs-decision wake the main agent: the work is finished, you cannot proceed, or you need a decision only the developer can make. progress is recorded and shown to the developer but does not wake the main agent \u2014 it lands with the next real wake, so use it for status, never for something that needs action.',
   'Lead with the outcome and carry the whole of it \u2014 none of your steps are in its history, so what you write here is all it gets.',
   'It reaches the main agent whether or not it is mid-turn, and it is what the developer sees of you, so write it for both.',

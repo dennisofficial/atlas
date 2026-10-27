@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EKilledBy,
   type ClockPort,
   type EventDraft,
   type ProviderIdentity,
@@ -8,17 +9,19 @@ import {
 } from '@dltech/atlas-core'
 
 import { PauseSignal } from '../../loop/pause-signal'
-import { ETurnStatus, type TurnOutcome } from '../../loop/turn-outcome'
+import type { TurnOutcome } from '../../loop/turn-outcome'
 import type { TurnRunner } from '../../loop/turn-runner.port'
-import type { AgentType } from '../types'
+import { ESpeech, speechOf, type AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 import { ChildAdmissions } from './child-admissions'
 import type { InheritOrphanedNotices, IntakeChanged } from './deps'
-import { recordContext, recordProgress, type ChildState, type SteerMessage } from './child-state'
+import type { EndShells, LeftServicesProbe, RunningShellProbe } from './deps'
+import { isHeld, recordContext, recordProgress, type ChildState } from './child-state'
 import { AgentJournal } from './agent-journal'
 import { recordEnding } from './child-endings'
+import { steeringOf } from './child-steering'
 import { EAgentNotice, type AgentNoticeQueue } from './notices'
-import { statusOf } from './reasons'
+import { steppedStatus } from './stepped-status'
 import type { AgentRoster } from './roster'
 
 export type ChildStep = (args: {
@@ -35,7 +38,9 @@ export class ChildSteps {
   private readonly clock: ClockPort
   private readonly telemetry: TelemetryPort | undefined
   private readonly intake: IntakeChanged | undefined
-  private readonly waitingOn: (child: ChildState) => string | undefined
+  private readonly runningShell: RunningShellProbe
+  private readonly endShells: EndShells
+  private readonly leftServices: LeftServicesProbe
   private readonly inheritOrphanedNotices: InheritOrphanedNotices | undefined
   private readonly onEnded: ((threadId: ThreadId) => void) | undefined
   private readonly inFlight = new Map<ThreadId, Map<ThreadId, Promise<void>>>()
@@ -54,7 +59,9 @@ export class ChildSteps {
     clock: ClockPort
     telemetry?: TelemetryPort | undefined
     intake?: IntakeChanged | undefined
-    waitingOn?: ((child: ChildState) => string | undefined) | undefined
+    runningShell?: RunningShellProbe | undefined
+    endShells?: EndShells | undefined
+    leftServices?: LeftServicesProbe | undefined
     inheritOrphanedNotices?: InheritOrphanedNotices | undefined
     onEnded?: ((threadId: ThreadId) => void) | undefined
   }) {
@@ -65,7 +72,9 @@ export class ChildSteps {
     this.clock = args.clock
     this.telemetry = args.telemetry
     this.intake = args.intake
-    this.waitingOn = args.waitingOn ?? (() => undefined)
+    this.runningShell = args.runningShell ?? (() => undefined)
+    this.endShells = args.endShells ?? (() => Promise.resolve())
+    this.leftServices = args.leftServices ?? (() => [])
     this.inheritOrphanedNotices = args.inheritOrphanedNotices
     this.onEnded = args.onEnded
   }
@@ -85,17 +94,52 @@ export class ChildSteps {
     child.killedBy = undefined
     child.endedAt = undefined
     child.deliveredAt = undefined
+    child.waitingOn = undefined
     child.steppingSince = this.clock.now()
     this.roster.changed()
 
-    const settled = this.stepped({
+    const settled = steppedStatus({
       child,
-      agentType,
       step,
       signal: child.abort.signal,
       pause: child.pause,
-    }).then((status) => this.finish({ child, status }))
+      runnerFor: () => this.runnerFor({ child, agentType }),
+    }).then((status) => this.finish({ child, status, speech: speechOf(agentType) }))
 
+    this.track({ child, settled })
+  }
+
+  endHeld({ child, killedBy }: { child: ChildState; killedBy: EKilledBy }): void {
+    if (!isHeld(child) || child.killedBy !== undefined) return
+    child.killedBy = killedBy
+    this.track({
+      child,
+      settled: this.shellsEndedFor({ child, killedBy }).then(() =>
+        this.finish({ child, status: EAgentStatus.Stopped, speech: ESpeech.OnEnd }),
+      ),
+    })
+  }
+
+  private shellsEndedFor({
+    child,
+    killedBy,
+  }: {
+    child: ChildState
+    killedBy: EKilledBy
+  }): Promise<void> {
+    if (killedBy === EKilledBy.ContainerSwitch) return Promise.resolve()
+    return this.endShells({ threadId: child.agentId, by: killedBy })
+  }
+
+  pauseHeld({ child }: { child: ChildState }): void {
+    if (!isHeld(child)) return
+    this.track({
+      child,
+      settled: this.finish({ child, status: EAgentStatus.Paused, speech: ESpeech.OnEnd }),
+    })
+  }
+
+  private track({ child, settled }: { child: ChildState; settled: Promise<void> }): void {
     const forThread = this.inFlight.get(child.spawnedBy) ?? new Map<ThreadId, Promise<void>>()
     this.inFlight.set(child.spawnedBy, forThread)
     forThread.set(child.agentId, settled)
@@ -149,49 +193,33 @@ export class ChildSteps {
     )
   }
 
-  private async stepped({
-    child,
-    agentType,
-    step,
-    signal,
-    pause,
-  }: {
-    child: ChildState
-    agentType: AgentType
-    step: ChildStep
-    signal: AbortSignal
-    pause: PauseSignal
-  }): Promise<EAgentStatus> {
-    try {
-      let runner: TurnRunner
-      try {
-        const built = this.runnerFor({ child, agentType })
-        runner = built instanceof Promise ? await built : built
-      } catch (error) {
-        child.lastFullText = error instanceof Error ? error.message : String(error)
-        return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
-      }
-      if (signal.aborted) return EAgentStatus.Stopped
-      const outcome = await step({ runner, signal, pause })
-      if (outcome.status === ETurnStatus.Failed) child.failureCause = outcome.message
-      return statusOf(outcome)
-    } catch {
-      return signal.aborted ? EAgentStatus.Stopped : EAgentStatus.Failed
-    }
-  }
-
   private async finish({
     child,
     status,
+    speech,
   }: {
     child: ChildState
     status: EAgentStatus
+    speech: ESpeech
   }): Promise<void> {
     if (this.roster.find(child.agentId) === undefined) return
+
+    const shell =
+      speech === ESpeech.OnEnd && status === EAgentStatus.Finished
+        ? this.runningShell(child.agentId)
+        : undefined
+    if (shell !== undefined) {
+      child.steppingSince = undefined
+      child.waitingOn = shell
+      this.roster.changed()
+      this.intake?.changed()
+      return
+    }
 
     child.status = status
     child.endedAt = this.clock.now()
     child.steppingSince = undefined
+    child.waitingOn = undefined
     this.roster.changed()
 
     this.inheritOrphanedNotices?.({ from: child.agentId, to: child.spawnedBy })
@@ -203,17 +231,16 @@ export class ChildSteps {
       toolCalls: child.toolCalls,
     })
 
-    const waitingOn = this.waitingOn(child)
-    const relay = waitingOn === undefined
+    const bookkeeping = speech === ESpeech.ByReport && status === EAgentStatus.Finished
     await recordEnding({
       journal: this.journal,
       notices: this.notices,
       roster: this.roster,
       child,
-      kind: relay ? EAgentNotice.Ending : undefined,
-      waitingOn,
+      kind: bookkeeping ? undefined : EAgentNotice.Ending,
+      leftServices: this.leftServices(child.agentId),
     })
-    if (relay) this.onEnded?.(child.agentId)
+    if (!bookkeeping) this.onEnded?.(child.agentId)
 
     this.intake?.changed()
   }
@@ -257,23 +284,7 @@ export class ChildSteps {
       observe: (drafts) => this.record({ child, drafts }),
       observeContext: ({ tokens, window }) => this.measure({ child, tokens, window }),
       observeModel: (model) => this.noteModel({ child, model }),
-      steering: () => {
-        const held = child.pending
-        let captured: readonly SteerMessage[] | undefined
-        return {
-          peek: () => {
-            captured ??= [...held]
-            return captured
-          },
-          acknowledge: () => {
-            const taken = captured ?? []
-            if (taken.length > 0) held.splice(0, taken.length)
-          },
-          release: () => {
-            captured = undefined
-          },
-        }
-      },
+      steering: () => steeringOf(child),
     })
   }
 }

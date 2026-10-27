@@ -51,7 +51,6 @@ describe('the harness container graph', () => {
 
     expect(names).toEqual([
       'agent_list',
-      'agent_resume',
       'agent_say',
       'agent_spawn',
       'agent_stop',
@@ -78,7 +77,6 @@ describe('the harness container graph', () => {
       'skill',
       'skill_install',
       'task_write',
-      'teammate_message',
       'web_fetch',
       'web_search',
       'worktree_list',

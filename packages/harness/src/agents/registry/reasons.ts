@@ -59,18 +59,7 @@ export const TEAMMATE_FROM_MAIN_ONLY =
   'only the main session spawns teammates — end your turn asking for one, and the main agent will spawn it and hand you its id'
 
 export const NOT_A_TEAMMATE =
-  'that channel is how one teammate reaches another or reports to the main session; you are not a teammate, so message your own agents with agent_say or end your turn to reach the main agent'
-
-export function notYourTeammate({
-  agentId,
-  known,
-}: {
-  agentId: ThreadId
-  known: readonly AgentSnapshot[]
-}): string {
-  const ids = known.length === 0 ? 'none' : known.map((one) => one.agentId).join(', ')
-  return `${agentId} is not a teammate of yours; your teammates: ${ids}`
-}
+  'that channel is how a teammate reports to the main session; you are not a teammate, so message your own agents with agent_say or end your turn to reach the main agent'
 
 export const reportNotRecorded = (cause: string): string =>
   `your report was not delivered: the main agent's log refused it (${cause}); nothing was sent, so send it again`

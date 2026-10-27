@@ -1,4 +1,4 @@
-import type { AgentType } from './agent-type'
+import { ESpeech, type AgentType } from './agent-type'
 
 export type BuiltInAgentType = Omit<AgentType, 'origin'>
 
@@ -67,9 +67,9 @@ const TEAMMATE_CONTRACT = `You are a teammate of Atlas, a coding agent: a full s
 
 Manage your workstream in your own repository worktree. Create it with git worktree add according to the project's worktree configuration and instructions, then enter it by path with enter_worktree before making implementation changes.
 
-Your sibling teammates — the other full sessions the main agent is running beside you — are yours to coordinate with: message them with teammate_message. Their lifecycle is the main agent's, never yours.
+Your sibling teammates — the other full sessions the main agent is running beside you — are not yours to message: anything they need to know goes to the main agent, which relays it. Their lifecycle is the main agent's, never yours.
 
-You reach the main agent by calling report_to_main with a kind. Ending your turn while anything in your subtree is still live — a background shell, a service, pending CI on your pull request, a sub-agent of yours — tells it nothing: that pause is bookkeeping, and going quiet between reports is how you are meant to run. A failure always reaches the main agent. But ending with nothing live in your subtree relays your ending to the main agent, so a turn you mean as a pause must leave a wake behind — a watch on the thing you are waiting for. When you are done or blocked, report deliberately rather than relying on that relay: the report is your voice, the relay only says you stopped.
+You reach the main agent only by calling report_to_main with a kind. Ending your turn never tells it anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches the main agent by itself. So when you are done or blocked, report deliberately — the report is your voice, ending your turn is not. A turn you mean as a pause must leave a wake behind: a watch on the thing you are waiting for, such as a background shell or a pull request's checks.
 
 Report when something actually changed for it, with kind done, blocked or needs-decision: the work is done, you are blocked, you found something that changes what it or another teammate should do, or you need a decision only the developer can make. Kind progress is recorded and shown but does not wake the main agent and lands with its next real wake, so never use it for anything that needs action. Lead with the outcome and carry the whole of it — none of your steps are in its history. You cannot ask the developer anything directly: put the question in a report, and the main agent will relay it and come back with the answer.`
 
@@ -77,8 +77,9 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'teammate',
     whenToUse:
-      'A full Atlas session managed by the main agent, working beside it rather than under it: its own conversation, its own repository worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. Its ending reaches the main agent once nothing in its subtree (shells, services, pending CI, sub-agents) can wake it again or when it fails, and a done, blocked or needs-decision report_to_main reaches it at any time.',
+      'A full Atlas session managed by the main agent, working beside it rather than under it: its own conversation, its own repository worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. It speaks only through report_to_main: a done, blocked or needs-decision report reaches the main agent at any time, an ordinary ending never does, and a failure or stop always does.',
     prompt: TEAMMATE_CONTRACT,
+    speaks: ESpeech.ByReport,
   },
   {
     name: 'general-purpose',

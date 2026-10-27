@@ -1,11 +1,12 @@
 import type { SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 import { EKilledBy, TEAMMATE_AGENT_TYPE, type AgentSnapshot } from '@dltech/atlas-harness'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
-import { isSubagentAlive, subagentLabel } from '../store/subagent-row'
-import { EKeyGroup, EKeyLayer, useKeyBindings } from '../ui/keys'
+import { foldCrew } from '../store/crew-fold'
+import { isAgentLive, subagentLabel } from '../store/subagent-row'
 import { notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
+import { useAgentEscapeBinding, useStopArm } from './use-stop-arm'
 
 export type AgentView = {
   /** The thread whose crew the sidebar lists — the main thread, or the teammate being visited. */
@@ -25,8 +26,9 @@ export type AgentView = {
   stopArmed: boolean
   /** Cancel a pending stop confirmation; the caller runs this on any non-escape key. */
   disarmStop: () => void
-  /** The deepest agent being read, whose departure restarts its retirement clock. */
   inside: ThreadId | null
+  crewExpanded: boolean
+  handleToggleCrew: () => void
   handleSelect: (agentId: string) => void
   handleBack: () => void
   handleCycle: () => boolean
@@ -59,18 +61,9 @@ export function useAgentView(args: {
   const agents = app.agents
 
   const [state, setState] = useState<ViewState>(AT_MAIN)
-  const [stopArmed, setStopArmed] = useState(false)
-
-  /**
-   * The escape binding re-registers on its hint's change one render after the arm flips, so a fast
-   * second escape can still reach the handler that read the unarmed state. The ref is the answer
-   * the handler actually trusts — it is current the moment the state is set, before any effect.
-   */
-  const stopArmedRef = useRef(false)
-  const armStop = useCallback((armed: boolean) => {
-    stopArmedRef.current = armed
-    setStopArmed(armed)
-  }, [])
+  const { stopArmed, isArmed, armStop, disarmStop } = useStopArm()
+  const [crewExpanded, setCrewExpanded] = useState(false)
+  const handleToggleCrew = useCallback(() => setCrewExpanded((value) => !value), [])
 
   useEffect(() => setState(AT_MAIN), [threadId])
 
@@ -144,10 +137,16 @@ export function useAgentView(args: {
    * on a teammate steps into its scope, and the ring continues with that teammate's own crew.
    */
   const handleCycle = useCallback((): boolean => {
-    if (own.length === 0 && state.scope === null) return false
+    const ring = foldCrew({
+      rows: own,
+      expanded: crewExpanded,
+      viewing: state.viewing,
+      idOf: (one) => one.agentId,
+    }).visible
+    if (ring.length === 0 && state.scope === null) return false
 
-    const at = state.viewing === null ? -1 : own.findIndex((one) => one.agentId === state.viewing)
-    const next = own[at + 1]
+    const at = state.viewing === null ? -1 : ring.findIndex((one) => one.agentId === state.viewing)
+    const next = ring[at + 1]
 
     if (next === undefined) {
       move(state.viewing !== null ? { scope: state.scope, viewing: null } : AT_MAIN)
@@ -161,7 +160,7 @@ export function useAgentView(args: {
 
     move({ scope: state.scope, viewing: next.agentId })
     return true
-  }, [move, own, state])
+  }, [crewExpanded, move, own, state])
 
   const addressing = state.viewing ?? state.scope
 
@@ -205,7 +204,7 @@ export function useAgentView(args: {
     armStop(false)
   }, [agents, armStop, onProblem, scopeId, state.viewing])
 
-  const stoppable = selected !== null && isSubagentAlive(selected)
+  const stoppable = selected !== null && isAgentLive(selected)
 
   const name =
     selected !== null ? subagentLabel(selected) : scopedTo !== null ? subagentLabel(scopedTo) : null
@@ -227,14 +226,14 @@ export function useAgentView(args: {
       return
     }
 
-    if (!stopArmedRef.current) {
+    if (!isArmed()) {
       armStop(true)
       notify({ text: `esc again to stop ${name ?? 'this sub-agent'} — any other key cancels` })
       return
     }
 
     handleStop()
-  }, [armStop, handleStop, move, name, state, stoppable])
+  }, [armStop, handleStop, isArmed, move, name, state, stoppable])
 
   const inside = state.viewing ?? state.scope
 
@@ -245,36 +244,12 @@ export function useAgentView(args: {
         ? 'back to main agent'
         : null
 
-  /**
-   * The hint never changes: the registry re-binds on a hint's change one render after the arm
-   * flips, and a second escape landing in that gap would fall through to the global interrupt
-   * instead of stopping the child. A stable hint keeps the binding put; the arming is announced by
-   * the notice, not the hint.
-   */
-  const escapeHint =
-    state.viewing !== null && stoppable
-      ? `stop ${name ?? 'this sub-agent'}`
-      : backLabel !== null
-        ? backLabel
-        : 'back to the parent'
-
-  useKeyBindings(
-    inside === null
-      ? []
-      : [
-          {
-            chord: 'escape',
-            hint: escapeHint,
-            layer: EKeyLayer.Block,
-            group: EKeyGroup.Session,
-            run: handleEscape,
-          },
-        ],
-  )
-
-  const disarmStop = useCallback((): void => {
-    if (stopArmedRef.current) armStop(false)
-  }, [armStop])
+  useAgentEscapeBinding({
+    active: inside !== null,
+    stopHint: state.viewing !== null && stoppable ? `stop ${name ?? 'this sub-agent'}` : null,
+    backLabel,
+    run: handleEscape,
+  })
 
   return useMemo(
     () => ({
@@ -288,6 +263,8 @@ export function useAgentView(args: {
       stopArmed,
       disarmStop,
       inside,
+      crewExpanded,
+      handleToggleCrew,
       handleSelect,
       handleBack,
       handleCycle,
@@ -298,6 +275,7 @@ export function useAgentView(args: {
     [
       addressing,
       backLabel,
+      crewExpanded,
       disarmStop,
       handleBack,
       handleCycle,
@@ -305,6 +283,7 @@ export function useAgentView(args: {
       handleSay,
       handleSelect,
       handleStop,
+      handleToggleCrew,
       inside,
       name,
       scopeId,

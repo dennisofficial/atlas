@@ -14,10 +14,8 @@ export const AGENT_SPAWN_TOOL_NAME = 'agent_spawn'
 export const AGENT_TOOL_NAMES: readonly string[] = [
   AGENT_SPAWN_TOOL_NAME,
   'agent_say',
-  'agent_resume',
   'agent_list',
   'agent_stop',
-  'teammate_message',
 ]
 
 export const WORKTREE_TOOL_NAMES: readonly string[] = [
@@ -29,6 +27,11 @@ export const WORKTREE_TOOL_NAMES: readonly string[] = [
 const ALL_TOOLS = '*'
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
 
+export enum ESpeech {
+  OnEnd = 'on-end',
+  ByReport = 'by-report',
+}
+
 export type AgentType = {
   name: string
   whenToUse: string
@@ -37,9 +40,13 @@ export type AgentType = {
   disallowedTools?: readonly string[] | undefined
   model?: string | undefined
   maxEffect?: EToolEffect | undefined
+  speaks?: ESpeech | undefined
   origin: EDefinitionOrigin
   definedIn?: string | undefined
 }
+
+export const speechOf = (agentType: Pick<AgentType, 'speaks'>): ESpeech =>
+  agentType.speaks ?? ESpeech.OnEnd
 
 export enum EAgentTypeRefusal {
   Empty = 'empty',

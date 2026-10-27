@@ -16,7 +16,7 @@ import { createTempHome, type TempHome } from '../../../loop/__tests__/temp-home
 import type { TurnDeps } from '../../../loop/run-turn'
 import { scriptedModel } from '../../../model/testing/scripted-model'
 import { InMemoryToolRegistry } from '../../../tools/registry'
-import { buildChildRunner, drainedSteering } from '../child-runner'
+import { buildChildRunner } from '../child-runner'
 import { agentTypeNamed } from './fixtures'
 
 const PROJECT_DIRECTORY = '/w'
@@ -87,7 +87,10 @@ async function childTurn(args: {
     observe: () => undefined,
     observeContext: () => undefined,
     observeModel: () => undefined,
-    steering: () => drainedSteering(() => steering.splice(0)),
+    steering: () => {
+      const held = steering.splice(0)
+      return { peek: () => held, acknowledge: () => undefined }
+    },
     deps: {
       turn: parent,
       tools: new InMemoryToolRegistry([]),

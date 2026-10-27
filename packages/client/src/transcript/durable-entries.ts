@@ -14,7 +14,6 @@ import {
 } from './context-entries'
 import { inOneBreath, locationChangedEntry } from './entry-folds'
 import { noticeEntriesOf } from './notice-entries'
-import { quietEndingRuns } from './quiet-endings'
 import { createShellEndingFilter } from './shell-ending-filter'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
@@ -43,7 +42,6 @@ export function durableEntries(args: {
     isHidden: (id) => folded.has(id) || pinnedToCalls.has(id),
     current: currentContext,
   })
-  const quietEndings = quietEndingRuns(events)
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
@@ -90,7 +88,7 @@ export function durableEntries(args: {
       return run === undefined ? [] : [toolsRanEntry(run)]
     }
 
-    const notice = noticeEntriesOf({ event, quietEndings, shellFilter })
+    const notice = noticeEntriesOf({ event, shellFilter })
     if (notice !== null) return notice
 
     if (event.type === 'history-compacted') {
