@@ -10,7 +10,6 @@ import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { SIDEBAR_WIDTH } from '../../ui/theme'
 import { HEADING } from '../../ui/components/exit-guard'
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -130,67 +129,65 @@ describe('a sub-agent in the sidebar', () => {
           .split('\n')
           .find((line) => line.includes(CHILD_INTENT)) ?? ''
       expect(running).not.toContain('grep')
-      expect(running).toMatch(/\d+[ms]/)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('spends one line on the child, with no model and no token count', async () => {
-    const app = appWith()
-    app.agents.place({
-      ...child({ model: { id: 'anthropic', modelId: 'claude-sonnet-5' } }),
-      context: { tokens: 68_000, window: 200_000 },
-    })
-
-    const setup = await opened(app)
-
-    try {
-      const frame = setup.captureCharFrame()
-      expect(frame).not.toContain('sonnet-5')
-      expect(frame).not.toContain('68.0k')
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-
-  it('counts a running child and folds it once it ends, without a timer', async () => {
-    const app = appWith()
-    app.agents.place(child())
-    const setup = await opened(app)
-
-    try {
-      expect(setup.captureCharFrame()).toMatch(/AGENTS\s+1 running/)
 
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
 
       const frame = setup.captureCharFrame()
-      expect(frame).not.toContain('running')
-      expect(frame).toContain('✓ 1 done')
-      const sidebar = frame
-        .split('\n')
-        .map((line) => line.slice(WIDE.width - SIDEBAR_WIDTH))
-        .join('\n')
-      expect(sidebar).not.toContain(CHILD_INTENT)
+      const row = frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? ''
+      expect(row).not.toContain('done')
+      expect(row).not.toContain('calls')
     } finally {
       await teardown(setup)
     }
   }, 60_000)
 
-  it('shows a held child by what holds it', async () => {
+  it('names the model the child runs on a line under its own', async () => {
     const app = appWith()
-    app.agents.place({ ...child(), waitingOn: 'bash "bun test"' })
+    app.agents.place(child({ model: { id: 'anthropic', modelId: 'claude-sonnet-5' } }))
+
     const setup = await opened(app)
 
     try {
-      const line =
-        setup
-          .captureCharFrame()
-          .split('\n')
-          .find((one) => one.includes(CHILD_INTENT)) ?? ''
-      expect(line).toContain('◷')
-      expect(line).toContain('bash "bun test"')
+      expect(setup.captureCharFrame()).toContain('sonnet-5')
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('stops being live work the moment it ends, without a timer', async () => {
+    const app = appWith()
+    app.agents.place(child())
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).toContain('SUB-AGENTS  1/1')
+
+      act(() => app.agents.end({ agentId: CHILD }))
+      await setup.flush()
+
+      const frame = setup.captureCharFrame()
+      expect(frame).toContain('SUB-AGENTS  0/1')
+      expect(frame).toContain(`${CHILD_INTENT}`)
+      expect(frame.split('\n').find((line) => line.includes(CHILD_INTENT)) ?? '').not.toContain(
+        'done',
+      )
+    } finally {
+      await teardown(setup)
+    }
+  }, 60_000)
+
+  it('reads how full a child window is off the snapshot the registry already sends', async () => {
+    const app = appWith()
+    const setup = await opened(app)
+
+    try {
+      expect(setup.captureCharFrame()).not.toContain('68.0k')
+
+      act(() => app.agents.place({ ...child(), context: { tokens: 68_000, window: 200_000 } }))
+      await setup.flush()
+
+      expect(setup.captureCharFrame()).toContain('68.0k')
     } finally {
       await teardown(setup)
     }

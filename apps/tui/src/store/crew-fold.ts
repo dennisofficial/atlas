@@ -1,68 +1,43 @@
-import { EAgentStatus } from '@dltech/atlas-core'
-import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-harness'
+import { ECrewStanding } from './crew-retirement'
 
-type CrewRow = { status: EAgentStatus; agentType?: string | undefined }
+export const CREW_SETTLED_TAIL = 2
+
+export const CREW_FOLD_MIN = 2
 
 export type CrewFold<TRow> = {
-  teammates: readonly TRow[]
-  subagents: readonly TRow[]
-  folded: readonly TRow[]
-  visible: readonly TRow[]
-  done: number
-  failed: number
-  stopped: number
+  shown: readonly TRow[]
+  collapsed: readonly TRow[]
+  collapsedFailed: boolean
 }
 
-const SETTLED: ReadonlySet<EAgentStatus> = new Set([
-  EAgentStatus.Finished,
-  EAgentStatus.Failed,
-  EAgentStatus.Stopped,
-])
-
-const countOf = <TRow extends CrewRow>(rows: readonly TRow[], status: EAgentStatus): number =>
-  rows.filter((row) => row.status === status).length
-
-export function foldCrew<TRow extends CrewRow>(args: {
+/**
+ * Only a settled row may fold. A live row, and a held one — an unread result, an unacknowledged
+ * failure, a job or an open pull request something still depends on — always shows, so collapsing
+ * a tier can never be what loses the reading that mattered. The newest settled rows stay as a
+ * tail so a just-finished child is still seen finishing; `collapsed` keeps its count when
+ * expanded so the toggle line does not change its number under the cursor.
+ */
+export function foldCrew<TRow>(args: {
   rows: readonly TRow[]
+  standings: ReadonlyMap<string, ECrewStanding>
   expanded: boolean
-  viewing: string | null
-  idOf: (row: TRow) => string
+  keyOf: (row: TRow) => string
+  wentWrong: (row: TRow) => boolean
 }): CrewFold<TRow> {
-  const isTeammate = (row: TRow): boolean => row.agentType === TEAMMATE_AGENT_TYPE
-  const teammates = args.rows.filter(isTeammate)
-  const others = args.rows.filter((row) => !isTeammate(row))
+  const { rows, standings, keyOf } = args
 
-  const isFolded = (row: TRow): boolean =>
-    SETTLED.has(row.status) && args.idOf(row) !== args.viewing
-  const folded = others.filter(isFolded)
-  const subagents = others.filter((row) => !isFolded(row))
+  const isSettled = (row: TRow): boolean => standings.get(keyOf(row)) === ECrewStanding.Settled
+
+  const settled = rows.filter(isSettled)
+  const beyondTail = settled.length - CREW_SETTLED_TAIL
+  if (beyondTail < CREW_FOLD_MIN) return { shown: rows, collapsed: [], collapsedFailed: false }
+
+  const collapsed = settled.slice(0, beyondTail)
+  const collapsedKeys = new Set(collapsed.map(keyOf))
 
   return {
-    teammates,
-    subagents,
-    folded,
-    visible: [...teammates, ...subagents, ...(args.expanded ? folded : [])],
-    done: countOf(folded, EAgentStatus.Finished),
-    failed: countOf(folded, EAgentStatus.Failed),
-    stopped: countOf(folded, EAgentStatus.Stopped),
+    shown: args.expanded ? rows : rows.filter((row) => !collapsedKeys.has(keyOf(row))),
+    collapsed,
+    collapsedFailed: collapsed.some(args.wentWrong),
   }
-}
-
-export enum EFoldPart {
-  Done = 'done',
-  Failed = 'failed',
-  Stopped = 'stopped',
-}
-
-export type FoldPart = { part: EFoldPart; label: string }
-
-export function foldParts(
-  fold: Pick<CrewFold<unknown>, 'done' | 'failed' | 'stopped'>,
-): FoldPart[] {
-  const parts: FoldPart[] = [
-    { part: EFoldPart.Done, label: `${fold.done} done` },
-    { part: EFoldPart.Failed, label: `${fold.failed} failed` },
-    { part: EFoldPart.Stopped, label: `${fold.stopped} stopped` },
-  ]
-  return parts.filter((entry) => fold[entry.part] > 0)
 }

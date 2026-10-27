@@ -143,7 +143,7 @@ describe('viewing a sub-agent', () => {
 
       const after = setup.captureCharFrame()
       expect(after).toContain('the parent')
-      expect(after).toMatch(/AGENTS\s+1 running/)
+      expect(after).toContain('SUB-AGENTS  1/1')
       expect(after).toContain(CHILD_INTENT)
     } finally {
       await teardown(setup)
@@ -323,14 +323,6 @@ describe('viewing a sub-agent', () => {
       act(() => app.agents.end({ agentId: CHILD }))
       await setup.flush()
       await frameSettled({ setup, within: 3000 })
-
-      const fold = sidebarRowOf(setup, '1 done')
-      expect(fold).toBeGreaterThan(-1)
-      const foldColumn = (setup.captureCharFrame().split('\n')[fold] ?? '').indexOf('1 done')
-      await act(async () => {
-        await setup.mockMouse.click(foldColumn, fold)
-      })
-      await setup.flush()
 
       await selectChild(setup)
 
@@ -660,7 +652,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const before = await frameShowing({ setup, text: CHILD_SAID })
       expect(before).toContain(CHILD_SAID)
-      expect(before).toMatch(/AGENTS\s+1 running/)
+      expect(before).toContain('SUB-AGENTS  1/1')
       expect(app.agents.stopped).toEqual([])
 
       setup.mockInput.pressEscape()
@@ -668,7 +660,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const armed = setup.captureCharFrame()
       expect(app.agents.stopped).toEqual([])
-      expect(armed).toMatch(/AGENTS\s+1 running/)
+      expect(armed).toContain('SUB-AGENTS  1/1')
 
       /**
        * Two escapes pressed without a pause reach OpenTUI's parser as `\x1b\x1b`, which it reads as
@@ -679,8 +671,9 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const after = await frameShowing({ setup, text: 'stopped' })
+      const after = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
+      expect(after).toContain('SUB-AGENTS  0/1')
       expect(after).toContain('stopped')
     } finally {
       await teardown(setup)
@@ -709,7 +702,7 @@ describe('reaching a sub-agent without the mouse', () => {
 
       const still = setup.captureCharFrame()
       expect(app.agents.stopped).toEqual([])
-      expect(still).toMatch(/AGENTS\s+1 running/)
+      expect(still).toContain('SUB-AGENTS  1/1')
     } finally {
       await teardown(setup)
     }
@@ -732,7 +725,7 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const frame = await frameShowing({ setup, text: 'stopped' })
+      const frame = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
       expect(frame).toContain(CHILD_SAID)
       expect(frame).not.toContain(PARENT_SAID)
     } finally {
@@ -783,7 +776,7 @@ describe('reaching a sub-agent without the mouse', () => {
       setup.mockInput.pressEscape()
       await setup.flush()
 
-      const stopped = await frameShowing({ setup, text: 'stopped' })
+      const stopped = await frameShowing({ setup, text: 'SUB-AGENTS  0/1' })
       expect(app.agents.stopped).toEqual([{ agentId: CHILD, by: EKilledBy.User }])
       expect(stopped).toContain(CHILD_SAID)
 

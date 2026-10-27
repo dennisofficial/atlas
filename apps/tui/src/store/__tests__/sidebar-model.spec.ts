@@ -214,6 +214,7 @@ describe('the sections no producer feeds yet', () => {
 
     expect(model.todo).toBeUndefined()
     expect(model.subagents).toBeUndefined()
+    expect(model.teammates).toBeUndefined()
   })
 
   it('keeps the idle sidebar a valid model with nothing fed to it', () => {

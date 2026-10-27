@@ -29,8 +29,6 @@ export function TeammateSidebar(props: {
   onOpenService?: (serviceId: string) => void
   context?: Omit<ContextSectionProps, 'cells'>
   onSelectSubagent?: (agentId: string) => void
-  crewExpanded?: boolean
-  onToggleCrew?: () => void
   naming?: NamingState | null | undefined
   back?: { label: string; onBack: () => void } | undefined
 }): React.ReactNode {
@@ -62,8 +60,6 @@ export function TeammateSidebar(props: {
       {...(props.onSelectSubagent === undefined
         ? {}
         : { onSelectSubagent: props.onSelectSubagent })}
-      {...(props.crewExpanded === undefined ? {} : { crewExpanded: props.crewExpanded })}
-      {...(props.onToggleCrew === undefined ? {} : { onToggleCrew: props.onToggleCrew })}
       {...(props.naming === undefined || props.naming === null ? {} : { naming: props.naming })}
       {...(props.back === undefined ? {} : { back: props.back })}
     />

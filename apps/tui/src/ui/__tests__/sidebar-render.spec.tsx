@@ -6,6 +6,7 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { ESidebarTaskState, IDLE_SIDEBAR, type SidebarModel } from '../../store/sidebar-model'
+import { type SidebarSubagent } from '../../store/subagent-row'
 import type { SidebarSection } from '../sidebar-section'
 import { Sidebar } from '../components/sidebar'
 import { ENamingPhase } from '../components/naming-line'
@@ -92,15 +93,38 @@ const FED: SidebarModel = {
       id: 's1',
       name: 'test-writer',
       status: EAgentStatus.Running,
-      value: '1m 4s',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: null,
+      state: '1m 4s',
+      model: 'Claude Haiku 4.5',
       selected: false,
+      failureReason: null,
     },
     {
       id: 's2',
       name: 'migration',
       status: EAgentStatus.Blocked,
-      value: 'approve?',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: null,
+      state: 'blocked · 12s',
+      model: null,
       selected: false,
+      failureReason: null,
+    },
+  ],
+  teammates: [
+    { id: 't1', name: 'dana', activity: 'reviewing #412' },
+    { id: 't2', name: 'omar', activity: null },
+  ],
+}
+
+const MEASURED: SidebarModel = {
+  ...FED,
+  subagents: [
+    {
+      ...(FED.subagents?.[0] as SidebarSubagent),
+      state: '1m 4s',
+      context: { tokens: 68_000, window: 200_000 },
     },
   ],
 }
@@ -258,7 +282,8 @@ describe('what the sidebar says', () => {
     const rows = await rowsOf({ model: IDLE_SIDEBAR })
     const frame = rows.join('\n')
 
-    for (const header of ['APPROVALS', 'TODO', 'AGENTS']) expect(frame).not.toContain(header)
+    for (const header of ['APPROVALS', 'TODO', 'SUB-AGENTS', 'TEAMMATES'])
+      expect(frame).not.toContain(header)
 
     expect(frame).not.toContain('turns')
     expect(frame).toContain(WORDMARK)
@@ -389,30 +414,92 @@ describe('what the sidebar says', () => {
     expect(rowWith({ rows, text: 'Cover rotation' }).trim().startsWith('✓')).toBe(false)
   }, 30_000)
 
-  it('titles one AGENTS section with the running count and one line per agent', async () => {
+  it('says how long each subagent has been at it and what each teammate is doing', async () => {
     const rows = await rowsOf({ model: FED })
 
-    expect(rowWith({ rows, text: 'AGENTS' })).toContain('2 running')
+    expect(rowWith({ rows, text: 'SUB-AGENTS' })).toContain('2')
     expect(rowWith({ rows, text: 'test-writer' })).toContain('1m 4s')
-    expect(rowWith({ rows, text: 'migration' })).toContain('approve?')
-    expect(rows.join('\n')).not.toContain('TEAMMATES')
-    expect(rows.join('\n')).not.toContain('SUB-AGENTS')
+    expect(rowWith({ rows, text: 'test-writer' })).not.toContain('edit')
+    expect(rowWith({ rows, text: 'migration' })).toContain('blocked · 12s')
+    expect(rowWith({ rows, text: 'dana' })).toContain('reviewing #412')
+    expect(rowWith({ rows, text: 'omar' })).toContain('idle')
   }, 30_000)
 
-  it('flags a blocked child by shape, a running one by another', async () => {
+  /**
+   * A child's approval routes to the parent agent and never to a human, so the row must not offer
+   * the operator a prompt they cannot answer. It says what happened and marks itself for attention.
+   */
+  it('flags a blocked child for attention without inviting an answer it cannot take', async () => {
+    const rows = await rowsOf({ model: FED })
+    const blocked = rowWith({ rows, text: 'migration' })
+
+    expect(blocked).toContain('blocked')
+    expect(blocked).not.toContain('approval')
+    expect(blocked.trim().startsWith(glyph.warning)).toBe(true)
+  }, 30_000)
+
+  it('leaves a running child unmarked by the attention glyph a blocked one carries', async () => {
     const rows = await rowsOf({ model: FED })
 
-    expect(rowWith({ rows, text: 'migration' }).trim().startsWith(glyph.attention)).toBe(true)
-    expect(rowWith({ rows, text: 'test-writer' }).trim().startsWith(glyph.live)).toBe(true)
+    expect(rowWith({ rows, text: 'test-writer' }).trim().startsWith(glyph.warning)).toBe(false)
   }, 30_000)
 
-  it('spends no second line on an agent', async () => {
+  it('gives a child a second line naming the model it runs', async () => {
+    const rows = await rowsOf({ model: FED })
+
+    expect(rowWith({ rows, text: 'Claude Haiku 4.5' })).not.toBe('')
+  }, 30_000)
+
+  it('gives a measured child what its own window holds, beside its model', async () => {
+    const rows = await rowsOf({ model: MEASURED })
+
+    expect(rowWith({ rows, text: 'Claude Haiku 4.5' })).toContain('68.0k')
+  }, 30_000)
+
+  it('keeps the model off the line the name and state share', async () => {
+    const rows = await rowsOf({ model: FED })
+
+    expect(rowWith({ rows, text: 'test-writer' })).not.toContain('Haiku')
+  }, 30_000)
+
+  /**
+   * The same pair the footer gives the main agent, with the child's own math: the model it runs
+   * lined up under the title, the window reading flush to the right.
+   */
+  it('lines the model up under the title and puts the window reading on the right edge', async () => {
+    const rows = await rowsOf({ model: MEASURED })
+    const line = written(rowWith({ rows, text: 'Claude Haiku 4.5' }))
+    const above = written(rowWith({ rows, text: 'test-writer' }))
+
+    expect(line.indexOf('Claude Haiku 4.5')).toBe(above.indexOf('test-writer'))
+    expect(line.endsWith('68.0k')).toBe(true)
+  }, 30_000)
+
+  it('draws no window reading for a child nothing has measured', async () => {
+    const rows = await rowsOf({ model: FED })
+
+    expect(written(rowWith({ rows, text: 'Claude Haiku 4.5' })).trim()).toBe('Claude Haiku 4.5')
+  }, 30_000)
+
+  /**
+   * The child's own window is the reading most tempting to pool with the parent's, and the parent's
+   * count sits four rows above it.
+   */
+  it('leaves the parent count untouched by how full the child window has got', async () => {
+    const rows = await rowsOf({ model: MEASURED })
+
+    expect(rowWith({ rows, text: 'Claude Haiku 4.5' })).toContain('68.0k')
+    expect(rowWith({ rows, text: '↑ 34.0k' })).not.toContain('68.0k')
+    expect(rowWith({ rows, text: '14 turns' })).toContain('$1.42')
+  }, 30_000)
+
+  it('spends no second line on a child whose model was never observed', async () => {
     const rows = await rowsOf({ model: FED })
     const blocked = rows.findIndex((row) => row.includes('migration'))
 
     expect(blocked).toBeGreaterThanOrEqual(0)
-    expect(written(rows[blocked + 1] ?? '').trim()).not.toContain('Haiku')
-    expect(rows.join('\n')).not.toContain('68.0k')
+    expect(written(rows[blocked + 1] ?? '').trim()).toBe('')
+    expect(rows[blocked + 2]).toContain('TEAMMATES')
   }, 30_000)
 
   /**
@@ -437,7 +524,7 @@ describe('what the sidebar says', () => {
     const rows = await rowsOf({ model: FED })
     const wordmark = rows.findIndex((row) => row.trimStart().startsWith(WORDMARK))
 
-    expect(wordmark).toBeGreaterThan(rows.findIndex((row) => row.includes('AGENTS')))
+    expect(wordmark).toBeGreaterThan(rows.findIndex((row) => row.includes('TEAMMATES')))
     expect(rows.length - wordmark).toBeLessThanOrEqual(3)
     expect(rows[wordmark - 1]).toContain('Developer/atlas/apps/tui')
   }, 30_000)
