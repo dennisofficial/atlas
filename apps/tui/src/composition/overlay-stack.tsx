@@ -24,7 +24,7 @@ import { WhatsNew } from '../ui/components/whats-new'
 import { useAppearance } from '../ui/hooks/use-appearance'
 import { isServiceAlive } from '../ui/services-model'
 import { isShellRunning } from '../ui/shells-model'
-import { isAgentLive } from '../store/subagent-row'
+import { isSubagentAlive } from '../store/subagent-row'
 import type { AccountsControl } from './use-accounts'
 import type { AgentsControl } from './use-agents'
 import type { ContainerGuardControl } from './use-container-guard'
@@ -226,7 +226,7 @@ function DerivedOverlayStack(props: {
           running={[
             ...shells.everywhere.filter(isShellRunning).map(exitGuardRow),
             ...props.services.everywhere.filter(isServiceAlive).map(exitGuardServiceRow),
-            ...agents.everywhere.filter(isAgentLive).map(exitGuardAgentRow),
+            ...agents.everywhere.filter(isSubagentAlive).map(exitGuardAgentRow),
           ]}
           state={exitGuard.state}
           overlay

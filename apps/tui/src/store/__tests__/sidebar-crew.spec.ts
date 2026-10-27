@@ -1,16 +1,24 @@
-import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
-import { EChecksState, EPullRequestState, type AgentSnapshot } from '@dltech/atlas-harness'
+import { EAgentStatus, EShellStatus, toThreadId, type ProviderIdentity } from '@dltech/atlas-core'
+import { toShellId, type AgentSnapshot, type ShellSnapshot } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
-import { withCrew } from '../sidebar-model'
-import { IDLE_SIDEBAR } from '../sidebar-model'
+import { crewTiersOf, deriveSidebar, withCrew } from '../sidebar-model'
 import {
-  isAgentLive,
-  subagentLabel,
+  crewActivityOf,
+  crewRowReading,
+  ESubagentReading,
+  isSubagentAlive,
+  isSubagentWorking,
+  subagentContextLabel,
+  subagentElapsedMs,
   subagentRows,
-  subagentTitle,
-  subagentValue,
+  subagentShowsElapsed,
+  subagentStateLabel,
+  type SidebarSubagent,
+  type SubagentReadout,
 } from '../subagent-row'
+import { IDLE_TURN } from '../../ui/turn-clock'
+import { log } from '@dltech/atlas-client/transcript-fixture'
 
 const PARENT = toThreadId('thr_parent')
 
@@ -19,6 +27,8 @@ const CHILD = toThreadId('thr_child')
 const STARTED = '2026-01-01T00:00:00.000Z'
 
 const NOW = Date.parse('2026-01-01T00:01:04.000Z')
+
+const HAIKU: ProviderIdentity = { id: 'anthropic', modelId: 'claude-haiku-4-5' }
 
 const snapshot = (over: Partial<AgentSnapshot> = {}): AgentSnapshot => ({
   agentId: CHILD,
@@ -34,133 +44,459 @@ const snapshot = (over: Partial<AgentSnapshot> = {}): AgentSnapshot => ({
   ...over,
 })
 
-const valueOf = (over: Partial<AgentSnapshot> = {}): string =>
-  subagentValue({ snapshot: snapshot(over), now: NOW })
+const EMPTY_ROSTERS = { shells: [], children: [] }
 
-describe('the title of a row', () => {
-  it('is the whole intent, not its first three words', () => {
-    expect(subagentTitle(snapshot({ intent: 'Fix the serve wake path on reconnect' }))).toBe(
-      'Fix the serve wake path on reconnect',
+const rows = (over: Partial<AgentSnapshot> = {}) =>
+  subagentRows({ snapshots: [snapshot(over)], now: NOW, rosters: EMPTY_ROSTERS })
+
+const readout = (over: Partial<SubagentReadout> = {}): SubagentReadout => ({
+  status: EAgentStatus.Running,
+  startedAt: STARTED,
+  endedAt: null,
+  ...over,
+})
+
+const labelOf = (over: Partial<SubagentReadout> = {}): string =>
+  subagentStateLabel({ subagent: readout(over), now: NOW })
+
+describe('a child row is derived from the child', () => {
+  it('takes no turn count from the conversation it is listed beside', () => {
+    const parent = deriveSidebar({
+      events: log([
+        { type: 'user-said', text: 'audit the vault' },
+        { type: 'user-said', text: 'and the key file' },
+      ]),
+      turn: IDLE_TURN,
+      name: 'the parent conversation',
+    })
+
+    const merged = withCrew({ model: parent, subagents: rows() })
+
+    expect(merged.turnCount).toBe(2)
+    expect(merged.subagents?.[0]?.name).toBe('vault audit')
+  })
+
+  it('names an untitled child by its type rather than borrowing a title', () => {
+    expect(rows({ intent: '   ' })[0]?.name).toBe('explore')
+  })
+
+  it('folds an intent written across lines onto one row', () => {
+    expect(rows({ intent: 'vault\n  audit' })[0]?.name).toBe('vault audit')
+  })
+
+  it('hands a failed row the cause the snapshot recorded', () => {
+    expect(
+      rows({
+        status: EAgentStatus.Failed,
+        endedAt: STARTED,
+        failureCause: 'provider inference.net returned 402: credit exhausted',
+      })[0]?.failureReason,
+    ).toBe('provider inference.net returned 402: credit exhausted')
+  })
+
+  it('hands a row no cause when the snapshot recorded none', () => {
+    expect(rows({ status: EAgentStatus.Failed, endedAt: STARTED })[0]?.failureReason).toBeNull()
+  })
+
+  it('carries the reading the row renders rather than making the view assemble it', () => {
+    expect(rows()[0]?.state).toBe('1m 4s')
+  })
+})
+
+describe('what the narrow value column says about a child', () => {
+  it('reads a working child as how long it has been going', () => {
+    expect(labelOf()).toBe('1m 4s')
+  })
+
+  it('keeps what the window holds off the first line, which the second line carries', () => {
+    expect(rows({ context: { tokens: 68_000, window: 200_000 } })[0]?.state).toBe('1m 4s')
+  })
+
+  it('keeps what the child is doing out of the column, however busy it is', () => {
+    expect(rows({ lastTool: 'grep', toolCalls: 4 })[0]?.state).toBe('1m 4s')
+  })
+
+  it('says how long a blocked child has been stuck, which is the whole question', () => {
+    expect(labelOf({ status: EAgentStatus.Blocked })).toBe('blocked · 1m 4s')
+  })
+
+  it('says nothing for a child that finished, keeping the word for endings that need it', () => {
+    const ended = { endedAt: '2026-01-01T00:00:30.000Z' }
+
+    expect(labelOf({ ...ended, status: EAgentStatus.Finished })).toBe('')
+    expect(labelOf({ ...ended, status: EAgentStatus.Failed })).toBe('failed')
+    expect(labelOf({ ...ended, status: EAgentStatus.Stopped })).toBe('stopped')
+  })
+
+  it('stops the clock of a child that ended rather than running it to now', () => {
+    const stopped = readout({
+      status: EAgentStatus.Finished,
+      endedAt: '2026-01-01T00:00:30.000Z',
+    })
+
+    expect(subagentElapsedMs({ subagent: stopped, now: NOW })).toBe(30_000)
+  })
+
+  it('never reads earlier than the child started, so elapsed cannot go negative', () => {
+    expect(subagentElapsedMs({ subagent: readout(), now: Date.parse(STARTED) - 5_000 })).toBe(0)
+  })
+
+  it('says nothing about time it cannot read', () => {
+    expect(subagentElapsedMs({ subagent: readout({ startedAt: 'not a stamp' }), now: NOW })).toBe(
+      null,
     )
   })
-
-  it('folds an intent written across lines onto one line', () => {
-    expect(subagentTitle(snapshot({ intent: 'audit\n  the   vault' }))).toBe('audit the vault')
-  })
-
-  it('names an untitled child by its type', () => {
-    expect(subagentTitle(snapshot({ intent: '  ' }))).toBe('explore')
-  })
-
-  it('keeps the three-word handle for the places that still use it', () => {
-    expect(subagentLabel(snapshot({ intent: 'one two three four five' }))).toBe('one two three')
-  })
 })
 
-describe('the right-hand value of a row', () => {
-  it('reads a running child as how long it has been going', () => {
-    expect(valueOf()).toBe('1m 4s')
-  })
-
-  it('reads a held child as what holds it', () => {
-    expect(valueOf({ waitingOn: 'bash "bun test"' })).toBe('bash "bun test"')
-  })
-
-  it('clips a long hold so the title keeps room', () => {
-    expect(
-      valueOf({ waitingOn: 'bash "bun run build --filter everything"' }).length,
-    ).toBeLessThanOrEqual(18)
-  })
-
-  it.each([
-    [EAgentStatus.Blocked, 'approve?'],
-    [EAgentStatus.Paused, 'paused'],
-    [EAgentStatus.Finished, 'done'],
-    [EAgentStatus.Failed, 'failed'],
-    [EAgentStatus.Stopped, 'stopped'],
-  ])('reads %s as %s', (status, word) => {
-    expect(valueOf({ status })).toBe(word)
-  })
-
-  it('never lets a hold outrank a settled ending', () => {
-    expect(valueOf({ status: EAgentStatus.Finished, waitingOn: 'bash "x"' })).toBe('done')
-  })
-
-  it('says running when the start cannot be read', () => {
-    expect(valueOf({ startedAt: 'not a stamp' })).toBe('running')
-  })
-
-  it('never reads earlier than the child started', () => {
-    expect(subagentValue({ snapshot: snapshot(), now: Date.parse(STARTED) - 5_000 })).toBe('0s')
-  })
-})
-
-describe('whether an agent is live', () => {
-  it('counts running and blocked, and nothing else', () => {
-    expect(isAgentLive({ status: EAgentStatus.Running })).toBe(true)
-    expect(isAgentLive({ status: EAgentStatus.Blocked })).toBe(true)
-    for (const status of [
-      EAgentStatus.Finished,
-      EAgentStatus.Failed,
-      EAgentStatus.Stopped,
-      EAgentStatus.Paused,
-    ])
-      expect(isAgentLive({ status })).toBe(false)
-  })
-})
-
-describe('deriving rows from snapshots', () => {
-  it('carries only what the one-line row draws', () => {
-    const [row] = subagentRows({ snapshots: [snapshot()], now: NOW })
-
-    expect(row).toEqual({
-      id: CHILD,
-      name: 'vault audit',
-      agentType: 'explore',
-      status: EAgentStatus.Running,
-      waitingOn: undefined,
-      value: '1m 4s',
-      selected: false,
-      pullRequest: undefined,
-    })
-  })
-
-  it('marks the row being viewed', () => {
-    const rows = subagentRows({ snapshots: [snapshot()], now: NOW, viewing: CHILD })
-
-    expect(rows[0]?.selected).toBe(true)
-  })
-
-  it('hands a teammate its pull request and a sub-agent none', () => {
-    const badge = {
-      label: '#1421',
-      url: 'https://example.test/1421',
-      state: EPullRequestState.Open,
-      checks: EChecksState.None,
-      pollBacked: false,
-    }
-    const rows = subagentRows({
-      snapshots: [
-        snapshot({ agentId: toThreadId('thr_mate'), agentType: 'teammate' }),
-        snapshot({ agentId: toThreadId('thr_sub') }),
-      ],
+describe('which model the child runs', () => {
+  it('names the model by the label the catalogue gives it', () => {
+    const built = subagentRows({
+      snapshots: [snapshot({ model: HAIKU })],
       now: NOW,
-      pullRequestOf: () => badge,
+      modelLabel: () => 'Claude Haiku 4.5',
+      rosters: EMPTY_ROSTERS,
     })
 
-    expect(rows[0]?.pullRequest).toEqual(badge)
-    expect(rows[1]?.pullRequest).toBeUndefined()
+    expect(built[0]?.model).toBe('Claude Haiku 4.5')
+  })
+
+  it('falls back to the model id when nothing labels the model', () => {
+    expect(rows({ model: HAIKU })[0]?.model).toBe('claude-haiku-4-5')
+  })
+
+  it('leaves a child this process never observed unmodeled rather than guessing', () => {
+    expect(rows()[0]?.model).toBe(null)
+  })
+})
+
+describe("how full the child's own window is", () => {
+  it('reads the child against the window the child runs, never the window the parent runs', () => {
+    expect(subagentContextLabel({ tokens: 68_000, window: 200_000 })).toBe('68.0k')
+  })
+
+  it('reads the tokens even when the window is unknown, now that no percentage needs it', () => {
+    expect(subagentContextLabel({ tokens: 68_000, window: 0 })).toBe('68.0k')
+  })
+
+  it('carries the reading the supervisor took onto the row, from the snapshot itself', () => {
+    const built = rows({ context: { tokens: 68_000, window: 200_000 } })
+
+    expect(subagentContextLabel(built[0]?.context)).toBe('68.0k')
+  })
+
+  it('leaves a child nothing has measured unmeasured rather than measured at zero', () => {
+    expect(rows()[0]?.context).toBe(undefined)
+  })
+
+  it('keeps a child measured as barely started apart from one nothing has measured', () => {
+    expect(subagentContextLabel({ tokens: 400, window: 200_000 })).toBe('400')
+    expect(subagentContextLabel(undefined)).toBe(null)
+  })
+})
+
+describe('whether a child still counts as alive', () => {
+  it('counts a running child', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Running }))).toBe(true)
+  })
+
+  it('counts a blocked child, since its turn paused waiting on background work it still owns', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Blocked }))).toBe(true)
+  })
+
+  it('stops counting a child once it settles, however it ended', () => {
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Finished }))).toBe(false)
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Failed }))).toBe(false)
+    expect(isSubagentAlive(readout({ status: EAgentStatus.Stopped }))).toBe(false)
+  })
+})
+
+describe('whether a child still counts as working', () => {
+  const heldShell = (over: Partial<ShellSnapshot> = {}): ShellSnapshot => ({
+    shellId: toShellId('bash_held'),
+    threadId: CHILD,
+    command: 'sleep 60',
+    description: 'Wait on a file',
+    status: EShellStatus.Running,
+    startedAt: STARTED,
+    lastOutputAt: STARTED,
+    totalCharacters: 0,
+    awaitingInput: false,
+    ...over,
+  })
+
+  it('counts a running child', () => {
+    expect(isSubagentWorking(rows()[0]!)).toBe(true)
+  })
+
+  it('counts a settled child whose shells are still going, since that session is still working', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: STARTED })],
+      now: NOW,
+      rosters: {
+        shells: [heldShell()],
+        children: [],
+      },
+    })
+
+    expect(busy[0]?.status).toBe(EAgentStatus.Finished)
+    expect(isSubagentWorking(busy[0]!)).toBe(true)
+  })
+
+  it('counts a settled child whose own children are still going', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: STARTED })],
+      now: NOW,
+      rosters: {
+        shells: [],
+        children: [snapshot({ agentId: toThreadId('thr_grand'), spawnedBy: CHILD })],
+      },
+    })
+
+    expect(isSubagentWorking(busy[0]!)).toBe(true)
+  })
+
+  it('stops counting a settled child once nothing under it runs', () => {
+    expect(isSubagentWorking(rows({ status: EAgentStatus.Finished, endedAt: STARTED })[0]!)).toBe(
+      false,
+    )
   })
 })
 
 describe('merging the crew into a sidebar', () => {
   it('leaves a sidebar untouched when there is no crew to add', () => {
-    expect(withCrew({ model: IDLE_SIDEBAR, subagents: [] })).toBe(IDLE_SIDEBAR)
+    const parent = deriveSidebar({ events: [], turn: IDLE_TURN, name: null })
+
+    expect(withCrew({ model: parent, subagents: [] })).toBe(parent)
   })
 
-  it('adds the rows when there are some', () => {
-    const subagents = subagentRows({ snapshots: [snapshot()], now: NOW })
+  it('carries no context reading of the child onto the model the meter reads', () => {
+    const parent = deriveSidebar({ events: [], turn: IDLE_TURN, name: null })
+    const merged = withCrew({ model: parent, subagents: rows({ turns: 9 }) })
 
-    expect(withCrew({ model: IDLE_SIDEBAR, subagents }).subagents).toBe(subagents)
+    expect(merged.spend).toBe(parent.spend)
+  })
+
+  /**
+   * The child's own window is the reading most tempting to pool with the parent's: a child may run
+   * a different model, so its window is not a share of the parent's and cannot be pooled with it.
+   */
+  it('keeps a measured child off the meter the parent reads', () => {
+    const parent = deriveSidebar({ events: [], turn: IDLE_TURN, name: null })
+    const measured = subagentRows({
+      snapshots: [snapshot({ context: { tokens: 68_000, window: 200_000 }, model: HAIKU })],
+      now: NOW,
+      rosters: EMPTY_ROSTERS,
+    })
+    const merged = withCrew({ model: parent, subagents: measured })
+    const row = merged.subagents?.[0]
+
+    expect(row?.model).toBe('claude-haiku-4-5')
+    expect(subagentContextLabel(row?.context)).toBe('68.0k')
+    expect(merged.spend).toBe(parent.spend)
+    expect(Object.keys(merged).filter((field) => !(field in parent))).toEqual(['subagents'])
+  })
+})
+
+describe('what a child still has running under it', () => {
+  const shell = (over: Partial<ShellSnapshot> = {}): ShellSnapshot => ({
+    shellId: toShellId('bash_1'),
+    threadId: CHILD,
+    command: 'sleep 60',
+    description: 'Wait on a file',
+    status: EShellStatus.Running,
+    startedAt: STARTED,
+    lastOutputAt: STARTED,
+    totalCharacters: 0,
+    awaitingInput: false,
+    ...over,
+  })
+
+  it('counts only the shells the child itself owns and only while they run', () => {
+    const activity = crewActivityOf({
+      id: CHILD,
+      rosters: {
+        shells: [
+          shell(),
+          shell({ shellId: toShellId('bash_2'), status: EShellStatus.Exited }),
+          shell({ shellId: toShellId('bash_3'), threadId: PARENT }),
+        ],
+        children: [],
+      },
+    })
+
+    expect(activity).toEqual({ shells: 1, subagents: 0 })
+  })
+
+  it('counts only the children the child itself spawned and only while they run', () => {
+    const activity = crewActivityOf({
+      id: CHILD,
+      rosters: {
+        shells: [],
+        children: [
+          snapshot({ agentId: toThreadId('thr_grand'), spawnedBy: CHILD }),
+          snapshot({
+            agentId: toThreadId('thr_grand_done'),
+            spawnedBy: CHILD,
+            status: EAgentStatus.Finished,
+          }),
+          snapshot({ agentId: toThreadId('thr_sibling'), spawnedBy: PARENT }),
+        ],
+      },
+    })
+
+    expect(activity).toEqual({ shells: 0, subagents: 1 })
+  })
+
+  it('answers nothing for a child with nothing running, so the row stays quiet', () => {
+    expect(crewActivityOf({ id: CHILD, rosters: EMPTY_ROSTERS })).toBeUndefined()
+  })
+
+  it('propagates a grandchild shell up to the settled teammate that owns the child', () => {
+    const activity = crewActivityOf({
+      id: CHILD,
+      rosters: {
+        shells: [shell({ threadId: toThreadId('thr_grand') })],
+        children: [
+          snapshot({
+            agentId: toThreadId('thr_grand'),
+            spawnedBy: CHILD,
+            status: EAgentStatus.Finished,
+            endedAt: STARTED,
+          }),
+        ],
+      },
+    })
+
+    expect(activity).toEqual({ shells: 0, subagents: 1 })
+  })
+
+  it('reads a settled teammate as live while a shell under its sub-agent still runs', () => {
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: '2026-01-01T00:00:30.000Z' })],
+      now: NOW,
+      rosters: {
+        shells: [shell({ threadId: toThreadId('thr_grand') })],
+        children: [
+          snapshot({
+            agentId: toThreadId('thr_grand'),
+            spawnedBy: CHILD,
+            status: EAgentStatus.Finished,
+            endedAt: '2026-01-01T00:00:30.000Z',
+          }),
+        ],
+      },
+    })[0]
+
+    expect(crewRowReading(busy!)).toBe(ESubagentReading.Live)
+    expect(isSubagentWorking(busy!)).toBe(true)
+  })
+
+  it('reads a finished teammate as working while its own sub-agent still runs', () => {
+    const [teammate] = subagentRows({
+      snapshots: [
+        snapshot({
+          agentType: 'teammate',
+          status: EAgentStatus.Finished,
+          endedAt: '2026-01-01T00:00:30.000Z',
+        }),
+      ],
+      now: NOW,
+      rosters: {
+        shells: [],
+        children: [snapshot({ agentId: toThreadId('thr_grand'), spawnedBy: CHILD })],
+      },
+    })
+
+    expect(teammate?.activity).toEqual({ shells: 0, subagents: 1 })
+    expect(crewRowReading(teammate!)).toBe(ESubagentReading.Live)
+    expect(isSubagentWorking(teammate!)).toBe(true)
+    expect(teammate?.state).not.toBe('done')
+  })
+
+  it('keeps the counts off the row when nothing under it is running', () => {
+    expect(rows()[0]?.activity).toBeUndefined()
+  })
+
+  it('carries the counts onto the row once the rosters are handed in', () => {
+    const built = subagentRows({
+      snapshots: [snapshot()],
+      now: NOW,
+      rosters: { shells: [shell()], children: [] },
+    })
+
+    expect(built[0]?.activity).toEqual({ shells: 1, subagents: 0 })
+  })
+
+  it('reads a settled child as live while something under it still runs', () => {
+    const settled = rows({
+      status: EAgentStatus.Finished,
+      endedAt: '2026-01-01T00:00:30.000Z',
+    })[0]
+    const busy = subagentRows({
+      snapshots: [snapshot({ status: EAgentStatus.Finished, endedAt: '2026-01-01T00:00:30.000Z' })],
+      now: NOW,
+      rosters: { shells: [shell()], children: [] },
+    })[0]
+
+    expect(crewRowReading(settled!)).toBe(ESubagentReading.Settled)
+    expect(crewRowReading(busy!)).toBe(ESubagentReading.Live)
+  })
+})
+
+describe('grouping the crew into tiers', () => {
+  it('sorts a mixed roster into teammates and sub-agents by agentType', () => {
+    const mixed = subagentRows({
+      snapshots: [
+        snapshot({ agentId: toThreadId('thr_a'), agentType: 'teammate' }),
+        snapshot({ agentId: toThreadId('thr_b'), agentType: 'explore' }),
+      ],
+      now: NOW,
+      rosters: EMPTY_ROSTERS,
+    })
+
+    const tiers = crewTiersOf(mixed)
+
+    expect(tiers.teammates.map((row) => row.id)).toEqual(['thr_a'])
+    expect(tiers.subagents.map((row) => row.id)).toEqual(['thr_b'])
+  })
+
+  it('reads a row with no agentType as a sub-agent rather than dropping it', () => {
+    const untyped: SidebarSubagent = {
+      id: 'thr_untyped',
+      name: 'vault audit',
+      status: EAgentStatus.Running,
+      startedAt: STARTED,
+      endedAt: null,
+      state: '1m 4s',
+      model: null,
+      selected: false,
+      failureReason: null,
+    }
+
+    const tiers = crewTiersOf([untyped])
+
+    expect(tiers.teammates).toEqual([])
+    expect(tiers.subagents).toEqual([untyped])
+  })
+})
+
+describe('a child waiting on something', () => {
+  it('reads an idle child held by its shell as waiting on that shell', () => {
+    const [row] = rows({ status: EAgentStatus.Running, waitingOn: 'bash "ls"' })
+
+    expect(row?.state).toBe('waiting on bash "ls"')
+    expect(row ? crewRowReading(row) : null).toBe(ESubagentReading.Live)
+    expect(row ? isSubagentWorking(row) : null).toBe(true)
+  })
+
+  it('stops the elapsed clock while it only waits on its shell', () => {
+    expect(subagentShowsElapsed({ status: EAgentStatus.Running, waitingOn: 'bash "x"' })).toBe(
+      false,
+    )
+    expect(subagentShowsElapsed({ status: EAgentStatus.Running })).toBe(true)
+  })
+
+  it('reads a child with nothing to wait on as before', () => {
+    expect(rows({ status: EAgentStatus.Finished })[0]?.state).toBe('')
   })
 })

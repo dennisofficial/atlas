@@ -36,6 +36,7 @@ export function useWorkspaceAgents(args: {
     threadId: agentView.scopeId,
     sidebar: conversation.sidebar,
     viewing: agentView.viewing,
+    shells: shells.everywhere,
   })
   const { background, waitingSince } = useBackgroundWait({ agents, shells })
   useTabTitle({ conversation, background })

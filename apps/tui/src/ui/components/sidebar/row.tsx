@@ -39,21 +39,19 @@ export function Row(props: {
 export function Section(props: {
   label: string
   count?: string
-  cells?: number
   children: React.ReactNode
 }): React.ReactNode {
-  const label: Span = { text: props.label.toUpperCase(), fg: theme.meta }
-  const count: readonly Span[] =
-    props.count === undefined ? [] : [{ text: props.count, fg: theme.hint }]
-  const header =
-    props.cells === undefined
-      ? [label, ...count.map((span) => ({ ...span, text: `${COUNT_SEPARATOR}${span.text}` }))]
-      : justifySpans({ left: [label], right: count, cells: props.cells })
-
   return (
     <box flexDirection="column" flexShrink={0}>
       <text>
-        <Spans spans={header} />
+        <Spans
+          spans={[
+            { text: props.label.toUpperCase(), fg: theme.meta },
+            ...(props.count === undefined
+              ? []
+              : [{ text: `${COUNT_SEPARATOR}${props.count}`, fg: theme.hint }]),
+          ]}
+        />
       </text>
       {props.children}
     </box>
