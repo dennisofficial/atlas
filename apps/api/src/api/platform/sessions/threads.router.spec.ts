@@ -90,7 +90,7 @@ describe('ThreadsRouter', () => {
       })
     })
 
-    it('rejects a client-chosen id that comes without a firstMessage', async () => {
+    it('creates a plain thread under a client-chosen id when there is no firstMessage', async () => {
       const reply = await mutate({
         app,
         procedure: 'threads.create',
@@ -98,7 +98,24 @@ describe('ThreadsRouter', () => {
         body: { id: 'brn_fixed', title: 'x' },
       })
 
-      expect(reply.status).toBe(400)
+      expect(reply.status).toBe(200)
+      expect(create).toHaveBeenCalledWith({
+        userId: USER_ID,
+        draft: { id: 'brn_fixed', title: 'x' },
+      })
+      expect(launch).not.toHaveBeenCalled()
+    })
+
+    it('refuses a client-chosen id from a sandbox token before anything else runs', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.sandbox,
+        body: { id: 'brn_fixed', agent: AGENT },
+      })
+
+      expect(reply.status).toBe(403)
+      expect(assertThreadInFamily).not.toHaveBeenCalled()
       expect(create).not.toHaveBeenCalled()
       expect(launch).not.toHaveBeenCalled()
     })

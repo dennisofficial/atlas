@@ -28,6 +28,31 @@ describe('ThreadsService', () => {
     expect(found.id).toBe(created.id)
   })
 
+  it('create keeps a client-chosen id', async () => {
+    const created = await service.create({ userId: USER_A, draft: { id: 'brn_chosen' } })
+
+    expect(created.id).toBe('brn_chosen')
+    const found = await service.find({ userId: USER_A, threadId: 'brn_chosen' })
+    expect(found.id).toBe('brn_chosen')
+  })
+
+  it('create refuses an id any thread already holds and leaves that thread untouched', async () => {
+    await service.create({ userId: USER_A, draft: { id: 'brn_taken', title: 'original' } })
+
+    await expect(
+      service.create({ userId: USER_A, draft: { id: 'brn_taken', title: 'usurper' } }),
+    ).rejects.toBeInstanceOf(ConflictException)
+    await expect(
+      service.create({ userId: USER_B, draft: { id: 'brn_taken', title: 'usurper' } }),
+    ).rejects.toBeInstanceOf(ConflictException)
+
+    const found = await service.find({ userId: USER_A, threadId: 'brn_taken' })
+    expect(found.title).toBe('original')
+    await expect(service.find({ userId: USER_B, threadId: 'brn_taken' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    )
+  })
+
   it('createWithin keeps a client-chosen id and mints a brn_ id otherwise', async () => {
     const [chosen, minted] = await db.transaction(async (tx) => [
       await service.createWithin({ tx, userId: USER_A, draft: { id: 'brn_chosen' }, project: {} }),
