@@ -20,8 +20,11 @@ export const PROJECT_NAV: readonly ProjectNavItem[] = [
   { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },
 ]
 
-export function parseProjectSection(value: string): EProjectSettingsSection | null {
-  return Object.values(EProjectSettingsSection).find((section) => section === value) ?? null
+const PROJECT_SETTINGS_PATH = /^\/projects\/[^/]+\/settings\/([^/]+)/
+
+export function projectSectionOfPath(pathname: string): EProjectSettingsSection | null {
+  const segment = PROJECT_SETTINGS_PATH.exec(pathname)?.[1]
+  return Object.values(EProjectSettingsSection).find((section) => section === segment) ?? null
 }
 
 export function hrefOfProjectSection({

@@ -3,13 +3,13 @@
 import { type Control, usePrototype } from '../../../proto/use-prototype'
 import { optionOf } from '../../shared/option-of'
 import {
-  SandboxPage,
+  UsageSandboxesPage,
   VERCEL_CONFIGURED,
   VERCEL_NOT_CONFIGURED,
-  type SandboxVercelState,
-} from '../pages/sandbox'
+  type UsageSandboxesVercelState,
+} from '../pages/usage-sandboxes'
 
-const VERCEL: Record<string, SandboxVercelState> = {
+const VERCEL: Record<string, UsageSandboxesVercelState> = {
   configured: VERCEL_CONFIGURED,
   'not-configured': VERCEL_NOT_CONFIGURED,
 }
@@ -19,10 +19,10 @@ const CONTROLS = {
   sandboxes: { type: 'boolean', label: 'Sandboxes listed', default: true },
 } satisfies Record<string, Control>
 
-export function SandboxTweaked() {
+export function UsageSandboxesTweaked() {
   const { vercel, sandboxes } = usePrototype(CONTROLS)
   return (
-    <SandboxPage
+    <UsageSandboxesPage
       key={`${vercel}-${sandboxes}`}
       vercel={optionOf({ table: VERCEL, key: vercel, fallback: VERCEL_CONFIGURED })}
       {...(sandboxes ? {} : { running: [], paused: [] })}

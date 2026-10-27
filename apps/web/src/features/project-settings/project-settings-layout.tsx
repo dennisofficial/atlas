@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { FolderXIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
@@ -19,8 +21,7 @@ import { EQueryState } from '@/lib/use-cloud-query'
 import { ProjectProvider } from './data/project-context'
 import { identityOf } from './data/project-mapping'
 import { useProject } from './data/use-project'
-import { PROJECT_SECTION_PAGES } from './project-settings-pages'
-import type { EProjectSettingsSection } from './project-settings-nav'
+import { EProjectSettingsSection, projectSectionOfPath } from './project-settings-nav'
 import { ProjectSettingsShell } from './project-settings-shell'
 
 const NOT_FOUND = 404
@@ -46,15 +47,15 @@ function ProjectNotFound() {
   )
 }
 
-export function ProjectSettingsRoute({
+export function ProjectSettingsLayout({
   projectId,
-  section,
+  children,
 }: {
   projectId: string
-  section: EProjectSettingsSection
+  children: ReactNode
 }) {
   const { query, save } = useProject(projectId)
-  const Page = PROJECT_SECTION_PAGES[section]
+  const section = projectSectionOfPath(usePathname()) ?? EProjectSettingsSection.Overview
 
   if (query.state === EQueryState.Ready) {
     return (
@@ -64,7 +65,7 @@ export function ProjectSettingsRoute({
         title={identityOf(query.data).slug}
       >
         <ProjectProvider projectId={projectId} project={query.data} save={save}>
-          <Page />
+          {children}
         </ProjectProvider>
       </ProjectSettingsShell>
     )

@@ -10,14 +10,14 @@ import { SandboxTable } from '../parts/sandbox-table'
 import { VercelCredentialCard, type VercelCredentialView } from '../parts/vercel-credential-card'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
-export type SandboxVercelState = {
+export type UsageSandboxesVercelState = {
   view?: VercelCredentialView
   statusLine?: string
 }
 
-export const VERCEL_NOT_CONFIGURED: SandboxVercelState = { statusLine: 'Not configured' }
+export const VERCEL_NOT_CONFIGURED: UsageSandboxesVercelState = { statusLine: 'Not configured' }
 
-export const VERCEL_CONFIGURED: SandboxVercelState = {
+export const VERCEL_CONFIGURED: UsageSandboxesVercelState = {
   view: {
     configured: true,
     tokenHint: 'vcp_…a91f',
@@ -28,18 +28,18 @@ export const VERCEL_CONFIGURED: SandboxVercelState = {
   statusLine: 'Configured · updated 3h ago',
 }
 
-export function SandboxPage({
+export function UsageSandboxesPage({
   vercel = VERCEL_CONFIGURED,
   running = RUNNING_SANDBOXES,
   paused = PAUSED_SANDBOXES,
 }: {
-  vercel?: SandboxVercelState
+  vercel?: UsageSandboxesVercelState
   running?: SandboxRow[]
   paused?: SandboxRow[]
 }) {
   return (
     <SettingsPage
-      title="Sandbox"
+      title="Sandboxes"
       description="Atlas Cloud runs your threads in sandboxes on your own Vercel account."
     >
       <VercelCredentialCard {...vercel} />

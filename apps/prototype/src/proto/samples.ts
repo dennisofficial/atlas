@@ -10,24 +10,20 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'Other thread', path: '/threads/thr-snapshots' },
     { label: 'Teammate', path: '/threads/tm-gutter-tokens' },
   ],
-  '/settings/[page]': [
-    { label: 'Account', path: '/settings/account' },
-    { label: 'Providers', path: '/settings/providers' },
-    { label: 'GitHub', path: '/settings/github' },
-    { label: 'Sandbox', path: '/settings/sandbox' },
-    { label: 'Secrets & Env Vars', path: '/settings/secrets' },
-    { label: 'MCP', path: '/settings/mcp' },
-    { label: 'Instructions', path: '/settings/instructions' },
-    { label: 'Memory', path: '/settings/memory' },
-    { label: 'Models & Effort', path: '/settings/models-effort' },
-    { label: 'Appearance', path: '/settings/appearance' },
-    { label: 'Notifications', path: '/settings/notifications' },
-    { label: 'Devices & Sessions', path: '/settings/security' },
+  '/projects/[projectId]/settings/overview': [
+    { label: 'atlas', path: '/projects/atlas/settings/overview' },
+    { label: 'rs-crm', path: '/projects/rs-crm/settings/overview' },
   ],
-  '/projects/[projectId]/settings/[section]': [
-    { label: 'Overview', path: '/projects/rs-crm/settings/overview' },
-    { label: 'Sandbox', path: '/projects/rs-crm/settings/sandbox' },
-    { label: 'Secrets & Env Vars', path: '/projects/rs-crm/settings/secrets' },
-    { label: 'MCP', path: '/projects/rs-crm/settings/mcp' },
+  '/projects/[projectId]/settings/sandbox': [
+    { label: 'atlas', path: '/projects/atlas/settings/sandbox' },
+    { label: 'rs-crm', path: '/projects/rs-crm/settings/sandbox' },
+  ],
+  '/projects/[projectId]/settings/secrets': [
+    { label: 'atlas', path: '/projects/atlas/settings/secrets' },
+    { label: 'rs-crm', path: '/projects/rs-crm/settings/secrets' },
+  ],
+  '/projects/[projectId]/settings/mcp': [
+    { label: 'atlas', path: '/projects/atlas/settings/mcp' },
+    { label: 'rs-crm', path: '/projects/rs-crm/settings/mcp' },
   ],
 }

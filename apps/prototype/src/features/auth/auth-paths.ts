@@ -10,7 +10,7 @@ export const AUTH_PATHS = {
   setup: '/setup',
   invite: `/invite/${AUTH_INVITATION_ID}`,
   newThread: '/threads/new',
-  integrations: '/settings/github',
+  integrations: '/settings/integrations',
 } as const
 
 export function withState({ path, state }: { path: string; state: string }): string {

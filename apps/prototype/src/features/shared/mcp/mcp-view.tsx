@@ -148,7 +148,7 @@ export function McpView({
               size="sm"
               className="text-muted-foreground"
               nativeButton={false}
-              render={<Link href={hrefOfPage(ESettingsPage.Mcp)} />}
+              render={<Link href={hrefOfPage(ESettingsPage.Integrations)} />}
             >
               Personal MCP settings
               <ArrowUpRightIcon data-icon="inline-end" />

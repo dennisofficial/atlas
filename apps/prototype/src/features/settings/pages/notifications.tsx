@@ -1,3 +1,5 @@
+'use client'
+
 import { Switch } from '@dltech/atlas-ui/components/switch'
 
 import {

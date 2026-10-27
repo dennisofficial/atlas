@@ -126,6 +126,7 @@ describe('prototype mirrors apps/web', () => {
     const dynamicPatterns = [
       ...new Set(
         prototypeRoutes
+          .filter((file) => file.endsWith(`${sep}page.tsx`) || file === 'page.tsx')
           .filter((file) => !isRedirectOnly(file))
           .map(routePattern)
           .filter(isDynamic),

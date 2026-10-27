@@ -1,3 +1,5 @@
+'use client'
+
 import { RadioGroup } from '@dltech/atlas-ui/components/radio-group'
 import {
   Select,

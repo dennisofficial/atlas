@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 
 import { Sidebar, SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
@@ -10,16 +10,18 @@ import { SETTINGS_PAGE_STATUS } from './status/page-status'
 import { SettingsMobileNav } from './settings-mobile-nav'
 import { SettingsNavBody } from './settings-nav-body'
 import { SettingsTopBar } from './settings-top-bar'
-import { ESettingsPage, ESettingsScope, firstPageOf, hrefOfPage, scopeOfPage } from './settings-nav'
+import {
+  ESettingsPage,
+  ESettingsScope,
+  firstPageOf,
+  hrefOfPage,
+  scopeOfPage,
+  settingsPageOfPath,
+} from './settings-nav'
 
-export function SettingsShell({
-  page,
-  renderPage,
-}: {
-  page: ESettingsPage
-  renderPage: (page: ESettingsPage) => ReactNode
-}) {
+export function SettingsShell({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const page = settingsPageOfPath(usePathname()) ?? ESettingsPage.Account
   const scope = scopeOfPage(page)
   const handleScopeChange = (next: ESettingsScope) => router.push(hrefOfPage(firstPageOf(next)))
   return (
@@ -33,7 +35,7 @@ export function SettingsShell({
         <main className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
             <PageStatusScope pageKey={page} {...SETTINGS_PAGE_STATUS[page]}>
-              {renderPage(page)}
+              {children}
             </PageStatusScope>
           </div>
         </main>

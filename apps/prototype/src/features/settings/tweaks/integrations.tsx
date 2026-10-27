@@ -10,7 +10,7 @@ import {
   PERSONAL_MCP_SERVERS,
   type McpServer,
 } from '../fixtures/settings-mcp'
-import { McpPage } from '../pages/mcp'
+import { IntegrationsPage } from '../pages/integrations'
 
 const DATA: Record<string, McpServer[]> = {
   populated: PERSONAL_MCP_SERVERS,
@@ -23,11 +23,11 @@ const CONTROLS = {
   dialog: MCP_DIALOG_CONTROL,
 } satisfies Record<string, Control>
 
-export function McpTweaked() {
+export function IntegrationsTweaked() {
   const { data, dialog } = usePrototype(CONTROLS)
   const openDialog = optionOf({ table: MCP_DIALOGS, key: dialog, fallback: EMcpDialog.None })
   return (
-    <McpPage
+    <IntegrationsPage
       key={`${data}-${dialog}`}
       initial={optionOf({ table: DATA, key: data, fallback: PERSONAL_MCP_SERVERS })}
       openDialog={openDialog}
