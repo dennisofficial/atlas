@@ -33,6 +33,30 @@ const failingFetch = (): typeof fetch =>
     { preconnect: fetch.preconnect },
   )
 
+type FakeInit = { fetch?: (target: string | URL, init: RequestInit) => Promise<Response> }
+type Constructed = { url: string; init: FakeInit | undefined }
+
+const fakeEventSource = (constructed: Constructed[]) =>
+  class FakeEventSource {
+    readonly CONNECTING = 0
+    readonly OPEN = 1
+    readonly CLOSED = 2
+    readyState = 0
+
+    constructor(url: string, init?: FakeInit) {
+      constructed.push({ url, init })
+    }
+
+    addEventListener(): void {}
+    removeEventListener(): void {}
+    close(): void {}
+  }
+
+const untilConstructed = async (constructed: Constructed[]): Promise<void> => {
+  const deadline = Date.now() + 1000
+  while (constructed.length === 0 && Date.now() < deadline) await Bun.sleep(5)
+}
+
 describe('createApiClient', () => {
   it('sends the bearer token and client version to <baseUrl>/v1/trpc', async () => {
     const seen: Seen[] = []
@@ -60,6 +84,51 @@ describe('createApiClient', () => {
     expect(seen[0]?.headers.has('authorization')).toBe(false)
     expect(seen[0]?.headers.has('atlas-client-version')).toBe(false)
     expect(seen[0]?.credentials).toBe('same-origin')
+  })
+
+  it('authenticates the subscription stream request through the supplied EventSource', async () => {
+    const seen: Seen[] = []
+    const constructed: Constructed[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      token: 'secret-bearer',
+      clientVersion: '1.2.3',
+      fetchFn: recordingFetch(seen),
+      EventSource: fakeEventSource(constructed),
+    })
+    const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+
+    await untilConstructed(constructed)
+    const [source] = constructed
+    await source?.init?.fetch?.(source.url, {
+      headers: { Accept: 'text/event-stream', 'Cache-Control': 'no-store' },
+    })
+    subscription.unsubscribe()
+
+    expect(source?.url).toStartWith('https://api.atlas.test/v1/trpc/threadEvents.stream')
+    expect(seen[0]?.headers.get('authorization')).toBe('Bearer secret-bearer')
+    expect(seen[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
+    expect(seen[0]?.headers.get('accept')).toBe('text/event-stream')
+    expect(seen[0]?.headers.get('cache-control')).toBe('no-store')
+    expect(source?.url).not.toContain('secret-bearer')
+    expect(seen[0]?.url).not.toContain('secret-bearer')
+  })
+
+  it('leaves the native EventSource untouched when none is supplied', async () => {
+    const constructed: Constructed[] = []
+    const original: unknown = Reflect.get(globalThis, 'EventSource')
+    Reflect.set(globalThis, 'EventSource', fakeEventSource(constructed))
+    try {
+      const client = createApiClient({ baseUrl: 'https://api.atlas.test', token: 'secret-bearer' })
+      const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+      await untilConstructed(constructed)
+      subscription.unsubscribe()
+    } finally {
+      Reflect.set(globalThis, 'EventSource', original)
+    }
+
+    expect(constructed).toHaveLength(1)
+    expect(constructed[0]?.init).toBeUndefined()
   })
 
   it('exposes the status, details and a control-plane error for a failed call', async () => {

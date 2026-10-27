@@ -21,6 +21,7 @@ import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
 
 const SANDBOX_TOKEN = 'sandbox-token'
+const OWNER_BEARER = 'owner-bearer'
 const OWNED = 'thr_owned'
 const HEAD = (head: number): ThreadStreamFrame => ({ type: EThreadStreamFrame.Head, head })
 
@@ -91,8 +92,9 @@ describe('threadEvents.stream over a real http server', () => {
         {
           provide: SESSION_VERIFIER,
           useValue: {
-            verify: async (req: { headers: { cookie?: string } }) =>
-              req.headers.cookie === 'ok'
+            verify: async (req: { headers: { cookie?: string; authorization?: string } }) =>
+              req.headers.cookie === 'ok' ||
+              req.headers.authorization === as(OWNER_BEARER).authorization
                 ? { userId: 'usr_1', sessionId: 'ses', email: '', activeOrganizationId: null }
                 : null,
           },
@@ -133,6 +135,14 @@ describe('threadEvents.stream over a real http server', () => {
     await append({ threadId: OWNED })
 
     await waitFor(() => expect(frames).toEqual([HEAD(head - 1), HEAD(head)]))
+  })
+
+  it('streams the head to an owner authenticating with a bearer session token', async () => {
+    const { frames, failures } = subscribe({ threadId: OWNED, token: OWNER_BEARER })
+
+    await waitFor(() => expect(frames).toEqual([HEAD(head)]))
+
+    expect(failures).toEqual([])
   })
 
   it('answers 404 for a thread the caller does not own', async () => {
