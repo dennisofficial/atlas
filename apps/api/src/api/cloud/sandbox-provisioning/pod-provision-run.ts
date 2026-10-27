@@ -4,6 +4,7 @@ import {
   EBootStep,
   EBootStepState,
   type BootStepEvent,
+  type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -17,6 +18,7 @@ import {
   type PodProvisionPayload,
 } from './pod-provision.contract'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
+import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
 
 export const PROVISION_TIMEOUT_MESSAGE = 'The sandbox took too long to start. Retry.'
@@ -25,6 +27,7 @@ export type PodProvisionDeps = {
   cipher: SecretCipherService
   scoped: ScopedConfigService
   boot: SandboxWakeBoot
+  sdk: VercelSdk
   signals: Pick<ThreadSignalsService, 'podChanged'>
   image: string
   cloudUrl: string
@@ -76,7 +79,17 @@ export async function runPodProvision(args: {
       prepare: workspaceSpecWriter({ projectId: thread.projectId, model: thread.modelRef }),
     })
     const marked = await markRunning({ threadId, wakeClaim, serveUrl })
-    if (!marked) return { outcome: EPodProvisionOutcome.Superseded }
+    if (!marked) {
+      await rollbackIfDestroyed({
+        sdk: deps.sdk,
+        credentials,
+        threadId,
+        name: row.name,
+        wakeClaim,
+        log: deps.log,
+      })
+      return { outcome: EPodProvisionOutcome.Superseded }
+    }
     await deps.signals.podChanged({ threadId })
     deps.log(`provisioned sandbox ${row.name} for thread ${threadId} — serve at ${serveUrl}`)
     return { outcome: EPodProvisionOutcome.Running }
