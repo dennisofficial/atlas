@@ -118,7 +118,7 @@ describe('SandboxProvisioningService (retry)', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it('re-claims a failed row with a fresh token and dispatches again', async () => {
+  it('re-claims a failed row keeping its serve token and dispatches again', async () => {
     await seedThread()
     await seedProvisionedRow({ wakeClaim: null, wakeFailedAt: new Date() })
     const before = await row()
@@ -128,7 +128,8 @@ describe('SandboxProvisioningService (retry)', () => {
 
     expect(dispatch).toHaveBeenCalledTimes(1)
     const after = await row()
-    expect(after.tokenHash).not.toBe(before.tokenHash)
+    expect(after.tokenHash).toBe(before.tokenHash)
+    expect(after.sealedToken).toBe(before.sealedToken)
     expect(after.wakeClaim).not.toBeNull()
   })
 

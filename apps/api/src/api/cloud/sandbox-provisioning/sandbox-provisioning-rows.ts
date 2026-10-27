@@ -39,6 +39,17 @@ export function standingStateOf(row: Row<'CloudSandbox'>): ESandboxProvisionStat
   return undefined
 }
 
+function tokenOfExisting(args: { existing: Row<'CloudSandbox'>; cipher: SecretCipherService }): {
+  token: string
+  mintedColumns: { tokenHash: string; sealedToken: string } | Record<string, never>
+} {
+  if (args.existing.sealedToken !== null) {
+    return { token: args.cipher.decrypt(args.existing.sealedToken), mintedColumns: {} }
+  }
+  const { token, tokenHash } = mintSessionToken()
+  return { token, mintedColumns: { tokenHash, sealedToken: args.cipher.encrypt(token) } }
+}
+
 export async function claimRow(args: {
   writer?: RowWriter | undefined
   thread: Row<'Thread'>
@@ -46,11 +57,11 @@ export async function claimRow(args: {
   cipher: SecretCipherService
 }): Promise<RowClaim | null> {
   const writer = args.writer ?? db
-  const { token, tokenHash } = mintSessionToken()
-  const sealedToken = args.cipher.encrypt(token)
   const wakeClaim = new Date()
   const name = args.existing?.name ?? sandboxNameFor({ threadId: args.thread.id })
   if (args.existing === null) {
+    const { token, tokenHash } = mintSessionToken()
+    const sealedToken = args.cipher.encrypt(token)
     const sandboxId = `sbx_${randomUUID()}`
     try {
       await writer.orm.public.CloudSandbox.create({
@@ -75,13 +86,13 @@ export async function claimRow(args: {
     }
     return { token, wakeClaim, name, sandboxId }
   }
+  const { token, mintedColumns } = tokenOfExisting({ existing: args.existing, cipher: args.cipher })
   const claimed = await writer.orm.public.CloudSandbox.where({
     threadId: args.thread.id,
     wakeClaim: args.existing.wakeClaim,
   }).updateAndCount({
     wakeClaim,
-    tokenHash,
-    sealedToken,
+    ...mintedColumns,
     state: ESandboxState.Resuming,
     updatedAt: wakeClaim,
   })
