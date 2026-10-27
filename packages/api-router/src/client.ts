@@ -7,11 +7,18 @@ import {
 } from '@trpc/client'
 import type { AppRouter } from './generated/server'
 
+type SubscriptionEventSource = NonNullable<
+  Parameters<typeof httpSubscriptionLink>[0]['EventSource']
+>
+
+type StreamFetchInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> }
+
 export type ApiClientOptions = {
   baseUrl: string
   token?: string | undefined
   clientVersion?: string | undefined
   fetchFn?: typeof fetch | undefined
+  EventSource?: SubscriptionEventSource | undefined
 }
 
 const trpcUrlOf = (baseUrl: string): string => `${baseUrl.replace(/\/+$/, '')}/v1/trpc`
@@ -24,11 +31,22 @@ const headersOf = ({ token, clientVersion }: ApiClientOptions): Record<string, s
 export const createApiClient = (options: ApiClientOptions) => {
   const url = trpcUrlOf(options.baseUrl)
   const fetchFn = options.fetchFn ?? fetch
+  const subscriptionLink =
+    options.EventSource === undefined
+      ? httpSubscriptionLink({ url })
+      : httpSubscriptionLink({
+          url,
+          EventSource: options.EventSource,
+          eventSourceOptions: () => ({
+            fetch: (target: string | URL, init?: StreamFetchInit) =>
+              fetchFn(target, { ...init, headers: { ...init?.headers, ...headersOf(options) } }),
+          }),
+        })
   return createTRPCClient<AppRouter>({
     links: [
       splitLink({
         condition: (operation) => operation.type === 'subscription',
-        true: httpSubscriptionLink({ url }),
+        true: subscriptionLink,
         false: httpLink({
           url,
           fetch: async (input, init) => {
