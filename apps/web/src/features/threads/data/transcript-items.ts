@@ -1,49 +1,28 @@
 import {
   assembleTranscript,
-  classify,
   durableEntries,
-  ECallState,
   EEntryKind,
-  formatElapsed,
-  inputOf,
-  str,
-  targetOf,
   type InFlightStep,
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 import type { CallId, Event } from '@dltech/atlas-core'
-import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
-const OUTPUT_LIMIT = 4_000
-const FAILED_FALLBACK = 'The run failed.'
+import {
+  claimSpawn,
+  reportItemsOf,
+  spawnItemsOf,
+  withInserted,
+  type ReportItem,
+  type SpawnItem,
+} from './transcript-agents'
+import { ETranscriptKind } from './transcript-kind'
+import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
-export enum ETranscriptKind {
-  User = 'user',
-  Agent = 'agent',
-  Thought = 'thought',
-  Tools = 'tools',
-}
-
-export enum EToolFamily {
-  Agent = 'agent',
-  Plan = 'plan',
-  Other = 'other',
-}
-
-export type ToolCallItem = {
-  id: string
-  kind: EToolKind
-  state: EToolState
-  label: string
-  title?: string
-  family?: EToolFamily
-  at?: string
-  output?: string
-  errorText?: string
-  elapsed?: string
-}
+export { ETranscriptKind }
+export { EToolFamily, type ToolCallItem } from './transcript-tools'
+export type { ReportItem, SpawnItem } from './transcript-agents'
 
 type Timed = { at?: string | undefined }
 
@@ -65,81 +44,15 @@ export type TranscriptItem = Timed &
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
   )
 
+export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
+
 export type ThreadTranscriptView = {
-  items: TranscriptItem[]
+  items: TranscriptRow[]
   streaming: boolean
   failure: string | null
 }
 
-const KIND_OF_TOOL: Record<string, EToolKind> = {
-  read: EToolKind.Read,
-  read_image: EToolKind.Read,
-  grep: EToolKind.Search,
-  glob: EToolKind.Search,
-  edit: EToolKind.Edit,
-  multi_edit: EToolKind.Edit,
-  write: EToolKind.Edit,
-  web_fetch: EToolKind.Web,
-  web_search: EToolKind.Web,
-  skill: EToolKind.Skill,
-  bash: EToolKind.Shell,
-}
-
-const TITLED_STATES: readonly EToolState[] = [EToolState.Done, EToolState.Error, EToolState.Denied]
-
-const AGENT_TOOL_PREFIX = 'agent_'
-const PLAN_TOOL = 'task_write'
-
-function familyOf(name: string): EToolFamily {
-  if (name.startsWith(AGENT_TOOL_PREFIX)) return EToolFamily.Agent
-  if (name === PLAN_TOOL) return EToolFamily.Plan
-  return EToolFamily.Other
-}
-
-const STATE_OF_CALL: Record<ECallState, EToolState> = {
-  [ECallState.Pending]: EToolState.Running,
-  [ECallState.AwaitingApproval]: EToolState.AwaitingApproval,
-  [ECallState.Ok]: EToolState.Done,
-  [ECallState.Failed]: EToolState.Error,
-  [ECallState.Denied]: EToolState.Denied,
-}
-
-const clipped = (text: string): string | undefined => {
-  if (text.length === 0) return undefined
-  return text.length <= OUTPUT_LIMIT ? text : `…${text.slice(-OUTPUT_LIMIT)}`
-}
-
-function elapsedOf(call: ToolCall): string | undefined {
-  if (call.at === null || call.settledAt === null) return undefined
-  const span = Date.parse(call.settledAt) - Date.parse(call.at)
-  return Number.isNaN(span) ? undefined : formatElapsed(Math.max(0, span))
-}
-
-function toolCallItemOf(call: ToolCall): ToolCallItem {
-  const state = STATE_OF_CALL[call.state]
-  const note = call.note === null ? undefined : clipped(call.note)
-  const elapsed = elapsedOf(call)
-  const kind = KIND_OF_TOOL[call.name]
-  return {
-    id: call.callId,
-    kind: kind ?? EToolKind.Shell,
-    state,
-    ...(kind === undefined ? { family: familyOf(call.name) } : {}),
-    ...(kind === undefined && TITLED_STATES.includes(state)
-      ? { title: classify({ call, cwd: '' }).line }
-      : {}),
-    label: targetOf({ call, cwd: '' }) ?? str(inputOf(call).url) ?? call.name,
-    ...(state === EToolState.Done && clipped(call.modelText) !== undefined
-      ? { output: clipped(call.modelText) }
-      : {}),
-    ...(state === EToolState.Denied && note !== undefined ? { output: note } : {}),
-    ...(state === EToolState.Error ? { errorText: note ?? FAILED_FALLBACK } : {}),
-    ...(elapsed === undefined ? {} : { elapsed }),
-    ...(call.at === null ? {} : { at: call.at }),
-  }
-}
-
-function itemOf(entry: TranscriptEntry): TranscriptItem | null {
+function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
       return entry.text.trim().length === 0
@@ -163,40 +76,70 @@ function itemOf(entry: TranscriptEntry): TranscriptItem | null {
             text: entry.text,
             streaming: entry.streaming,
           }
-    case EEntryKind.ToolsRan:
-      return {
-        kind: ETranscriptKind.Tools,
-        id: entry.key,
-        calls: entry.run.calls.map(toolCallItemOf),
-      }
     default:
       return null
   }
 }
 
+type Segment = { calls: ToolCall[] } | { spawn: SpawnItem }
+
+function segmentsOf(args: { calls: readonly ToolCall[]; pool: Map<string, SpawnItem> }): Segment[] {
+  const segments: Segment[] = []
+  for (const call of args.calls) {
+    const spawn = claimSpawn({ call, pool: args.pool })
+    const last = segments.at(-1)
+    if (spawn !== undefined) segments.push({ spawn })
+    else if (last !== undefined && 'calls' in last) last.calls.push(call)
+    else segments.push({ calls: [call] })
+  }
+  return segments
+}
+
+function rowsOfTools(args: {
+  key: string
+  calls: readonly ToolCall[]
+  pool: Map<string, SpawnItem>
+}): TranscriptRow[] {
+  const segments = segmentsOf(args)
+  return segments.map((segment, index): TranscriptRow => {
+    if ('spawn' in segment) return segment.spawn
+    return {
+      kind: ETranscriptKind.Tools,
+      id: index === 0 ? args.key : `${args.key}#${index}`,
+      calls: segment.calls.map(toolCallItemOf),
+    }
+  })
+}
+
 const eventIdOf = (key: string): string => key.split('#')[0] ?? key
 
-function stamped(args: { item: TranscriptItem; at: string | undefined }): TranscriptItem {
-  return args.at === undefined ? args.item : { ...args.item, at: args.at }
+function stamped(args: { row: TranscriptRow; at: string | undefined }): TranscriptRow {
+  return args.at === undefined || args.row.at !== undefined
+    ? args.row
+    : { ...args.row, at: args.at }
 }
 
 function atOf(args: {
-  item: TranscriptItem
+  row: TranscriptRow
   stamps: ReadonlyMap<string, string>
 }): string | undefined {
-  const { item } = args
-  if (item.kind === ETranscriptKind.Tools) return item.calls[0]?.at
-  return args.stamps.get(eventIdOf(item.id))
+  const { row } = args
+  if (row.kind === ETranscriptKind.Tools) return row.calls[0]?.at
+  return args.stamps.get(eventIdOf(row.id))
 }
 
 export type DurableTranscript = {
   entries: TranscriptEntry[]
   stamps: ReadonlyMap<string, string>
+  spawns: SpawnItem[]
+  reports: ReportItem[]
 }
 
 export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
   entries: durableEntries({ events: args.events }),
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
+  spawns: spawnItemsOf(args.events),
+  reports: [...reportItemsOf(args.events).values()],
 })
 
 export function transcriptViewOf(args: {
@@ -212,16 +155,23 @@ export function transcriptViewOf(args: {
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
   const { stamps } = args.durable
+  const pool = new Map(args.durable.spawns.map((spawn) => [spawn.agentId, spawn]))
+  const rows = model.entries.flatMap((entry): TranscriptRow[] => {
+    const found =
+      entry.kind === EEntryKind.ToolsRan
+        ? rowsOfTools({ key: entry.key, calls: entry.run.calls, pool })
+        : [textItemOf(entry)].flatMap((item) => (item === null ? [] : [item]))
+    return found.map((row) => stamped({ row, at: atOf({ row, stamps }) }))
+  })
   return {
-    items: model.entries.flatMap((entry) => {
-      const item = itemOf(entry)
-      if (item === null) return []
-      return [stamped({ item, at: atOf({ item, stamps }) })]
+    items: withInserted({
+      items: rows,
+      inserted: [...pool.values(), ...args.durable.reports],
     }),
     streaming: model.streaming,
     failure: model.failure === null ? null : (model.failure.message ?? FAILED_FALLBACK),
   }
 }
 
-export const isTextStreaming = (items: readonly TranscriptItem[]): boolean =>
+export const isTextStreaming = (items: readonly TranscriptRow[]): boolean =>
   items.some((item) => item.kind === ETranscriptKind.Agent && item.streaming)

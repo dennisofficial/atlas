@@ -14,8 +14,11 @@ export {
   isTextStreaming,
   transcriptViewOf,
   type ThreadTranscriptView,
+  type ReportItem,
+  type SpawnItem,
   type ToolCallItem,
   type TranscriptItem,
+  type TranscriptRow,
 } from './transcript-items'
 
 const TITLE_LIMIT = 60
@@ -28,7 +31,8 @@ export const transcriptOf = (events: readonly WireEvent[]): TranscriptItem[] =>
     durable: durableTranscriptOf({ events: eventsFromWire(events) }),
     live: [],
   }).items.filter(
-    (item) => item.kind === ETranscriptKind.User || item.kind === ETranscriptKind.Agent,
+    (item): item is TranscriptItem =>
+      item.kind === ETranscriptKind.User || item.kind === ETranscriptKind.Agent,
   )
 
 export const threadTitleOf = (text: string): string =>

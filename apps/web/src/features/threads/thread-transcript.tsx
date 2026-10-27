@@ -1,13 +1,12 @@
 'use client'
 
 import { Fragment, memo, type ReactNode } from 'react'
-import { BotIcon, CircleAlertIcon, CirclePauseIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
+import { CircleAlertIcon, CirclePauseIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
-import { Tool } from '@dltech/atlas-ui/ai/tool'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
@@ -20,34 +19,18 @@ import { useSessionUser } from '@/features/settings/session/use-session-identity
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import { clockTimeOf, spanMsOf } from './data/clock-time'
 import { isSameItem } from './data/same-item'
-import { ETranscriptKind, type TranscriptItem } from './data/transcript'
-import { EToolFamily, type ToolCallItem } from './data/transcript-items'
-import { ETurnKind, turnsOf, type AgentTurn } from './data/transcript-turns'
+import { rosterModelsOf } from './data/transcript-agents'
+import { ETranscriptKind, type TranscriptRow } from './data/transcript'
+import type { TranscriptItem } from './data/transcript-items'
+import { ETurnKind, turnsOf, type AgentTurn, type Turn } from './data/transcript-turns'
 import { useNow } from './data/use-now'
+import { useRoster } from './data/use-roster'
+import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
+import { ReportNotice, SpawnCard } from './transcript/transcript-agents'
+import { ToolRow } from './transcript/transcript-tool-row'
 
 const AGENT_AUTHOR = 'Atlas'
-
-const ICON_OF_FAMILY: Record<EToolFamily, ReactNode> = {
-  [EToolFamily.Agent]: <BotIcon />,
-  [EToolFamily.Plan]: <ListChecksIcon />,
-  [EToolFamily.Other]: <WrenchIcon />,
-}
-
-function ToolRow({ call }: { call: ToolCallItem }) {
-  return (
-    <Tool
-      kind={call.kind}
-      state={call.state}
-      label={call.label}
-      title={call.title}
-      icon={call.family === undefined ? undefined : ICON_OF_FAMILY[call.family]}
-      output={call.output}
-      errorText={call.errorText}
-      elapsed={call.elapsed}
-    />
-  )
-}
 
 function WorkItemView({ item }: { item: TranscriptItem }) {
   switch (item.kind) {
@@ -78,7 +61,15 @@ const WorkItem = memo(WorkItemView, (previous, next) =>
   isSameItem({ previous: previous.item, next: next.item }),
 )
 
-function AgentTurnView({ turn, now }: { turn: AgentTurn; now: number }) {
+function AgentTurnView({
+  turn,
+  now,
+  models,
+}: {
+  turn: AgentTurn
+  now: number
+  models: ReadonlyMap<string, string>
+}) {
   const showSummary = turn.work.length > 0 || turn.running
   const duration = formatElapsed(
     spanMsOf({
@@ -98,6 +89,13 @@ function AgentTurnView({ turn, now }: { turn: AgentTurn; now: number }) {
           ))}
         </WorkSummary>
       ) : null}
+      {turn.spawns.length === 0 ? null : (
+        <div className="flex flex-col gap-3">
+          {turn.spawns.map((spawn) => (
+            <SpawnCard key={spawn.id} item={spawn} model={models.get(spawn.agentId)} now={now} />
+          ))}
+        </div>
+      )}
       {answer === null ? null : (
         <AgentMessage
           author={AGENT_AUTHOR}
@@ -113,6 +111,31 @@ function AgentTurnView({ turn, now }: { turn: AgentTurn; now: number }) {
       )}
     </div>
   )
+}
+
+function TurnView({
+  turn,
+  now,
+  models,
+  userName,
+}: {
+  turn: Turn
+  now: number
+  models: ReadonlyMap<string, string>
+  userName: string | undefined
+}) {
+  switch (turn.kind) {
+    case ETurnKind.User:
+      return (
+        <UserMessage author={userName} timestamp={clockTimeOf(turn.item.at)}>
+          <p className="whitespace-pre-wrap">{turn.item.text}</p>
+        </UserMessage>
+      )
+    case ETurnKind.Report:
+      return <ReportNotice item={turn.item} />
+    case ETurnKind.Agent:
+      return <AgentTurnView turn={turn} now={now} models={models} />
+  }
 }
 
 function ParkedLine() {
@@ -148,7 +171,7 @@ export function ThreadTranscript({
   working,
   onRetryBoot,
 }: {
-  items: readonly TranscriptItem[]
+  items: readonly TranscriptRow[]
   failure: string | null
   pod: PodStatus | null
   bootNow: number
@@ -157,6 +180,8 @@ export function ThreadTranscript({
 }) {
   const { user } = useSessionUser()
   const now = useNow(working)
+  const { channel } = useThreadPanel()
+  const models = rosterModelsOf(useRoster(channel))
   const turns = turnsOf({ items, working })
   const boot = bootTimelineOf({ turns, pod, now: bootNow })
   const userName = user?.name
@@ -170,13 +195,7 @@ export function ThreadTranscript({
       {turns.map((turn, index) => (
         <Fragment key={turn.id}>
           <ChatItem id={turn.id}>
-            {turn.kind === ETurnKind.User ? (
-              <UserMessage author={userName} timestamp={clockTimeOf(turn.item.at)}>
-                <p className="whitespace-pre-wrap">{turn.item.text}</p>
-              </UserMessage>
-            ) : (
-              <AgentTurnView turn={turn} now={now} />
-            )}
+            <TurnView turn={turn} now={now} models={models} userName={userName} />
           </ChatItem>
           {bootAfter(index)}
         </Fragment>
