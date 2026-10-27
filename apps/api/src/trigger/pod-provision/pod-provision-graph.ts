@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common'
+import { liveSdk } from '@dltech/atlas-wire'
 import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-wake-boot'
@@ -20,6 +21,7 @@ export function buildPodProvisionGraph(args: { env: EnvService }): PodProvisionG
     cipher,
     scoped: new ScopedConfigService(cipher),
     boot: sandboxWakeBootProvider.useFactory(),
+    sdk: liveSdk,
     signals,
     image: env.get('SANDBOX_IMAGE'),
     cloudUrl: env.get('ATLAS_CLOUD_URL') ?? DEFAULT_CLOUD_URL,

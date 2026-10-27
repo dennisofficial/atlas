@@ -4,6 +4,7 @@ import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoin
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { PodLaunchService } from './pod-launch.service'
 import { cipher, podLaunchWith } from './sandbox-provisioning.fixture'
 import { ThreadPodService } from './thread-pod.service'
@@ -25,12 +26,14 @@ export const podServiceOver = (
   endpoints: SandboxEndpointService,
   vercel: VercelSandboxClient = unreachableVercel(),
   launch: PodLaunchService = podLaunchWith().pod,
+  signals: ThreadSignalsService = inertSignals(),
 ): ThreadPodService =>
   new ThreadPodService(
     endpoints,
     vercel,
-    new SandboxesService(vercel, cipher, inertSignals()),
+    new SandboxesService(vercel, cipher, signals),
     launch,
+    signals,
   )
 
 export const realEndpoints = (): SandboxEndpointService =>

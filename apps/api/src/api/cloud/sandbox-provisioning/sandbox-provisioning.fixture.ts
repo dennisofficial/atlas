@@ -1,4 +1,4 @@
-import { EBootStep, EBootStepState, ERuntimePhase } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, ERuntimePhase, type VercelSdk } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { seedOrganization, seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
@@ -15,6 +15,7 @@ import { appendWithin } from '../../platform/sessions/append'
 import type { SandboxWakeBoot, WakeBootArgs } from '../github/github-sandbox-wake-boot'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import type { PodProvisionTask } from './pod-provision.contract'
+import { fakeSdk } from './pod-provision.sdk.fixture'
 import { PodLaunchService } from './pod-launch.service'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
 import type { ServeSendArgs } from './serve-send'
@@ -266,15 +267,18 @@ export function runDepsWith(
     boot?: SandboxWakeBoot
     scoped?: ScopedConfigService
     signals?: ThreadSignalsService
+    sdk?: VercelSdk
+    log?: (line: string) => void
   } = {},
 ) {
   return {
     cipher,
+    sdk: args.sdk ?? fakeSdk().sdk,
     scoped: args.scoped ?? fakeScoped(),
     boot: args.boot ?? fakeBoot().boot,
     signals: args.signals ?? inertSignals(),
     image: 'atlas-sandbox:latest',
     cloudUrl: 'https://api.byatlas.io',
-    log: () => undefined,
+    log: args.log ?? (() => undefined),
   }
 }

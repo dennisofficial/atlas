@@ -9,6 +9,7 @@ export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
 
 const SANDBOX_QUICK_TIMEOUT_MS = 30_000
+const SANDBOX_DELETE_TIMEOUT_MS = 30_000
 const PARK_PATH = '/v1/park'
 const PARK_NOTIFY_TIMEOUT_MS = 3_000
 
@@ -106,6 +107,16 @@ export class VercelSandboxClient {
       const sandbox = await this.get({ ...args, resume: false })
       assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
+      throw asBadGateway(failure)
+    }
+  }
+
+  async delete(args: { threadId: string; name: string }): Promise<void> {
+    try {
+      const sandbox = await this.get({ ...args, resume: false })
+      await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_DELETE_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
       throw asBadGateway(failure)
