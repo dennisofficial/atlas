@@ -32,6 +32,8 @@ const reasonOf = (error: unknown): string =>
 
 const IDLE_STATUS: GithubStatus = { connection: null, unreachable: false }
 
+const MIN_POLL_INTERVAL_MS = 3000
+
 /**
  * The device code's clock keeps ticking while settings stays open, so the poll re-reads the held
  * state rather than trusting a closure — an escape, a page change, or a re-render mid-poll must
@@ -40,8 +42,9 @@ const IDLE_STATUS: GithubStatus = { connection: null, unreachable: false }
 export function useSettingsGithub(args: {
   cloud: CloudService
   openUrl: UrlOpener
+  minPollIntervalMs?: number
 }): SettingsGithubControl {
-  const { cloud, openUrl } = args
+  const { cloud, openUrl, minPollIntervalMs = MIN_POLL_INTERVAL_MS } = args
   const [status, setStatus] = useState<GithubStatus>(IDLE_STATUS)
   const [flow, setFlow] = useState<SettingsLoginState>(idleLogin)
   const held = useRef(flow)
@@ -179,14 +182,14 @@ export function useSettingsGithub(args: {
       .then((ticket) => {
         if (held.current.status !== ESettingsLogin.Asking) return
 
-        const intervalMs = Math.max(ticket.intervalMs, 3000)
+        const intervalMs = Math.max(ticket.intervalMs, minPollIntervalMs)
         connect.current = { ticket, deadline: Date.now() + ticket.expiresInMs, intervalMs }
         put(promptingLogin({ url: ticket.verificationUrl, userCode: ticket.userCode }))
         openUrl(ticket.verificationUrl)
         timer.current = setTimeout(poll, intervalMs)
       })
       .catch(failOpen)
-  }, [clearTimer, cloud, failOpen, openUrl, poll, put])
+  }, [clearTimer, cloud, failOpen, minPollIntervalMs, openUrl, poll, put])
 
   const disconnect = useCallback(() => {
     const client = cloud.client()
