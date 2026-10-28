@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
-import { LoadFailed } from '@/features/settings/data/workspace/query-gate'
+import { LoadFailed } from '@/features/settings/data/shared/query-gate'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { ThreadList } from './shell-thread-list'

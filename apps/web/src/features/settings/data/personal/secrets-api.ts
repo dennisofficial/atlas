@@ -8,7 +8,7 @@ import {
   type LibrarySecret,
 } from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
-import { wireKindOf } from '../workspace/secrets-mapping'
+import { wireKindOf } from '../shared/secrets-mapping'
 import { relativeTime } from './relative-time'
 
 export function toLibrarySecret(args: {

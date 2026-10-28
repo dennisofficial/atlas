@@ -4,10 +4,10 @@ import { encodeSettingValue } from '@dltech/atlas-wire/web'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
-import { seedSessionUsers, seedWorkspace } from '../web-settings.fake-db'
+import { seedSessionUsers } from '../web-settings.fake-db'
 import { buildProjectsApp, createProjectAs, PROJECT_BODY } from './projects.router.fixture'
 
-describe('project settings and workspace link router', () => {
+describe('project settings and project workspace router', () => {
   useTestDatabase()
   let app: INestApplication
 
@@ -32,28 +32,15 @@ describe('project settings and workspace link router', () => {
 
   beforeEach(async () => {
     await seedSessionUsers()
-    await seedWorkspace({ id: 'org-1', members: [{ userId: 'user-a', role: 'member' }] })
     app = await buildProjectsApp({})
   })
 
   afterEach(() => app.close())
 
-  it('links a project to a workspace the caller belongs to, and keeps it when update omits it', async () => {
-    await create({ ...PROJECT_BODY, organizationId: 'org-2' }).expect(404)
-    const created = await create({ ...PROJECT_BODY, organizationId: 'org-1' }).expect(200)
-    const projectId = (dataOf(created.body) as { id: string }).id
-    expect(dataOf(created.body)).toMatchObject({ organizationId: 'org-1' })
-
-    const renamed = await update({ ...PROJECT_BODY, projectId, name: 'renamed' }).expect(200)
-    expect(dataOf(renamed.body)).toMatchObject({ organizationId: 'org-1' })
-
-    const unlinked = await update({ ...PROJECT_BODY, projectId, organizationId: null }).expect(200)
-    expect(dataOf(unlinked.body)).toMatchObject({ organizationId: null })
-  })
-
-  it('defaults organizationId to null', async () => {
-    const created = await create(PROJECT_BODY).expect(200)
-    expect(dataOf(created.body)).toMatchObject({ organizationId: null })
+  it('rejects an organizationId on create and update with 400', async () => {
+    await create({ ...PROJECT_BODY, organizationId: 'org-1' }).expect(400)
+    const projectId = await createProjectAs({ app, token: 'session-a' })
+    await update({ ...PROJECT_BODY, projectId, organizationId: null }).expect(400)
   })
 
   it('patches and lists project settings against the project registry', async () => {
@@ -68,10 +55,9 @@ describe('project settings and workspace link router', () => {
       projectId,
       values: { 'sandbox.vercelProjectId': encodeSettingValue('prj_1') },
     }).expect(400)
-    await patch({
-      projectId,
-      values: { 'sandbox.vercelTeamId': encodeSettingValue('t') },
-    }).expect(400)
+    await patch({ projectId, values: { 'sandbox.vercelTeamId': encodeSettingValue('t') } }).expect(
+      400,
+    )
     await patch({ projectId, values: { 'model.effort': encodeSettingValue('ultra') } }).expect(400)
     await patch({ projectId, values: {} }).expect(400)
 

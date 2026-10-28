@@ -1,3 +1,5 @@
+**Atlas TUI and Atlas Cloud web have exactly one user: Dennis. Atlas is still in development, so there is no other user's data or workflow to preserve.**
+
 # CLAUDE.md
 
 Guidance for Claude Code (claude.ai/code) working in this repository.

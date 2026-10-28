@@ -16,11 +16,6 @@ export const secretDetailSchema = z.object({
 })
 export type SecretDetail = z.infer<typeof secretDetailSchema>
 
-export const workspaceSecretSchema = secretDetailSchema.extend({
-  updatedBy: z.object({ userId: z.string(), name: z.string() }).nullable(),
-})
-export type WorkspaceSecret = z.infer<typeof workspaceSecretSchema>
-
 export const secretSetSchema = z.strictObject({
   value: z.string(),
   kind: z.enum(ESecretKind).optional(),

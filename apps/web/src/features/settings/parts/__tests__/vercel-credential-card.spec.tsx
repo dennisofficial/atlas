@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import {
-  PERSONAL_VERCEL_COPY,
-  VercelCredentialCard,
-  WORKSPACE_VERCEL_COPY,
-} from '../vercel-credential-card'
+import { PERSONAL_VERCEL_COPY, VercelCredentialCard } from '../vercel-credential-card'
 
 const configured = {
   configured: true,
@@ -24,14 +20,13 @@ describe('VercelCredentialCard', () => {
   })
 
   it('no longer tells projects to pick their own Vercel project', () => {
-    for (const copy of [WORKSPACE_VERCEL_COPY, PERSONAL_VERCEL_COPY]) {
-      expect(copy.description).not.toContain('Project → Sandbox')
-    }
+    expect(PERSONAL_VERCEL_COPY.description).not.toContain('Project → Sandbox')
   })
 
-  it('renders the personal copy when asked', () => {
-    const html = renderToStaticMarkup(<VercelCredentialCard copy={PERSONAL_VERCEL_COPY} />)
-    expect(html).toContain('personal projects')
+  it('renders the sandbox copy by default', () => {
+    const html = renderToStaticMarkup(<VercelCredentialCard />)
+    expect(html).toContain('creates your sandboxes')
+    expect(html).not.toContain('orkspace')
   })
 
   it('offers Remove only for an editable configured credential', () => {

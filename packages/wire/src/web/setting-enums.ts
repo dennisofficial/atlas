@@ -38,12 +38,6 @@ export enum EDensity {
   Compact = 'compact',
 }
 
-export enum EWorkspaceRegion {
-  Iad1 = 'iad1',
-  Sfo1 = 'sfo1',
-  Fra1 = 'fra1',
-}
-
 export const NOTIFY_EVENT_IDS = [
   'finished',
   'approval',

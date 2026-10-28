@@ -50,7 +50,6 @@ export class SessionOrSandboxMiddleware implements TRPCMiddleware {
           userId: row.userId,
           sessionId: `pod:${row.threadId}`,
           email: '',
-          activeOrganizationId: null,
         }
         return next({ ctx: { ...ctx, auth, pod: { threadId: row.threadId } } })
       }
@@ -65,7 +64,6 @@ export class SessionOrSandboxMiddleware implements TRPCMiddleware {
           userId: row.userId,
           sessionId: `sandbox:${row.id}`,
           email: '',
-          activeOrganizationId: null,
         }
         return next({
           ctx: { ...ctx, auth, sandbox: { sandboxId: row.id, threadId: row.threadId } },

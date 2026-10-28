@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { parseControls } from '@/proto/use-prototype'
 
-import { formatDeviceCode, slugify } from '../auth-format'
+import { formatDeviceCode } from '../auth-format'
 import { AUTH_PATHS, deviceStepHref, signInHref, withState } from '../auth-paths'
 import { EDeviceStep, ESignInContext, ESignInState, parseEnum, selectOf } from '../auth-states'
 
@@ -59,13 +59,12 @@ describe('auth paths', () => {
       '/device?step=confirm&user_code=ABCD-1234',
     )
     expect(deviceStepHref({ step: EDeviceStep.Denied })).toBe('/device?step=denied')
-    expect(signInHref(ESignInContext.Invite)).toBe('/sign-in?context=invite')
+    expect(signInHref(ESignInContext.Device)).toBe('/sign-in?context=device')
   })
 })
 
 describe('auth format', () => {
-  test('slugify and device code formatting', () => {
-    expect(slugify('  Analytical Engines! ')).toBe('analytical-engines')
+  test('device code formatting', () => {
     expect(formatDeviceCode('wdjbmjht')).toBe('WDJB-MJHT')
     expect(formatDeviceCode('wd')).toBe('WD')
   })

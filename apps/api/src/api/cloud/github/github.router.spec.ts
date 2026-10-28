@@ -57,7 +57,6 @@ describe('GithubRouter poll validation', () => {
               userId: 'user-a',
               sessionId: 'session-a',
               email: 'a@example.com',
-              activeOrganizationId: null,
             }),
           },
         },

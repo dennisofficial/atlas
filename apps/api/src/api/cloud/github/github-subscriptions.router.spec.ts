@@ -49,7 +49,7 @@ const sandboxes = {
 const verifier = {
   async verify(req: { headers: { authorization?: string } }) {
     if (req.headers.authorization !== `Bearer ${SESSION_TOKEN}`) return null
-    return { userId: 'usr_1', sessionId: 'ses_1', email: '', activeOrganizationId: null }
+    return { userId: 'usr_1', sessionId: 'ses_1', email: '' }
   },
 }
 

@@ -1,0 +1,667 @@
+[
+  {
+    "id": "data.delete-organization-projects",
+    "label": "Delete projects owned by an organization before every project requires a user owner",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Project",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Project"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Delete projects owned by an organization before every project requires a user owner",
+        "sql": "DELETE FROM \"public\".\"Project\" WHERE \"ownerUserId\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropTable.Invitation",
+    "label": "Drop table \"Invitation\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Invitation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Invitation\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Invitation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"Invitation\"",
+        "sql": "DROP TABLE \"public\".\"Invitation\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Invitation\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Invitation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.Member",
+    "label": "Drop table \"Member\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Member"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Member\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Member\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"Member\"",
+        "sql": "DROP TABLE \"public\".\"Member\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Member\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Member\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.Project.Project_exactly_one_owner_ad5ba0b8",
+    "label": "Drop check constraint \"Project_exactly_one_owner_ad5ba0b8\" on \"Project\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "Project_exactly_one_owner_ad5ba0b8",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Project_exactly_one_owner_ad5ba0b8\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Project_exactly_one_owner_ad5ba0b8",
+          "public",
+          "\"public\".\"Project\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"Project_exactly_one_owner_ad5ba0b8\"",
+        "sql": "ALTER TABLE \"public\".\"Project\" DROP CONSTRAINT \"Project_exactly_one_owner_ad5ba0b8\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Project_exactly_one_owner_ad5ba0b8\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Project_exactly_one_owner_ad5ba0b8",
+          "public",
+          "\"public\".\"Project\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.Project.Project_organizationId_fkey",
+    "label": "Drop constraint \"Project_organizationId_fkey\" on \"Project\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Project_organizationId_fkey",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Project_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Project_organizationId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Project_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Project\" DROP CONSTRAINT \"Project_organizationId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Project_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Project_organizationId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Project.Project_organizationId_idx",
+    "label": "Drop index \"Project_organizationId_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Project_organizationId_idx",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Project_organizationId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Project_organizationId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Project_organizationId_idx\"",
+        "sql": "DROP INDEX \"public\".\"Project_organizationId_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Project_organizationId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Project_organizationId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Project.organizationId",
+    "label": "Drop column \"organizationId\" from \"Project\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "organizationId",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"organizationId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "organizationId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"organizationId\"",
+        "sql": "ALTER TABLE \"public\".\"Project\" DROP COLUMN \"organizationId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"organizationId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "organizationId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Session.activeOrganizationId",
+    "label": "Drop column \"activeOrganizationId\" from \"Session\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "activeOrganizationId",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"activeOrganizationId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Session",
+          "activeOrganizationId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"activeOrganizationId\"",
+        "sql": "ALTER TABLE \"public\".\"Session\" DROP COLUMN \"activeOrganizationId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"activeOrganizationId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Session",
+          "activeOrganizationId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.Thread.Thread_organizationId_fkey",
+    "label": "Drop constraint \"Thread_organizationId_fkey\" on \"Thread\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Thread_organizationId_fkey",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Thread_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Thread_organizationId_fkey",
+          "public",
+          "\"public\".\"Thread\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Thread_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP CONSTRAINT \"Thread_organizationId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Thread_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Thread_organizationId_fkey",
+          "public",
+          "\"public\".\"Thread\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Thread.Thread_organizationId_idx",
+    "label": "Drop index \"Thread_organizationId_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Thread_organizationId_idx",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Thread_organizationId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_organizationId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Thread_organizationId_idx\"",
+        "sql": "DROP INDEX \"public\".\"Thread_organizationId_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Thread_organizationId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_organizationId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.organizationId",
+    "label": "Drop column \"organizationId\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "organizationId",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"organizationId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "organizationId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"organizationId\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"organizationId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"organizationId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "organizationId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.WorkspaceMcpServer",
+    "label": "Drop table \"WorkspaceMcpServer\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorkspaceMcpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WorkspaceMcpServer\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceMcpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"WorkspaceMcpServer\"",
+        "sql": "DROP TABLE \"public\".\"WorkspaceMcpServer\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WorkspaceMcpServer\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceMcpServer\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.WorkspaceSecret",
+    "label": "Drop table \"WorkspaceSecret\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorkspaceSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WorkspaceSecret\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"WorkspaceSecret\"",
+        "sql": "DROP TABLE \"public\".\"WorkspaceSecret\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WorkspaceSecret\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSecret\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.WorkspaceSetting",
+    "label": "Drop table \"WorkspaceSetting\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorkspaceSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WorkspaceSetting\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"WorkspaceSetting\"",
+        "sql": "DROP TABLE \"public\".\"WorkspaceSetting\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WorkspaceSetting\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceSetting\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.WorkspaceVercelCredential",
+    "label": "Drop table \"WorkspaceVercelCredential\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorkspaceVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"WorkspaceVercelCredential\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceVercelCredential\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"WorkspaceVercelCredential\"",
+        "sql": "DROP TABLE \"public\".\"WorkspaceVercelCredential\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"WorkspaceVercelCredential\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"WorkspaceVercelCredential\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropTable.Organization",
+    "label": "Drop table \"Organization\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Organization"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Organization\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Organization\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"Organization\"",
+        "sql": "DROP TABLE \"public\".\"Organization\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Organization\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Organization\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.Project.ownerUserId",
+    "label": "Set NOT NULL on \"Project\".\"ownerUserId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "ownerUserId",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"ownerUserId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "ownerUserId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"ownerUserId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"Project\" WHERE \"ownerUserId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "Project",
+            "column": "ownerUserId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"ownerUserId\"",
+        "sql": "ALTER TABLE \"public\".\"Project\" ALTER COLUMN \"ownerUserId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"ownerUserId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "ownerUserId",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

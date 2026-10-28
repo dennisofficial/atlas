@@ -13,7 +13,6 @@ const SESSION: VerifiedSession = {
   userId: 'user-1',
   sessionId: 'session-1',
   email: 'dennis@atlas.dev',
-  activeOrganizationId: null,
 }
 
 const verify = vi.fn(

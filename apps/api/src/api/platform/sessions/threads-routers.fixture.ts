@@ -31,12 +31,7 @@ export const USER_ID = 'usr-1'
 export const SANDBOX_THREAD = 'thr-1'
 export const CHILD_THREAD = 'thr-child'
 
-const SESSION: VerifiedSession = {
-  userId: USER_ID,
-  sessionId: 'ses_1',
-  email: 'a@b.c',
-  activeOrganizationId: null,
-}
+const SESSION: VerifiedSession = { userId: USER_ID, sessionId: 'ses_1', email: 'a@b.c' }
 
 export const WIRE_THREAD = {
   id: 'brn_1',

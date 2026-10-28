@@ -30,7 +30,7 @@ export const sessionVerifier = (sessions: Record<string, string>) => ({
   async verify(req: { headers: { authorization?: string } }) {
     const userId = sessions[bearerOf(req)]
     if (userId === undefined) return null
-    return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
+    return { userId, sessionId: 'ses', email: '' }
   },
 })
 

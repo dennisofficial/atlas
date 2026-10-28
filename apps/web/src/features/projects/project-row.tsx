@@ -12,7 +12,7 @@ import { relativeTime } from '@/features/settings/data/personal/relative-time'
 
 export const NO_REPOSITORY_LABEL = 'No repository'
 
-export function ProjectRow({ project, ownerName }: { project: Project; ownerName: string }) {
+export function ProjectRow({ project }: { project: Project }) {
   const settingsHref = hrefOfProjectSection({
     projectId: project.id,
     section: EProjectSettingsSection.Overview,
@@ -26,8 +26,6 @@ export function ProjectRow({ project, ownerName }: { project: Project; ownerName
         <span className="truncate text-sm font-medium">{project.name}</span>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="truncate font-mono">{project.repo ?? NO_REPOSITORY_LABEL}</span>
-          <span aria-hidden>·</span>
-          <span className="shrink-0">{ownerName}</span>
           <span aria-hidden>·</span>
           <span className="shrink-0">Updated {relativeTime({ from: project.updatedAt })}</span>
         </span>

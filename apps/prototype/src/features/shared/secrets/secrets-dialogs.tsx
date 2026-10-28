@@ -22,14 +22,11 @@ const SCOPE_NOTES: Record<ESecretsScope, string> = {
   [ESecretsScope.Personal]: 'Personal value · applies to every project',
   [ESecretsScope.Project]:
     'Delivered to every thread in this project. It overrides a personal value with the same key.',
-  [ESecretsScope.Workspace]:
-    "Available to every member's threads. Personal values override it; project values override both.",
 }
 
 const EDIT_TITLES: Record<ESecretsScope, string> = {
   [ESecretsScope.Personal]: 'Edit personal value',
   [ESecretsScope.Project]: 'Edit value',
-  [ESecretsScope.Workspace]: 'Edit workspace value',
 }
 
 const KIND_NOTES: Record<ESecretKind, string> = {

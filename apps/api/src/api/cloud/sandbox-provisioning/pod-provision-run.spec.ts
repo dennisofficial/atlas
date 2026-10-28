@@ -87,7 +87,7 @@ describe('runPodProvision', () => {
       environment: { [API_PROVISIONED_ENV]: '1' },
     })
     expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: expect.objectContaining({ userId: 'usr-1', organizationId: null }),
+      thread: expect.objectContaining({ userId: 'usr-1' }),
     })
 
     const { sandbox, writeFiles } = fakeSandbox()

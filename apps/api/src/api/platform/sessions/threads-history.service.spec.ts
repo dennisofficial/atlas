@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import { seedOrganization, useTestDatabase } from '@dltech/atlas-db/testing'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   eventsOf,
@@ -155,15 +155,14 @@ describe('ThreadsHistoryService', () => {
     ])
   })
 
-  it('fork carries the source thread project and owner organization', async () => {
-    await seedOrganization({ db, id: 'org-1', memberIds: [USER_A] })
+  it('fork carries the source thread project', async () => {
     await db.orm.public.Project.create({
       id: 'prj-1',
       name: 'prj-1',
-      organizationId: 'org-1',
+      ownerUserId: USER_A,
       createdById: USER_A,
     })
-    await seedThreadRow({ id: 'brn_one', head: 0, projectId: 'prj-1', organizationId: 'org-1' })
+    await seedThreadRow({ id: 'brn_one', head: 0, projectId: 'prj-1' })
 
     const forked = await service.fork({
       userId: USER_A,
@@ -171,7 +170,6 @@ describe('ThreadsHistoryService', () => {
       draft: { seq: 0, mode: 'reference' },
     })
 
-    expect((await threadById(forked.id))?.organizationId).toBe('org-1')
     expect((await threadById(forked.id))?.projectId).toBe('prj-1')
   })
 

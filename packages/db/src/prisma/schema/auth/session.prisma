@@ -7,7 +7,6 @@ model Session {
   updatedAt            TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   ipAddress            String?
   userAgent            String?
-  activeOrganizationId String?
   userId               String
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 

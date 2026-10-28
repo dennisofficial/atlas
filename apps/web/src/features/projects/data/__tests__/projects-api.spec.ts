@@ -52,7 +52,6 @@ describe('createProject', () => {
       baseBranch: null,
       additionalRepos: [],
       description: '',
-      organizationId: 'org1',
       createdAt: '',
       updatedAt: '',
     }
@@ -63,7 +62,6 @@ describe('createProject', () => {
       baseBranch: null,
       additionalRepos: [],
       description: '',
-      organizationId: 'org1',
     }
     const project = await createProject(body)
     expect(project.id).toBe('p1')
@@ -77,9 +75,9 @@ describe('createProject', () => {
       Response.json(
         {
           error: {
-            message: 'not a member',
+            message: 'not allowed',
             code: -32603,
-            data: { code: 'FORBIDDEN', httpStatus: 403, details: { message: 'not a member' } },
+            data: { code: 'FORBIDDEN', httpStatus: 403, details: { message: 'not allowed' } },
           },
         },
         { status: 403 },
@@ -92,9 +90,8 @@ describe('createProject', () => {
         baseBranch: null,
         additionalRepos: [],
         description: '',
-        organizationId: 'nope',
       }),
-    ).rejects.toThrow('not a member')
+    ).rejects.toThrow('not allowed')
   })
 })
 

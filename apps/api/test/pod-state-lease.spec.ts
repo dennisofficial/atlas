@@ -142,7 +142,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
             async verify(req: { headers: { authorization?: string } }) {
               const userId = SESSIONS[bearerOf(req)]
               if (userId === undefined) return null
-              return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
+              return { userId, sessionId: 'ses', email: '' }
             },
           },
         },

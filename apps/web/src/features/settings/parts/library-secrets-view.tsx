@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 
-import { ELibraryScope, type LibrarySecret } from '../fixtures/settings-library'
+import type { LibrarySecret } from '../fixtures/settings-library'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 import { BulkAddDialog, SecretDialog, type SecretEntry } from './library-secret-dialogs'
@@ -21,16 +21,12 @@ import { SecretRow } from './library-secret-row'
 import type { SecretsStore } from './secrets-store'
 
 export function SecretsView({
-  scope,
   description,
   sectionDescription,
-  lead,
   store,
 }: {
-  scope: ELibraryScope
   description: ReactNode
   sectionDescription: string
-  lead?: ReactNode
   store: SecretsStore
 }) {
   const { secrets } = store
@@ -70,11 +66,8 @@ export function SecretsView({
     if (target !== null) void run(() => store.remove(target.key))
   }
 
-  const isWorkspace = scope === ELibraryScope.Workspace
-
   return (
     <SettingsPage title="Secrets & Env Vars" description={description}>
-      {lead}
       <SettingsSection
         title="Values"
         description={sectionDescription}
@@ -98,8 +91,7 @@ export function SecretsView({
               </EmptyMedia>
               <EmptyTitle>No secrets or environment variables yet.</EmptyTitle>
               <EmptyDescription>
-                Add a value and it is injected into {isWorkspace ? "every member's" : 'your'}{' '}
-                sandboxes.
+                Add a value and it is injected into your sandboxes.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -109,7 +101,6 @@ export function SecretsView({
               <SecretRow
                 key={secret.id}
                 secret={secret}
-                showAddedBy={isWorkspace}
                 onEdit={() => setEditing(secret)}
                 onDelete={() => setDeleting(secret)}
               />
@@ -122,7 +113,6 @@ export function SecretsView({
         key={`add-${addOpen}`}
         open={addOpen}
         onOpenChange={setAddOpen}
-        scope={scope}
         initial={null}
         onSubmit={handleAdd}
       />
@@ -130,7 +120,6 @@ export function SecretsView({
         key={`edit-${editing?.id ?? 'none'}`}
         open={editing !== null}
         onOpenChange={(open) => (open ? undefined : setEditing(null))}
-        scope={scope}
         initial={editing}
         onSubmit={handleEdit}
       />
@@ -144,11 +133,7 @@ export function SecretsView({
         open={deleting !== null}
         onOpenChange={(open) => (open ? undefined : setDeleting(null))}
         title={`Delete ${deleting?.key ?? 'value'}?`}
-        description={
-          isWorkspace
-            ? 'Threads in this workspace stop receiving it on their next sandbox start.'
-            : 'Your threads stop receiving it on their next sandbox start.'
-        }
+        description="Your threads stop receiving it on their next sandbox start."
         confirmLabel="Delete"
         onConfirm={handleDelete}
       />

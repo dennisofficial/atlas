@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { CardRow } from '@dltech/atlas-ui/components/card'
@@ -15,12 +14,10 @@ const MASK = '••••••••'
 
 export function SecretRow({
   secret,
-  showAddedBy,
   onEdit,
   onDelete,
 }: {
   secret: LibrarySecret
-  showAddedBy: boolean
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -50,16 +47,6 @@ export function SecretRow({
           </Button>
         ) : null}
       </div>
-      {showAddedBy ? (
-        <div className="flex w-28 items-center gap-2">
-          <Avatar size="sm">
-            <AvatarFallback>{secret.addedBy.initials}</AvatarFallback>
-          </Avatar>
-          <span className="truncate text-xs text-muted-foreground">
-            {secret.addedBy.name.split(' ')[0]}
-          </span>
-        </div>
-      ) : null}
       <span className="w-24 text-right text-xs whitespace-nowrap text-muted-foreground">
         Updated {secret.updated}
       </span>

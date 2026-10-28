@@ -3,7 +3,7 @@
 import {
   useVercelCredentialSource,
   type VercelCredentialResource,
-} from '../workspace/vercel-credential-resource'
+} from '../shared/vercel-credential-resource'
 import {
   deleteUserVercelCredential,
   getUserVercelCredential,

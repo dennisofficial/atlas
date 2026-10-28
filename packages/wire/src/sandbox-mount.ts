@@ -26,11 +26,7 @@ export enum ESettleWait {
   NameConflict = 'name-conflict',
 }
 
-export type SettleWaitNotice = {
-  reason: ESettleWait
-  attempt: number
-  attempts: number
-}
+export type SettleWaitNotice = { reason: ESettleWait; attempt: number; attempts: number }
 
 export async function mountWithRetries(args: {
   sdk: VercelSdk
@@ -47,7 +43,7 @@ export async function mountWithRetries(args: {
   threadId: string
   token: string
   environment?: Record<string, string> | undefined
-  /** False for an API-provisioned sandbox: its pod must never read the workspace's Vercel token. */
+  /** False for an API-provisioned sandbox: its pod must never read the owner's Vercel token. */
   injectVercelCredentials?: boolean | undefined
   pinnedModel?: string | undefined
   onCreate: () => Promise<void>

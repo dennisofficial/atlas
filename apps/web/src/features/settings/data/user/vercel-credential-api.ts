@@ -4,7 +4,7 @@ import {
   viewOfCredential,
   type VercelCredentialView,
   type VercelUpsertBody,
-} from '../workspace/vercel-credential'
+} from '../shared/vercel-credential'
 
 export async function getUserVercelCredential(): Promise<VercelCredentialView> {
   const wire = await cloudCall(api.userVercel.get.query())

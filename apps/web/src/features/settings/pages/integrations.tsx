@@ -75,7 +75,7 @@ function McpContent({
   return (
     <McpServersSection
       title="MCP servers"
-      description="Personal MCP servers are saved to your account. Workspace values apply first, your personal values override them, and project values override both."
+      description="MCP servers are saved to your account. Project servers override them."
       store={store}
     />
   )

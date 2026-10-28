@@ -14,7 +14,7 @@ import { Field, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
 
 import { BranchField } from './new-project-branch-field'
 import { ConnectGithub } from './new-project-connect'

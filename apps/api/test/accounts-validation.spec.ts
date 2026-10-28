@@ -39,7 +39,7 @@ describe('AccountsRouter validation (in-process)', () => {
           useValue: {
             async verify(req: { headers: { authorization?: string } }) {
               if (req.headers.authorization !== 'Bearer good') return null
-              return { userId: 'user-a', sessionId: 's', email: '', activeOrganizationId: null }
+              return { userId: 'user-a', sessionId: 's', email: '' }
             },
           },
         },

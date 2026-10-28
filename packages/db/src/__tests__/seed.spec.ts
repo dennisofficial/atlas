@@ -6,24 +6,13 @@ import { useTestDatabase } from '../testing'
 describe('seed', () => {
   const testDb = useTestDatabase()
 
-  it('is idempotent and writes one of each owner kind', async () => {
+  it('is idempotent and writes one personal project', async () => {
     const { db } = testDb()
     await seed(db)
     await seed(db)
 
-    const projects = await db.orm.public.Project.select('id', 'ownerUserId', 'organizationId').all()
-    expect(projects).toHaveLength(2)
-    expect(projects).toContainEqual({
-      id: SEED_IDS.personalProject,
-      ownerUserId: SEED_IDS.user,
-      organizationId: null,
-    })
-    expect(projects).toContainEqual({
-      id: SEED_IDS.workspaceProject,
-      ownerUserId: null,
-      organizationId: SEED_IDS.organization,
-    })
-    expect(await db.orm.public.Member.all()).toHaveLength(1)
+    const projects = await db.orm.public.Project.select('id', 'ownerUserId').all()
+    expect(projects).toEqual([{ id: SEED_IDS.personalProject, ownerUserId: SEED_IDS.user }])
   })
 
   it('refuses any host other than localhost', () => {

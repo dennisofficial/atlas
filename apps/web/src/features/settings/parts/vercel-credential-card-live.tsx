@@ -7,22 +7,18 @@ import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { useUserVercelCredential } from '../data/user/vercel-credential-resource'
-import { LoadFailed, LoadingBlocks } from '../data/workspace/query-gate'
-import { runAction } from '../data/workspace/run-action'
+import { LoadFailed, LoadingBlocks } from '../data/shared/query-gate'
+import { runAction } from '../data/shared/run-action'
 import {
   requestBodyOf,
   statusLineOf,
   validateVercelDraft,
   type VercelDraft,
-} from '../data/workspace/vercel-credential'
-import {
-  useVercelCredential,
-  type VercelCredentialResource,
-} from '../data/workspace/vercel-credential-resource'
+} from '../data/shared/vercel-credential'
+import type { VercelCredentialResource } from '../data/shared/vercel-credential-resource'
 import {
   PERSONAL_VERCEL_COPY,
   VercelCredentialCard,
-  WORKSPACE_VERCEL_COPY,
   type VercelCardCopy,
 } from './vercel-credential-card'
 
@@ -80,28 +76,8 @@ function LiveVercelCard({
   )
 }
 
-function WorkspaceLiveCard({ organizationId }: { organizationId: string }) {
-  return (
-    <LiveVercelCard resource={useVercelCredential(organizationId)} copy={WORKSPACE_VERCEL_COPY} />
-  )
-}
-
 function UserLiveCard() {
   return <LiveVercelCard resource={useUserVercelCredential()} copy={PERSONAL_VERCEL_COPY} />
-}
-
-export function WorkspaceVercelCardSlot({
-  organizationId,
-  canEdit,
-}: {
-  organizationId: string
-  canEdit: boolean
-}) {
-  if (!CLOUD_CAPABILITIES.workspaceVercelCredential) {
-    return <VercelCredentialCard disabled soon />
-  }
-  if (!canEdit) return <VercelCredentialCard disabled />
-  return <WorkspaceLiveCard organizationId={organizationId} />
 }
 
 export function UserVercelCardSlot() {

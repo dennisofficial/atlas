@@ -87,14 +87,6 @@ export function DangerZone({ projectSlug }: { projectSlug: string }) {
     <SettingsSection title="Danger zone">
       <SettingsCard>
         <SettingsRow
-          title="Transfer ownership"
-          description="Not available yet. Moving a project between workspaces isn't hooked up to Atlas Cloud."
-        >
-          <Button variant="outline" size="sm" disabled>
-            Transfer…
-          </Button>
-        </SettingsRow>
-        <SettingsRow
           title="Delete project"
           description="Permanently remove the project and everything Atlas stores for it."
         >

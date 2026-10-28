@@ -27,7 +27,7 @@ export const createPodLeasesApp = (args?: {
         useValue: {
           async verify(req: { headers: { authorization?: string } }) {
             if (req.headers.authorization !== 'Bearer session-a') return null
-            return { userId: 'user-a', sessionId: 'ses', email: '', activeOrganizationId: null }
+            return { userId: 'user-a', sessionId: 'ses', email: '' }
           },
         },
       },

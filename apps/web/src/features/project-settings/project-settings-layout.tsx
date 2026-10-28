@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 
-import { LoadFailed, LoadingBlocks } from '@/features/settings/data/workspace/query-gate'
+import { LoadFailed, LoadingBlocks } from '@/features/settings/data/shared/query-gate'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { ProjectProvider } from './data/project-context'

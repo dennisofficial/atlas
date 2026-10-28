@@ -54,11 +54,11 @@ describe('notConfiguredOf', () => {
     const bare = step({
       state: EBootStepState.Error,
       at: GAP_AT,
-      gap: EVercelCredentialGap.WorkspaceCredential,
+      gap: EVercelCredentialGap.UserCredential,
     })
     expect(notConfiguredOf(pod(EPodState.Failed, [bare]))).toEqual({
       error: NOT_CONFIGURED_FALLBACK,
-      gap: EVercelCredentialGap.WorkspaceCredential,
+      gap: EVercelCredentialGap.UserCredential,
     })
   })
 

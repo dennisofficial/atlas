@@ -19,12 +19,7 @@ const USER_SESSION = 'user-session-token'
 const verifier = {
   verify: vi.fn(async (request: { headers: Record<string, string> }) => {
     if (request.headers.authorization !== `Bearer ${USER_SESSION}`) return null
-    return {
-      userId: 'user-a',
-      sessionId: 'ses_1',
-      email: 'dennis@trycomp.ai',
-      activeOrganizationId: null,
-    }
+    return { userId: 'user-a', sessionId: 'ses_1', email: 'dennis@trycomp.ai' }
   }),
 }
 

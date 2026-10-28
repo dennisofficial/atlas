@@ -4,22 +4,16 @@ import { join } from 'node:path'
 
 import {
   ESettingsPage,
-  ESettingsScope,
-  PERSONAL_NAV,
-  WORKSPACE_NAV,
+  SETTINGS_NAV,
   filterNav,
-  firstPageOf,
   hrefOfPage,
-  scopeOfPage,
   settingsPageOfPath,
 } from '../settings-nav'
 import { EPageStatus, SETTINGS_PAGE_STATUS } from '../status/page-status'
 
 const SETTINGS_APP_DIR = join(import.meta.dir, '../../../app/(private)/settings')
 const ALL_PAGES = Object.values(ESettingsPage)
-const NAV_PAGES = [...PERSONAL_NAV, ...WORKSPACE_NAV].flatMap((group) =>
-  group.items.map((item) => item.page),
-)
+const NAV_PAGES = SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.page))
 
 describe('settings page registry', () => {
   it('gives every page exactly one nav item', () => {
@@ -32,22 +26,16 @@ describe('settings page registry', () => {
     }
   })
 
-  it('resolves the scope of workspace and personal pages', () => {
-    expect(scopeOfPage(ESettingsPage.WorkspaceMembers)).toBe(ESettingsScope.Workspace)
-    expect(scopeOfPage(ESettingsPage.Memory)).toBe(ESettingsScope.Personal)
-    expect(scopeOfPage(firstPageOf(ESettingsScope.Workspace))).toBe(ESettingsScope.Workspace)
-  })
-
   it('filters nav items by label or group label', () => {
-    const memory = filterNav({ groups: PERSONAL_NAV, query: 'memory' })
+    const memory = filterNav({ groups: SETTINGS_NAV, query: 'memory' })
     expect(memory.flatMap((group) => group.items.map((item) => item.page))).toEqual([
       ESettingsPage.Memory,
     ])
-    const usage = filterNav({ groups: PERSONAL_NAV, query: 'usage' })
+    const usage = filterNav({ groups: SETTINGS_NAV, query: 'usage' })
     expect(usage.flatMap((group) => group.items.map((item) => item.page))).toEqual([
       ESettingsPage.UsageSandboxes,
     ])
-    expect(filterNav({ groups: PERSONAL_NAV, query: 'zzz' })).toEqual([])
+    expect(filterNav({ groups: SETTINGS_NAV, query: 'zzz' })).toEqual([])
   })
 })
 

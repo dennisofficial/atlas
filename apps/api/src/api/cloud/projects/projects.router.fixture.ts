@@ -6,7 +6,6 @@ import {
   trpcMutation,
   type PrincipalFixture,
 } from '../session-trpc-test-app'
-import { WorkspaceAccessService } from '../workspaces/workspace-access.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
@@ -23,7 +22,6 @@ export const PROJECT_BODY = {
 
 export const projectProviders = (githubTokens: Record<string, string> = {}): Provider[] => [
   ProjectsService,
-  WorkspaceAccessService,
   ProjectResourcesService,
   ProjectSettingsService,
   ProjectsRouter,

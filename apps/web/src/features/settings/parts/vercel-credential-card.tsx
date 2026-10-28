@@ -14,7 +14,7 @@ import {
   canSaveVercelDraft,
   type VercelCredentialView,
   type VercelDraft,
-} from '../data/workspace/vercel-credential'
+} from '../data/shared/vercel-credential'
 import { SettingsCard, SettingsRow } from '../settings-layout'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 
@@ -23,17 +23,10 @@ export type VercelCardCopy = {
   removeDescription: string
 }
 
-export const WORKSPACE_VERCEL_COPY: VercelCardCopy = {
-  description:
-    "Atlas Cloud creates this workspace's sandboxes in this Vercel team and project with this token.",
-  removeDescription: "New sandboxes for this workspace won't start until a token is saved again.",
-}
-
 export const PERSONAL_VERCEL_COPY: VercelCardCopy = {
   description:
-    'Atlas Cloud creates the sandboxes for your personal projects, and for threads without a project, in this Vercel team and project with this token.',
-  removeDescription:
-    "New sandboxes for your personal projects and threads without a project won't start until a token is saved again.",
+    'Atlas Cloud creates your sandboxes in this Vercel team and project with this token.',
+  removeDescription: "New sandboxes won't start until a token is saved again.",
 }
 
 const EMPTY_VIEW: VercelCredentialView = {
@@ -56,7 +49,7 @@ function StatusLine({ configured, text }: { configured: boolean; text: string })
 }
 
 export function VercelCredentialCard({
-  copy = WORKSPACE_VERCEL_COPY,
+  copy = PERSONAL_VERCEL_COPY,
   view = EMPTY_VIEW,
   statusLine,
   disabled = false,

@@ -1,4 +1,4 @@
-import { Mail, TerminalSquare } from 'lucide-react'
+import { TerminalSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { FormEvent } from 'react'
 
@@ -16,18 +16,10 @@ import { AuthField } from './auth-field'
 import { AuthBanner, AuthHeading } from './auth-heading'
 import { AUTH_PATHS } from './auth-paths'
 import { ESignInContext, ESignInState } from './auth-states'
-import { AUTH_WORKSPACE } from './fixtures/auth'
 
 function ContextBanner({ context }: { context: ESignInContext }) {
   if (context === ESignInContext.Device) {
     return <AuthBanner icon={TerminalSquare}>Sign in to authorize your terminal</AuthBanner>
-  }
-  if (context === ESignInContext.Invite) {
-    return (
-      <AuthBanner icon={Mail}>
-        Sign in to accept your invitation to {AUTH_WORKSPACE.name}
-      </AuthBanner>
-    )
   }
   return null
 }

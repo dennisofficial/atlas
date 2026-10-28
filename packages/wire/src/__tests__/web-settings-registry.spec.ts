@@ -7,8 +7,6 @@ import {
   ESettingConsumer,
   parsePinnedModels,
   validateCloudSetting,
-  validateWorkspaceSetting,
-  WORKSPACE_SETTING_REGISTRY,
 } from '../web'
 
 const stored = (value: unknown): string => encodeSettingValue(value)
@@ -114,22 +112,8 @@ describe('cloud setting registry', () => {
   })
 
   it('every fallback satisfies its own schema', () => {
-    for (const registry of [CLOUD_SETTING_REGISTRY, WORKSPACE_SETTING_REGISTRY]) {
-      for (const entry of registry.values()) {
-        expect(entry.schema.safeParse(entry.fallback).success).toBe(true)
-      }
+    for (const entry of CLOUD_SETTING_REGISTRY.values()) {
+      expect(entry.schema.safeParse(entry.fallback).success).toBe(true)
     }
-  })
-})
-
-describe('workspace setting registry', () => {
-  it('validates known keys and rejects unknown ones', () => {
-    expect(
-      validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('fra1') }).ok,
-    ).toBe(true)
-    expect(
-      validateWorkspaceSetting({ key: 'workspace.defaultRegion', stored: stored('mars1') }).ok,
-    ).toBe(false)
-    expect(validateWorkspaceSetting({ key: 'model.id', stored: stored('x') }).ok).toBe(false)
   })
 })

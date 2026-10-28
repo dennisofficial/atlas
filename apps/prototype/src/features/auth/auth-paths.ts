@@ -1,5 +1,3 @@
-import { AUTH_INVITATION_ID } from './fixtures/auth'
-
 export const AUTH_PATHS = {
   home: '/',
   signIn: '/sign-in',
@@ -8,7 +6,6 @@ export const AUTH_PATHS = {
   reset: '/reset-password',
   device: '/device',
   setup: '/setup',
-  invite: `/invite/${AUTH_INVITATION_ID}`,
   newThread: '/threads/new',
   integrations: '/settings/integrations',
 } as const

@@ -23,9 +23,9 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { EMcpTransportKind } from '@dltech/atlas-wire/web'
 
-import type { McpRow } from '@/features/settings/data/workspace/mcp-mapping'
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
-import { runAction } from '@/features/settings/data/workspace/run-action'
+import type { McpRow } from '@/features/settings/data/shared/mcp-mapping'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { useProjectContext } from './data/project-context'
 import { useProjectMcp } from './data/use-project-mcp'
@@ -86,7 +86,9 @@ function ServersEmpty() {
           <PlugIcon />
         </EmptyMedia>
         <EmptyTitle>No project MCP servers</EmptyTitle>
-        <EmptyDescription>Add one here to share it with everyone on this project.</EmptyDescription>
+        <EmptyDescription>
+          Add one here to make it available to every thread in this project.
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   )
@@ -107,42 +109,40 @@ function McpContent({ servers }: { servers: McpRow[] }) {
     void runAction({ work: () => mcp.remove(id), success: `Removed ${id}` })
 
   return (
-    <>
-      <SettingsSection
-        title="MCP"
-        description="Workspace servers apply first, a member's personal servers override them, and project servers override both."
-        actions={
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              nativeButton={false}
-              render={<Link href="/settings/integrations" />}
-            >
-              Personal MCP settings
-              <ArrowUpRightIcon data-icon="inline-end" />
-            </Button>
-            <AddMcpServerDialog onAdd={handleAdd} />
-          </>
-        }
-      >
-        <SettingsCard>
-          {servers.length === 0 ? (
-            <ServersEmpty />
-          ) : (
-            servers.map((server) => (
-              <ServerRow
-                key={server.id}
-                server={server}
-                onToggle={(enabled) => handleToggle({ id: server.id, enabled })}
-                onRemove={() => handleRemove(server.id)}
-              />
-            ))
-          )}
-        </SettingsCard>
-      </SettingsSection>
-    </>
+    <SettingsSection
+      title="MCP"
+      description="Project servers override your personal servers."
+      actions={
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            nativeButton={false}
+            render={<Link href="/settings/integrations" />}
+          >
+            Personal MCP settings
+            <ArrowUpRightIcon data-icon="inline-end" />
+          </Button>
+          <AddMcpServerDialog onAdd={handleAdd} />
+        </>
+      }
+    >
+      <SettingsCard>
+        {servers.length === 0 ? (
+          <ServersEmpty />
+        ) : (
+          servers.map((server) => (
+            <ServerRow
+              key={server.id}
+              server={server}
+              onToggle={(enabled) => handleToggle({ id: server.id, enabled })}
+              onRemove={() => handleRemove(server.id)}
+            />
+          ))
+        )}
+      </SettingsCard>
+    </SettingsSection>
   )
 }
 

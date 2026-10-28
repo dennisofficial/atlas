@@ -1,71 +1,41 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { z } from 'zod'
 
 import {
   CLOUD_SETTING_REGISTRY,
   decodeSettingValue,
   encodeSettingValue,
-  WORKSPACE_SETTING_REGISTRY,
-  type CloudSettingEntry,
   type SettingScalar,
 } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from './api-client'
 import { useCloudQuery, type CloudQuery } from './use-cloud-query'
 
-export enum ESettingsTarget {
-  Personal = 'personal',
-  Workspace = 'workspace',
-}
-
-export type SettingsTarget =
-  | { kind: ESettingsTarget.Personal }
-  | { kind: ESettingsTarget.Workspace; organizationId: string }
-
 export type SettingValues = ReadonlyMap<string, SettingScalar>
 export type SettingChanges = Record<string, SettingScalar | null>
 
-const registryOf = (target: SettingsTarget): ReadonlyMap<string, CloudSettingEntry> =>
-  target.kind === ESettingsTarget.Personal ? CLOUD_SETTING_REGISTRY : WORKSPACE_SETTING_REGISTRY
-
-export async function fetchSettings(target: SettingsTarget): Promise<SettingValues> {
-  const body =
-    target.kind === ESettingsTarget.Personal
-      ? await cloudCall(api.settings.list.query())
-      : await cloudCall(
-          api.workspaces.listSettings.query({ organizationId: target.organizationId }),
-        )
+export async function fetchSettings(): Promise<SettingValues> {
+  const body = await cloudCall(api.settings.list.query())
   return new Map(body.settings.map((setting) => [setting.key, decodeSettingValue(setting.value)]))
 }
 
-export async function saveSettings(args: {
-  target: SettingsTarget
-  changes: SettingChanges
-}): Promise<void> {
+export async function saveSettings(changes: SettingChanges): Promise<void> {
   const values: Record<string, string | null> = {}
-  for (const [key, value] of Object.entries(args.changes)) {
+  for (const [key, value] of Object.entries(changes)) {
     values[key] = value === null ? null : encodeSettingValue(value)
   }
   if (Object.keys(values).length === 0) return
-  const { target } = args
-  if (target.kind === ESettingsTarget.Personal) {
-    await cloudCall(api.settings.patch.mutate({ values }))
-    return
-  }
-  await cloudCall(
-    api.workspaces.patchSettings.mutate({ organizationId: target.organizationId, values }),
-  )
+  await cloudCall(api.settings.patch.mutate({ values }))
 }
 
 export function resolveSetting<TValue extends SettingScalar>(args: {
-  target: SettingsTarget
   values: SettingValues
   key: string
   schema: z.ZodType<TValue>
 }): TValue {
-  const entry = registryOf(args.target).get(args.key)
+  const entry = CLOUD_SETTING_REGISTRY.get(args.key)
   if (entry === undefined) throw new Error(`setting ${args.key} is not in the registry`)
   const stored = args.schema.safeParse(args.values.get(args.key))
   if (stored.success) return stored.data
@@ -78,32 +48,22 @@ export type CloudSettings = {
   save: (changes: SettingChanges) => Promise<void>
 }
 
-export function useCloudSettings(target: SettingsTarget): CloudSettings {
-  const organizationId = target.kind === ESettingsTarget.Workspace ? target.organizationId : null
-  const targetKey = organizationId === null ? 'personal' : `ws:${organizationId}`
-  const stableTarget = useMemo<SettingsTarget>(
-    () =>
-      organizationId === null
-        ? { kind: ESettingsTarget.Personal }
-        : { kind: ESettingsTarget.Workspace, organizationId },
-    [organizationId],
-  )
-  const load = useCallback(() => fetchSettings(stableTarget), [stableTarget])
-  const query = useCloudQuery({ key: `settings:${targetKey}`, load })
+export function useCloudSettings(): CloudSettings {
+  const query = useCloudQuery({ key: 'settings:personal', load: fetchSettings })
 
   const read = useCallback(
     <TValue extends SettingScalar>(args: { key: string; schema: z.ZodType<TValue> }): TValue =>
-      resolveSetting({ target: stableTarget, values: query.data ?? new Map(), ...args }),
-    [stableTarget, query.data],
+      resolveSetting({ values: query.data ?? new Map(), ...args }),
+    [query.data],
   )
 
   const { reload } = query
   const save = useCallback(
     async (changes: SettingChanges) => {
-      await saveSettings({ target: stableTarget, changes })
+      await saveSettings(changes)
       reload()
     },
-    [stableTarget, reload],
+    [reload],
   )
 
   return { query, read, save }

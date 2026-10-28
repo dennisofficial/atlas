@@ -91,12 +91,7 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
       async verify(req: { headers: Record<string, unknown> }) {
         const userId = req.headers['x-live-user']
         if (userId !== ownerId && userId !== foreignId) return null
-        return {
-          userId,
-          sessionId: runId,
-          email: `${userId}@checkpoint.invalid`,
-          activeOrganizationId: null,
-        }
+        return { userId, sessionId: runId, email: `${userId}@checkpoint.invalid` }
       },
     }
     const sandboxes = new SandboxesService(
