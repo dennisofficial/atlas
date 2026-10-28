@@ -1,6 +1,7 @@
 import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
   birthInCloud,
+  EBirthNode,
   storedModel,
   type CloudReload,
   type SessionOwner,
@@ -25,6 +26,8 @@ import { createCloudRunner, createCloudWake } from './cloud-runner'
 import { createCloudSession } from './cloud-session'
 import { mirrorCloudRenames } from './rename-mirror'
 
+const BOOT_LABEL_ROWS = [EBirthNode.Provision, 'waiting']
+
 const warn = (text: string): void =>
   notify({ key: CLOUD_BIRTH_NOTICE_KEY, text, tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
 
@@ -41,7 +44,12 @@ export function birthNewborn(args: {
   onRelease: () => void
 }): void {
   const { app, move, owner, threadId, runner, projectId } = args
-  const bridge = args.createBridge({ runner })
+  const bridge = args.createBridge({
+    runner,
+    onBootStep: ({ label }) => {
+      for (const nodeId of BOOT_LABEL_ROWS) move.handleRowLabel({ nodeId, text: label })
+    },
+  })
   let cancelled = false
   const destroySandbox = (): Promise<void> =>
     bridge.sandboxes.destroy({ threadId }).catch(() => undefined)

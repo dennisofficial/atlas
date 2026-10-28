@@ -5,19 +5,20 @@ import {
   DockerEngine,
   DockerPodDriver,
   createLocalPodBridge,
+  createSignedInApiPodBridge,
   pingDocker,
   putPodLease,
   reapOrphanPods,
-  requireVercelCredentials,
   sandboxServeTokenFor,
   sandboxVcpusOf,
+  type CloudBridge,
   type LocalPodBridgeOptions,
   type OrphanPodSweep,
 } from '@dltech/atlas-harness'
 
 import { buildInfo, clientVersionHeader } from '../build/info'
 import { ENoticeTone } from '../ui/notice-store'
-import type { BirthPreflight, CloudBridgeFactory } from './cloud/bridge-factory'
+import type { BirthPreflight, BootStepListener, CloudBridgeFactory } from './cloud/bridge-factory'
 import { createCloudBridge } from './cloud/create-bridge'
 import { devServeResolverFor } from './cloud/dev-serve'
 import { ELinuxServeTarget } from './cloud/dev-serve-key'
@@ -77,12 +78,38 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
   }),
 })
 
+export type BridgeBuilders = {
+  pod: typeof createLocalPodBridge
+  api: typeof createSignedInApiPodBridge
+  direct: typeof createCloudBridge
+}
+
+const DEFAULT_BUILDERS: BridgeBuilders = {
+  pod: createLocalPodBridge,
+  api: createSignedInApiPodBridge,
+  direct: createCloudBridge,
+}
+
+export const liveApiPodBridgeFor = (args: {
+  app: AtlasApp
+  onBootStep?: BootStepListener | undefined
+  build?: BridgeBuilders['api'] | undefined
+}): CloudBridge =>
+  (args.build ?? createSignedInApiPodBridge)({
+    session: () => args.app.cloud.session(),
+    clientVersion: clientVersionHeader(),
+    settings: args.app.settings,
+    lastEventSeq: ({ threadId }) => args.app.log.head({ threadId }),
+    onBootStep: args.onBootStep,
+  })
+
 export const liveBridgeFor =
-  (app: AtlasApp): CloudBridgeFactory =>
-  ({ runner }) =>
-    runner === ERunner.Local
-      ? createLocalPodBridge(livePodBridgeOptionsFor(app))
-      : createCloudBridge(liveBridgeOptionsFor(app))
+  (app: AtlasApp, builders: BridgeBuilders = DEFAULT_BUILDERS): CloudBridgeFactory =>
+  ({ runner, onBootStep }) => {
+    if (runner === ERunner.Local) return builders.pod(livePodBridgeOptionsFor(app))
+    if (app.pods) return liveApiPodBridgeFor({ app, onBootStep, build: builders.api })
+    return builders.direct(liveBridgeOptionsFor(app))
+  }
 
 export const dockerRefusal = async (): Promise<string | null> => {
   const socketPath = dockerSocketPath()
@@ -91,17 +118,8 @@ export const dockerRefusal = async (): Promise<string | null> => {
   return `Docker isn't answering at ${socketPath} (${reason}) — start Docker Desktop, or point ATLAS_DOCKER_SOCKET at a running engine`
 }
 
-export const liveBirthPreflightFor =
-  (app: AtlasApp): BirthPreflight =>
-  async ({ runner }) => {
-    if (runner === ERunner.Local) return dockerRefusal()
-    try {
-      requireVercelCredentials({ settings: app.settings, secrets: app.secrets })
-      return null
-    } catch (error) {
-      return messageOf(error)
-    }
-  }
+export const liveBirthPreflight: BirthPreflight = async ({ runner }) =>
+  runner === ERunner.Local ? dockerRefusal() : null
 
 export const podReapFailureNotice = (sweep: OrphanPodSweep): string | null => {
   const first = sweep.failures[0]

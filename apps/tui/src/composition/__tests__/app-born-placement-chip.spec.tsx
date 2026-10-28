@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
-import { CLOUD_NOT_CONFIGURED_NOTICE } from '../cloud/born-cloud'
 import { until } from './app-fixture'
 import { bornThreadApp, mountUnborn } from './born-thread-fixture'
 
@@ -35,9 +34,7 @@ describe('the placement chip in the composer footer', () => {
       await mounted.flipChip()
 
       expect(await mounted.frameHolds((frame) => frame.includes('☁ cloud ▾'))).toBe(true)
-      expect(currentNotices().map((notice) => notice.text)).not.toContain(
-        CLOUD_NOT_CONFIGURED_NOTICE,
-      )
+      expect(currentNotices()).toEqual([])
       expect(app.settings.snapshot().document.values[ESettingId.LastBornPlacement]).toBe(
         ERunner.Vercel,
       )
@@ -57,9 +54,7 @@ describe('the placement chip in the composer footer', () => {
       expect(
         await until({ holds: async () => mounted.bridge.created.length === 1, within: 20_000 }),
       ).toBe(true)
-      expect(currentNotices().map((notice) => notice.text)).not.toContain(
-        CLOUD_NOT_CONFIGURED_NOTICE,
-      )
+      expect(currentNotices()).toEqual([])
     } finally {
       await mounted.done()
     }

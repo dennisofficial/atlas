@@ -51,3 +51,14 @@ describe('a pod image pull failure', () => {
     ).toContain('the pod image could not be pulled')
   })
 })
+
+describe('a birth the API says is not configured', () => {
+  it('shows the API message under the not-set-up head', () => {
+    const detail =
+      'Atlas Cloud cannot start a sandbox for this account yet. Add your Vercel credentials in your Atlas Cloud settings, then try again.'
+
+    expect(birthFailedNotice(failure({ fault: EBirthFault.NotConfigured, detail }))).toBe(
+      `cloud sandboxes are not set up. ${detail}`,
+    )
+  })
+})

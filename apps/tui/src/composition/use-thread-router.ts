@@ -45,17 +45,21 @@ export function useThreadRouter(args: {
   onLocalSwap: (threadId: string) => void
 }): ThreadRouter {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
+  const { handleRowLabel } = containerMove
   const bridgesRef = useRef(new Map<ERunner, CloudBridge>())
 
   const bridgeFor = useCallback(
     (runner: ERunner): CloudBridge => {
       const held = bridgesRef.current.get(runner)
       if (held !== undefined) return held
-      const created = createBridge({ runner })
+      const created = createBridge({
+        runner,
+        onBootStep: ({ label }) => handleRowLabel({ nodeId: 'waiting', text: label }),
+      })
       bridgesRef.current.set(runner, created)
       return created
     },
-    [createBridge],
+    [createBridge, handleRowLabel],
   )
 
   const runnerOf = useCallback(

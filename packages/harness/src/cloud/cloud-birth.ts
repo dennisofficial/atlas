@@ -9,6 +9,7 @@ import {
 import type { BirthInstall, SessionOwner, SessionRuntime } from '../composition/session-owner'
 import { ImagePullError } from '../execution/docker/image-pull'
 import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
+import { PodNotConfiguredError } from './api-pod-errors'
 import type { CloudAttachment, CloudBridge, CloudSandbox } from './cloud-bridge'
 import { CloudError } from './cloud-transport'
 import { VercelNotConfiguredError } from './vercel-credentials'
@@ -71,6 +72,7 @@ export type BirthArgs = {
 
 const birthFaultOf = (error: unknown): EBirthFault => {
   if (error instanceof VercelNotConfiguredError) return EBirthFault.NotConfigured
+  if (error instanceof PodNotConfiguredError) return EBirthFault.NotConfigured
   if (error instanceof ImagePullError) return EBirthFault.ImagePull
   if (!(error instanceof CloudError)) return EBirthFault.Sandbox
   if (error.status === 503 && error.message.includes('not configured'))
