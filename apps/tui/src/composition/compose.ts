@@ -126,6 +126,7 @@ export async function composeAtlas(args: {
       ShellRegistryPort: { runtime: 'shared', transport: RemoteShellRegistry },
       AgentRegistryPort: { runtime: 'shared', transport: RemoteAgentRegistry },
       ServiceRegistryPort: { runtime: 'shared', transport: RemoteServiceRegistry },
+      SubscriptionRegistryPort: { runtime: 'shared', transport: null },
     },
     surface: {
       notice: noticePortBinding(),

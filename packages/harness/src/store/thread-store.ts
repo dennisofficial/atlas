@@ -49,6 +49,8 @@ export type RenameListener = (args: { threadId: ThreadId; title: string }) => vo
 
 export type ModelChosenListener = (args: { threadId: ThreadId; model: ThreadModel }) => void
 
+export type RewoundListener = (args: { threadId: ThreadId; toSeq: number }) => void
+
 export type PlacementChangedListener = (args: {
   threadId: ThreadId
   record: PlacementRecord
@@ -77,6 +79,8 @@ export abstract class ThreadStorePort {
     void listener
     return () => undefined
   }
+
+  onRewound?(listener: RewoundListener): Unsubscribe
 
   async chooseRunner(args: { threadId: ThreadId; runner: ERunner }): Promise<void> {
     void args

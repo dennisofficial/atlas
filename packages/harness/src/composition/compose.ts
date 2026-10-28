@@ -78,6 +78,7 @@ import { bindSkillRegistry, liveSkillRegistry } from './skills-binding'
 import { bindUserLayerSync } from './user-layer-sync-binding'
 import { wireTurn } from './turn-wiring'
 import { threadOpenedHandler } from './worktree-claims'
+import { bindSubscriptions } from './subscription-binding'
 
 const SERVE_COMMAND = 'serve'
 
@@ -241,6 +242,11 @@ export async function composeHarness<
   })
   const log = container.resolve(registeredPortToken(EventLogPort))
   await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
+  const subscriptions = await bindSubscriptions({
+    container,
+    providers: plugins.subscriptionProviders,
+    launchThreadId: launch.threadId,
+  })
   const ids = container.resolve(registeredPortToken(IdPort))
   const threads = container.resolve(registeredPortToken(ThreadStorePort))
   executionLocation.bind({
@@ -287,7 +293,7 @@ export async function composeHarness<
     prompts,
     declarations: () => container.resolve(registeredPortToken(ToolRegistry)).declarations(),
     pending,
-    pluginSources: plugins.intakeSources,
+    pluginSources: [...plugins.intakeSources, subscriptions.intakeSource],
     channel,
     notice,
     summarise: utility.summarise,
