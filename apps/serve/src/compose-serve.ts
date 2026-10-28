@@ -20,7 +20,12 @@ import {
 } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
-import { RotationPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
+import {
+  RotationPort,
+  ThreadStorePort,
+  threadMentionFiles,
+  threadPanels,
+} from '@dltech/atlas-harness'
 
 import {
   activateTransferredChildren,
@@ -126,6 +131,14 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
   })
 
+  const panels = threadPanels({
+    threadId: args.threadId,
+    log: app.surface.log,
+    threads: app.surface.threads,
+    launchDirectory: args.cwd,
+    files: app.files,
+  })
+
   const pausedChildren = new Set<ThreadId>()
   let releaseFamily: (() => void) | undefined
 
@@ -139,7 +152,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ledger: app.ledger,
     settings: app.settings,
     ids: app.ids,
-    files: app.files,
+    files: panels.files,
     mentionFiles: (id) =>
       threadMentionFiles({
         threadId: id,
@@ -150,7 +163,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     toolEffect: (name) => app.tools.find(name)?.effect,
     pending: app.pending,
-    changes: app.changes,
+    changes: panels.changes,
     terminal: app.terminal,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     adoptChildren: async ({ threadId, resumeChildren }) => {

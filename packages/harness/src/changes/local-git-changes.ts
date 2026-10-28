@@ -7,6 +7,7 @@ import { parseUnifiedDiff } from './parse-unified-diff'
 
 export const MAX_CHANGED_FILES = 300
 const MAX_UNTRACKED_FILES = 200
+export const MAX_IGNORED_PATHS = 500
 const UNTRACKED_BATCH = 16
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 const DEFAULT_BRANCH_FALLBACKS = ['origin/main', 'origin/master', 'main', 'master']
@@ -46,11 +47,28 @@ export class LocalGitChanges extends GitChangesPort {
 
   async read({ scope }: { scope: EChangeScope }): Promise<ReadGitChangesReply> {
     const head = await this.revision('HEAD')
-    if (scope === EChangeScope.LastCommit) return await this.lastCommit(head)
+    const ignored = await this.ignored()
+    if (scope === EChangeScope.LastCommit) return { ...(await this.lastCommit(head)), ignored }
 
     const base = scope === EChangeScope.All ? await this.mergeBase(head) : head
     const files = await this.againstWorkingTree(base ?? EMPTY_TREE)
-    return this.reply({ scope, base, files })
+    return { ...this.reply({ scope, base, files }), ignored }
+  }
+
+  private async ignored(): Promise<string[]> {
+    const listed = await this.git([
+      'ls-files',
+      '-z',
+      '--others',
+      '--ignored',
+      '--exclude-standard',
+      '--directory',
+    ])
+    return listed.stdout
+      .split('\0')
+      .filter((path) => path !== '')
+      .map((path) => path.replace(/\/$/, ''))
+      .slice(0, MAX_IGNORED_PATHS)
   }
 
   private async git(args: readonly string[]) {
@@ -77,7 +95,7 @@ export class LocalGitChanges extends GitChangesPort {
     return head
   }
 
-  private async lastCommit(head: string | null): Promise<ReadGitChangesReply> {
+  private async lastCommit(head: string | null): Promise<Omit<ReadGitChangesReply, 'ignored'>> {
     if (head === null) return this.reply({ scope: EChangeScope.LastCommit, base: null, files: [] })
     const parent = (await this.revision('HEAD^')) ?? EMPTY_TREE
     const run = await this.git([...DIFF, parent, head])
@@ -113,7 +131,7 @@ export class LocalGitChanges extends GitChangesPort {
     scope: EChangeScope
     base: string | null
     files: ChangedFileWire[]
-  }): ReadGitChangesReply {
+  }): Omit<ReadGitChangesReply, 'ignored'> {
     const sorted = [...args.files].sort((left, right) => left.path.localeCompare(right.path))
     return {
       scope: args.scope,

@@ -44,6 +44,7 @@ class StubChanges extends GitChangesPort {
       scope,
       base: 'abc123',
       truncated: false,
+      ignored: [],
       files: [
         {
           path: 'src/a.ts',
