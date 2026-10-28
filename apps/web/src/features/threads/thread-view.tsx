@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FileQuestionIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,6 +48,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { usePullRequestBell } from './data/use-pull-request-bell'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -56,8 +57,9 @@ import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { OperatorInputCard } from './operator-input-card'
-import { ThreadPanelProvider, type ThreadPanelValue } from './panel/thread-panel-context'
+import { ThreadPanelProvider } from './panel/thread-panel-context'
 import { useRightPanel } from './panel/use-right-panel'
+import { useThreadPanelValue } from './panel/use-thread-panel-value'
 import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
 import { ThreadHeader } from './thread-header'
@@ -101,6 +103,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const rightPanel = useRightPanel()
+  const { bell, handleToggle: handleToggleBell } = usePullRequestBell({
+    threadId,
+    channel,
+    thread: thread.data,
+  })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
@@ -140,36 +147,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
   const handleResize = usePodResize({ threadId, refresh })
-  const { changesPath, agentId, openChanges, openAgent, clearAgent, setSheetOpen } = rightPanel
-  const closePanel = useCallback(() => setSheetOpen(false), [setSheetOpen])
-  const panel = useMemo<ThreadPanelValue>(
-    () => ({
-      threadId,
-      channel,
-      pod,
-      working,
-      changesPath,
-      agentId,
-      openChanges,
-      openAgent,
-      clearAgent,
-      closePanel,
-      refreshPod: refresh,
-    }),
-    [
-      threadId,
-      channel,
-      pod,
-      working,
-      changesPath,
-      agentId,
-      openChanges,
-      openAgent,
-      clearAgent,
-      closePanel,
-      refresh,
-    ],
-  )
+  const panel = useThreadPanelValue({ threadId, channel, pod, working, rightPanel, refresh })
 
   const handleSubmit = async (text: string) => {
     const sent = await send({ threadId, text, liveSend: sendLive })
@@ -222,6 +200,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
       pullRequest={pullRequestBadgeOf(thread.data)}
+      bell={bell}
+      onToggleBell={handleToggleBell}
       podChip={
         <ThreadPodChip
           pod={pod}

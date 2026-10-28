@@ -1,4 +1,9 @@
-import { prStatesWireSchema, rosterWireSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import {
+  EMPTY_SUBSCRIPTIONS,
+  prStatesWireSchema,
+  rosterWireSchema,
+  type RuntimeCheckpoint,
+} from '@dltech/atlas-wire'
 
 import {
   EClientFrame,
@@ -14,6 +19,7 @@ import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
 import { createTurnCommands } from './socket-commands'
+import { subscriptionsSnapshot } from './serve-subscription-requests'
 import { createRequestRouter } from './socket-requests'
 import { createDeferredFrames } from './socket-deferred-frames'
 import { createSocketGreeter } from './socket-greet'
@@ -46,7 +52,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
   const snapshot = args.roster?.snapshot ?? EMPTY_ROSTER
   const prStatesSnapshot = args.prStates?.snapshot ?? EMPTY_PR_STATES
   const { rewind, agents, operatorInput, pending, transcript, selectModel } = args
-  const { admissionClosed, checkpoint, checkpointChanged } = args
+  const { admissionClosed, checkpoint, checkpointChanged, subscriptions } = args
   const mutations = createMutationTracker({ changed: checkpointChanged })
   const live = new Set<SessionSocket>()
   const attached = new Set<SessionSocket>()
@@ -159,7 +165,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     const { socket, frame } = args
     command({ socket, frame })
     if (frame.kind !== EClientFrame.Request) return
-    if (routeStateRequest({ socket, frame, send, checkpoint, pending })) return
+    if (routeStateRequest({ socket, frame, send, checkpoint, pending, subscriptions })) return
     if (!isReadOnlyFrame(frame)) mutations.begin(frame.id)
     router.route({ socket, frame })
   }
@@ -265,6 +271,17 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
       const frame: ServeFrame = {
         kind: EServeFrame.PrStates,
         states: prStatesWireSchema.parse({ states: prStatesSnapshot() }).states,
+      }
+      const encoded = encodeFrame(frame)
+      for (const socket of attached) socket.send(encoded)
+    },
+
+    broadcastSubscriptions() {
+      const frame: ServeFrame = {
+        kind: EServeFrame.Subscriptions,
+        ...(subscriptions === undefined
+          ? EMPTY_SUBSCRIPTIONS
+          : subscriptionsSnapshot(subscriptions)),
       }
       const encoded = encodeFrame(frame)
       for (const socket of attached) socket.send(encoded)

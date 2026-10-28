@@ -1,6 +1,7 @@
 import type {
   PendingEntryWire,
   PrStateWire,
+  SubscriptionsWire,
   RosterWire,
   RuntimeCheckpoint,
   TerminalExitWire,
@@ -85,6 +86,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     readies: registryOf<ChannelReady>(),
     rosters: registryOf<RosterWire>(),
     prStates: registryOf<readonly PrStateWire[]>(),
+    subscriptions: registryOf<SubscriptionsWire>(),
     terminalOutputs: registryOf<TerminalOutputWire>(),
     terminalExits: registryOf<TerminalExitWire>(),
     pendingChanges: registryOf<readonly PendingEntryWire[]>(),

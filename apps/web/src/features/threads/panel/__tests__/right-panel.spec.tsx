@@ -36,7 +36,7 @@ const render = (args: { tab: ERightTab; pod?: PodStatus | null }): string =>
   )
 
 describe('RightPanel', () => {
-  it('lists the five tabs in prototype order', () => {
+  it('lists the six tabs in prototype order', () => {
     const html = render({ tab: ERightTab.Agents })
     const positions = Object.values(TAB_LABEL).map((label) => html.indexOf(`>${label}`))
     expect(positions.every((position) => position >= 0)).toBe(true)

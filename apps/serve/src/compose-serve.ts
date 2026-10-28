@@ -12,7 +12,11 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
-import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
+import {
+  registeredPortToken,
+  GithubUiBridgePort,
+  SubscriptionRegistryPort,
+} from '@dltech/atlas-harness'
 import {
   ServeSessionToken,
   SessionRegistryToken,
@@ -40,6 +44,7 @@ type ServeStores = {
   modelBridge: ServeModelBridge
   rotation?: RotationPort | undefined
   prStates?: ServePrStates | undefined
+  subscriptions: SubscriptionRegistryPort
 }
 
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
@@ -105,6 +110,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           threads,
           modelBridge,
           rotation,
+          subscriptions: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
           ...(prStates === undefined ? {} : { prStates }),
         }
       },
@@ -232,6 +238,10 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       })(),
     ...workspaceHooks,
     ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
+    subscriptions: {
+      registry: app.surface.subscriptions,
+      projectDirectory: app.workspace.workspace,
+    },
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

@@ -4,6 +4,7 @@ import type {
   PrStateWire,
   RosterWire,
   RuntimeCheckpoint,
+  SubscriptionsWire,
   TerminalExitWire,
   TerminalOutputWire,
 } from '@dltech/atlas-wire/web'
@@ -63,6 +64,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
   onPrStates(listener: (states: readonly PrStateWire[]) => void): Unsubscribe
+  onSubscriptions(listener: (subscriptions: SubscriptionsWire) => void): Unsubscribe
   pendingEntries(): readonly PendingEntryWire[]
   onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
