@@ -1,5 +1,6 @@
 import { createSessionContextReader } from '@dltech/atlas-harness'
 
+import { subscriptionsSnapshot } from './serve-subscription-requests'
 import { terminalFrameOf } from './terminal-frames'
 import type { FrameBuffer } from './frame-buffer'
 import type { ServeApp } from './serve-app'
@@ -35,6 +36,16 @@ export function bindServeSubscriptions(args: {
     lastPrStatesJson = next
     handlers.broadcastPrStates()
   })
+  let lastSubscriptionsJson = ''
+  const unsubscribeSubscriptions = app.subscriptions?.registry.onChange(() => {
+    note()
+    const next = JSON.stringify(
+      app.subscriptions === undefined ? [] : subscriptionsSnapshot(app.subscriptions),
+    )
+    if (next === lastSubscriptionsJson) return
+    lastSubscriptionsJson = next
+    handlers.broadcastSubscriptions()
+  })
   const unsubscribePending = app.pending?.subscribe(note)
   const unsubscribeTerminal = app.terminal?.subscribe((event) => {
     note()
@@ -43,6 +54,7 @@ export function bindServeSubscriptions(args: {
   return () => {
     unsubscribeRoster?.()
     unsubscribePrStates?.()
+    unsubscribeSubscriptions?.()
     unsubscribeThreads?.()
     unsubscribeContext()
     unsubscribePending?.()

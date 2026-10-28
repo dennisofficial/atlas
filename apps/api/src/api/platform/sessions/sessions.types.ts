@@ -1,3 +1,5 @@
+import type { WireThread } from '@dltech/atlas-wire'
+
 export type ThreadModelDto = {
   ref: string
   effort: string
@@ -36,6 +38,8 @@ export type ThreadDraft = {
   agent?: SupervisedAgentDto | undefined
 }
 
+export type ThreadSubscriptionDto = NonNullable<WireThread['subscriptions']>[number]
+
 export type ThreadDto = {
   id: string
   title?: string | undefined
@@ -50,6 +54,7 @@ export type ThreadDto = {
   model?: ThreadModelDto | undefined
   worktree?: ThreadWorktreeDto | undefined
   pullRequests?: LinkedPullRequestDto[] | undefined
+  subscriptions?: ThreadSubscriptionDto[] | undefined
   executionLocation?: string | undefined
   projectId?: string | null | undefined
   pinnedAt?: string | null | undefined

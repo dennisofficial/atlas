@@ -12,7 +12,13 @@ import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
 import type { TranscriptReaders } from './requests'
-import type { ServeAgentSteer, ServePrStates, ServeRoster, ServeRewind } from './serve-app'
+import type {
+  ServeAgentSteer,
+  ServePrStates,
+  ServeRoster,
+  ServeRewind,
+  ServeSubscriptions,
+} from './serve-app'
 import type { ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
 import type { StepAlias } from './step-alias'
@@ -39,6 +45,7 @@ export type SessionHandlers = {
   replayDeferred: () => void
   broadcastRoster: () => void
   broadcastPrStates: () => void
+  broadcastSubscriptions: () => void
   park: (args: { reason: string }) => void
   hangUp: () => void
   abortHistory: () => void
@@ -65,6 +72,7 @@ export type SessionHandlersArgs = {
   roster?: ServeRoster | undefined
   /** The github plugin's live PR readings; absent in fakes, which answer empty. */
   prStates?: ServePrStates | undefined
+  subscriptions?: ServeSubscriptions | undefined
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined

@@ -36,7 +36,7 @@ export type Redactor = { hold: (secret: string) => void; redact: (text: string) 
 
 const REDACTED = '<redacted>'
 const MIN_HELD_SECRET_LENGTH = 8
-const TRUSTED_PROTOCOL = 26
+const TRUSTED_PROTOCOL = 27
 const DEV_VERSION_PREFIX = 'dev-'
 const ABSENT_CELL = '—'
 

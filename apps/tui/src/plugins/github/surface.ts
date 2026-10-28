@@ -15,6 +15,8 @@ import { EFooterItemReach, type FooterItem } from '../../ui/footer-item'
 import type { ContributedSurface, PluginSurface } from '../surface'
 import { useAppInstallNotice, type AppInstallRecommendationSource } from './app-install-notice'
 import { pullRequestChip, pullRequestFallbackChip } from './pull-request-pill'
+import type { SubscriptionsAccess } from '../subscriptions/access'
+import { usePullRequestBell } from '../subscriptions/use-pull-request-bell'
 import { usePullRequest, type FooterPullRequest } from './use-pull-request'
 
 export function pullRequestItem(args: {
@@ -54,9 +56,11 @@ export const pullRequestSurface = (args: {
   openUrl: UrlOpener
   appInstall?: AppInstallRecommendationSource | null
   recordAppInstallDismissal?: (args: { repo: string }) => void
+  subscriptions?: SubscriptionsAccess | null
 }): ContributedSurface => {
   const { service, facts, links, cloudCheckout, badges, openUrl } = args
   const appInstall = args.appInstall ?? null
+  const subscriptions = args.subscriptions ?? null
 
   return {
     pluginId: 'github',
@@ -66,15 +70,18 @@ export const pullRequestSurface = (args: {
       useSyncExternalStore(cloudCheckout.subscribe, cloudCheckout.version)
 
       const linked = links.current()
+      const projectDirectory = facts.directory()
+      const bell = usePullRequestBell({ access: subscriptions, projectDirectory })
       const { footer, section } = usePullRequest({
         service,
-        projectDirectory: facts.directory(),
+        projectDirectory,
         working: facts.working(),
         linked,
         cloud: cloudCheckout.current(),
         remote: activePrStateReader(),
         badges,
         onOpen: openUrl,
+        bell,
       })
 
       useAppInstallNotice({

@@ -35,6 +35,7 @@ import { FileWriteGuardPort } from '../files/write-guard'
 import { ServiceRegistryPort } from '../services/service-registry'
 import { ShellRegistryPort } from '../shells/shell-registry'
 import { SkillRegistryPort } from '../skills/port'
+import { registerSubscriptionTools } from '../subscriptions/register'
 import { ThreadStorePort } from '../store/thread-store'
 
 import { CompositeToolRegistry } from './composite-registry'
@@ -228,6 +229,7 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
         logPort: resolver.resolve(registeredPortToken(LogPort)),
       }),
   })
+  registerSubscriptionTools({ container })
   container.register(portToken(ToolDefinition), { useClass: WorktreeListTool })
   container.register(portToken(ToolDefinition), { useClass: WebFetchTool })
   container.register(portToken(ToolDefinition), {

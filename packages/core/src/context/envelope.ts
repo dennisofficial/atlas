@@ -58,8 +58,6 @@ const HOOK_SLOT_PROVENANCE: Record<string, string> = {
   plan: 'A mirror of your current task_write plan, injected by Atlas so you can see it. The operator did not write this:',
   'outside-project':
     'Atlas noticed a tool call touched a path outside the project directory. The operator did not write this:',
-  'pr-transitions':
-    'Pull-request updates from GitHub since your last turn, injected by Atlas. The operator did not write this:',
   compaction:
     'Atlas compacted earlier turns of this conversation to save context. The operator did not write this:',
 }

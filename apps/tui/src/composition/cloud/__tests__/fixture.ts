@@ -341,6 +341,7 @@ export function fakeCloudChannel(
       }
     },
     onPrStates: () => () => undefined,
+    onSubscriptions: () => () => undefined,
     onThreadRenamed: (listener) => {
       threadRenames.add(listener)
       return () => {

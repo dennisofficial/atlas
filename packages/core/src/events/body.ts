@@ -3,6 +3,7 @@ import type { EAgentRestart } from '../agents/restart'
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
 import type { EExecutionLocation } from '../execution/location'
+import type { JsonValue } from '../json/value'
 import type { FilePart, ImagePart, ReasoningPart, TextPart } from '../message/parts'
 import type { ERiskDimension } from '../policy/classifier/dimension'
 import type { CodeQualityReviewedBody } from '../quality/schema'
@@ -10,6 +11,11 @@ import type { EGrantScope, GrantOffer } from '../policy/classifier/grant'
 import type { EClassifierMode, ETriage } from '../policy/classifier/triage'
 import type { EJudgment, EVerdictFault } from '../policy/classifier/verdict'
 import type { EServiceStatus } from '../services/status'
+import type {
+  ESubscriptionActor,
+  ESubscriptionEnd,
+  ESubscriptionStatus,
+} from '../subscriptions/subscription'
 import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
@@ -324,6 +330,27 @@ export type EventBody =
       modelId: string
       status?: ETldrStatus | undefined
     }
+  | {
+      type: 'subscription-created'
+      subscriptionId: string
+      provider: string
+      target: JsonValue
+      label: string
+      createdBy: ESubscriptionActor
+      expiresAt?: string | undefined
+    }
+  | {
+      type: 'subscription-changed'
+      subscriptionId: string
+      status: ESubscriptionStatus
+      by: ESubscriptionActor
+    }
+  | {
+      type: 'subscription-ended'
+      subscriptionId: string
+      reason: ESubscriptionEnd
+      by: ESubscriptionActor
+    }
 
 export type EventDraft = EventBody
 
@@ -336,6 +363,9 @@ export const SURVIVES_SUMMARY: readonly EventType[] = [
   'permission-revoked',
   'pull-request-linked',
   'location-changed',
+  'subscription-created',
+  'subscription-changed',
+  'subscription-ended',
 ]
 
 export const survivesSummary = (type: EventType): boolean => SURVIVES_SUMMARY.includes(type)

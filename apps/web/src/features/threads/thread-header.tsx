@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import {
+  BellIcon,
+  BellOffIcon,
   ChevronRightIcon,
   GitBranchIcon,
   GitPullRequestIcon,
@@ -14,7 +16,9 @@ import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
+import type { PullRequestBell } from './data/subscription-model'
 import { EHeaderState, STATE_LABEL, type PullRequestBadge } from './data/header-model'
 
 export type HeaderParent = {
@@ -28,6 +32,8 @@ export type ThreadHeaderProps = {
   parent?: HeaderParent | undefined
   branch?: string | undefined
   pullRequest?: PullRequestBadge | undefined
+  bell?: PullRequestBell | undefined
+  onToggleBell?: (() => void) | undefined
   podChip?: ReactNode
   onOpenPanel: () => void
 }
@@ -74,8 +80,33 @@ function PullRequestLink({ pullRequest }: { pullRequest: PullRequestBadge }) {
   )
 }
 
+function PullRequestBellButton(props: { bell: PullRequestBell; onToggle: () => void }) {
+  const { bell, onToggle } = props
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={bell.label}
+            aria-pressed={bell.watching}
+            disabled={bell.busy}
+            className="hidden sm:inline-flex"
+            onClick={onToggle}
+          />
+        }
+      >
+        {bell.watching ? <BellIcon /> : <BellOffIcon />}
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{bell.label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, state, parent, branch, pullRequest, podChip, onOpenPanel } = props
+  const { title, state, parent, branch, pullRequest, bell, onToggleBell, podChip, onOpenPanel } =
+    props
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -95,6 +126,9 @@ export function ThreadHeader(props: ThreadHeaderProps) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {pullRequest ? <PullRequestLink pullRequest={pullRequest} /> : null}
+        {pullRequest && bell && onToggleBell ? (
+          <PullRequestBellButton bell={bell} onToggle={onToggleBell} />
+        ) : null}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
         {podChip}
         <Button

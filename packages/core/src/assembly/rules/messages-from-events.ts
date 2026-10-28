@@ -30,6 +30,7 @@ import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
 import { prEventBlock } from './pr-event-block'
 import { serviceEndedBlock } from './service-ended-block'
+import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
 import { endingsToldByKill } from './shell-kill-coverage'
 
 type OpenMessage =
@@ -173,6 +174,7 @@ function walkEvents(events: readonly Event[]): Walk {
   const nudging = liveNudgeIds(events)
   const toldByKill = endingsToldByKill(events)
   const shellContexts = shellEventContextsOf(events)
+  const subscriptionLabels: SubscriptionLabels = new Map()
   let openAssistant: Group | undefined
 
   for (const event of events) {
@@ -312,6 +314,21 @@ function walkEvents(events: readonly Event[]): Walk {
     if (event.type === 'pr-event') {
       groups.push({
         message: { role: 'user', content: [{ type: 'text', text: prEventBlock(event) }] },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (
+      event.type === 'subscription-created' ||
+      event.type === 'subscription-changed' ||
+      event.type === 'subscription-ended'
+    ) {
+      const text = subscriptionBlock({ event, labels: subscriptionLabels })
+      if (text === undefined) continue
+
+      groups.push({
+        message: { role: 'user', content: [{ type: 'text', text }] },
         origin: originOf(event),
       })
       continue

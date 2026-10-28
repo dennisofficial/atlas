@@ -133,10 +133,7 @@ describe('the github plugin as the loader sees it', () => {
       `${EHookPhase.AfterTool}:track-worktree-checkout`,
       `${EHookPhase.AfterTool}:refresh-pull-request`,
       `${EHookPhase.AfterShell}:refresh-pull-request-after-shell`,
-      `${EHookPhase.BeforeTurn}:seed-pull-request-transitions`,
       `${EHookPhase.BeforeTool}:block-ci-watch`,
-      `${EHookPhase.BeforeTurn}:route-pr-events`,
-      `${EHookPhase.OnThreadOpen}:route-pr-events-thread`,
     ])
     expect(contribution.surfaces ?? []).toEqual([])
     expect((contribution.projections ?? []).map((projection) => projection.id)).toEqual([
@@ -150,29 +147,38 @@ describe('the github plugin as the loader sees it', () => {
       GithubUiBridgePort,
     ])
     expect(contribution.tools ?? []).toEqual([])
-    expect(contribution.intakeSources ?? []).toHaveLength(1)
+    expect(contribution.intakeSources ?? []).toEqual([])
+    expect((contribution.subscriptionProviders ?? []).map((provider) => provider.kind)).toEqual([
+      'github.pull-request',
+    ])
 
     await contribution.dispose?.()
   })
 
-  it('contributes the CI-feed fragment that tells the model check state is pushed, not pulled', async () => {
+  it('contributes the CI-feed fragment that tells the model to subscribe and wait for the wake', async () => {
     const { contribution } = await resolved()
 
     const fragments = contribution.promptFragments ?? []
     expect(fragments.map((fragment) => fragment.id)).toContain('github.ci-feed')
 
-    const text = fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
-    expect(text).toContain('Pull request updates')
+    const text = (
+      fragments.find((fragment) => fragment.id === 'github.ci-feed')?.text(CONTEXT) ?? ''
+    ).replace(/\s+/g, ' ')
+    expect(text).toContain('nothing about it reaches you unless a thread subscribes')
+    expect(text).toContain('`subscribe` with provider `github.pull-request`')
     expect(text).toContain('end your turn')
-    for (const kind of ['comment', 'review', 'verdict', 'mergeability', 'merged or closed']) {
-      expect(text).toContain(kind)
-    }
-    expect(text).toContain('wakes an idle session')
-    expect(text).toContain('between steps')
+    expect(text).toContain(
+      'delivers comments, change requests, CI failure, and merge or close at once',
+    )
+    expect(text).toContain(
+      'approvals, a green CI verdict and mergeability changes arrive together as one notice when CI settles',
+    )
+    expect(text).toContain('pass `#<number>` from `gh pr create`\u2019s output')
+    expect(text).toContain('`#123`, `owner/repo#123`, or its URL')
     expect(text).toContain('`gh run watch`')
+    expect(text).toContain('refused on a subscribed pull request')
     expect(text).toContain('One-shot reads')
-    expect(text).toContain('session stands in is tracked')
-    expect(text).toContain('a read-only review included')
+    expect(text).not.toContain('Pull request updates')
 
     await contribution.dispose?.()
   })

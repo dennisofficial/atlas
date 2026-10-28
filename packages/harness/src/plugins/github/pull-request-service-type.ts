@@ -20,7 +20,10 @@ export type PullRequestService = {
   }) => void
   setVisible: (args: { checkout: RepositoryCheckout | null }) => void
   tracked: () => readonly RepositoryCheckout[]
-  watch: (args: { links: readonly LinkedPullRequest[] }) => void
+  watch: (args: {
+    links: readonly LinkedPullRequest[]
+    extra?: readonly { repo: string; number: number }[]
+  }) => void
   /** The visible thread's tracked checkout and what the screen shows for it. */
   current: () => { checkout: RepositoryCheckout; reading: PullRequestReading } | null
   /** Every currently-Found reading the service holds — the channel snapshot a serve broadcasts. */

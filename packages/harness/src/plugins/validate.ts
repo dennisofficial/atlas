@@ -25,6 +25,8 @@ export enum EPluginRefusal {
   ProjectionCannotFold = 'projection-cannot-fold',
   IntakeSourcesNotAnArray = 'intake-sources-not-an-array',
   IntakeSourceCannotIntake = 'intake-source-cannot-intake',
+  SubscriptionProvidersNotAnArray = 'subscription-providers-not-an-array',
+  SubscriptionProviderMalformed = 'subscription-provider-malformed',
 }
 
 export type RepoPluginOrigin = EDefinitionOrigin.User | EDefinitionOrigin.Project

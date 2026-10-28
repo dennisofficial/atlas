@@ -65,4 +65,5 @@ export const inProcessPortBindings = {
   ShellRegistryPort: { runtime: 'shared', transport: null },
   AgentRegistryPort: { runtime: 'shared', transport: null },
   ServiceRegistryPort: { runtime: 'shared', transport: null },
+  SubscriptionRegistryPort: { runtime: 'shared', transport: null },
 } satisfies Partial<ComposedPortBindings>

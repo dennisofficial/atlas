@@ -67,7 +67,6 @@ const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   }
   if (event.slot === 'plan') return 'plan mirror'
   if (event.slot === 'outside-project') return 'outside-project warning'
-  if (event.slot === 'pr-transitions') return 'pull-request updates'
   return event.slot.replaceAll('-', ' ')
 }
 

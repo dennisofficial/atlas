@@ -20,6 +20,7 @@ import type {
 } from '@dltech/atlas-core'
 
 import type { IntakeSource } from '../intake/message-intake'
+import type { SubscriptionProvider } from '../subscriptions/provider'
 import type { PluginProjection } from './projection'
 import type { PluginSurfaceHook } from './surface'
 
@@ -53,6 +54,7 @@ export type PluginContribution = {
   promptFragments?: readonly PromptFragment[]
   projections?: readonly PluginProjection<unknown>[]
   intakeSources?: readonly IntakeSource[]
+  subscriptionProviders?: readonly SubscriptionProvider[]
   surfaces?: readonly PluginSurfaceHook[]
   dispose?: () => void | Promise<void>
 }

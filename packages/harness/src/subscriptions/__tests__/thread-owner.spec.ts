@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ThreadId } from '@dltech/atlas-core'
 
-import type { ThreadStorePort } from '../../../store/thread-store'
-import { createThreadKinds } from '../thread-kinds'
+import type { ThreadStorePort } from '../../store/thread-store'
+import { createThreadKinds } from '../thread-owner'
 
 const MAIN = toThreadId('main')
 const TEAMMATE = toThreadId('teammate')

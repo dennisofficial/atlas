@@ -2,6 +2,7 @@ import { ERuntimePhase } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
+  ESeededSubscription,
   fakeBoot,
   flushDebounce,
   mirroredRecord,
@@ -82,6 +83,39 @@ describe('GithubSandboxWakeService eligibility', () => {
 
   it('ignores subscriptions without a thread link', async () => {
     await seedSubscription({ threadId: null })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('never wakes a thread that holds a transport row but no subscription', async () => {
+    await seedParkedSandbox()
+    await seedSubscription({ subscription: ESeededSubscription.Absent })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('never wakes a thread whose subscription is paused', async () => {
+    await seedParkedSandbox()
+    await seedSubscription({ subscription: ESeededSubscription.Paused })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('never wakes a thread subscribed to a different pull request', async () => {
+    await seedParkedSandbox()
+    await seedSubscription({ target: { repo: 'github.com/compai/app', number: 7 } })
     const { boot, calls } = fakeBoot()
 
     serviceWith({ boot }).notifyEvent(PR_EVENT)

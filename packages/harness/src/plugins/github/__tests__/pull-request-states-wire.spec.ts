@@ -4,7 +4,13 @@ import { EPullRequestStateWire } from '@dltech/atlas-wire'
 
 import { EPullRequestLookup } from '../pure'
 import { createPullRequestService } from '../pull-request-service'
-import { aCheckout, aLink, pullRequestsAnswering, wasFound as found } from '../testing'
+import {
+  aCheckout,
+  aLink,
+  pullRequestsAnswering,
+  pullRequestsByKey,
+  wasFound as found,
+} from '../testing'
 
 const settledChecks = { running: 0, passed: 4, failed: 1 }
 
@@ -43,6 +49,43 @@ describe('pull request states snapshot for the channel', () => {
     await service.refresh({ checkout, force: true })
     await new Promise((resolve) => setTimeout(resolve, 10))
 
+    expect(service.states()).toEqual([])
+    service.dispose()
+  })
+
+  it('leaves out a pull request watched only because a subscription names it', async () => {
+    const port = pullRequestsByKey({
+      'github.com/dennisofficial/atlas#42': found({ number: 42 }),
+      'github.com/dennisofficial/atlas#43': found({ number: 43 }),
+    })
+    const service = createPullRequestService({ pullRequests: port })
+
+    service.watch({
+      links: [aLink({ number: 42 })],
+      extra: [{ repo: 'github.com/dennisofficial/atlas', number: 43 }],
+    })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(service.states().map((state) => state.number)).toEqual([42])
+    expect(service.snapshot({ key: 'github.com/dennisofficial/atlas#43' })).toEqual(
+      found({ number: 43 }),
+    )
+    service.dispose()
+  })
+
+  it('shows a subscribed pull request once a link or checkout also holds it', async () => {
+    const port = pullRequestsByKey({ 'github.com/dennisofficial/atlas#43': found({ number: 43 }) })
+    const service = createPullRequestService({ pullRequests: port })
+    const extra = [{ repo: 'github.com/dennisofficial/atlas', number: 43 }]
+
+    service.watch({ links: [], extra })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(service.states()).toEqual([])
+
+    service.watch({ links: [aLink({ number: 43 })], extra })
+    expect(service.states().map((state) => state.number)).toEqual([43])
+
+    service.watch({ links: [], extra })
     expect(service.states()).toEqual([])
     service.dispose()
   })

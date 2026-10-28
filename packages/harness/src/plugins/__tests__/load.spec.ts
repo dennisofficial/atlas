@@ -311,6 +311,44 @@ describe('intake sources', () => {
   })
 })
 
+describe('subscription providers', () => {
+  const provider = {
+    kind: 'github.pull-request',
+    summary: 'a pull request',
+    targetHint: 'owner/repo#1',
+    resolve: async () => ({ error: 'unused' }),
+    start: () => () => undefined,
+  }
+
+  it('collects every contributed provider in plugin order', async () => {
+    const { result } = await load([
+      native('github', { subscriptionProviders: [provider] }),
+      native('quiet', {}),
+      native('timer', { subscriptionProviders: [{ ...provider, kind: 'timer' }] }),
+    ])
+
+    expect(result.subscriptionProviders.map((entry) => entry.kind)).toEqual([
+      'github.pull-request',
+      'timer',
+    ])
+  })
+
+  it('collects none from a plugin that was refused', async () => {
+    const { result } = await load([native('broken', () => Promise.reject(new Error('boom')))])
+
+    expect(result.subscriptionProviders).toEqual([])
+  })
+
+  it('refuses a plugin whose provider is malformed', async () => {
+    const { result } = await load([
+      native('bad', { subscriptionProviders: [{ ...provider, start: 1 } as never] }),
+    ])
+
+    expect(result.subscriptionProviders).toEqual([])
+    expect(result.refused).toHaveLength(1)
+  })
+})
+
 describe('surfaces', () => {
   it('collects each contributed surface hook against the plugin that gave it', async () => {
     const paint = () => ({})

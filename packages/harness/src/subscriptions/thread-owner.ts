@@ -1,21 +1,11 @@
 import { isTeammateType, type ThreadId } from '@dltech/atlas-core'
 
-import type { ThreadStorePort } from '../../store/thread-store'
+import type { ThreadStorePort } from '../store/thread-store'
 
 export type ThreadKinds = {
-  /**
-   * The thread a notice for `threadId` belongs to: the nearest main or teammate ancestor for a
-   * subagent, the thread itself otherwise. An unknown thread resolves to itself.
-   */
   ownerOf: (args: { threadId: ThreadId }) => Promise<ThreadId>
 }
 
-/**
- * PR and CI notices belong to the thread the operator could answer them from — a main thread or a
- * teammate — never to a subagent, which works in its spawner's checkout only for the length of one
- * bounded task. Kinds are memoized because a thread's `agent` record is written once at creation
- * and never changes.
- */
 export function createThreadKinds(args: { threads: ThreadStorePort }): ThreadKinds {
   const threads = args.threads
   const memo = new Map<ThreadId, Promise<ThreadId>>()
@@ -49,7 +39,28 @@ export function createThreadKinds(args: { threads: ThreadStorePort }): ThreadKin
   return { ownerOf: ({ threadId }) => ownerOf({ threadId }) }
 }
 
-/** Specs and boot paths with no thread store: every thread owns its own notices. */
+export async function teammatesOf({
+  threads,
+  threadId,
+}: {
+  threads: ThreadStorePort
+  threadId: ThreadId
+}): Promise<readonly ThreadId[]> {
+  const teammates: ThreadId[] = []
+  const visited = new Set<ThreadId>([threadId])
+  const pending = [threadId]
+  for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+    const children = await threads.spawned({ threadId: next }).catch(() => [])
+    for (const child of children) {
+      if (visited.has(child.id)) continue
+      visited.add(child.id)
+      pending.push(child.id)
+      if (child.agent !== undefined && isTeammateType(child.agent.type)) teammates.push(child.id)
+    }
+  }
+  return teammates
+}
+
 export const IDENTITY_THREAD_KINDS: ThreadKinds = {
   ownerOf: async ({ threadId }) => threadId,
 }

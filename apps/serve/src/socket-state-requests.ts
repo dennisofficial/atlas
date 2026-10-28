@@ -9,6 +9,8 @@ import {
 } from '@dltech/atlas-harness'
 
 import { answerPendingEdit, isPendingEditOp } from './pending-requests'
+import { answerSubscription, isSubscriptionOp } from './serve-subscription-requests'
+import type { ServeSubscriptions } from './serve-app'
 import {
   answerTakeBackPending,
   answeredRequest,
@@ -23,6 +25,7 @@ export const isReadOnlyFrame = (frame: ClientFrame): boolean =>
   frame.kind === EClientFrame.Request &&
   (isTranscriptReadOp(frame.op) ||
     frame.op === EClientRequest.ListRoster ||
+    frame.op === EClientRequest.ListSubscriptions ||
     frame.op === EClientRequest.ReadRuntimeCheckpoint ||
     frame.op === EClientRequest.ListContextFiles ||
     frame.op === EClientRequest.ReadContextFile ||
@@ -66,8 +69,31 @@ export function routeStateRequest(args: {
   send: (args: { socket: SessionSocket; frame: ServeFrame }) => void
   checkpoint?: (() => RuntimeCheckpoint | null) | undefined
   pending?: PendingQueues | undefined
+  subscriptions?: ServeSubscriptions | undefined
 }): boolean {
-  const { socket, frame, send, pending } = args
+  const { socket, frame, send, pending, subscriptions } = args
+
+  if (isSubscriptionOp(frame.op)) {
+    if (subscriptions === undefined) {
+      send({
+        socket,
+        frame: refusedRequest({ replyTo: frame.id, message: 'this serve has no subscriptions' }),
+      })
+      return true
+    }
+    void answerSubscription({ frame, subscriptions })
+      .then((reply) => send({ socket, frame: reply }))
+      .catch((error: unknown) =>
+        send({
+          socket,
+          frame: refusedRequest({
+            replyTo: frame.id,
+            message: error instanceof Error ? error.message : 'the subscription request failed',
+          }),
+        }),
+      )
+    return true
+  }
 
   if (frame.op === EClientRequest.ReadRuntimeCheckpoint) {
     send({

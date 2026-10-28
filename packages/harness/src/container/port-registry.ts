@@ -18,6 +18,7 @@ import type { ShellLauncherPort, ShellRegistryPort } from '../shells/port'
 import type { SkillRegistryPort } from '../skills/port'
 import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
+import type { SubscriptionRegistryPort } from '../subscriptions/port'
 import type { TerminalPort } from '../terminal/terminal.port'
 import type { ToolRegistry } from '../tools/registry'
 import type { ToolDispatcher } from '../tools/dispatch'
@@ -73,6 +74,9 @@ declare module '@dltech/atlas-core' {
     }
     readonly MemoryPort: PortRegistryEntry<MemoryPort> & { readonly transport: 'none' }
     readonly GitChangesPort: PortRegistryEntry<GitChangesPort> & { readonly transport: 'none' }
+    readonly SubscriptionRegistryPort: PortRegistryEntry<SubscriptionRegistryPort> & {
+      readonly transport: 'detached'
+    }
     readonly TerminalPort: PortRegistryEntry<TerminalPort> & { readonly transport: 'none' }
   }
 }

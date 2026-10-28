@@ -6,11 +6,32 @@ import {
   sectionsAt,
   spansOf,
   type ESidebarPlace,
+  type SidebarRowAction,
   type SidebarSection,
   type SidebarSectionRow,
 } from '../../sidebar-section'
 import { theme } from '../../theme'
+import { Spans } from '../spans'
 import { Row, Section } from './row'
+
+const ACTION_CELLS = 2
+
+function RowAction(props: { action: SidebarRowAction }): React.ReactNode {
+  const region = useClickRegion(props.action.onActivate)
+
+  return (
+    <box
+      flexShrink={0}
+      width={ACTION_CELLS}
+      {...region.handlers}
+      {...(region.wash.bg === undefined ? {} : { backgroundColor: region.wash.bg })}
+    >
+      <text>
+        <Spans spans={[{ text: ` ${props.action.glyph}`, fg: props.action.fg ?? theme.meta }]} />
+      </text>
+    </box>
+  )
+}
 
 function ContributedRow(props: { row: SidebarSectionRow; cells: number }): React.ReactNode {
   const region = useClickRegion(props.row.onActivate)
@@ -18,19 +39,32 @@ function ContributedRow(props: { row: SidebarSectionRow; cells: number }): React
   const left = isSidebarRowSplit(content) ? content.left : undefined
   const value = isSidebarRowSplit(content) ? content.right : content
 
-  return (
+  const { action } = props.row
+  const cells = action === undefined ? props.cells : Math.max(0, props.cells - ACTION_CELLS)
+
+  const body = (
     <box
       flexShrink={0}
+      {...(action === undefined ? {} : { width: cells })}
       {...region.handlers}
       {...(region.wash.bg === undefined ? {} : { backgroundColor: region.wash.bg })}
     >
       <Row
         label=""
         labelFg={theme.meta}
-        cells={props.cells}
+        cells={cells}
         value={value}
         {...(left === undefined ? {} : { left })}
       />
+    </box>
+  )
+
+  if (action === undefined) return body
+
+  return (
+    <box flexShrink={0} flexDirection="row">
+      {body}
+      <RowAction action={action} />
     </box>
   )
 }

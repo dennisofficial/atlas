@@ -11,6 +11,7 @@ import { ownedThread as requireOwnedThread } from './ownership'
 import { toThreadDto } from './rows'
 import { advanceHead } from './thread-head'
 import { ThreadSignalsService } from './thread-signals.service'
+import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import type { ThreadDto } from './sessions.types'
 
 const SURVIVES_SUMMARY = [
@@ -18,6 +19,9 @@ const SURVIVES_SUMMARY = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
+  'subscription-created',
+  'subscription-changed',
+  'subscription-ended',
 ]
 
 async function dropRewoundChildren(args: {
@@ -134,6 +138,7 @@ export class ThreadsHistoryService {
           userId: args.userId,
         })
           .where((event) => event.seq.lte(args.draft.seq))
+          .where((event) => event.type.notIn(SUBSCRIPTION_EVENT_TYPES))
           .orderBy((event) => event.seq.asc())
           .all()
         if (rows.length > 0) {
