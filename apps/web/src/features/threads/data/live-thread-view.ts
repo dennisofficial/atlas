@@ -1,7 +1,12 @@
 import type { RemoteDeltaChannel, TerminalFrameChannel } from '@dltech/atlas-client/channel'
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
 import type { CallId, ModelUsage } from '@dltech/atlas-core'
-import type { OperatorInputRequestWire, PendingEntryWire, WireEvent } from '@dltech/atlas-wire/web'
+import type {
+  OperatorInputRequestWire,
+  PendingEntryWire,
+  SaidImageWire,
+  WireEvent,
+} from '@dltech/atlas-wire/web'
 
 export type ServeChannel = RemoteDeltaChannel & TerminalFrameChannel
 
@@ -16,7 +21,11 @@ export type LiveThreadState = {
   operatorInput: OperatorInputRequestWire | null
 }
 
-export type LiveSend = (args: { text: string; requestId: string }) => boolean
+export type LiveSend = (args: {
+  text: string
+  requestId: string
+  images?: SaidImageWire[]
+}) => boolean
 
 export type ThreadModelChoice = { ref: string; effort: string }
 

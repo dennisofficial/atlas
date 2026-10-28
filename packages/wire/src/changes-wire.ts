@@ -55,6 +55,7 @@ export const readGitChangesReplySchema = z.object({
   base: z.string().nullable(),
   files: z.array(changedFileWireSchema),
   truncated: z.boolean(),
+  ignored: z.array(z.string()).default([]),
 })
 
 export type ReadGitChangesReply = z.infer<typeof readGitChangesReplySchema>

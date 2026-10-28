@@ -119,10 +119,12 @@ export const CHANGED_FILES: FileNode[] = [
   {
     path: 'packages/ui',
     name: 'packages/ui',
+    change: EFileChange.Modified,
     children: [
       {
         path: 'packages/ui/src/ai',
         name: 'src/ai',
+        change: EFileChange.Modified,
         children: [
           {
             path: 'packages/ui/src/ai/tool.tsx',
@@ -139,6 +141,7 @@ export const CHANGED_FILES: FileNode[] = [
       {
         path: 'packages/ui/src/styles',
         name: 'src/styles',
+        change: EFileChange.Modified,
         children: [
           {
             path: 'packages/ui/src/styles/theme.css',
@@ -154,6 +157,14 @@ export const CHANGED_FILES: FileNode[] = [
     name: 'apps/web/src/app/page.tsx',
     change: EFileChange.Deleted,
   },
+  {
+    path: 'dist',
+    name: 'dist',
+    ignored: true,
+    children: [{ path: 'dist/index.js', name: 'index.js', ignored: true }],
+  },
+  { path: 'debug.log', name: 'debug.log', ignored: true },
+  { path: 'README.md', name: 'README.md' },
 ]
 
 export const TEST_SUITES: TestSuite[] = [

@@ -56,6 +56,31 @@ describe('deliverToServe', () => {
     expect(socket.closedCount()).toBe(1)
   })
 
+  it('carries images on the send frame and omits the key for a text-only send', async () => {
+    const image = { path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }
+    const withImages = fakeSocket()
+    const first = deliverToServe({ ...DELIVERY, images: [image], openSocket: withImages.open })
+    withImages.handlers().handleOpen()
+    withImages
+      .handlers()
+      .handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'snd-1' }))
+    await first
+
+    const textOnly = fakeSocket()
+    const second = deliverToServe({ ...DELIVERY, images: [], openSocket: textOnly.open })
+    textOnly.handlers().handleOpen()
+    textOnly
+      .handlers()
+      .handleMessage(JSON.stringify({ kind: EServeFrame.SendAcked, sendId: 'snd-1' }))
+    await second
+
+    expect(JSON.parse(withImages.sent[1] ?? '')).toMatchObject({
+      kind: EClientFrame.Send,
+      images: [image],
+    })
+    expect('images' in JSON.parse(textOnly.sent[1] ?? '')).toBe(false)
+  })
+
   it('rejects on an error frame and closes', async () => {
     const socket = fakeSocket()
     const delivery = deliverToServe({ ...DELIVERY, openSocket: socket.open })

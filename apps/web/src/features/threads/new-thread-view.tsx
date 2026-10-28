@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { Project } from '@dltech/atlas-wire/web'
+import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/workspace/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
@@ -12,8 +12,9 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
 import { createThread, fetchProjects } from './data/threads-api'
+import { useComposerImages } from './data/use-composer-images'
 import { useModelPicker } from './data/use-model-picker'
-import { messageOf } from './data/use-send'
+import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
 import { ProjectSelect } from './project-select'
 import { ThreadComposer } from './thread-composer'
@@ -34,24 +35,34 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalId: picker.personalId,
       personalEffort: picker.personalEffort,
     })
+  const images = useComposerImages()
   const [creating, setCreating] = useState(false)
-  const attempt = useRef<{ text: string; projectId: string | null; sendId: string } | null>(null)
+  const attempt = useRef<{
+    text: string
+    images: SaidImageWire[]
+    projectId: string | null
+    sendId: string
+  } | null>(null)
   const projectId = selected === undefined ? (projects[0]?.id ?? null) : selected
 
   const handleProjectChange = (next: string | null) => setSelected(next)
 
   const handleSubmit = async (text: string) => {
+    if (!images.checkBudget()) return
+    const held = images.images
     const sendId =
-      attempt.current?.text === text && attempt.current.projectId === projectId
+      attempt.current?.projectId === projectId &&
+      isRetryOf({ previous: attempt.current, text, images: held })
         ? attempt.current.sendId
         : crypto.randomUUID()
-    attempt.current = { text, projectId, sendId }
+    attempt.current = { text, images: held, projectId, sendId }
     setCreating(true)
     try {
       const { thread } = await createThread(
-        createThreadBodyOf({ projectId, text, sendId, ...createFieldsOf(selection) }),
+        createThreadBodyOf({ projectId, text, sendId, images: held, ...createFieldsOf(selection) }),
       )
       attempt.current = null
+      images.clear()
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
       toast.error(messageOf(failure))
@@ -64,7 +75,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       value={draft}
       onValueChange={setDraft}
       onSubmit={handleSubmit}
-      sending={creating}
+      sending={creating || images.encoding}
+      {...images.composerProps}
       placeholder="Describe a task for Atlas…"
     >
       <ModelPickerControls picker={picker} selection={selection} onSelectionChange={setChosen} />

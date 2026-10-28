@@ -1,4 +1,4 @@
-import { createThreadReplySchema } from '@dltech/atlas-wire/web'
+import { createThreadReplySchema, type SaidImageWire } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { api, cloudCall } from '@/lib/api-client'
@@ -23,8 +23,12 @@ export const fetchPod = (threadId: string) => cloudCall(api.threadPod.status.que
 export const takeBackMessage = (args: { threadId: string; sendId: string }) =>
   cloudCall(api.threadMessages.takeBack.mutate(args))
 
-export const postMessage = (args: { threadId: string; sendId: string; text: string }) =>
-  cloudCall(api.threadMessages.send.mutate(args))
+export const postMessage = (args: {
+  threadId: string
+  sendId: string
+  text: string
+  images?: SaidImageWire[]
+}) => cloudCall(api.threadMessages.send.mutate(args))
 
 export const fetchEvents = (threadId: string) =>
   cloudCall(api.threadEvents.read.query({ threadId, own: true }))

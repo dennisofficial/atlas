@@ -19,6 +19,7 @@ export type GitChangesView =
       status: EGitChangesStatus.Ready
       files: ChangedFile[]
       truncated: boolean
+      ignored: string[]
     }
   | { status: EGitChangesStatus.Failed; message: string }
 

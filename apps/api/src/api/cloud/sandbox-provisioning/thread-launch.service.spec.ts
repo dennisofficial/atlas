@@ -65,6 +65,26 @@ describe('ThreadLaunchService', () => {
     })
   })
 
+  it('writes the first message images into the user-said event body', async () => {
+    await seedBase()
+    const { service } = launchWith()
+    const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
+
+    const reply = await service.launch({
+      userId: 'usr-1',
+      draft: { projectId: 'prj-1' },
+      firstMessage: { ...FIRST, images },
+    })
+
+    const [event] = await eventsOf(reply.thread.id)
+    expect(JSON.parse(event?.body ?? '')).toEqual({
+      type: 'user-said',
+      text: FIRST.text,
+      requestId: FIRST.sendId,
+      images,
+    })
+  })
+
   it("stores the project's workspace as the owner and resolves credentials through it", async () => {
     await seedBase()
     const scoped = fakeScoped()
