@@ -40,6 +40,12 @@ export type ToolLens = {
 }
 
 function viewOf({ declaration }: { declaration: ToolDeclaration }): PathDeclarationView {
+  const view = pathViewOf({ declaration })
+  const { claimsDeeds } = declaration
+  return claimsDeeds === undefined ? view : { ...view, claimsDeeds }
+}
+
+function pathViewOf({ declaration }: { declaration: ToolDeclaration }): PathDeclarationView {
   const claim = declaration.pathFields
   if (claim === undefined || claim === EPathClaim.PathsItCannotName) {
     return { kind: EPathDeclaration.Undeclared }
