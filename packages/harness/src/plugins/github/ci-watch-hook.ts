@@ -17,13 +17,6 @@ export const CI_WATCH_DENY_REASON =
 
 const ORDER: HookOrder = { stage: EStage.Policy, nudge: 0 }
 
-/**
- * Refuses a shell that waits on CI while the checkout the calling thread stands on has a pull
- * request some subscription is delivering, because the wake the subscription already provides makes
- * the wait a second, slower copy of it. The refusal is the teaching moment: it names the one-shot
- * read that stays allowed. Watching a pull request nothing subscribes to stays legitimate. A
- * backgrounded bash is still a bash call, so it is refused here before its shell is ever spawned.
- */
 export class BlockCiWatchBeforeToolHook extends BeforeToolHook {
   readonly name = 'block-ci-watch'
   readonly order = ORDER

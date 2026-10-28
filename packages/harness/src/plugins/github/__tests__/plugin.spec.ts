@@ -167,7 +167,13 @@ describe('the github plugin as the loader sees it', () => {
     expect(text).toContain('nothing about it reaches you unless a thread subscribes')
     expect(text).toContain('`subscribe` with provider `github.pull-request`')
     expect(text).toContain('end your turn')
-    expect(text).toContain('one batched notice when CI settles')
+    expect(text).toContain(
+      'delivers comments, change requests, CI failure, and merge or close at once',
+    )
+    expect(text).toContain(
+      'approvals, a green CI verdict and mergeability changes arrive together as one notice when CI settles',
+    )
+    expect(text).toContain('pass `#<number>` from `gh pr create`\u2019s output')
     expect(text).toContain('`#123`, `owner/repo#123`, or its URL')
     expect(text).toContain('`gh run watch`')
     expect(text).toContain('refused on a subscribed pull request')

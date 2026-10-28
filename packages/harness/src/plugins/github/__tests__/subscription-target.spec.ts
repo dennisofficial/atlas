@@ -51,6 +51,35 @@ describe('resolveSubscriptionTarget', () => {
     expect(resolve({ input: '#42', checkout: null })).toEqual({ error: NO_CHECKOUT_ERROR })
   })
 
+  it('refuses a GitHub Enterprise checkout, which a github.com target cannot name', () => {
+    const enterprise = aCheckout({ host: 'acme.ghe.com' })
+
+    expect(resolve({ input: '', checkout: enterprise })).toEqual({ error: NOT_GITHUB_ERROR })
+    expect(resolve({ input: '#42', checkout: enterprise })).toEqual({ error: NOT_GITHUB_ERROR })
+  })
+
+  it('resolves the same pull request whatever the casing of the reference', () => {
+    const lower = resolve({ input: 'dltech/atlas#12', checkout: null })
+
+    expect(lower).toEqual({
+      target: { repo: 'github.com/dltech/atlas', number: 12 },
+      label: 'dltech/atlas#12',
+    })
+    expect(resolve({ input: 'DLTech/Atlas#12', checkout: null })).toEqual(lower)
+    expect(resolve({ input: 'https://github.com/DLTech/Atlas/pull/12', checkout: null })).toEqual(
+      lower,
+    )
+  })
+
+  it('lowercases the repository taken from a checkout', () => {
+    const mixed = aCheckout({ owner: 'DLTech', repo: 'Atlas' })
+
+    expect(resolve({ input: '#42', checkout: mixed })).toEqual({
+      target: { repo: 'github.com/dltech/atlas', number: 42 },
+      label: 'dltech/atlas#42',
+    })
+  })
+
   it('refuses a bare number on a checkout that is not on github.com', () => {
     const other = aCheckout({ forge: EForge.Other })
 
@@ -127,10 +156,19 @@ describe('target helpers', () => {
     }
   })
 
+  it('reads a stored target with other casing back lowercase', () => {
+    expect(targetOf({ repo: 'GitHub.com/DLTech/Atlas', number: 3 })).toEqual({
+      repo: 'github.com/dltech/atlas',
+      number: 3,
+    })
+  })
+
   it('labels and keys a target', () => {
     const target = { repo: 'github.com/a/b', number: 3 }
 
     expect(labelOf(target)).toBe('a/b#3')
     expect(targetKey(target)).toBe('github.com/a/b#3')
+    expect(labelOf({ repo: 'github.com/A/B', number: 3 })).toBe('a/b#3')
+    expect(targetKey({ repo: 'github.com/A/B', number: 3 })).toBe('github.com/a/b#3')
   })
 })

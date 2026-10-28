@@ -8,7 +8,14 @@ import {
 } from '../../subscriptions/provider'
 import { probeCheckout } from './checkout-probe'
 import type { FamilyTracker } from './family-tracker'
-import { checkoutKey, EPullRequestLookup, type RepositoryCheckout } from './pure'
+import {
+  checkoutKey,
+  EPullRequestLookup,
+  EPullRequestState,
+  type PullRequestReading,
+  type RepositoryCheckout,
+} from './pure'
+import { pullRequestLinkKey } from './links'
 import { createPrEventDedupe } from './pure/pr-event-dedupe'
 import type { PullRequestService } from './pull-request-service'
 import {
@@ -27,41 +34,78 @@ export type PullRequestProvider = SubscriptionProvider & {
 
 type Emit = (occurrence: SubscriptionOccurrence) => void
 
-const now = (draft: SubscriptionOccurrence['draft'], key: string): SubscriptionOccurrence => ({
-  key,
+const GITHUB_PREFIX = 'github.com/'
+
+const now = (args: {
+  draft: SubscriptionOccurrence['draft']
+  key: string
+}): SubscriptionOccurrence => ({
+  key: args.key,
   urgency: EOccurrenceUrgency.Now,
-  draft,
+  draft: args.draft,
 })
 
-const batch = (
-  draft: SubscriptionOccurrence['draft'],
-  key: string,
-  rest?: { settles?: boolean },
-): SubscriptionOccurrence => ({ key, urgency: EOccurrenceUrgency.Batch, draft, ...rest })
+const batch = (args: {
+  draft: SubscriptionOccurrence['draft']
+  key: string
+  settles?: boolean
+}): SubscriptionOccurrence => ({
+  key: args.key,
+  urgency: EOccurrenceUrgency.Batch,
+  draft: args.draft,
+  ...(args.settles === undefined ? {} : { settles: args.settles }),
+})
 
 export function occurrenceOf(frame: PrEventFrame): SubscriptionOccurrence {
   const draft = prEventNoticeOf(frame)
   const { payload } = frame
 
   if (frame.kind === EPrEventKind.Review && payload.reviewState === EPrReviewState.Approved) {
-    return batch(draft, `review:${payload.authorLogin ?? 'unknown'}`)
+    return batch({ draft, key: `review:${payload.authorLogin ?? 'unknown'}` })
   }
   if (frame.kind === EPrEventKind.Verdict) {
     return payload.verdict === EPrVerdict.Green
-      ? batch(draft, 'verdict', { settles: true })
-      : now(draft, 'verdict')
+      ? batch({ draft, key: 'verdict', settles: true })
+      : now({ draft, key: 'verdict' })
   }
-  if (frame.kind === EPrEventKind.Mergeability) return batch(draft, 'mergeability')
+  if (frame.kind === EPrEventKind.Mergeability) return batch({ draft, key: 'mergeability' })
   if (frame.kind === EPrEventKind.State) {
     const terminal = payload.state === 'merged' || payload.state === 'closed'
-    return terminal ? { ...now(draft, 'state'), ends: true } : batch(draft, 'state')
+    return terminal
+      ? { ...now({ draft, key: 'state' }), ends: true }
+      : batch({ draft, key: 'state' })
   }
-  return now(draft, frame.id)
+  return now({ draft, key: frame.id })
+}
+
+const SETTLED_READING_STATES: ReadonlySet<EPullRequestState> = new Set([
+  EPullRequestState.Merged,
+  EPullRequestState.Closed,
+])
+
+const settledFrameOf = (args: {
+  target: PullRequestTarget
+  reading: PullRequestReading
+}): PrEventFrame | null => {
+  const { reading, target } = args
+  if (reading.lookup !== EPullRequestLookup.Found) return null
+
+  const { pullRequest } = reading
+  if (!SETTLED_READING_STATES.has(pullRequest.state)) return null
+
+  return {
+    id: `reading:${targetKey(target)}:${pullRequest.state}`,
+    repoFullName: target.repo.slice(GITHUB_PREFIX.length),
+    prNumber: target.number,
+    kind: EPrEventKind.State,
+    payload: { url: pullRequest.url, state: pullRequest.state },
+    createdAt: '',
+  }
 }
 
 export function createPullRequestProvider(args: {
   tracker: Pick<FamilyTracker, 'checkoutFor'>
-  service: Pick<PullRequestService, 'snapshot'>
+  service: Pick<PullRequestService, 'snapshot' | 'subscribe' | 'refresh'>
   onTargets: (targets: readonly PullRequestTarget[]) => void
   probe?: typeof probeCheckout
 }): PullRequestProvider {
@@ -84,6 +128,48 @@ export function createPullRequestProvider(args: {
     return reading.lookup === EPullRequestLookup.Found ? reading.pullRequest.number : null
   }
 
+  const foundNumberAfterFreshRead = async (
+    checkout: RepositoryCheckout,
+  ): Promise<number | null> => {
+    const held = foundNumber(checkout)
+    if (held !== null) return held
+
+    await args.service.refresh({ checkout, force: true })
+    return foundNumber(checkout)
+  }
+
+  const ended = new Set<string>()
+  let unlisten: (() => void) | null = null
+
+  const deliver = (args: { key: string; occurrence: SubscriptionOccurrence }): void => {
+    for (const [id, emit] of [...(emitters.get(args.key)?.entries() ?? [])]) {
+      if (ended.has(id)) continue
+      if (args.occurrence.ends === true) ended.add(id)
+      emit(args.occurrence)
+    }
+  }
+
+  const sweep = (): void => {
+    for (const [key, target] of [...targets]) {
+      const frame = settledFrameOf({
+        target,
+        reading: args.service.snapshot({ key: pullRequestLinkKey(target) }),
+      })
+      if (frame !== null) deliver({ key, occurrence: occurrenceOf(frame) })
+    }
+  }
+
+  const listen = (): void => {
+    if (unlisten === null) unlisten = args.service.subscribe(sweep)
+  }
+
+  const unlistenWhenIdle = (): void => {
+    if (targets.size > 0) return
+
+    unlisten?.()
+    unlisten = null
+  }
+
   return {
     kind: PULL_REQUEST_PROVIDER_KIND,
     summary: 'Pull request events: comments, reviews, CI verdicts, mergeability, merge or close.',
@@ -91,11 +177,15 @@ export function createPullRequestProvider(args: {
       'Blank for this checkout\u2019s pull request, or #123, owner/repo#123, or a github.com pull request URL.',
     resolve: async ({ input, threadId, projectDirectory }) => {
       const checkout = await checkoutOf({ threadId, projectDirectory })
-      return resolveSubscriptionTarget({
-        input,
-        checkout,
-        foundNumber: checkout === null ? null : foundNumber(checkout),
-      })
+      const blank = input.trim().length === 0
+      const found =
+        checkout === null
+          ? null
+          : blank
+            ? await foundNumberAfterFreshRead(checkout)
+            : foundNumber(checkout)
+
+      return resolveSubscriptionTarget({ input, checkout, foundNumber: found })
     },
     start: ({ subscription, emit }) => {
       const target = targetOf(subscription.target)
@@ -106,26 +196,30 @@ export function createPullRequestProvider(args: {
       holders.set(subscription.id, emit)
       emitters.set(key, holders)
       targets.set(key, target)
+      listen()
       publish()
+      sweep()
 
       return () => {
         holders.delete(subscription.id)
+        ended.delete(subscription.id)
         if (holders.size > 0) return
 
         emitters.delete(key)
         targets.delete(key)
+        unlistenWhenIdle()
         publish()
       }
     },
     subscribed: (target) => emitters.has(targetKey(target)),
     onFrame: (frame) => {
-      const holders = emitters.get(targetKey({ repo: repoOfFrame(frame), number: frame.prNumber }))
-      if (holders === undefined) return
+      const key = targetKey({ repo: repoOfFrame(frame), number: frame.prNumber })
+      if (!emitters.has(key)) return
 
       const draft = prEventNoticeOf(frame)
       const fresh = dedupe.admit({
         id: frame.id,
-        repo: draft.repo,
+        repo: draft.repo.toLowerCase(),
         prNumber: frame.prNumber,
         kind: frame.kind,
         verdict: draft.verdict,
@@ -135,8 +229,7 @@ export function createPullRequestProvider(args: {
       })
       if (!fresh) return
 
-      const occurrence = occurrenceOf(frame)
-      for (const emit of [...holders.values()]) emit(occurrence)
+      deliver({ key, occurrence: occurrenceOf(frame) })
     },
   }
 }

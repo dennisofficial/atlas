@@ -45,8 +45,7 @@ export type TrackedReading = {
 /**
  * The serve channel's snapshot of the github plugin's live readings. Only `Found` readings carry
  * state a tile can render; tracked and watched entries are folded together keyed by pull request
- * identity so a PR that is both the tracked checkout and a watched link appears once. A PR watched
- * only because a subscription names it stays out; the Subscriptions list is where it shows.
+ * identity so a PR that is both the tracked checkout and a watched link appears once.
  */
 export function pullRequestStatesWireOf(
   readings: readonly TrackedReading[],

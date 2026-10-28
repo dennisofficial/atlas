@@ -20,10 +20,6 @@ export type PullRequestService = {
   }) => void
   setVisible: (args: { checkout: RepositoryCheckout | null }) => void
   tracked: () => readonly RepositoryCheckout[]
-  /**
-   * The durable links plus subscribed pull requests that have none, reconciled by `repo#number`;
-   * a link's metadata wins where both name the same pull request.
-   */
   watch: (args: {
     links: readonly LinkedPullRequest[]
     extra?: readonly { repo: string; number: number }[]

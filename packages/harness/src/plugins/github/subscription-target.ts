@@ -20,24 +20,31 @@ export const UNRECOGNIZED_ERROR =
   'Not a pull request reference; pass nothing, #number, owner/repo#number or a github.com pull request URL'
 
 export const labelOf = (target: PullRequestTarget): string =>
-  `${target.repo.slice(GITHUB_HOST.length + 1)}#${target.number}`
+  `${target.repo.slice(GITHUB_HOST.length + 1).toLowerCase()}#${target.number}`
 
-export const targetKey = (target: PullRequestTarget): string => `${target.repo}#${target.number}`
+export const targetKey = (target: PullRequestTarget): string =>
+  `${target.repo.toLowerCase()}#${target.number}`
 
 export function targetOf(value: unknown): PullRequestTarget | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
 
   const { repo, number } = value as { repo?: unknown; number?: unknown }
-  if (typeof repo !== 'string' || !repo.startsWith(`${GITHUB_HOST}/`)) return null
+  if (typeof repo !== 'string' || !repo.toLowerCase().startsWith(`${GITHUB_HOST}/`)) return null
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
 
-  return { repo, number }
+  return { repo: repo.toLowerCase(), number }
 }
 
-const resolved = (target: PullRequestTarget): ResolvedTarget => ({
-  target: { repo: target.repo, number: target.number },
-  label: labelOf(target),
-})
+const resolved = (target: PullRequestTarget): ResolvedTarget => {
+  const lowered = { repo: target.repo.toLowerCase(), number: target.number }
+  return { target: lowered, label: labelOf(lowered) }
+}
+
+const onGitHubDotCom = (checkout: RepositoryCheckout): boolean =>
+  checkout.forge === EForge.GitHub && checkout.remote.host === GITHUB_HOST
+
+const checkoutRepo = (checkout: RepositoryCheckout): string =>
+  `${GITHUB_HOST}/${checkout.remote.owner}/${checkout.remote.repo}`
 
 const explicit = (args: {
   owner: string
@@ -60,12 +67,9 @@ export function resolveSubscriptionTarget(args: {
 
   if (input.length === 0) {
     if (checkout === null || args.foundNumber === null) return { error: NO_PULL_REQUEST_ERROR }
-    if (checkout.forge !== EForge.GitHub) return { error: NOT_GITHUB_ERROR }
+    if (!onGitHubDotCom(checkout)) return { error: NOT_GITHUB_ERROR }
 
-    return resolved({
-      repo: `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`,
-      number: args.foundNumber,
-    })
+    return resolved({ repo: checkoutRepo(checkout), number: args.foundNumber })
   }
 
   const bare = NUMBER_FORM.exec(input)
@@ -73,12 +77,9 @@ export function resolveSubscriptionTarget(args: {
     const number = Number(bare[1])
     if (number < 1) return { error: BAD_NUMBER_ERROR }
     if (checkout === null) return { error: NO_CHECKOUT_ERROR }
-    if (checkout.forge !== EForge.GitHub) return { error: NOT_GITHUB_ERROR }
+    if (!onGitHubDotCom(checkout)) return { error: NOT_GITHUB_ERROR }
 
-    return resolved({
-      repo: `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`,
-      number,
-    })
+    return resolved({ repo: checkoutRepo(checkout), number })
   }
 
   const matched = SHORTHAND_FORM.exec(input) ?? URL_FORM.exec(input)
