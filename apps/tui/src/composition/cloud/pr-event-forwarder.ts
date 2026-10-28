@@ -1,8 +1,5 @@
 import {
   EExecutionLocation,
-  EPrEventKind,
-  EPrReviewState,
-  EPrVerdict,
   ERunner,
   ESubscriptionStatus,
   prEventContent,
@@ -10,6 +7,8 @@ import {
 } from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
+  EOccurrenceUrgency,
+  occurrenceOf,
   prEventNoticeOf,
   repoOfFrame,
   type CloudChannel,
@@ -20,16 +19,8 @@ import { PULL_REQUEST_SUBSCRIPTION_PROVIDER } from '@dltech/atlas-wire'
 
 import type { CloudBridgeFactory } from './bridge-factory'
 
-const isUrgent = (frame: PrEventFrame): boolean => {
-  const { payload } = frame
-  if (frame.kind === EPrEventKind.Review) return payload.reviewState !== EPrReviewState.Approved
-  if (frame.kind === EPrEventKind.Verdict) return payload.verdict !== EPrVerdict.Green
-  if (frame.kind === EPrEventKind.Mergeability) return false
-  if (frame.kind === EPrEventKind.State) {
-    return payload.state === 'merged' || payload.state === 'closed'
-  }
-  return true
-}
+const isUrgent = (frame: PrEventFrame): boolean =>
+  occurrenceOf(frame).urgency === EOccurrenceUrgency.Now
 
 const holdsActiveSubscription = (args: {
   summary: ThreadSummary
