@@ -18,6 +18,9 @@ const SURVIVES_SUMMARY = [
   'permission-granted',
   'permission-revoked',
   'pull-request-linked',
+  'subscription-created',
+  'subscription-changed',
+  'subscription-ended',
 ]
 
 async function dropRewoundChildren(args: {

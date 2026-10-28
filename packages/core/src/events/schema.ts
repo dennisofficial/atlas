@@ -36,6 +36,11 @@ import {
   qualityScopeIdentitySchema,
 } from '../quality/schema'
 import { EQualityReviewStatus, EQualitySkipReason } from '../quality/policy'
+import {
+  subscriptionChangedSchema,
+  subscriptionCreatedSchema,
+  subscriptionEndedSchema,
+} from '../subscriptions/schema'
 
 export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   id: eventIdSchema,
@@ -442,4 +447,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     modelId: z.string().min(1),
     status: z.enum(ETldrStatus).optional(),
   }),
+  subscriptionCreatedSchema,
+  subscriptionChangedSchema,
+  subscriptionEndedSchema,
 ])

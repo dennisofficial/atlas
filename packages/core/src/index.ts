@@ -47,6 +47,7 @@ export * from './budget/auto-compact'
 export * from './budget/resolve-budget'
 export * from './events/schema'
 export * from './events/stamp'
+export * from './subscriptions'
 
 export * from './message/hoist-tool-files'
 export * from './message/message'
