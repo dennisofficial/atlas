@@ -1,3 +1,5 @@
+import type { EventDraft } from '@dltech/atlas-core'
+
 import type { HookChainSource } from '../hooks/registry'
 import { afterShellDrafts } from './after-shell'
 import { ENotice } from './attention'
@@ -48,6 +50,7 @@ export class ShellEvents {
     })
     if (state.tracked.get(snapshot.shellId) !== entry) return undefined
 
+    let delivered: EventDraft | undefined
     if (state.journal !== undefined) {
       const persisted = await state.journal.ended({
         threadId: entry.threadId,
@@ -57,9 +60,15 @@ export class ShellEvents {
         hooked,
       })
       if (!persisted.appended) return { delta, appended: false }
+      delivered = persisted.delivered
     }
     if (state.tracked.get(snapshot.shellId) !== entry) return { delta, appended: true }
-    state.notices.queue({ kind: ENotice.Ended, snapshot, threadId: entry.threadId })
+    state.notices.queue({
+      kind: ENotice.Ended,
+      snapshot,
+      threadId: entry.threadId,
+      draft: delivered,
+    })
     return { delta, appended: true }
   }
 
@@ -117,6 +126,7 @@ export class ShellEvents {
       kind: args.kind,
       snapshot: args.snapshot,
       threadId: args.entry.threadId,
+      draft: recorded?.delivered,
     })
   }
 }

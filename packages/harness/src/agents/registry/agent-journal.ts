@@ -1,4 +1,13 @@
-import type { EventDraft, EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
+import {
+  arrivedDraft,
+  deliveredDraft,
+  type EventDraft,
+  type EventLogPort,
+  type IdPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
+
+export type StampedNotice = { arrived: EventDraft; delivered: EventDraft }
 
 export type Recorded = { recorded: true } | { recorded: false; cause: string }
 
@@ -11,6 +20,11 @@ export class AgentJournal {
   constructor(args: { log: EventLogPort; ids: IdPort }) {
     this.log = args.log
     this.ids = args.ids
+  }
+
+  stamp({ draft }: { draft: EventDraft }): StampedNotice {
+    const id = String(this.ids.nextEventId())
+    return { arrived: arrivedDraft({ draft, id }), delivered: deliveredDraft({ draft, id }) }
   }
 
   async record({ threadId, draft }: { threadId: ThreadId; draft: EventDraft }): Promise<Recorded> {

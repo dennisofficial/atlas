@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
+  ENoticeStage,
   EAgentRestart,
   EAgentStatus,
   EKilledBy,
@@ -106,7 +107,7 @@ describe('hydrating a family that arrived from another location', () => {
     })
   })
 
-  it('drops the family notices queued before the move and keeps other threads untouched', async () => {
+  it('requeues the family notices from the log after the move, once, and keeps other threads untouched', async () => {
     const entry = await open()
     const second = (await entry.harness.threads.create({})).id
     const spawn = async (threadId: ThreadId) => {
@@ -131,10 +132,20 @@ describe('hydrating a family that arrived from another location', () => {
 
     await entry.supervisor.hydrateTransferred({ threadId: entry.parent })
 
-    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
+    expect(
+      entry.supervisor.pendingNotices({ threadId: entry.parent }).map((one) => one.agentId),
+    ).toEqual([mine])
     expect(entry.supervisor.pendingNotices({ threadId: second }).map((one) => one.agentId)).toEqual(
       [theirs],
     )
+    const delivered = entry.supervisor.drainNotifications({ threadId: entry.parent }).drafts
+    expect(delivered).toEqual([
+      expect.objectContaining({
+        type: 'agent-ended',
+        agentId: mine,
+        notice: { id: expect.any(String), stage: ENoticeStage.Delivered },
+      }),
+    ])
     expect(snapshotOf(entry, second, theirs)?.status).toBe(EAgentStatus.Finished)
   })
 

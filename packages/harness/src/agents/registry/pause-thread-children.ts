@@ -87,7 +87,7 @@ export async function pauseThreadChildren({
         drafts: [agentEndedDraft(child)],
       })
     }
-    delivery.drainEndings({
+    delivery.discard({
       threadId: child.spawnedBy,
       where: (notice) =>
         notice.draft.type === 'agent-ended' &&

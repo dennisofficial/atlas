@@ -4,6 +4,7 @@ import {
   ClockPort,
   defaultPipeline,
   EMPTY_PROMPT,
+  ENoticeStage,
   EventLogPort,
   IdPort,
   ProcessPort,
@@ -119,7 +120,11 @@ it('answers a real shell ending during a model reply without replacing its live 
     })
     expect(model.doStreamCalls).toHaveLength(2)
     expect(JSON.stringify(model.doStreamCalls[1]?.prompt)).toContain('build failed')
-    expect(events.filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
+    expect(
+      events.flatMap((event) =>
+        event.type === 'background-shell-ended' ? [event.notice?.stage] : [],
+      ),
+    ).toEqual([ENoticeStage.Arrived, ENoticeStage.Delivered])
     expect(events.filter((event) => event.type === 'user-said')).toHaveLength(1)
     expect(events.at(-1)).toMatchObject({
       type: 'assistant-said',

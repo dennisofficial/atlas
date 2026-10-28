@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   defaultPipeline,
   EMPTY_PROMPT,
+  ENoticeStage,
   EShellStatus,
   toThreadId,
   type ClockPort,
@@ -191,7 +192,7 @@ function openFakeRegistry(): {
 }
 
 describe('an ending the occurrence already wrote', () => {
-  it('is not appended a second time when the turn drains the wake-up bell', async () => {
+  it('is delivered once, as a second row, when the turn drains the wake-up bell', async () => {
     const { registry, log, threadId } = openFakeRegistry()
     const started = await registry.start({
       threadId,
@@ -225,10 +226,14 @@ describe('an ending the occurrence already wrote', () => {
       threadId,
     })
 
-    expect(drained.ok && !drained.drained).toBe(true)
+    expect(drained.ok && drained.drained).toBe(true)
     const ended = (await log.read({ threadId })).filter(
       (event) => event.type === 'background-shell-ended',
     )
-    expect(ended).toHaveLength(1)
+    expect(ended.map((event) => event.notice?.stage)).toEqual([
+      ENoticeStage.Arrived,
+      ENoticeStage.Delivered,
+    ])
+    expect(new Set(ended.map((event) => event.notice?.id)).size).toBe(1)
   })
 })

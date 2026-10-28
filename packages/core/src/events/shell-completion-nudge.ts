@@ -1,4 +1,5 @@
 import type { EventOfType } from './envelope'
+import { reachesModel } from './notice-stage'
 import { awaitsReply } from './projections'
 import type { Event } from './envelope'
 
@@ -17,7 +18,8 @@ export function shellCompletionNudge(args: {
   if (toldSince) return undefined
 
   const unseenEnding = args.events.some(
-    (event) => event.type === 'background-shell-ended' && event.seq > seenThrough,
+    (event) =>
+      event.type === 'background-shell-ended' && reachesModel(event) && event.seq > seenThrough,
   )
   if (!unseenEnding) return undefined
 

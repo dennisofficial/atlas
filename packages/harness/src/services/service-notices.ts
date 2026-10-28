@@ -1,4 +1,4 @@
-import type { EventDraft, ThreadId } from '@dltech/atlas-core'
+import { noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
 import { bootId } from './boot'
@@ -6,7 +6,11 @@ import { logTail, type ServiceSnapshot } from './service-process'
 
 export const ENDING_TAIL_CHARACTERS = 4_000
 
-export type ServiceNotice = { snapshot: ServiceSnapshot; threadId: ThreadId; draft: EventDraft }
+export type ServiceNotice = {
+  snapshot: ServiceSnapshot
+  threadId: ThreadId
+  draft: EventDraft
+}
 
 export function serviceEndedDraft(args: { snapshot: ServiceSnapshot }): EventDraft {
   const { snapshot } = args
@@ -37,13 +41,10 @@ export class ServiceNoticeQueue {
   private queued: readonly ServiceNotice[] = NOTHING_PENDING
   private noticed: ReadonlyMap<ThreadId, readonly ServiceSnapshot[]> = NOTHING_NOTICED
   private readonly listeners = new Set<() => void>()
-  private readonly logged: boolean
-
-  constructor(args: { logged: boolean }) {
-    this.logged = args.logged
-  }
 
   queue(notice: ServiceNotice): void {
+    const id = noticeIdOf(notice.draft)
+    if (id !== undefined && this.queued.some((held) => noticeIdOf(held.draft) === id)) return
     this.settle([...this.queued, notice])
   }
 
@@ -55,7 +56,7 @@ export class ServiceNoticeQueue {
 
   prepare({ threadId }: { threadId: ThreadId }): InputBatch {
     const captured = this.queued.filter((notice) => notice.threadId === threadId)
-    const drafts = this.logged ? [] : captured.map((notice) => notice.draft)
+    const drafts = captured.map((notice) => notice.draft)
 
     let acknowledged = false
     const acknowledge = (): void => {

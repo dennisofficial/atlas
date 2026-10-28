@@ -3,6 +3,7 @@ import { systemNotice } from '../../context/envelope'
 import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
 import { NO_CONTENT_TEXT } from '../../events/empty-step'
 import type { Event, EventOfType } from '../../events/envelope'
+import { isNoticeArrival } from '../../events/notice-stage'
 import { EKilledBy } from '../../shells/status'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
@@ -84,14 +85,15 @@ export function agentEndingsText({ endings }: { endings: readonly Ending[] }): s
 }
 
 const carriesEnding = (event: Event): event is Ending =>
-  event.type === 'agent-ended' && event.relayed !== false
+  event.type === 'agent-ended' && event.relayed !== false && !isNoticeArrival(event)
 
 function waves({ events }: { events: readonly Event[] }): readonly (readonly Ending[])[] {
   const grouped: Ending[][] = []
   let open: Ending[] | undefined
 
   for (const event of events) {
-    if (event.type === 'agent-ended' && event.relayed === false) continue
+    if (event.type === 'agent-ended' && (event.relayed === false || isNoticeArrival(event)))
+      continue
 
     if (!carriesEnding(event)) {
       open = undefined

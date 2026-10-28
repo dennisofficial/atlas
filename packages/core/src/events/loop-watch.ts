@@ -1,6 +1,7 @@
 import { untrustedEnvelope } from '../context/envelope'
 import { EPrEventKind, type EventDraft } from './body'
 import type { Event } from './envelope'
+import { reachesModel } from './notice-stage'
 
 export const LOOP_WATCH_MIN_SPEECHES = 3
 export const LOOP_WATCH_WINDOW = 30
@@ -43,6 +44,7 @@ const speechOf = (event: Event & { type: 'assistant-said' }): string =>
     .trim()
 
 const lineOf = (event: Event): string | undefined => {
+  if (!reachesModel(event)) return undefined
   if (event.type === 'assistant-said') {
     const speech = speechOf(event)
     return speech.length === 0 ? undefined : `agent: ${clip(speech, SPEECH_CLIP)}`
@@ -61,7 +63,6 @@ const lineOf = (event: Event): string | undefined => {
     return `harness: ${clip(event.text, RESULT_CLIP)}`
   }
   if (event.type === 'agent-ended') {
-    if (event.relayed === false) return undefined
     return `sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
   }
   if (event.type === 'agent-reported') {

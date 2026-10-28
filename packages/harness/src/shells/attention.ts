@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { ShellSnapshot } from './background-shell'
 
@@ -9,9 +9,15 @@ export enum ENotice {
 }
 
 export type PendingShellNotice = { kind: ENotice; snapshot: ShellSnapshot }
-export type ShellAttention = PendingShellNotice & { threadId: ThreadId }
+export type ShellAttention = PendingShellNotice & {
+  threadId: ThreadId
+  draft?: EventDraft | undefined
+}
 
 const EMPTY: readonly PendingShellNotice[] = Object.freeze([])
+
+const idOf = (notice: ShellAttention): string | undefined =>
+  notice.draft === undefined ? undefined : noticeIdOf(notice.draft)
 
 export class ShellAttentionQueue {
   private queued: readonly ShellAttention[] = []
@@ -19,6 +25,8 @@ export class ShellAttentionQueue {
   private readonly listeners = new Set<() => void>()
 
   queue(notice: ShellAttention): void {
+    const id = idOf(notice)
+    if (id !== undefined && this.queued.some((held) => idOf(held) === id)) return
     this.settle([...this.queued, notice])
   }
 
@@ -26,7 +34,7 @@ export class ShellAttentionQueue {
     const captured = this.queued.filter((notice) => notice.threadId === threadId)
     let acknowledged = false
     return {
-      drafts: [],
+      drafts: captured.flatMap((notice) => (notice.draft === undefined ? [] : [notice.draft])),
       wakesTurn: captured.length > 0,
       acknowledge: () => {
         if (acknowledged) return

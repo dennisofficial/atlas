@@ -1,4 +1,5 @@
 import type { EKilledBy, EShellStatus } from '../shells/status'
+import type { NoticeStamp } from './notice-stage'
 
 export type BackgroundShellEventBody =
   | {
@@ -24,6 +25,7 @@ export type BackgroundShellEventBody =
       outputPath?: string | undefined
       outputStart?: number | undefined
       outputEnd?: number | undefined
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'background-shell-awaiting-input'
@@ -38,6 +40,7 @@ export type BackgroundShellEventBody =
       outputPath?: string | undefined
       outputStart?: number | undefined
       outputEnd?: number | undefined
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'background-shell-matched'
@@ -52,6 +55,7 @@ export type BackgroundShellEventBody =
       outputPath?: string | undefined
       outputStart?: number | undefined
       outputEnd?: number | undefined
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'background-shell-still-running'

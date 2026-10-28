@@ -1,4 +1,5 @@
 import type { EventDraft } from '../events/body'
+import { isNoticeArrival } from '../events/notice-stage'
 import { reportWakesParent } from './report'
 
 export const TEAMMATE_AGENT_TYPE = 'teammate'
@@ -7,6 +8,7 @@ export const isTeammateType = (agentType: string): boolean => agentType === TEAM
 
 /** Whether the event hands the turn to the assistant — the one projection run-turn and resume read. */
 export const isTurnTaking = (event: EventDraft): boolean => {
+  if (isNoticeArrival(event)) return false
   switch (event.type) {
     case 'user-said':
     case 'assistant-said':

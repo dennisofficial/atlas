@@ -120,6 +120,40 @@ describe('agentRecordsOf', () => {
   })
 })
 
+describe('agentRecordsOf with stamped notices', () => {
+  const stamp = (stage: 'arrived' | 'delivered') => ({ notice: { id: 'n1', stage } })
+
+  it('reads the ending from the arrival and ignores the delivery', () => {
+    const [record] = agentRecordsOf([
+      spawned(1, 'a'),
+      ended(5, 'a', { ...stamp('arrived'), prose: 'arrived prose' }),
+      ended(9, 'a', { ...stamp('delivered'), prose: 'delivered prose' }),
+    ])
+    expect(record).toMatchObject({
+      status: EAgentStatus.Finished,
+      endedAt: at(5),
+      prose: 'arrived prose',
+    })
+  })
+
+  it('does not let a late delivery close a restarted agent', () => {
+    const restarted = event(6, {
+      type: 'agent-restarted',
+      agentId: 'a',
+      agentType: 'explore',
+      intent: 'work a',
+      via: 'resume',
+    })
+    const [record] = agentRecordsOf([
+      spawned(1, 'a'),
+      ended(5, 'a', stamp('arrived')),
+      restarted,
+      ended(9, 'a', stamp('delivered')),
+    ])
+    expect(record).toMatchObject({ status: EAgentStatus.Running, endedAt: undefined })
+  })
+})
+
 describe('agentViewsOf', () => {
   it('takes live status and last tool from the roster', () => {
     const records = agentRecordsOf([spawned(1, 'a')])

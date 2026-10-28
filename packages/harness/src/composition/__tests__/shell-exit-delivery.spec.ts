@@ -4,6 +4,7 @@ import {
   ClockPort,
   defaultPipeline,
   EMPTY_PROMPT,
+  ENoticeStage,
   EventLogPort,
   IdPort,
   ProcessPort,
@@ -185,7 +186,11 @@ describe('background shell completion through shared delivery', () => {
       expect(events.filter((event) => event.type === 'background-shell-started')).toMatchObject([
         { shellId: started.snapshot.shellId },
       ])
-      expect(events.filter((event) => event.type === 'background-shell-ended')).toHaveLength(1)
+      expect(
+        events.flatMap((event) =>
+          event.type === 'background-shell-ended' ? [event.notice?.stage] : [],
+        ),
+      ).toEqual([ENoticeStage.Arrived, ENoticeStage.Delivered])
       expect(events.filter((event) => event.type === 'user-said')).toHaveLength(1)
       expect(events.at(-1)).toMatchObject({
         type: 'assistant-said',

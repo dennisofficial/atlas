@@ -1,6 +1,7 @@
 import type { AssistantPart, EventDraft } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
+import { recordsLifecycle } from '../events/notice-stage'
 import { rowsOwnedBy } from '../events/ownership'
 import { lostOf, type LifecycleKind } from '../lifecycle/lifecycle'
 import { EKilledBy } from '../shells/status'
@@ -87,7 +88,7 @@ export function agentRoster({
       continue
     }
 
-    if (event.type !== 'agent-ended') continue
+    if (event.type !== 'agent-ended' || !recordsLifecycle(event)) continue
 
     held.set(event.agentId, {
       agentId: event.agentId,

@@ -1,4 +1,4 @@
-import { EAgentStatus, isTeammateType, type Event } from '@dltech/atlas-core'
+import { EAgentStatus, isTeammateType, recordsLifecycle, type Event } from '@dltech/atlas-core'
 import { EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
 import type { AgentContext, AgentsPanelTeammate } from '@dltech/atlas-ui/ai/agents-panel'
 import type { AgentSnapshotWire, RosterWire, WireThread } from '@dltech/atlas-wire/web'
@@ -83,6 +83,7 @@ export function agentRecordsOf(events: readonly Event[]): AgentRecord[] {
     records.get(args.identity.agentId) ?? freshRecord(args)
 
   for (const event of events) {
+    if (!recordsLifecycle(event)) continue
     if (event.type === 'agent-spawned') {
       records.set(event.agentId, freshRecord({ identity: event, at: event.at }))
     } else if (event.type === 'agent-restarted') {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import type { EventLogPort, ThreadId } from '@dltech/atlas-core'
+import { ENoticeStage, type EventLogPort, type ThreadId } from '@dltech/atlas-core'
 
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import { AgentSupervisor } from '../supervisor'
@@ -9,6 +9,7 @@ import {
   finished,
   loggedOfType,
   openSupervisor,
+  stageOf,
   type OpenedSupervisor,
 } from './fixtures'
 
@@ -119,8 +120,16 @@ describe('a teammate report', () => {
     await entry.supervisor.reportToParent({ threadId: agentId, text: 'two' })
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(batch.drafts).toEqual([])
+    expect(batch.drafts.map((draft) => stageOf(draft))).toEqual([
+      ENoticeStage.Delivered,
+      ENoticeStage.Delivered,
+    ])
     expect(batch.wakesTurn).toBe(true)
+    await entry.harness.log.append({
+      threadId: entry.parent,
+      runId: entry.harness.ids.nextRunId(),
+      drafts: batch.drafts,
+    })
     batch.acknowledge()
 
     const logged = await loggedOfType({
@@ -128,7 +137,12 @@ describe('a teammate report', () => {
       threadId: entry.parent,
       type: 'agent-reported',
     })
-    expect(logged.map((event) => event.prose)).toEqual(['one', 'two'])
+    expect(logged.map((event) => [event.prose, event.notice?.stage])).toEqual([
+      ['one', ENoticeStage.Arrived],
+      ['two', ENoticeStage.Arrived],
+      ['one', ENoticeStage.Delivered],
+      ['two', ENoticeStage.Delivered],
+    ])
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
   })
 
@@ -199,7 +213,10 @@ describe('a child ending', () => {
     ).toHaveLength(0)
 
     const batch = entry.supervisor.prepareNotifications({ threadId: entry.parent })
-    expect(batch.drafts).toHaveLength(1)
+    expect(batch.drafts.map((draft) => stageOf(draft))).toEqual([
+      ENoticeStage.Arrived,
+      ENoticeStage.Delivered,
+    ])
     await entry.harness.log.append({
       threadId: entry.parent,
       runId: entry.harness.ids.nextRunId(),
@@ -207,9 +224,15 @@ describe('a child ending', () => {
     })
     batch.acknowledge()
 
-    expect(
-      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
-    ).toHaveLength(1)
+    const logged = await loggedOfType({
+      harness: entry.harness,
+      threadId: entry.parent,
+      type: 'agent-ended',
+    })
+    expect(logged.map((event) => event.notice?.stage)).toEqual([
+      ENoticeStage.Arrived,
+      ENoticeStage.Delivered,
+    ])
     expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
   })
 
@@ -233,10 +256,16 @@ describe('a child ending', () => {
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
     expect(lied).toBe(true)
-    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).drafts).toEqual([])
     expect(
-      await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' }),
-    ).toHaveLength(1)
+      entry.supervisor
+        .prepareNotifications({ threadId: entry.parent })
+        .drafts.map((draft) => stageOf(draft)),
+    ).toEqual([ENoticeStage.Delivered])
+    expect(
+      (
+        await loggedOfType({ harness: entry.harness, threadId: entry.parent, type: 'agent-ended' })
+      ).map((event) => event.notice?.stage),
+    ).toEqual([ENoticeStage.Arrived])
   })
 
   it('is cut by a rewind without coming back as a pending delivery', async () => {

@@ -1,4 +1,5 @@
 import type { Event } from '../events/envelope'
+import { reachesModel } from '../events/notice-stage'
 import { EExecutionLocation } from '../execution/location'
 import { elapsedPhrase } from '../shells/elapsed'
 
@@ -26,6 +27,8 @@ function jsonOrDescription(value: unknown, limit: number): string {
 }
 
 function lineOf(event: Event, payloadLimit: number): string | undefined {
+  if (!reachesModel(event)) return undefined
+
   if (event.type === 'history-compacted')
     return `Summary of the conversation before this: ${event.summary}`
   if (event.type === 'user-said') return `Operator: ${clipped(event.text, payloadLimit)}`
@@ -53,7 +56,6 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     return `${event.name} was denied: ${clipped(event.reason, payloadLimit)}`
 
   if (event.type === 'agent-ended') {
-    if (event.relayed === false) return undefined
     return `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, payloadLimit)}`
   }
 
