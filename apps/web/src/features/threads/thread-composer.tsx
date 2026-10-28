@@ -2,7 +2,7 @@
 
 import type { KeyboardEvent, ReactNode } from 'react'
 
-import { PromptInput } from '@dltech/atlas-ui/ai/prompt-input'
+import { PromptInput, type PromptInputProps } from '@dltech/atlas-ui/ai/prompt-input'
 
 export function ThreadComposer({
   value,
@@ -12,7 +12,8 @@ export function ThreadComposer({
   sending,
   placeholder,
   children,
-}: {
+  ...attach
+}: Pick<PromptInputProps, 'attachments' | 'onAttachFiles' | 'onRemoveAttachment'> & {
   value: string
   onValueChange: (value: string) => void
   onSubmit: (text: string) => void
@@ -33,6 +34,8 @@ export function ThreadComposer({
         onSubmit={onSubmit}
         sending={sending}
         clearOnSubmit={false}
+        accept="image/*"
+        {...attach}
         {...(placeholder === undefined ? {} : { placeholder })}
       >
         {children}
