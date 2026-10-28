@@ -74,6 +74,26 @@ describe('ThreadsRouter', () => {
       expect(create).not.toHaveBeenCalled()
     })
 
+    it('hands the firstMessage images to the launcher', async () => {
+      const withImages = {
+        ...FIRST,
+        images: [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }],
+      }
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.session,
+        body: { firstMessage: withImages },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(launch).toHaveBeenCalledWith({
+        userId: USER_ID,
+        draft: { firstMessage: withImages },
+        firstMessage: withImages,
+      })
+    })
+
     it('hands a client-chosen id with the firstMessage to the launcher', async () => {
       const reply = await mutate({
         app,

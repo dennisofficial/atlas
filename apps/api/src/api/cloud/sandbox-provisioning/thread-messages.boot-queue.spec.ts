@@ -68,6 +68,18 @@ describe('ThreadMessagesService.send while serve is up but the agent has not sta
     ])
   })
 
+  it('stores the images on the queued user-said event', async () => {
+    await seedServeUp(SERVE_UP_CLONING)
+    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+    const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
+
+    await service.send({ ...ARGS, images })
+
+    expect(serve).not.toHaveBeenCalled()
+    const [event] = await eventsOf()
+    expect(JSON.parse(event?.body ?? '').images).toEqual(images)
+  })
+
   it('appends a retried sendId once', async () => {
     await seedServeUp(SERVE_UP_CLONING)
     const { service } = messagesWith({ endpoint: ENDPOINT })

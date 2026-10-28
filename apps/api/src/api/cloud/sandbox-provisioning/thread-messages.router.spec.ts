@@ -95,6 +95,26 @@ describe('ThreadMessagesRouter', () => {
       expect(serve).toHaveBeenCalledWith({ ...ENDPOINT, ...SEND })
     })
 
+    it('hands the images of a send to serve', async () => {
+      const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
+
+      const reply = await send({ token: 'session-a', app: runningApp, input: { ...SEND, images } })
+
+      expect(reply.status).toBe(200)
+      expect(serve).toHaveBeenCalledWith({ ...ENDPOINT, ...SEND, images })
+    })
+
+    it('answers 400 for more than 10 images', async () => {
+      const image = { path: 'a.png', mediaType: 'image/png', data: 'aGk=' }
+
+      const reply = await send({
+        token: 'session-a',
+        input: { ...SEND, images: Array.from({ length: 11 }, () => image) },
+      })
+
+      expect(reply.status).toBe(400)
+    })
+
     it('answers 502 when delivery to a running sandbox fails', async () => {
       const failing = await appOver(
         messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') }).service,

@@ -1,4 +1,9 @@
-import { EBootStep, EBootStepState, type RecordedBootStep } from '@dltech/atlas-wire'
+import {
+  EBootStep,
+  EBootStepState,
+  type RecordedBootStep,
+  type SaidImageWire,
+} from '@dltech/atlas-wire'
 import type { Tx } from '@dltech/atlas-db'
 import {
   hasBootSteps,
@@ -28,15 +33,16 @@ export async function appendUserSaid(args: {
   userId: string
   sendId: string
   text: string
+  images?: readonly SaidImageWire[] | undefined
 }): Promise<{ head?: number }> {
-  const { tx, threadId, userId, sendId, text } = args
+  const { tx, threadId, userId, sendId, text, images } = args
   if ((await findUserSaid({ reader: tx, threadId, sendId })) !== null) return {}
   const [appended] = await appendWithin({
     tx,
     threadId,
     userId,
     runId: nextRunId(),
-    drafts: [userSaidDraftOf({ sendId, text })],
+    drafts: [userSaidDraftOf({ sendId, text, images })],
   })
   return appended === undefined ? {} : { head: appended.seq }
 }
