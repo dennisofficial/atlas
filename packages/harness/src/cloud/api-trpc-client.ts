@@ -1,4 +1,10 @@
-import { type ApiClient, createApiClient, detailsOf, httpStatusOf } from '@dltech/atlas-api-router'
+import {
+  type ApiClient,
+  type ApiClientOptions,
+  createApiClient,
+  detailsOf,
+  httpStatusOf,
+} from '@dltech/atlas-api-router'
 
 import {
   backoffDelayMs,
@@ -152,6 +158,7 @@ export const createHarnessApiClient = (args: {
   sleep?: ((ms: number) => Promise<void>) | undefined
   randomFn?: (() => number) | undefined
   timeoutMs?: number | null | undefined
+  EventSource?: ApiClientOptions['EventSource']
 }): ApiClient =>
   createApiClient({
     baseUrl: args.url,
@@ -164,6 +171,7 @@ export const createHarnessApiClient = (args: {
       randomFn: args.randomFn,
       timeoutMs: args.timeoutMs,
     }),
+    ...(args.EventSource === undefined ? {} : { EventSource: args.EventSource }),
   })
 
 const detailCode = (failure: unknown): string | undefined => {

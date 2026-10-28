@@ -24,11 +24,11 @@ const THREAD = toThreadId('thr_birth')
 
 const bridgeThat = (
   create: () => Promise<{ url: string; token: string }>,
-  seen?: Array<{ projectId: string | null }>,
+  seen?: Array<{ projectId: string | null; birth?: { effort: string } | undefined }>,
 ): CloudBridge => ({
   sandboxes: {
-    create: async (args: { projectId: string | null }) => {
-      seen?.push({ projectId: args.projectId })
+    create: async (args: { projectId: string | null; birth?: { effort: string } | undefined }) => {
+      seen?.push({ projectId: args.projectId, birth: args.birth })
       return { ...(await create()), state: ECloudSandboxState.Running, created: true }
     },
   } as unknown as CloudBridge['sandboxes'],
@@ -103,13 +103,13 @@ describe('birthInCloud', () => {
 
   it('passes the project to the sandbox and records it on the thread', async () => {
     const { fixture, birthArgs } = await setup()
-    const seen: Array<{ projectId: string | null }> = []
+    const seen: Array<{ projectId: string | null; birth?: { effort: string } | undefined }> = []
     const bridge = bridgeThat(async () => ({ url: 'https://sandbox.test', token: 'tok' }), seen)
 
     const result = await birthInCloud(birthArgs({ bridge, projectId: 'proj_1' }))
 
     expect(result.ok).toBe(true)
-    expect(seen).toEqual([{ projectId: 'proj_1' }])
+    expect(seen).toEqual([{ projectId: 'proj_1', birth: { effort: 'medium' } }])
     expect((await fixture.threads.find({ threadId: THREAD }))?.projectId).toBe('proj_1')
   })
 

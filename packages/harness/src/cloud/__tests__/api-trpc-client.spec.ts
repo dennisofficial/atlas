@@ -238,6 +238,44 @@ describe('createHarnessApiClient', () => {
   })
 })
 
+describe('createHarnessApiClient subscriptions', () => {
+  it('sends the bearer on the stream request through a supplied EventSource', async () => {
+    const { fetchFn, seen } = scripted([success])
+    const constructed: Array<{
+      url: string
+      init?: { fetch?: (target: string | URL, init?: RequestInit) => Promise<Response> } | undefined
+    }> = []
+    class FakeEventSource {
+      readonly CONNECTING = 0
+      readonly OPEN = 1
+      readonly CLOSED = 2
+      readyState = 0
+      constructor(url: string, init?: (typeof constructed)[number]['init'] | undefined) {
+        constructed.push({ url, init })
+      }
+      addEventListener(): void {}
+      removeEventListener(): void {}
+      close(): void {}
+    }
+    const client = createHarnessApiClient({
+      url: 'https://cloud.test',
+      token: 'sess_test',
+      clientVersion: '1.2.3',
+      fetchFn,
+      EventSource: FakeEventSource,
+    })
+
+    const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+    const deadline = Date.now() + 1000
+    while (constructed.length === 0 && Date.now() < deadline) await Bun.sleep(5)
+    await constructed[0]?.init?.fetch?.(constructed[0].url, { headers: {} })
+    subscription.unsubscribe()
+
+    expect(constructed[0]?.url).toStartWith('https://cloud.test/v1/trpc/threadEvents.stream')
+    expect(seen[0]?.headers.get('authorization')).toBe('Bearer sess_test')
+  })
+})
+
 describe('cloudCall', () => {
   it('returns undefined on a 404 when allowMissing is set', async () => {
     const { fetchFn } = scripted([() => envelope({ status: 404, message: 'NOT_FOUND' })])

@@ -48,6 +48,7 @@ export type CloudSandboxes = {
     projectId: string | null
     /** The thread's model ref, written into the boot spec so the cloud session runs the model it was on. */
     model?: string | undefined
+    birth?: { effort: string } | undefined
     /** Fires the moment the wake finds a protocol-mismatched sandbox and starts rotating it. */
     onRotationStarted?: (() => void) | undefined
     /**
