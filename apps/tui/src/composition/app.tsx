@@ -19,7 +19,7 @@ import { openCloudConversation } from './cloud/cloud-app'
 import type { AtlasApp } from './compose'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { messageOf } from './error-text'
-import { liveBridgeFor, liveBirthPreflightFor } from './live-pod'
+import { liveBridgeFor, liveBirthPreflight } from './live-pod'
 import type { ReloadedSession } from './reloaded-session'
 import type { OpenedConversation } from './open-conversation'
 import {
@@ -213,7 +213,7 @@ export function App(props: {
         cloudBridge={cloud?.bridge ?? null}
         cloudStores={cloud?.stores ?? null}
         createBridge={props.createBridge ?? liveBridgeFor(props.app)}
-        preflightBirth={props.preflightBirth ?? liveBirthPreflightFor(props.app)}
+        preflightBirth={props.preflightBirth ?? liveBirthPreflight}
         onReload={handleReload}
         onLeaveCloud={handleLeaveCloud}
         onLocalOpened={handleLocalSwap}

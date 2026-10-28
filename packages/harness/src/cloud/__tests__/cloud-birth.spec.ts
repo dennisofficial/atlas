@@ -8,6 +8,9 @@ import {
   ERuntimeKind,
   type SessionRuntime,
 } from '../../composition/session-owner'
+import { EVercelCredentialGap } from '@dltech/atlas-wire'
+
+import { notConfiguredOf } from '../api-pod-errors'
 import { ImagePullError } from '../../execution/docker/image-pull'
 import { CountingIds, openStoreFixture, type StoreFixture } from '../../store/__tests__/harness'
 import { BIRTH_WAVES, birthInCloud, EBirthFault, EBirthNode, type BirthArgs } from '../cloud-birth'
@@ -146,5 +149,17 @@ describe('birthInCloud', () => {
 
     expect(result).toMatchObject({ ok: false, fault: EBirthFault.Sandbox })
     expect((await fixture.threads.find({ threadId: THREAD }))?.runner).toBeUndefined()
+  })
+
+  it('reports an API not-configured reply as the not-configured fault, with its hint', async () => {
+    const { birthArgs } = await setup()
+    const failing = bridgeThat(async () => {
+      throw notConfiguredOf({ gap: EVercelCredentialGap.UserCredential })
+    })
+
+    const result = await birthInCloud(birthArgs({ bridge: failing, runner: ERunner.Vercel }))
+
+    expect(result).toMatchObject({ ok: false, fault: EBirthFault.NotConfigured })
+    expect(result.ok ? '' : result.detail).toContain('Add your Vercel credentials')
   })
 })

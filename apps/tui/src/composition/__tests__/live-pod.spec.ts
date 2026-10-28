@@ -7,7 +7,7 @@ import { fakeApp, fakeCloud, fakeSignedOutCloud, scriptedModelPort } from './fak
 import { cloudUrlOf } from '../live-cloud'
 import {
   dockerRefusal,
-  liveBirthPreflightFor,
+  liveBirthPreflight,
   livePodBridgeOptionsFor,
   podReapFailureNotice,
   reapOrphanPodsWith,
@@ -89,7 +89,7 @@ describe('the pod birth preflight', () => {
   it('names Docker Desktop and the socket when nothing answers', async () => {
     process.env.ATLAS_DOCKER_SOCKET = '/nonexistent/atlas-docker.sock'
 
-    const refusal = await liveBirthPreflightFor(fakeApp({ model }))({ runner: ERunner.Local })
+    const refusal = await liveBirthPreflight({ runner: ERunner.Local })
 
     expect(refusal).toContain('/nonexistent/atlas-docker.sock')
     expect(refusal).toContain('start Docker Desktop')

@@ -7,10 +7,9 @@ import { Startup } from '../ui/components/startup'
 import { App } from './app'
 import { bootStepLabel, type BootProgress } from './boot-progress'
 import type { AtlasApp } from './compose'
-import { reapExpiredSandboxesOnBoot } from './live-cloud'
-import { reapOrphanPodsOnBoot } from './live-pod'
 import type { OpenedConversation } from './open-conversation'
 import { ESession, type Session } from './open-session'
+import { reapOnBootAll } from './reap-on-boot'
 import { useStartup } from './use-startup'
 
 /**
@@ -18,11 +17,6 @@ import { useStartup } from './use-startup'
  * ink is not made to pay for a second render of the whole transcript on every frame it draws.
  */
 const CoveredApp = React.memo(App)
-
-const reapOnBootAll = (app: AtlasApp): void => {
-  reapExpiredSandboxesOnBoot(app)
-  if (app.pods) reapOrphanPodsOnBoot(app)
-}
 
 type ReadySession = {
   app: AtlasApp

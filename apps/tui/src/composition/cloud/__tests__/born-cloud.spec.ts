@@ -10,12 +10,7 @@ import {
   scriptedModelPort,
   type FakeApp,
 } from '../../__tests__/fake-app'
-import {
-  bornWith,
-  CLOUD_NOT_CONFIGURED_NOTICE,
-  preferredRunner,
-  rememberPlacement,
-} from '../born-cloud'
+import { bornWith, preferredRunner, rememberPlacement } from '../born-cloud'
 import { bornPlacementChip } from '../born-placement-chip'
 
 afterEach(() => dismissNotice())
@@ -109,14 +104,14 @@ describe('where a thread is born on its first send', () => {
     expect(bornPlacementChip(app).snapshot()?.runner).toBe(ERunner.Vercel)
   })
 
-  it('says so and births nothing when Vercel is chosen but not configured', async () => {
+  it('births on Vercel without laptop credentials, because Atlas Cloud holds them', async () => {
     const app = appOn({ signedIn: true, vercel: false })
-    const { calls, run } = rig({ app, choice: ERunner.Vercel })
+    const { calls, run, threadId } = rig({ app, choice: ERunner.Vercel })
 
     await run
 
-    expect(calls.births).toEqual([])
-    expect(currentNotices()[0]?.text).toBe(CLOUD_NOT_CONFIGURED_NOTICE)
+    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel, projectId: null }])
+    expect(currentNotices()).toEqual([])
   })
 
   it('names Docker Desktop and births nothing when the pod preflight refuses', async () => {
