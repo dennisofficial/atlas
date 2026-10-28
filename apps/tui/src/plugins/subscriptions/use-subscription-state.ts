@@ -9,7 +9,7 @@ const NO_VIEWS: readonly SubscriptionView[] = []
 
 const NEVER_CHANGES = (): (() => void) => () => undefined
 
-const ZERO = (): number => 0
+const ZERO = (): string => ''
 
 const NO_THREAD = (): undefined => undefined
 
@@ -23,7 +23,7 @@ export function useSubscriptionState(access: SubscriptionsAccess | null): {
     access?.visible.threadId ?? NO_THREAD,
   )
   const views = useMemo(
-    () => (access === null ? NO_VIEWS : access.registry.list()),
+    () => (access === null ? NO_VIEWS : access.registry().list()),
     [access, version],
   )
 

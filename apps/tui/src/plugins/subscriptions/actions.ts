@@ -31,10 +31,10 @@ export type SubscriptionActions = {
 }
 
 export function createSubscriptionActions(args: {
-  registry: SubscriptionRegistryPort
+  registry: () => SubscriptionRegistryPort
   notice: NoticePort
 }): SubscriptionActions {
-  const { registry, notice } = args
+  const { notice } = args
 
   const warn = (text: string): void =>
     notice.notify({ text, tone: ENoticeTone.Warn, key: NOTICE_KEY })
@@ -50,14 +50,16 @@ export function createSubscriptionActions(args: {
   }
 
   const removed = async (view: SubscriptionView): Promise<string | null> =>
-    (await registry.unsubscribe({ subscriptionId: view.id, by: ESubscriptionActor.Operator }))
+    (await args
+      .registry()
+      .unsubscribe({ subscriptionId: view.id, by: ESubscriptionActor.Operator }))
       ? null
       : 'subscription already gone'
 
   return {
     toggle: (view) =>
       attempt(async () =>
-        (await registry.setStatus({
+        (await args.registry().setStatus({
           subscriptionId: view.id,
           status:
             view.status === ESubscriptionStatus.Paused
@@ -73,7 +75,7 @@ export function createSubscriptionActions(args: {
       attempt(async () => {
         if (ring.existing !== null) return removed(ring.existing)
 
-        const outcome = await registry.subscribe({
+        const outcome = await args.registry().subscribe({
           threadId: ring.threadId,
           provider: PULL_REQUEST_PROVIDER_KIND,
           input: inputOf(ring),

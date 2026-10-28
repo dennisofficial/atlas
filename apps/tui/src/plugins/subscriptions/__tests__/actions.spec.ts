@@ -40,7 +40,7 @@ const harness = () => {
   const registry = new FakeRegistry()
   const notices: NoticePost[] = []
   const actions = createSubscriptionActions({
-    registry,
+    registry: () => registry,
     notice: { notify: (post) => notices.push(post) },
   })
   return { registry, notices, actions }

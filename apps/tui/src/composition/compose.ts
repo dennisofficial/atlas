@@ -41,6 +41,11 @@ import { RemoteAgentRegistry } from './cloud/remote-agents'
 import { RemoteRotation } from './cloud/remote-rotation'
 import { RemoteServiceRegistry } from './cloud/remote-services'
 import { RemoteShellRegistry } from './cloud/remote-shells'
+import { RemoteSubscriptionRegistry } from './cloud/remote-subscriptions'
+import {
+  activeSubscriptionRegistry,
+  onSubscriptionRegistryChanged,
+} from './cloud/subscription-registry-holder'
 import type { QueuedSettled } from './commands'
 import type { AtlasConfig } from './config'
 import { noticePortBinding } from './notice-binding'
@@ -137,7 +142,7 @@ export async function composeAtlas(args: {
       ShellRegistryPort: { runtime: 'shared', transport: RemoteShellRegistry },
       AgentRegistryPort: { runtime: 'shared', transport: RemoteAgentRegistry },
       ServiceRegistryPort: { runtime: 'shared', transport: RemoteServiceRegistry },
-      SubscriptionRegistryPort: { runtime: 'shared', transport: null },
+      SubscriptionRegistryPort: { runtime: 'shared', transport: RemoteSubscriptionRegistry },
     },
     surface: {
       notice: noticePortBinding(),
@@ -200,7 +205,9 @@ export async function composeAtlas(args: {
         const subscriptions = ((): SubscriptionsAccess | null => {
           try {
             return createSubscriptionsAccess({
-              registry: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
+              fallback: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
+              active: activeSubscriptionRegistry,
+              onActiveChanged: onSubscriptionRegistryChanged,
               visible: visibleThread,
               notice: noticePortBinding(),
             })
