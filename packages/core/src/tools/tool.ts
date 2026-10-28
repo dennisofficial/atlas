@@ -5,6 +5,7 @@ import type { CallId, ThreadId } from '../events/ids'
 import type { FilePart, ImagePart, TextPart } from '../message/parts'
 import type { CapturedFileChange } from '../quality/change'
 import type { QualityCoverageDiagnostic } from '../quality/policy'
+import type { EDeed, DeedTarget } from '../policy/classifier/deed'
 import type { ActiveWorktree } from '../workspace/worktree'
 
 export enum EToolEffect {
@@ -43,6 +44,13 @@ export enum EPathClaim {
 }
 
 export type PathFieldClaim = EPathClaim | readonly DeclaredPathField[]
+
+export type ClaimedDeed = { action: EDeed; targets: readonly DeedTarget[]; summary: string }
+
+export type DeedClaim = (args: {
+  input: unknown
+  projectDirectory: string
+}) => readonly ClaimedDeed[] | undefined
 
 export const TAKES_NO_PATHS = EPathClaim.TouchesNoPaths
 
@@ -138,6 +146,7 @@ export type ToolDeclaration = {
   inputSchema: ZodType
   jsonSchema?: unknown
   pathFields?: PathFieldClaim
+  claimsDeeds?: DeedClaim | undefined
   isConcurrencySafe?(input: unknown): boolean
   revealsWholeFile?(args: WholeFileClaim<unknown>): boolean
   revealsLinesOf?(args: RevealedLines<unknown>): readonly string[]
@@ -177,6 +186,7 @@ export abstract class ToolDefinition<TSchema extends ZodType = ZodType> {
   abstract readonly effect: EToolEffect
   abstract readonly inputSchema: TSchema
   readonly pathFields?: PathFieldClaim
+  readonly claimsDeeds?: DeedClaim | undefined
   isConcurrencySafe?(input: z.output<TSchema>): boolean
   revealsWholeFile?(args: WholeFileClaim<z.output<TSchema>>): boolean
   revealsLinesOf?(args: RevealedLines<z.output<TSchema>>): readonly string[]

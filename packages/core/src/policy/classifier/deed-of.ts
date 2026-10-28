@@ -6,6 +6,7 @@ import {
   EPathPresence,
   EToolEffect,
   type DeclaredPathField,
+  type DeedClaim,
   type ToolCall,
 } from '../../tools/tool'
 import { EReadConfidence, type CommandReading, type CommandSegment } from './command/read-command'
@@ -32,11 +33,12 @@ export enum EPathDeclaration {
   Declared = 'declared',
 }
 
-export type PathDeclarationView =
+export type PathDeclarationView = (
   | { kind: EPathDeclaration.Unregistered }
   | { kind: EPathDeclaration.Undeclared }
   | { kind: EPathDeclaration.TouchesNoPaths }
   | { kind: EPathDeclaration.Declared; fields: readonly DeclaredPathField[] }
+) & { claimsDeeds?: DeedClaim | undefined }
 
 const VERB_TABLES: readonly VerbTable[] = [
   gitVerbs,
@@ -232,6 +234,11 @@ export function deedsOf(args: {
   }
 
   if (reading !== undefined) return bashDeeds({ call, reading })
+
+  const claimed = declaration.claimsDeeds?.({ input: call.input, projectDirectory })
+  if (claimed !== undefined) {
+    return claimed.map((drafted) => deedOf({ call, cwd: undefined, sketch: drafted }))
+  }
 
   if (declaration.kind === EPathDeclaration.TouchesNoPaths) {
     return [

@@ -1,10 +1,14 @@
 import { z } from 'zod'
 
 import {
+  EDeed,
+  EDeedRealm,
   EToolEffect,
   EWorktreeExit,
   SchemaTool,
   TOUCHES_PATHS_IT_CANNOT_NAME,
+  type ClaimedDeed,
+  type DeedClaim,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
@@ -48,12 +52,45 @@ const listOf = (inspection: WorktreeInspection): string => {
   return parts.join(' and ')
 }
 
+const deedsOfExiting: DeedClaim = ({ input, projectDirectory }) => {
+  const parsed = inputSchema.safeParse(input)
+  if (!parsed.success) return undefined
+
+  if (parsed.data.action === EWorktreeExit.Keep) {
+    return [
+      {
+        action: EDeed.Routine,
+        targets: [],
+        summary: 'moves the session back to the main checkout and leaves the worktree on disk',
+      },
+    ]
+  }
+
+  const worktree = { realm: EDeedRealm.GitWorktree, value: projectDirectory }
+  const removal: ClaimedDeed = {
+    action: EDeed.RemoveWorktree,
+    targets: [worktree],
+    summary: 'removes the worktree the session stands in, which git refuses while work is unsaved',
+  }
+  if (parsed.data.discardChanges !== true) return [removal]
+
+  return [
+    {
+      action: EDeed.DiscardWorkingTree,
+      targets: [worktree],
+      summary: 'discards the uncommitted changes of the worktree the session stands in',
+    },
+    removal,
+  ]
+}
+
 export class ExitWorktreeTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'exit_worktree'
   readonly description = description
   readonly effect = EToolEffect.Destructive
   readonly inputSchema = inputSchema
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
+  override readonly claimsDeeds = deedsOfExiting
 
   constructor(private readonly launchDirectory: string) {
     super()

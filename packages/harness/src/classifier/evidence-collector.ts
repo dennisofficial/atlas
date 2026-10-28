@@ -3,6 +3,7 @@ import {
   EDeed,
   EDeedRealm,
   grantsFrom,
+  grantsRepliedTo,
   NO_FACTS,
   operatorUtterances,
   recentActs,
@@ -126,6 +127,6 @@ export async function collectEvidence({
       limit: TRANSCRIPT_MESSAGE_LIMIT,
       textLimit: TRANSCRIPT_TEXT_LIMIT,
     }),
-    grants: grantsFrom(events),
+    grants: [...grantsFrom(events), ...grantsRepliedTo(events)],
   }
 }
