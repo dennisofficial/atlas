@@ -46,6 +46,22 @@ export const WithAttachments: Story = {
   },
 }
 
+const swatch = (fill: string): string =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="${fill}"/></svg>`,
+  )}`
+
+export const WithImageAttachments: Story = {
+  args: {
+    attachments: [
+      { id: '1', name: 'screenshot.png', previewUrl: swatch('#6366f1') },
+      { id: '2', name: 'pasted-image-1.png', previewUrl: swatch('#10b981') },
+      { id: '3', name: 'typecheck.log' },
+    ],
+    accept: 'image/*',
+  },
+}
+
 function ComposedPrompt() {
   const [model, setModel] = useState('claude-sonnet')
   const [effort, setEffort] = useState(EEffort.Medium)
@@ -55,7 +71,10 @@ function ComposedPrompt() {
   const handleAttach = (files: File[]) =>
     setAttachments((current) => [
       ...current,
-      ...files.map((file) => ({ id: `${file.name}-${file.size}`, name: file.name })),
+      ...files.map((file) => ({
+        id: `${file.name}-${file.size}`,
+        name: file.name,
+      })),
     ])
   const handleRemove = (id: string) =>
     setAttachments((current) => current.filter((item) => item.id !== id))
@@ -92,5 +111,9 @@ export const Composed: Story = {
 }
 
 export const QueueWhileBusy: Story = {
-  args: { defaultValue: 'Also bump the storybook addons', busy: true, queueWhileBusy: true },
+  args: {
+    defaultValue: 'Also bump the storybook addons',
+    busy: true,
+    queueWhileBusy: true,
+  },
 }

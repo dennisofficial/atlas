@@ -1,7 +1,14 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import type { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
+import type {
+  ChangeEvent,
+  ClipboardEvent,
+  DragEvent,
+  FormEvent,
+  KeyboardEvent,
+  ReactNode,
+} from 'react'
 import { ArrowUpIcon, FileIcon, PlusIcon, SquareIcon, XIcon } from 'lucide-react'
 
 import {
@@ -24,6 +31,7 @@ import { Spinner } from '#components/spinner'
 export interface PromptAttachment {
   id: string
   name: string
+  previewUrl?: string | undefined
 }
 
 export interface PromptInputProps {
@@ -39,6 +47,7 @@ export interface PromptInputProps {
   onStop?: () => void
   attachments?: PromptAttachment[]
   onAttachFiles?: (files: File[]) => void
+  accept?: string
   onRemoveAttachment?: (id: string) => void
   children?: ReactNode
 }
@@ -61,6 +70,21 @@ export function canSend({
   return text.trim().length > 0
 }
 
+const pastedImageFiles = (data: DataTransfer): File[] => {
+  const files = Array.from(data.files ?? [])
+  const candidates =
+    files.length > 0
+      ? files
+      : Array.from(data.items ?? []).flatMap((item) => {
+          const file = item.kind === 'file' ? item.getAsFile() : null
+          return file === null ? [] : [file]
+        })
+  return candidates.filter((file) => file.type.startsWith('image/'))
+}
+
+const dragCarriesFiles = (data: DataTransfer): boolean =>
+  Array.from(data.types ?? []).includes('Files')
+
 const insertedByEditor = (text: string): boolean =>
   typeof document.execCommand === 'function' && document.execCommand('insertText', false, text)
 
@@ -77,6 +101,7 @@ export function PromptInput({
   onStop,
   attachments = [],
   onAttachFiles,
+  accept,
   onRemoveAttachment,
   children,
 }: PromptInputProps) {
@@ -100,13 +125,22 @@ export function PromptInput({
     onValueChange?.('')
   }
 
+  const attachPastedImages = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (onAttachFiles === undefined || event.currentTarget.readOnly) return
+    const images = pastedImageFiles(event.clipboardData)
+    if (images.length === 0) return
+    event.preventDefault()
+    onAttachFiles(images)
+  }
+
   // Chromium drops a native paste when the clipboard changes mid-paste, which clipboard-restoring
   // dictation tools (Wispr Flow) trigger; the paste event's own data survives. See
   // third_party/blink/renderer/core/editing/commands/clipboard_commands.cc (SequenceNumber checks).
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const field = event.currentTarget
     const pasted = event.clipboardData.getData('text/plain')
-    if (pasted === '' || field.readOnly) return
+    if (pasted === '') return attachPastedImages(event)
+    if (field.readOnly) return
     event.preventDefault()
     if (insertedByEditor(pasted)) return
     const caret = field.selectionStart + pasted.length
@@ -127,19 +161,40 @@ export function PromptInput({
     event.target.value = ''
   }
 
+  const acceptsDrops = onAttachFiles !== undefined && !sending
+
+  const handleDragOver = (event: DragEvent<HTMLFormElement>) => {
+    if (!acceptsDrops || !dragCarriesFiles(event.dataTransfer)) return
+    event.preventDefault()
+  }
+
+  const handleDrop = (event: DragEvent<HTMLFormElement>) => {
+    if (!acceptsDrops) return
+    const files = Array.from(event.dataTransfer.files)
+    if (files.length === 0) return
+    event.preventDefault()
+    onAttachFiles(files)
+  }
+
   const handleAttachClick = () => fileRef.current?.click()
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit}>
+    <form ref={formRef} onSubmit={handleSubmit} onDragOver={handleDragOver} onDrop={handleDrop}>
       <InputGroup>
         {attachments.length > 0 ? (
           <InputGroupAddon align="block-start">
             <AttachmentGroup className="flex-wrap">
               {attachments.map((attachment) => (
                 <Attachment key={attachment.id} size="xs">
-                  <AttachmentMedia>
-                    <FileIcon />
-                  </AttachmentMedia>
+                  {attachment.previewUrl === undefined ? (
+                    <AttachmentMedia>
+                      <FileIcon />
+                    </AttachmentMedia>
+                  ) : (
+                    <AttachmentMedia variant="image">
+                      <img src={attachment.previewUrl} alt="" />
+                    </AttachmentMedia>
+                  )}
                   <AttachmentContent>
                     <AttachmentTitle>{attachment.name}</AttachmentTitle>
                   </AttachmentContent>
@@ -168,7 +223,14 @@ export function PromptInput({
           aria-label="Message"
         />
         <InputGroupAddon align="block-end">
-          <input ref={fileRef} type="file" multiple hidden onChange={handleFilesChosen} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept={accept}
+            multiple
+            hidden
+            onChange={handleFilesChosen}
+          />
           <InputGroupButton
             size="icon-sm"
             variant="outline"
