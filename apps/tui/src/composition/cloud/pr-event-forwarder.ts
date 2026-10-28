@@ -1,4 +1,10 @@
-import { EExecutionLocation, ERunner, prEventContent, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  ERunner,
+  ESubscriptionStatus,
+  prEventContent,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
   prEventNoticeOf,
@@ -9,6 +15,32 @@ import {
 } from '@dltech/atlas-harness'
 
 import type { CloudBridgeFactory } from './bridge-factory'
+
+const PULL_REQUEST_PROVIDER_KIND = 'github.pull-request'
+
+type WireSubscription = { provider: string; target: unknown; status: string }
+
+type ForwardableThread = ThreadSummary & {
+  subscriptions?: readonly WireSubscription[] | undefined
+}
+
+const holdsActiveSubscription = (args: {
+  summary: ForwardableThread
+  repo: string
+  number: number
+}): boolean =>
+  (args.summary.subscriptions ?? []).some((subscription) => {
+    if (subscription.provider !== PULL_REQUEST_PROVIDER_KIND) return false
+    if (subscription.status !== ESubscriptionStatus.Active) return false
+    const { target } = subscription
+    if (typeof target !== 'object' || target === null) return false
+    return (
+      'repo' in target &&
+      target.repo === args.repo &&
+      'number' in target &&
+      target.number === args.number
+    )
+  })
 
 /**
  * Forwards a pull-request event into a parked cloud conversation as ordinary input. The active
@@ -28,8 +60,8 @@ export type PrEventForwarder = {
 }
 
 export function createPrEventForwarder(args: {
-  /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire pullRequests) resolves. */
-  listThreads: (args: { project: string }) => Promise<readonly ThreadSummary[]>
+  /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire subscriptions) resolves. */
+  listThreads: (args: { project: string }) => Promise<readonly ForwardableThread[]>
   project: string
   bridge: CloudBridgeFactory
   activeThreadId: () => ThreadId | undefined
@@ -56,9 +88,7 @@ export function createPrEventForwarder(args: {
       (summary) =>
         summary.executionLocation === EExecutionLocation.Cloud &&
         summary.id !== active &&
-        (summary.pullRequests ?? []).some(
-          (link) => link.repo === repo && link.number === frame.prNumber,
-        ),
+        holdsActiveSubscription({ summary, repo, number: frame.prNumber }),
     )
 
     for (const summary of watching) runners.set(summary.id, summary.runner ?? ERunner.Vercel)
