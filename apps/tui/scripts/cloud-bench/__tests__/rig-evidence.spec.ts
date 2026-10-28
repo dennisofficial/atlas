@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
+import { CHANNEL_PROTOCOL_VERSION } from '@dltech/atlas-wire'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -133,12 +134,12 @@ describe('writeEvidence', () => {
 })
 
 describe('trustOf', () => {
-  test('trusts a dev- build on protocol 26', () => {
-    expect(trustOf({ version: 'dev-abc', protocol: 26 }).trusted).toBe(true)
+  test('trusts a dev- build on the current protocol', () => {
+    expect(trustOf({ version: 'dev-abc', protocol: CHANNEL_PROTOCOL_VERSION }).trusted).toBe(true)
   })
 
   test('does not trust a released build', () => {
-    expect(trustOf({ version: '1.70.0', protocol: 26 }).trusted).toBe(false)
+    expect(trustOf({ version: '1.70.0', protocol: CHANNEL_PROTOCOL_VERSION }).trusted).toBe(false)
   })
 
   test('does not trust another protocol', () => {
@@ -148,7 +149,7 @@ describe('trustOf', () => {
   test('does not trust unread stamps', () => {
     expect(trustOf({ version: null, protocol: null }).trusted).toBe(false)
     expect(trustOf({ version: 'dev-abc', protocol: null }).trusted).toBe(false)
-    expect(trustOf({ version: null, protocol: 26 }).trusted).toBe(false)
+    expect(trustOf({ version: null, protocol: CHANNEL_PROTOCOL_VERSION }).trusted).toBe(false)
   })
 })
 

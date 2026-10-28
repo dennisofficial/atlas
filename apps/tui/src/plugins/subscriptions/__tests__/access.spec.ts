@@ -1,5 +1,5 @@
 import { SubscriptionRegistryPort, type SubscriptionView } from '@dltech/atlas-harness'
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import {
   activeSubscriptionRegistry,
@@ -56,6 +56,8 @@ const accessOver = (local: StubRegistry) =>
 const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5))
 
 describe('createSubscriptionsAccess', () => {
+  beforeEach(() => publishSubscriptionRegistry(null))
+
   it('reads the local registry until a cloud binding publishes its own', () => {
     const local = new StubRegistry([view({ id: 'local' })])
     const remote = new StubRegistry([view({ id: 'remote' })])
