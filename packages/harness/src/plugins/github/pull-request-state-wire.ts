@@ -38,14 +38,15 @@ const wireState = (args: {
 export type TrackedReading = {
   key: string
   checkout?: RepositoryCheckout
-  link?: { repo: string; number: number; branch: string }
+  link?: { repo: string; number: number; branch: string; subscriptionOnly?: boolean }
   reading: PullRequestReading
 }
 
 /**
  * The serve channel's snapshot of the github plugin's live readings. Only `Found` readings carry
  * state a tile can render; tracked and watched entries are folded together keyed by pull request
- * identity so a PR that is both the tracked checkout and a watched link appears once.
+ * identity so a PR that is both the tracked checkout and a watched link appears once. A PR watched
+ * only because a subscription names it stays out; the Subscriptions list is where it shows.
  */
 export function pullRequestStatesWireOf(
   readings: readonly TrackedReading[],
@@ -53,6 +54,7 @@ export function pullRequestStatesWireOf(
   const byIdentity = new Map<string, PrStateWire>()
   for (const entry of readings) {
     if (entry.reading.lookup !== EPullRequestLookup.Found) continue
+    if (entry.link?.subscriptionOnly === true) continue
 
     const repo = entry.checkout !== undefined ? repoOf(entry.checkout) : (entry.link?.repo ?? null)
     const branch =

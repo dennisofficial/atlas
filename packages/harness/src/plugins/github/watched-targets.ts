@@ -4,21 +4,24 @@ import { linkKey } from './pull-target'
 
 export type WatchedTarget = { repo: string; number: number }
 
-export const minimalLinkOf = (target: WatchedTarget): LinkedPullRequest => ({
+export type WatchedPullRequest = LinkedPullRequest & { subscriptionOnly: boolean }
+
+export const minimalLinkOf = (target: WatchedTarget): WatchedPullRequest => ({
   repo: target.repo,
   number: target.number,
   branch: '',
   url: `https://${target.repo}/pull/${target.number}`,
+  subscriptionOnly: true,
 })
 
 export function reconcileWatched(args: {
-  watched: Map<string, LinkedPullRequest>
+  watched: Map<string, WatchedPullRequest>
   links: readonly LinkedPullRequest[]
   extra: readonly WatchedTarget[]
-}): { gained: readonly LinkedPullRequest[]; dropped: readonly string[] } {
-  const next = new Map<string, LinkedPullRequest>()
+}): { gained: readonly WatchedPullRequest[]; dropped: readonly string[] } {
+  const next = new Map<string, WatchedPullRequest>()
   for (const target of args.extra) next.set(linkKey(target), minimalLinkOf(target))
-  for (const link of args.links) next.set(linkKey(link), link)
+  for (const link of args.links) next.set(linkKey(link), { ...link, subscriptionOnly: false })
 
   const dropped: string[] = []
   for (const key of [...args.watched.keys()]) {
@@ -28,11 +31,12 @@ export function reconcileWatched(args: {
     dropped.push(key)
   }
 
-  const gained: LinkedPullRequest[] = []
+  const gained: WatchedPullRequest[] = []
   for (const [key, link] of next) {
     const held = args.watched.get(key)
     if (held !== undefined) {
-      if (held.branch === '' && link.branch !== '') args.watched.set(key, link)
+      const upgraded = held.branch === '' && link.branch !== ''
+      if (upgraded || held.subscriptionOnly !== link.subscriptionOnly) args.watched.set(key, link)
       continue
     }
 

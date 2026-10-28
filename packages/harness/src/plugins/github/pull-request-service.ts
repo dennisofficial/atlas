@@ -1,5 +1,3 @@
-import type { LinkedPullRequest } from '@dltech/atlas-core'
-
 import { createExpectingWindows } from './expecting-windows'
 import {
   checkoutKey,
@@ -16,7 +14,7 @@ import type { PullRequestService } from './pull-request-service-type'
 import { keyOf, readTarget, type PullTarget } from './pull-target'
 import type { PullRequestBadgeKey } from './pure'
 import { createTrackedCheckouts } from './tracked-checkouts'
-import { reconcileWatched } from './watched-targets'
+import { reconcileWatched, type WatchedPullRequest } from './watched-targets'
 import { pullRequestStatesWireOf, repoOf, type TrackedReading } from './pull-request-state-wire'
 
 export type { PullRequestService } from './pull-request-service-type'
@@ -46,7 +44,7 @@ export function createPullRequestService(args: {
 
   const listeners = new Set<() => void>()
   const inFlight = createInFlightReads()
-  const watched = new Map<string, LinkedPullRequest>()
+  const watched = new Map<string, WatchedPullRequest>()
 
   const tracked = createTrackedCheckouts()
   const windows = createExpectingWindows({ now, windowMs: expectingMs })
