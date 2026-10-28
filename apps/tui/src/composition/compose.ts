@@ -13,6 +13,7 @@ import {
   MutablePrEventSink,
   PrEventFrameSink,
   PullRequestPort,
+  SubscriptionRegistryPort,
   cloudClientFor,
   CloudSessionStoreToken,
   type ContributedProjection,
@@ -27,6 +28,12 @@ import {
 import { clientVersionHeader } from '../build/info'
 import type { CrewPullRequests } from '../plugins/github/crew-pull-request'
 import { pullRequestSurface } from '../plugins/github/surface'
+import {
+  createSubscriptionsAccess,
+  type SubscriptionsAccess,
+} from '../plugins/subscriptions/access'
+import { subscriptionsSurface } from '../plugins/subscriptions/surface'
+import { createVisibleThread } from '../plugins/subscriptions/visible-thread'
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
 
@@ -46,6 +53,7 @@ type TuiSurface = {
   githubSurface: ContributedSurface | null
   crewPullRequests: CrewPullRequests | null
   prEventSink: MutablePrEventSink | null
+  subscriptionsSurface: ContributedSurface | null
 }
 
 export type AtlasApp = Omit<
@@ -77,6 +85,7 @@ const resolveGithubSurface = (args: {
   bridge: GithubUiBridgePort
   appInstallSink: MutableAppInstallSink | null
   recordDismissal: ((args: { repo: string }) => void) | undefined
+  subscriptions: SubscriptionsAccess | null
 }): ContributedSurface =>
   pullRequestSurface({
     service: args.bridge.service,
@@ -85,6 +94,7 @@ const resolveGithubSurface = (args: {
     cloudCheckout: args.bridge.cloudCheckout,
     badges: args.bridge.badges,
     openUrl: createUrlOpener(),
+    subscriptions: args.subscriptions,
     appInstall:
       args.appInstallSink === null
         ? null
@@ -109,6 +119,7 @@ export async function composeAtlas(args: {
     resolution: args.settings.service.snapshot().resolution,
     id: ESettingId.ExperimentalPods,
   })
+  const visibleThread = createVisibleThread()
   const app = await composeHarness<TuiSurface, QueuedSettled, PluginSurface>({
     launch: {
       cwd: args.config.cwd,
@@ -186,12 +197,25 @@ export async function composeAtlas(args: {
           }
         })()
 
+        const subscriptions = ((): SubscriptionsAccess | null => {
+          try {
+            return createSubscriptionsAccess({
+              registry: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
+              visible: visibleThread,
+              notice: noticePortBinding(),
+            })
+          } catch {
+            return null
+          }
+        })()
+
         const githubSurface = ((): ContributedSurface | null => {
           try {
             return resolveGithubSurface({
               bridge: container.resolve(registeredPortToken(GithubUiBridgePort)),
               appInstallSink,
               recordDismissal,
+              subscriptions,
             })
           } catch {
             return null
@@ -216,12 +240,24 @@ export async function composeAtlas(args: {
           }
         })()
 
-        return { pullRequests, githubSurface, crewPullRequests, prEventSink }
+        return {
+          pullRequests,
+          githubSurface,
+          crewPullRequests,
+          prEventSink,
+          subscriptionsSurface:
+            subscriptions === null ? null : subscriptionsSurface({ access: subscriptions }),
+        }
       },
     },
   })
 
+  visibleThread.attach(app.sessionOwner)
+
   const { surface, pluginSurfaces, pluginProjections, ...harness } = app
+  const contributed = [surface.githubSurface, surface.subscriptionsSurface].filter(
+    (found): found is ContributedSurface => found !== null,
+  )
 
   return {
     ...harness,
@@ -229,8 +265,7 @@ export async function composeAtlas(args: {
     command: args.command,
     pods,
     pluginProjections,
-    pluginSurfaces:
-      surface.githubSurface === null ? pluginSurfaces : [...pluginSurfaces, surface.githubSurface],
+    pluginSurfaces: [...pluginSurfaces, ...contributed],
     pullRequests: surface.pullRequests,
     crewPullRequests: surface.crewPullRequests,
     prEventSink: surface.prEventSink,

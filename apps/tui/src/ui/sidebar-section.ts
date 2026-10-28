@@ -27,10 +27,17 @@ export type SidebarRowSpans = SidebarRowContent | ((cells: number) => SidebarRow
 export const isSidebarRowSplit = (content: SidebarRowContent): content is SidebarRowSplit =>
   !Array.isArray(content)
 
+export type SidebarRowAction = {
+  glyph: string
+  fg?: string | undefined
+  onActivate: () => void
+}
+
 export type SidebarSectionRow = {
   id: string
   spans: SidebarRowSpans
   onActivate?: (() => void) | undefined
+  action?: SidebarRowAction | undefined
 }
 
 export const spansOf = (args: { row: SidebarSectionRow; cells: number }): SidebarRowContent =>

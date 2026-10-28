@@ -1,19 +1,14 @@
-import { existsSync } from 'node:fs'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import type { LinkedPullRequest } from '@dltech/atlas-core'
-import { EPullRequestState } from '@dltech/atlas-core'
 import {
   checkoutKey,
-  EChecksState,
   EPullRequestLookup,
   NO_PULL_REQUEST_READING,
   probeCheckout,
   pullRequestBadge,
   pullRequestEntries,
-  type PullRequest,
   type PullRequestBadge,
-  type PullRequestEntry,
   type PullRequestPort,
   type PullRequestReading,
   type PullRequestService,
@@ -23,10 +18,10 @@ import {
 import type { PrStateWire } from '@dltech/atlas-wire'
 
 import { useShimmerClock } from '../../ui/hooks/use-shimmer-clock'
-import type { SidebarRowSplit } from '../../ui/sidebar-section'
 import { SPINNER_FRAME_MS, theme } from '../../ui/theme'
 import { ESidebarPlace, type SidebarSection, type SidebarSectionRow } from '../surface'
-import { pullRequestRow } from './pull-request-row'
+import { foundPullRequest, rowOf, type PullRequestBell } from './pull-request-entry-row'
+import { repoStringOf, wireReading } from './wire-reading'
 
 export type FooterPullRequest = {
   badge: PullRequestBadge | null
@@ -49,77 +44,6 @@ const sameCheckout = (
   if (left === null || right === null) return left === right
 
   return left.directory === right.directory && checkoutKey(left) === checkoutKey(right)
-}
-
-const foundPullRequest = (entry: PullRequestEntry) =>
-  entry.reading !== null && entry.reading.lookup === EPullRequestLookup.Found
-    ? entry.reading.pullRequest
-    : null
-
-const wireChecksOf = (state: PrStateWire): PullRequest['checks'] => {
-  if (state.checksFailed > 0) return EChecksState.Failing
-  if (state.checksRunning > 0) return EChecksState.Running
-  if (state.checksPassed > 0) return EChecksState.Passing
-  return EChecksState.None
-}
-
-/**
- * A cloud thread's live state arrives over the channel as a wire record, not a service reading. The
- * tile renders it the same way — only the source differs.
- */
-const wireStateOf = (state: PrStateWire['state']): PullRequest['state'] => {
-  if (state === 'open') return EPullRequestState.Open
-  if (state === 'draft') return EPullRequestState.Draft
-  if (state === 'merged') return EPullRequestState.Merged
-  return EPullRequestState.Closed
-}
-
-const wireReading = (state: PrStateWire): PullRequestReading => ({
-  lookup: EPullRequestLookup.Found,
-  pullRequest: {
-    number: state.number,
-    title: '',
-    url: state.url,
-    state: wireStateOf(state.state),
-    checks: wireChecksOf(state),
-    tally: { running: state.checksRunning, passed: state.checksPassed, failed: state.checksFailed },
-    mergeable: state.mergeable,
-    comments: [],
-    reviews: [],
-  },
-})
-
-const repoStringOf = (checkout: RepositoryCheckout): string =>
-  `${checkout.remote.host}/${checkout.remote.owner}/${checkout.remote.repo}`
-
-const worktreeGone = (entry: PullRequestEntry): boolean =>
-  entry.current === false && entry.worktreePath !== undefined && !existsSync(entry.worktreePath)
-
-const rowOf = (args: {
-  entry: PullRequestEntry
-  now: number
-  onOpen: (url: string) => void
-}): SidebarSectionRow => {
-  const { entry, now, onOpen } = args
-  const pullRequest = foundPullRequest(entry)
-  const gone = worktreeGone(entry)
-
-  const spans =
-    pullRequest !== null
-      ? pullRequestRow({ pullRequest, now, gone })
-      : (): SidebarRowSplit => ({
-          left: [
-            { text: `#${entry.number}`, fg: theme.code, strike: gone },
-            { text: ` ${entry.branch}`, fg: theme.hint, strike: gone },
-          ],
-          right: [],
-        })
-
-  return {
-    id: entry.current ? 'pull-request-current' : `pull-request-${entry.key}`,
-    spans,
-    onActivate: () => onOpen(entry.url),
-  }
 }
 
 /**
@@ -146,9 +70,10 @@ export function usePullRequest(args: {
   /** The badge cache behind the muted fallback when a cloud serve is unreachable. */
   badges?: PullRequestPort | null
   onOpen: (url: string) => void
+  bell?: PullRequestBell | undefined
   probe?: CheckoutProbe
 }): PullRequestControl {
-  const { service, projectDirectory, working, linked, cloud, onOpen } = args
+  const { service, projectDirectory, working, linked, cloud, onOpen, bell } = args
   const remote = args.remote ?? null
   const badges = args.badges ?? null
   const askGit = args.probe ?? probeCheckout
@@ -293,11 +218,11 @@ export function usePullRequest(args: {
         spans: { left: [{ text: checkout.branch, fg: theme.hover }], right: [] },
       })
     }
-    for (const entry of entries) rows.push(rowOf({ entry, now, onOpen }))
+    for (const entry of entries) rows.push(rowOf({ entry, now, onOpen, bell }))
     if (rows.length === 0) return null
 
     return { id: 'github', place: ESidebarPlace.Facts, rows }
-  }, [checkout, entries, now, onOpen])
+  }, [bell, checkout, entries, now, onOpen])
 
   return useMemo(() => ({ footer, section }), [footer, section])
 }
