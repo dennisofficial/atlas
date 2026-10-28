@@ -10,6 +10,7 @@ export type GitChangesChannel = Pick<RemoteDeltaChannel, 'request'>
 export type LoadedGitChanges = {
   files: ChangedFile[]
   truncated: boolean
+  ignored: string[]
 }
 
 export async function loadGitChanges(args: {
@@ -20,7 +21,11 @@ export async function loadGitChanges(args: {
     channel: args.channel,
     scope: args.scope,
   })
-  return { files: changedFilesOf(reply.files), truncated: reply.truncated }
+  return {
+    files: changedFilesOf(reply.files),
+    truncated: reply.truncated,
+    ignored: reply.ignored,
+  }
 }
 
 export function messageOfFailure(error: unknown): string {
