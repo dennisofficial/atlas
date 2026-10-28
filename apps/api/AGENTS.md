@@ -147,14 +147,11 @@ the pooler, and a killed job once left the lock pinned on a pooled backend so ev
 out acquiring it (P1002). `scripts/migrate-deploy.mjs` retries the deploy three times with a 20 s
 backoff. The verify step sets `DATABASE_URL` to `DIRECT_URL` for the same reason.
 
-**Rollback does not unwind a migration.** Vercel's instant rollback (Deployments → a previous
-production deployment → Promote, or `vercel rollback`) restores code and configuration, never
-database data. Prisma 8 has no down-migrations either. So every migration must be
-backward-compatible with the release still serving while it lands: add columns with defaults, add
-tables, never rename or drop in the same deploy as the code that stops using them. There is
-deliberately no down-DDL, because it would turn a failed deploy into data loss.
+**Fix forward, never roll back.** A bad deploy is repaired by the next merge, so a migration may
+drop or rename in the same deploy as the code that stops using it. Prisma 8 has no down-migrations
+and nothing here writes down-DDL.
 
-The database half of a rollback is PlanetScale's backups. A restore never happens in place: pick
+Lost data comes back from PlanetScale's backups. A restore never happens in place: pick
 a backup or a point in time (up to 5 minutes ago) under Backups and restore it to a **new
 branch**, reset the role password there, then `dotenvx set` both URLs to the new branch's host
 and redeploy. It reaches only as far back as the backup retention (2 days on the default
