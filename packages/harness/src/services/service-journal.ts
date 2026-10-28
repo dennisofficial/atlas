@@ -1,8 +1,15 @@
-import type { EventDraft, EventLogPort, IdPort, ThreadId } from '@dltech/atlas-core'
+import {
+  arrivedDraft,
+  deliveredDraft,
+  type EventDraft,
+  type EventLogPort,
+  type IdPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 export type ServiceStartRecording = {
   log: Pick<EventLogPort, 'append'>
-  ids: Pick<IdPort, 'nextRunId'>
+  ids: Pick<IdPort, 'nextRunId' | 'nextEventId'>
 }
 
 export enum EServiceJournalSkip {
@@ -12,7 +19,7 @@ export enum EServiceJournalSkip {
 }
 
 export type ServiceJournalAppend =
-  | { appended: true }
+  | { appended: true; delivered?: EventDraft | undefined }
   | { appended: false; reason: EServiceJournalSkip }
 
 enum EServiceRecord {
@@ -22,7 +29,11 @@ enum EServiceRecord {
 
 type ServiceKey = { threadId: ThreadId; serviceId: string }
 
-type ServiceWrite = ServiceKey & { kind: EServiceRecord; draft: EventDraft }
+type ServiceWrite = ServiceKey & {
+  kind: EServiceRecord
+  draft: EventDraft
+  delivered?: EventDraft | undefined
+}
 
 const keyOf = ({ threadId, serviceId }: ServiceKey): string => `${threadId}\u0000${serviceId}`
 
@@ -51,7 +62,13 @@ export class ServiceEventJournal {
     }
     this.failedEndings.delete(key)
     this.terminal.add(key)
-    const ending = this.enqueue({ ...args, kind: EServiceRecord.Ending })
+    const id = String(this.recording.ids.nextEventId())
+    const ending = this.enqueue({
+      ...args,
+      kind: EServiceRecord.Ending,
+      draft: arrivedDraft({ draft: args.draft, id }),
+      delivered: deliveredDraft({ draft: args.draft, id }),
+    })
     this.endingWrites.set(key, ending)
     void ending.then((result) => {
       if (!result.appended && result.reason === EServiceJournalSkip.Failed) {
@@ -98,7 +115,7 @@ export class ServiceEventJournal {
         runId: this.recording.ids.nextRunId(),
         drafts: [args.draft],
       })
-      return { appended: true }
+      return { appended: true, delivered: args.delivered }
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : String(cause)
       this.warn(`could not record service ${args.kind} for ${args.serviceId}: ${reason}`)

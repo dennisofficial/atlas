@@ -8,6 +8,7 @@ import {
 
 import type { ThreadStorePort } from '../../store'
 import { recoveredChild } from './child-state'
+import { requeueOwedNotices } from './owed-notices'
 import { settleLostChildren, unloggedChildren } from './lost-children'
 import type { AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
@@ -93,7 +94,16 @@ export class ChildRecovery {
       if (this.hydrating.get(threadId) === memo) this.hydrating.delete(threadId)
     })
 
-    return attempt.then((owners) => {
+    return attempt.then(async (owners) => {
+      for (const owner of owners) {
+        this.notices.forgetAgents({ threadId: owner.threadId, agentIds: owner.agentIds })
+        requeueOwedNotices({
+          events: await this.log.readOwn({ threadId: owner.threadId }),
+          threadId: owner.threadId,
+          roster: this.roster,
+          notices: this.notices,
+        })
+      }
       for (const owner of owners) {
         if (owner.threadId !== threadId) this.hydrating.set(owner.threadId, Promise.resolve())
       }
@@ -154,5 +164,7 @@ export class ChildRecovery {
       if (model !== undefined) child.model = model
       this.roster.add(child)
     }
+
+    requeueOwedNotices({ events, threadId, roster: this.roster, notices: this.notices })
   }
 }

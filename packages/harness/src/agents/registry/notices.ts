@@ -1,4 +1,4 @@
-import { isTurnTaking, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import { isTurnTaking, noticeIdOf, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
 import type { AgentSnapshot } from './snapshot'
@@ -13,7 +13,7 @@ export type AgentNotice = {
   snapshot: AgentSnapshot
   kind: EAgentNotice
   draft: EventDraft
-  logged: boolean
+  unloggedArrival?: EventDraft | undefined
   generation?: AbortSignal | undefined
 }
 
@@ -23,8 +23,10 @@ const NOTHING_PENDING: readonly AgentNotice[] = Object.freeze([])
 
 const NOTHING_ANNOUNCED: readonly AgentSnapshot[] = Object.freeze([])
 
-export const unloggedDrafts = (notices: readonly AgentNotice[]): readonly EventDraft[] =>
-  notices.filter((notice) => !notice.logged).map((notice) => notice.draft)
+export const draftsToAppend = (notices: readonly AgentNotice[]): readonly EventDraft[] =>
+  notices.flatMap((notice) =>
+    notice.unloggedArrival === undefined ? [notice.draft] : [notice.unloggedArrival, notice.draft],
+  )
 
 const NOTHING_NOTICED: ReadonlyMap<ThreadId, readonly AgentSnapshot[]> = new Map()
 
@@ -38,7 +40,7 @@ export class AgentNoticeQueue {
   }
 
   drain({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    return unloggedDrafts(this.take({ threadId, where: () => true }))
+    return draftsToAppend(this.take({ threadId, where: () => true }))
   }
 
   prepare({ threadId }: { threadId: ThreadId }): AgentNoticeBatch {
@@ -46,7 +48,7 @@ export class AgentNoticeQueue {
     let acknowledged = false
     return {
       notices: captured,
-      drafts: unloggedDrafts(captured),
+      drafts: draftsToAppend(captured),
       wakesTurn: captured.some((notice) => isTurnTaking(notice.draft)),
       acknowledge: () => {
         if (acknowledged) return
@@ -54,6 +56,12 @@ export class AgentNoticeQueue {
         this.takeCaptured(captured)
       },
     }
+  }
+
+  requeue(notice: AgentNotice): void {
+    const id = noticeIdOf(notice.draft)
+    if (id !== undefined && this.queued.some((held) => noticeIdOf(held.draft) === id)) return
+    this.queue(notice)
   }
 
   takeCaptured(captured: readonly AgentNotice[]): void {

@@ -1,4 +1,11 @@
-import type { EKilledBy, EStopAction, EventDraft, PortExposure, ThreadId } from '@dltech/atlas-core'
+import type {
+  EKilledBy,
+  EStopAction,
+  Event,
+  EventDraft,
+  PortExposure,
+  ThreadId,
+} from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
 import type { ServiceSnapshot } from './service-process'
@@ -33,6 +40,7 @@ export abstract class ServiceRegistryPort {
    * do exit, the same as any other ending.
    */
   abstract awaitEndings(args: { ms: number }): Promise<number>
+  requeueOwed?(args: { events: readonly Event[]; threadId: ThreadId }): void
   retryEndings?(args: { threadId?: ThreadId | undefined }): Promise<void>
   /**
    * A rewind disowns the services it cut: they die with the transcript that started them, and

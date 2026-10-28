@@ -65,6 +65,7 @@ const serviceRecovery = (args: {
     log: args.log,
     ids: args.ids,
     live: services === undefined ? undefined : () => liveServicesOf(services.list()),
+    registry: services,
   })
   serviceRecoveryFor.set(args.log, created)
   return created

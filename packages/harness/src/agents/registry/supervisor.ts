@@ -187,10 +187,7 @@ export class AgentSupervisor extends AgentRegistryPort {
   }
 
   override async hydrateTransferred({ threadId }: { threadId: ThreadId }): Promise<void> {
-    const owners = await this.recovery.hydrateTransferred({ threadId })
-    for (const owner of owners) {
-      this.notices.forgetAgents({ threadId: owner.threadId, agentIds: owner.agentIds })
-    }
+    await this.recovery.hydrateTransferred({ threadId })
   }
 
   whenChildrenSettled({ threadId }: { threadId: ThreadId }): Promise<void> {

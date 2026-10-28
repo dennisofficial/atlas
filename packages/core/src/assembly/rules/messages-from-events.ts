@@ -5,6 +5,7 @@ import { currentContextEvents } from '../../context/supersede'
 import type { AssistantPart } from '../../events/body'
 import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
+import { isNoticeArrival } from '../../events/notice-stage'
 import { liveNudgeIds } from '../../events/nudges'
 import { imagePathLine, inlinable } from '../../images/attached'
 import type {
@@ -175,6 +176,8 @@ function walkEvents(events: readonly Event[]): Walk {
   let openAssistant: Group | undefined
 
   for (const event of events) {
+    if (isNoticeArrival(event)) continue
+
     if (event.type === 'assistant-said') {
       openAssistant = {
         message: { role: 'assistant', content: [...event.parts] },

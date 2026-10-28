@@ -29,19 +29,23 @@ export async function recordEnding({
   const snapshot = snapshotOf(child)
   const generation = child.abort.signal
 
+  if (kind === undefined) {
+    await journal.record({ threadId: child.spawnedBy, draft })
+    return
+  }
+
+  const stamped = journal.stamp({ draft })
   const recorded = isRelocationPause(child)
     ? { recorded: false }
-    : await journal.record({ threadId: child.spawnedBy, draft })
+    : await journal.record({ threadId: child.spawnedBy, draft: stamped.arrived })
   if (roster.find(child.agentId) !== child) return
-
-  if (kind === undefined) return
 
   notices.queue({
     threadId: child.spawnedBy,
     snapshot,
     kind,
-    draft,
+    draft: stamped.delivered,
     generation,
-    logged: recorded.recorded,
+    ...(recorded.recorded ? {} : { unloggedArrival: stamped.arrived }),
   })
 }

@@ -5,7 +5,7 @@ import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 import type { RosterWire, WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '../events-from-wire'
-import { rosterModelsOf, spawnDomId } from '../transcript-agents'
+import { reportItemsOf, rosterModelsOf, spawnDomId, spawnItemsOf } from '../transcript-agents'
 import {
   durableTranscriptOf,
   ETranscriptKind,
@@ -266,6 +266,49 @@ describe('agent report items', () => {
     if (first?.kind !== ETurnKind.Agent) throw new Error('expected an agent turn')
     expect(first.spawns).toHaveLength(1)
     expect(first.stepCount).toBe(0)
+  })
+})
+
+describe('agent notices stamped at arrival and delivery', () => {
+  const stamp = (id: string, stage: 'arrived' | 'delivered') => ({ notice: { id, stage } })
+
+  it('renders one report at the delivered position', () => {
+    const events = [
+      said(1),
+      spawned(2),
+      ended(5, stamp('n1', 'arrived')),
+      wire(6, { type: 'user-said', text: 'meanwhile' }),
+      ended(7, stamp('n1', 'delivered')),
+    ]
+    const reports = [...reportItemsOf(eventsFromWire(events)).values()]
+    expect(reports).toHaveLength(1)
+    expect(reports[0]).toMatchObject({ id: 'evt_7', report: 'Found 3 issues' })
+    const rows = rowsOf(events)
+    expect(rows.filter((row) => row.kind === ETranscriptKind.Report)).toHaveLength(1)
+  })
+
+  it('counts the pair as one ending for the spawn card', () => {
+    const events = [
+      said(1),
+      spawned(2),
+      ended(5, stamp('n1', 'arrived')),
+      ended(9, stamp('n1', 'delivered')),
+    ]
+    const [spawn] = spawnItemsOf(eventsFromWire(events))
+    expect(spawn).toMatchObject({
+      status: EAgentStatus.Finished,
+      endedAt: '2026-10-22T10:00:05.000Z',
+    })
+  })
+
+  it('shows nothing for an arrival that is still owed', () => {
+    const events = [said(1), spawned(2), ended(5, stamp('n1', 'arrived'))]
+    expect(reportItemsOf(eventsFromWire(events)).size).toBe(0)
+  })
+
+  it('keeps a legacy ending rendering as before', () => {
+    const events = [said(1), spawned(2), ended(5)]
+    expect([...reportItemsOf(eventsFromWire(events)).values()]).toMatchObject([{ id: 'evt_5' }])
   })
 })
 

@@ -38,7 +38,7 @@ export class ServiceEndings {
 
     entry.draft = serviceEndedDraft({ snapshot: entry.service.snapshot() })
     if (this.journal === undefined) {
-      this.announce(entry)
+      this.announce({ entry, draft: entry.draft })
       return
     }
     void this.persist(entry)
@@ -70,7 +70,8 @@ export class ServiceEndings {
     const ending: Promise<void> = journal
       .ended({ threadId: entry.threadId, serviceId: entry.service.serviceId, draft })
       .then((written) => {
-        if (written.appended && this.isCurrent(entry)) this.announce(entry)
+        if (written.appended && this.isCurrent(entry))
+          this.announce({ entry, draft: written.delivered })
       })
       .finally(() => {
         if (!entry.announced && entry.ending === ending) entry.ending = undefined
@@ -80,8 +81,13 @@ export class ServiceEndings {
     return ending
   }
 
-  private announce(entry: TrackedService): void {
-    const { draft } = entry
+  private announce({
+    entry,
+    draft,
+  }: {
+    entry: TrackedService
+    draft: EventDraft | undefined
+  }): void {
     if (entry.announced || draft === undefined) return
 
     entry.announced = true

@@ -1,6 +1,7 @@
 import { isTeammateType } from '../agents/kind'
 import type { Event } from './envelope'
 import type { ThreadId } from './ids'
+import { recordsLifecycle } from './notice-stage'
 
 /**
  * A thread that inherits a prefix by reference reads rows belonging to its parent. Control flow —
@@ -54,6 +55,8 @@ export function liveOwnedUnits(events: readonly Event[]): LiveOwnedUnits {
   const agents = new Map<ThreadId, LiveAgent>()
 
   for (const event of events) {
+    if (!recordsLifecycle(event)) continue
+
     switch (event.type) {
       case 'background-shell-started':
         shells.set(event.shellId, {

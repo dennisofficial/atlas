@@ -13,6 +13,7 @@ import type { EServiceStatus } from '../services/status'
 import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
+import type { NoticeStamp } from './notice-stage'
 import type { BackgroundShellEventBody } from './shell-body'
 
 export enum ECompactionAnchor {
@@ -238,6 +239,7 @@ export type EventBody =
       exitCode?: number | undefined
       logPath?: string | undefined
       tail: string
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'agent-spawned'
@@ -260,6 +262,7 @@ export type EventBody =
       /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
       relayed?: boolean | undefined
       leftServices?: readonly string[] | undefined
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'agent-restarted'
@@ -275,6 +278,7 @@ export type EventBody =
       intent: string
       prose: string
       kind?: EReportKind | undefined
+      notice?: NoticeStamp | undefined
     }
   | {
       type: 'history-compacted'

@@ -1,4 +1,11 @@
-import { EventLogPort, IdPort, type EventDraft, type ThreadId } from '@dltech/atlas-core'
+import {
+  arrivedDraft,
+  deliveredDraft,
+  EventLogPort,
+  IdPort,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import type { ShellDelta, ShellSnapshot } from './background-shell'
 import type { ShellId } from './shell-id'
@@ -87,7 +94,17 @@ export enum EJournalSkip {
   Ended = 'ended',
 }
 
-export type JournalAppend = { appended: true } | { appended: false; reason: EJournalSkip }
+export type JournalAppend =
+  | { appended: true; delivered?: EventDraft | undefined }
+  | { appended: false; reason: EJournalSkip }
+
+type Stamped = { arrived: EventDraft; delivered: EventDraft }
+
+type ShellWrite = ShellKey & {
+  kind: string
+  drafts: () => EventDraft[]
+  delivered?: EventDraft | undefined
+}
 
 type ShellKey = {
   threadId: ThreadId
@@ -116,6 +133,11 @@ export class ShellEventJournal {
     this.warn = args.warn
   }
 
+  private stamp(draft: EventDraft): Stamped {
+    const id = String(this.ids.nextEventId())
+    return { arrived: arrivedDraft({ draft, id }), delivered: deliveredDraft({ draft, id }) }
+  }
+
   started(args: ShellKey & { snapshot: ShellSnapshot }): Promise<JournalAppend> {
     return this.enqueue({
       ...args,
@@ -127,23 +149,19 @@ export class ShellEventJournal {
   matched(
     args: ShellKey & { snapshot: ShellSnapshot; pattern: string; matched: MatchedLines },
   ): Promise<JournalAppend> {
-    return this.enqueue({
-      ...args,
-      kind: 'match',
-      drafts: () => [
-        matchedDraft({ snapshot: args.snapshot, pattern: args.pattern, matched: args.matched }),
-      ],
-    })
+    const { arrived, delivered } = this.stamp(
+      matchedDraft({ snapshot: args.snapshot, pattern: args.pattern, matched: args.matched }),
+    )
+    return this.enqueue({ ...args, kind: 'match', drafts: () => [arrived], delivered })
   }
 
   awaitingInput(
     args: ShellKey & { snapshot: ShellSnapshot; delta: ShellDelta },
   ): Promise<JournalAppend> {
-    return this.enqueue({
-      ...args,
-      kind: 'awaiting-input',
-      drafts: () => [awaitingInputDraft({ snapshot: args.snapshot, delta: args.delta })],
-    })
+    const { arrived, delivered } = this.stamp(
+      awaitingInputDraft({ snapshot: args.snapshot, delta: args.delta }),
+    )
+    return this.enqueue({ ...args, kind: 'awaiting-input', drafts: () => [arrived], delivered })
   }
 
   ended(
@@ -159,10 +177,14 @@ export class ShellEventJournal {
     }
     this.failedEndings.delete(key)
     this.terminal.add(key)
+    const { arrived, delivered } = this.stamp(
+      endedDraft({ snapshot: args.snapshot, delta: args.delta }),
+    )
     const ending = this.enqueue({
       ...args,
       kind: 'ending',
-      drafts: () => [endedDraft({ snapshot: args.snapshot, delta: args.delta }), ...args.hooked],
+      drafts: () => [arrived, ...args.hooked],
+      delivered,
     })
     this.endingWrites.set(key, ending)
     void ending.then((result) => {
@@ -183,9 +205,7 @@ export class ShellEventJournal {
     )
   }
 
-  private enqueue(
-    args: ShellKey & { kind: string; drafts: () => EventDraft[] },
-  ): Promise<JournalAppend> {
+  private enqueue(args: ShellWrite): Promise<JournalAppend> {
     const key = keyOf(args)
     if (this.disowned.has(shellScope(args))) {
       return Promise.resolve({ appended: false, reason: EJournalSkip.Superseded })
@@ -204,9 +224,7 @@ export class ShellEventJournal {
     return result
   }
 
-  private async write(
-    args: ShellKey & { kind: string; drafts: () => EventDraft[] },
-  ): Promise<JournalAppend> {
+  private async write(args: ShellWrite): Promise<JournalAppend> {
     if (this.disowned.has(shellScope(args))) {
       return { appended: false, reason: EJournalSkip.Superseded }
     }
@@ -216,7 +234,7 @@ export class ShellEventJournal {
         runId: this.ids.nextRunId(),
         drafts: args.drafts(),
       })
-      return { appended: true }
+      return { appended: true, delivered: args.delivered }
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : String(cause)
       this.warn(`could not record background shell ${args.kind} for ${args.shellId}: ${reason}`)

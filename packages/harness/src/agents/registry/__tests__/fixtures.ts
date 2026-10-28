@@ -1,5 +1,8 @@
 import {
   EDefinitionOrigin,
+  ENoticeStage,
+  isNoticeArrival,
+  isNoticeDelivery,
   EFinishReason,
   toCallId,
   toRunId,
@@ -205,4 +208,10 @@ export async function loggedOfType<T extends Event['type']>({
 }): Promise<readonly Extract<Event, { type: T }>[]> {
   const events = await harness.log.readOwn({ threadId })
   return events.filter((event): event is Extract<Event, { type: T }> => event.type === type)
+}
+
+export const stageOf = (draft: EventDraft): ENoticeStage | undefined => {
+  if (isNoticeArrival(draft)) return ENoticeStage.Arrived
+  if (isNoticeDelivery(draft)) return ENoticeStage.Delivered
+  return undefined
 }

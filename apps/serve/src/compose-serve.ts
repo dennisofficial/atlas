@@ -120,6 +120,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     log: app.surface.log,
     ids: app.ids,
     live: () => liveServicesOf(app.services.list()),
+    registry: app.services,
   })
 
   const workspaceHooks = workspaceHooksFor({

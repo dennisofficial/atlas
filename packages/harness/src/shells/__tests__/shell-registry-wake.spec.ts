@@ -4,6 +4,7 @@ import {
   AfterShellHook,
   EKilledBy,
   ELogSeverity,
+  ENoticeStage,
   EStage,
   type AfterShell,
   type HookOrder,
@@ -86,12 +87,18 @@ for (const adapter of shellAdapters) {
         await announced({ registry })
 
         const batch = registry.prepareNotifications({ threadId: THREAD })
-        expect(batch.drafts).toEqual([])
+        expect(batch.drafts).toEqual([
+          expect.objectContaining({
+            type: 'background-shell-ended',
+            notice: { id: expect.any(String), stage: ENoticeStage.Delivered },
+          }),
+        ])
         expect(batch.wakesTurn).toBe(true)
 
         batch.acknowledge()
         expect(registry.pendingNotices({ threadId: THREAD })).toEqual([])
         expect(endedInLog(log)).toHaveLength(1)
+        expect(endedInLog(log)[0]).toMatchObject({ notice: { stage: ENoticeStage.Arrived } })
       })
 
       it('rings for a failed exit, naming the code in the durable record', async () => {

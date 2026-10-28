@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
+  ENoticeStage,
   EAgentStatus,
   EExecutionLocation,
   EKilledBy,
@@ -194,10 +195,14 @@ describe('relocating a stepping child', () => {
     runOf(entry, childId, 'resume').settle(finished())
     await entry.supervisor.whenChildrenSettled({ threadId: entry.parent })
 
-    const unlogged = entry.supervisor
+    const drained = entry.supervisor
       .drainNotifications({ threadId: entry.parent })
       .drafts.flatMap((draft: EventDraft) => (draft.type === 'agent-ended' ? [draft] : []))
-    expect(unlogged.map((draft) => draft.killedBy)).toEqual([EKilledBy.ContainerSwitch])
+    expect(drained.map((draft) => [draft.notice?.stage, draft.killedBy])).toEqual([
+      [ENoticeStage.Arrived, EKilledBy.ContainerSwitch],
+      [ENoticeStage.Delivered, EKilledBy.ContainerSwitch],
+      [ENoticeStage.Delivered, undefined],
+    ])
     const logged = await loggedOfType({
       harness: entry.harness,
       threadId: entry.parent,
