@@ -102,6 +102,7 @@ export async function birthInCloud(args: BirthArgs): Promise<CloudBirth> {
           threadId,
           projectId: args.projectId,
           model: args.model.ref,
+          birth: { effort: args.model.effort },
         })
         done(EBirthNode.Provision)
 
