@@ -55,14 +55,19 @@ const PROBES: Readonly<Record<string, RepositoryCheckout>> = {
   '/work/teammate': TEAMMATE,
 }
 
+const SUBSCRIBED_REPO = 'github.com/dennisofficial/atlas'
+
 const ranWith = async (args: {
   service: PullRequestService
   input: unknown
   name?: string
   directory?: string
+  subscribedTo?: readonly number[]
 }): Promise<BeforeToolOutcome> =>
   new BlockCiWatchBeforeToolHook({
     pullRequests: args.service,
+    subscribed: ({ repo, number }) =>
+      repo === SUBSCRIBED_REPO && (args.subscribedTo ?? [42, 9]).includes(number),
     probe: async ({ directory }) => PROBES[directory] ?? null,
   }).run({
     call: callOf({ input: args.input, ...(args.name === undefined ? {} : { name: args.name }) }),
@@ -75,7 +80,7 @@ const denies = (outcome: BeforeToolOutcome): boolean =>
   outcome.decision === EBeforeToolDecision.Deny
 
 describe('the hook that refuses to watch CI', () => {
-  it('denies a watching command when the checkout has a tracked pull request', async () => {
+  it('denies a watching command when the checkout has a subscribed pull request', async () => {
     const outcome = await ranWith({
       service: trackingFound(),
       input: { command: 'gh run watch 123' },
@@ -89,7 +94,7 @@ describe('the hook that refuses to watch CI', () => {
 
   it('carries the teaching reason verbatim', () => {
     expect(CI_WATCH_DENY_REASON).toBe(
-      'Atlas tracks this PR natively and will wake you when CI reaches a verdict, a comment lands, or mergeability changes. Do not poll or watch. Read once with `gh pr checks` (no --watch) if you need current state; otherwise continue other work or end your turn.',
+      "Atlas is delivering this PR's events to you through a subscription and will wake you when CI reaches a verdict, a comment lands, or it merges. Do not poll or watch. Read once with `gh pr checks` (no --watch) for current state, or end your turn.",
     )
   })
 
@@ -118,6 +123,26 @@ describe('the hook that refuses to watch CI', () => {
     const outcome = await ranWith({ service: trackingFound(), input })
 
     expect(outcome).toEqual({ decision: EBeforeToolDecision.Allow, input })
+  })
+
+  it('allows a watch on a tracked pull request nothing subscribes to', async () => {
+    const outcome = await ranWith({
+      service: trackingFound(),
+      input: { command: 'gh run watch 123' },
+      subscribedTo: [],
+    })
+
+    expect(denies(outcome)).toBe(false)
+  })
+
+  it('gates on the pull request of the subscription, not any subscription', async () => {
+    const outcome = await ranWith({
+      service: trackingFound(),
+      input: { command: 'gh run watch 123' },
+      subscribedTo: [7],
+    })
+
+    expect(denies(outcome)).toBe(false)
   })
 
   it('allows a watch when no checkout is tracked', async () => {

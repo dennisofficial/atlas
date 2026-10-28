@@ -2,7 +2,6 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { checkoutKey, type RepositoryCheckout } from './pure'
 import type { PullRequestService } from './pull-request-service'
-import { IDENTITY_THREAD_KINDS, type ThreadKinds } from './thread-kinds'
 
 export type FamilyTracker = {
   /** Whether this thread's place actually changed; an unchanged place touches the service not at all. */
@@ -12,13 +11,6 @@ export type FamilyTracker = {
   hasVisibleThread: () => boolean
   checkoutFor: (args: { threadId: ThreadId }) => RepositoryCheckout | null
   threadsOn: (args: { key: string }) => readonly ThreadId[]
-  /**
-   * The threads a notice for this checkout belongs to: `threadsOn` with every subagent replaced by
-   * its nearest main or teammate ancestor. A subagent shares its spawner's checkout and must never
-   * be woken by a PR event meant for the conversation that owns the work.
-   */
-  threadsOwning: (args: { key: string }) => Promise<readonly ThreadId[]>
-  ownerOf: ThreadKinds['ownerOf']
 }
 
 const same = (left: RepositoryCheckout | undefined, right: RepositoryCheckout | null): boolean => {
@@ -32,11 +24,7 @@ const same = (left: RepositoryCheckout | undefined, right: RepositoryCheckout | 
  * of those places whenever any of them moves, and reconciles it — so a thread leaving a worktree
  * drops that checkout only when no other thread still stands on it.
  */
-export function createFamilyTracker(args: {
-  service: PullRequestService
-  threadKinds?: ThreadKinds
-}): FamilyTracker {
-  const threadKinds = args.threadKinds ?? IDENTITY_THREAD_KINDS
+export function createFamilyTracker(args: { service: PullRequestService }): FamilyTracker {
   const places = new Map<ThreadId, RepositoryCheckout>()
   let visibleThread: ThreadId | null = null
 
@@ -78,15 +66,5 @@ export function createFamilyTracker(args: {
       [...places]
         .filter(([, checkout]) => checkoutKey(checkout) === key)
         .map(([threadId]) => threadId),
-    threadsOwning: async ({ key }) => {
-      const standing = [...places]
-        .filter(([, checkout]) => checkoutKey(checkout) === key)
-        .map(([threadId]) => threadId)
-      const owners = await Promise.all(
-        standing.map((threadId) => threadKinds.ownerOf({ threadId })),
-      )
-      return [...new Set(owners)]
-    },
-    ownerOf: threadKinds.ownerOf,
   }
 }

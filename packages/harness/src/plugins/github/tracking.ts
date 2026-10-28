@@ -13,7 +13,6 @@ import {
 import { probeCheckout } from './checkout-probe'
 import { createFamilyTracker, type FamilyTracker } from './family-tracker'
 import { checkoutKey, type RepositoryCheckout } from './pure'
-import type { ThreadKinds } from './thread-kinds'
 import type { PullRequestService } from './pull-request-service'
 import type { SessionFacts } from './session'
 
@@ -44,14 +43,10 @@ export function createCheckoutTracking(args: {
   facts: SessionFacts
   cloud?: () => RepositoryCheckout | null
   probe?: typeof probeCheckout
-  threadKinds?: ThreadKinds
   linkDropped?: (args: { checkouts: readonly RepositoryCheckout[] }) => readonly EventDraft[]
 }): CheckoutTracking {
   const probe = args.probe ?? probeCheckout
-  const tracker = createFamilyTracker({
-    service: args.service,
-    ...(args.threadKinds === undefined ? {} : { threadKinds: args.threadKinds }),
-  })
+  const tracker = createFamilyTracker({ service: args.service })
   const directories = new Map<ThreadId, string>()
   const homes = new Map<ThreadId, string>()
   const worktrees = new Map<ThreadId, string>()

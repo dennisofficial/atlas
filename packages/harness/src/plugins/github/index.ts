@@ -11,8 +11,6 @@ import {
   ServeSessionToken,
   WorkspaceRoot,
 } from '../../container/tokens'
-
-import { ThreadStorePort } from '../../store/thread-store'
 import { NativePlugin, type PluginContribution } from '../plugin'
 import { AppInstallRecommendationSink, MutableAppInstallSink } from './app-install-sink'
 import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
@@ -23,15 +21,13 @@ import { GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks, type PullRequestLinks } from './links'
 import { createPollDiffer } from './pr-event-diff'
-import { createPrEventRouting, type PrEventRouting } from './pr-event-routing'
-import { PrEventNoticeQueue, prEventIntakeSource } from './pr-event-queue'
 import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
+import { createPullRequestProvider, type PullRequestProvider } from './pull-request-provider'
 import { CachedPullRequestPort } from './pull-request-cache-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
-import { createPullRequestTransitions } from './pr-transitions'
 import { PullRequestPort, type PullRequestReading } from './pure'
 import { createSessionFacts } from './session'
-import { createThreadKinds } from './thread-kinds'
+import type { PullRequestTarget } from './subscription-target'
 
 import { createCheckoutTracking } from './tracking'
 import { GithubUiBridgePort } from './ui-bridge'
@@ -64,7 +60,6 @@ export default class GithubPlugin extends NativePlugin {
       clientVersion: string
       cacheDirectory: string
       log: LogPort | null
-      threads: ThreadStorePort | null
     },
   ) {
     super()
@@ -105,7 +100,7 @@ export default class GithubPlugin extends NativePlugin {
   contribute(): PluginContribution {
     let service: PullRequestService | null = null
     let cached: CachedPullRequestPort | null = null
-    let routing: PrEventRouting | null = null
+    let provider: PullRequestProvider | null = null
     const sink = new MutablePrEventSink()
     const appInstallSink = new MutableAppInstallSink()
     const raw = this.port(
@@ -114,28 +109,25 @@ export default class GithubPlugin extends NativePlugin {
         cached?.ingest(pushed)
       },
       (frame) => {
-        routing?.onPrEvent(frame)
+        provider?.onFrame(frame)
         sink.onPrEvent(frame)
       },
       (recommendation) => appInstallSink.onAppInstallRecommended(recommendation),
     )
     const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
     cached = adapter
-    const pollDiffer = createPollDiffer({ emit: (frame) => routing?.onPrEvent(frame) })
+    const pollDiffer = createPollDiffer({ emit: (frame) => provider?.onFrame(frame) })
     service = createPullRequestService({ pullRequests: adapter, onPolled: pollDiffer.onPolled })
     const facts = createSessionFacts({ launchDirectory: this.args.launchDirectory })
     const cloudCheckout = createCloudCheckout()
     // The links the tracker drafts on a drop are read through a deferred indirection: tracking
     // holds the family map the links fold needs, and links holds the drafted-set the drop path
     // needs, so neither can be constructed first without one.
-    const threadKinds =
-      this.args.threads === null ? undefined : createThreadKinds({ threads: this.args.threads })
     let links: PullRequestLinks | null = null
     const tracking = createCheckoutTracking({
       service,
       facts,
       cloud: () => cloudCheckout.current(),
-      ...(threadKinds === undefined ? {} : { threadKinds }),
       linkDropped: (dropped) => links?.linkDropped(dropped) ?? [],
     })
     links = createPullRequestLinks({ service, tracker: tracking.tracker })
@@ -144,18 +136,23 @@ export default class GithubPlugin extends NativePlugin {
       pullRequests: service,
       tracker: tracking.tracker,
     })
-    const transitions = createPullRequestTransitions({ service, tracker: tracking.tracker })
-    const blockCiWatch = new BlockCiWatchBeforeToolHook({ pullRequests: service })
+    const extra: PullRequestTarget[] = []
+    const watchAll = (): void => service.watch({ links: links.projection.current(), extra })
 
-    const prEvents = new PrEventNoticeQueue()
-    routing = createPrEventRouting({
-      service,
+    provider = createPullRequestProvider({
       tracker: tracking.tracker,
-      links: () => links.projection.current(),
-      queue: prEvents,
+      service,
+      onTargets: (targets) => {
+        extra.splice(0, extra.length, ...targets)
+        watchAll()
+      },
+    })
+    const blockCiWatch = new BlockCiWatchBeforeToolHook({
+      pullRequests: service,
+      subscribed: (target) => provider?.subscribed(target) ?? false,
     })
 
-    links.projection.subscribe(() => service.watch({ links: links.projection.current() }))
+    links.projection.subscribe(watchAll)
 
     /**
      * A serve process boots with no surface and may never take a turn, so the subscriptions the
@@ -242,28 +239,10 @@ export default class GithubPlugin extends NativePlugin {
           run: afterShell.run,
         },
         {
-          phase: EHookPhase.BeforeTurn,
-          name: 'seed-pull-request-transitions',
-          order: OBSERVE,
-          run: transitions.beforeTurn,
-        },
-        {
           phase: EHookPhase.BeforeTool,
           name: blockCiWatch.name,
           order: blockCiWatch.order,
           run: blockCiWatch.run,
-        },
-        {
-          phase: EHookPhase.BeforeTurn,
-          name: 'route-pr-events',
-          order: OBSERVE,
-          run: routing.beforeTurn,
-        },
-        {
-          phase: EHookPhase.OnThreadOpen,
-          name: 'route-pr-events-thread',
-          order: OBSERVE,
-          run: routing.threadOpened,
         },
       ],
       ports: [
@@ -283,7 +262,7 @@ export default class GithubPlugin extends NativePlugin {
         },
       ],
       projections: [links.projection, cloudCheckout],
-      intakeSources: [prEventIntakeSource(prEvents)],
+      subscriptionProviders: [provider],
       dispose: () => {
         if (raw instanceof FailoverPullRequestPort) raw.dispose()
         cached?.dispose()
@@ -306,9 +285,6 @@ export function registerPlugin({ container }: { container: DependencyContainer }
         cacheDirectory: resolver.resolve(AtlasHomeToken),
         log: container.isRegistered(registeredPortToken(LogPort), true)
           ? resolver.resolve(registeredPortToken(LogPort))
-          : null,
-        threads: container.isRegistered(registeredPortToken(ThreadStorePort), true)
-          ? resolver.resolve(registeredPortToken(ThreadStorePort))
           : null,
       }),
   })

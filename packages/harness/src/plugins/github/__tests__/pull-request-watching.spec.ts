@@ -157,6 +157,73 @@ describe('watching linked pull requests', () => {
   })
 })
 
+describe('watching extra targets', () => {
+  const EXTRA = { repo: 'github.com/dennisofficial/atlas', number: 42 }
+
+  it('reads a target that has no link, by number', async () => {
+    const port = pullRequestsByKey({ [LINK_KEY]: found() })
+    const service = createPullRequestService({ pullRequests: port })
+
+    service.watch({ links: [], extra: [EXTRA] })
+    await sleep(10)
+
+    expect(port.askedLinked).toEqual([LINK_KEY])
+    expect(service.snapshot({ key: LINK_KEY })).toEqual(found())
+    service.dispose()
+  })
+
+  it('reads a pull request both linked and extra once, keeping the link metadata', async () => {
+    const port = pullRequestsByKey({ [LINK_KEY]: found() })
+    const service = createPullRequestService({ pullRequests: port })
+
+    service.watch({ links: [aLink()], extra: [EXTRA] })
+    await sleep(10)
+
+    expect(port.askedLinked).toEqual([LINK_KEY])
+    expect(service.states().map((state) => state.branch)).toEqual(['feature-x'])
+    service.dispose()
+  })
+
+  it('keeps a pull request watched when its link goes but the extra target stays', async () => {
+    const port = pullRequestsByKey({ [LINK_KEY]: found() })
+    const service = createPullRequestService({ pullRequests: port })
+
+    service.watch({ links: [aLink()], extra: [EXTRA] })
+    await sleep(10)
+    service.watch({ links: [], extra: [EXTRA] })
+
+    expect(service.snapshot({ key: LINK_KEY })).toEqual(found())
+    expect(port.askedLinked).toHaveLength(1)
+    service.dispose()
+  })
+
+  it('forgets a target once neither a link nor an extra holds it', async () => {
+    const port = pullRequestsByKey({ [LINK_KEY]: found() })
+    const service = createPullRequestService({ pullRequests: port })
+
+    service.watch({ links: [], extra: [EXTRA] })
+    await sleep(10)
+    service.watch({ links: [], extra: [] })
+
+    expect(service.snapshot({ key: LINK_KEY })).toEqual(NO_PULL_REQUEST_READING)
+    service.dispose()
+  })
+
+  it('keeps polling an extra target on the tick', async () => {
+    const port = pullRequestsByKey({ [LINK_KEY]: found() })
+    const time = clock(1_000_000)
+    const service = createPullRequestService({ pullRequests: port, now: time.now, tickMs: 1 })
+
+    service.watch({ links: [], extra: [EXTRA] })
+    await sleep(10)
+    time.advance(POLL_SETTLED_MS)
+    await sleep(20)
+
+    expect(port.askedLinked.length).toBeGreaterThan(1)
+    service.dispose()
+  })
+})
+
 describe('current', () => {
   it('is null until a checkout is tracked, and again once tracking stops', async () => {
     const service = createPullRequestService({ pullRequests: pullRequestsAnswering(found()) })

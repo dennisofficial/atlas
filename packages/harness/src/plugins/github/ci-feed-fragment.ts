@@ -5,19 +5,15 @@ export class CiFeedFragment extends PromptFragment {
 
   text(): string {
     return [
-      "Atlas tracks this checkout's pull request, and its linked pull requests, and delivers what",
-      'happens on them as notices: a comment, a review (approved, changes requested, or commented),',
-      'a review comment, a checks verdict (green or failed), a mergeability change, or the pull',
-      'request being merged or closed. A notice wakes an idle session and arrives between steps of a',
-      'running one. The start of your next turn also carries a "Pull request updates" note that',
-      'summarizes check-state changes since your last turn, so it can restate a verdict notice you',
-      'already received. Tracking is keyed to the checkout: only the pull request of the branch the',
-      'session stands in is tracked, so work on any pull request - a read-only review included -',
-      'belongs in a worktree on its branch. A checkout standing on the default branch tracks',
-      'nothing - link a pull request to watch one from there.',
-      'After you push or open a pull request, end your turn with no tool call and let the notice',
-      'wake you. `gh run watch`, `--watch` flags, `watch gh`, and sleep loops are refused, and a',
-      'background shell for waiting only re-wakes you on its own cadence. One-shot reads such as',
+      "Atlas detects this checkout's pull request and shows it to the operator, but nothing about it",
+      'reaches you unless a thread subscribes. After you push a branch with a pull request or open one,',
+      'call `subscribe` with provider `github.pull-request` (a blank target is this checkout\u2019s pull',
+      'request), then end your turn with no tool call and let the notice wake you. A subscription',
+      'delivers comments, reviews, and merge or close at once; a CI failure at once; and a green CI',
+      'verdict and mergeability changes as one batched notice when CI settles. It ends itself when the',
+      'pull request merges or closes. You can subscribe to any pull request, such as one your work',
+      'depends on, with `#123`, `owner/repo#123`, or its URL. `gh run watch`, `--watch` flags,',
+      '`watch gh`, and sleep loops are refused on a subscribed pull request. One-shot reads such as',
       '`gh pr checks` or `gh run view --log-failed` stay available for detail a notice does not',
       'carry, like a failing job\u2019s log.',
     ].join('\n')
