@@ -53,6 +53,31 @@ describe('ThreadMessagesService.send', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
+  it('hands images to serve on a live delivery', async () => {
+    const { service, serve } = messagesWith({ endpoint: ENDPOINT })
+    const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
+
+    await service.send({ ...ARGS, images })
+
+    expect(serve).toHaveBeenCalledWith({
+      ...ENDPOINT,
+      threadId: 'thr-1',
+      sendId: 'snd-1',
+      text: 'hello',
+      images,
+    })
+  })
+
+  it('stores images on the appended event when no sandbox is running', async () => {
+    const { service } = messagesWith()
+    const images = [{ path: 'shot.png', mediaType: 'image/png', data: 'aGk=' }]
+
+    await service.send({ ...ARGS, images })
+
+    const [event] = await eventsOf()
+    expect(JSON.parse(event?.body ?? '').images).toEqual(images)
+  })
+
   it('answers 502 when delivery to a running sandbox fails', async () => {
     const { service } = messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') })
 

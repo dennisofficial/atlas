@@ -24,7 +24,7 @@ export async function flushPendingEndings({
   pendingEndings.set(delivery, pending)
   const drafts = [
     ...(pending.get(threadId) ?? []),
-    ...delivery.drainEndings({ threadId, where: (notice) => isTerminalEnding(notice.draft) }),
+    ...delivery.flushArrivals({ threadId, where: (notice) => isTerminalEnding(notice.draft) }),
   ]
   if (drafts.length === 0) return
   pending.set(threadId, drafts)

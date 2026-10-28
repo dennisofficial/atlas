@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -77,5 +77,16 @@ describe('LocalGitChanges', () => {
     } finally {
       rmSync(bare, { recursive: true, force: true })
     }
+  })
+
+  it('lists gitignored paths, collapsing a fully ignored folder to its directory', async () => {
+    writeFileSync(join(root, '.gitignore'), 'build/\n*.log\n')
+    mkdirSync(join(root, 'build'), { recursive: true })
+    writeFileSync(join(root, 'build', 'out.js'), 'x\n')
+    writeFileSync(join(root, 'debug.log'), 'x\n')
+
+    const reply = await new LocalGitChanges({ root }).read({ scope: EChangeScope.Uncommitted })
+
+    expect([...reply.ignored].sort()).toEqual(['build', 'debug.log'])
   })
 })

@@ -93,6 +93,12 @@ export function createFrameHandler(core: ChannelCore) {
     if (frame.kind === EServeFrame.SendAcked) return upstream.ackSend({ sendId: frame.sendId })
     if (frame.kind === EServeFrame.Roster) return on.rosters.emit(frame.roster)
     if (frame.kind === EServeFrame.PrStates) return on.prStates.emit(frame.states)
+    if (frame.kind === EServeFrame.Subscriptions) {
+      return on.subscriptions.emit({
+        subscriptions: frame.subscriptions,
+        providers: frame.providers,
+      })
+    }
     if (frame.kind === EServeFrame.TerminalOutput) {
       return on.terminalOutputs.emit({ terminalId: frame.terminalId, data: frame.data })
     }

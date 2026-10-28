@@ -17,6 +17,7 @@ import type { Unsubscribe } from '../../channel/delta-channel'
 import type {
   ModelChosenListener,
   PlacementChangedListener,
+  RewoundListener,
   RenameListener,
   ThreadModel,
   ThreadStorePort,
@@ -54,6 +55,7 @@ export class JsonlThreadStore implements ThreadStorePort {
   private readonly renameListeners = new Set<RenameListener>()
   private readonly modelChosenListeners = new Set<ModelChosenListener>()
   private readonly placementListeners = new Set<PlacementChangedListener>()
+  private readonly rewoundListeners = new Set<RewoundListener>()
 
   constructor(
     private readonly home: string,
@@ -67,6 +69,11 @@ export class JsonlThreadStore implements ThreadStorePort {
   onRename(listener: RenameListener): Unsubscribe {
     this.renameListeners.add(listener)
     return () => this.renameListeners.delete(listener)
+  }
+
+  onRewound(listener: RewoundListener): Unsubscribe {
+    this.rewoundListeners.add(listener)
+    return () => this.rewoundListeners.delete(listener)
   }
 
   onModelChosen(listener: ModelChosenListener): Unsubscribe {
@@ -292,6 +299,8 @@ export class JsonlThreadStore implements ThreadStorePort {
 
   async rewind(args: RewindArgs): Promise<void> {
     await rewindThread({ context: this.context(), args })
+    for (const listener of [...this.rewoundListeners])
+      listener({ threadId: args.threadId, toSeq: args.toSeq })
   }
 
   async compact(args: MarkArgs): Promise<number> {

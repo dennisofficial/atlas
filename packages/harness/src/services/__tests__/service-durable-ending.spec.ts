@@ -4,7 +4,14 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EKilledBy, lostServicesOf, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  EKilledBy,
+  ENoticeStage,
+  lostServicesOf,
+  toEventId,
+  toRunId,
+  toThreadId,
+} from '@dltech/atlas-core'
 
 import { BunServiceRegistry } from '../service-registry'
 import { ExitablePort, FixedClock, GatedLog, gateOf } from './service-log-fixture'
@@ -27,7 +34,13 @@ function open() {
     clock: new FixedClock(),
     logsDirectory: join(root, 'logs'),
     processes: port,
-    recording: { log, ids: { nextRunId: () => toRunId(`run-${(runs += 1)}`) } },
+    recording: {
+      log,
+      ids: {
+        nextRunId: () => toRunId(`run-${(runs += 1)}`),
+        nextEventId: () => toEventId(`evt-${(runs += 1)}`),
+      },
+    },
     warn: (message) => warnings.push(message),
   })
   opened.push({ registry, root })
@@ -86,7 +99,7 @@ describe('a service ending is recorded before it wakes anyone', () => {
     expect(log.ofType('service-ended', THREAD)).toEqual([])
   })
 
-  it('is wake bookkeeping at intake: no draft to append twice, the wake still fires', async () => {
+  it('hands intake the delivered row of an arrival already logged, exactly once', async () => {
     const { registry, log, port } = open()
     await startOne({ registry })
     await idle()
@@ -94,13 +107,20 @@ describe('a service ending is recorded before it wakes anyone', () => {
     await idle()
 
     const batch = registry.prepareNotifications({ threadId: THREAD })
-    expect(batch.drafts).toEqual([])
+    expect(batch.drafts).toEqual([
+      expect.objectContaining({
+        type: 'service-ended',
+        notice: { id: expect.any(String), stage: ENoticeStage.Delivered },
+      }),
+    ])
     expect(batch.wakesTurn).toBe(true)
     batch.acknowledge()
 
     expect(registry.threadsWithPendingInput()).toEqual([])
     expect(registry.drainNotifications({ threadId: THREAD })).toEqual([])
-    expect(log.ofType('service-ended')).toHaveLength(1)
+    const logged = log.ofType('service-ended')
+    expect(logged).toHaveLength(1)
+    expect(logged[0]).toMatchObject({ notice: { stage: ENoticeStage.Arrived } })
   })
 
   it('captures the draft at exit time, status and exit code included', async () => {

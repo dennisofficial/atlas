@@ -1,4 +1,4 @@
-import type { CreateThreadReply } from '@dltech/atlas-wire'
+import type { CreateThreadReply, SaidImageWire } from '@dltech/atlas-wire'
 
 type Loose<T> = { [K in keyof T]: T[K] | undefined }
 
@@ -20,7 +20,7 @@ export type ThreadLaunchDraft = {
 export type ThreadLaunch = {
   userId: string
   draft: ThreadLaunchDraft
-  firstMessage: { sendId: string; text: string }
+  firstMessage: { sendId: string; text: string; images?: readonly SaidImageWire[] | undefined }
 }
 
 export abstract class ThreadLauncher {

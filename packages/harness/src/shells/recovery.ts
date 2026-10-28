@@ -15,6 +15,7 @@ import { EInspected, type LostShell, type ShellExit, type ShellLauncherPort } fr
 import type { RegistryState } from './registry-entries'
 import type { ShellEvents } from './registry-events'
 import type { ShellLifecycle } from './registry-lifecycle'
+import { requeueOwedShellNotices } from './owed-notices'
 import { loadCursor } from './output-preview'
 import { toShellId } from './shell-id'
 
@@ -92,6 +93,9 @@ export class ShellReconciler {
   private async run(args: { threadId: ThreadId }): Promise<readonly LostShell[]> {
     const { threadId } = args
     const events = await this.deps.log.readOwn({ threadId })
+    if (this.deps.session !== undefined) {
+      requeueOwedShellNotices({ events, threadId, notices: this.deps.session.state.notices })
+    }
     await this.retryFailedEndings({ threadId })
     const lost = this.unresolved({ threadId, lost: lostShellsOf(events) })
     if (lost.length === 0) return []

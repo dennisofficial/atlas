@@ -1,4 +1,5 @@
 import { db, type Row } from '@dltech/atlas-db'
+import { seedThread } from '@dltech/atlas-db/testing'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import { vi } from 'bun:test'
 
@@ -34,7 +35,69 @@ export const PR_EVENT = { userId: 'usr-1', repoFullName: 'compai/app', prNumber:
 
 export const STORED_HASH = 'stored-hash'
 
-export async function seedSubscription(args: { threadId?: string | null } = {}): Promise<void> {
+export enum ESeededSubscription {
+  Active = 'active',
+  Paused = 'paused',
+  Absent = 'absent',
+}
+
+export async function seedThreadSubscription(args: {
+  threadId: string
+  status: ESeededSubscription
+  target?: unknown
+}): Promise<void> {
+  if (args.status === ESeededSubscription.Absent) return
+  if ((await db.orm.public.Thread.first({ id: args.threadId })) === null) {
+    await seedThread({ db, id: args.threadId, userId: 'usr-1' })
+  }
+  const target = args.target ?? { repo: 'github.com/compai/app', number: 42 }
+  const bodies: Record<string, unknown>[] = [
+    {
+      type: 'subscription-created',
+      subscriptionId: 'sub-1',
+      provider: 'github.pull-request',
+      target,
+      label: 'compai/app#42',
+      createdBy: 'agent',
+    },
+    ...(args.status === ESeededSubscription.Paused
+      ? [
+          {
+            type: 'subscription-changed',
+            subscriptionId: 'sub-1',
+            status: 'paused',
+            by: 'operator',
+          },
+        ]
+      : []),
+  ]
+  for (const [index, body] of bodies.entries()) {
+    await seedEvent({ threadId: args.threadId, seq: index + 1, type: String(body.type), body })
+  }
+}
+
+async function seedEvent(args: {
+  threadId: string
+  seq: number
+  type: string
+  body: Record<string, unknown>
+}): Promise<void> {
+  await db.orm.public.Event.create({
+    id: `evt_${args.threadId}_${args.seq}`,
+    threadId: args.threadId,
+    seq: args.seq,
+    runId: 'run_1',
+    depth: 0,
+    at: new Date(),
+    type: args.type,
+    body: JSON.stringify(args.body),
+    userId: 'usr-1',
+  })
+}
+
+export async function seedSubscription(
+  args: { threadId?: string | null; subscription?: ESeededSubscription; target?: unknown } = {},
+): Promise<void> {
   const threadId = args.threadId === undefined ? 'thr-1' : args.threadId
   await seedSubscriptionRow({
     userId: 'usr-1',
@@ -42,6 +105,12 @@ export async function seedSubscription(args: { threadId?: string | null } = {}):
     expiresAt: pastDate(60_000),
     liveUntil: pastDate(60_000),
     threadId,
+  })
+  if (threadId === null) return
+  await seedThreadSubscription({
+    threadId,
+    status: args.subscription ?? ESeededSubscription.Active,
+    ...(args.target === undefined ? {} : { target: args.target }),
   })
 }
 

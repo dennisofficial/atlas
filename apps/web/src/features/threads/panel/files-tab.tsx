@@ -32,12 +32,16 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
     () => changeByPath(changes.status === EGitChangesStatus.Ready ? changes.files : []),
     [changes],
   )
+  const ignored = useMemo(
+    () => new Set(changes.status === EGitChangesStatus.Ready ? changes.ignored : []),
+    [changes],
+  )
   const nodes = useMemo(
     () =>
       tree.status === EFileTreeStatus.Ready
-        ? nodesOf({ listings: tree.listings, changes: changed })
+        ? nodesOf({ listings: tree.listings, changes: changed, ignored })
         : [],
-    [tree, changed],
+    [tree, changed, ignored],
   )
 
   const handleSelect = (path: string) => {

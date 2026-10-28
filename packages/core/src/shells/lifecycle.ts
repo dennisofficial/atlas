@@ -1,5 +1,6 @@
 import type { Event, EventOfType } from '../events/envelope'
 import type { EventId } from '../events/ids'
+import { isNoticeArrival, noticeIdOf } from '../events/notice-stage'
 import type { Lifecycle, LifecycleKind } from '../lifecycle/lifecycle'
 import { endedKeysOf, ELifecycleState, lifecycleOf } from '../lifecycle/lifecycle'
 
@@ -92,6 +93,13 @@ export function shellEventContextsOf(
     ),
   )
 
+  const lifecycleByNotice = new Map(
+    lifecycles.flatMap((lifecycle) => {
+      const noticeId = lifecycle.ending === undefined ? undefined : noticeIdOf(lifecycle.ending)
+      return noticeId === undefined ? [] : [[noticeId, lifecycle] as const]
+    }),
+  )
+
   const startsByShell = new Map<string, StartedShell[]>()
   const seenEndings = new Set<EventId>()
   const orphanEndings = new Map<string, EndedShell[]>()
@@ -103,11 +111,14 @@ export function shellEventContextsOf(
       continue
     }
 
-    if (!isShellNotice(event)) continue
+    if (!isShellNotice(event) || isNoticeArrival(event)) continue
 
     if (event.type === 'background-shell-ended') {
-      seenEndings.add(event.id)
-      const paired = lifecycleByEnding.get(event.id)
+      const noticeId = noticeIdOf(event)
+      const paired =
+        lifecycleByEnding.get(event.id) ??
+        (noticeId === undefined ? undefined : lifecycleByNotice.get(noticeId))
+      seenEndings.add(paired?.ending?.id ?? event.id)
       if (paired === undefined)
         orphanEndings.set(event.shellId, [...(orphanEndings.get(event.shellId) ?? []), event])
       contexts.set(event.id, { started: paired?.started })

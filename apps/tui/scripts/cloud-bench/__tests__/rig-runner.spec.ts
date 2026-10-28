@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { CHANNEL_PROTOCOL_VERSION } from '@dltech/atlas-wire'
 
 import { EVerdict, ScenarioFailed, type ScenarioEvidence } from '../rig-evidence'
 import { EvidencedScenarioFailed } from '../rig-park-wait'
@@ -172,21 +173,39 @@ describe('failedEvidence', () => {
 
 describe('trust', () => {
   test('needs both the box stamps and the Ready protocol', () => {
-    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: 26 }).trusted).toBe(
-      true,
-    )
-    expect(combinedTrust({ version: '0.40.1', boxProtocol: 26, readyProtocol: 26 })).toMatchObject({
+    expect(
+      combinedTrust({
+        version: 'dev-abc',
+        boxProtocol: CHANNEL_PROTOCOL_VERSION,
+        readyProtocol: CHANNEL_PROTOCOL_VERSION,
+      }).trusted,
+    ).toBe(true)
+    expect(
+      combinedTrust({
+        version: '0.40.1',
+        boxProtocol: CHANNEL_PROTOCOL_VERSION,
+        readyProtocol: CHANNEL_PROTOCOL_VERSION,
+      }),
+    ).toMatchObject({
       trusted: false,
       reason: expect.stringContaining('box stamps'),
     })
-    expect(combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: 24 })).toMatchObject(
-      {
-        trusted: false,
-        reason: expect.stringContaining('Ready'),
-      },
-    )
     expect(
-      combinedTrust({ version: 'dev-abc', boxProtocol: 26, readyProtocol: null }).trusted,
+      combinedTrust({
+        version: 'dev-abc',
+        boxProtocol: CHANNEL_PROTOCOL_VERSION,
+        readyProtocol: 24,
+      }),
+    ).toMatchObject({
+      trusted: false,
+      reason: expect.stringContaining('Ready'),
+    })
+    expect(
+      combinedTrust({
+        version: 'dev-abc',
+        boxProtocol: CHANNEL_PROTOCOL_VERSION,
+        readyProtocol: null,
+      }).trusted,
     ).toBe(false)
   })
 
@@ -236,7 +255,7 @@ describe('summary', () => {
       startedAt: 's',
       finishedAt: 'f',
       threadId: 'thr_1',
-      trust: { trusted: true, reason: 'dev-abc on 26' },
+      trust: { trusted: true, reason: `dev-abc on ${CHANNEL_PROTOCOL_VERSION}` },
       results,
       created: ['atlas-thread-abc'],
       destroyed: ['atlas-thread-abc'],

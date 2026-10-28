@@ -28,6 +28,7 @@ import {
   type EventBody,
 } from './body'
 import type { EventEnvelope } from './envelope'
+import { ENoticeStage } from './notice-stage'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
   codeQualityReviewedSchema,
@@ -36,6 +37,13 @@ import {
   qualityScopeIdentitySchema,
 } from '../quality/schema'
 import { EQualityReviewStatus, EQualitySkipReason } from '../quality/policy'
+import {
+  subscriptionChangedSchema,
+  subscriptionCreatedSchema,
+  subscriptionEndedSchema,
+} from '../subscriptions/schema'
+
+const noticeStampSchema = z.object({ id: z.string().min(1), stage: z.enum(ENoticeStage) })
 
 export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   id: eventIdSchema,
@@ -305,6 +313,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     outputPath: z.string().min(1).optional(),
     outputStart: z.number().int().nonnegative().optional(),
     outputEnd: z.number().int().nonnegative().optional(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('background-shell-awaiting-input'),
@@ -319,6 +328,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     outputPath: z.string().min(1).optional(),
     outputStart: z.number().int().nonnegative().optional(),
     outputEnd: z.number().int().nonnegative().optional(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('background-shell-matched'),
@@ -333,6 +343,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     outputPath: z.string().min(1).optional(),
     outputStart: z.number().int().nonnegative().optional(),
     outputEnd: z.number().int().nonnegative().optional(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('background-shell-still-running'),
@@ -362,6 +373,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     exitCode: z.number().int().optional(),
     logPath: z.string().min(1).optional(),
     tail: z.string(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('agent-spawned'),
@@ -383,6 +395,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     toolCalls: z.number().int().nonnegative(),
     relayed: z.boolean().optional(),
     leftServices: z.array(z.string()).optional(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('agent-restarted'),
@@ -398,6 +411,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     intent: z.string(),
     prose: z.string(),
     kind: z.enum(EReportKind).optional(),
+    notice: noticeStampSchema.optional(),
   }),
   z.object({
     type: z.literal('history-compacted'),
@@ -442,4 +456,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     modelId: z.string().min(1),
     status: z.enum(ETldrStatus).optional(),
   }),
+  subscriptionCreatedSchema,
+  subscriptionChangedSchema,
+  subscriptionEndedSchema,
 ])

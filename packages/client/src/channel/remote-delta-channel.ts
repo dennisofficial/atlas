@@ -103,6 +103,7 @@ export function createRemoteDeltaChannel(
     onInterruptAck: (listener) => on.interruptAcks.add(listener),
     onRoster: (listener) => on.rosters.add(listener),
     onPrStates: (listener) => on.prStates.add(listener),
+    onSubscriptions: (listener) => on.subscriptions.add(listener),
     onTerminalOutput: (listener) => on.terminalOutputs.add(listener),
     onTerminalExit: (listener) => on.terminalExits.add(listener),
     pendingEntries: () => state.heldPending,

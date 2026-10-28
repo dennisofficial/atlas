@@ -24,6 +24,11 @@ export * from './github/app-install-sink'
 export * from './github/pr-event-sink'
 export * from './github/pure'
 export * from './github/session'
+export { PULL_REQUEST_PROVIDER_KIND } from './github/pull-request-provider'
+export {
+  targetOf as pullRequestTargetOf,
+  type PullRequestTarget,
+} from './github/subscription-target'
 export * from './github/tracking'
 export * from './github/ui-bridge'
 export { default as GithubPlugin, registerPlugin as registerGithubPlugin } from './github'

@@ -19,6 +19,8 @@ export type SupervisedAgent = { spawnedBy: ThreadId; type: string }
 
 export type ThreadModel = { ref: string; effort: string }
 
+export type ThreadSubscriptionSummary = { provider: string; target: unknown; status: string }
+
 export type ThreadSummary = {
   id: ThreadId
   title?: string | undefined
@@ -35,6 +37,7 @@ export type ThreadSummary = {
   worktree?: ThreadWorktree | undefined
   /** Set only by `list`, alongside `worktree`; absent when the thread never linked a pull request. */
   pullRequests?: LinkedPullRequest[] | undefined
+  subscriptions?: ThreadSubscriptionSummary[] | undefined
   executionLocation?: EExecutionLocation | undefined
   runner?: ERunner | undefined
   projectId?: string | null | undefined
@@ -45,6 +48,8 @@ export const THREAD_LISTING_LIMIT = 50
 export type RenameListener = (args: { threadId: ThreadId; title: string }) => void
 
 export type ModelChosenListener = (args: { threadId: ThreadId; model: ThreadModel }) => void
+
+export type RewoundListener = (args: { threadId: ThreadId; toSeq: number }) => void
 
 export type PlacementChangedListener = (args: {
   threadId: ThreadId
@@ -74,6 +79,8 @@ export abstract class ThreadStorePort {
     void listener
     return () => undefined
   }
+
+  onRewound?(listener: RewoundListener): Unsubscribe
 
   async chooseRunner(args: { threadId: ThreadId; runner: ERunner }): Promise<void> {
     void args

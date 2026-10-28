@@ -1,7 +1,7 @@
 import type { ClockPort, EventDraft, ThreadId } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../../intake/input-batch'
-import { EAgentNotice, unloggedDrafts, type AgentNotice, type AgentNoticeQueue } from './notices'
+import { EAgentNotice, type AgentNotice, type AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
 
 export type NoticeDrain = {
@@ -40,17 +40,32 @@ export class NoticeDelivery {
   }
 
   /**
-   * A relocation's flush, not a turn's delivery: terminal endings travel with the log, while the
-   * snapshots stay pending so the parent still hears the ending on its next turn.
+   * A relocation's flush, not a turn's delivery: only the arrival rows that never landed are
+   * handed back to be written, and the notices stay queued as delivered-later so the parent still
+   * hears them on its next turn.
    */
-  drainEndings({
+  flushArrivals({
     threadId,
     where,
   }: {
     threadId: ThreadId
     where: (notice: AgentNotice) => boolean
   }): readonly EventDraft[] {
-    return unloggedDrafts(this.notices.take({ threadId, where }))
+    const flushed = this.notices.take({ threadId, where })
+    for (const notice of flushed) this.notices.queue({ ...notice, unloggedArrival: undefined })
+    return flushed.flatMap((notice) =>
+      notice.unloggedArrival === undefined ? [] : [notice.unloggedArrival],
+    )
+  }
+
+  discard({
+    threadId,
+    where,
+  }: {
+    threadId: ThreadId
+    where: (notice: AgentNotice) => boolean
+  }): void {
+    this.notices.take({ threadId, where })
   }
 
   private stampDelivered(handed: readonly AgentNotice[]): void {

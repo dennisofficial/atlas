@@ -3,6 +3,7 @@ import {
   EForkMode,
   SURVIVES_SUMMARY,
   stampEvent,
+  type EventType,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -16,6 +17,12 @@ import { writeSessionMetaForRoot } from './session-meta'
 import type { ForkArgs, MarkArgs, RewindArgs, ThreadStoreContext } from './thread-store-context'
 import { blankMeta, homeOf, sessionDirFor } from './thread-store-fields'
 import { appendStampedEvent, rewriteThreadLog } from './thread-places'
+
+const SUBSCRIPTION_EVENT_TYPES: readonly EventType[] = [
+  'subscription-created',
+  'subscription-changed',
+  'subscription-ended',
+]
 
 export async function rewindThread({
   context,
@@ -147,7 +154,9 @@ export async function forkThread({
         projectId: source.projectId,
       }
       if (mode === EForkMode.Copy) {
-        const prefix = await eventLog.read({ threadId: from, upTo: seq })
+        const prefix = (await eventLog.read({ threadId: from, upTo: seq })).filter(
+          (event) => !SUBSCRIPTION_EVENT_TYPES.includes(event.type),
+        )
         await rewriteThreadLog({ registry, ids, sessionDir, threadId: into, events: prefix })
         meta.head = prefix.at(-1)?.seq ?? 0
       }

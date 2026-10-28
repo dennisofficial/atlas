@@ -6,6 +6,7 @@ import { rosterWireSchema } from './roster-wire'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire'
 import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
+import { subscriptionsWireSchema } from './subscription-wire'
 import { terminalExitWireSchema, terminalOutputWireSchema } from './terminal-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
@@ -16,7 +17,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 26
+export const CHANNEL_PROTOCOL_VERSION = 27
 
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
@@ -41,6 +42,7 @@ export enum EServeFrame {
   SendAcked = 'send-acked',
   Roster = 'roster',
   PrStates = 'pr-states',
+  Subscriptions = 'subscriptions',
   Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
   ThreadModelChanged = 'thread-model-changed',
@@ -66,6 +68,10 @@ export enum EClientRequest {
   BrowseDirectory = 'browse-directory',
   ListRoster = 'list-roster',
   ListPrStates = 'list-pr-states',
+  ListSubscriptions = 'list-subscriptions',
+  Subscribe = 'subscribe',
+  SetSubscriptionStatus = 'set-subscription-status',
+  Unsubscribe = 'unsubscribe',
   Rewind = 'rewind',
   ReadEvents = 'read-events',
   ReadThread = 'read-thread',
@@ -144,7 +150,7 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
 
 export type TurnOutcomeWire = z.infer<typeof turnOutcomeWireSchema>
 
-const saidImageWireSchema = z.object({
+export const saidImageWireSchema = z.object({
   path: z.string(),
   mediaType: z.string(),
   data: z.string(),
@@ -213,6 +219,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(EServeFrame.SendAcked), sendId: sendIdWireSchema }),
   z.object({ kind: z.literal(EServeFrame.Roster), roster: rosterWireSchema }),
   z.object({ kind: z.literal(EServeFrame.PrStates), states: prStatesWireSchema.shape.states }),
+  z.object({ kind: z.literal(EServeFrame.Subscriptions), ...subscriptionsWireSchema.shape }),
   z.object({
     kind: z.literal(EServeFrame.ThreadRenamed),
     threadId: threadIdWireSchema,

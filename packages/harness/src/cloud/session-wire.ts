@@ -77,6 +77,7 @@ export function threadFromWire(wire: WireThread): ThreadSummary {
     ...(wire.model === undefined ? {} : { model: wire.model }),
     ...(wire.worktree === undefined ? {} : { worktree: wire.worktree }),
     ...(wire.pullRequests === undefined ? {} : { pullRequests: [...wire.pullRequests] }),
+    ...(wire.subscriptions === undefined ? {} : { subscriptions: [...wire.subscriptions] }),
     ...(location === undefined ? {} : { executionLocation: location }),
   }
 }

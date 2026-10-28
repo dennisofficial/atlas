@@ -5,6 +5,7 @@ import {
   EKilledBy,
   EServiceStatus,
   type ClockPort,
+  type Event,
   type EventDraft,
   type PortExposure,
   type ProcessPort,
@@ -15,6 +16,7 @@ import type { InputBatch } from '../intake/input-batch'
 import { bootId } from './boot'
 import { ServiceEndings, type TrackedService } from './service-endings'
 import { ServiceEventJournal, type ServiceStartRecording } from './service-journal'
+import { requeueOwedServiceNotices } from './owed-notices'
 import { ServiceNoticeQueue } from './service-notices'
 import {
   SERVICE_SETTLE_MS,
@@ -73,7 +75,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     this.clock = args.clock
     this.logsDirectory = args.logsDirectory
     this.processes = args.processes
-    this.notices = new ServiceNoticeQueue({ logged: args.recording !== undefined })
+    this.notices = new ServiceNoticeQueue()
     this.journal =
       args.recording === undefined
         ? undefined
@@ -266,6 +268,16 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
   forgetNotices({ threadId: threadIdToForget }: { threadId: ThreadId }): void {
     this.notices.forget({ threadId: threadIdToForget })
+  }
+
+  override requeueOwed({
+    events,
+    threadId,
+  }: {
+    events: readonly Event[]
+    threadId: ThreadId
+  }): void {
+    requeueOwedServiceNotices({ events, threadId, notices: this.notices })
   }
 
   reassignNotices({ from, to }: { from: ThreadId; to: ThreadId }): void {

@@ -27,6 +27,7 @@ import {
   type RepoPlugin,
 } from './plugin'
 import type { IntakeSource } from '../intake/message-intake'
+import type { SubscriptionProvider } from '../subscriptions/provider'
 import type { ContributedProjection } from './projection'
 import type { ContributedSurface } from './surface'
 import { validatePluginContribution } from './validate-contribution'
@@ -47,6 +48,7 @@ export type LoadedPlugins = {
   projections: readonly ContributedProjection[]
   surfaces: readonly ContributedSurface[]
   intakeSources: readonly IntakeSource[]
+  subscriptionProviders: readonly SubscriptionProvider[]
 }
 
 type RegisteredHookLike = { name: string; order: HookOrder; run: unknown }
@@ -153,6 +155,7 @@ export async function loadPlugins(args: {
   const projections: ContributedProjection[] = []
   const surfaces: ContributedSurface[] = []
   const intakeSources: IntakeSource[] = []
+  const subscriptionProviders: SubscriptionProvider[] = []
 
   for (const entry of winners) {
     const identity = identityOf(entry)
@@ -187,6 +190,7 @@ export async function loadPlugins(args: {
       surfaces.push({ pluginId: label, use })
     }
     intakeSources.push(...(checked.contribution.intakeSources ?? []))
+    subscriptionProviders.push(...(checked.contribution.subscriptionProviders ?? []))
     loaded.push(identity)
   }
 
@@ -197,5 +201,6 @@ export async function loadPlugins(args: {
     projections,
     surfaces,
     intakeSources,
+    subscriptionProviders,
   }
 }

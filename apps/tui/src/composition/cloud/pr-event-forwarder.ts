@@ -1,14 +1,45 @@
-import { EExecutionLocation, ERunner, prEventContent, type ThreadId } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  ERunner,
+  ESubscriptionStatus,
+  prEventContent,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
+  EOccurrenceUrgency,
+  occurrenceOf,
   prEventNoticeOf,
   repoOfFrame,
   type CloudChannel,
   type PrEventFrame,
   type ThreadSummary,
 } from '@dltech/atlas-harness'
+import { PULL_REQUEST_SUBSCRIPTION_PROVIDER } from '@dltech/atlas-wire'
 
 import type { CloudBridgeFactory } from './bridge-factory'
+
+const isUrgent = (frame: PrEventFrame): boolean =>
+  occurrenceOf(frame).urgency === EOccurrenceUrgency.Now
+
+const holdsActiveSubscription = (args: {
+  summary: ThreadSummary
+  repo: string
+  number: number
+}): boolean =>
+  (args.summary.subscriptions ?? []).some((subscription) => {
+    if (subscription.provider !== PULL_REQUEST_SUBSCRIPTION_PROVIDER) return false
+    if (subscription.status !== ESubscriptionStatus.Active) return false
+    const { target } = subscription
+    if (typeof target !== 'object' || target === null) return false
+    return (
+      'repo' in target &&
+      typeof target.repo === 'string' &&
+      target.repo.toLowerCase() === args.repo.toLowerCase() &&
+      'number' in target &&
+      target.number === args.number
+    )
+  })
 
 /**
  * Forwards a pull-request event into a parked cloud conversation as ordinary input. The active
@@ -28,7 +59,7 @@ export type PrEventForwarder = {
 }
 
 export function createPrEventForwarder(args: {
-  /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire pullRequests) resolves. */
+  /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire subscriptions) resolves. */
   listThreads: (args: { project: string }) => Promise<readonly ThreadSummary[]>
   project: string
   bridge: CloudBridgeFactory
@@ -56,9 +87,7 @@ export function createPrEventForwarder(args: {
       (summary) =>
         summary.executionLocation === EExecutionLocation.Cloud &&
         summary.id !== active &&
-        (summary.pullRequests ?? []).some(
-          (link) => link.repo === repo && link.number === frame.prNumber,
-        ),
+        holdsActiveSubscription({ summary, repo, number: frame.prNumber }),
     )
 
     for (const summary of watching) runners.set(summary.id, summary.runner ?? ERunner.Vercel)
@@ -74,6 +103,7 @@ export function createPrEventForwarder(args: {
 
   return {
     async onPrEvent(frame) {
+      if (!isUrgent(frame)) return
       const targets = await cloudThreadsWatching(frame)
       // Bare content, not prEventBlock: channel.send lands as operator-origin input and the
       // destination wraps it in <operator-said>, so a pre-wrapped system-notice would nest.

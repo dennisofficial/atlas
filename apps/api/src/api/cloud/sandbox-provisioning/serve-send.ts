@@ -7,6 +7,7 @@ import {
   EClientFrame,
   encodeFrame,
   EServeFrame,
+  type SaidImageWire,
 } from '@dltech/atlas-wire'
 
 export const SERVE_SEND = Symbol('SERVE_SEND')
@@ -20,6 +21,7 @@ export type ServeSendArgs = {
   threadId: string
   sendId: string
   text: string
+  images?: readonly SaidImageWire[] | undefined
 }
 
 export type ServeSend = (args: ServeSendArgs) => Promise<void>
@@ -71,6 +73,7 @@ export function deliverToServe(
       kind: EClientFrame.Send,
       sendId: args.sendId,
       text: args.text,
+      ...(args.images === undefined || args.images.length === 0 ? {} : { images: args.images }),
     })
     let settled = false
     let socket: ServeSocket | undefined

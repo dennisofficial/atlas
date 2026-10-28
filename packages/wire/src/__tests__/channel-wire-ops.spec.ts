@@ -16,7 +16,7 @@ import {
 
 describe('the protocol stamp', () => {
   it('speaks the version carrying the session-mirror read ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(26)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(27)
   })
 })
 

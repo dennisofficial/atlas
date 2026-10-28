@@ -6,7 +6,13 @@ import {
   str,
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
-import { EAgentStatus, type Event, type EventOfType } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  reachesModel,
+  recordsLifecycle,
+  type Event,
+  type EventOfType,
+} from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire/web'
 
 import { ETranscriptKind } from './transcript-kind'
@@ -65,6 +71,7 @@ function historyOf(events: readonly Event[]): History {
     lastRestartSeq: new Map(),
   }
   for (const event of events) {
+    if (!recordsLifecycle(event)) continue
     if (event.type === 'agent-spawned' && !history.firstSpawn.has(event.agentId)) {
       history.firstSpawn.set(event.agentId, event)
     }
@@ -168,6 +175,7 @@ export function reportItemsOf(events: readonly Event[]): Map<string, ReportItem>
   const reports = new Map<string, ReportItem>()
   for (const event of events) {
     if (event.type !== 'agent-reported' && event.type !== 'agent-ended') continue
+    if (!reachesModel(event)) continue
     const item = reportItemOf({ event, history })
     if (item !== null) reports.set(item.id, item)
   }

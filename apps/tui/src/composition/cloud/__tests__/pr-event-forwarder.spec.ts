@@ -1,92 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EPrEventKind, toThreadId, type ThreadId } from '@dltech/atlas-core'
-import {
-  ECloudSandboxState,
-  type CloudChannel,
-  type PrEventFrame,
-  type ThreadSummary,
-} from '@dltech/atlas-harness'
+import { EExecutionLocation } from '@dltech/atlas-core'
+import { ECloudSandboxState } from '@dltech/atlas-harness'
 
-import { createPrEventForwarder } from '../pr-event-forwarder'
-
-const CLOUD_THREAD = toThreadId('thread-cloud-parked')
-const LOCAL_THREAD = toThreadId('thread-local-active')
-
-const frame = (over: Partial<PrEventFrame> = {}): PrEventFrame => ({
-  id: 'evt_1',
-  repoFullName: 'owner/repo',
-  prNumber: 42,
-  kind: EPrEventKind.Comment,
-  payload: { url: 'https://github.com/owner/repo/pull/42', authorLogin: 'dennis', body: 'hello' },
-  createdAt: '2026-01-01T00:00:00.000Z',
-  ...over,
-})
-
-const summary = (args: {
-  id: ThreadId
-  location: EExecutionLocation
-  pullRequests?: { repo: string; number: number }[]
-}): ThreadSummary =>
-  ({
-    id: args.id,
-    head: 0,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    workspace: '/work',
-    repo: 'github.com/owner/repo',
-    executionLocation: args.location,
-    ...(args.pullRequests === undefined
-      ? {}
-      : {
-          pullRequests: args.pullRequests.map((p) => ({
-            number: p.number,
-            url: `https://${p.repo.replace('github.com/', 'github.com/')}/pull/${p.number}`,
-            repo: p.repo,
-            branch: 'main',
-          })),
-        }),
-  }) as ThreadSummary
-
-type Sent = { threadId: ThreadId; text: string }
-
-function rig(args: {
-  summaries: readonly ThreadSummary[]
-  sandboxState?: ECloudSandboxState | undefined
-  activeThreadId?: ThreadId | undefined
-}) {
-  const sent: Sent[] = []
-  const attached = new Set<ThreadId>()
-  const channel = (threadId: ThreadId): CloudChannel =>
-    ({
-      threadId,
-      send: ({ text }: { text: string }) => {
-        sent.push({ threadId, text })
-      },
-    }) as unknown as CloudChannel
-
-  const bridge = () => ({
-    attach: ({ threadId }: { threadId: ThreadId }) => {
-      attached.add(threadId)
-      return { channel: channel(threadId), stores: {} as never }
-    },
-    sandboxes: {
-      find: async () =>
-        args.sandboxState === undefined
-          ? undefined
-          : { state: args.sandboxState, url: undefined, sandboxSessionId: undefined },
-    },
-  })
-
-  const forwarder = createPrEventForwarder({
-    listThreads: async () => args.summaries,
-    project: 'project',
-    bridge: bridge as never,
-    activeThreadId: () => args.activeThreadId,
-  })
-
-  return { forwarder, sent, attached }
-}
+import { CLOUD_THREAD, frame, LOCAL_THREAD, rig, summary } from './pr-event-forwarder.fixture'
 
 describe('parked-cloud pr-event forwarding', () => {
   it('forwards a matching event into a parked cloud conversation as input', async () => {
@@ -95,7 +12,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,
@@ -117,7 +34,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Running,
@@ -135,7 +52,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: undefined,
@@ -153,7 +70,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: LOCAL_THREAD,
           location: EExecutionLocation.Host,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,
@@ -172,7 +89,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,
@@ -184,13 +101,13 @@ describe('parked-cloud pr-event forwarding', () => {
     expect(sent).toHaveLength(0)
   })
 
-  it('ignores an event for a pull request no cloud thread watches', async () => {
+  it('ignores an event for a pull request no cloud thread subscribes to', async () => {
     const { forwarder, sent } = rig({
       summaries: [
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 7 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 7 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,
@@ -202,13 +119,61 @@ describe('parked-cloud pr-event forwarding', () => {
     expect(sent).toHaveLength(0)
   })
 
-  it('ignores an event for a repo no cloud thread watches', async () => {
+  it('ignores an event for a repo no cloud thread subscribes to', async () => {
     const { forwarder, sent } = rig({
       summaries: [
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/elsewhere/other', number: 42 }],
+          subscriptions: [{ repo: 'github.com/elsewhere/other', number: 42 }],
+        }),
+      ],
+      sandboxState: ECloudSandboxState.Parked,
+      activeThreadId: LOCAL_THREAD,
+    })
+
+    await forwarder.onPrEvent(frame())
+
+    expect(sent).toHaveLength(0)
+  })
+
+  it('forwards nothing to a thread whose summary carries no subscriptions', async () => {
+    const { forwarder, sent } = rig({
+      summaries: [summary({ id: CLOUD_THREAD, location: EExecutionLocation.Cloud })],
+      sandboxState: ECloudSandboxState.Parked,
+      activeThreadId: LOCAL_THREAD,
+    })
+
+    await forwarder.onPrEvent(frame())
+
+    expect(sent).toHaveLength(0)
+  })
+
+  it('forwards nothing to a thread whose subscription is paused', async () => {
+    const { forwarder, sent } = rig({
+      summaries: [
+        summary({
+          id: CLOUD_THREAD,
+          location: EExecutionLocation.Cloud,
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42, status: 'paused' }],
+        }),
+      ],
+      sandboxState: ECloudSandboxState.Parked,
+      activeThreadId: LOCAL_THREAD,
+    })
+
+    await forwarder.onPrEvent(frame())
+
+    expect(sent).toHaveLength(0)
+  })
+
+  it('forwards nothing when the subscription belongs to another provider', async () => {
+    const { forwarder, sent } = rig({
+      summaries: [
+        summary({
+          id: CLOUD_THREAD,
+          location: EExecutionLocation.Cloud,
+          subscriptions: [{ provider: 'linear.issue', repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,
@@ -226,7 +191,7 @@ describe('parked-cloud pr-event forwarding', () => {
         summary({
           id: CLOUD_THREAD,
           location: EExecutionLocation.Cloud,
-          pullRequests: [{ repo: 'github.com/owner/repo', number: 42 }],
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
         }),
       ],
       sandboxState: ECloudSandboxState.Parked,

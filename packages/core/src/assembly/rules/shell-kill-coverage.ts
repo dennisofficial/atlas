@@ -1,5 +1,6 @@
 import type { Event, EventOfType } from '../../events/envelope'
 import type { EventId } from '../../events/ids'
+import { isNoticeArrival } from '../../events/notice-stage'
 
 const SHELL_KILL = 'shell_kill'
 
@@ -24,6 +25,8 @@ export function endingsToldByKill(events: readonly Event[]): ReadonlySet<EventId
   let unmatchedKills = new Map<string, number>()
 
   for (const event of events) {
+    if (isNoticeArrival(event)) continue
+
     if (event.type === 'assistant-said') {
       unmatchedEndings = new Map()
       unmatchedKills = new Map()

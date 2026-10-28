@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ENoticeStage } from '@dltech/atlas-core'
+
 import { EJournalSkip } from '../journal'
 import { deltaOf, openJournal, OTHER_SHELL, SHELL, snapshotOf, THREAD } from './journal-fixture'
+
+const deliveredOf = (type: string) =>
+  expect.objectContaining({ type, notice: { id: 'event-journal', stage: ENoticeStage.Delivered } })
 
 const matchedArgs = {
   threadId: THREAD,
@@ -34,7 +39,10 @@ describe('the shell event journal', () => {
     expect(log.calls).toHaveLength(2)
     log.calls[1]?.settle.release()
 
-    expect(await Promise.all([matched, ended])).toEqual([{ appended: true }, { appended: true }])
+    expect(await Promise.all([matched, ended])).toEqual([
+      { appended: true, delivered: deliveredOf('background-shell-matched') },
+      { appended: true, delivered: deliveredOf('background-shell-ended') },
+    ])
     expect(log.landedTypes()).toEqual(['background-shell-matched', 'background-shell-ended'])
   })
 
@@ -81,6 +89,7 @@ describe('the shell event journal', () => {
       'background-shell-ended',
       'context-loaded',
     ])
+    expect(log.calls[0]?.drafts[0]).toMatchObject({ notice: { stage: ENoticeStage.Arrived } })
   })
 
   it('resolves an ended append only once the log has made it durable', async () => {
@@ -96,7 +105,10 @@ describe('the shell event journal', () => {
     expect(resolved).toBe(false)
 
     log.calls[0]?.settle.release()
-    expect(await ended).toEqual({ appended: true })
+    expect(await ended).toEqual({
+      appended: true,
+      delivered: deliveredOf('background-shell-ended'),
+    })
   })
 
   it('warns, drops the fact and keeps the chain going when an append fails', async () => {
@@ -109,7 +121,7 @@ describe('the shell event journal', () => {
     expect(lost).toEqual({ appended: false, reason: EJournalSkip.Failed })
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('disk full')
-    expect(next).toEqual({ appended: true })
+    expect(next).toEqual({ appended: true, delivered: deliveredOf('background-shell-ended') })
     expect(log.landedTypes()).toEqual(['background-shell-ended'])
   })
 
@@ -128,7 +140,10 @@ describe('the shell event journal', () => {
 
     log.calls[0]?.settle.release()
     await disowned
-    expect(await inFlight).toEqual({ appended: true })
+    expect(await inFlight).toEqual({
+      appended: true,
+      delivered: deliveredOf('background-shell-matched'),
+    })
 
     const late = await journal.ended(endedArgs)
     expect(late).toEqual({ appended: false, reason: EJournalSkip.Superseded })
@@ -155,7 +170,7 @@ describe('the shell event journal', () => {
     await journal.disown({ threadId: THREAD, shellId: SHELL })
     const other = await journal.ended({ ...endedArgs, shellId: OTHER_SHELL })
 
-    expect(other).toEqual({ appended: true })
+    expect(other).toEqual({ appended: true, delivered: deliveredOf('background-shell-ended') })
     expect(log.landed).toHaveLength(1)
   })
 
@@ -190,6 +205,7 @@ describe('the shell event journal', () => {
         lines: 'ready one\nready two',
         matchCount: 2,
         watchDisarmed: true,
+        notice: { id: 'event-journal', stage: ENoticeStage.Arrived },
       },
       {
         type: 'background-shell-awaiting-input',
@@ -200,6 +216,7 @@ describe('the shell event journal', () => {
         output: 'Password:',
         droppedCharacters: 0,
         remainingCharacters: 3,
+        notice: { id: 'event-journal', stage: ENoticeStage.Arrived },
       },
     ])
   })
@@ -224,7 +241,10 @@ describe('the shell event journal', () => {
       appended: false,
       reason: EJournalSkip.Ended,
     })
-    expect(await journal.ended(endedArgs)).toEqual({ appended: true })
+    expect(await journal.ended(endedArgs)).toEqual({
+      appended: true,
+      delivered: deliveredOf('background-shell-ended'),
+    })
     expect(await journal.ended(endedArgs)).toEqual({ appended: false, reason: EJournalSkip.Ended })
     expect(log.landedTypes()).toEqual(['background-shell-ended'])
   })
@@ -238,7 +258,10 @@ describe('the shell event journal', () => {
     const removed = journal.disown({ threadId: THREAD, shellId: SHELL })
     log.calls[0]?.settle.release()
     await removed
-    expect(await first).toEqual({ appended: true })
+    expect(await first).toEqual({
+      appended: true,
+      delivered: deliveredOf('background-shell-matched'),
+    })
     expect(await queued).toEqual({ appended: false, reason: EJournalSkip.Superseded })
     expect(log.calls).toHaveLength(1)
   })

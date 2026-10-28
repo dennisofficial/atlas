@@ -123,13 +123,14 @@ export const aCheckout = (args?: {
   branch?: string
   owner?: string
   repo?: string
+  host?: string
   forge?: EForge
 }): RepositoryCheckout => ({
   directory: args?.directory ?? '/work/atlas',
   branch: args?.branch ?? 'main',
   forge: args?.forge ?? EForge.GitHub,
   remote: {
-    host: 'github.com',
+    host: args?.host ?? 'github.com',
     owner: args?.owner ?? 'dennisofficial',
     repo: args?.repo ?? 'atlas',
   },
@@ -151,6 +152,7 @@ export const aLink = (args?: {
 
 export type PullRequestShape = {
   number?: number
+  state?: EPullRequestState
   headSha?: string
   checks?: EChecksState
   tally?: ChecksTally
@@ -164,7 +166,7 @@ export const aPullRequest = (args?: PullRequestShape): PullRequest => ({
   title: 'a change',
   url: `https://github.com/dennisofficial/atlas/pull/${args?.number ?? 42}`,
   headSha: args?.headSha ?? 'abc123',
-  state: EPullRequestState.Open,
+  state: args?.state ?? EPullRequestState.Open,
   checks: args?.checks ?? EChecksState.Passing,
   tally: args?.tally ?? NO_CHECKS,
   mergeable: args?.mergeable ?? null,

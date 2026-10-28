@@ -1,17 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
-import { FileQuestionIcon } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@dltech/atlas-ui/components/empty'
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
 import { CloudApiError } from '@/lib/cloud-api'
@@ -41,6 +33,7 @@ import { UNTITLED } from './data/untitled'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
+import { useComposerImages } from './data/use-composer-images'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useOperatorInput } from './data/use-operator-input'
 import { useNow } from './data/use-now'
@@ -48,6 +41,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { usePullRequestBell } from './data/use-pull-request-bell'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -56,33 +50,19 @@ import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
 import { OperatorInputCard } from './operator-input-card'
-import { ThreadPanelProvider, type ThreadPanelValue } from './panel/thread-panel-context'
+import { ThreadPanelProvider } from './panel/thread-panel-context'
 import { useRightPanel } from './panel/use-right-panel'
+import { useThreadPanelValue } from './panel/use-thread-panel-value'
 import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
 import { ThreadHeader } from './thread-header'
 import { ThreadLayout } from './thread-layout'
+import { ThreadMissing } from './thread-missing'
 import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
-
-function ThreadMissing() {
-  return (
-    <Empty variant="outline" className="m-auto max-w-sm">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileQuestionIcon />
-        </EmptyMedia>
-        <EmptyTitle>Thread not found</EmptyTitle>
-        <EmptyDescription>
-          It may have been deleted, or it belongs to another account.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  )
-}
 
 export function ThreadView({ threadId }: { threadId: string }) {
   const thread = useCloudQuery({
@@ -101,9 +81,15 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const rightPanel = useRightPanel()
+  const { bell, handleToggle: handleToggleBell } = usePullRequestBell({
+    threadId,
+    channel,
+    thread: thread.data,
+  })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
+  const images = useComposerImages()
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
   const visible = useMemo(
@@ -140,40 +126,13 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
   const handleResize = usePodResize({ threadId, refresh })
-  const { changesPath, agentId, openChanges, openAgent, clearAgent, setSheetOpen } = rightPanel
-  const closePanel = useCallback(() => setSheetOpen(false), [setSheetOpen])
-  const panel = useMemo<ThreadPanelValue>(
-    () => ({
-      threadId,
-      channel,
-      pod,
-      working,
-      changesPath,
-      agentId,
-      openChanges,
-      openAgent,
-      clearAgent,
-      closePanel,
-      refreshPod: refresh,
-    }),
-    [
-      threadId,
-      channel,
-      pod,
-      working,
-      changesPath,
-      agentId,
-      openChanges,
-      openAgent,
-      clearAgent,
-      closePanel,
-      refresh,
-    ],
-  )
+  const panel = useThreadPanelValue({ threadId, channel, pod, working, rightPanel, refresh })
 
   const handleSubmit = async (text: string) => {
-    const sent = await send({ threadId, text, liveSend: sendLive })
+    if (!images.checkBudget()) return
+    const sent = await send({ threadId, text, images: images.images, liveSend: sendLive })
     if (sent === null) return
+    images.clear()
     handoff.begin(sent)
     source.refreshEvents()
     refresh()
@@ -222,6 +181,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
       pullRequest={pullRequestBadgeOf(thread.data)}
+      bell={bell}
+      onToggleBell={handleToggleBell}
       podChip={
         <ThreadPodChip
           pod={pod}
@@ -280,7 +241,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
               onValueChange={setDraft}
               onSubmit={handleSubmit}
               onEscape={() => void handleEscape()}
-              sending={sending || handoff.waiting}
+              sending={sending || handoff.waiting || images.encoding}
+              {...images.composerProps}
               placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
             >
               <ModelPickerControls

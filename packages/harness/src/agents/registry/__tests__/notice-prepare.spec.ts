@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import type { ThreadId } from '@dltech/atlas-core'
+import { ENoticeStage, type ThreadId } from '@dltech/atlas-core'
 
 import { buildHarness } from '../../../loop/build-harness'
 import { createTempHome } from '../../../loop/__tests__/temp-home'
@@ -58,7 +58,13 @@ describe('preparing agent notices without acknowledging', () => {
     const first = entry.supervisor.prepareNotifications({ threadId: entry.parent })
     const second = entry.supervisor.prepareNotifications({ threadId: entry.parent })
 
-    expect(first.drafts).toEqual([])
+    expect(first.drafts).toEqual([
+      expect.objectContaining({
+        type: 'agent-ended',
+        notice: { id: expect.any(String), stage: ENoticeStage.Delivered },
+      }),
+    ])
+    expect(second.drafts).toEqual(first.drafts)
     expect(first.wakesTurn).toBe(true)
     expect(second.wakesTurn).toBe(true)
     expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(1)

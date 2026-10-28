@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
   defaultPipeline,
   EMPTY_PROMPT,
+  ENoticeStage,
   EPromptAgent,
   EToolEffect,
   PromptFragment,
@@ -170,7 +171,12 @@ describe('a teammate reporting to the main session', () => {
     expect(opened.supervisor.threadsAwaitingNotice()).toEqual([opened.parent])
     expect(opened.supervisor.pendingNotices({ threadId: opened.parent })).toHaveLength(1)
 
-    expect(opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts).toEqual([])
+    expect(opened.supervisor.drainNotifications({ threadId: opened.parent }).drafts).toEqual([
+      expect.objectContaining({
+        type: 'agent-reported',
+        notice: { id: expect.any(String), stage: ENoticeStage.Delivered },
+      }),
+    ])
     const logged = await loggedOfType({
       harness: opened.harness,
       threadId: opened.parent,

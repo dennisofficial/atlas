@@ -113,6 +113,37 @@ const validateIntakeSource = (args: {
   return undefined
 }
 
+const validateSubscriptionProvider = (args: {
+  provider: unknown
+  pluginId: string
+}): { refusal: EPluginRefusal; detail: string } | undefined => {
+  if (!isRecord(args.provider)) {
+    return {
+      refusal: EPluginRefusal.SubscriptionProviderMalformed,
+      detail: `${args.pluginId} contributed a subscription provider of type ${typeof args.provider}`,
+    }
+  }
+
+  const kind = args.provider['kind']
+  if (typeof kind !== 'string' || kind.trim() === '') {
+    return {
+      refusal: EPluginRefusal.SubscriptionProviderMalformed,
+      detail: `${args.pluginId} contributed a subscription provider without a kind`,
+    }
+  }
+
+  for (const member of ['resolve', 'start']) {
+    if (typeof args.provider[member] !== 'function') {
+      return {
+        refusal: EPluginRefusal.SubscriptionProviderMalformed,
+        detail: `${args.pluginId}:${kind} has a ${member} of type ${typeof args.provider[member]} rather than a function`,
+      }
+    }
+  }
+
+  return undefined
+}
+
 export function validatePluginContribution(args: {
   contribution: unknown
   pluginId: string
@@ -169,6 +200,22 @@ export function validatePluginContribution(args: {
 
     for (const source of intakeSources) {
       const failed = validateIntakeSource({ source, pluginId: args.pluginId })
+      if (failed !== undefined) return { ok: false, ...failed }
+    }
+  }
+
+  const subscriptionProviders = args.contribution['subscriptionProviders']
+  if (subscriptionProviders !== undefined) {
+    if (!Array.isArray(subscriptionProviders)) {
+      return {
+        ok: false,
+        refusal: EPluginRefusal.SubscriptionProvidersNotAnArray,
+        detail: `${args.pluginId} contributed subscriptionProviders of type ${typeof subscriptionProviders} rather than an array`,
+      }
+    }
+
+    for (const provider of subscriptionProviders) {
+      const failed = validateSubscriptionProvider({ provider, pluginId: args.pluginId })
       if (failed !== undefined) return { ok: false, ...failed }
     }
   }

@@ -21,6 +21,7 @@ import {
 
 import { cloudRuntimeParts } from './cloud/cloud-app'
 import { publishPrStateReader } from './cloud/pr-state-reader-holder'
+import { publishSubscriptionRegistry } from './cloud/subscription-registry-holder'
 import type { CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
@@ -142,6 +143,7 @@ export const localBindingOf = (args: {
   opened: OpenedConversation
 }): Binding => {
   publishPrStateReader(null)
+  publishSubscriptionRegistry(null)
   return {
     kind: ERuntimeKind.Local,
     cwd: args.workspace.workspace,

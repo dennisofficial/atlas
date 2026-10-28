@@ -4,11 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/compo
 
 import { activeAgentCount } from '../data/agents-model'
 import { useAgents } from '../data/use-agents'
+import { useSubscriptions } from '../data/use-subscriptions'
 import { AgentsTab } from './agents-tab'
 import { ChangesTab } from './changes-tab'
 import { FilesTab } from './files-tab'
 import { PreviewTab } from './preview-tab'
 import { ERightTab, isRightTab, TAB_LABEL } from './right-tab'
+import { SubscriptionsTab } from './subscriptions-tab'
 import { TerminalTab } from './terminal-tab'
 import { useThreadPanel } from './thread-panel-context'
 
@@ -17,22 +19,37 @@ export type RightPanelProps = {
   onTabChange: (tab: ERightTab) => void
 }
 
-const TAB_BODY: Record<Exclude<ERightTab, ERightTab.Agents>, () => React.JSX.Element> = {
+const TAB_BODY: Record<
+  Exclude<ERightTab, ERightTab.Agents | ERightTab.Subscriptions>,
+  () => React.JSX.Element
+> = {
   [ERightTab.Changes]: ChangesTab,
   [ERightTab.Files]: FilesTab,
   [ERightTab.Terminal]: TerminalTab,
   [ERightTab.Preview]: PreviewTab,
 }
 
-function bodyOf(tab: Exclude<ERightTab, ERightTab.Agents>): React.JSX.Element {
+function bodyOf(tab: keyof typeof TAB_BODY): React.JSX.Element {
   const Body = TAB_BODY[tab]
   return <Body />
+}
+
+function TabBody(props: {
+  tab: ERightTab
+  agents: ReturnType<typeof useAgents>
+  subscriptions: ReturnType<typeof useSubscriptions>
+}) {
+  if (props.tab === ERightTab.Agents) return <AgentsTab data={props.agents} />
+  if (props.tab === ERightTab.Subscriptions) return <SubscriptionsTab data={props.subscriptions} />
+  return bodyOf(props.tab)
 }
 
 export function RightPanel({ tab, onTabChange }: RightPanelProps) {
   const { threadId, channel, working } = useThreadPanel()
   const agents = useAgents({ threadId, channel, working })
   const running = activeAgentCount(agents.agents)
+  const subscriptions = useSubscriptions({ threadId, channel })
+  const watching = subscriptions.subscriptions.length
   const handleTabChange = (value: unknown) => {
     if (isRightTab(value)) onTabChange(value)
   }
@@ -48,13 +65,16 @@ export function RightPanel({ tab, onTabChange }: RightPanelProps) {
                 {value === ERightTab.Agents && running > 0 ? (
                   <span className="font-mono text-xs tabular-nums">{running}</span>
                 ) : null}
+                {value === ERightTab.Subscriptions && watching > 0 ? (
+                  <span className="font-mono text-xs tabular-nums">{watching}</span>
+                ) : null}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
         {Object.values(ERightTab).map((value) => (
           <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
-            {value === ERightTab.Agents ? <AgentsTab data={agents} /> : bodyOf(value)}
+            <TabBody tab={value} agents={agents} subscriptions={subscriptions} />
           </TabsContent>
         ))}
       </Tabs>

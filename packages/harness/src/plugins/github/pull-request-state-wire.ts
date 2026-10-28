@@ -38,7 +38,7 @@ const wireState = (args: {
 export type TrackedReading = {
   key: string
   checkout?: RepositoryCheckout
-  link?: { repo: string; number: number; branch: string }
+  link?: { repo: string; number: number; branch: string; subscriptionOnly?: boolean }
   reading: PullRequestReading
 }
 
@@ -53,6 +53,7 @@ export function pullRequestStatesWireOf(
   const byIdentity = new Map<string, PrStateWire>()
   for (const entry of readings) {
     if (entry.reading.lookup !== EPullRequestLookup.Found) continue
+    if (entry.link?.subscriptionOnly === true) continue
 
     const repo = entry.checkout !== undefined ? repoOf(entry.checkout) : (entry.link?.repo ?? null)
     const branch =

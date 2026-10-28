@@ -1,4 +1,5 @@
 import type { Event } from '../events/envelope'
+import { recordsLifecycle } from '../events/notice-stage'
 
 export enum ELifecycleState {
   Open = 'open',
@@ -74,7 +75,7 @@ export function lifecycleOf<TStart extends Event, TEnd extends Event>(
 
   for (const event of events) {
     if (kind.isStart(event)) enqueue(event)
-    else if (kind.isEnd(event)) settle(event)
+    else if (kind.isEnd(event) && recordsLifecycle(event)) settle(event)
   }
 
   for (const lifecycle of lifecycles) {
@@ -102,7 +103,7 @@ export const endedKeysOf = <TStart extends Event, TEnd extends Event>(
 ): ReadonlySet<string> => {
   const ended = new Set<string>()
   for (const event of events) {
-    if (kind.isEnd(event)) ended.add(scopedKey(kind, event))
+    if (kind.isEnd(event) && recordsLifecycle(event)) ended.add(scopedKey(kind, event))
   }
   return ended
 }

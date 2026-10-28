@@ -1,6 +1,7 @@
 import type { EventDraft } from './body'
 import type { Event } from './envelope'
 import type { CallId, RunId, ThreadId } from './ids'
+import { isNoticeDelivery, noticeIdOf } from './notice-stage'
 import {
   ERewindDisposition,
   isCreatorBound,
@@ -133,6 +134,19 @@ export function rewindPlan({
     }
   }
 
+  const arrivals = new Map<string, Event>()
+  for (const event of events) {
+    const noticeId = noticeIdOf(event)
+    if (noticeId !== undefined && !isNoticeDelivery(event)) arrivals.set(noticeId, event)
+  }
+
+  const creatorEvent = (event: CreatorBoundEvent): CreatorBoundEvent => {
+    const noticeId = noticeIdOf(event)
+    if (noticeId === undefined || !isNoticeDelivery(event)) return event
+    const twin = arrivals.get(noticeId)
+    return twin !== undefined && isCreatorBound(twin) ? twin : event
+  }
+
   const survives = (event: Event): boolean => {
     switch (rewindDisposition(event.type)) {
       case ERewindDisposition.Discard:
@@ -140,7 +154,7 @@ export function rewindPlan({
       case ERewindDisposition.Keep:
         return true
       case ERewindDisposition.KeepUnlessCreatorCut:
-        return isCreatorBound(event) && !creatorCut(event)
+        return isCreatorBound(event) && !creatorCut(creatorEvent(event))
     }
   }
 

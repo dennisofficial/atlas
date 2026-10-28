@@ -162,17 +162,24 @@ export async function reportToParent(
     prose: args.text,
     ...(args.kind === undefined ? {} : { kind: args.kind }),
   }
-  const recorded = await args.journal.record({ threadId: caller.spawnedBy, draft })
-  if (!recorded.recorded) return { ok: false, reason: reportNotRecorded(recorded.cause) }
+  if (!reportWakesParent(args.kind)) {
+    const recorded = await args.journal.record({ threadId: caller.spawnedBy, draft })
+    if (!recorded.recorded) return { ok: false, reason: reportNotRecorded(recorded.cause) }
+    return { ok: true, snapshot: snapshotOf(caller) }
+  }
 
-  if (!reportWakesParent(args.kind)) return { ok: true, snapshot: snapshotOf(caller) }
+  const stamped = args.journal.stamp({ draft })
+  const recorded = await args.journal.record({
+    threadId: caller.spawnedBy,
+    draft: stamped.arrived,
+  })
+  if (!recorded.recorded) return { ok: false, reason: reportNotRecorded(recorded.cause) }
 
   args.notices.queue({
     threadId: caller.spawnedBy,
     snapshot: snapshotOf(caller),
     kind: EAgentNotice.Report,
-    draft,
-    logged: true,
+    draft: stamped.delivered,
   })
 
   return { ok: true, snapshot: snapshotOf(caller) }

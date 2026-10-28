@@ -17,6 +17,7 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
+import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
 
 export { WAKE_DEBOUNCE_MS }
@@ -135,9 +136,14 @@ export class GithubSandboxWakeService {
           (target.sandbox.wakeFailedAt === null ||
             target.sandbox.wakeFailedAt.getTime() < backoffCutoff.getTime()),
       )
+    const subscribed = await sessionHoldsSubscription({
+      threadIds: targets.map((target) => target.threadId),
+      ...args,
+    })
     const seen = new Set<string>()
     const immediateBoots: Promise<void>[] = []
     for (const target of targets) {
+      if (!subscribed.has(target.threadId)) continue
       if (seen.has(target.threadId)) continue
       seen.add(target.threadId)
       const boot = this.debounceBoot(target)

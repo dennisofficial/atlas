@@ -2,6 +2,7 @@ import {
   EKilledBy,
   EServiceStatus,
   lostServicesOf,
+  type Event,
   type EventLogPort,
   type IdPort,
   type ThreadId,
@@ -14,6 +15,10 @@ export type LostService = {
   serviceId: string
   command: string
   description?: string | undefined
+}
+
+export type OwedNoticeTarget = {
+  requeueOwed?(args: { events: readonly Event[]; threadId: ThreadId }): void
 }
 
 export type LiveService = {
@@ -32,16 +37,19 @@ export class ServiceRecovery {
   private readonly log: EventLogPort
   private readonly ids: IdPort
   private readonly live: (() => readonly LiveService[] | undefined) | undefined
+  private readonly registry: OwedNoticeTarget | undefined
   private readonly inflight = new Map<ThreadId, Promise<readonly LostService[]>>()
 
   constructor(args: {
     log: EventLogPort
     ids: IdPort
     live?: (() => readonly LiveService[] | undefined) | undefined
+    registry?: OwedNoticeTarget | undefined
   }) {
     this.log = args.log
     this.ids = args.ids
     this.live = args.live
+    this.registry = args.registry
   }
 
   recordLost(args: { threadId: ThreadId }): Promise<readonly LostService[]> {
@@ -59,6 +67,7 @@ export class ServiceRecovery {
   private async reconcile(args: { threadId: ThreadId }): Promise<readonly LostService[]> {
     const { threadId } = args
     const events = await this.log.readOwn({ threadId })
+    this.registry?.requeueOwed?.({ events, threadId })
     const lost = this.unresolvedBeforeThisBoot(lostServicesOf(events))
     if (lost.length === 0) return []
 

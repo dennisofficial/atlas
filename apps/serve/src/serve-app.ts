@@ -12,6 +12,7 @@ import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 
 import type {
   AgentRegistryPort,
+  SubscriptionRegistryPort,
   DeltaChannel,
   OperatorInputPort,
   PlacementController,
@@ -59,6 +60,14 @@ export type ServeRoster = {
 export type ServePrStates = {
   snapshot: () => readonly PrStateWire[]
   subscribe: (listener: () => void) => () => void
+}
+
+export type ServeSubscriptions = {
+  registry: Pick<
+    SubscriptionRegistryPort,
+    'list' | 'providers' | 'subscribe' | 'setStatus' | 'unsubscribe' | 'onChange'
+  >
+  projectDirectory: string
 }
 
 /**
@@ -197,6 +206,7 @@ export type ServeApp = {
    * composed — the client falls back to its own badge cache.
    */
   prStates?: ServePrStates | undefined
+  subscriptions?: ServeSubscriptions | undefined
   /** Absent in a fake without registries: a drain pause halts the parent's turn only. */
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */

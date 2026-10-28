@@ -1,5 +1,6 @@
 import {
   currentContextEvents,
+  isNoticeArrival,
   latestTldrPerAnchor,
   type Event,
   type SaidImage,
@@ -27,7 +28,7 @@ export function durableEntries(args: {
   events: readonly Event[]
   turns?: readonly TurnSpend[] | undefined
 }): TranscriptEntry[] {
-  const { events } = args
+  const events = args.events.filter((event) => !isNoticeArrival(event))
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
   const steers = saidWhileToolsWereOutstanding(events)
   const { attached, folded } = contextLoadedWith(events)

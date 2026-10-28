@@ -25,7 +25,6 @@ const restartNotice = (): AgentNotice => ({
   threadId: PARENT,
   snapshot: snapshot(),
   kind: EAgentNotice.Ending,
-  logged: true,
   draft: {
     type: 'agent-restarted',
     agentId: CHILD,
@@ -39,7 +38,6 @@ const endingNotice = (): AgentNotice => ({
   threadId: PARENT,
   snapshot: snapshot(),
   kind: EAgentNotice.Ending,
-  logged: false,
   draft: {
     type: 'agent-ended',
     agentId: CHILD,

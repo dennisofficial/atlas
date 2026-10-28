@@ -1,5 +1,3 @@
-import type { LinkedPullRequest } from '@dltech/atlas-core'
-
 import { createExpectingWindows } from './expecting-windows'
 import {
   checkoutKey,
@@ -13,9 +11,10 @@ import { announcePolled, type PolledPullRequest } from './polled-pull-request'
 import { createInFlightReads } from './in-flight-reads'
 import { createPullRequestReadings } from './pull-request-readings'
 import type { PullRequestService } from './pull-request-service-type'
-import { keyOf, linkKey, readTarget, type PullTarget } from './pull-target'
+import { keyOf, readTarget, type PullTarget } from './pull-target'
 import type { PullRequestBadgeKey } from './pure'
 import { createTrackedCheckouts } from './tracked-checkouts'
+import { reconcileWatched, type WatchedPullRequest } from './watched-targets'
 import { pullRequestStatesWireOf, repoOf, type TrackedReading } from './pull-request-state-wire'
 
 export type { PullRequestService } from './pull-request-service-type'
@@ -45,7 +44,7 @@ export function createPullRequestService(args: {
 
   const listeners = new Set<() => void>()
   const inFlight = createInFlightReads()
-  const watched = new Map<string, LinkedPullRequest>()
+  const watched = new Map<string, WatchedPullRequest>()
 
   const tracked = createTrackedCheckouts()
   const windows = createExpectingWindows({ now, windowMs: expectingMs })
@@ -161,9 +160,7 @@ export function createPullRequestService(args: {
 
   const tick = (): void => {
     for (const checkout of tracked.list()) void refresh({ checkout })
-    for (const link of watched.values()) {
-      void refreshTarget({ target: { kind: 'link', link } })
-    }
+    for (const link of watched.values()) void refreshTarget({ target: { kind: 'link', link } })
   }
 
   /**
@@ -233,26 +230,16 @@ export function createPullRequestService(args: {
      * forgotten exactly as a hopped-away checkout is — mid-flight reads for it are dropped on
      * landing rather than resurrecting the key.
      */
-    watch: ({ links }) => {
+    watch: ({ links, extra }) => {
       if (disposed) return
 
-      const next = new Map(links.map((link) => [linkKey(link), link]))
-      let dropped = false
-      for (const key of [...watched.keys()]) {
-        if (next.has(key)) continue
-
-        watched.delete(key)
-        readings.forget({ key })
-        dropped = true
-      }
-      for (const [key, link] of next) {
-        if (watched.has(key)) continue
-
-        watched.set(key, link)
+      const { gained, dropped } = reconcileWatched({ watched, links, extra: extra ?? [] })
+      for (const key of dropped) readings.forget({ key })
+      for (const link of gained) {
         seed({ kind: 'link', link })
         void refreshTarget({ target: { kind: 'link', link }, force: true })
       }
-      if (dropped) notify()
+      if (dropped.length > 0) notify()
       syncTimer()
     },
     current: () => {

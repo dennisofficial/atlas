@@ -28,7 +28,7 @@ const noticeOf = (serviceId: string, threadId: ReturnType<typeof toThreadId>) =>
 
 describe('reassigning a finished thread’s service notices', () => {
   it('moves every queued notice to the parent, preserving order', () => {
-    const queue = new ServiceNoticeQueue({ logged: false })
+    const queue = new ServiceNoticeQueue()
     queue.queue(noticeOf('svc_1', CHILD))
     queue.queue(noticeOf('svc_2', CHILD))
 
@@ -43,7 +43,7 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('leaves other threads’ notices where they are', () => {
-    const queue = new ServiceNoticeQueue({ logged: false })
+    const queue = new ServiceNoticeQueue()
     queue.queue(noticeOf('svc_1', CHILD))
     queue.queue(noticeOf('svc_2', THREAD))
 
@@ -54,7 +54,7 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('is a no-op when the finished thread left nothing, and never fires a listener', () => {
-    const queue = new ServiceNoticeQueue({ logged: false })
+    const queue = new ServiceNoticeQueue()
     queue.queue(noticeOf('svc_1', THREAD))
     let rang = 0
     queue.onNotice(() => {
@@ -68,7 +68,7 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('is a no-op when from and to are the same thread', () => {
-    const queue = new ServiceNoticeQueue({ logged: false })
+    const queue = new ServiceNoticeQueue()
     queue.queue(noticeOf('svc_1', CHILD))
 
     queue.reassign({ from: CHILD, to: CHILD })
@@ -77,7 +77,7 @@ describe('reassigning a finished thread’s service notices', () => {
   })
 
   it('lets the inheriting parent drain what the child never could', () => {
-    const queue = new ServiceNoticeQueue({ logged: false })
+    const queue = new ServiceNoticeQueue()
     queue.queue(noticeOf('svc_1', CHILD))
 
     queue.reassign({ from: CHILD, to: PARENT })

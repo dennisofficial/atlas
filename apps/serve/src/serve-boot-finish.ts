@@ -144,6 +144,7 @@ export async function finishServeBoot(args: {
     log,
     roster: app.roster,
     prStates: app.prStates,
+    subscriptions: app.subscriptions,
     rewind: app.rewind,
     compaction: app.compaction,
     agents: app.agents,

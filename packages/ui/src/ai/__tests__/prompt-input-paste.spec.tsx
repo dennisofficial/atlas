@@ -20,9 +20,14 @@ function ControlledComposer({ initial, sending = false }: { initial: string; sen
   )
 }
 
-const pasteInto = (args: { field: HTMLTextAreaElement; data: Record<string, string> }) => {
+const pasteInto = (args: {
+  field: HTMLTextAreaElement
+  data: Record<string, string>
+  files?: File[]
+}) => {
   const clipboard = new DataTransfer()
   for (const [type, value] of Object.entries(args.data)) clipboard.setData(type, value)
+  for (const file of args.files ?? []) clipboard.items.add(file)
   const event = new ClipboardEvent('paste', {
     clipboardData: clipboard,
     bubbles: true,
@@ -31,6 +36,8 @@ const pasteInto = (args: { field: HTMLTextAreaElement; data: Record<string, stri
   args.field.dispatchEvent(event)
   return event
 }
+
+const screenshot = (name = 'shot.png', type = 'image/png') => new File(['pixels'], name, { type })
 
 const mount = async (element: React.ReactElement) => {
   const { createRoot } = await import('react-dom/client')
@@ -94,6 +101,74 @@ describe('PromptInput paste', () => {
     })
 
     expect(field.value).toBe('sent')
+    await unmount()
+  })
+
+  it('attaches a pasted image and keeps it out of the textarea', async () => {
+    const attached: File[][] = []
+    const { field, unmount } = await mount(<PromptInput onAttachFiles={(f) => attached.push(f)} />)
+    const file = screenshot()
+
+    let event: ClipboardEvent | undefined
+    await act(async () => {
+      event = pasteInto({ field, data: {}, files: [file] })
+    })
+
+    expect(event?.defaultPrevented).toBe(true)
+    expect(attached).toEqual([[file]])
+    expect(field.value).toBe('')
+    await unmount()
+  })
+
+  it('attaches only the image files of a mixed file paste', async () => {
+    const attached: File[][] = []
+    const { field, unmount } = await mount(<PromptInput onAttachFiles={(f) => attached.push(f)} />)
+    const image = screenshot()
+
+    await act(async () => {
+      pasteInto({ field, data: {}, files: [screenshot('notes.pdf', 'application/pdf'), image] })
+    })
+
+    expect(attached).toEqual([[image]])
+    await unmount()
+  })
+
+  it('inserts text and does not attach when the paste carries both', async () => {
+    const attached: File[][] = []
+    const { field, unmount } = await mount(<PromptInput onAttachFiles={(f) => attached.push(f)} />)
+
+    await act(async () => {
+      pasteInto({ field, data: { 'text/plain': 'see this' }, files: [screenshot()] })
+    })
+
+    expect(field.value).toBe('see this')
+    expect(attached).toEqual([])
+    await unmount()
+  })
+
+  it('leaves an image paste to the browser without an attach handler', async () => {
+    const { field, unmount } = await mount(<PromptInput />)
+
+    let event: ClipboardEvent | undefined
+    await act(async () => {
+      event = pasteInto({ field, data: {}, files: [screenshot()] })
+    })
+
+    expect(event?.defaultPrevented).toBe(false)
+    await unmount()
+  })
+
+  it('ignores an image paste while the message is sending', async () => {
+    const attached: File[][] = []
+    const { field, unmount } = await mount(
+      <PromptInput sending onAttachFiles={(f) => attached.push(f)} />,
+    )
+
+    await act(async () => {
+      pasteInto({ field, data: {}, files: [screenshot()] })
+    })
+
+    expect(attached).toEqual([])
     await unmount()
   })
 })

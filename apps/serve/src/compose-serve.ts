@@ -4,7 +4,6 @@ import {
   EServiceStatus,
   EShellStatus,
   ProcessPort,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
@@ -12,7 +11,11 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
-import { registeredPortToken, GithubUiBridgePort } from '@dltech/atlas-harness'
+import {
+  registeredPortToken,
+  GithubUiBridgePort,
+  SubscriptionRegistryPort,
+} from '@dltech/atlas-harness'
 import {
   ServeSessionToken,
   SessionRegistryToken,
@@ -20,16 +23,18 @@ import {
 } from '@dltech/atlas-harness'
 import { ServiceRecovery } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
-import { RotationPort, ThreadStorePort, threadMentionFiles } from '@dltech/atlas-harness'
-
 import {
-  activateTransferredChildren,
-  adoptTransferredChildren,
-  holdFamilyIntake,
+  RotationPort,
+  ThreadStorePort,
+  threadMentionFiles,
+  threadPanels,
 } from '@dltech/atlas-harness'
+
+import { activateTransferredChildren, adoptTransferredChildren } from '@dltech/atlas-harness'
 import type { ServeApp, ServeCompose, ServeModelBridge, ServePrStates } from './serve-app'
 import { ServeProcessPort } from './serve-process'
-import { familyThreadIdsOf, stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
+import { serveFamilyOf } from './serve-family'
+import { stopWorkspaceProcessesFor, workspaceHooksFor } from './workspace-hooks'
 import { exposerFor } from './serve-port-exposer'
 
 export const SERVE_COMMAND = 'serve'
@@ -40,6 +45,7 @@ type ServeStores = {
   modelBridge: ServeModelBridge
   rotation?: RotationPort | undefined
   prStates?: ServePrStates | undefined
+  subscriptions: SubscriptionRegistryPort
 }
 
 export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => {
@@ -105,6 +111,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
           threads,
           modelBridge,
           rotation,
+          subscriptions: container.resolve(registeredPortToken(SubscriptionRegistryPort)),
           ...(prStates === undefined ? {} : { prStates }),
         }
       },
@@ -115,6 +122,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     log: app.surface.log,
     ids: app.ids,
     live: () => liveServicesOf(app.services.list()),
+    registry: app.services,
   })
 
   const workspaceHooks = workspaceHooksFor({
@@ -126,8 +134,19 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ids: app.ids,
   })
 
-  const pausedChildren = new Set<ThreadId>()
-  let releaseFamily: (() => void) | undefined
+  const panels = threadPanels({
+    threadId: args.threadId,
+    log: app.surface.log,
+    threads: app.surface.threads,
+    launchDirectory: args.cwd,
+    files: app.files,
+  })
+
+  const family = serveFamilyOf({
+    agents: app.agents,
+    threads: app.surface.threads,
+    intake: app.intake,
+  })
 
   return {
     channel: app.channel,
@@ -139,7 +158,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     ledger: app.ledger,
     settings: app.settings,
     ids: app.ids,
-    files: app.files,
+    files: panels.files,
     mentionFiles: (id) =>
       threadMentionFiles({
         threadId: id,
@@ -150,7 +169,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     workspace: app.workspace,
     toolEffect: (name) => app.tools.find(name)?.effect,
     pending: app.pending,
-    changes: app.changes,
+    changes: panels.changes,
     terminal: app.terminal,
     ...(app.intake === undefined ? {} : { intake: app.intake }),
     adoptChildren: async ({ threadId, resumeChildren }) => {
@@ -166,47 +185,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
     recordLostAgents: ({ threadId }) => app.agents.recordLostAgents({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
-    family: {
-      freeze: async ({ threadId }) => {
-        releaseFamily ??= await holdFamilyIntake({
-          threadId,
-          threads: app.surface.threads,
-          intake: app.intake,
-        })
-      },
-      pauseChildren: async ({ threadId }) => {
-        releaseFamily ??= await holdFamilyIntake({
-          threadId,
-          threads: app.surface.threads,
-          intake: app.intake,
-        })
-        try {
-          for (const child of await app.agents.pauseChildren({ threadId }))
-            pausedChildren.add(child)
-        } finally {
-          const family = await familyThreadIdsOf({ root: threadId, threads: app.surface.threads })
-          for (const child of app.agents.listEverywhere()) {
-            if (family.has(child.spawnedBy) && child.status === EAgentStatus.Paused)
-              pausedChildren.add(child.agentId)
-          }
-        }
-      },
-      resumeChildren: async () => {
-        const roster = app.agents.listEverywhere()
-        for (const agentId of pausedChildren) {
-          const child = roster.find((entry) => entry.agentId === agentId)
-          if (child === undefined)
-            throw new Error(`paused child ${agentId} is missing from the family roster`)
-          if (child.status === EAgentStatus.Paused) {
-            const resumed = await app.agents.resume({ agentId, threadId: child.spawnedBy })
-            if (!resumed.ok) throw new Error(resumed.reason)
-          }
-          pausedChildren.delete(agentId)
-        }
-        releaseFamily?.()
-        releaseFamily = undefined
-      },
-    },
+    family,
     runningChildren: () =>
       app.agents.listEverywhere().filter((child) => child.status === EAgentStatus.Running).length,
     settlingWork: () =>
@@ -232,6 +211,10 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       })(),
     ...workspaceHooks,
     ...(app.surface.prStates === undefined ? {} : { prStates: app.surface.prStates }),
+    subscriptions: {
+      registry: app.surface.subscriptions,
+      projectDirectory: app.workspace.workspace,
+    },
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

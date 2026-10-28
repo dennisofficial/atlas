@@ -68,4 +68,30 @@ describe('ThreadHeader', () => {
     expect(html).toContain('aria-label="Open panel"')
     expect(html).toContain('href="/threads/new"')
   })
+
+  it('shows the bell beside the pull request and labels its state', () => {
+    const pullRequest = { label: '#12', stateLabel: 'Open', url: 'https://github.com/o/r/pull/12' }
+    const off = render({
+      pullRequest,
+      bell: { watching: false, busy: false, label: 'Watch pull request' },
+      onToggleBell: () => undefined,
+    })
+    expect(off).toContain('aria-label="Watch pull request"')
+    expect(off).toContain('aria-pressed="false"')
+
+    const on = render({
+      pullRequest,
+      bell: { watching: true, busy: false, label: 'Stop watching pull request' },
+      onToggleBell: () => undefined,
+    })
+    expect(on).toContain('aria-pressed="true"')
+  })
+
+  it('shows no bell without a pull request', () => {
+    const html = render({
+      bell: { watching: false, busy: false, label: 'Watch pull request' },
+      onToggleBell: () => undefined,
+    })
+    expect(html).not.toContain('Watch pull request')
+  })
 })
