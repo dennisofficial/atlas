@@ -39,6 +39,28 @@ export function createThreadKinds(args: { threads: ThreadStorePort }): ThreadKin
   return { ownerOf: ({ threadId }) => ownerOf({ threadId }) }
 }
 
+export async function teammatesOf({
+  threads,
+  threadId,
+}: {
+  threads: ThreadStorePort
+  threadId: ThreadId
+}): Promise<readonly ThreadId[]> {
+  const teammates: ThreadId[] = []
+  const visited = new Set<ThreadId>([threadId])
+  const pending = [threadId]
+  for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+    const children = await threads.spawned({ threadId: next }).catch(() => [])
+    for (const child of children) {
+      if (visited.has(child.id)) continue
+      visited.add(child.id)
+      pending.push(child.id)
+      if (child.agent !== undefined && isTeammateType(child.agent.type)) teammates.push(child.id)
+    }
+  }
+  return teammates
+}
+
 export const IDENTITY_THREAD_KINDS: ThreadKinds = {
   ownerOf: async ({ threadId }) => threadId,
 }

@@ -1,15 +1,13 @@
 import {
   ESubscriptionEnd,
   ESubscriptionStatus,
-  type EventLogPort,
-  type IdPort,
   type Subscription,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { IntakeSource } from '../intake/message-intake'
 import { ChangeNotifier, Serial } from './change-notifier'
-import { DeliveryBuffer, type Schedule } from './delivery-buffer'
+import { DeliveryBuffer } from './delivery-buffer'
 import {
   SubscriptionRegistryPort,
   type SubscribeOutcome,
@@ -21,19 +19,8 @@ import { ProviderRuns } from './provider-runs'
 import type { SubscriptionOccurrence, SubscriptionProvider } from './provider'
 import { findExisting, resolveRequest } from './resolve-request'
 import { ThreadLoader } from './thread-loader'
+import type { SubscriptionRegistryDeps } from './registry-deps'
 import { readyIntakeSource, ReadyQueue } from './ready-queue'
-import type { ThreadKinds } from './thread-owner'
-
-export type SubscriptionRegistryDeps = {
-  log: EventLogPort
-  ids: IdPort
-  owners: ThreadKinds
-  providers: readonly SubscriptionProvider[]
-  now: () => number
-  schedule: Schedule
-  warn?: ((message: string) => void) | undefined
-  newId?: (() => string) | undefined
-}
 
 export class SubscriptionRegistry extends SubscriptionRegistryPort {
   readonly intakeSource: IntakeSource
@@ -43,7 +30,9 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
   private readonly loader: ThreadLoader
   private readonly runs: ProviderRuns
   private readonly ending = new Set<string>()
-  private readonly queue = new ReadyQueue()
+  private readonly queue = new ReadyQueue(({ subscriptionId }) =>
+    this.finishAfterDelivery({ subscriptionId }),
+  )
   private readonly buffer: DeliveryBuffer
   private readonly journal: SubscriptionJournal
   private readonly notifier = new ChangeNotifier()
@@ -72,7 +61,10 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
     })
     this.runs = new ProviderRuns({
       providers: this.providerByKind,
-      subscriptions: () => this.subscriptions.values(),
+      subscriptions: () =>
+        [...this.subscriptions.values()].filter(
+          (subscription) => !this.ending.has(subscription.id),
+        ),
       offer: (offered) => this.offer(offered),
       expire: ({ subscriptionId }) => this.expire({ subscriptionId }),
       schedule: deps.schedule,
@@ -125,6 +117,7 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
   async reload({ threadId }: { threadId: ThreadId }): Promise<void> {
     for (const subscription of [...this.subscriptions.values()]) {
       if (subscription.threadId !== threadId) continue
+      this.ending.delete(subscription.id)
       this.subscriptions.delete(subscription.id)
       this.discardPending(subscription.id)
     }
@@ -153,6 +146,7 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
 
   dispose(): void {
     this.disposed = true
+    for (const subscriptionId of [...this.ending]) this.finish({ id: subscriptionId, ...COMPLETED })
     this.runs.dispose()
     this.buffer.dispose()
     this.notifier.clear()
@@ -262,6 +256,11 @@ export class SubscriptionRegistry extends SubscriptionRegistryPort {
     if (occurrence.ends !== true) return
 
     this.ending.add(subscriptionId)
+    this.reconcile()
+  }
+
+  private finishAfterDelivery({ subscriptionId }: { subscriptionId: string }): void {
+    if (!this.ending.has(subscriptionId) || this.queue.holds({ subscriptionId })) return
     this.finish({ id: subscriptionId, ...COMPLETED })
   }
 

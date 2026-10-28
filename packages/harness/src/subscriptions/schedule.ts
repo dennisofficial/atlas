@@ -4,7 +4,7 @@ import type { Schedule } from './delivery-buffer'
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout#maximum_delay_value
 const MAX_TIMER_MS = 2_147_483_647
 
-export const timerSchedule: Schedule = (ms, run) => {
+export const timerSchedule: Schedule = ({ ms, run }) => {
   let handle: ReturnType<typeof setTimeout> | undefined
   let cancelled = false
 

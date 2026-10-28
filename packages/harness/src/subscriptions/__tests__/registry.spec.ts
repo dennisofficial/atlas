@@ -186,9 +186,7 @@ describe('SubscriptionRegistry', () => {
     expect((await fixture.registry.intakeSource.prepare({ threadId: MAIN })).wakesTurn).toBe(false)
   })
 
-  it('delivers a final occurrence then ends the subscription as completed', async () => {
-    const fixture = registryOf()
-    await unwrap(subscribeTo(fixture, 'a/b#1'))
+  const emitFinal = (fixture: ReturnType<typeof registryOf>) =>
     fixture.fake.emit({
       id: 'sub-1',
       occurrence: {
@@ -198,14 +196,69 @@ describe('SubscriptionRegistry', () => {
         draft: note('merged'),
       },
     })
-    await fixture.registry.unsubscribe({ subscriptionId: 'none', by: ESubscriptionActor.Agent })
 
+  const flushed = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+  it('ends the subscription as completed only after the final delivery is acknowledged', async () => {
+    const fixture = registryOf()
+    await unwrap(subscribeTo(fixture, 'a/b#1'))
+    emitFinal(fixture)
+    await flushed()
+    expect(fixture.log.ofType('subscription-ended')).toEqual([])
+
+    const batch = await fixture.registry.intakeSource.prepare({ threadId: MAIN })
+    expect(batch.drafts).toEqual([note('merged')])
+    await fixture.log.append({ threadId: MAIN, drafts: batch.drafts })
+    batch.acknowledge()
+    await flushed()
+
+    expect(fixture.log.stored.map((event) => event.type)).toEqual([
+      'subscription-created',
+      'user-said',
+      'subscription-ended',
+    ])
     expect(fixture.log.ofType('subscription-ended')).toMatchObject([
       { reason: 'completed', by: 'provider' },
     ])
     expect(fixture.registry.list()).toEqual([])
+  })
+
+  it('stops the provider and holds back later occurrences while the final delivery is pending', async () => {
+    const fixture = registryOf()
+    await unwrap(subscribeTo(fixture, 'a/b#1'))
+    emitFinal(fixture)
+    fixture.fake.emit({
+      id: 'sub-1',
+      occurrence: { key: 'late', urgency: EOccurrenceUrgency.Now, draft: note('late') },
+    })
+
     const batch = await fixture.registry.intakeSource.prepare({ threadId: MAIN })
     expect(batch.drafts).toEqual([note('merged')])
+  })
+
+  it('ends it as completed when the queue is discarded before the batch is taken', async () => {
+    const fixture = registryOf()
+    await unwrap(subscribeTo(fixture, 'a/b#1'))
+    emitFinal(fixture)
+    await fixture.registry.setStatus({
+      subscriptionId: 'sub-1',
+      status: ESubscriptionStatus.Paused,
+      by: ESubscriptionActor.Operator,
+    })
+    await flushed()
+
+    expect(fixture.log.ofType('subscription-ended')).toMatchObject([{ reason: 'completed' }])
+    expect(fixture.registry.intakeSource.threadsAwaitingInput()).toEqual([])
+  })
+
+  it('ends it as completed when the registry is disposed before the batch is taken', async () => {
+    const fixture = registryOf()
+    await unwrap(subscribeTo(fixture, 'a/b#1'))
+    emitFinal(fixture)
+    fixture.registry.dispose()
+    await flushed()
+
+    expect(fixture.log.ofType('subscription-ended')).toMatchObject([{ reason: 'completed' }])
   })
 
   it('drops occurrences from a paused subscription', async () => {

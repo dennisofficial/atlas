@@ -179,6 +179,10 @@ describe('subscription delivery, provider to intake', () => {
       state: 'merged',
     })
 
+    expect(log.ofType('subscription-ended', MAIN)).toHaveLength(0)
+    batch.acknowledge()
+    await settled()
+
     const ended = log.ofType('subscription-ended', MAIN)
     expect(ended).toHaveLength(1)
     expect(ended[0]).toMatchObject({

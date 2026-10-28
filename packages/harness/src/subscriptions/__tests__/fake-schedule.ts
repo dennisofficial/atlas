@@ -8,7 +8,7 @@ export class FakeClock {
 
   readonly now = (): number => this.current
 
-  readonly schedule: Schedule = (ms, run) => {
+  readonly schedule: Schedule = ({ ms, run }) => {
     const timer: Timer = { at: this.current + ms, run, live: true }
     this.timers.push(timer)
     return () => {

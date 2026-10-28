@@ -9,7 +9,7 @@ import { SubscriptionRegistry } from '../subscriptions/registry'
 import type { SubscriptionProvider } from '../subscriptions/provider'
 import { timerSchedule } from '../subscriptions/schedule'
 import { SubscriptionThreadOpenHook } from '../subscriptions/thread-open-hook'
-import { createThreadKinds } from '../subscriptions/thread-owner'
+import { createThreadKinds, teammatesOf } from '../subscriptions/thread-owner'
 import { ThreadStorePort } from '../store/thread-store'
 
 export async function bindSubscriptions(args: {
@@ -52,6 +52,12 @@ export async function bindSubscriptions(args: {
     },
   })
 
-  if (args.launchThreadId !== undefined) await registry.load({ threadId: args.launchThreadId })
+  if (args.launchThreadId !== undefined) {
+    const owners = [
+      args.launchThreadId,
+      ...(await teammatesOf({ threads, threadId: args.launchThreadId })),
+    ]
+    await Promise.all(owners.map((threadId) => registry.load({ threadId })))
+  }
   return registry
 }

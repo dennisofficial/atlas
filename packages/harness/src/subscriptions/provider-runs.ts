@@ -84,9 +84,12 @@ export class ProviderRuns {
     const at = Date.parse(expiresAt)
     if (Number.isNaN(at)) return
 
-    const cancel = this.args.schedule(Math.max(0, at - this.args.now()), () => {
-      this.expiries.delete(id)
-      this.args.expire({ subscriptionId: id })
+    const cancel = this.args.schedule({
+      ms: Math.max(0, at - this.args.now()),
+      run: () => {
+        this.expiries.delete(id)
+        this.args.expire({ subscriptionId: id })
+      },
     })
     this.expiries.set(id, cancel)
   }

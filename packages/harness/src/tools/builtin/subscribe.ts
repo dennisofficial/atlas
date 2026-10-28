@@ -64,7 +64,7 @@ export class SubscribeTool extends SchemaTool<typeof inputSchema> {
     return {
       ok: true,
       output: { subscriptionId: subscription.id, existed },
-      modelText: `${existed ? 'Already subscribed' : 'Subscribed'} to ${subscription.label} (id ${subscription.id}, ${expiry}). Notices from it will arrive as they happen.`,
+      modelText: `${existed ? 'Already subscribed' : 'Subscribed'} to ${subscription.label} (id ${subscription.id}, ${expiry}). Urgent events wake you at once; routine updates arrive together as one notice.`,
     }
   }
 }

@@ -19,6 +19,7 @@ import { JsonlEventLog } from '../../store/sessions/event-log'
 import { RandomIds } from '../../store/ids'
 import { SystemClock } from '../../store/clock'
 import { registryFor } from '../../store/sessions/registry'
+import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import type { SettingsBinding } from '../settings-binding'
 import { recordingNotices, testPortBindings } from './fakes'
 
@@ -48,13 +49,16 @@ const settingsBinding = (): SettingsBinding => ({
   bindTo: () => undefined,
 })
 
+const openStore = () => {
+  const registry = registryFor({ home: atlasHome })
+  const clock = new SystemClock()
+  const ids = new RandomIds()
+  const log = new JsonlEventLog(atlasHome, registry, clock, ids)
+  return { log, threads: new JsonlThreadStore(atlasHome, registry, clock, ids, log) }
+}
+
 const restoreSubscribed = async (args: { threadId: ThreadId }): Promise<void> => {
-  const log = new JsonlEventLog(
-    atlasHome,
-    registryFor({ home: atlasHome }),
-    new SystemClock(),
-    new RandomIds(),
-  )
+  const { log } = openStore()
   await log.append({
     threadId: args.threadId,
     runId: toRunId('run_restored'),
@@ -110,6 +114,22 @@ describe('subscription registry composition', () => {
     const app = await composeFor(threadId)
 
     expect(await listed({ app, threadId })).toContain('sub_restored  fake.pr  fake a/b#1  active')
+    await app.close()
+  })
+
+  it('loads a teammate’s subscriptions at compose time without any thread being opened', async () => {
+    const { threads } = openStore()
+    const main = await threads.create({ title: 'main', workspace: project })
+    const teammate = await threads.create({
+      workspace: project,
+      agent: { spawnedBy: main.id, type: 'teammate' },
+    })
+    await restoreSubscribed({ threadId: teammate.id })
+    const app = await composeFor(main.id)
+
+    expect(await listed({ app, threadId: teammate.id })).toContain(
+      'sub_restored  fake.pr  fake a/b#1  active',
+    )
     await app.close()
   })
 

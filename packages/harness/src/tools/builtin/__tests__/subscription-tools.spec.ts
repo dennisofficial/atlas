@@ -68,6 +68,14 @@ describe('subscribe', () => {
     ])
   })
 
+  it('tells the model which events wake it and which arrive together', async () => {
+    const { subscribe } = toolsOf()
+    const outcome = await call(subscribe, { provider: 'fake.pr', target: 'a/b#1' })
+    expect(textOf(outcome)).toContain(
+      'Urgent events wake you at once; routine updates arrive together as one notice.',
+    )
+  })
+
   it('says when the subscription already existed', async () => {
     const { subscribe } = toolsOf()
     await call(subscribe, { provider: 'fake.pr', target: 'a/b#1' })

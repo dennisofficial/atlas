@@ -12,6 +12,8 @@ export class ReadyQueue {
   private noticed: ReadonlyMap<ThreadId, readonly Ready[]> = new Map()
   private readonly listeners = new Set<() => void>()
 
+  constructor(private readonly onDeparted?: (args: { subscriptionId: string }) => void) {}
+
   enqueue({
     threadId,
     subscriptionId,
@@ -26,7 +28,13 @@ export class ReadyQueue {
 
   discard({ subscriptionId }: { subscriptionId: string }): void {
     const kept = this.queued.filter((ready) => ready.subscriptionId !== subscriptionId)
-    if (kept.length !== this.queued.length) this.settle(kept)
+    if (kept.length === this.queued.length) return
+    this.settle(kept)
+    this.onDeparted?.({ subscriptionId })
+  }
+
+  holds({ subscriptionId }: { subscriptionId: string }): boolean {
+    return this.queued.some((ready) => ready.subscriptionId === subscriptionId)
   }
 
   prepare({ threadId }: { threadId: ThreadId }): InputBatch {
@@ -41,7 +49,10 @@ export class ReadyQueue {
         acknowledged = true
         const leaving = new Set(captured)
         const kept = this.queued.filter((ready) => !leaving.has(ready))
-        if (kept.length !== this.queued.length) this.settle(kept)
+        if (kept.length === this.queued.length) return
+        this.settle(kept)
+        for (const subscriptionId of new Set(captured.map((ready) => ready.subscriptionId)))
+          this.onDeparted?.({ subscriptionId })
       },
     }
   }

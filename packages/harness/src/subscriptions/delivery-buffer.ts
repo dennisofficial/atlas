@@ -4,7 +4,7 @@ import { EOccurrenceUrgency, type SubscriptionOccurrence } from './provider'
 
 export const QUIET_WINDOW_MS = 120_000
 
-export type Schedule = (ms: number, run: () => void) => () => void
+export type Schedule = (args: { ms: number; run: () => void }) => () => void
 
 export type Delivery = { subscriptionId: string; drafts: readonly EventDraft[] }
 
@@ -74,9 +74,10 @@ export class DeliveryBuffer {
     drafts.delete(occurrence.key)
     drafts.set(occurrence.key, occurrence.draft)
 
-    const cancel = this.args.schedule(this.args.quietWindowMs ?? QUIET_WINDOW_MS, () =>
-      this.flush({ subscriptionId }),
-    )
+    const cancel = this.args.schedule({
+      ms: this.args.quietWindowMs ?? QUIET_WINDOW_MS,
+      run: () => this.flush({ subscriptionId }),
+    })
     this.holds.set(subscriptionId, { drafts, cancel })
   }
 
