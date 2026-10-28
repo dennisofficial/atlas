@@ -18,14 +18,8 @@ import type { CloudBridgeFactory } from './bridge-factory'
 
 const PULL_REQUEST_PROVIDER_KIND = 'github.pull-request'
 
-type WireSubscription = { provider: string; target: unknown; status: string }
-
-type ForwardableThread = ThreadSummary & {
-  subscriptions?: readonly WireSubscription[] | undefined
-}
-
 const holdsActiveSubscription = (args: {
-  summary: ForwardableThread
+  summary: ThreadSummary
   repo: string
   number: number
 }): boolean =>
@@ -61,7 +55,7 @@ export type PrEventForwarder = {
 
 export function createPrEventForwarder(args: {
   /** The merged local+cloud listing, so a cloud-only thread's stub row (with its wire subscriptions) resolves. */
-  listThreads: (args: { project: string }) => Promise<readonly ForwardableThread[]>
+  listThreads: (args: { project: string }) => Promise<readonly ThreadSummary[]>
   project: string
   bridge: CloudBridgeFactory
   activeThreadId: () => ThreadId | undefined

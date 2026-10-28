@@ -19,6 +19,8 @@ export type SupervisedAgent = { spawnedBy: ThreadId; type: string }
 
 export type ThreadModel = { ref: string; effort: string }
 
+export type ThreadSubscriptionSummary = { provider: string; target: unknown; status: string }
+
 export type ThreadSummary = {
   id: ThreadId
   title?: string | undefined
@@ -35,6 +37,7 @@ export type ThreadSummary = {
   worktree?: ThreadWorktree | undefined
   /** Set only by `list`, alongside `worktree`; absent when the thread never linked a pull request. */
   pullRequests?: LinkedPullRequest[] | undefined
+  subscriptions?: ThreadSubscriptionSummary[] | undefined
   executionLocation?: EExecutionLocation | undefined
   runner?: ERunner | undefined
   projectId?: string | null | undefined

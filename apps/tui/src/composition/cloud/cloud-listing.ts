@@ -98,5 +98,6 @@ const stubInto = async (args: { app: ListingApp; wire: WireThread }): Promise<Th
     // The stub's transcript holds no pull-request-linked events, so `list` cannot fold the links
     // out of it; the wire row already carries them, and the parked-cloud forwarder matches on them.
     ...(args.wire.pullRequests === undefined ? {} : { pullRequests: args.wire.pullRequests }),
+    ...(args.wire.subscriptions === undefined ? {} : { subscriptions: args.wire.subscriptions }),
   }
 }
