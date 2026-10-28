@@ -14,13 +14,10 @@ import {
 } from '../../platform/sandboxes/sandbox-lifecycle'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import {
-  activePullRequestSubscription,
-  threadsSubscriptions,
-} from '../../platform/sessions/thread-subscriptions'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
+import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
 
 export { WAKE_DEBOUNCE_MS }
@@ -39,10 +36,9 @@ type WakeTarget = {
 
 /**
  * Wakes parked sandboxes when a PR/CI event targets their thread. Called from the mailbox after
- * the event row lands; resolves the thread through the subscription link, keeps only threads
- * holding an active `github.pull-request` subscription for the PR, boots only parked sandboxes
- * inside the 24h wake window, and debounces per threadId so a check-run storm boots once. Never
- * throws into the delivery path — a failed wake is logged, the mailbox row stays.
+ * the event row lands; resolves the thread through the subscription link, boots only parked
+ * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
+ * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
  * A boot is claimed by compare-and-swapping the row's `wakeClaim` against the parked row it read,
  * before any Vercel call, so a second event — or a second API instance — loses the race instead
  * of starting a second boot. The claim reads as Resuming until serve's own mirror supersedes it.
@@ -140,7 +136,10 @@ export class GithubSandboxWakeService {
           (target.sandbox.wakeFailedAt === null ||
             target.sandbox.wakeFailedAt.getTime() < backoffCutoff.getTime()),
       )
-    const subscribed = await this.subscribedThreadIds({ targets, ...args })
+    const subscribed = await sessionHoldsSubscription({
+      threadIds: targets.map((target) => target.threadId),
+      ...args,
+    })
     const seen = new Set<string>()
     const immediateBoots: Promise<void>[] = []
     for (const target of targets) {
@@ -151,22 +150,6 @@ export class GithubSandboxWakeService {
       if (boot !== undefined) immediateBoots.push(boot)
     }
     await Promise.all(immediateBoots)
-  }
-
-  private async subscribedThreadIds(args: {
-    targets: readonly WakeTarget[]
-    repoFullName: string
-    prNumber: number
-  }): Promise<Set<string>> {
-    const byThread = await threadsSubscriptions({
-      reader: db,
-      threadIds: args.targets.map((target) => target.threadId),
-    })
-    return new Set(
-      [...byThread].flatMap(([threadId, subscriptions]) =>
-        activePullRequestSubscription({ subscriptions, ...args }) === undefined ? [] : [threadId],
-      ),
-    )
   }
 
   private debounceBoot(target: WakeTarget): Promise<void> | undefined {

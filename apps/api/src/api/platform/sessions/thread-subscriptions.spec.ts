@@ -72,7 +72,7 @@ describe('thread subscriptions', () => {
     expect(live.map(({ id, status }) => ({ id, status }))).toEqual([{ id: 's1', status: 'paused' }])
   })
 
-  it('inherits a reference fork parent up to the fork point only', async () => {
+  it('does not inherit from a reference fork parent', async () => {
     await seedThreadRow({ id: 'parent' })
     await seedEventRow({
       threadId: 'parent',
@@ -80,25 +80,23 @@ describe('thread subscriptions', () => {
       type: 'subscription-created',
       body: created({ id: 's1' }),
     })
-    await seedEventRow({
-      threadId: 'parent',
-      seq: 2,
-      type: 'subscription-ended',
-      body: ended('s1'),
-    })
     await seedThreadRow({
       id: 'child',
       parentThreadId: 'parent',
       forkSeq: 1,
       forkMode: 'reference',
     })
-    await seedThreadRow({ id: 'late', parentThreadId: 'parent', forkSeq: 2, forkMode: 'reference' })
+    await seedEventRow({
+      threadId: 'child',
+      seq: 2,
+      type: 'subscription-created',
+      body: created({ id: 's2', target: { repo: 'github.com/compai/app', number: 7 } }),
+    })
 
-    const all = await threadsSubscriptions({ reader: db, threadIds: ['child', 'late', 'parent'] })
+    const all = await threadsSubscriptions({ reader: db, threadIds: ['child', 'parent'] })
 
-    expect(all.get('child')?.map((entry) => entry.id)).toEqual(['s1'])
-    expect(all.get('late')).toEqual([])
-    expect(all.get('parent')).toEqual([])
+    expect(all.get('child')?.map((entry) => entry.id)).toEqual(['s2'])
+    expect(all.get('parent')?.map((entry) => entry.id)).toEqual(['s1'])
   })
 
   it('does not inherit from a copy fork', async () => {
@@ -141,6 +139,22 @@ describe('thread subscriptions', () => {
         prNumber: 42,
       }),
     ).toBeUndefined()
+  })
+
+  it('matches the target case-insensitively', async () => {
+    await seedThreadRow({ id: 'thr-a' })
+    await seedEventRow({
+      threadId: 'thr-a',
+      seq: 1,
+      type: 'subscription-created',
+      body: created({ id: 's1', target: { repo: 'github.com/CompAI/App', number: 42 } }),
+    })
+    const subscriptions = await threadSubscriptions({ reader: db, threadId: 'thr-a' })
+
+    expect(
+      activePullRequestSubscription({ subscriptions, repoFullName: 'compai/APP', prNumber: 42 })
+        ?.id,
+    ).toBe('s1')
   })
 
   it('enrichment returns subscriptions on find and list, and omits them when there are none', async () => {

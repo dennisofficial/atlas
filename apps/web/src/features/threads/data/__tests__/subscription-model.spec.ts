@@ -69,6 +69,30 @@ describe('subscriptionForPullRequest', () => {
   })
 })
 
+describe('session-wide matching', () => {
+  const target = { repo: 'github.com/o/r', number: 4, input: 'o/r#4' }
+
+  it('matches the repository case-insensitively', () => {
+    const subscriptions = [row({ target: { repo: 'github.com/O/R', number: 4 } })]
+
+    expect(subscriptionForPullRequest({ subscriptions, target })?.id).toBe('sub_1')
+  })
+
+  it('matches a subscription held by another thread of the session', () => {
+    const subscriptions = [row({ threadId: 'thr_other' as SubscriptionWire['threadId'] })]
+
+    expect(subscriptionForPullRequest({ subscriptions, target })?.id).toBe('sub_1')
+  })
+
+  it('lowercases the target built from a linked pull request', () => {
+    const thread = threadWith([
+      { number: 4, url: 'https://github.com/O/R/pull/4', repo: 'github.com/O/R', branch: 'b' },
+    ])
+
+    expect(pullRequestTargetOf(thread)?.repo).toBe('github.com/o/r')
+  })
+})
+
 describe('pullRequestBellOf', () => {
   const target = { repo: 'github.com/o/r', number: 4, input: 'o/r#4' }
 

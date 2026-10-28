@@ -15,10 +15,6 @@ const wireChecksOf = (state: PrStateWire): PullRequest['checks'] => {
   return EChecksState.None
 }
 
-/**
- * A cloud thread's live state arrives over the channel as a wire record, not a service reading. The
- * tile renders it the same way — only the source differs.
- */
 const wireStateOf = (state: PrStateWire['state']): PullRequest['state'] => {
   if (state === 'open') return EPullRequestState.Open
   if (state === 'draft') return EPullRequestState.Draft

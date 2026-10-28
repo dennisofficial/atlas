@@ -11,19 +11,11 @@ export const subscriptionsSurface = (args: { access: SubscriptionsAccess }): Con
   return {
     pluginId: 'subscriptions',
     use: (): PluginSurface => {
-      const { views, threadId } = useSubscriptionState(args.access)
+      const { views } = useSubscriptionState(args.access)
 
       const sidebarSection = useMemo(
-        () =>
-          threadId === undefined
-            ? null
-            : subscriptionsSection({
-                views,
-                threadId,
-                onToggle: actions.toggle,
-                onRemove: actions.remove,
-              }),
-        [views, threadId],
+        () => subscriptionsSection({ views, onToggle: actions.toggle, onRemove: actions.remove }),
+        [views],
       )
 
       return useMemo(() => ({ sidebarSection }), [sidebarSection])

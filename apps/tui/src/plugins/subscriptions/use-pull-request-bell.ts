@@ -18,7 +18,6 @@ export function usePullRequestBell(args: {
     return ({ repo, number }) =>
       bellFor({
         views,
-        threadId,
         repo,
         number,
         ring: (existing) =>

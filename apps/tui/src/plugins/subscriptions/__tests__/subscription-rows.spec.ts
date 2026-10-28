@@ -4,12 +4,12 @@ import { describe, expect, it } from 'bun:test'
 import { flattenedSpans } from '../../../ui/sidebar-section'
 import { theme } from '../../../ui/theme'
 import { REMOVE_GLYPH, statusText, subscriptionsSection } from '../subscription-rows'
-import { OTHER_THREAD, THREAD, view } from './fixtures'
+import { OTHER_THREAD, view } from './fixtures'
 
 const NEVER = (): void => undefined
 
 const section = (views: Parameters<typeof subscriptionsSection>[0]['views']) =>
-  subscriptionsSection({ views, threadId: THREAD, onToggle: NEVER, onRemove: NEVER })
+  subscriptionsSection({ views, onToggle: NEVER, onRemove: NEVER })
 
 const textOf = (row: NonNullable<ReturnType<typeof section>>['rows'][number]): string =>
   flattenedSpans({ row, cells: 40 })
@@ -17,9 +17,17 @@ const textOf = (row: NonNullable<ReturnType<typeof section>>['rows'][number]): s
     .join('')
 
 describe('subscriptionsSection', () => {
-  it('draws nothing when the visible thread has no subscription', () => {
+  it('draws nothing when the session has no subscription', () => {
     expect(section([])).toBeNull()
-    expect(section([view({ threadId: OTHER_THREAD })])).toBeNull()
+  })
+
+  it('lists every subscription of the session, whichever thread owns it', () => {
+    const found = section([view({ id: 'mine' }), view({ id: 'theirs', threadId: OTHER_THREAD })])
+
+    expect(found?.rows.map((row) => row.id).toSorted()).toEqual([
+      'subscription-mine',
+      'subscription-theirs',
+    ])
   })
 
   it('lists the oldest subscription first, each with its label and provider', () => {
@@ -48,7 +56,6 @@ describe('subscriptionsSection', () => {
     const calls: string[] = []
     const found = subscriptionsSection({
       views: [view()],
-      threadId: THREAD,
       onToggle: (picked) => calls.push(`toggle ${picked.id}`),
       onRemove: (picked) => calls.push(`remove ${picked.id}`),
     })

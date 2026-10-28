@@ -65,13 +65,25 @@ export class RemoteSubscriptionRegistry extends SubscriptionRegistryPort {
   private views: readonly SubscriptionView[] = []
   private revision = 0
   private readonly listeners = new Set<() => void>()
+  private readonly detach: readonly (() => void)[]
+  private disposed = false
 
-  constructor(private readonly channel: SubscriptionChannel) {
+  constructor(readonly channel: SubscriptionChannel) {
     super()
-    channel.onSubscriptions((pushed) => this.accept(pushed))
-    channel.onReload(() => void this.refresh())
-    channel.onReady(() => void this.refresh())
+    this.detach = [
+      channel.onSubscriptions((pushed) => this.accept(pushed)),
+      channel.onReload(() => void this.refresh()),
+      channel.onReady(() => void this.refresh()),
+    ]
     void this.refresh()
+  }
+
+  dispose(): void {
+    if (this.disposed) return
+
+    this.disposed = true
+    for (const off of this.detach) off()
+    this.listeners.clear()
   }
 
   private accept(next: SubscriptionsWire): void {
@@ -85,7 +97,7 @@ export class RemoteSubscriptionRegistry extends SubscriptionRegistryPort {
 
   private async refresh(): Promise<void> {
     const listed = await listSubscriptions({ channel: this.channel }).catch(() => null)
-    if (listed !== null) this.accept(listed)
+    if (listed !== null && !this.disposed) this.accept(listed)
   }
 
   list(): readonly SubscriptionView[] {

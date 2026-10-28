@@ -15,7 +15,10 @@ import {
 } from '@dltech/atlas-harness'
 
 import { publishPrStateReader } from './pr-state-reader-holder'
-import { publishSubscriptionRegistry } from './subscription-registry-holder'
+import {
+  activeSubscriptionRegistry,
+  publishSubscriptionRegistry,
+} from './subscription-registry-holder'
 
 import type { AtlasApp } from '../compose'
 import { noticePortBinding } from '../notice-binding'
@@ -53,7 +56,10 @@ export const cloudRuntimeParts = (args: {
   const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
   const prStates = createRemotePrStateReader({ channel: args.channel })
   publishPrStateReader(prStates)
-  publishSubscriptionRegistry(new RemoteSubscriptionRegistry(args.channel))
+  const held = activeSubscriptionRegistry()
+  if (!(held instanceof RemoteSubscriptionRegistry) || held.channel !== args.channel) {
+    publishSubscriptionRegistry(new RemoteSubscriptionRegistry(args.channel))
+  }
   const shells = new RemoteShellRegistry(roster)
   const agents = new RemoteAgentRegistry(roster, args.channel)
   const services = new RemoteServiceRegistry(roster)

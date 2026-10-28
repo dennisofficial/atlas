@@ -1,4 +1,4 @@
-import { ESubscriptionActor, ESubscriptionStatus, type ThreadId } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionStatus } from '@dltech/atlas-core'
 import { PULL_REQUEST_PROVIDER_KIND, type SubscriptionView } from '@dltech/atlas-harness'
 
 import type { Span } from '../../ui/components/spans'
@@ -57,12 +57,10 @@ const splitOf = (view: SubscriptionView): SidebarRowSplit => {
 
 export function subscriptionsSection(args: {
   views: readonly SubscriptionView[]
-  threadId: ThreadId
   onToggle: (view: SubscriptionView) => void
   onRemove: (view: SubscriptionView) => void
 }): SidebarSection | null {
   const rows = args.views
-    .filter((view) => view.threadId === args.threadId)
     .toSorted((left, right) => left.createdAt.localeCompare(right.createdAt))
     .map(
       (view): SidebarSectionRow => ({

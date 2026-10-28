@@ -1,5 +1,8 @@
 import {
   EExecutionLocation,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
   ERunner,
   ESubscriptionStatus,
   prEventContent,
@@ -13,10 +16,20 @@ import {
   type PrEventFrame,
   type ThreadSummary,
 } from '@dltech/atlas-harness'
+import { PULL_REQUEST_SUBSCRIPTION_PROVIDER } from '@dltech/atlas-wire'
 
 import type { CloudBridgeFactory } from './bridge-factory'
 
-const PULL_REQUEST_PROVIDER_KIND = 'github.pull-request'
+const isUrgent = (frame: PrEventFrame): boolean => {
+  const { payload } = frame
+  if (frame.kind === EPrEventKind.Review) return payload.reviewState !== EPrReviewState.Approved
+  if (frame.kind === EPrEventKind.Verdict) return payload.verdict !== EPrVerdict.Green
+  if (frame.kind === EPrEventKind.Mergeability) return false
+  if (frame.kind === EPrEventKind.State) {
+    return payload.state === 'merged' || payload.state === 'closed'
+  }
+  return true
+}
 
 const holdsActiveSubscription = (args: {
   summary: ThreadSummary
@@ -24,13 +37,14 @@ const holdsActiveSubscription = (args: {
   number: number
 }): boolean =>
   (args.summary.subscriptions ?? []).some((subscription) => {
-    if (subscription.provider !== PULL_REQUEST_PROVIDER_KIND) return false
+    if (subscription.provider !== PULL_REQUEST_SUBSCRIPTION_PROVIDER) return false
     if (subscription.status !== ESubscriptionStatus.Active) return false
     const { target } = subscription
     if (typeof target !== 'object' || target === null) return false
     return (
       'repo' in target &&
-      target.repo === args.repo &&
+      typeof target.repo === 'string' &&
+      target.repo.toLowerCase() === args.repo.toLowerCase() &&
       'number' in target &&
       target.number === args.number
     )
@@ -98,6 +112,7 @@ export function createPrEventForwarder(args: {
 
   return {
     async onPrEvent(frame) {
+      if (!isUrgent(frame)) return
       const targets = await cloudThreadsWatching(frame)
       // Bare content, not prEventBlock: channel.send lands as operator-origin input and the
       // destination wraps it in <operator-said>, so a pre-wrapped system-notice would nest.

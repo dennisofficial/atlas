@@ -1,4 +1,4 @@
-import { ESubscriptionStatus, type ThreadId } from '@dltech/atlas-core'
+import { ESubscriptionStatus } from '@dltech/atlas-core'
 import {
   PULL_REQUEST_PROVIDER_KIND,
   pullRequestTargetOf,
@@ -14,20 +14,21 @@ export const BELL_IDLE = '○'
 
 export const subscriptionTo = (args: {
   views: readonly SubscriptionView[]
-  threadId: ThreadId
   repo: string
   number: number
 }): SubscriptionView | null =>
   args.views.find((view) => {
-    if (view.provider !== PULL_REQUEST_PROVIDER_KIND || view.threadId !== args.threadId)
-      return false
+    if (view.provider !== PULL_REQUEST_PROVIDER_KIND) return false
     const target = pullRequestTargetOf(view.target)
-    return target !== null && target.repo === args.repo && target.number === args.number
+    return (
+      target !== null &&
+      target.repo.toLowerCase() === args.repo.toLowerCase() &&
+      target.number === args.number
+    )
   }) ?? null
 
 export function bellFor(args: {
   views: readonly SubscriptionView[]
-  threadId: ThreadId
   repo: string
   number: number
   ring: (existing: SubscriptionView | null) => void

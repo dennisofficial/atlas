@@ -22,7 +22,7 @@ export function pullRequestTargetOf(thread: WireThread | undefined): PullRequest
   const linked = linkedPullRequestOf(thread)
   if (linked === undefined) return undefined
 
-  const ownerRepo = ownerRepoOf(linked.repo)
+  const ownerRepo = ownerRepoOf(linked.repo).toLowerCase()
   return {
     repo: `${GITHUB_PREFIX}${ownerRepo}`,
     number: linked.number,
@@ -41,7 +41,10 @@ export function subscriptionForPullRequest(args: {
     if (subscription.provider !== PULL_REQUEST_SUBSCRIPTION_PROVIDER) return false
     const { target } = subscription
     return (
-      isRecord(target) && target.repo === args.target.repo && target.number === args.target.number
+      isRecord(target) &&
+      typeof target.repo === 'string' &&
+      target.repo.toLowerCase() === args.target.repo.toLowerCase() &&
+      target.number === args.target.number
     )
   })
 }

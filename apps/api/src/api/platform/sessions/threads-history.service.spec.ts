@@ -134,6 +134,27 @@ describe('ThreadsHistoryService', () => {
     expect(copied.every((row) => row.userId === USER_A)).toBe(true)
   })
 
+  it('fork copy starts unsubscribed: subscription events are not copied', async () => {
+    await seedThreadWithEvents([
+      'user-said',
+      'subscription-created',
+      'subscription-changed',
+      'subscription-ended',
+      'assistant-said',
+    ])
+
+    const forked = await service.fork({
+      userId: USER_A,
+      threadId: 'brn_one',
+      draft: { seq: 5, mode: 'copy' },
+    })
+
+    expect((await eventsOf(forked.id)).map((row) => row.type)).toEqual([
+      'user-said',
+      'assistant-said',
+    ])
+  })
+
   it('fork carries the source thread project and owner organization', async () => {
     await seedOrganization({ db, id: 'org-1', memberIds: [USER_A] })
     await db.orm.public.Project.create({
