@@ -33,8 +33,6 @@ const NOTHING_PENDING: readonly ServiceNotice[] = Object.freeze([])
 
 const NOTHING_ANNOUNCED: readonly ServiceSnapshot[] = Object.freeze([])
 
-const NOTHING_DRAINED: readonly EventDraft[] = Object.freeze([])
-
 const NOTHING_NOTICED: ReadonlyMap<ThreadId, readonly ServiceSnapshot[]> = new Map()
 
 export class ServiceNoticeQueue {
