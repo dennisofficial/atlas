@@ -62,9 +62,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
     const credentials = await serviceWith(scoped).forThread({ threadId: reply.thread.id ?? '' })
 
     expect(credentials).toMatchObject({ token: 'ws-token', ownerCredential: true })
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'usr-1', organizationId: null },
-    })
+    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
   })
 
   it('treats a thread whose launch hit a credential gap as API-provisioned', async () => {

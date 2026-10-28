@@ -5,14 +5,12 @@ import { ESecretKind } from './secrets-wire'
 
 export enum EConfigScope {
   Default = 'default',
-  Workspace = 'workspace',
   User = 'user',
   Project = 'project',
 }
 
 export const CONFIG_SCOPE_PRECEDENCE: readonly EConfigScope[] = [
   EConfigScope.Default,
-  EConfigScope.Workspace,
   EConfigScope.User,
   EConfigScope.Project,
 ]
@@ -33,10 +31,7 @@ export const scopedSecretSchema = z.object({
 })
 export type ScopedSecret = z.infer<typeof scopedSecretSchema>
 
-export const scopedMcpServerSchema = z.object({
-  name: z.string().min(1),
-  spec: mcpUpsertSchema,
-})
+export const scopedMcpServerSchema = z.object({ name: z.string().min(1), spec: mcpUpsertSchema })
 export type ScopedMcpServer = z.infer<typeof scopedMcpServerSchema>
 
 export const resolvedSandboxConfigSchema = z.object({
@@ -60,9 +55,6 @@ export const vercelCredentialSchema = z.object({
 })
 export type VercelCredentialView = z.infer<typeof vercelCredentialSchema>
 
-export const workspaceVercelCredentialSchema = vercelCredentialSchema
-export type WorkspaceVercelCredential = VercelCredentialView
-
 export const userVercelCredentialSchema = vercelCredentialSchema
 export type UserVercelCredential = VercelCredentialView
 
@@ -74,9 +66,6 @@ export const vercelCredentialUpsertSchema = z.object({
   vercelProjectId: z.string().trim().min(1).max(MAX_VERCEL_FIELD_LENGTH),
 })
 export type VercelCredentialUpsert = z.infer<typeof vercelCredentialUpsertSchema>
-
-export const workspaceVercelCredentialUpsertSchema = vercelCredentialUpsertSchema
-export type WorkspaceVercelCredentialUpsert = VercelCredentialUpsert
 
 export const userVercelCredentialUpsertSchema = vercelCredentialUpsertSchema
 export type UserVercelCredentialUpsert = VercelCredentialUpsert

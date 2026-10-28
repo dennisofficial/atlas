@@ -52,7 +52,7 @@ describe('AccountsRouter', () => {
             async verify(req: { headers: { authorization?: string } }) {
               const userId = USERS[(req.headers.authorization ?? '').replace(/^Bearer /, '')]
               if (userId === undefined) return null
-              return { userId, sessionId: 's', email: '', activeOrganizationId: null }
+              return { userId, sessionId: 's', email: '' }
             },
           },
         },

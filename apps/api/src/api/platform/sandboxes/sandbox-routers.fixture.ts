@@ -37,12 +37,7 @@ const verifier = {
   async verify(request: { headers: Record<string, unknown> }): Promise<VerifiedSession | null> {
     const userId = request.headers[USER_HEADER]
     if (typeof userId !== 'string') return null
-    return {
-      userId,
-      sessionId: 'session-1',
-      email: `${userId}@atlas.dev`,
-      activeOrganizationId: null,
-    }
+    return { userId, sessionId: 'session-1', email: `${userId}@atlas.dev` }
   },
 }
 

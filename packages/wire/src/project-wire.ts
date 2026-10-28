@@ -25,7 +25,6 @@ export const projectSchema = z.object({
   additionalRepos: z.array(projectRepoSchema),
   description: z.string().default(''),
   shipBehavior: z.enum(EShipBehavior).default(EShipBehavior.OpenPullRequest),
-  organizationId: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -42,8 +41,6 @@ export type ProjectWorkspace = z.infer<typeof projectWorkspaceSchema>
 
 export const githubCloneUrlOf = (repo: string): string => `https://github.com/${repo}.git`
 
-export const MAX_ORGANIZATION_ID_LENGTH = 200
-
 export const projectRepoInputSchema = z.strictObject({
   repo: githubRepoSchema,
   branch: gitBranchSchema.optional(),
@@ -56,7 +53,6 @@ export const projectSaveSchema = z.strictObject({
   additionalRepos: z.array(projectRepoInputSchema).max(MAX_ADDITIONAL_REPOS),
   description: z.string().max(MAX_PROJECT_DESCRIPTION_LENGTH).optional(),
   shipBehavior: z.enum(EShipBehavior).optional(),
-  organizationId: z.string().min(1).max(MAX_ORGANIZATION_ID_LENGTH).nullable().optional(),
 })
 export type ProjectSave = z.infer<typeof projectSaveSchema>
 

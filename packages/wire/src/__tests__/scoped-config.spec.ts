@@ -11,8 +11,8 @@ import {
   resolvedSandboxConfigSchema,
   validateProjectSetting,
   encodeSettingValue,
-  workspaceVercelCredentialSchema,
-  workspaceVercelCredentialUpsertSchema,
+  userVercelCredentialSchema,
+  userVercelCredentialUpsertSchema,
   type ScopedMcpServer,
   type ScopeLayer,
 } from '../web'
@@ -25,10 +25,9 @@ const server = (url: string): ScopedMcpServer => ({
 })
 
 describe('resolveScopedConfig', () => {
-  it('lets project beat user beat workspace beat default for one key', () => {
+  it('lets project beat user beat default for one key', () => {
     const resolved = resolveScopedConfig({
       defaults: layer({ settings: { 'model.effort': 'd' } }),
-      workspace: layer({ settings: { 'model.effort': 'w' } }),
       user: layer({ settings: { 'model.effort': 'u' } }),
       project: layer({ settings: { 'model.effort': 'p' } }),
     })
@@ -38,20 +37,18 @@ describe('resolveScopedConfig', () => {
 
   it('falls through a missing scope to the next lower one', () => {
     const resolved = resolveScopedConfig({
-      defaults: EMPTY_SCOPE_LAYER,
-      workspace: layer({ settings: { a: 'w', b: 'w' } }),
+      defaults: layer({ settings: { a: 'd', b: 'd' } }),
       user: layer({ settings: { a: 'u' } }),
       project: layer({}),
     })
-    expect(resolved.settings).toEqual({ a: 'u', b: 'w' })
+    expect(resolved.settings).toEqual({ a: 'u', b: 'd' })
     expect(resolved.provenance['setting:a']).toBe(EConfigScope.User)
-    expect(resolved.provenance['setting:b']).toBe(EConfigScope.Workspace)
+    expect(resolved.provenance['setting:b']).toBe(EConfigScope.Default)
   })
 
-  it('resolves a project without a workspace as user + defaults + project', () => {
+  it('resolves a missing project as user + defaults', () => {
     const resolved = resolveScopedConfig({
       defaults: layer({ settings: { x: 'd' } }),
-      workspace: null,
       user: layer({ secrets: [{ name: 'TOKEN', value: 'u', kind: ESecretKind.Secret }] }),
       project: null,
     })
@@ -62,8 +59,7 @@ describe('resolveScopedConfig', () => {
   it('takes the winning entry whole when env and secret kinds clash', () => {
     const resolved = resolveScopedConfig({
       defaults: EMPTY_SCOPE_LAYER,
-      workspace: layer({ secrets: [{ name: 'API', value: 'w', kind: ESecretKind.Secret }] }),
-      user: layer({}),
+      user: layer({ secrets: [{ name: 'API', value: 'u', kind: ESecretKind.Secret }] }),
       project: layer({ secrets: [{ name: 'API', value: 'p', kind: ESecretKind.EnvVar }] }),
     })
     expect(resolved.secrets).toEqual([{ name: 'API', value: 'p', kind: ESecretKind.EnvVar }])
@@ -73,10 +69,9 @@ describe('resolveScopedConfig', () => {
   it('merges mcp servers by name and sorts every list', () => {
     const resolved = resolveScopedConfig({
       defaults: EMPTY_SCOPE_LAYER,
-      workspace: layer({
-        mcpServers: [server('https://w.dev'), { name: 'alpha', spec: { disabled: true } }],
+      user: layer({
+        mcpServers: [server('https://u.dev'), { name: 'alpha', spec: { disabled: true } }],
       }),
-      user: layer({}),
       project: layer({ mcpServers: [server('https://p.dev')] }),
     })
     expect(resolved.mcpServers.map((entry) => entry.name)).toEqual(['alpha', 'docs'])
@@ -87,7 +82,6 @@ describe('resolveScopedConfig', () => {
   it('strips sandbox.vercel* settings and secrets from the pod-facing view', () => {
     const resolved = resolveScopedConfig({
       defaults: EMPTY_SCOPE_LAYER,
-      workspace: null,
       user: layer({ settings: { 'sandbox.vercelTeamId': 't', 'model.id': 'a/b' } }),
       project: layer({
         settings: { 'sandbox.vercelProjectId': 'prj' },
@@ -121,7 +115,7 @@ describe('project setting registry', () => {
 describe('vercel credential', () => {
   it('reads without a token and takes an optional write-only token beside team and project', () => {
     expect(
-      workspaceVercelCredentialSchema.safeParse({
+      userVercelCredentialSchema.safeParse({
         configured: false,
         teamId: null,
         vercelProjectId: null,
@@ -129,16 +123,12 @@ describe('vercel credential', () => {
       }).success,
     ).toBe(true)
     const owned = { teamId: 'team_1', vercelProjectId: 'prj_1' }
-    expect(workspaceVercelCredentialUpsertSchema.safeParse(owned).success).toBe(true)
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ ...owned, token: 'v' }).success).toBe(
-      true,
-    )
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ ...owned, token: '' }).success).toBe(
-      false,
-    )
+    expect(userVercelCredentialUpsertSchema.safeParse(owned).success).toBe(true)
+    expect(userVercelCredentialUpsertSchema.safeParse({ ...owned, token: 'v' }).success).toBe(true)
+    expect(userVercelCredentialUpsertSchema.safeParse({ ...owned, token: '' }).success).toBe(false)
     expect(
-      workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success,
+      userVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success,
     ).toBe(false)
-    expect(workspaceVercelCredentialUpsertSchema.safeParse({ token: 'v' }).success).toBe(false)
+    expect(userVercelCredentialUpsertSchema.safeParse({ token: 'v' }).success).toBe(false)
   })
 })

@@ -21,19 +21,17 @@ import {
   SidebarMenuItem,
 } from '@dltech/atlas-ui/components/sidebar'
 
-import { ESettingsPage, ESettingsScope, filterNav, hrefOfPage, navForScope } from './settings-nav'
+import { ESettingsPage, SETTINGS_NAV, filterNav, hrefOfPage } from './settings-nav'
 
 export function SettingsNavBody({
-  scope,
   page,
   onNavigate,
 }: {
-  scope: ESettingsScope
   page: ESettingsPage
   onNavigate?: () => void
 }) {
   const [query, setQuery] = useState('')
-  const groups = filterNav({ groups: navForScope(scope), query })
+  const groups = filterNav({ groups: SETTINGS_NAV, query })
   return (
     <>
       <SidebarHeader>

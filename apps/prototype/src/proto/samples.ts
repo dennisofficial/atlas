@@ -4,7 +4,6 @@ export interface ProtoSample {
 }
 
 export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
-  '/invite/[id]': [{ label: 'Invitation', path: '/invite/inv-demo' }],
   '/threads/[threadId]': [
     { label: 'Session', path: '/threads/thr-ui-rebase' },
     { label: 'Other thread', path: '/threads/thr-snapshots' },

@@ -1,21 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESecretKind, EShipBehavior } from '@dltech/atlas-wire/web'
-import type { ListedSecret } from '@/features/settings/data/workspace/resource-api'
+import type { ListedSecret } from '@/features/settings/data/shared/resource-api'
 
-import { ESecretScope } from '../../fixtures/project-settings'
 import type { ProjectView } from '../project-api'
 import {
   identityOf,
   LEGACY_MERGE_LABEL,
-  organizationIdOfValue,
   overviewDraftOf,
-  PERSONAL_WORKSPACE_LABEL,
-  PERSONAL_WORKSPACE_VALUE,
   saveBodyOf,
   shipOptionsOf,
-  workspaceOptionsOf,
-  workspaceValueOf,
 } from '../project-mapping'
 import { projectSecretRows } from '../project-secrets'
 import { DEFAULT_SIZE_ID, sizeIdOf, vcpusOfSizeId } from '../sandbox-mapping'
@@ -30,7 +24,6 @@ const project: ProjectView = {
   additionalRepos: [{ repo: 'a/b', branch: 'dev' }],
   description: '',
   shipBehavior: EShipBehavior.OpenPullRequest,
-  organizationId: null,
   createdAt: '',
   updatedAt: '',
 }
@@ -52,7 +45,7 @@ describe('project mapping', () => {
       name: ' renamed ',
       additionalRepositories: ['a/b', ' ', 'c/d'],
     }
-    expect(saveBodyOf({ project, draft, includeWorkspace: false })).toEqual({
+    expect(saveBodyOf({ project, draft })).toEqual({
       name: 'renamed',
       repo: 'dennisofficial/atlas',
       baseBranch: null,
@@ -82,45 +75,6 @@ describe('ship options', () => {
   })
 })
 
-describe('workspace picker mapping', () => {
-  it('maps the personal option to null and back', () => {
-    expect(organizationIdOfValue(PERSONAL_WORKSPACE_VALUE)).toBeNull()
-    expect(organizationIdOfValue('org-1')).toBe('org-1')
-    expect(workspaceValueOf(null)).toBe(PERSONAL_WORKSPACE_VALUE)
-    expect(workspaceValueOf('org-1')).toBe('org-1')
-  })
-
-  it('lists personal first, then organizations, plus an unknown current workspace', () => {
-    const organizations = [{ id: 'org-1', name: 'Acme', slug: 'acme' }]
-    expect(workspaceOptionsOf({ organizations, current: null })).toEqual([
-      { value: PERSONAL_WORKSPACE_VALUE, label: PERSONAL_WORKSPACE_LABEL },
-      { value: 'org-1', label: 'Acme' },
-    ])
-    expect(workspaceOptionsOf({ organizations, current: 'org-9' }).map((o) => o.value)).toEqual([
-      PERSONAL_WORKSPACE_VALUE,
-      'org-1',
-      'org-9',
-    ])
-  })
-
-  it('sends organizationId only when the capability is on and the value changed', () => {
-    const draft = { ...overviewDraftOf(project), organizationId: 'org-1' }
-    expect(saveBodyOf({ project, draft, includeWorkspace: false })).not.toHaveProperty(
-      'organizationId',
-    )
-    expect(saveBodyOf({ project, draft, includeWorkspace: true }).organizationId).toBe('org-1')
-    const unchanged = overviewDraftOf(project)
-    expect(saveBodyOf({ project, draft: unchanged, includeWorkspace: true })).not.toHaveProperty(
-      'organizationId',
-    )
-    const moved = { ...project, organizationId: 'org-1' }
-    const toPersonal = { ...overviewDraftOf(moved), organizationId: null }
-    expect(
-      saveBodyOf({ project: moved, draft: toPersonal, includeWorkspace: true }).organizationId,
-    ).toBeNull()
-  })
-})
-
 describe('sandbox sizes', () => {
   it('maps vcpus to size ids and back', () => {
     expect(sizeIdOf(null)).toBe(DEFAULT_SIZE_ID)
@@ -130,24 +84,16 @@ describe('sandbox sizes', () => {
 })
 
 describe('project secret rows', () => {
-  const entry = (name: string): ListedSecret => ({
-    name,
-    kind: ESecretKind.EnvVar,
-    value: 'v',
-    createdAt: '',
-    updatedAt: '2026-10-20T11:00:00Z',
-  })
-
-  it('marks overrides and hides shadowed workspace rows', () => {
-    const rows = projectSecretRows({
-      project: [entry('A'), entry('B')],
-      workspace: [entry('B'), entry('C')],
-      now: NOW,
-    })
-    expect(rows.map((row) => [row.name, row.scope, row.overridesWorkspace ?? false])).toEqual([
-      ['A', ESecretScope.Project, false],
-      ['B', ESecretScope.Project, true],
-      ['C', ESecretScope.Workspace, false],
+  it('maps project secrets to rows', () => {
+    const secret: ListedSecret = {
+      name: 'A',
+      kind: ESecretKind.EnvVar,
+      value: 'v',
+      createdAt: '',
+      updatedAt: '2026-10-20T11:00:00Z',
+    }
+    expect(projectSecretRows({ secrets: [secret], now: NOW })).toEqual([
+      { name: 'A', value: 'v', updated: '1h ago' },
     ])
   })
 })

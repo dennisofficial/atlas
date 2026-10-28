@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { PERSONAL_WORKSPACE_VALUE } from '@/features/project-settings/data/project-mapping'
-
 import {
   canContinueFromRepository,
   createBodyOf,
@@ -13,89 +11,41 @@ import {
   repoOf,
   stepPosition,
   suggestedName,
-  visibleNameError,
 } from '../new-project-draft'
 import { ENewProjectStep, EProjectSource } from '../new-project-types'
 
-const EXISTING = { ...emptyDraft('org1'), repo: 'compai/csa' }
-const PROJECTS = [
-  { name: 'comp-v3', organizationId: 'org1' },
-  { name: 'scratch', organizationId: null },
-]
+const EXISTING = { ...emptyDraft(), repo: 'compai/csa' }
+const PROJECTS = [{ name: 'comp-v3' }, { name: 'scratch' }]
 
 describe('nameErrorOf', () => {
   it('flags an empty name', () => {
-    expect(nameErrorOf({ name: '  ', ownerId: 'org1', projects: PROJECTS })).toBe(ENameError.Empty)
+    expect(nameErrorOf({ name: '  ', projects: PROJECTS })).toBe(ENameError.Empty)
   })
 
   it('flags a name over the API limit', () => {
     const name = 'x'.repeat(101)
-    expect(nameErrorOf({ name, ownerId: 'org1', projects: PROJECTS })).toBe(ENameError.TooLong)
+    expect(nameErrorOf({ name, projects: PROJECTS })).toBe(ENameError.TooLong)
   })
 
-  it('flags a duplicate in the same workspace, ignoring case', () => {
-    expect(nameErrorOf({ name: 'COMP-V3', ownerId: 'org1', projects: PROJECTS })).toBe(
-      ENameError.Duplicate,
-    )
+  it('flags a duplicate, ignoring case', () => {
+    expect(nameErrorOf({ name: 'COMP-V3', projects: PROJECTS })).toBe(ENameError.Duplicate)
   })
 
-  it('allows the same name in a different workspace', () => {
-    expect(nameErrorOf({ name: 'comp-v3', ownerId: 'org2', projects: PROJECTS })).toBeNull()
-    expect(
-      nameErrorOf({ name: 'comp-v3', ownerId: PERSONAL_WORKSPACE_VALUE, projects: PROJECTS }),
-    ).toBeNull()
-  })
-
-  it('scopes private projects by a null organization', () => {
-    expect(
-      nameErrorOf({ name: 'Scratch', ownerId: PERSONAL_WORKSPACE_VALUE, projects: PROJECTS }),
-    ).toBe(ENameError.Duplicate)
-    expect(nameErrorOf({ name: 'scratch', ownerId: 'org1', projects: PROJECTS })).toBeNull()
-  })
-
-  it('treats a missing organization id as private', () => {
-    const projects = [{ name: 'solo' }]
-    expect(nameErrorOf({ name: 'solo', ownerId: PERSONAL_WORKSPACE_VALUE, projects })).toBe(
-      ENameError.Duplicate,
-    )
+  it('allows an unused name', () => {
+    expect(nameErrorOf({ name: 'comp-v4', projects: PROJECTS })).toBeNull()
   })
 })
 
-describe('visibleNameError', () => {
-  it('hides the empty error until the field is touched', () => {
-    expect(visibleNameError({ error: ENameError.Empty, touched: false })).toBeNull()
-    expect(visibleNameError({ error: ENameError.Empty, touched: true })).toBe(ENameError.Empty)
-  })
-
-  it('always shows other errors', () => {
-    expect(visibleNameError({ error: ENameError.Duplicate, touched: false })).toBe(
-      ENameError.Duplicate,
-    )
-  })
-})
-
-describe('repoOf and suggestedName', () => {
-  it('is null with no repository, even if one was picked earlier', () => {
-    const draft = { ...EXISTING, source: EProjectSource.NoRepo }
-    expect(repoOf(draft)).toBeNull()
-    expect(suggestedName(draft)).toBe('')
-  })
-
-  it('uses the picked repository', () => {
+describe('draft helpers', () => {
+  it('reads the repo and suggests a name from it', () => {
     expect(repoOf(EXISTING)).toBe('compai/csa')
     expect(suggestedName(EXISTING)).toBe('csa')
   })
 })
 
-describe('emptyDraft', () => {
-  it('defaults to private when there is no workspace', () => {
-    expect(emptyDraft(null).ownerId).toBe(PERSONAL_WORKSPACE_VALUE)
-  })
-})
-
 describe('canContinueFromRepository', () => {
   it('requires a picked repository', () => {
-    expect(canContinueFromRepository(emptyDraft(null))).toBe(false)
+    expect(canContinueFromRepository(emptyDraft())).toBe(false)
     expect(canContinueFromRepository(EXISTING)).toBe(true)
   })
 })
@@ -139,7 +89,6 @@ describe('createBodyOf', () => {
       baseBranch: null,
       additionalRepos: [],
       description: 'Slack triage',
-      organizationId: 'org1',
     })
   })
 
@@ -153,10 +102,5 @@ describe('createBodyOf', () => {
     const body = createBodyOf({ draft, name: 'x' })
     expect(body.repo).toBeNull()
     expect(body.baseBranch).toBeNull()
-  })
-
-  it('sends a null organization for Private', () => {
-    const draft = emptyDraft(PERSONAL_WORKSPACE_VALUE)
-    expect(createBodyOf({ draft, name: 'x' }).organizationId).toBeNull()
   })
 })

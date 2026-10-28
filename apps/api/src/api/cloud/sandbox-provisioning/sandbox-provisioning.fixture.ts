@@ -1,6 +1,6 @@
 import { EBootStep, EBootStepState, ERuntimePhase, type VercelSdk } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { seedOrganization, seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
+import { seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
 import type { EnvService } from '../../../_core/config/env/env.service'
@@ -30,16 +30,9 @@ export const cipher = new SecretCipherService({
 
 export async function seedBase(): Promise<void> {
   await seedUser({ db, id: 'usr-1' })
-  await seedOrganization({ db, id: 'org-1', memberIds: ['usr-1'] })
   for (const id of ['prj-1', 'prj-9']) {
     await db.orm.public.Project.create({ id, name: id, ownerUserId: 'usr-1', createdById: 'usr-1' })
   }
-  await db.orm.public.Project.create({
-    id: 'prj-ws',
-    name: 'prj-ws',
-    organizationId: 'org-1',
-    createdById: 'usr-1',
-  })
 }
 
 export async function seedThread(
@@ -102,7 +95,7 @@ export function fakeScoped(
 ) {
   const scoped = {
     vercelCredentials: vi.fn(async () => CREDENTIALS),
-    accessibleProject: vi.fn(async () => ({ id: 'prj-9', organizationId: 'org-1' })),
+    accessibleProject: vi.fn(async () => 'prj-9'),
     ...overrides,
   }
   return scoped as unknown as ScopedConfigService & typeof scoped

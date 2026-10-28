@@ -59,7 +59,7 @@ describe('GithubSandboxWakeService resume', () => {
     expect(held.lastActivityAt.getTime()).toBeGreaterThan(Date.now() - 10_000)
   })
 
-  it('boots a workspace-owned row without injecting its Vercel token and flags it API-provisioned', async () => {
+  it('boots an owner-credential row without injecting its Vercel token and flags it API-provisioned', async () => {
     await seedParkedSandbox()
     await seedSubscription()
     const { boot, calls } = fakeBoot()

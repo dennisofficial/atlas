@@ -2,26 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import {
-  ESettingsPage,
-  ESettingsScope,
-  PERSONAL_NAV,
-  WORKSPACE_NAV,
-  firstPageOf,
-  hrefOfPage,
-  navForScope,
-  scopeOfPage,
-  settingsPageOfPath,
-} from '../settings-nav'
+import { ESettingsPage, SETTINGS_NAV, hrefOfPage, settingsPageOfPath } from '../settings-nav'
 
 const SETTINGS_APP_DIR = join(import.meta.dir, '../../../app/(private)/settings')
-
-const WORKSPACE_PAGES = [
-  ESettingsPage.WorkspaceGeneral,
-  ESettingsPage.WorkspaceMembers,
-  ESettingsPage.WorkspaceSecrets,
-  ESettingsPage.WorkspaceMcp,
-]
 
 describe('settings routes', () => {
   test('every page round-trips through its href', () => {
@@ -31,11 +14,18 @@ describe('settings routes', () => {
   })
 
   test('parked pages are routable but not in the personal nav', () => {
-    const navPages = PERSONAL_NAV.flatMap((group) => group.items.map((item) => item.page))
+    const navPages = SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.page))
     expect(settingsPageOfPath('/settings/notifications')).toBe(ESettingsPage.Notifications)
     expect(settingsPageOfPath('/settings/security')).toBe(ESettingsPage.Security)
     expect(navPages).not.toContain(ESettingsPage.Notifications)
     expect(navPages).not.toContain(ESettingsPage.Security)
+  })
+
+  test('workspace routes no longer exist', () => {
+    expect(settingsPageOfPath('/settings/workspace-general')).toBeNull()
+    expect(settingsPageOfPath('/settings/workspace-members')).toBeNull()
+    expect(settingsPageOfPath('/settings/workspace-secrets')).toBeNull()
+    expect(settingsPageOfPath('/settings/workspace-mcp')).toBeNull()
   })
 
   test('unknown paths resolve to null', () => {
@@ -52,25 +42,5 @@ describe('settings routes', () => {
     for (const page of Object.values(ESettingsPage)) {
       expect(existsSync(join(SETTINGS_APP_DIR, page, 'page.tsx'))).toBe(true)
     }
-  })
-})
-
-describe('settings scopes', () => {
-  test('workspace pages belong to the workspace scope', () => {
-    for (const page of WORKSPACE_PAGES) {
-      expect(scopeOfPage(page)).toBe(ESettingsScope.Workspace)
-    }
-    expect(scopeOfPage(ESettingsPage.Account)).toBe(ESettingsScope.Personal)
-    expect(scopeOfPage(ESettingsPage.Notifications)).toBe(ESettingsScope.Personal)
-  })
-
-  test('each scope opens on its first nav item', () => {
-    expect(firstPageOf(ESettingsScope.Personal)).toBe(ESettingsPage.Account)
-    expect(firstPageOf(ESettingsScope.Workspace)).toBe(ESettingsPage.WorkspaceGeneral)
-  })
-
-  test('navForScope returns the matching groups', () => {
-    expect(navForScope(ESettingsScope.Personal)).toBe(PERSONAL_NAV)
-    expect(navForScope(ESettingsScope.Workspace)).toBe(WORKSPACE_NAV)
   })
 })

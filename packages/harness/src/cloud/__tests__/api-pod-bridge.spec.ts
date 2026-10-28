@@ -68,9 +68,7 @@ describe('create', () => {
   })
 
   it('provisions a parked pod, waits for it to run, then connects', async () => {
-    const fake = createFakePodApi({
-      statuses: [statusOf(EPodState.Parked), running],
-    })
+    const fake = createFakePodApi({ statuses: [statusOf(EPodState.Parked), running] })
 
     await bridgeOf(fake).sandboxes.create({ threadId: THREAD, projectId: 'proj_1' })
 
@@ -150,7 +148,7 @@ describe('create', () => {
     fake.setProvision({
       state: ESandboxProvisionState.NotConfigured,
       error: 'No Vercel credentials.',
-      gap: EVercelCredentialGap.WorkspaceCredential,
+      gap: EVercelCredentialGap.UserCredential,
     })
 
     const failure = await bridgeOf(fake)
@@ -158,7 +156,7 @@ describe('create', () => {
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(PodNotConfiguredError)
-    expect(failure).toMatchObject({ gap: EVercelCredentialGap.WorkspaceCredential })
+    expect(failure).toMatchObject({ gap: EVercelCredentialGap.UserCredential })
     expect(String(failure)).toContain('No Vercel credentials.')
     expect(fake.calls.some((call) => call.startsWith('connect:'))).toBe(false)
   })

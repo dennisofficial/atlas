@@ -1,13 +1,8 @@
-import { z } from 'zod'
-
-import { projectSchema, type EShipBehavior, type ProjectSandbox } from '@dltech/atlas-wire/web'
+import type { EShipBehavior, Project, ProjectSandbox } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
-export const projectViewSchema = projectSchema.extend({
-  organizationId: z.string().nullable().default(null),
-})
-export type ProjectView = z.infer<typeof projectViewSchema>
+export type ProjectView = Project
 
 export type SaveProjectBody = {
   name: string
@@ -16,24 +11,21 @@ export type SaveProjectBody = {
   additionalRepos: { repo: string; branch?: string }[]
   description: string
   shipBehavior: EShipBehavior
-  organizationId?: string | null
 }
 
 export type CreateProjectBody = Omit<SaveProjectBody, 'shipBehavior'>
 
-export const createProject = async (body: CreateProjectBody): Promise<ProjectView> =>
-  projectViewSchema.parse(await cloudCall(api.projects.create.mutate(body)))
+export const createProject = (body: CreateProjectBody): Promise<ProjectView> =>
+  cloudCall(api.projects.create.mutate(body))
 
-export const fetchProject = async (projectId: string): Promise<ProjectView> =>
-  projectViewSchema.parse(await cloudCall(api.projects.get.query({ projectId })))
+export const fetchProject = (projectId: string): Promise<ProjectView> =>
+  cloudCall(api.projects.get.query({ projectId }))
 
-export const saveProject = async (args: {
+export const saveProject = (args: {
   projectId: string
   body: SaveProjectBody
 }): Promise<ProjectView> =>
-  projectViewSchema.parse(
-    await cloudCall(api.projects.update.mutate({ projectId: args.projectId, ...args.body })),
-  )
+  cloudCall(api.projects.update.mutate({ projectId: args.projectId, ...args.body }))
 
 export const deleteProject = (projectId: string): Promise<void> =>
   cloudCall(api.projects.remove.mutate({ projectId }))

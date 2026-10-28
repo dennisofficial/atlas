@@ -13,10 +13,8 @@ model User {
   settings                 UserSetting[]
   deviceCodes              DeviceCode[]
   githubConnection         GithubConnection?
-  invitations              Invitation[]
   localPodLeases           LocalPodLease[]
   mcpServers               UserMcpServer[]
-  members                  Member[]
   memories                 Memory[]
   oauthConnections         OauthConnection[]
   ownedProjects            Project[]                   @relation(name: "Project_owner")
@@ -26,8 +24,6 @@ model User {
   githubPrEvents           GithubPrEvent[]
   githubNoticeDismissals   GithubAppNoticeDismissal[]
   githubRepoHooks          GithubRepoHook[]
-  updatedWorkspaceSecrets  WorkspaceSecret[]
-  updatedVercelCredentials WorkspaceVercelCredential[]
   publishedBundles         PublishedBundle[]
   secrets                  UserSecret[]
   sessions                 Session[]

@@ -18,7 +18,7 @@ const ctxFor = (extra: Partial<SessionOrSandboxTrpcCtx> = {}): SessionOrSandboxT
   req: request,
   bearerToken: undefined,
   clientVersion: undefined,
-  auth: { userId: 'usr_1', sessionId: 'ses', email: '', activeOrganizationId: null },
+  auth: { userId: 'usr_1', sessionId: 'ses', email: '' },
   ...extra,
 })
 

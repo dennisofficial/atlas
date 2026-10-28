@@ -8,13 +8,11 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import { fetchAccounts } from '@/features/settings/data/personal/accounts-api'
-import { ESettingsTarget, useCloudSettings } from '@/lib/cloud-settings'
+import { useCloudSettings } from '@/lib/cloud-settings'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { modelOptionsOfSource, type ModelOptions } from './model-options'
 import { fetchModels, loadModelsSource } from './models-api'
-
-const PERSONAL = { kind: ESettingsTarget.Personal } as const
 
 const loadSource = () => loadModelsSource({ loadModels: fetchModels, loadAccounts: fetchAccounts })
 
@@ -29,7 +27,7 @@ export type ModelPicker = {
 
 export function useModelPicker(args: { currentId?: string | undefined } = {}): ModelPicker {
   const source = useCloudQuery({ key: 'model-picker-source', load: loadSource })
-  const settings = useCloudSettings(PERSONAL)
+  const settings = useCloudSettings()
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const { save, read } = settings
 

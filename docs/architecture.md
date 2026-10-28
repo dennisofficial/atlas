@@ -1665,7 +1665,7 @@ atlas/
 
 `api` runs on Bun like every other member, as ESM with no build step (`bun src/main.ts`, Nest 12),
 and tests with `bun test`. It also performs no model calls —
-it holds users, organizations, and sealed credentials, and clients (the TUI first) fetch from it
+it holds users and sealed credentials, and clients (the TUI first) fetch from it
 over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
 
 `core` performs **no I/O**. When something is hard to test, that is the signal to move the decision

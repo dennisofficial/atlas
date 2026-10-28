@@ -30,18 +30,3 @@ export const PERSONAL_MCP_SERVERS: McpServer[] = [
     enabled: false,
   },
 ]
-
-export const WORKSPACE_MCP_SERVERS: McpServer[] = [
-  {
-    id: 'linear',
-    transport: EMcpTransport.Http,
-    target: 'https://mcp.linear.app/mcp',
-    enabled: true,
-  },
-  {
-    id: 'postgres',
-    transport: EMcpTransport.Stdio,
-    target: 'bunx @dltech/mcp-postgres --read-only',
-    enabled: true,
-  },
-]

@@ -1,10 +1,8 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { EllipsisIcon, EyeIcon, EyeOffIcon, KeyRoundIcon } from 'lucide-react'
 
-import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
   DropdownMenu,
@@ -31,16 +29,13 @@ import {
 
 import { ESecretKind } from '@dltech/atlas-wire/web'
 
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
-import { runAction } from '@/features/settings/data/workspace/run-action'
-import { EQueryState } from '@/lib/use-cloud-query'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { useProjectContext } from './data/project-context'
-import type { InheritedView } from './data/inherited-secrets'
-import { InheritedStatus } from './inherited-status'
 import { projectSecretRows } from './data/project-secrets'
 import { useProjectSecrets } from './data/use-project-secrets'
-import { ESecretScope, type SecretRow } from './fixtures/project-settings'
+import type { SecretRow } from './fixtures/project-settings'
 import { AddSecretDialog, BulkAddDialog, type SecretPair } from './secrets-dialogs'
 import { SettingsSection } from './settings-layout'
 
@@ -67,20 +62,6 @@ function MaskedValue({ row }: { row: SecretRow }) {
   )
 }
 
-function ScopeBadge({ row }: { row: SecretRow }) {
-  if (row.scope === ESecretScope.Workspace) {
-    return <Badge variant="outline">Workspace</Badge>
-  }
-  return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <Badge variant="secondary">Project</Badge>
-      {row.overridesWorkspace ? (
-        <span className="truncate text-xs text-muted-foreground">overrides workspace</span>
-      ) : null}
-    </span>
-  )
-}
-
 function RowMenu({
   row,
   onDelete,
@@ -90,11 +71,9 @@ function RowMenu({
   onDelete: () => void
   onEdit: () => void
 }) {
-  const router = useRouter()
   const handleCopyName = () => {
     navigator.clipboard?.writeText(row.name).catch(() => undefined)
   }
-  const inherited = row.scope === ESecretScope.Workspace
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -103,23 +82,12 @@ function RowMenu({
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        {inherited ? (
-          <>
-            <DropdownMenuItem onClick={onEdit}>Override in project</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/settings/workspace-secrets')}>
-              Open workspace secrets
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <>
-            <DropdownMenuItem onClick={onEdit}>Edit value</DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCopyName}>Copy name</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              Delete
-            </DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuItem onClick={onEdit}>Edit value</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleCopyName}>Copy name</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -135,13 +103,12 @@ function SecretsTable({
   onEdit: (name: string) => void
 }) {
   return (
-    <Table variant="framed" className="min-w-2xl table-fixed">
+    <Table variant="framed" className="min-w-xl table-fixed">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[28%]">Name</TableHead>
-          <TableHead className="w-[24%]">Value</TableHead>
-          <TableHead className="w-[30%]">Scope</TableHead>
-          <TableHead className="w-[12%]">Updated</TableHead>
+          <TableHead className="w-[36%]">Name</TableHead>
+          <TableHead className="w-[36%]">Value</TableHead>
+          <TableHead className="w-[20%]">Updated</TableHead>
           <TableHead className="w-12">
             <span className="sr-only">Actions</span>
           </TableHead>
@@ -149,13 +116,10 @@ function SecretsTable({
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <TableRow key={`${row.scope}-${row.name}`}>
+          <TableRow key={row.name}>
             <TableCell className="truncate font-mono text-xs font-medium">{row.name}</TableCell>
             <TableCell>
               <MaskedValue row={row} />
-            </TableCell>
-            <TableCell>
-              <ScopeBadge row={row} />
             </TableCell>
             <TableCell className="text-muted-foreground">{row.updated}</TableCell>
             <TableCell className="text-right">
@@ -191,20 +155,17 @@ function SecretsEmpty() {
 
 function SecretsContent({
   rows,
-  inherited,
   onSave,
   onRemove,
 }: {
   rows: readonly SecretRow[]
-  inherited: InheritedView
   onSave: (pairs: readonly SecretPair[]) => Promise<boolean>
   onRemove: (name: string) => void
 }) {
-  const [overriding, setOverriding] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const handleAdd = (pairs: readonly SecretPair[]) => void onSave(pairs)
   return (
     <>
-      <InheritedStatus inherited={inherited} />
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-medium">
           Values
@@ -220,15 +181,15 @@ function SecretsContent({
       {rows.length === 0 ? (
         <SecretsEmpty />
       ) : (
-        <SecretsTable rows={rows} onDelete={onRemove} onEdit={setOverriding} />
+        <SecretsTable rows={rows} onDelete={onRemove} onEdit={setEditing} />
       )}
-      {overriding === null ? null : (
+      {editing === null ? null : (
         <AddSecretDialog
-          key={overriding}
+          key={editing}
           defaultOpen
           hideTrigger
-          initialName={overriding}
-          onClosed={() => setOverriding(null)}
+          initialName={editing}
+          onClosed={() => setEditing(null)}
           onAdd={(pair) => handleAdd([pair])}
         />
       )}
@@ -238,7 +199,7 @@ function SecretsContent({
 
 export function SecretsPage() {
   const { projectId } = useProjectContext()
-  const { own, inherited } = useProjectSecrets(projectId)
+  const own = useProjectSecrets(projectId)
 
   const handleSave = (pairs: readonly SecretPair[]) =>
     runAction({
@@ -259,30 +220,12 @@ export function SecretsPage() {
   return (
     <SettingsSection
       title="Secrets & Env Vars"
-      description={
-        <>
-          Order of precedence: default, then workspace, then personal, then project. The project
-          value wins. Workspace values shown here are a preview of what will merge; sessions
-          don&apos;t load project or workspace values yet.
-        </>
-      }
+      description="Order of precedence: default, then personal, then project. The project value wins. Sessions don't load project values yet."
     >
       <QueryGate query={own.query} label="project secrets">
         {(snapshot) => {
-          const workspace = inherited.state === EQueryState.Ready ? inherited.secrets : []
-          const rows = projectSecretRows({
-            project: snapshot.secrets,
-            workspace,
-            now: snapshot.fetchedAt,
-          })
-          return (
-            <SecretsContent
-              rows={rows}
-              inherited={inherited}
-              onSave={handleSave}
-              onRemove={handleRemove}
-            />
-          )
+          const rows = projectSecretRows({ secrets: snapshot.secrets, now: snapshot.fetchedAt })
+          return <SecretsContent rows={rows} onSave={handleSave} onRemove={handleRemove} />
         }}
       </QueryGate>
     </SettingsSection>

@@ -13,6 +13,7 @@ import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
+import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Usage: Sandboxes'
@@ -41,6 +42,12 @@ export function UsageSandboxesView({
         </Button>
       }
     >
+      <SettingsSection
+        title="Sandbox credential"
+        description="Lets Atlas Cloud create sandboxes for your projects and threads."
+      >
+        <UserVercelCardSlot />
+      </SettingsSection>
       <SettingsSection title={`Currently running (${running.length})`}>
         {running.length === 0 ? (
           <UsageSandboxEmpty />

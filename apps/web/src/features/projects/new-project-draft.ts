@@ -1,10 +1,6 @@
 import { MAX_PROJECT_NAME_LENGTH, type Project } from '@dltech/atlas-wire/web'
 
 import type { CreateProjectBody } from '@/features/project-settings/data/project-api'
-import {
-  organizationIdOfValue,
-  PERSONAL_WORKSPACE_VALUE,
-} from '@/features/project-settings/data/project-mapping'
 
 import { ENewProjectStep, EProjectSource, type ProjectDraft } from './new-project-types'
 
@@ -17,10 +13,10 @@ export enum ENameError {
 export const NAME_ERROR_MESSAGES: Record<ENameError, string> = {
   [ENameError.Empty]: 'Give the project a name.',
   [ENameError.TooLong]: `Keep the name to ${MAX_PROJECT_NAME_LENGTH} characters or fewer.`,
-  [ENameError.Duplicate]: 'This owner already has a project with that name.',
+  [ENameError.Duplicate]: 'You already have a project with that name.',
 }
 
-export function emptyDraft(defaultOwnerId: string | null): ProjectDraft {
+export function emptyDraft(): ProjectDraft {
   return {
     source: EProjectSource.Existing,
     repo: null,
@@ -28,7 +24,6 @@ export function emptyDraft(defaultOwnerId: string | null): ProjectDraft {
     branch: null,
     name: '',
     nameTouched: false,
-    ownerId: defaultOwnerId ?? PERSONAL_WORKSPACE_VALUE,
     description: '',
   }
 }
@@ -41,22 +36,15 @@ export const suggestedName = (draft: ProjectDraft): string => repoOf(draft)?.spl
 
 export function nameErrorOf({
   name,
-  ownerId,
   projects,
 }: {
   name: string
-  ownerId: string
-  projects: readonly Pick<Project, 'name' | 'organizationId'>[]
+  projects: readonly Pick<Project, 'name'>[]
 }): ENameError | null {
   const trimmed = name.trim()
   if (!trimmed) return ENameError.Empty
   if (trimmed.length > MAX_PROJECT_NAME_LENGTH) return ENameError.TooLong
-  const organizationId = organizationIdOfValue(ownerId)
-  const taken = projects.some(
-    (project) =>
-      (project.organizationId ?? null) === organizationId &&
-      project.name.toLowerCase() === trimmed.toLowerCase(),
-  )
+  const taken = projects.some((project) => project.name.toLowerCase() === trimmed.toLowerCase())
   return taken ? ENameError.Duplicate : null
 }
 
@@ -123,6 +111,5 @@ export function createBodyOf({
     baseBranch: repo === null ? null : draft.branch,
     additionalRepos: [],
     description: draft.description.trim(),
-    organizationId: organizationIdOfValue(draft.ownerId),
   }
 }

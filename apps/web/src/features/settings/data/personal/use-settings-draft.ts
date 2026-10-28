@@ -3,7 +3,6 @@
 import { useCallback } from 'react'
 import {
   useCloudSettings,
-  ESettingsTarget,
   type CloudSettings,
   type SettingChanges,
   type SettingValues,
@@ -12,7 +11,7 @@ import { useSaveAction } from './use-save-action'
 import { useDraft, type Draft } from '../../use-draft'
 
 export function usePersonalSettings(): CloudSettings {
-  return useCloudSettings({ kind: ESettingsTarget.Personal })
+  return useCloudSettings()
 }
 
 export function useSettingsDraft<TValue>(args: {

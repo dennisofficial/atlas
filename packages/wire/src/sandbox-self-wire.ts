@@ -8,8 +8,6 @@ export enum ESandboxProvisionState {
 
 export enum EVercelCredentialGap {
   UserCredential = 'user-credential',
-  WorkspaceCredential = 'workspace-credential',
-  CredentialProjectId = 'credential-project-id',
 }
 
 export const sandboxProvisionReplySchema = z.object({

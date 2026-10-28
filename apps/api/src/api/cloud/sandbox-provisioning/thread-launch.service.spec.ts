@@ -38,7 +38,6 @@ describe('ThreadLaunchService', () => {
       id: reply.thread.id,
       userId: 'usr-1',
       projectId: 'prj-1',
-      organizationId: null,
       executionLocation: 'cloud',
       modelRef: 'claude-x',
       modelEffort: 'high',
@@ -65,20 +64,6 @@ describe('ThreadLaunchService', () => {
     })
   })
 
-  it("stores the project's workspace as the owner and resolves credentials through it", async () => {
-    await seedBase()
-    const scoped = fakeScoped()
-    const { service } = launchWith({ scoped })
-
-    const reply = await create(service, { projectId: 'prj-ws' })
-
-    expect((await threads())[0]?.organizationId).toBe('org-1')
-    expect(reply.thread.id).toBeDefined()
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'usr-1', organizationId: 'org-1' },
-    })
-  })
-
   it('creates a personal thread without a project', async () => {
     await seedBase()
     const scoped = fakeScoped()
@@ -86,10 +71,8 @@ describe('ThreadLaunchService', () => {
 
     await service.launch({ userId: 'usr-1', draft: {}, firstMessage: FIRST })
 
-    expect(await threads()).toMatchObject([{ projectId: null, organizationId: null }])
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'usr-1', organizationId: null },
-    })
+    expect(await threads()).toMatchObject([{ projectId: null }])
+    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
 
@@ -227,11 +210,7 @@ describe('ThreadLaunchService', () => {
     const { service, dispatch } = launchWith()
 
     await expect(
-      service.launch({
-        userId: 'usr-1',
-        draft: { projectId: 'prj-missing' },
-        firstMessage: FIRST,
-      }),
+      service.launch({ userId: 'usr-1', draft: { projectId: 'prj-missing' }, firstMessage: FIRST }),
     ).rejects.toThrow('project not found')
     expect(await threads()).toHaveLength(0)
     expect(dispatch).not.toHaveBeenCalled()

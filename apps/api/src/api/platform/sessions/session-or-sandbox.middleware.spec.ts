@@ -22,7 +22,6 @@ const SESSION: VerifiedSession = {
   userId: 'user-session',
   sessionId: 'ses_better-auth',
   email: 'dennis@atlas.dev',
-  activeOrganizationId: null,
 }
 
 const SANDBOX_TOKEN = 'sandbox-token'

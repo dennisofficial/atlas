@@ -22,10 +22,8 @@ controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1
 the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
 rows; a TUI BYO row (none) is never taken over by a web send or Retry.
 
-A thread's owner is fixed at creation (`Thread.organizationId`: the project's workspace, or null).
-`ScopedConfigService.vercelCredentials` resolves `WorkspaceVercelCredential` for a workspace thread
-(the creator must still be a member) or the creator's `UserVercelCredential`
-(`userVercel.*`), each with token, team and project id. Nothing falls back between owners. A
+A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
+resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A
 missing piece still creates the thread and message and answers `not-configured` with the gap. The
 API env `VERCEL_*` only inspect and stop TUI BYO rows; they never create a sandbox.
 
@@ -218,7 +216,7 @@ those with the project's protection bypass header. `api.byatlas.io` is the produ
 ## Auth
 
 better-auth is mounted through `@thallesp/nestjs-better-auth` in `src/api/platform/auth/auth.module.ts`,
-with `organization`, `bearer`, and `deviceAuthorization` plugins. Middlewares and guards never import
+with `bearer` and `deviceAuthorization` plugins. Middlewares and guards never import
 better-auth: they depend on the `SESSION_VERIFIER` port (`src/_core/ports/session-verifier.ts`),
 bound by `SessionModule.withVerifier(...)`. Every procedure is protected by
 its router's `SessionMiddleware` or `SessionOrSandboxMiddleware`, and `meta({ public: true })` opts

@@ -101,9 +101,7 @@ describe('SandboxProvisioningService (retry)', () => {
 
     expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Booting })
 
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'usr-1', organizationId: null },
-    })
+    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
     expect(dispatch).toHaveBeenCalledTimes(1)
     expect((await threadRow())?.executionLocation).toBe('cloud')
   })

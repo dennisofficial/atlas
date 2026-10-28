@@ -6,11 +6,3 @@ export const CURRENT_USER = {
   threadCount: 1284,
   joined: 'Mar 2026',
 }
-
-export const CURRENT_WORKSPACE = {
-  name: 'DL Tech',
-  initial: 'D',
-  slug: 'dltech',
-  memberCount: 6,
-  plan: 'Team',
-}

@@ -7,13 +7,11 @@ export function safeNextPath(raw: string | null): string | null {
 export enum ESignInContext {
   Default = 'default',
   Device = 'device',
-  Invite = 'invite',
 }
 
 export function signInContextOf(next: string | null): ESignInContext {
   if (next === null) return ESignInContext.Default
   if (next.startsWith('/device')) return ESignInContext.Device
-  if (next.startsWith('/invite/')) return ESignInContext.Invite
   return ESignInContext.Default
 }
 

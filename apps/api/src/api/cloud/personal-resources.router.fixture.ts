@@ -47,7 +47,7 @@ export const createPersonalApp = (providers: Provider[]): Promise<INestApplicati
           async verify(req: { headers: { authorization?: string } }) {
             const userId = SESSIONS[bearerOf(req)]
             if (userId === undefined) return null
-            return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
+            return { userId, sessionId: 'ses', email: '' }
           },
         },
       },

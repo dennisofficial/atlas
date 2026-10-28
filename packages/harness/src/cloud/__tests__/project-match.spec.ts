@@ -11,7 +11,6 @@ const projectOf = (overrides: Partial<Project>): Project => ({
   additionalRepos: [],
   description: '',
   shipBehavior: EShipBehavior.OpenPullRequest,
-  organizationId: null,
   createdAt: '2026-10-01T00:00:00.000Z',
   updatedAt: '2026-10-01T00:00:00.000Z',
   ...overrides,

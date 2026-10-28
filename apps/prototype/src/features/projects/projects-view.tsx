@@ -1,4 +1,4 @@
-import { FolderSearchIcon, LinkIcon, PlusIcon } from 'lucide-react'
+import { FolderSearchIcon, LinkIcon, PlusIcon, SearchIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -11,16 +11,16 @@ import {
   BreadcrumbSeparator,
 } from '@dltech/atlas-ui/components/breadcrumb'
 import { Button } from '@dltech/atlas-ui/components/button'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@dltech/atlas-ui/components/input-group'
 
-import { OwnerList } from './owner-list'
 import { ProjectRow } from './project-row'
-import { filterProjects, PROJECT_OWNERS, PROJECTS } from './projects.fixtures'
+import { filterProjects, PROJECTS } from './projects.fixtures'
 
-export interface ProjectsViewProps {
-  initialOwnerId?: string | null
-}
-
-function ProjectsHeader({ ownerName }: { ownerName: string }) {
+function ProjectsHeader() {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
       <Breadcrumb>
@@ -30,7 +30,7 @@ function ProjectsHeader({ ownerName }: { ownerName: string }) {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{ownerName}</BreadcrumbPage>
+            <BreadcrumbPage>All projects</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -53,41 +53,41 @@ function EmptyResults({ query }: { query: string }) {
       <FolderSearchIcon className="size-6 text-muted-foreground" />
       <p className="text-sm font-medium">No projects found</p>
       <p className="text-xs text-muted-foreground">
-        {query.trim() ? `Nothing matches “${query.trim()}”.` : 'This owner has no projects yet.'}
+        {query.trim() ? `Nothing matches “${query.trim()}”.` : 'Create a project to get started.'}
       </p>
     </div>
   )
 }
 
-export function ProjectsView({ initialOwnerId = null }: ProjectsViewProps) {
-  const [ownerId, setOwnerId] = useState<string | null>(initialOwnerId)
+export function ProjectsView() {
   const [query, setQuery] = useState('')
-  const owner = PROJECT_OWNERS.find((candidate) => candidate.id === ownerId)
-  const projects = filterProjects({ projects: PROJECTS, ownerId, query })
+  const projects = filterProjects({ projects: PROJECTS, query })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ProjectsHeader ownerName={owner?.name ?? 'All projects'} />
+      <ProjectsHeader />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[760px] items-start gap-8 px-6 py-8">
-          <OwnerList
-            owners={PROJECT_OWNERS}
-            selectedId={ownerId}
-            query={query}
-            onQueryChange={setQuery}
-            onSelect={setOwnerId}
-          />
-          <div className="min-w-0 flex-1">
-            {projects.length === 0 ? (
-              <EmptyResults query={query} />
-            ) : (
-              <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                {projects.map((project) => (
-                  <ProjectRow key={project.id} project={project} showOwner={ownerId === null} />
-                ))}
-              </ul>
-            )}
-          </div>
+        <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4 px-6 py-8">
+          <InputGroup>
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search projects…"
+              aria-label="Search projects"
+            />
+          </InputGroup>
+          {projects.length === 0 ? (
+            <EmptyResults query={query} />
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+              {projects.map((project) => (
+                <ProjectRow key={project.id} project={project} />
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ export type WakeBootArgs = {
   resumeToken: string | undefined
   /** Runs before serve launches on a sandbox Vercel created fresh, so its first mirror authenticates. */
   onFreshSandbox: () => Promise<void>
-  /** False for a workspace-owned sandbox, so its pod never carries the workspace's Vercel token. */
+  /** False for an API-provisioned sandbox, so its pod never carries the owner's Vercel token. */
   injectVercelCredentials?: boolean | undefined
   environment?: Record<string, string> | undefined
   reporter?: BootReporter | undefined

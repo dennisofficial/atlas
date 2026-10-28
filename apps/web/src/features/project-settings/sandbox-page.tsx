@@ -17,8 +17,8 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { RadioGroup, RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
-import { runAction } from '@/features/settings/data/workspace/run-action'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { runAction } from '@/features/settings/data/shared/run-action'
 
 import { useProjectContext } from './data/project-context'
 import {

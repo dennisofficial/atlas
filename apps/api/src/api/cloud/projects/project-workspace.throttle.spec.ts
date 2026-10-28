@@ -66,7 +66,7 @@ describe('throttle opt-out on the serve-facing routes', () => {
           provide: SESSION_VERIFIER,
           useValue: {
             async verify() {
-              return { userId: 'user-a', sessionId: 'ses', email: '', activeOrganizationId: null }
+              return { userId: 'user-a', sessionId: 'ses', email: '' }
             },
           },
         },

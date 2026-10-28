@@ -8,7 +8,7 @@ import { api, cloudCall } from '@/lib/api-client'
 
 import { EMcpTransport, type McpServer } from '../../fixtures/settings-mcp'
 import { splitCommandLine } from '../command-line'
-import { targetOf, transportOfDraft } from '../workspace/mcp-mapping'
+import { targetOf, transportOfDraft } from '../shared/mcp-mapping'
 
 export function transportOf(
   draft: Pick<McpServer, 'transport' | 'target'> & { extra?: string },

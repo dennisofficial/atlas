@@ -36,10 +36,7 @@ export class ThreadLaunchService extends ThreadLauncher {
   async launch(args: ThreadLaunch): Promise<ThreadLaunchReply> {
     const { userId, draft, firstMessage } = args
     const project = await threadProjectColumn({ userId, projectId: draft.projectId })
-    const gap = await this.pod.credentialsOf({
-      userId,
-      organizationId: project.organizationId ?? null,
-    })
+    const gap = await this.pod.credentialsOf({ userId })
 
     const { threadId, claim, existing } = await db.transaction(async (tx) => {
       await lockFirstMessage({ tx, userId, sendId: firstMessage.sendId })
@@ -90,11 +87,7 @@ export class ThreadLaunchService extends ThreadLauncher {
     const last = (await readBootSteps({ threadId })).at(-1)
     if (last?.state !== EBootStepState.Error) return { state: ESandboxProvisionState.Booting }
     if (last.gap !== undefined) {
-      return {
-        state: ESandboxProvisionState.NotConfigured,
-        error: last.error ?? '',
-        gap: last.gap,
-      }
+      return { state: ESandboxProvisionState.NotConfigured, error: last.error ?? '', gap: last.gap }
     }
     return { ...dispatchFailedReply, error: last.error ?? DISPATCH_FAILED_MESSAGE }
   }

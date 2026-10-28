@@ -12,7 +12,7 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
 
 - One model per file under `src/prisma/schema/<domain>/<model>.prisma`. Every file's first line is
   `// use prisma-8`; a file without it is silently skipped by `contract emit`.
-- Domains: `auth`, `workspaces`, `projects`, `threads`, `sandboxes`, `provider-accounts`, `github`,
+- Domains: `auth`, `projects`, `threads`, `sandboxes`, `provider-accounts`, `github`,
   `user-config`. Relations resolve across files.
 - After any edit: `bun run contract:emit`. The emitted `src/prisma/schema/contract.{json,d.ts}` are
   committed; there is no generate step. CI fails when they are stale.
@@ -20,13 +20,11 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
   `Temporal` needed, so the Node 24 trigger.dev worker runs it. `TimestamptzString` returns
   Postgres's own text (`2026-10-22 02:04:33.807+00`), which is not ISO and would change the API's
   wire format. `src/__tests__/timestamp-wire.spec.ts` fails if a timestamp column regresses.
-- better-auth writes `User`, `Session`, `Account`, `Verification`, `Organization`, `Member`,
-  `Invitation` and `DeviceCode` through the shared pool, so their model and field names must match
-  its schema. The auth spec in `apps/api/src/api/platform/auth/` fails when they drift.
+- better-auth writes `User`, `Session`, `Account`, `Verification` and `DeviceCode` through the
+  shared pool, so their model and field names must match its schema. The auth spec in `apps/api/src/api/platform/auth/` fails when they drift.
 - An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique *index*
   (`@@index(..., unique: true)`) does not qualify.
-- Project ownership: exactly one of `ownerUserId` (personal) or `organizationId` (workspace), as a
-  CHECK. `createdById` records who made it.
+- Project ownership: `ownerUserId` is required; `createdById` records who made it.
 - The user-scope config models are `UserSecret`, `UserMcpServer` and `UserSetting`; `@@map` keeps
   their original table names.
 
@@ -91,7 +89,7 @@ three times. The connection is `DIRECT_URL ?? DATABASE_URL`
 ## Seed and tests
 
 - `bun run db:seed` (wrapped by `apps/api`'s `db:seed`, which injects the local tier env) upserts a
-  dev user, a workspace with that user as a member, a personal project and a workspace project. It
+  dev user and a personal project. It
   refuses any host other than localhost.
 - Specs run against real Postgres, never a mocked client. `useTestDatabase()` from
   `@dltech/atlas-db/testing` builds one template database per migration set on a local lane

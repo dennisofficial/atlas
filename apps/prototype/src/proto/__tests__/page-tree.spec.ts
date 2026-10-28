@@ -14,7 +14,7 @@ import {
 
 const PAGE_DIRS = [
   ['(public)', 'sign-in'],
-  ['(public)', 'invite', '[id]'],
+  ['(public)', 'share', '[id]'],
   ['(private)', '(shell)', 'threads', '[threadId]'],
   ['(private)', '(shell)', 'settings'],
   ['(private)', '(shell)', 'settings', '[page]'],
@@ -22,7 +22,7 @@ const PAGE_DIRS = [
 ]
 
 const SAMPLES = {
-  '/invite/[id]': [{ label: 'Invitation', path: '/invite/inv-demo' }],
+  '/share/[id]': [{ label: 'Share', path: '/share/abc' }],
   '/threads/[threadId]': [
     { label: 'Session', path: '/threads/thr-1' },
     { label: 'Other', path: '/threads/thr-2' },
@@ -156,7 +156,7 @@ describe('filterTree', () => {
 
   test('matches folder names including route groups and keeps their whole subtree', () => {
     const result = filterTree({ nodes: tree(), query: '(public)' })
-    expect(urls(result)).toEqual(['/sign-in', '/invite/inv-demo'])
+    expect(urls(result)).toEqual(['/sign-in', '/share/abc'])
     expect(filterTree({ nodes: tree(), query: 'shell' })).toHaveLength(1)
   })
 

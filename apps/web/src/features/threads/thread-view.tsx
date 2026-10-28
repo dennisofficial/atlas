@@ -265,9 +265,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
             />
           </div>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-            {notConfigured === null ? null : (
-              <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
-            )}
+            {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
             {operator.request === null ? null : (
               <OperatorInputCard
                 key={operator.request.requestId}
