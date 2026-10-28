@@ -6,7 +6,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
-import { EThreadMessageState, type ThreadMessageReply } from '@dltech/atlas-wire'
+import {
+  EThreadMessageState,
+  type SaidImageWire,
+  type ThreadMessageReply,
+} from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
@@ -46,27 +50,42 @@ export class ThreadMessagesService {
     threadId: string
     sendId: string
     text: string
+    images?: readonly SaidImageWire[] | undefined
   }): Promise<ThreadMessageReply> {
-    const { userId, threadId, sendId, text } = args
+    const { userId, threadId, sendId, text, images } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
 
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
     if (endpoint !== null) {
-      const queued = await this.queueUntilAgentStarts({ userId, threadId, sendId, text })
+      const queued = await this.queueUntilAgentStarts({
+        userId,
+        threadId,
+        sendId,
+        text,
+        images,
+      })
       if (queued !== null) {
         if (queued.head !== undefined) await this.signals.headMoved({ threadId, head: queued.head })
         return { state: EThreadMessageState.Queued }
       }
-      await this.serve({ ...endpoint, threadId, sendId, text }).catch((failure: unknown) => {
-        this.logger.warn(
-          `delivering a message to thread ${threadId} failed: ${failureText(failure)}`,
-        )
-        throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
-      })
+      await this.serve({ ...endpoint, threadId, sendId, text, images }).catch(
+        (failure: unknown) => {
+          this.logger.warn(
+            `delivering a message to thread ${threadId} failed: ${failureText(failure)}`,
+          )
+          throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
+        },
+      )
       return { state: EThreadMessageState.Delivered }
     }
 
-    const { existing, relaunch, head } = await this.appendOnce({ userId, threadId, sendId, text })
+    const { existing, relaunch, head } = await this.appendOnce({
+      userId,
+      threadId,
+      sendId,
+      text,
+      images,
+    })
     if (head !== undefined) await this.signals.headMoved({ threadId, head })
     if (!relaunch) return { state: EThreadMessageState.Queued }
     const { dispatchFailed } = await this.pod.launch({ thread, existing })
@@ -104,6 +123,7 @@ export class ThreadMessagesService {
     threadId: string
     sendId: string
     text: string
+    images?: readonly SaidImageWire[] | undefined
   }): Promise<{ head?: number } | null> {
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId: args.threadId })
@@ -117,8 +137,9 @@ export class ThreadMessagesService {
     threadId: string
     sendId: string
     text: string
+    images?: readonly SaidImageWire[] | undefined
   }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean; head?: number }> {
-    const { userId, threadId, sendId, text } = args
+    const { userId, threadId, sendId, text, images } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       const existing = await tx.orm.public.CloudSandbox.first({ threadId })
@@ -132,7 +153,7 @@ export class ThreadMessagesService {
       return {
         existing,
         relaunch,
-        ...(await appendUserSaid({ tx, threadId, userId, sendId, text })),
+        ...(await appendUserSaid({ tx, threadId, userId, sendId, text, images })),
       }
     })
   }

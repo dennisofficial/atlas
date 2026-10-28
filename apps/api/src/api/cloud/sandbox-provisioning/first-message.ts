@@ -1,12 +1,23 @@
-import type { EventDraftInput } from '@dltech/atlas-wire'
+import type { EventDraftInput, SaidImageWire } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
-export type FirstMessage = { sendId: string; text: string }
+export type FirstMessage = {
+  sendId: string
+  text: string
+  images?: readonly SaidImageWire[] | undefined
+}
 
 export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => ({
   type: 'user-said',
-  body: JSON.stringify({ type: 'user-said', text: message.text, requestId: message.sendId }),
+  body: JSON.stringify({
+    type: 'user-said',
+    text: message.text,
+    requestId: message.sendId,
+    ...(message.images === undefined || message.images.length === 0
+      ? {}
+      : { images: message.images }),
+  }),
 })
 
 const requestBodySchema = z.object({ requestId: z.string() })

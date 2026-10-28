@@ -144,7 +144,7 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
 
 export type TurnOutcomeWire = z.infer<typeof turnOutcomeWireSchema>
 
-const saidImageWireSchema = z.object({
+export const saidImageWireSchema = z.object({
   path: z.string(),
   mediaType: z.string(),
   data: z.string(),

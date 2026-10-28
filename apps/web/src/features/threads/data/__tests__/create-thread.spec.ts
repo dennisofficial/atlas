@@ -36,6 +36,20 @@ describe('createThreadBodyOf', () => {
   })
 })
 
+describe('createThreadBodyOf images', () => {
+  const images = [{ path: 'a.png', mediaType: 'image/png', data: 'QUJD' }]
+
+  it('carries images on the first message', () => {
+    const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', images })
+    expect(body.firstMessage).toEqual({ sendId: 's1', text: 'hi', images })
+  })
+
+  it('omits an empty images list', () => {
+    const body = createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', images: [] })
+    expect('images' in body.firstMessage).toBe(false)
+  })
+})
+
 describe('createThread', () => {
   const realFetch = globalThis.fetch
 
