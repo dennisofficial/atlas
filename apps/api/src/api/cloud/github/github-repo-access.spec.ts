@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
+import { EGithubCallSource } from './github-call-log'
 import { RepoAccessChecker } from './github-repo-access'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
@@ -19,7 +20,7 @@ describe('RepoAccessChecker outbound timeout', () => {
   })
 
   const checker = () => new RepoAccessChecker(async () => 'token')
-  const args = { userId: 'u', owner: 'o', repo: 'r' }
+  const args = { source: EGithubCallSource.RepoAccess, userId: 'u', owner: 'o', repo: 'r' }
 
   it('rejects with a TimeoutError after 8s when github never answers', async () => {
     stubGlobal('fetch', vi.fn(hangingFetch))

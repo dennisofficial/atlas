@@ -6,7 +6,7 @@ import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { useThreadNaming } from './active-naming'
+import { rowNamingOf, useThreadNaming } from './active-naming'
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
@@ -24,7 +24,10 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
   const { onToggleArchive } = useThreadActions()
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
-  const published = useThreadNaming(thread.id)
+  const naming = rowNamingOf({
+    listedTitle: thread.title ?? null,
+    published: useThreadNaming(thread.id),
+  })
   const handleArchive = () => onToggleArchive(thread)
   return (
     <SidebarMenuItem>
@@ -44,8 +47,8 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
         >
           <ThreadStatusIcon status={threadStatusOf(thread)} />
           <NamingTitle
-            title={published === null ? (thread.title ?? null) : published.title}
-            naming={published?.naming ?? false}
+            title={naming.title}
+            naming={naming.naming}
             className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
           />
         </SidebarMenuButton>

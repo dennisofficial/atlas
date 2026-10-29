@@ -20,7 +20,7 @@ export const SHELL_CONTROLS = {
   collapsed: { type: 'boolean', label: 'Sidebar collapsed', default: false },
 } satisfies Record<string, Control>
 
-export const HOME_PATH = '/'
+export const HOME_PATH = '/threads'
 
 export const THREAD_CARD_ID = 'thr-snapshots'
 export const PROJECT_CARD_ID = 'rs-crm'

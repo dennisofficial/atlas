@@ -1,4 +1,5 @@
 import { BadGatewayException } from '@nestjs/common'
+import { EGithubCallSource } from '../github/github-call-log'
 import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from '../github/github-device-client'
 import { defaultGithubFetch } from '../github/github-device-client'
 
@@ -42,7 +43,7 @@ export class GithubSigningKeysClient {
   private readonly fetchFn: FetchFn
 
   constructor(args: { fetchFn?: FetchFn }) {
-    this.fetchFn = args.fetchFn ?? defaultGithubFetch
+    this.fetchFn = args.fetchFn ?? defaultGithubFetch({ source: EGithubCallSource.SigningKey })
   }
 
   async identity(args: { token: string }): Promise<{ id: number; login: string }> {

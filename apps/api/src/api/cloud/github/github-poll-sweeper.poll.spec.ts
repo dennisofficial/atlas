@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EGithubCallSource } from './github-call-log'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows } from '../../../../test/github-seed'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
@@ -33,6 +34,7 @@ describe('GithubPollSweeperService polling', () => {
     await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.PollSweep,
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',
@@ -74,6 +76,7 @@ describe('GithubPollSweeperService polling', () => {
     await advanceTimersByTimeAsync(1_100)
 
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.PollSweep,
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',

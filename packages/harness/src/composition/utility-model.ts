@@ -12,11 +12,11 @@ import {
   type EUtilityModelRole,
   type ModelRef,
   type NoticePort,
+  type SettingsResolution,
 } from '@dltech/atlas-core'
 
 import { createFallbackModel } from '../model/fallback-model'
 import { createNotifyingModel } from '../model/notifying-model'
-import type { SettingsService } from '../settings/service'
 
 import { unanswerableRef, type ModelCatalogue } from './model-catalogue'
 import { defaultSelection } from './model-preference'
@@ -47,7 +47,7 @@ export function notifyingUtilityFallback(args: {
 
 export function createUtilityModel(args: {
   role: EUtilityModelRole
-  settings: SettingsService
+  settled: () => SettingsResolution
   catalogue: ModelCatalogue
   notice: NoticePort
   fallback?: (() => LanguageModelV4 | undefined) | undefined
@@ -63,7 +63,7 @@ export function createUtilityModel(args: {
         })
 
   const resolveRef = (): ModelRef => {
-    const settled = args.settings.snapshot().resolution
+    const settled = args.settled()
     return resolveUtilityModel({
       role: args.role,
       override: textValueOf({ resolution: settled, id: utilitySettingFor(args.role) }),

@@ -4,6 +4,8 @@ import { describe, expect, it } from 'bun:test'
 
 const SRC_ROOT = path.dirname(import.meta.dirname)
 const HARNESS_SUBPATH = '@dltech/atlas-harness/models'
+const TITLING_SUBPATH = '@dltech/atlas-harness/titling'
+const ALLOWED_SUBPATHS = [HARNESS_SUBPATH, TITLING_SUBPATH]
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
 function listTsFiles({ dir }: { dir: string }): string[] {
@@ -21,10 +23,10 @@ function harnessSpecifiers({ file }: { file: string }): string[] {
 }
 
 describe('harness boundary', () => {
-  it('reaches @dltech/atlas-harness only through the browser-safe models subpath', () => {
+  it('reaches @dltech/atlas-harness only through the models and titling subpaths', () => {
     const offenders = listTsFiles({ dir: SRC_ROOT }).flatMap((file) =>
       harnessSpecifiers({ file })
-        .filter((specifier) => specifier !== HARNESS_SUBPATH)
+        .filter((specifier) => !ALLOWED_SUBPATHS.includes(specifier))
         .map((specifier) => `${path.relative(SRC_ROOT, file)} -> ${specifier}`),
     )
     expect(offenders).toEqual([])

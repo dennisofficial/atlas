@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EGithubCallSource } from './github-call-log'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { repoHookRows, seedCloudSandbox, seedRepoHook } from '../../../../test/github-seed'
 import {
@@ -64,6 +65,7 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
     await service.handlePoll()
 
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.PollSweep,
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',

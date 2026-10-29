@@ -44,6 +44,10 @@ const dark = {
 
   success: green[400],
   successForeground: warm[925],
+  prOpen: '#3fb950',
+  prDraft: '#9198a1',
+  prMerged: '#ab7df8',
+  prClosed: '#f85149',
   warning: amber[300],
   warningForeground: warm[925],
 
@@ -110,6 +114,10 @@ const light: SemanticTheme = {
 
   success: green[600],
   successForeground: '#fdfcfa',
+  prOpen: '#1a7f37',
+  prDraft: '#59636e',
+  prMerged: '#8250df',
+  prClosed: '#cf222e',
   warning: amber[600],
   warningForeground: '#fdfcfa',
 

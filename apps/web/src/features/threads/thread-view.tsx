@@ -31,7 +31,6 @@ import { useComposerDock } from './data/use-composer-dock'
 import { useComposerImages } from './data/use-composer-images'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useOperatorInput } from './data/use-operator-input'
-import { useNow } from './data/use-now'
 import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
@@ -134,9 +133,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
-  const probe = bootViewOf({ pod, now: 0 })
-  const now = useNow(isBootStarting(probe))
-  const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
+  const boot = useMemo(() => bootViewOf({ pod, now: 0 }), [pod])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
   const handleResize = usePodResize({ threadId, refresh })
   const details = useDetailsInput({
@@ -248,7 +245,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
               items={view.items}
               failure={view.failure}
               pod={pod}
-              bootNow={now}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}
               rewind={{

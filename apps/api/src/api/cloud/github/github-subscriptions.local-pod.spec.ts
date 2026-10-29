@@ -1,6 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { unstubAllGlobals } from '@dltech/bun-test-shims'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, subscriptionRows } from '../../../../test/github-seed'
 import { serviceWith } from './github-subscriptions.fixture'
 
@@ -8,6 +9,7 @@ const DAY_MS = 24 * 60 * 60 * 1_000
 
 describe('local-pod linked subscriptions', () => {
   useTestDatabase()
+  afterEach(() => unstubAllGlobals())
 
   beforeEach(async () => {
     await ensureUsers('usr_1')

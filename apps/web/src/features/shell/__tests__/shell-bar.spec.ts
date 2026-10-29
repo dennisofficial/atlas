@@ -9,7 +9,7 @@ describe('shellBarOf', () => {
   })
 
   it('uses the global mobile bar everywhere else', () => {
-    expect(shellBarOf('/')).toBe(EShellBar.Global)
+    expect(shellBarOf('/threads')).toBe(EShellBar.Global)
     expect(shellBarOf('/threads/new')).toBe(EShellBar.Global)
     expect(shellBarOf('/projects')).toBe(EShellBar.Global)
     expect(shellBarOf('/projects/p1/settings')).toBe(EShellBar.Global)

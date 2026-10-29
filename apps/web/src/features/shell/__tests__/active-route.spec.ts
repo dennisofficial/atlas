@@ -11,7 +11,7 @@ describe('activeThreadIdOf', () => {
   })
 
   it('is null for home, new thread, projects and nested paths', () => {
-    expect(activeThreadIdOf('/')).toBeNull()
+    expect(activeThreadIdOf('/threads')).toBeNull()
     expect(activeThreadIdOf('/threads/new')).toBeNull()
     expect(activeThreadIdOf('/projects')).toBeNull()
     expect(activeThreadIdOf('/threads/a/b')).toBeNull()
@@ -26,7 +26,7 @@ describe('activeNavOf', () => {
   it('marks projects paths as Projects and everything else as Threads', () => {
     expect(activeNavOf('/projects')).toBe(EAppNav.Projects)
     expect(activeNavOf('/projects/p1/settings')).toBe(EAppNav.Projects)
-    expect(activeNavOf('/')).toBe(EAppNav.Threads)
+    expect(activeNavOf('/threads')).toBe(EAppNav.Threads)
     expect(activeNavOf('/threads/new')).toBe(EAppNav.Threads)
     expect(activeNavOf('/projectsx')).toBe(EAppNav.Threads)
   })
