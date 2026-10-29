@@ -1,6 +1,10 @@
 import { EPullRequestStateWire, type PrStateWire, type WireThread } from '@dltech/atlas-wire/web'
 
-import { linkedPullRequestOf } from '@/features/shell/thread-status'
+import {
+  pinnedPullRequestOf,
+  pullRequestEntriesOf,
+  type PullRequestEntry,
+} from './pull-request-entries'
 
 export enum EHeaderState {
   Failed = 'failed',
@@ -15,6 +19,7 @@ export type PullRequestBadge = {
   url: string
   checksLabel?: string | undefined
   mergeable?: boolean | undefined
+  overflow: number
 }
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
@@ -54,29 +59,27 @@ export function branchOf(thread: WireThread | undefined): string | undefined {
 const capitalized = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1)
 
 export function pullRequestBadgeOf(thread: WireThread | undefined): PullRequestBadge | undefined {
-  if (thread === undefined) return undefined
-  const pullRequest = linkedPullRequestOf(thread)
-  if (pullRequest === undefined) return undefined
-  return {
-    label: `#${pullRequest.number}`,
-    stateLabel: pullRequest.state === undefined ? undefined : capitalized(pullRequest.state),
-    url: pullRequest.url,
-  }
+  return livePullRequestBadgeOf({ states: [], thread })
 }
 
 export const hasConflicts = (badge: PullRequestBadge): boolean =>
   badge.mergeable === false && badge.stateLabel === capitalized(EPullRequestStateWire.Open)
 
-const SETTLED_STATES: ReadonlySet<EPullRequestStateWire> = new Set([
+export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
+  entry.mergeable === false && entry.state === EPullRequestStateWire.Open
+
+const SETTLED_STATES: ReadonlySet<string> = new Set([
   EPullRequestStateWire.Merged,
   EPullRequestStateWire.Closed,
 ])
 
-function checksLabelOf(state: PrStateWire): string | undefined {
-  if (SETTLED_STATES.has(state.state)) return undefined
-  if (state.checksFailed > 0) return `✕ ${state.checksFailed} failing`
-  if (state.checksRunning > 0) return `${state.checksRunning} running`
-  if (state.checksPassed > 0) return `✓ ${state.checksPassed} passing`
+export function checksLabelOf(entry: PullRequestEntry): string | undefined {
+  if (entry.state === undefined || SETTLED_STATES.has(entry.state as EPullRequestStateWire)) {
+    return undefined
+  }
+  if ((entry.checksFailed ?? 0) > 0) return `✕ ${entry.checksFailed} failing`
+  if ((entry.checksRunning ?? 0) > 0) return `${entry.checksRunning} running`
+  if ((entry.checksPassed ?? 0) > 0) return `✓ ${entry.checksPassed} passing`
   return undefined
 }
 
@@ -85,17 +88,20 @@ export function livePullRequestBadgeOf(args: {
   thread: WireThread | undefined
 }): PullRequestBadge | undefined {
   if (args.thread === undefined) return undefined
-  const linked = linkedPullRequestOf(args.thread)
-  if (linked === undefined) return undefined
-  const state = args.states.find(
-    (candidate) => candidate.repo === linked.repo && candidate.number === linked.number,
-  )
-  if (state === undefined) return undefined
+  const entries = pullRequestEntriesOf({
+    thread: args.thread,
+    states: args.states,
+  })
+  const pinned = pinnedPullRequestOf(entries)
+  if (pinned === undefined) return undefined
   return {
-    label: `#${state.number}`,
-    stateLabel: capitalized(state.state),
-    url: state.url,
-    checksLabel: checksLabelOf(state),
-    ...(state.mergeable === null ? {} : { mergeable: state.mergeable }),
+    label: `#${pinned.number}`,
+    stateLabel: pinned.state === undefined ? undefined : capitalized(pinned.state),
+    url: pinned.url,
+    checksLabel: checksLabelOf(pinned),
+    ...(pinned.mergeable === null || pinned.mergeable === undefined
+      ? {}
+      : { mergeable: pinned.mergeable }),
+    overflow: entries.length - 1,
   }
 }

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'71acec826e9b00aa889de6e6f971f9456a0c68107a9cc2194f06642bd542fa4f'>;
+  StorageHashBase<'39a8a18937eb04ea58258bff54a1e505d0eb2c61ea30001dbdcfb8fe17d7ee55'>;
 export type ExecutionHash =
   ExecutionHashBase<'c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4'>;
 export type ProfileHash =
@@ -606,6 +606,7 @@ export namespace Models {
     error: FieldOutputTypes['public']['SandboxBootStep']['error'];
     gap: FieldOutputTypes['public']['SandboxBootStep']['gap'];
     id: FieldOutputTypes['public']['SandboxBootStep']['id'];
+    outcome: FieldOutputTypes['public']['SandboxBootStep']['outcome'];
     state: FieldOutputTypes['public']['SandboxBootStep']['state'];
     step: FieldOutputTypes['public']['SandboxBootStep']['step'];
     threadId: FieldOutputTypes['public']['SandboxBootStep']['threadId'];
@@ -3290,6 +3291,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly outcome: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly state: {
@@ -6424,6 +6431,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly outcome: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly state: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6459,6 +6470,7 @@ type ContractBase = Omit<
                 readonly error: { readonly column: 'error' };
                 readonly gap: { readonly column: 'gap' };
                 readonly id: { readonly column: 'id' };
+                readonly outcome: { readonly column: 'outcome' };
                 readonly state: { readonly column: 'state' };
                 readonly step: { readonly column: 'step' };
                 readonly threadId: { readonly column: 'threadId' };

@@ -22,7 +22,10 @@ export interface SessionViewProps {
   initialQueue?: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
   initialPreviewId?: string
-  header?: Pick<SessionHeaderProps, 'title' | 'subtitle' | 'detail' | 'badgeLabel' | 'podStatus'>
+  header?: Pick<
+    SessionHeaderProps,
+    'title' | 'subtitle' | 'detail' | 'badgeLabel' | 'podStatus' | 'pullRequests'
+  >
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
   composer?: ReactNode

@@ -19,6 +19,14 @@ export enum EBootStepState {
   Error = 'error',
 }
 
+export enum EBootStepOutcome {
+  Created = 'created',
+  Resumed = 'resumed',
+  Cloned = 'cloned',
+  Reused = 'reused',
+  NoRepository = 'no-repository',
+}
+
 export const BOOT_STEP_ORDER: readonly EBootStep[] = [
   EBootStep.Provision,
   EBootStep.Serve,
@@ -59,6 +67,7 @@ export const bootStepEventSchema = z.object({
   detail: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
   error: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
   gap: z.enum(EVercelCredentialGap).optional(),
+  outcome: z.enum(EBootStepOutcome).optional(),
 })
 export type BootStepEvent = z.infer<typeof bootStepEventSchema>
 
@@ -85,6 +94,7 @@ export type BootReporter = {
     step: EBootStep
     detail?: string | undefined
     work: () => Promise<T>
+    outcomeOf?: ((result: T) => EBootStepOutcome) | undefined
   }) => Promise<T>
 }
 
@@ -106,6 +116,7 @@ export function createBootReporter(args: {
     step: EBootStep
     detail?: string | undefined
     work: () => Promise<T>
+    outcomeOf?: ((result: T) => EBootStepOutcome) | undefined
   }): Promise<T> => {
     const detail = tracked.detail === undefined ? {} : { detail: tracked.detail }
     await report({
@@ -115,10 +126,12 @@ export function createBootReporter(args: {
     })
     try {
       const result = await tracked.work()
+      const outcome = tracked.outcomeOf?.(result)
       await report({
         step: tracked.step,
         state: EBootStepState.Done,
         ...detail,
+        ...(outcome === undefined ? {} : { outcome }),
       })
       return result
     } catch (failure) {
@@ -143,6 +156,7 @@ export const recordedBootStepSchema = z.object({
   state: z.enum(EBootStepState),
   error: z.string().optional(),
   gap: z.enum(EVercelCredentialGap).optional(),
+  outcome: z.enum(EBootStepOutcome).optional(),
   at: z.string(),
 })
 export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>

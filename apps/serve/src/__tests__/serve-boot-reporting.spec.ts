@@ -8,6 +8,7 @@ import {
   API_PROVISIONED_ENV,
   bootStepsPostSchema,
   EBootStep,
+  EBootStepOutcome,
   EBootStepState,
   NOOP_BOOT_REPORTER,
   type BootStepEvent,
@@ -84,7 +85,9 @@ const indexOf = (events: BootStepEvent[], step: EBootStep, state: EBootStepState
 
 describe('serve boot reporting', () => {
   it('reports Running before Done for Clone, Context, Settings and Agent, with Agent last', async () => {
-    const { events, requests } = await boot({ env: { [API_PROVISIONED_ENV]: '1' } })
+    const { events, requests } = await boot({
+      env: { [API_PROVISIONED_ENV]: '1' },
+    })
 
     for (const step of [EBootStep.Clone, EBootStep.Context, EBootStep.Settings, EBootStep.Agent]) {
       const running = indexOf(events, step, EBootStepState.Running)
@@ -92,7 +95,10 @@ describe('serve boot reporting', () => {
       expect(running).toBeGreaterThanOrEqual(0)
       expect(done).toBeGreaterThan(running)
     }
-    expect(events.at(-1)).toEqual({ step: EBootStep.Agent, state: EBootStepState.Done })
+    expect(events.at(-1)).toEqual({
+      step: EBootStep.Agent,
+      state: EBootStepState.Done,
+    })
     expect(indexOf(events, EBootStep.Agent, EBootStepState.Running)).toBeGreaterThan(
       Math.max(
         indexOf(events, EBootStep.Clone, EBootStepState.Done),
@@ -180,5 +186,25 @@ describe('startServe boot reporting', () => {
       'agent:running',
       'agent:done',
     ])
+  })
+})
+
+describe('serve boot clone outcome', () => {
+  const cloneDoneOf = async (state: EWorkspaceState.Present | EWorkspaceState.Materialized) => {
+    const { events } = await boot({
+      env: { [API_PROVISIONED_ENV]: '1' },
+      ensureWorkspace: async () => ({ state }),
+    })
+    return events.find(
+      (event) => event.step === EBootStep.Clone && event.state === EBootStepState.Done,
+    )
+  }
+
+  it('reports a reused workspace as reused, not cloned', async () => {
+    expect((await cloneDoneOf(EWorkspaceState.Present))?.outcome).toBe(EBootStepOutcome.Reused)
+  })
+
+  it('reports a fresh clone as cloned', async () => {
+    expect((await cloneDoneOf(EWorkspaceState.Materialized))?.outcome).toBe(EBootStepOutcome.Cloned)
   })
 })

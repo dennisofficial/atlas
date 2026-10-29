@@ -9,7 +9,7 @@ import {
   type ShellSnapshotWire,
 } from '@dltech/atlas-wire/web'
 
-import { previewPortsOf } from '../preview-ports'
+import { livePreviewCount, previewPortsOf } from '../preview-ports'
 
 const exposure = (port: number) => ({
   containerPort: port,
@@ -113,5 +113,21 @@ describe('previewPortsOf', () => {
       [3000, 'service:svc_1', EPreviewStatus.Live],
       [4000, 'shell:b', EPreviewStatus.Live],
     ])
+  })
+})
+
+describe('livePreviewCount', () => {
+  test('counts only the ports still serving', () => {
+    const ports = previewPortsOf(
+      roster({
+        shells: [shell({ exposure: exposure(5173) })],
+        services: [
+          service({ exposure: exposure(3000) }),
+          service({ serviceId: 'svc_2', exposure: exposure(8080), status: EServiceStatus.Exited }),
+        ],
+      }),
+    )
+    expect(livePreviewCount(ports)).toBe(2)
+    expect(livePreviewCount([])).toBe(0)
   })
 })

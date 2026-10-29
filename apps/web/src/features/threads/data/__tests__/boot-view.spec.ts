@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EBootStep,
+  EBootStepOutcome,
   EBootStepState,
   EPodState,
   type PodStatus,
@@ -31,7 +32,10 @@ const step = (args: {
   ...(args.error === undefined ? {} : { error: args.error }),
 })
 
-const pod = (state: EPodState, steps: RecordedBootStep[] = []): PodStatus => ({ state, steps })
+const pod = (state: EPodState, steps: RecordedBootStep[] = []): PodStatus => ({
+  state,
+  steps,
+})
 
 const ALL_STEPS = [
   EBootStep.Provision,
@@ -71,9 +75,21 @@ describe('bootViewOf', () => {
   it('reports running with labels and elapsed time to now', () => {
     const view = bootViewOf({
       pod: pod(EPodState.Booting, [
-        step({ step: EBootStep.Provision, state: EBootStepState.Running, offsetMs: 0 }),
-        step({ step: EBootStep.Provision, state: EBootStepState.Done, offsetMs: 2000 }),
-        step({ step: EBootStep.Serve, state: EBootStepState.Running, offsetMs: 2500 }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Running,
+          offsetMs: 0,
+        }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Done,
+          offsetMs: 2000,
+        }),
+        step({
+          step: EBootStep.Serve,
+          state: EBootStepState.Running,
+          offsetMs: 2500,
+        }),
       ]),
       now: T0 + 9000,
     })
@@ -92,7 +108,10 @@ describe('bootViewOf', () => {
   })
 
   it('reports done with elapsed between the first and last step', () => {
-    const view = bootViewOf({ pod: pod(EPodState.Running, allDone), now: T0 + 999_000 })
+    const view = bootViewOf({
+      pod: pod(EPodState.Running, allDone),
+      now: T0 + 999_000,
+    })
     expect(view?.state).toBe(EBootStepState.Done)
     expect(view?.elapsedMs).toBe(11_000)
   })
@@ -100,8 +119,16 @@ describe('bootViewOf', () => {
   it('orders steps by time before folding them', () => {
     const view = bootViewOf({
       pod: pod(EPodState.Booting, [
-        step({ step: EBootStep.Provision, state: EBootStepState.Done, offsetMs: 2000 }),
-        step({ step: EBootStep.Provision, state: EBootStepState.Running, offsetMs: 0 }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Done,
+          offsetMs: 2000,
+        }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Running,
+          offsetMs: 0,
+        }),
       ]),
       now: T0 + 3000,
     })
@@ -111,7 +138,11 @@ describe('bootViewOf', () => {
   it('surfaces the step error and no elapsed time on a failed pod', () => {
     const view = bootViewOf({
       pod: pod(EPodState.Failed, [
-        step({ step: EBootStep.Provision, state: EBootStepState.Running, offsetMs: 0 }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Running,
+          offsetMs: 0,
+        }),
         step({
           step: EBootStep.Provision,
           state: EBootStepState.Error,
@@ -133,8 +164,16 @@ describe('bootViewOf', () => {
   it('fails the running step and falls back to a generic error when the pod failed silently', () => {
     const view = bootViewOf({
       pod: pod(EPodState.Failed, [
-        step({ step: EBootStep.Provision, state: EBootStepState.Done, offsetMs: 0 }),
-        step({ step: EBootStep.Serve, state: EBootStepState.Running, offsetMs: 1000 }),
+        step({
+          step: EBootStep.Provision,
+          state: EBootStepState.Done,
+          offsetMs: 0,
+        }),
+        step({
+          step: EBootStep.Serve,
+          state: EBootStepState.Running,
+          offsetMs: 1000,
+        }),
       ]),
       now: T0 + 5000,
     })
@@ -158,8 +197,16 @@ describe('isPodSettled', () => {
     expect(
       isPodSettled(
         pod(EPodState.Running, [
-          step({ step: EBootStep.Provision, state: EBootStepState.Done, offsetMs: 0 }),
-          step({ step: EBootStep.Serve, state: EBootStepState.Running, offsetMs: 1 }),
+          step({
+            step: EBootStep.Provision,
+            state: EBootStepState.Done,
+            offsetMs: 0,
+          }),
+          step({
+            step: EBootStep.Serve,
+            state: EBootStepState.Running,
+            offsetMs: 1,
+          }),
         ]),
       ),
     ).toBe(false)
@@ -188,5 +235,74 @@ describe('isPodLiveEligible', () => {
 
   it('is false while the running pod is still booting the agent', () => {
     expect(isPodLiveEligible(pod(EPodState.Running, allDone.slice(0, 5)))).toBe(false)
+  })
+})
+
+describe('bootViewOf step labels', () => {
+  const labelsOf = (steps: RecordedBootStep[]) =>
+    bootViewOf({
+      pod: pod(EPodState.Booting, steps),
+      now: T0 + 10_000,
+    })?.steps.map((entry) => entry.label)
+
+  const wake = (outcome: EBootStepOutcome): RecordedBootStep[] => [
+    step({
+      step: EBootStep.Provision,
+      state: EBootStepState.Running,
+      offsetMs: 0,
+    }),
+    {
+      ...step({
+        step: EBootStep.Provision,
+        state: EBootStepState.Done,
+        offsetMs: 1000,
+      }),
+      outcome,
+    },
+  ]
+
+  it('says the sandbox was resumed and the repository is being checked, not cloned', () => {
+    const labels = labelsOf([
+      ...wake(EBootStepOutcome.Resumed),
+      step({
+        step: EBootStep.Clone,
+        state: EBootStepState.Running,
+        offsetMs: 2000,
+      }),
+    ])
+    expect(labels?.[0]).toBe('Resume sandbox')
+    expect(labels?.[2]).toBe('Check repository')
+  })
+
+  it('names what the clone step actually did once it reports its outcome', () => {
+    const cloneDone = (outcome: EBootStepOutcome): RecordedBootStep => ({
+      ...step({
+        step: EBootStep.Clone,
+        state: EBootStepState.Done,
+        offsetMs: 3000,
+      }),
+      outcome,
+    })
+    expect(
+      labelsOf([...wake(EBootStepOutcome.Resumed), cloneDone(EBootStepOutcome.Reused)])?.[2],
+    ).toBe('Reuse repository')
+    expect(
+      labelsOf([...wake(EBootStepOutcome.Created), cloneDone(EBootStepOutcome.Cloned)]),
+    ).toEqual([
+      'Create sandbox',
+      'Start Atlas',
+      'Clone repository',
+      'Load skills and instructions',
+      'Apply settings',
+      'Start agent',
+    ])
+  })
+
+  it('keeps the generic labels for steps recorded before outcomes existed', () => {
+    expect(labelsOf(allDone)?.slice(0, 3)).toEqual([
+      'Create sandbox',
+      'Start Atlas',
+      'Clone repository',
+    ])
   })
 })
