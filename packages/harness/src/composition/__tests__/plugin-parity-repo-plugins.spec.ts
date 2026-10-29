@@ -4,7 +4,14 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { ATLAS_SETTINGS, toCallId, toRunId, toThreadId, type EventDraft } from '@dltech/atlas-core'
+import {
+  ATLAS_SETTINGS,
+  ESettingId,
+  toCallId,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+} from '@dltech/atlas-core'
 
 import { registeredPortToken } from '../../container/injection'
 import type { DependencyContainer } from '../../container/injection'
@@ -62,7 +69,10 @@ afterEach(async () => {
 const settingsBinding = (): SettingsBinding => {
   const service = createSettingsService({
     definitions: ATLAS_SETTINGS,
-    user: new MemorySettingsStore({ label: 'plugin-parity repo-plugins spec' }),
+    user: new MemorySettingsStore({
+      label: 'plugin-parity repo-plugins spec',
+      document: { values: { [ESettingId.TrustedRepos]: project } },
+    }),
   })
   return { service, bindTo: () => {} }
 }

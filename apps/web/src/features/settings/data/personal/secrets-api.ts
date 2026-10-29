@@ -1,36 +1,29 @@
-import type { SecretDetail } from '@dltech/atlas-wire/web'
+import type { SecretSummary } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
-import {
-  ESecretKind,
-  type LibraryMember,
-  type LibrarySecret,
-} from '../../fixtures/settings-library'
+import type { LibraryMember, LibrarySecret } from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
-import { wireKindOf } from '../shared/secrets-mapping'
 import { relativeTime } from './relative-time'
 
 export function toLibrarySecret(args: {
-  detail: SecretDetail
+  summary: SecretSummary
   addedBy: LibraryMember
   now?: number
 }): LibrarySecret {
-  const { detail } = args
+  const { summary } = args
   return {
-    id: detail.name,
-    key: detail.name,
-    kind: detail.kind === 'env' ? ESecretKind.EnvVar : ESecretKind.Secret,
-    value: detail.value,
+    id: summary.name,
+    key: summary.name,
     updated: relativeTime({
-      from: detail.updatedAt,
+      from: summary.updatedAt,
       ...(args.now === undefined ? {} : { now: args.now }),
     }),
     addedBy: args.addedBy,
   }
 }
 
-export async function fetchSecretDetails(): Promise<SecretDetail[]> {
+export async function fetchSecretSummaries(): Promise<SecretSummary[]> {
   const body = await cloudCall(api.secrets.details.query())
   return body.secrets
 }
@@ -40,21 +33,19 @@ export async function fetchSecretNames(): Promise<string[]> {
   return body.names
 }
 
-export function putSecret(args: { name: string; value: string; kind: ESecretKind }): Promise<void> {
-  return cloudCall(
-    api.secrets.set.mutate({ name: args.name, value: args.value, kind: wireKindOf(args.kind) }),
-  )
+export async function revealSecret(name: string): Promise<string> {
+  const body = await cloudCall(api.secrets.reveal.query({ name }))
+  return body.value
 }
 
-export function saveSecretEntry(args: {
-  entry: SecretEntry
-  secrets: readonly LibrarySecret[]
-}): Promise<void> {
+export function putSecret(args: { name: string; value: string }): Promise<void> {
+  return cloudCall(api.secrets.set.mutate({ name: args.name, value: args.value }))
+}
+
+export function saveSecretEntry(args: { entry: SecretEntry }): Promise<void> {
   const { entry } = args
-  const existing = args.secrets.find((secret) => secret.key === entry.key)
-  const value = entry.value === '' ? (existing?.value ?? '') : entry.value
-  if (value === '') throw new Error('A value is required')
-  return putSecret({ name: entry.key, value, kind: entry.kind })
+  if (entry.value === '') throw new Error('A value is required')
+  return putSecret({ name: entry.key, value: entry.value })
 }
 
 export function deleteSecret(name: string): Promise<void> {

@@ -12,7 +12,7 @@ export enum EToolEnvironment {
 
 export type SessionPlacement =
   | { harness: EHarnessPlacement.Host; tools: EToolEnvironment }
-  | { harness: EHarnessPlacement.Cloud; driveName?: string | undefined }
+  | { harness: EHarnessPlacement.Cloud }
 
 export type PlacementRecord = {
   placement: SessionPlacement

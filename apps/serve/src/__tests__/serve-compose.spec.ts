@@ -6,7 +6,7 @@ import { fakeServeApp } from './fakes'
 import {
   CONTROL_PLANE,
   releaseServeSpec,
-  startWithDriveSpec,
+  startWithHomeSpec,
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
@@ -14,11 +14,11 @@ import {
 afterEach(releaseServeSpec)
 
 describe('startServe', () => {
-  it('reads the thread model off the workspace spec the laptop left on the drive', async () => {
+  it('reads the thread model off the workspace spec the laptop left in the Atlas home', async () => {
     let composedWith: { ref: string; effort?: string | undefined } | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
-    const handle = await startWithDriveSpec({
+    const handle = await startWithHomeSpec({
       spec: { model: 'inference-net/kimi-k3-fast' },
       compose: async (args) => {
         composedWith = args.model
@@ -55,11 +55,11 @@ describe('startServe', () => {
     await handle.close()
   })
 
-  it('composes with no model when the spec on the drive names none', async () => {
+  it('composes with no model when the spec in the Atlas home names none', async () => {
     let composedWith: { ref: string; effort?: string | undefined } | undefined
     const app = fakeServeApp({ threadId, root: '/workspace' })
 
-    const handle = await startWithDriveSpec({
+    const handle = await startWithHomeSpec({
       compose: async (args) => {
         composedWith = args.model
         return app

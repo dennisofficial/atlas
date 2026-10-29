@@ -3,9 +3,9 @@ import { mcpUpsertSchema } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openMcpServer } from '../mcp-servers/mcp-sealed'
-import { kindOf, openSecretValue } from '../secrets/sealed-secret'
+import { openSecretValue } from '../secrets/sealed-secret'
 
-type SealedSecretRow = { name: string; kind: string; sealedValue: string }
+type SealedSecretRow = { name: string; sealedValue: string }
 type SealedMcpRow = { sealedSpec: string; updatedAt: Date }
 type SettingRow = { key: string; value: string }
 
@@ -18,7 +18,6 @@ const secretsOf = (args: {
 }): ScopedSecret[] =>
   args.rows.map((row) => ({
     name: row.name,
-    kind: kindOf(row.kind),
     value: openSecretValue({ cipher: args.cipher, sealed: row.sealedValue }),
   }))
 

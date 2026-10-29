@@ -493,3 +493,22 @@ describe('a shell ending after a shell_kill', () => {
     ).toBe(true)
   })
 })
+
+describe('messagesFromEvents and sandbox setup reports', () => {
+  it('shows the model a setup report as a system notice that outlives later steps', () => {
+    const events = log([
+      { type: 'sandbox-setup-reported', text: 'Cloud setup failed: boom', failed: true },
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'ok' }] },
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message.content).toEqual([
+      {
+        type: 'text',
+        text: expect.stringContaining('Cloud setup failed: boom'),
+      },
+    ])
+  })
+})

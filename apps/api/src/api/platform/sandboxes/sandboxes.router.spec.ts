@@ -95,12 +95,11 @@ describe('SandboxesRouter', () => {
     expect(reply.status).toBe(400)
   })
 
-  it('accepts the driveName and workspace that released TUIs still send on a claim', async () => {
+  it('accepts the workspace that released TUIs send on a claim', async () => {
     const reply = await claim({
       threadId: 'brn_1',
       gitToken: 'ghp_x',
       contextPending: true,
-      driveName: 'atlas-drive-brn_1',
       workspace: { remoteUrl: null },
     })
 
@@ -204,22 +203,22 @@ describe('the first-party read throttle', () => {
 })
 
 describe('claimSandboxInputSchema', () => {
-  it('accepts the driveName that released TUIs still send on a claim', () => {
+  it('accepts the claim that released TUIs send', () => {
     expect(
       claimSandboxInputSchema.safeParse({
         threadId: 'brn_1',
         gitToken: 'ghp_x',
         contextPending: true,
-        driveName: 'atlas-drive-brn_1',
       }).success,
     ).toBe(true)
   })
 
-  it('rejects an unknown key, an empty thread id and an empty driveName', () => {
+  it('rejects an unknown key, an empty thread id and the retired driveName', () => {
     expect(claimSandboxInputSchema.safeParse({ threadId: 'brn_1', extra: 1 }).success).toBe(false)
     expect(claimSandboxInputSchema.safeParse({ threadId: '' }).success).toBe(false)
-    expect(claimSandboxInputSchema.safeParse({ threadId: 'brn_1', driveName: '' }).success).toBe(
-      false,
-    )
+    expect(
+      claimSandboxInputSchema.safeParse({ threadId: 'brn_1', driveName: 'atlas-drive-brn_1' })
+        .success,
+    ).toBe(false)
   })
 })

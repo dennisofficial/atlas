@@ -23,12 +23,11 @@ export async function seedAllScopes(cipher: SecretCipherService): Promise<void> 
     { id: 'p1', projectId: PROJECT, key: KEY, value: setting('high') },
   ])
   await db.orm.public.UserSecret.createAll([
-    { id: 's2', userId: 'user-a', name: 'API', kind: 'secret', sealedValue: seal('user') },
+    { id: 's2', userId: 'user-a', name: 'API', sealedValue: seal('user') },
     {
       id: 's3',
       userId: 'user-a',
       name: 'sandbox.vercelToken',
-      kind: 'secret',
       sealedValue: seal('vtok_user'),
     },
   ])
@@ -36,7 +35,6 @@ export async function seedAllScopes(cipher: SecretCipherService): Promise<void> 
     id: 's4',
     projectId: PROJECT,
     name: 'API',
-    kind: 'env',
     sealedValue: seal('proj'),
   })
   await db.orm.public.UserVercelCredential.create({

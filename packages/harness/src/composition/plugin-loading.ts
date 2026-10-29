@@ -1,4 +1,10 @@
-import { ENoticeTone, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core'
+import {
+  ENoticeTone,
+  ESettingId,
+  NOTICE_WARN_MS,
+  type NoticePort,
+  type SettingsDocument,
+} from '@dltech/atlas-core'
 
 import type { DependencyContainer } from '../container/injection'
 import { assemblePlugins, type AssembledPlugins } from '../plugins/assemble'
@@ -13,11 +19,13 @@ export async function loadSessionPlugins(args: {
   cwd: string
   atlasHome: string
   notice: NoticePort
+  trustedRepos: string
 }): Promise<AssembledPlugins> {
   const plugins = await assemblePlugins({
     container: args.container,
     cwd: args.cwd,
     atlasHome: args.atlasHome,
+    trustedRepos: args.trustedRepos,
   })
 
   for (const refusal of [...plugins.refused, ...plugins.unreadable]) {
@@ -29,5 +37,19 @@ export async function loadSessionPlugins(args: {
     })
   }
 
+  if (plugins.withheld.length > 0) {
+    args.notice.notify({
+      key: 'plugin:untrusted',
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `project plugins not loaded: ${plugins.withheld.join(', ')} — add ${plugins.trustKey} to Trusted repositories in settings (plugins.trustedRepos), then start a new session`,
+    })
+  }
+
   return plugins
+}
+
+export const userTrustedRepos = (document: SettingsDocument): string => {
+  const held = document.values[ESettingId.TrustedRepos]
+  return typeof held === 'string' ? held : ''
 }

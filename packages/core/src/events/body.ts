@@ -149,6 +149,7 @@ export type EventBody =
       triggeredBy?: string | undefined
     }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
+  | { type: 'sandbox-setup-reported'; text: string; failed: boolean }
   | {
       type: 'loop-watch-verdict'
       consulted: boolean
@@ -222,6 +223,7 @@ export type EventBody =
       body?: string | undefined
       verdict?: EPrVerdict | undefined
       headSha?: string | undefined
+      settled?: boolean | undefined
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined

@@ -22,12 +22,8 @@ export class PlacementConflict extends Error {
 
 const placementFrom = (value: unknown): SessionPlacement | undefined => {
   if (typeof value !== 'object' || value === null) return undefined
-  const held = value as { harness?: unknown; tools?: unknown; driveName?: unknown }
-  if (held.harness === EHarnessPlacement.Cloud) {
-    return typeof held.driveName === 'string'
-      ? { harness: EHarnessPlacement.Cloud, driveName: held.driveName }
-      : { harness: EHarnessPlacement.Cloud }
-  }
+  const held = value as { harness?: unknown; tools?: unknown }
+  if (held.harness === EHarnessPlacement.Cloud) return { harness: EHarnessPlacement.Cloud }
   if (held.harness !== EHarnessPlacement.Host) return undefined
   return {
     harness: EHarnessPlacement.Host,

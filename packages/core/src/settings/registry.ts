@@ -35,6 +35,7 @@ export enum ESettingId {
   UserInstructions = 'context.userInstructions',
   InstructionFilenames = 'context.filenames',
   ReloadInstructions = 'context.reload',
+  TrustedRepos = 'plugins.trustedRepos',
   SkillSuggest = 'skills.suggest',
   AutoCompact = 'context.autoCompact',
   ImageRows = 'transcript.imageRows',
@@ -291,6 +292,16 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: true,
   },
   {
+    id: ESettingId.TrustedRepos,
+    page: ESettingPage.General,
+    group: 'Plugins',
+    label: 'Trusted repositories',
+    description:
+      'Repositories whose .atlas/plugins may run, comma separated, written as host/owner/repo, for example github.com/acme/widget. A repository without a remote is trusted by its absolute path. Stored in your own settings, never in a repository, and read when a session starts.',
+    kind: ESettingKind.Text,
+    fallback: '',
+  },
+  {
     id: ESettingId.SkillSuggest,
     page: ESettingPage.General,
     group: 'Skills',
@@ -322,7 +333,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Worktrees',
     label: 'Where worktrees go',
     description:
-      'The directory, relative to the repository root, that enter_worktree creates a worktree in. Atlas writes a .gitignore of its own inside it, so the checkouts never show up as untracked files however the repository is configured.',
+      'Which of the two supported directories, relative to the repository root, enter_worktree creates a worktree in: .atlas/worktrees or .worktrees. Atlas writes a .gitignore of its own inside it, so the checkouts never show up as untracked files however the repository is configured.',
     environmentVariable: 'ATLAS_WORKTREE_DIRECTORY',
     kind: ESettingKind.Choice,
     fallback: DEFAULT_WORKTREE_DIRECTORY,

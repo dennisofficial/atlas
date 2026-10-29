@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { fakeServeApp } from './fakes'
-import { releaseServeSpec, start, startWithDriveSpec, threadId } from './serve-spec-fixture'
+import { releaseServeSpec, start, startWithHomeSpec, threadId } from './serve-spec-fixture'
 import { trpcOk } from './trpc-fake'
 
 afterEach(releaseServeSpec)
@@ -26,7 +26,7 @@ const bornProjectId = () => {
 
 describe('startServe born thread meta project', () => {
   it('records the bootstrap project so the session mirror does not null it', async () => {
-    await startWithDriveSpec({
+    await startWithHomeSpec({
       spec: { projectId: 'proj-boot' },
       fetchFn: (async (_input: unknown) =>
         trpcOk({

@@ -51,7 +51,7 @@ describe('GithubService scopes', () => {
 
     expect(result).toEqual({
       status: EGithubPollStatus.MissingScopes,
-      missing: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
+      missing: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key', 'workflow'],
     })
     expect(await connectionRows()).toHaveLength(0)
     expect(calls.includes('https://api.github.com/user')).toBe(false)
@@ -64,13 +64,13 @@ describe('GithubService scopes', () => {
 
     expect(result).toEqual({
       status: EGithubPollStatus.MissingScopes,
-      missing: ['admin:repo_hook', 'admin:ssh_signing_key'],
+      missing: ['admin:repo_hook', 'admin:ssh_signing_key', 'workflow'],
     })
     expect(await connectionRows()).toHaveLength(0)
   })
 
   it('poll connects a grant carrying the signing scope', async () => {
-    const granted = 'repo read:org admin:repo_hook admin:ssh_signing_key'
+    const granted = 'repo read:org admin:repo_hook admin:ssh_signing_key workflow'
     fetchImpl = async (url) => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({ access_token: 'gho_signing', scope: granted })
@@ -83,7 +83,7 @@ describe('GithubService scopes', () => {
     expect(result).toEqual({
       status: EGithubPollStatus.Connected,
       login: 'octocat',
-      scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
+      scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key', 'workflow'],
     })
     expect((await connectionRows())[0]?.scopes).toBe(granted)
   })
@@ -99,7 +99,7 @@ describe('GithubService scopes', () => {
 
     expect(result).toEqual({
       status: EGithubPollStatus.MissingScopes,
-      missing: ['admin:ssh_signing_key'],
+      missing: ['admin:ssh_signing_key', 'workflow'],
     })
   })
 
@@ -125,7 +125,7 @@ describe('GithubService scopes', () => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'admin:repo_hook,admin:ssh_signing_key,read:org,repo',
+          scope: 'admin:repo_hook,admin:ssh_signing_key,read:org,repo,workflow',
         })
       }
       return jsonResponse({ login: 'octocat' })
@@ -136,10 +136,10 @@ describe('GithubService scopes', () => {
     expect(result).toEqual({
       status: EGithubPollStatus.Connected,
       login: 'octocat',
-      scopes: ['admin:repo_hook', 'admin:ssh_signing_key', 'read:org', 'repo'],
+      scopes: ['admin:repo_hook', 'admin:ssh_signing_key', 'read:org', 'repo', 'workflow'],
     })
     expect((await connectionRows())[0]?.scopes).toBe(
-      'admin:repo_hook,admin:ssh_signing_key,read:org,repo',
+      'admin:repo_hook,admin:ssh_signing_key,read:org,repo,workflow',
     )
   })
 })

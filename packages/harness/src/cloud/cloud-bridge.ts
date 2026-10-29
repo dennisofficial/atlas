@@ -53,7 +53,7 @@ export type CloudSandboxes = {
     onRotationStarted?: (() => void) | undefined
     /**
      * The mount is riding out a provider settle — a sandbox name the registry has not released
-     * yet, or a drive still detaching. Lets the caller narrate the wait rather than sit silent.
+     * yet. Lets the caller narrate the wait rather than sit silent.
      */
     onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
   }): Promise<CloudSandbox>

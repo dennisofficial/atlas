@@ -1,8 +1,3 @@
----
-name: atlas-services
-description: Declare, start and debug long-running services (dev servers, APIs, watchers) with .atlas/services.yaml, services_ensure and service_start, and hand the operator a public byatlas.dev URL. Use when a task needs a running server, a preview URL, a PORT or PUBLIC_URL, Vite or Next.js host allow-listing, or when a service is crash-looping or not ready.
----
-
 # Atlas services
 
 A service is infrastructure you work against: it stays up while you continue, is restarted when it

@@ -86,11 +86,11 @@ describe('project resources router', () => {
     }).expect(200)
   })
 
-  it('stores project secrets with a kind and enforces env-style names', async () => {
+  it('stores project secrets, lists no value and enforces env-style names', async () => {
     const projectId = await createProjectAs({ app, token: 'session-a' })
     const stored = await mutate({
       path: 'setSecret',
-      input: { projectId, name: 'DATABASE_URL', value: 'postgres://x', kind: 'env' },
+      input: { projectId, name: 'DATABASE_URL', value: 'postgres://x' },
     }).expect(200)
     expect(dataOf(stored.body)).toBeUndefined()
     await mutate({
@@ -99,11 +99,21 @@ describe('project resources router', () => {
     }).expect(400)
 
     const listed = await query({ path: 'listSecrets', input: { projectId } }).expect(200)
-    expect(dataOf(listed.body)).toMatchObject({
-      secrets: [
-        expect.objectContaining({ name: 'DATABASE_URL', kind: 'env', value: 'postgres://x' }),
-      ],
-    })
+    expect(listed.text).not.toContain('postgres://x')
+    const [entry] = (dataOf(listed.body) as { secrets: object[] }).secrets
+    expect(Object.keys(entry ?? {}).sort()).toEqual(['createdAt', 'name', 'updatedAt'])
+    const revealed = await query({
+      path: 'revealSecret',
+      input: { projectId, name: 'DATABASE_URL' },
+    }).expect(200)
+    expect(dataOf(revealed.body)).toEqual({ value: 'postgres://x' })
+    const stale = await query({
+      path: 'revealSecret',
+      token: 'stale:session-a',
+      input: { projectId, name: 'DATABASE_URL' },
+    }).expect(403)
+    expect(stale.text).toContain('REAUTH_REQUIRED')
+    expect(stale.text).not.toContain('postgres://x')
     expect(
       (await db.orm.public.ProjectSecret.where((row) => row.id.neq('')).all())[0]?.sealedValue,
     ).not.toContain('postgres://x')
@@ -150,6 +160,7 @@ describe('project resources router', () => {
     await mutate({ path: 'setSecret', token, input: { projectId, name: 'A', value: 'v' } }).expect(
       404,
     )
+    await query({ path: 'revealSecret', token, input: { projectId, name: 'A' } }).expect(404)
     await mutate({ path: 'removeSecret', token, input: { projectId, name: 'A' } }).expect(404)
     await query({ path: 'listMcpServers', token, input: { projectId } }).expect(404)
     await mutate({

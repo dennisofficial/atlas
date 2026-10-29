@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 import { mcpUpsertSchema } from './mcp-wire'
-import { ESecretKind } from './secrets-wire'
 
 export enum EConfigScope {
   Default = 'default',
@@ -27,7 +26,6 @@ export const provenanceKeyOf = (args: { kind: EProvenanceKind; name: string }): 
 export const scopedSecretSchema = z.object({
   name: z.string().min(1),
   value: z.string(),
-  kind: z.enum(ESecretKind),
 })
 export type ScopedSecret = z.infer<typeof scopedSecretSchema>
 

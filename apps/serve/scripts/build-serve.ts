@@ -2,6 +2,7 @@ import { chmod, copyFile, mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 
+import { generatePluginTypes } from '../../../packages/harness/scripts/generate-plugin-types'
 import { generateSkills } from '../../../packages/harness/scripts/generate-skills'
 import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
 
@@ -71,6 +72,7 @@ const target = arg('--target')
 const version = await stageVendoredRipgrep({ target })
 await writeSupervisorBundle()
 await generateSkills()
+await generatePluginTypes()
 
 const cmd = [
   'bun',

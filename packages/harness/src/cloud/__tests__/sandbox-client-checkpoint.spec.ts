@@ -122,14 +122,12 @@ describe('SandboxClient.readCheckpoint', () => {
               {
                 threadId: 'thread-1',
                 name: 'sandbox',
-                driveName: null,
                 state: 'stopped',
                 lastActivityAt: '2026-10-01T00:00:00.000Z',
               },
               {
                 threadId: 'thread-2',
                 name: 'sandbox',
-                driveName: null,
                 state: 'unknown',
                 lastActivityAt: '2026-10-01T00:00:00.000Z',
               },

@@ -9,7 +9,7 @@ import {
 import { DeltaChannelToken } from '../container/tokens'
 import { ShellRegistryPort } from '../shells/port'
 
-import { deliverOperatorInput } from './deliver'
+import { deliverOperatorInput, prepareOperatorInputDestination } from './deliver'
 import { InProcessOperatorInput } from './registry'
 import { OperatorInputPort } from './port'
 
@@ -35,6 +35,11 @@ export function registerOperatorInput({ container }: { container: DependencyCont
         onListenerError,
         ids: resolver.resolve(registeredPortToken(IdPort)),
         channel,
+        prepareDestination: (args) =>
+          prepareOperatorInputDestination({
+            ...args,
+            processes: container.resolve(registeredPortToken(ProcessPort)),
+          }),
         deliver: (args) =>
           deliverOperatorInput({
             ...args,

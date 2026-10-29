@@ -1,10 +1,12 @@
 import {
-  personalSecretDetailListSchema,
+  personalSecretSummaryListSchema,
+  personalSecretValueSchema,
   personalSecretListSchema,
   personalSecretNameSchema,
   personalSecretNamesSchema,
   personalSecretSetSchema,
-  type PersonalSecretDetailList,
+  type PersonalSecretSummaryList,
+  type PersonalSecretValue,
   type PersonalSecretList,
   type PersonalSecretName,
   type PersonalSecretNames,
@@ -13,6 +15,7 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { assertFreshSession } from '../../../_module/session/fresh-session'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import {
   SessionOrSandboxMiddleware,
@@ -33,10 +36,20 @@ export class SecretsRouter {
     return { secrets: await this.secrets.list({ userId: ctx.auth.userId }) }
   }
 
-  @Query({ output: personalSecretDetailListSchema })
+  @Query({ output: personalSecretSummaryListSchema })
   @UseMiddlewares(SessionMiddleware)
-  async details(@Ctx() ctx: SessionTrpcCtx): Promise<PersonalSecretDetailList> {
-    return { secrets: await this.secrets.listDetails({ userId: ctx.auth.userId }) }
+  async details(@Ctx() ctx: SessionTrpcCtx): Promise<PersonalSecretSummaryList> {
+    return { secrets: await this.secrets.listSummaries({ userId: ctx.auth.userId }) }
+  }
+
+  @Query({ input: personalSecretNameSchema, output: personalSecretValueSchema })
+  @UseMiddlewares(SessionMiddleware)
+  async reveal(
+    @Input() input: PersonalSecretName,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<PersonalSecretValue> {
+    assertFreshSession({ auth: ctx.auth })
+    return { value: await this.secrets.reveal({ userId: ctx.auth.userId, name: input.name }) }
   }
 
   @Query({ output: personalSecretNamesSchema })
@@ -52,7 +65,6 @@ export class SecretsRouter {
       userId: ctx.auth.userId,
       name: input.name,
       value: input.value,
-      kind: input.kind,
     })
   }
 

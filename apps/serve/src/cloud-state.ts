@@ -24,7 +24,6 @@ import {
   SecretCipher,
   type VaultFile,
 } from '@dltech/atlas-harness'
-import { ESecretKind } from '@dltech/atlas-wire/web'
 
 import { createApiClient, httpStatusOf } from './api-client'
 import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
@@ -178,7 +177,7 @@ export const applyCloudState = async (args: {
     ])
     return {
       settings: settings.settings,
-      secrets: secrets.secrets.map((secret) => ({ ...secret, kind: ESecretKind.Secret })),
+      secrets: secrets.secrets,
       mcpServers: [],
     }
   }

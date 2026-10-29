@@ -3262,13 +3262,6 @@
                   "kind": "scalar"
                 }
               },
-              "kind": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -3326,9 +3319,6 @@
                 },
                 "id": {
                   "column": "id"
-                },
-                "kind": {
-                  "column": "kind"
                 },
                 "name": {
                   "column": "name"
@@ -5439,13 +5429,6 @@
                   "kind": "scalar"
                 }
               },
-              "kind": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -5503,9 +5486,6 @@
                 },
                 "id": {
                   "column": "id"
-                },
-                "kind": {
-                  "column": "kind"
                 },
                 "name": {
                   "column": "name"
@@ -8519,15 +8499,6 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "kind": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": "secret"
-                  },
-                  "nullable": false
-                },
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -8889,15 +8860,6 @@
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
-                },
-                "kind": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": "secret"
-                  },
                   "nullable": false
                 },
                 "name": {
@@ -10083,7 +10045,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d23bb282103f356355aa25e6ef1b04f866cf8ec2c86579853d9410d1f7f0831e"
+    "storageHash": "a7d41c08974879da5ec02d956fc526de4d5f955818d32119a17019e198d0a159"
   },
   "execution": {
     "executionHash": "0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d",

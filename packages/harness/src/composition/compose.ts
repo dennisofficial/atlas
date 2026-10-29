@@ -68,7 +68,8 @@ import type {
   HarnessSurfaceBinding,
 } from './harness-app'
 import { bindModels } from './model-bindings'
-import { loadSessionPlugins } from './plugin-loading'
+import { materializePluginTypes } from '../plugin-types/materialize'
+import { loadSessionPlugins, userTrustedRepos } from './plugin-loading'
 import type { ActiveConversation } from './resume-hint'
 import { journalResume } from './resume-journal'
 import type { SettingsBinding } from './settings-binding'
@@ -138,7 +139,10 @@ export async function composeHarness<
   })
   const settingsBinding = cloudState.settings
 
-  const { anchor, workspace } = await claimLaunchWorkspace({ container, launch })
+  const { anchor, workspace } = await claimLaunchWorkspace({
+    container,
+    launch,
+  })
   const mcp = await bindMcp({ container, cwd: anchor, notice })
 
   const settings = settingsBinding.service
@@ -211,10 +215,21 @@ export async function composeHarness<
     env: args.env,
   })
 
+  await materializePluginTypes({ home: atlasDirectory() }).catch((error: unknown) => {
+    container.resolve(registeredPortToken(LogPort)).warn({
+      source: 'plugin-types',
+      message: `plugin types were not written: ${error instanceof Error ? error.message : String(error)}`,
+    })
+  })
+
   const roots = { atlasHome: atlasDirectory(), home: homedir(), cwd: anchor }
   const skillRegistry = bindSkillRegistry({
     container,
-    registry: await liveSkillRegistry({ ...roots, home: args.userSkillHome ?? roots.home, notice }),
+    registry: await liveSkillRegistry({
+      ...roots,
+      home: args.userSkillHome ?? roots.home,
+      notice,
+    }),
   })
   const agentTypes = await bindSessionAgentTypes({
     container,
@@ -224,7 +239,14 @@ export async function composeHarness<
     roots,
   })
 
-  const utility = bindUtilityModels({ container, settings, secrets, models, model, notice })
+  const utility = bindUtilityModels({
+    container,
+    settings,
+    secrets,
+    models,
+    model,
+    notice,
+  })
   if (args.stores !== undefined) await args.stores.bind({ container })
 
   const plugins = await loadSessionPlugins({
@@ -232,11 +254,16 @@ export async function composeHarness<
     cwd: anchor,
     atlasHome: atlasDirectory(),
     notice,
+    trustedRepos: userTrustedRepos(settings.snapshot().document),
   })
 
   bindQuality({ container, settings })
   const log = container.resolve(registeredPortToken(EventLogPort))
-  await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
+  await seedProjectionsFromRestoredLog({
+    launch,
+    log,
+    projections: plugins.projections,
+  })
   const subscriptions = await bindSubscriptions({
     container,
     providers: plugins.subscriptionProviders,
@@ -256,9 +283,13 @@ export async function composeHarness<
   const ledger = container.resolve(registeredPortToken(TurnLedgerPort))
 
   const lateRotation = new LateRotation()
-  container.register(registeredPortToken(RotationPort), { useValue: lateRotation })
+  container.register(registeredPortToken(RotationPort), {
+    useValue: lateRotation,
+  })
 
-  container.register(HookMishapReporterToken, { useValue: hookMishapNotice(notice) })
+  container.register(HookMishapReporterToken, {
+    useValue: hookMishapNotice(notice),
+  })
   const bound = surface.bind === undefined ? undefined : await surface.bind({ container })
 
   const modelPort = faultInjected(container.resolve(registeredPortToken(ModelPort)))
@@ -307,7 +338,12 @@ export async function composeHarness<
     titler: utility.titler,
   })
 
-  const compaction = new LocalCompaction({ log, threads, agents, summarise: utility.summarise })
+  const compaction = new LocalCompaction({
+    log,
+    threads,
+    agents,
+    summarise: utility.summarise,
+  })
   const rotation = new LocalRotation({
     log,
     threads,

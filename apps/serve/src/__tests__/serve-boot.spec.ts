@@ -29,7 +29,7 @@ import {
   hello,
   releaseServeSpec,
   start,
-  startWithDriveSpec,
+  startWithHomeSpec,
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
@@ -255,7 +255,7 @@ describe('startServe', () => {
       return { state: EWorkspaceState.Skipped }
     }
 
-    await startWithDriveSpec({
+    await startWithHomeSpec({
       spec: { projectId: 'proj-boot' },
       ensureWorkspace,
       fetchFn: (async (input: unknown, init?: RequestInit) => {

@@ -36,6 +36,7 @@ export const projectWorkspaceSchema = z.object({
   baseBranch: gitBranchSchema.nullable(),
   additionalRepos: z.array(projectRepoSchema),
   githubToken: z.string().nullable(),
+  setupScript: z.string().nullish(),
 })
 export type ProjectWorkspace = z.infer<typeof projectWorkspaceSchema>
 

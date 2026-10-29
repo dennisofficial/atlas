@@ -61,8 +61,9 @@ re-break webhook management on a timer even after this redesign.
 
 - Env: `GITHUB_OAUTH_CLIENT_ID` (new). `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and the
   `GITHUB_APP_*` keys are retired once the app module is deleted.
-- Requested scopes: `repo read:org admin:repo_hook admin:ssh_signing_key`. (`workflow` is dropped
-  unless a consumer needs it; `admin:repo_hook` is required for on-the-fly hook creation;
+- Requested scopes: `repo read:org admin:repo_hook admin:ssh_signing_key workflow`. (`workflow` is
+  required because sandbox agents push with this token, and GitHub rejects any push touching
+  `.github/workflows/*` without it; `admin:repo_hook` is required for on-the-fly hook creation;
   `admin:ssh_signing_key` is required because deleting a signing key, which rotation and revocation
   do, needs `admin:` rather than `write:`.)
 - The device-flow endpoints (`github-device-client.ts`) stay; only the client id and scope
@@ -290,10 +291,9 @@ Wake is **server-side** (#1205): the moment a mailbox row lands, `GithubSandboxW
 the realtime module resolves the subscription's thread link (#1202 stores `threadId`/
 `sandboxId` on the subscription row) to the parked sandbox, and — when its
 `CloudSandbox.lastActivityAt` sits inside the 24h `PARK_WAKE_WINDOW_MS`
-(`github-delivery-routing.ts`) — recreates the sandbox and boots its serve through the shared
-boot machinery in `@dltech/atlas-wire` (delete the stopped container, remount the thread's
-drive, launch serve under a freshly minted token sealed onto the row, at the registry row's
-`serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
+(`github-delivery-routing.ts`) — resumes the sandbox and boots its serve through the shared
+boot machinery in `@dltech/atlas-wire` (resume the persistent sandbox from its snapshot, launch
+serve under the token sealed onto the row, at the registry row's `serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
 the mailbox row and logs. The TUI forwarder (`pr-event-forwarder.ts`) is the attached-client
 fast path: an open TUI routes the event into the parked thread as ordinary input, which
 unparks without waiting for the boot.

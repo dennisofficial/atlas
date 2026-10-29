@@ -40,19 +40,19 @@ const inMemoryContextFiles = (): WorkspaceFiles => {
   }
 }
 
-const driveHomes: string[] = []
+const atlasHomes: string[] = []
 let heldAtlasHome: string | undefined
 
-const specOnDrive = async (args: { githubToken: string | null }): Promise<string> => {
-  const driveHome = mkdtempSync(join(tmpdir(), 'atlas-git-env-spec-'))
-  driveHomes.push(driveHome)
-  const bootstrap = join(driveHome, 'bootstrap')
+const specInHome = async (args: { githubToken: string | null }): Promise<string> => {
+  const atlasHome = mkdtempSync(join(tmpdir(), 'atlas-git-env-spec-'))
+  atlasHomes.push(atlasHome)
+  const bootstrap = join(atlasHome, 'bootstrap')
   await mkdir(bootstrap, { recursive: true })
   await writeFile(
     join(bootstrap, 'workspace-spec.json'),
     JSON.stringify({ remoteUrl: null, githubToken: null, projectId: 'proj_1' }),
   )
-  return driveHome
+  return atlasHome
 }
 
 const projectApiAnswering = (args: { githubToken: string | null }): typeof fetch =>
@@ -71,9 +71,9 @@ const start = async (args: {
 }): Promise<ServeHandle> => {
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = await (async () => {
-    if (args.spec !== undefined) return specOnDrive({ githubToken: args.spec.githubToken })
+    if (args.spec !== undefined) return specInHome({ githubToken: args.spec.githubToken })
     const empty = mkdtempSync(join(tmpdir(), 'atlas-git-env-spec-'))
-    driveHomes.push(empty)
+    atlasHomes.push(empty)
     return empty
   })()
   const app = fakeServeApp({ threadId, root: '/workspace' })
@@ -100,7 +100,7 @@ afterEach(async () => {
   else process.env.ATLAS_HOME = heldAtlasHome
   heldAtlasHome = undefined
   while (running.length > 0) await running.pop()?.close()
-  for (const home of driveHomes.splice(0, driveHomes.length)) {
+  for (const home of atlasHomes.splice(0, atlasHomes.length)) {
     rmSync(home, { recursive: true, force: true })
   }
 })
@@ -132,7 +132,7 @@ describe('serve git access env', () => {
     expect(env.GIT_CONFIG_COUNT).toBeUndefined()
   })
 
-  it('boots without git access when the drive holds no workspace spec', async () => {
+  it('boots without git access when the Atlas home holds no workspace spec', async () => {
     const env: Record<string, string | undefined> = {}
 
     const handle = await start({ env, spec: undefined })

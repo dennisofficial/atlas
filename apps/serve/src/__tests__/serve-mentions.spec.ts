@@ -17,7 +17,7 @@ import {
 
 import { connect, type TestClient } from './client'
 import { fakeServeApp } from './fakes'
-import { releaseServeSpec, start, startWithDriveSpec, TOKEN, threadId } from './serve-spec-fixture'
+import { releaseServeSpec, start, startWithHomeSpec, TOKEN, threadId } from './serve-spec-fixture'
 import { isReadOnlyFrame } from '../socket-state-requests'
 import type { RequestFrame } from '../request-reply'
 
@@ -79,7 +79,7 @@ const startSandbox = async () => {
       workspace: workspaces.get(wanted) ?? null,
     }),
   }
-  return startWithDriveSpec({
+  return startWithHomeSpec({
     compose: async () => ({
       ...app,
       threads,

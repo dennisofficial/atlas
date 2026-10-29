@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import type { ESecretKind, ProjectSandbox, SecretDetail } from '@dltech/atlas-wire/web'
+import type { ProjectSandbox, SecretSummary } from '@dltech/atlas-wire/web'
 import { projectSandboxSchema } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
 import type { McpServerDto, McpSpecDraft } from '../mcp-servers/mcp-servers.types'
-import { assertEnvName, kindOf, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
+import { assertEnvName, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { PROJECT_NOT_FOUND, ProjectsService } from './projects.service'
 
 type Scope = { userId: string; projectId: string }
@@ -37,27 +37,33 @@ export class ProjectResourcesService {
     return { vcpus: row.sandboxVcpus, setupScript: row.setupScript }
   }
 
-  async listSecrets(args: Scope): Promise<SecretDetail[]> {
+  async listSecrets(args: Scope): Promise<SecretSummary[]> {
     await this.projects.read(args)
     const rows = await db.orm.public.ProjectSecret.where({ projectId: args.projectId })
       .orderBy((row) => row.name.asc())
       .all()
     return rows.map((row) => ({
       name: row.name,
-      kind: kindOf(row.kind),
-      value: openSecretValue({ cipher: this.cipher, sealed: row.sealedValue }),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }))
   }
 
-  async setSecret(
-    args: Scope & { name: string; value: string; kind?: ESecretKind | undefined },
-  ): Promise<void> {
+  async revealSecret(args: Scope & { name: string }): Promise<string> {
+    assertEnvName(args.name)
+    await this.projects.read(args)
+    const row = await db.orm.public.ProjectSecret.where({
+      projectId: args.projectId,
+      name: args.name,
+    }).first()
+    if (row === null) throw new NotFoundException('secret not found')
+    return openSecretValue({ cipher: this.cipher, sealed: row.sealedValue })
+  }
+
+  async setSecret(args: Scope & { name: string; value: string }): Promise<void> {
     assertEnvName(args.name)
     await this.projects.read(args)
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })
-    const kind = args.kind === undefined ? {} : { kind: args.kind }
     await db.orm.public.ProjectSecret.upsert({
       conflictOn: { projectId: args.projectId, name: args.name },
       create: {
@@ -65,9 +71,8 @@ export class ProjectResourcesService {
         projectId: args.projectId,
         name: args.name,
         sealedValue,
-        ...kind,
       },
-      update: { sealedValue, ...kind },
+      update: { sealedValue },
     })
   }
 

@@ -7,6 +7,7 @@ import {
   projectSecretKeySchema,
   projectSecretListSchema,
   projectSecretSetSchema,
+  projectSecretValueSchema,
   projectSettingsPatchSchema,
   resourceMcpServerListSchema,
   settingListSchema,
@@ -18,6 +19,7 @@ import {
   type ProjectSecretKey,
   type ProjectSecretList,
   type ProjectSecretSet,
+  type ProjectSecretValue,
   type ProjectSettingsPatch,
   type ResourceMcpServerList,
   type SettingList,
@@ -25,6 +27,7 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { assertFreshSession } from '../../../_module/session/fresh-session'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
 
@@ -74,6 +77,16 @@ export class ProjectResourcesRouter {
   ): Promise<ProjectSecretList> {
     const secrets = await this.resources.listSecrets({ userId: ctx.auth.userId, ...input })
     return { secrets }
+  }
+
+  @Query({ input: projectSecretKeySchema, output: projectSecretValueSchema })
+  async revealSecret(
+    @Input() input: ProjectSecretKey,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<ProjectSecretValue> {
+    assertFreshSession({ auth: ctx.auth })
+    const value = await this.resources.revealSecret({ userId: ctx.auth.userId, ...input })
+    return { value }
   }
 
   @Mutation({ input: projectSecretSetSchema, output: z.void() })

@@ -13,6 +13,9 @@ import {
 } from '#components/dialog'
 import { Field, FieldGroup, FieldLabel } from '#components/field'
 import { Input } from '#components/input'
+import { Textarea } from '#components/textarea'
+
+const LONG_TOKEN = 'x'.repeat(100)
 
 const meta = {
   title: 'Components/Dialog',
@@ -85,6 +88,42 @@ export const NoCloseButton: Story = {
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Deny</DialogClose>
           <DialogClose render={<Button />}>Approve</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+}
+
+export const LongValue: Story = {
+  render: () => (
+    <Dialog defaultOpen>
+      <DialogTrigger render={<Button variant="outline" />}>Add secret</DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add a secret</DialogTitle>
+          <DialogDescription>
+            Available to every thread in this project as an environment variable.
+          </DialogDescription>
+        </DialogHeader>
+        <Field>
+          <FieldLabel htmlFor="secret-name">Name</FieldLabel>
+          <Input
+            id="secret-name"
+            className="font-mono"
+            defaultValue="STRIPE_SECRET_KEY_FOR_PRODUCTION_BILLING_WEBHOOK_SIGNING"
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="secret-value">Value</FieldLabel>
+          <Textarea
+            id="secret-value"
+            className="min-h-20 font-mono text-xs md:text-xs"
+            defaultValue={LONG_TOKEN}
+          />
+        </Field>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <Button>Add secret</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

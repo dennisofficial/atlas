@@ -2,14 +2,14 @@
 
 import { useMemo } from 'react'
 
-import type { SecretDetail } from '@dltech/atlas-wire/web'
+import type { SecretSummary } from '@dltech/atlas-wire/web'
 
 import { useSessionUser } from '../session/use-session-identity'
 import { initialsOf } from '../session/initials'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { QueryPage } from '../data/personal/query-boundary'
-import { fetchSecretDetails } from '../data/personal/secrets-api'
+import { fetchSecretSummaries } from '../data/personal/secrets-api'
 import { useSecretsStore } from '../data/personal/use-secrets-store'
 import type { LibraryMember } from '../fixtures/settings-library'
 import { SecretsView } from '../parts/library-secrets-view'
@@ -26,21 +26,21 @@ const DESCRIPTION = (
 )
 
 export function SecretsPage() {
-  const query = useCloudQuery({ key: 'personal-secrets', load: fetchSecretDetails })
+  const query = useCloudQuery({ key: 'personal-secrets', load: fetchSecretSummaries })
   return (
     <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
-      {(details) => <SecretsContent details={details} reload={query.reload} />}
+      {(summaries) => <SecretsContent summaries={summaries} reload={query.reload} />}
     </QueryPage>
   )
 }
 
-function SecretsContent({ details, reload }: { details: SecretDetail[]; reload: () => void }) {
+function SecretsContent({ summaries, reload }: { summaries: SecretSummary[]; reload: () => void }) {
   const { user } = useSessionUser()
   const currentMember = useMemo<LibraryMember>(() => {
     const name = user?.name ?? 'You'
     return { name, initials: initialsOf(name) }
   }, [user])
-  const store = useSecretsStore({ details, currentMember, reload })
+  const store = useSecretsStore({ summaries, currentMember, reload })
   return (
     <SecretsView
       description={DESCRIPTION}

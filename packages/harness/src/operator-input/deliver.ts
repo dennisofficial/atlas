@@ -1,3 +1,5 @@
+import { dirname } from 'node:path'
+
 import type { AgentFileSystemPort, ProcessHandle, ProcessPort, ThreadId } from '@dltech/atlas-core'
 
 import type { OperatorInputAnswerOutcome } from './port'
@@ -13,6 +15,39 @@ function failureReason(args: { path: string; code: number; stderr: string }): st
     return `delivery to ${args.path} failed — a file already exists at that path and operator_input never overwrites. Delete it (rm), or pass a fresh path.${detail}`
   }
   return `delivery to ${args.path} failed (exit ${args.code})${detail}; use a writable FIFO or a new file path`
+}
+
+export type PrepareOperatorInputDestinationArgs = {
+  path: string
+  threadId: ThreadId
+  cwd: string
+}
+
+export async function prepareOperatorInputDestination(
+  args: PrepareOperatorInputDestinationArgs & { processes: ProcessPort },
+): Promise<OperatorInputAnswerOutcome> {
+  const parent = dirname(args.path)
+  try {
+    const process = args.processes.spawn({
+      cmd: ['sh', '-c', 'umask 077; mkdir -p -- "$1"', 'sh', parent],
+      cwd: args.cwd,
+      threadId: args.threadId,
+    })
+    const [code, stderr] = await Promise.all([
+      process.exited,
+      new Response(process.stderr).text(),
+      new Response(process.stdout).arrayBuffer(),
+    ])
+    if (code === 0) return { ok: true, bytes: 0 }
+    const tail = stderr.trim()
+    const detail = tail.length > 0 && tail.length < STDERR_TAIL_MAX_CHARS ? ` (${tail})` : ''
+    return {
+      ok: false,
+      reason: `could not create the directory ${parent} for operator input (exit ${code})${detail}; pass a path in a writable location`,
+    }
+  } catch {
+    return { ok: false, reason: `could not create the directory ${parent} for operator input` }
+  }
 }
 
 export type DeliverOperatorInputArgs = {

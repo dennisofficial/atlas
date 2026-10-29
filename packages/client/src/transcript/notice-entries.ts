@@ -1,4 +1,4 @@
-import { EOperatorInputOutcome, type Event } from '@dltech/atlas-core'
+import { EOperatorInputOutcome, prEventContent, type Event } from '@dltech/atlas-core'
 
 import {
   agentEndedLine,
@@ -126,7 +126,7 @@ export function noticeEntriesOf(args: {
         author: EAuthor.Model,
         key: event.id,
         text: prEventLine(event),
-        body: event.body ?? '',
+        body: prEventContent(event),
         failed: prEventFailed(event),
       },
     ]

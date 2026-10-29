@@ -31,6 +31,16 @@ describe('createPrEventDedupe', () => {
     expect(dedupe.admit(green('d', 'bbbbbbb2'))).toBe(false)
   })
 
+  it('admits a settled failed verdict after the early failed one on the same tip', () => {
+    const dedupe = createPrEventDedupe()
+    const failed = (id: string, settled?: boolean) =>
+      candidate({ id, kind: EPrEventKind.Verdict, verdict: 'failed', headSha: 'aaaaaaa1', settled })
+
+    expect(dedupe.admit(failed('a'))).toBe(true)
+    expect(dedupe.admit(failed('b', true))).toBe(true)
+    expect(dedupe.admit(failed('c', true))).toBe(false)
+  })
+
   it('admits a same-verdict frame once when the poll and SSE paths both deliver it', () => {
     const dedupe = createPrEventDedupe()
     const green = (id: string) =>

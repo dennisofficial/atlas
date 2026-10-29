@@ -30,7 +30,7 @@ export class DeclaredServicesFragment extends VolatilePromptFragment {
       file: servicesFileOf({ root }),
     })
     const lines = [
-      ".atlas/services.yaml declares this workspace's services. Call services_ensure before you need a URL or a running server; it starts what is missing, waits for health, and returns the URLs. Load the atlas-services skill for the schema and troubleshooting.",
+      ".atlas/services.yaml declares this workspace's services. Call services_ensure before you need a URL or a running server; it starts what is missing, waits for health, and returns the URLs. Load the atlas skill and read its references/services.md for the schema and troubleshooting.",
     ]
     if (services.length > 0) {
       lines.push(`Declared services: ${services.map((service) => service.name).join(', ')}.`)
