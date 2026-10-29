@@ -10,6 +10,7 @@ import {
   ShieldIcon,
   UserIcon,
   VariableIcon,
+  WrenchIcon,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ export enum ESettingsPage {
   Appearance = 'appearance',
   Notifications = 'notifications',
   Security = 'security',
+  Agent = 'agent',
 }
 
 export type SettingsNavItem = {
@@ -56,6 +58,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
       { page: ESettingsPage.Memory, label: 'Memory', icon: BrainIcon },
       { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },
+      { page: ESettingsPage.Agent, label: 'Agent', icon: WrenchIcon },
     ],
   },
   {
