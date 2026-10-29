@@ -1,7 +1,10 @@
 import {
   EGithubPrStreamFrame,
+  EGithubWakeFrame,
   githubPrStreamOutputSchema,
+  githubWakeStreamOutputSchema,
   type GithubPrStreamFrame,
+  type GithubWakeFrame,
 } from '@dltech/atlas-wire'
 import { Logger, ServiceUnavailableException } from '@nestjs/common'
 import {
@@ -49,15 +52,54 @@ export class GithubPrStreamRouter {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
     const userId = ctx.auth.userId
-    return prStreamFrames({ signal: opts.signal, attach: (sink) => this.attach({ sink, userId }) })
+    const threadId = ctx.pod?.threadId ?? ctx.sandbox?.threadId
+    return prStreamFrames({
+      signal: opts.signal,
+      attach: (sink) => this.attach({ sink, userId, threadId }),
+    })
   }
 
-  private attach(args: { sink: PrFrameSink; userId: string }): () => void {
+  @Subscription({ output: githubWakeStreamOutputSchema })
+  wakes(
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ): AsyncGenerator<GithubWakeFrame> {
+    if (this.drain.isDraining()) {
+      throw new ServiceUnavailableException('the api is restarting — retry the stream')
+    }
+    const userId = ctx.auth.userId
+    return prStreamFrames<GithubWakeFrame>({
+      signal: opts.signal,
+      attach: (sink) => {
+        sink.push({ type: EGithubWakeFrame.Heartbeat })
+        const close = this.fanout.openStream({
+          userId,
+          handler: () => undefined,
+          wakeHandler: (threadId) => sink.push({ type: EGithubWakeFrame.Wake, threadId }),
+          onClosed: () => sink.close(),
+        })
+        const heartbeat = setInterval(() => {
+          sink.push({ type: EGithubWakeFrame.Heartbeat })
+        }, PR_STREAM_HEARTBEAT_INTERVAL_MS)
+        return () => {
+          clearInterval(heartbeat)
+          close()
+        }
+      },
+    })
+  }
+
+  private attach(args: {
+    sink: PrFrameSink
+    userId: string
+    threadId: string | undefined
+  }): () => void {
     args.sink.push({ type: EGithubPrStreamFrame.Heartbeat })
     void this.replayKnownStates(args)
     void this.replayMailbox(args)
     const close = this.fanout.openStream({
       userId: args.userId,
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
       handler: (state) => args.sink.push({ type: EGithubPrStreamFrame.PrState, state }),
       eventHandler: (event) => args.sink.push({ type: EGithubPrStreamFrame.PrEvent, event }),
       onClosed: () => args.sink.close(),
@@ -81,9 +123,16 @@ export class GithubPrStreamRouter {
     }
   }
 
-  private async replayMailbox(args: { sink: PrFrameSink; userId: string }): Promise<void> {
+  private async replayMailbox(args: {
+    sink: PrFrameSink
+    userId: string
+    threadId: string | undefined
+  }): Promise<void> {
     try {
-      const events = await this.mailbox.replayUndelivered({ userId: args.userId })
+      const events =
+        args.threadId === undefined
+          ? await this.mailbox.replayUndelivered({ userId: args.userId })
+          : await this.mailbox.replayForThread({ userId: args.userId, threadId: args.threadId })
       for (const event of events) args.sink.push({ type: EGithubPrStreamFrame.PrEvent, event })
     } catch (failure) {
       this.logger.warn(`replaying the mailbox for ${args.userId} failed: ${String(failure)}`)

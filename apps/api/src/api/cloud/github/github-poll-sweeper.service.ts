@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
+import { threadActivityAt } from './github-thread-activity'
 import {
   dtoOf,
   liveUntilOf,
@@ -98,14 +99,19 @@ export class GithubPollSweeperService {
   private async refreshLiveUntil(args: { now: Date }): Promise<void> {
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
       subscription.threadId.isNotNull(),
-    )
-      .include('sandbox')
-      .all()
+    ).all()
+    const activity = await threadActivityAt({
+      threadIds: linked.flatMap((subscription) =>
+        subscription.threadId === null ? [] : [subscription.threadId],
+      ),
+    })
     for (const subscription of linked) {
-      if (subscription.sandbox === null) continue
+      const lastActivityAt =
+        subscription.threadId === null ? undefined : activity.get(subscription.threadId)
+      if (lastActivityAt === undefined) continue
       const liveUntil = liveUntilOf({
         expiresAt: subscription.expiresAt,
-        sandboxLastActivityAt: subscription.sandbox.lastActivityAt,
+        sandboxLastActivityAt: lastActivityAt,
       })
       if (liveUntil.getTime() <= subscription.liveUntil.getTime()) continue
       await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })

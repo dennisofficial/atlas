@@ -142,8 +142,24 @@ export const githubPrStreamFrameSchema = z.discriminatedUnion('type', [
 ])
 export type GithubPrStreamFrame = z.infer<typeof githubPrStreamFrameSchema>
 
-const isAsyncIterable = (value: unknown): value is AsyncIterable<GithubPrStreamFrame> =>
+const isAsyncIterable = <T>(value: unknown): value is AsyncIterable<T> =>
   typeof value === 'object' && value !== null && Symbol.asyncIterator in value
 
-export const githubPrStreamOutputSchema =
-  z.custom<AsyncIterable<GithubPrStreamFrame>>(isAsyncIterable)
+export const githubPrStreamOutputSchema = z.custom<AsyncIterable<GithubPrStreamFrame>>((value) =>
+  isAsyncIterable<GithubPrStreamFrame>(value),
+)
+
+export enum EGithubWakeFrame {
+  Wake = 'wake',
+  Heartbeat = 'heartbeat',
+}
+
+export const githubWakeFrameSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal(EGithubWakeFrame.Wake), threadId: z.string() }),
+  z.object({ type: z.literal(EGithubWakeFrame.Heartbeat) }),
+])
+export type GithubWakeFrame = z.infer<typeof githubWakeFrameSchema>
+
+export const githubWakeStreamOutputSchema = z.custom<AsyncIterable<GithubWakeFrame>>((value) =>
+  isAsyncIterable<GithubWakeFrame>(value),
+)

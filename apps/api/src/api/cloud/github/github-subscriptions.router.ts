@@ -19,8 +19,10 @@ import {
 } from '../../platform/sessions/session-or-sandbox.middleware'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 
-const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } =>
-  ctx.sandbox === undefined ? {} : { threadId: ctx.sandbox.threadId }
+const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } => {
+  const threadId = ctx.sandbox?.threadId ?? ctx.pod?.threadId
+  return threadId === undefined ? {} : { threadId }
+}
 
 @Router({ alias: 'githubSubscriptions' })
 @UseMiddlewares(SessionOrSandboxMiddleware)

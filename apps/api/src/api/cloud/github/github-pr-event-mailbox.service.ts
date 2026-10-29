@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
 
 /**
@@ -15,10 +16,17 @@ export class GithubPrEventMailboxService {
     private readonly fanout: GithubPrFanoutService,
     private readonly wake: GithubSandboxWakeService,
   ) {
-    this.fanout.onEventDelivered(({ ackId }) => {
-      void db.orm.public.GithubPrEvent.where({ id: ackId, deliveredAt: null })
-        .updateAndCount({ deliveredAt: new Date() })
-        .catch(() => undefined)
+    this.fanout.onEventDelivered(({ ackId, userStream, threadIds }) => {
+      if (userStream) {
+        void db.orm.public.GithubPrEvent.where({ id: ackId, deliveredAt: null })
+          .updateAndCount({ deliveredAt: new Date() })
+          .catch(() => undefined)
+      }
+      if (threadIds.length === 0) return
+      void db.orm.public.GithubPrEventDelivery.createAndCount(
+        threadIds.map((threadId) => ({ eventId: ackId, threadId })),
+        { onConflict: 'skip' },
+      ).catch(() => undefined)
     })
   }
 
@@ -64,6 +72,10 @@ export class GithubPrEventMailboxService {
       .where((event) => event.id.in(rows.map((row) => row.id)))
       .updateAndCount({ deliveredAt: new Date() })
     return rows.map(eventDtoOf)
+  }
+
+  async replayForThread(args: { userId: string; threadId: string }): Promise<GithubPrEventDto[]> {
+    return replayThreadEvents(args)
   }
 }
 

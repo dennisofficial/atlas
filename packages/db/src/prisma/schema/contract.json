@@ -48,6 +48,10 @@
       "model": "GithubPrEvent",
       "namespace": "public"
     },
+    "GithubPrEventDelivery": {
+      "model": "GithubPrEventDelivery",
+      "namespace": "public"
+    },
     "GithubPrState": {
       "model": "GithubPrState",
       "namespace": "public"
@@ -792,21 +796,6 @@
               }
             },
             "relations": {
-              "githubSubscriptions": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "threadId"
-                  ],
-                  "targetFields": [
-                    "threadId"
-                  ]
-                },
-                "to": {
-                  "model": "GithubSubscription",
-                  "namespace": "public"
-                }
-              },
               "oauthConnections": {
                 "cardinality": "1:N",
                 "on": {
@@ -1576,6 +1565,21 @@
               }
             },
             "relations": {
+              "deliveries": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "eventId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubPrEventDelivery",
+                  "namespace": "public"
+                }
+              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -1622,6 +1626,67 @@
               },
               "namespaceId": "public",
               "table": "GithubPrEvent"
+            }
+          },
+          "GithubPrEventDelivery": {
+            "fields": {
+              "deliveredAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "eventId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "event": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "eventId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "GithubPrEvent",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "deliveredAt": {
+                  "column": "deliveredAt"
+                },
+                "eventId": {
+                  "column": "eventId"
+                },
+                "threadId": {
+                  "column": "threadId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubPrEventDelivery"
             }
           },
           "GithubPrState": {
@@ -1968,22 +2033,6 @@
               }
             },
             "relations": {
-              "sandbox": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "threadId"
-                  ],
-                  "targetFields": [
-                    "threadId"
-                  ]
-                },
-                "to": {
-                  "model": "CloudSandbox",
-                  "namespace": "public"
-                }
-              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -6577,6 +6626,79 @@
               },
               "uniques": []
             },
+            "GithubPrEventDelivery": {
+              "columns": {
+                "deliveredAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "eventId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "GithubPrEventDelivery_eventId_idx_6a266d47"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "eventId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubPrEventDelivery"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubPrEvent"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "eventId"
+                  ],
+                  "name": "GithubPrEventDelivery_eventId_idx_6a266d47",
+                  "prefix": "GithubPrEventDelivery_eventId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "GithubPrEventDelivery_threadId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "eventId",
+                  "threadId"
+                ]
+              },
+              "uniques": []
+            },
             "GithubPrState": {
               "columns": {
                 "checksFailed": {
@@ -6868,27 +6990,6 @@
                     ],
                     "namespaceId": "public",
                     "tableName": "User"
-                  }
-                },
-                {
-                  "index": {
-                    "name": "GithubSubscription_threadId_idx"
-                  },
-                  "onDelete": "setNull",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "threadId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "GithubSubscription"
-                  },
-                  "target": {
-                    "columns": [
-                      "threadId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "CloudSandbox"
                   }
                 }
               ],
@@ -9269,7 +9370,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b4d2e89e8a65765912a017f22242339633a03efa5531d3746c5d99550a240aab"
+    "storageHash": "5d7020556e9c3987cab7c7f2ceffb6c1df259d50993d2a50155c9d63d77a6a8b"
   },
   "execution": {
     "executionHash": "c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4",

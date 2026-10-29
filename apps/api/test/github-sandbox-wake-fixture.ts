@@ -16,6 +16,8 @@ import {
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
+import { GithubPrFanoutService } from '../src/api/cloud/github/github-pr-fanout.service'
+import { DrainStateService } from '../src/api/platform/health/drain-state.service'
 import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
 import { advanceTimersByTimeAsync } from './fake-timers'
@@ -195,6 +197,7 @@ export function serviceWith(args: {
   background?: BackgroundWork
   debounceMs?: number
   credentials?: Partial<ThreadSandboxCredentials>
+  fanout?: GithubPrFanoutService
 }): GithubSandboxWakeService {
   const credentials: SandboxCredentials = {
     forThread: async () => ({
@@ -224,6 +227,7 @@ export function serviceWith(args: {
     background,
     args.debounceMs ?? WAKE_DEBOUNCE_MS,
     inertSignals(),
+    args.fanout ?? new GithubPrFanoutService(new DrainStateService()),
   )
 }
 

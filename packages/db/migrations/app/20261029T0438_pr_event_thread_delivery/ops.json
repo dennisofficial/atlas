@@ -1,0 +1,221 @@
+[
+  {
+    "id": "dropConstraint.GithubSubscription.GithubSubscription_threadId_fkey",
+    "label": "Drop constraint \"GithubSubscription_threadId_fkey\" on \"GithubSubscription\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GithubSubscription_threadId_fkey",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_threadId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"GithubSubscription_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" DROP CONSTRAINT \"GithubSubscription_threadId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"GithubSubscription_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_threadId_fkey",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GithubPrEventDelivery",
+    "label": "Create table \"GithubPrEventDelivery\"",
+    "summary": "Creates table \"GithubPrEventDelivery\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubPrEventDelivery"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GithubPrEventDelivery\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GithubPrEventDelivery\"",
+        "sql": "CREATE TABLE \"public\".\"GithubPrEventDelivery\" (\n  \"deliveredAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"eventId\" text NOT NULL,\n  \"threadId\" text NOT NULL,\n  PRIMARY KEY (\"eventId\", \"threadId\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GithubPrEventDelivery\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrEventDelivery.GithubPrEventDelivery_eventId_idx_6a266d47",
+    "label": "Create index \"GithubPrEventDelivery_eventId_idx_6a266d47\" on \"GithubPrEventDelivery\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrEventDelivery_eventId_idx_6a266d47",
+        "table": "GithubPrEventDelivery"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrEventDelivery_eventId_idx_6a266d47\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_eventId_idx_6a266d47\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrEventDelivery_eventId_idx_6a266d47\"",
+        "sql": "CREATE INDEX \"GithubPrEventDelivery_eventId_idx_6a266d47\" ON \"public\".\"GithubPrEventDelivery\" (\"eventId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrEventDelivery_eventId_idx_6a266d47\" exists on \"GithubPrEventDelivery\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_eventId_idx_6a266d47\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrEventDelivery\"",
+          "btree",
+          "[\"eventId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrEventDelivery.GithubPrEventDelivery_threadId_idx",
+    "label": "Create index \"GithubPrEventDelivery_threadId_idx\" on \"GithubPrEventDelivery\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrEventDelivery_threadId_idx",
+        "table": "GithubPrEventDelivery"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrEventDelivery_threadId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_threadId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrEventDelivery_threadId_idx\"",
+        "sql": "CREATE INDEX \"GithubPrEventDelivery_threadId_idx\" ON \"public\".\"GithubPrEventDelivery\" (\"threadId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrEventDelivery_threadId_idx\" exists on \"GithubPrEventDelivery\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_threadId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrEventDelivery\"",
+          "btree",
+          "[\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GithubPrEventDelivery.GithubPrEventDelivery_eventId_fkey",
+    "label": "Add foreign key \"GithubPrEventDelivery_eventId_fkey\" on \"GithubPrEventDelivery\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GithubPrEventDelivery_eventId_fkey",
+        "table": "GithubPrEventDelivery"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GithubPrEventDelivery_eventId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubPrEventDelivery_eventId_fkey",
+          "public",
+          "\"public\".\"GithubPrEventDelivery\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GithubPrEventDelivery_eventId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrEventDelivery\"\nADD CONSTRAINT \"GithubPrEventDelivery_eventId_fkey\"\nFOREIGN KEY (\"eventId\")\nREFERENCES \"public\".\"GithubPrEvent\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GithubPrEventDelivery_eventId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GithubPrEventDelivery_eventId_fkey",
+          "public",
+          "\"public\".\"GithubPrEventDelivery\"",
+          "f",
+          "[\"eventId\"]",
+          "\"public\".\"GithubPrEvent\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

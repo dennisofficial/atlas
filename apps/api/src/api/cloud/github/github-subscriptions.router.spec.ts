@@ -217,7 +217,7 @@ describe('GithubSubscriptionsRouter', () => {
     expect(reply.status).toBe(403)
   })
 
-  it('a pod subscribe carries no sandbox link', async () => {
+  it('a pod subscribe links the pod’s thread', async () => {
     const reply = await call({ procedure: 'subscribe', token: POD_TOKEN, body: SUBSCRIBE })
 
     expect(reply.status).toBe(200)
@@ -225,6 +225,7 @@ describe('GithubSubscriptionsRouter', () => {
       userId: 'usr_1',
       repoFullName: 'compai/app',
       prNumber: 42,
+      threadId: 'thr_1',
     })
   })
 
