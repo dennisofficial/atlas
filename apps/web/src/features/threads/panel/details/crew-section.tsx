@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { AgentStatusIcon } from '@dltech/atlas-ui/ai/agent-status'
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 
 import { AgentsFailed, AgentsLoading } from '../agents/agents-states'
 import type { AgentsData } from '../../data/use-agents'
@@ -17,7 +18,7 @@ import {
   type CrewGroup,
   type CrewRow,
 } from './details-model'
-import { DetailsSection, RowButton } from './section'
+import { DetailsSection } from './section'
 
 function CrewRows(props: {
   title: string
@@ -31,24 +32,27 @@ function CrewRows(props: {
   return (
     <DetailsSection title={props.title} count={`${group.working}/${group.total}`}>
       {group.rows.map((row) => (
-        <RowButton key={row.id} onClick={() => props.onOpen(row)}>
-          <AgentStatusIcon display={row.display} />
-          <span className="min-w-0 flex-1 truncate">{row.title}</span>
-          {row.subtitle === undefined ? null : (
-            <span className="shrink-0 text-xs text-muted-foreground">{row.subtitle}</span>
-          )}
-        </RowButton>
+        <DetailRow
+          key={row.id}
+          icon={<AgentStatusIcon display={row.display} />}
+          label={row.title}
+          meta={row.subtitle}
+          onClick={() => props.onOpen(row)}
+        />
       ))}
       {group.collapsed > 0 ? (
-        <RowButton onClick={props.onToggle}>
-          <span className="text-xs text-muted-foreground">
-            {settledLabelOf({
-              collapsed: group.collapsed,
-              expanded: props.expanded,
-              failed: group.collapsedFailed,
-            })}
-          </span>
-        </RowButton>
+        <DetailRow
+          onClick={props.onToggle}
+          label={
+            <span className="text-xs text-muted-foreground">
+              {settledLabelOf({
+                collapsed: group.collapsed,
+                expanded: props.expanded,
+                failed: group.collapsedFailed,
+              })}
+            </span>
+          }
+        />
       ) : null}
     </DetailsSection>
   )

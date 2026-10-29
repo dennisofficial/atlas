@@ -241,7 +241,46 @@ export function ThreadView({ threadId }: { threadId: string }) {
               </Alert>
             </div>
           ) : null}
-          <ThreadMainSlot>
+          <ThreadMainSlot
+            footer={
+              <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
+                {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
+                {operator.request === null ? null : (
+                  <OperatorInputCard
+                    key={operator.request.requestId}
+                    request={operator.request}
+                    submitting={operator.submitting}
+                    onSubmit={(value) => void operator.handleSubmit(value)}
+                  />
+                )}
+                <RewindDialog
+                  pick={rewind.pick}
+                  applying={rewind.applying}
+                  onCancel={rewind.handleCancel}
+                  onConfirm={() => void rewind.handleConfirm()}
+                />
+                <ComposerDock dock={dock} onOpenDetails={rightPanel.openDetails} />
+                <ThreadComposer
+                  value={draft}
+                  onValueChange={setDraft}
+                  onSubmit={handleSubmit}
+                  onEscape={() => void handleEscape()}
+                  sending={sending || handoff.waiting || images.encoding}
+                  working={working}
+                  onStop={handleStop}
+                  {...images.composerProps}
+                  placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
+                >
+                  <ModelPickerControls
+                    picker={model.picker}
+                    selection={model.selection}
+                    onSelectionChange={handleModelChange}
+                  />
+                  <ComposerContext usage={dock.usage} />
+                </ThreadComposer>
+              </div>
+            }
+          >
             <ThreadTranscript
               items={view.items}
               failure={view.failure}
@@ -254,42 +293,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
               }}
             />
           </ThreadMainSlot>
-          <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-            {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
-            {operator.request === null ? null : (
-              <OperatorInputCard
-                key={operator.request.requestId}
-                request={operator.request}
-                submitting={operator.submitting}
-                onSubmit={(value) => void operator.handleSubmit(value)}
-              />
-            )}
-            <RewindDialog
-              pick={rewind.pick}
-              applying={rewind.applying}
-              onCancel={rewind.handleCancel}
-              onConfirm={() => void rewind.handleConfirm()}
-            />
-            <ComposerDock dock={dock} onOpenDetails={rightPanel.openDetails} />
-            <ThreadComposer
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={handleSubmit}
-              onEscape={() => void handleEscape()}
-              sending={sending || handoff.waiting || images.encoding}
-              working={working}
-              onStop={handleStop}
-              {...images.composerProps}
-              placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
-            >
-              <ModelPickerControls
-                picker={model.picker}
-                selection={model.selection}
-                onSelectionChange={handleModelChange}
-              />
-              <ComposerContext usage={dock.usage} />
-            </ThreadComposer>
-          </div>
         </ThreadLayout>
       </div>
     </ThreadPanelProvider>

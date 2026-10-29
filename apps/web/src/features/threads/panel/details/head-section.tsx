@@ -15,7 +15,7 @@ export function HeadSection() {
   const figures = spend === null ? null : tokenFiguresOf(spend)
   const cost = spend?.costUsd ?? null
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-0.5 px-1">
       {details.title === null ? null : (
         <p className="line-clamp-2 text-sm font-medium">{details.title}</p>
       )}

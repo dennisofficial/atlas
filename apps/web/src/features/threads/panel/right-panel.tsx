@@ -1,7 +1,6 @@
 'use client'
 
-import { cn } from '@dltech/atlas-ui/lib/utils'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
+import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
 import { livePreviewCount } from '../data/preview-ports'
@@ -13,7 +12,8 @@ import { ChangesTab } from './changes-tab'
 import { FilesTab } from './files-tab'
 import { PreviewTab } from './preview-tab'
 import { ProcessesTab } from './processes-tab'
-import { ERightTab, isRightTab, TAB_LABEL } from './right-tab'
+import { ERightTab, isRightTab } from './right-tab'
+import { RightTabStrip } from './right-tab-strip'
 import { TerminalTab } from './terminal-tab'
 import { useThreadPanel } from './thread-panel-context'
 
@@ -72,26 +72,10 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-card">
       <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
-        <div
-          className={cn(
-            'flex h-10 shrink-0 items-end overflow-x-auto border-b px-3',
-            tabBarClassName,
-          )}
-        >
-          <TabsList variant="line" className="justify-start">
-            {Object.values(ERightTab).map((value) => (
-              <TabsTrigger key={value} value={value} className="flex-none">
-                {TAB_LABEL[value]}
-                {value === ERightTab.Details && running > 0 ? (
-                  <span className="font-mono text-xs tabular-nums">{running}</span>
-                ) : null}
-                {value === ERightTab.Preview && serving > 0 ? (
-                  <span className="font-mono text-xs tabular-nums">{serving}</span>
-                ) : null}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <RightTabStrip
+          className={tabBarClassName}
+          counts={{ [ERightTab.Details]: running, [ERightTab.Preview]: serving }}
+        />
         {Object.values(ERightTab).map((value) => (
           <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
             <TabBody

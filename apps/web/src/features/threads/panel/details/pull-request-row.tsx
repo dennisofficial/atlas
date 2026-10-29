@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -80,32 +81,40 @@ export function PullRequestRowItem(props: {
 }) {
   const { row, bell, onToggleBell } = props
   return (
-    <div className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/50">
-      <StateIcon state={row.state} />
-      <a
-        href={row.url}
-        target="_blank"
-        rel="noreferrer"
-        className="flex min-w-0 flex-1 items-baseline gap-1.5 rounded-sm text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span className="font-medium tabular-nums">{row.label}</span>
-        <span className="truncate font-mono text-xs text-muted-foreground">{row.branch}</span>
-        {row.via === undefined ? null : (
-          <span className="truncate text-xs text-muted-foreground">{row.via}</span>
-        )}
-      </a>
-      <span className="flex shrink-0 flex-col items-end text-xs">
-        {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
-        {row.conflicts ? <span className="text-muted-foreground">conflicts</span> : null}
-      </span>
-      {bell ? (
-        <BellToggle
-          bell={bell}
-          label={`${bell.label} ${row.label}`}
-          size="icon-xs"
-          onToggle={() => onToggleBell(row.key)}
-        />
-      ) : null}
-    </div>
+    <DetailRow
+      icon={<StateIcon state={row.state} />}
+      label={
+        <a
+          href={row.url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <span className="font-medium tabular-nums">{row.label}</span>{' '}
+          <span className="font-mono text-xs text-muted-foreground">{row.branch}</span>
+          {row.via === undefined ? null : (
+            <span className="text-xs text-muted-foreground"> {row.via}</span>
+          )}
+        </a>
+      }
+      meta={
+        row.checks === undefined && !row.conflicts ? undefined : (
+          <span className="flex flex-col items-end">
+            {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
+            {row.conflicts ? <span>conflicts</span> : null}
+          </span>
+        )
+      }
+      actions={
+        bell ? (
+          <BellToggle
+            bell={bell}
+            label={`${bell.label} ${row.label}`}
+            size="icon-xs"
+            onToggle={() => onToggleBell(row.key)}
+          />
+        ) : undefined
+      }
+    />
   )
 }

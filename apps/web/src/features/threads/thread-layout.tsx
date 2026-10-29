@@ -58,7 +58,7 @@ export function ThreadLayout(props: ThreadLayoutProps) {
         <div className="flex h-full min-w-0 flex-col">{children}</div>
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel id="right-panel" defaultSize="40%" minSize="26%" maxSize="60%">
+      <ResizablePanel id="right-panel" defaultSize="33%" minSize="26%" maxSize="50%">
         <RightPanel tab={tab} onTabChange={onTabChange} />
       </ResizablePanel>
     </ResizablePanelGroup>

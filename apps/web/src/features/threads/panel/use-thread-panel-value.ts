@@ -28,6 +28,7 @@ export function useThreadPanelValue(args: {
     openDetails,
     clearAgent,
     openContextFile,
+    toggleContextFile,
     closeContextFile,
     setSheetOpen,
   } = rightPanel
@@ -48,6 +49,7 @@ export function useThreadPanelValue(args: {
       openDetails,
       clearAgent,
       openContextFile,
+      toggleContextFile,
       closeContextFile,
       closePanel,
       refreshPod: refresh,
@@ -66,6 +68,7 @@ export function useThreadPanelValue(args: {
       openDetails,
       clearAgent,
       openContextFile,
+      toggleContextFile,
       closeContextFile,
       closePanel,
       refresh,
