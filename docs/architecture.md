@@ -415,7 +415,19 @@ log, hit the endpoint.
 
 **Nothing outlives Atlas.** Quitting reaps every service through the same `closeAll` path as
 shells, the exit guard counts live services alongside shells and agents, and no state persists
-across a restart. Ports, readiness probes and auto-restart are deliberately absent.
+across a restart. Declared services are the exception: they are re-ensured after a pod resume (below).
+
+**Declared services.** A repository lists its services in `.atlas/services.yaml`
+(`loadDeclaredServices`, schema in `core/services/declaration`); `services_ensure` starts the missing
+ones, waits on health (GET path 2xx/3xx, else TCP accept, 60 s budget) and returns each URL, flagged
+not-ready rather than withheld on timeout. Every service gets `PORT` and `ATLAS_THREAD_ID`; a service
+with a `portal` also gets `PUBLIC_URL` and the Vite allowed-hosts variable. Ports are the declared
+one or a stable per-(thread, name) pick from 20000-29999. Public exposure is a service concern, not a
+bash one: URLs are `https://<port>-<rand>.byatlas.dev` through a Cloudflare tunnel that keeps the Host
+and adds `X-Forwarded-Proto`. Declared services are supervised — restart with 1/2/4/8/16 s backoff,
+crash-looping after more than 5 crashes in 120 s — and resumed at serve boot and TUI reopen. A
+workspace prompt fragment lists declared names and loader rejections, and the `atlas-services` skill
+carries the procedure.
 
 ## Sub-agents
 

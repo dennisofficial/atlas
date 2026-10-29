@@ -98,3 +98,28 @@ describe('exposing a port from a service', () => {
     expect(registry.list()).toHaveLength(0)
   })
 })
+
+describe('the service env contract', () => {
+  it('runs the service with PORT from port, else exposePort', async () => {
+    const spawned: Array<Record<string, string | undefined> | undefined> = []
+    const local = new LocalProcessPort()
+    const spy: ProcessPort = {
+      spawn: (args) => {
+        if (args.cmd[2] === 'sleep 30') spawned.push(args.env)
+        return local.spawn(args)
+      },
+      which: (args) => local.which(args),
+      exposePort: (args) => local.exposePort!(args),
+    }
+    const { tool } = openTool(spy)
+
+    await invoke(tool, { port: 24_000 })
+    await invoke(tool, { exposePort: 3100 })
+
+    expect(spawned[0]?.PORT).toBe('24000')
+    expect(spawned[0]?.PUBLIC_URL).toBeUndefined()
+    expect(spawned[1]?.PORT).toBe('3100')
+    expect(spawned[1]?.PUBLIC_URL).toBe('http://localhost:3100')
+    expect(spawned[1]?.ATLAS_THREAD_ID).toBe('thread-1')
+  })
+})

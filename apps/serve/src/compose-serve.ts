@@ -21,7 +21,7 @@ import {
   SessionRegistryToken,
   SessionEnvironmentProcessPort,
 } from '@dltech/atlas-harness'
-import { ServiceRecovery } from '@dltech/atlas-harness'
+import { ServiceRecovery, resumeDeclaredServices } from '@dltech/atlas-harness'
 import { liveServicesOf } from '@dltech/atlas-harness'
 import {
   RotationPort,
@@ -183,6 +183,8 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
     },
     recordLostShells: ({ threadId }) => app.shells.reconcile({ threadId }),
     recordLostServices: ({ threadId }) => serviceRecovery.recordLost({ threadId }),
+    resumeDeclaredServices: ({ threadId }) =>
+      resumeDeclaredServices({ services: app.services, log: app.surface.log, threadId }),
     recordLostAgents: ({ threadId }) => app.agents.recordLostAgents({ threadId }),
     whenChildrenSettled: ({ threadId }) => app.agents.whenChildrenSettled({ threadId }),
     family,

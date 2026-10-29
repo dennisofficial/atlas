@@ -29,6 +29,7 @@ import {
   InvestigateThenExplainFragment,
 } from './fragments/scope'
 import { BackgroundShellsFragment } from './fragments/shells'
+import { DeclaredServicesFragment } from './fragments/services'
 import { SkillListingFragment } from './fragments/skills'
 import {
   OperatorInputFragment,
@@ -55,6 +56,7 @@ export function registerBuiltinPromptFragments({
     TodayFragment,
     ExecutionLocationFragment,
     SessionPathsFragment,
+    DeclaredServicesFragment,
     ContextFolderFragment,
     PreferDedicatedToolsFragment,
     ParallelToolCallsFragment,

@@ -1,10 +1,4 @@
-import {
-  EKilledBy,
-  EShellStatus,
-  type ClockPort,
-  type PortExposure,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, type ClockPort, type ThreadId } from '@dltech/atlas-core'
 
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { bootId } from './boot'
@@ -46,7 +40,6 @@ export type OpenSpec = {
   command: string
   description: string
   cursor: ShellCursor
-  exposure?: PortExposure | undefined
   finished?: ShellExit | undefined
 }
 
@@ -97,7 +90,6 @@ export class ShellLifecycle {
       command: args.command,
       description: args.description,
       cursor,
-      exposure: args.exposure,
     })
 
     const recorded = await state.journal?.started({
@@ -127,7 +119,6 @@ export class ShellLifecycle {
       clock,
       cursor: spec.cursor,
       watch: compiled.ok ? compiled.pattern : undefined,
-      exposure: spec.exposure,
       promptSettleMs: PROMPT_SETTLE_MS,
       matchSettleMs: MATCH_SETTLE_MS,
       matchedLinesCap: MATCHED_LINES_CAP,

@@ -120,6 +120,7 @@ describe('the builtin prompt', () => {
       prompt.parts.map((part) => part.text.length),
     )
     expect(prompt.skipped).toEqual([
+      { id: 'environment.declared-services', reason: ESkipReason.Empty },
       { id: 'skills.listing', reason: ESkipReason.Empty },
       { id: 'models.answer-in-text', reason: ESkipReason.Condition },
       { id: 'plan.grilling-ceremony', reason: ESkipReason.Empty },

@@ -7,6 +7,7 @@ import type {
 } from '@dltech/atlas-harness'
 import {
   liveServicesOf,
+  resumeDeclaredServices,
   ServiceRecovery,
   atlasDirectory,
   claimSession,
@@ -80,6 +81,13 @@ export async function recoverLostProcesses(args: {
 }): Promise<OpenedConversation['lostShells']> {
   const lostShells = (await args.shells?.reconcile({ threadId: args.threadId })) ?? []
   await serviceRecovery(args).recordLost({ threadId: args.threadId })
+  if (args.services !== undefined) {
+    void resumeDeclaredServices({
+      services: args.services,
+      log: args.log,
+      threadId: args.threadId,
+    }).catch(() => undefined)
+  }
   return lostShells
 }
 

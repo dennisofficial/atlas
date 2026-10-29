@@ -230,6 +230,8 @@ export type EventBody =
   | {
       type: 'service-started'
       serviceId: string
+      name?: string | undefined
+      port?: number | undefined
       command: string
       description?: string | undefined
       bootId?: string | undefined

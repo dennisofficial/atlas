@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, toThreadId } from '@dltech/atlas-core'
-import { EShellStatus, ESandboxState, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
+import { EExecutionLocation, EServiceStatus } from '@dltech/atlas-core'
+import { ESandboxState, type ServiceSnapshot } from '@dltech/atlas-harness'
 
 import {
   containerPillOf,
@@ -25,31 +25,27 @@ const running: SidebarContainer = {
   ],
 }
 
-const shell = (
-  over: Omit<Partial<ShellSnapshot>, 'shellId'> & { shellId: string },
-): ShellSnapshot => ({
-  threadId: toThreadId('thread'),
-  command: 'sleep 60',
+const service = (
+  over: Omit<Partial<ServiceSnapshot>, 'serviceId'> & { serviceId: string },
+): ServiceSnapshot => ({
+  command: 'bun run dev',
   description: '',
-  status: EShellStatus.Running,
+  status: EServiceStatus.Running,
+  logPath: '/tmp/service.log',
   startedAt: new Date().toISOString(),
-  lastOutputAt: new Date().toISOString(),
-  totalCharacters: 0,
-  awaitingInput: false,
   ...over,
-  shellId: toShellId(over.shellId),
 })
 
-describe('the exposed ports a shell asked for', () => {
-  it('collects the exposure of each running shell, cheapest container port first', () => {
+describe('the exposed ports a service asked for', () => {
+  it('collects the exposure of each running service, cheapest container port first', () => {
     const ports = exposedPortsOf({
-      shells: [
-        shell({
-          shellId: 'bash_2',
+      services: [
+        service({
+          serviceId: 'svc_2',
           exposure: { containerPort: 3001, hostPort: 20_124, url: 'http://localhost:20124' },
         }),
-        shell({
-          shellId: 'bash_1',
+        service({
+          serviceId: 'svc_1',
           exposure: { containerPort: 3000, hostPort: 20_123, url: 'http://localhost:20123' },
         }),
       ],
@@ -61,13 +57,13 @@ describe('the exposed ports a shell asked for', () => {
     ])
   })
 
-  it('ignores shells without an exposure and shells whose server already ended', () => {
+  it('ignores services without an exposure and services that already ended', () => {
     const ports = exposedPortsOf({
-      shells: [
-        shell({ shellId: 'bash_1' }),
-        shell({
-          shellId: 'bash_2',
-          status: EShellStatus.Exited,
+      services: [
+        service({ serviceId: 'svc_1' }),
+        service({
+          serviceId: 'svc_2',
+          status: EServiceStatus.Exited,
           exitCode: 0,
           exposure: { containerPort: 3000, hostPort: 20_123, url: 'http://localhost:20123' },
         }),
@@ -102,7 +98,7 @@ describe('the container pill', () => {
     })
   })
 
-  it('shows only the ports a shell exposed, never the inert published block', () => {
+  it('shows only the ports a service exposed, never the inert published block', () => {
     const pill = containerPillOf({
       location: EExecutionLocation.Docker,
       container: running,

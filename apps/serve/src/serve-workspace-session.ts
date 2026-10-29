@@ -2,7 +2,11 @@ import type { ThreadId } from '@dltech/atlas-core'
 import { settleCrashedCalls, type ToolEffectResolver } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
-import { adoptChildrenNow, settleLostShellsInBackground } from './serve-background'
+import {
+  adoptChildrenNow,
+  resumeDeclaredServicesNow,
+  settleLostShellsInBackground,
+} from './serve-background'
 import { EServeEvent, type ServeLog } from './serve-log'
 
 export function createServeWorkspaceSession(args: {
@@ -34,12 +38,16 @@ export function createServeWorkspaceSession(args: {
         ? Promise.resolve()
         : settleCrashedCalls({ log: app.log, ids: app.ids, threadId, effectOf: toolEffect })
     starting = settledCrashes
-      .then(() =>
-        Promise.allSettled([
+      .then(async () => {
+        const lost = await Promise.allSettled([
           settleLostShellsInBackground({ app, threadId, log, settling, note }),
+        ])
+        await resumeDeclaredServicesNow({ app, threadId, log })
+        const adopted = await Promise.allSettled([
           adoptChildrenNow({ app: adoptingApp, threadId, log, settling, note }),
-        ]),
-      )
+        ])
+        return [...lost, ...adopted]
+      })
       .then((results) => {
         const failed = results.find((result) => result.status === 'rejected')
         if (failed?.status === 'rejected') throw failed.reason

@@ -1,12 +1,17 @@
-import { EExecutionLocation, EPlanStatus, type Event, type Grant } from '@dltech/atlas-core'
+import {
+  EExecutionLocation,
+  EPlanStatus,
+  EServiceStatus,
+  type Event,
+  type Grant,
+} from '@dltech/atlas-core'
 
 import {
-  EShellStatus,
   TEAMMATE_AGENT_TYPE,
   type BoundPort,
   type SandboxContainer,
   type SandboxLimits,
-  type ShellSnapshot,
+  type ServiceSnapshot,
   type TurnSpend,
 } from '@dltech/atlas-harness'
 
@@ -222,11 +227,13 @@ export function withSections(args: {
   return { ...args.model, sections }
 }
 
-export function exposedPortsOf(args: { shells: readonly ShellSnapshot[] }): readonly BoundPort[] {
-  return args.shells
-    .flatMap((shell) => {
-      if (shell.status !== EShellStatus.Running || shell.exposure === undefined) return []
-      const { containerPort, hostPort } = shell.exposure
+export function exposedPortsOf(args: {
+  services: readonly ServiceSnapshot[]
+}): readonly BoundPort[] {
+  return args.services
+    .flatMap((service) => {
+      if (service.status !== EServiceStatus.Running || service.exposure === undefined) return []
+      const { containerPort, hostPort } = service.exposure
       return [{ containerPort, hostPort }]
     })
     .sort((left, right) => left.containerPort - right.containerPort)

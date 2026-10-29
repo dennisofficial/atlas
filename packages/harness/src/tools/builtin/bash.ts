@@ -13,7 +13,6 @@ import {
   waitsBySleeping,
   waitsByWatching,
   type DeclaredPathField,
-  type PortExposure,
   type ThreadId,
   type ToolOutcome,
   type ToolRun,
@@ -34,9 +33,6 @@ import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash
 import {
   bashDescription,
   ceilingClause,
-  exposureClause,
-  exposureNeedsBackground,
-  exposureUnsupported,
   idlingRefusal,
   noOpRefusal,
   truncatedWatchRefusal,
@@ -55,7 +51,6 @@ const inputSchema = z.strictObject({
   runInBackground: z.boolean().optional(),
   watch: z.string().min(1).optional(),
   outputLimitBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
-  exposePort: z.number().int().min(1).max(65_535).optional(),
 })
 
 const description = bashDescription({
@@ -85,21 +80,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     super()
   }
 
-  private async resolveExposure(args: {
-    containerPort: number | undefined
-    threadId: ThreadId
-  }): Promise<{ ok: true; exposure: PortExposure | undefined } | { ok: false; reason: string }> {
-    if (args.containerPort === undefined) return { ok: true, exposure: undefined }
-    if (this.processes.exposePort === undefined) {
-      return { ok: false, reason: exposureUnsupported() }
-    }
-
-    return await this.processes.exposePort({
-      containerPort: args.containerPort,
-      threadId: args.threadId,
-    })
-  }
-
   private async startInBackground(args: {
     threadId: ThreadId
     command: string
@@ -108,7 +88,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     watch?: string | undefined
     timeoutMs?: number | undefined
     outputLimitBytes?: number | undefined
-    exposure?: PortExposure | undefined
   }): Promise<ToolOutcome> {
     const started = await this.shells.start(args)
     if (!started.ok) return started
@@ -127,7 +106,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         ...(args.watch === undefined ? {} : { watch: args.watch }),
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
         outputLimitBytes: args.outputLimitBytes ?? 5 * 1024 ** 3,
-        ...(args.exposure === undefined ? {} : { exposure: args.exposure }),
       },
       modelText: [
         `Started in the background as shell ${shellId}, and it outlives this turn.`,
@@ -145,7 +123,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
-        ...exposureClause({ exposure: args.exposure }),
         'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
         `Use shell_output({ shellId: "${shellId}" }) for unread output, shell_input to send input, and shell_kill to stop it.`,
         'ATLAS_SESSION_DIR and ATLAS_THREAD_DIR locate this agent’s session and thread data, ATLAS_CONTEXT_DIR the session’s shared context folder; ATLAS_SHELL_DIR locates this shell’s spool.',
@@ -182,10 +159,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
-    if (input.exposePort !== undefined && input.runInBackground !== true) {
-      return { ok: false, reason: exposureNeedsBackground() }
-    }
-
     if (input.workdir !== undefined) {
       const directory = await this.files.stat({ path: input.workdir }).catch(() => undefined)
       if (directory === undefined) {
@@ -204,12 +177,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     }
 
     if (input.runInBackground === true) {
-      const exposure = await this.resolveExposure({
-        containerPort: input.exposePort,
-        threadId,
-      })
-      if (!exposure.ok) return exposure
-
       return this.startInBackground({
         threadId,
         command,
@@ -218,7 +185,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         watch: input.watch,
         timeoutMs,
         outputLimitBytes: input.outputLimitBytes,
-        exposure: exposure.exposure,
       })
     }
 

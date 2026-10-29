@@ -116,6 +116,9 @@ export * from './shells/elapsed'
 export * from './services/status'
 export * from './services/lifecycle'
 export * from './services/pairing'
+export * from './services/declaration'
+export * from './services/port'
+export * from './services/env'
 
 export * from './stream/chunk'
 

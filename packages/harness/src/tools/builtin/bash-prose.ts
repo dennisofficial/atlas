@@ -1,4 +1,4 @@
-import { readIdling, type PortExposure } from '@dltech/atlas-core'
+import { readIdling } from '@dltech/atlas-core'
 
 import { MATCHED_LINES_CAP } from '../../shells/shell-watch'
 
@@ -18,7 +18,9 @@ export function bashDescription({
     `${defaultTimeoutMs} ms unless timeoutMs says otherwise, never past ${maximumTimeoutMs} ms. Every`,
     'call carries a description: a few imperative words naming the job, which the developer reads in',
     'place of the command.',
-    'Start a long-running command with runInBackground to get a shell id back at once; the shell',
+    'Background bash is for finite jobs - builds, test runs, installs, migrations - not for servers that',
+    'run until stopped; those go through service_start or services_ensure. Start a slow command with',
+    'runInBackground to get a shell id back at once; the shell',
     'outlives the turn that started it and reconnects after an Atlas restart. Full background output',
     'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',
     'shell_input writes to a durable shell’s stdin. ATLAS_SESSION_DIR and ATLAS_CONTEXT_DIR name',
@@ -27,42 +29,15 @@ export function bashDescription({
     'Scratch files, probes, and one-off downloads belong in $ATLAS_SESSION_DIR/scratch, never loose in the Atlas home directory.',
     'The output file does not rotate. A 5 GiB kernel file-size limit bounds regular-file writes for background commands.',
     'A server - a dev server, a database, anything that listens',
-    'until stopped - belongs on service_start instead. A watch pattern delivers matching lines as',
+    'until stopped - belongs on service_start instead, which also publishes its port. A watch pattern delivers matching lines as',
     'they arrive; match failure markers as well as success, since silence is indistinguishable from',
     'progress. A background shell that prints nothing for 30 minutes is killed, and that ending wakes',
     'you like any other. Commands that wait idly - sleeps, poll loops, foreground watches,',
     'do-nothing ticks - are refused.',
     'shell_output reads a shell that will not end on its own, shell_list shows what is running, and',
-    "shell_kill stops one. exposePort publishes a background server's port at runInBackground and",
-    'answers with the URL to hand the operator. In a sandbox - Docker or cloud - bind the server to',
-    '0.0.0.0 and never offer a localhost URL: localhost there is the sandbox, not the operator’s machine.',
+    'shell_kill stops one.',
   ].join(' ')
 }
-
-export function exposureClause({
-  exposure,
-}: {
-  exposure: PortExposure | undefined
-}): readonly string[] {
-  if (exposure === undefined) return []
-  if (exposure.hostPort === exposure.containerPort) {
-    return [`It is reachable on the operator’s machine at ${exposure.url}.`]
-  }
-
-  return [
-    `It is reachable on the operator’s machine at ${exposure.url}, where a proxy forwards to port ${exposure.containerPort} in the sandbox.`,
-    'Bind the server to 0.0.0.0 so the proxy can reach it.',
-    'Hand the operator the returned URL, never a localhost or sandbox-internal one.',
-    'That name resolves only on the operator’s machine: a curl from inside the sandbox can never reach it, and a curl to localhost proves nothing about what the operator can open. Verify against the service’s in-sandbox address.',
-    'Every port subdomain of the sandbox host is one site, so cookies and cross-origin fetch behave as they do on one production domain - wire related servers with the returned URLs, not localhost.',
-  ]
-}
-
-export const exposureNeedsBackground = (): string =>
-  'exposePort publishes the port of a server that keeps running, so it needs runInBackground: true; a foreground command ends before anyone could open the URL'
-
-export const exposureUnsupported = (): string =>
-  'this execution mode cannot publish ports, so exposePort has nothing to bind'
 
 export function watchClause({ watch }: { watch: string | undefined }): readonly string[] {
   if (watch === undefined) return []

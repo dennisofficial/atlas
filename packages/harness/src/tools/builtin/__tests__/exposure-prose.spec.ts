@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { exposureClause } from '../bash-prose'
+import { exposureClause } from '../exposure-prose'
 
 describe('the exposure clause', () => {
   it('says a plain localhost exposure is reachable on the operator’s machine', () => {
