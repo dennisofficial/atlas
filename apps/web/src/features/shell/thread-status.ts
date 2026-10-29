@@ -15,7 +15,9 @@ const MERGED = 'merged'
 const CLOSED = 'closed'
 
 function pullRequestStatusOf(thread: WireThread): EThreadStatus {
-  const pullRequests = thread.pullRequests ?? []
+  const pullRequests = (thread.pullRequests ?? []).filter(
+    (pullRequest) => pullRequest.via === undefined,
+  )
   if (
     pullRequests.some((pullRequest) => pullRequest.state !== CLOSED && pullRequest.state !== MERGED)
   ) {
@@ -41,9 +43,14 @@ export function threadStatusOf(thread: WireThread): EThreadStatus {
   return pullRequestStatusOf(thread)
 }
 
+export function isWorking(thread: WireThread): boolean {
+  return thread.status?.working === true
+}
+
 export function isUnread(args: { thread: WireThread; active: boolean }): boolean {
   const status = args.thread.status
   if (args.active || status === undefined) return false
   if (status.lastAssistantSeq <= 0) return false
+  if (status.working && status.awaiting === null) return false
   return status.lastAssistantSeq > (status.readSeq ?? -1)
 }

@@ -72,7 +72,7 @@ describe('mirrorHistoryEdits', () => {
       },
     }
 
-    mirrorHistoryEdits({ app, threadId, flusher })
+    mirrorHistoryEdits({ app, flusherFor: () => flusher })
     await app.rewind?.truncate?.({ threadId, toSeq: 2, cutAgents: [] })
     await Promise.resolve()
 
@@ -93,7 +93,7 @@ describe('mirrorHistoryEdits', () => {
     } as unknown as NonNullable<ServeApp['compaction']>
     const app = { ...appOver(current), compaction }
 
-    mirrorHistoryEdits({ app, threadId, flusher })
+    mirrorHistoryEdits({ app, flusherFor: () => flusher })
     await app.compaction.summarise({ threadId, anchor: ECompactionAnchor.Prefix, seq: 3 })
     await app.compaction.compact({ threadId })
     await Promise.resolve()

@@ -29,22 +29,20 @@ const view = (over: Partial<AgentView> = {}): AgentView => ({
 
 describe('panelAgentOf', () => {
   it('ticks elapsed against now while live and stops at the end when finished', () => {
-    expect(panelAgentOf({ view: view(), detail: null, now: 65_000 }).elapsed).toBe('1m 5s')
+    expect(panelAgentOf({ view: view(), now: 65_000 }).elapsed).toBe('1m 5s')
     const done = view({ live: false, display: EAgentDisplay.Done, endedAt: 12_000 })
-    expect(panelAgentOf({ view: done, detail: null, now: 999_000 }).elapsed).toBe('12s')
+    expect(panelAgentOf({ view: done, now: 999_000 }).elapsed).toBe('12s')
   })
 
-  it('uses the intent as the brief until the child thread loads', () => {
-    expect(panelAgentOf({ view: view(), detail: null, now: 0 }).brief).toBe('Find importers')
-    const loaded = panelAgentOf({ view: view(), detail: { brief: 'Do it', calls: [] }, now: 0 })
-    expect(loaded.brief).toBe('Do it')
+  it('uses the intent as the brief', () => {
+    expect(panelAgentOf({ view: view(), now: 0 }).brief).toBe('Find importers')
   })
 
   it('renders the report as markdown only when there is one', () => {
-    expect(panelAgentOf({ view: view(), detail: null, now: 0 }).report).toBeUndefined()
+    expect(panelAgentOf({ view: view(), now: 0 }).report).toBeUndefined()
     const withReport = view({ report: 'Found 3', display: EAgentDisplay.Done, live: false })
     expect(
-      renderToStaticMarkup(<>{panelAgentOf({ view: withReport, detail: null, now: 0 }).report}</>),
+      renderToStaticMarkup(<>{panelAgentOf({ view: withReport, now: 0 }).report}</>),
     ).toContain('Found 3')
   })
 })

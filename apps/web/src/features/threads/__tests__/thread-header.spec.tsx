@@ -24,8 +24,7 @@ const view = (over: Partial<PullRequestsView> = {}): PullRequestsView => ({
       url: BADGE.url,
       branch: 'feat',
       state: 'open',
-      checksLabel: undefined,
-      failing: false,
+      checks: undefined,
       conflicts: false,
     },
   ],
@@ -125,6 +124,18 @@ describe('ThreadHeader', () => {
     })
     expect(html).toContain('aria-label="2 more pull requests"')
     expect(html).toContain('+2')
+  })
+
+  it('renders the state icon and a separate tally for every state', () => {
+    const checks = { running: 3, passed: 2, failed: 1 }
+    const html = render({
+      pullRequests: view({ badge: { ...BADGE, stateLabel: 'Merged', checks } }),
+    })
+    expect(html).toContain('text-pr-merged')
+    expect(html).toContain('aria-label="3 running, 2 passed, 1 failed"')
+    expect(html).toContain('text-warning')
+    expect(html).toContain('text-success')
+    expect(html).toContain('text-destructive')
   })
 
   it('shows no pull request controls without a badge', () => {

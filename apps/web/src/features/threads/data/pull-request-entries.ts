@@ -11,6 +11,7 @@ export type PullRequestEntry = {
   checksFailed: number | undefined
   mergeable: boolean | null | undefined
   current: boolean
+  via: { threadId: string; title: string | null } | undefined
 }
 
 export const pullRequestKeyOf = (pullRequest: { repo: string; number: number }): string =>
@@ -22,6 +23,7 @@ function entryOf(args: {
   url: string
   branch: string
   state?: string | undefined
+  via?: { threadId: string; title: string | null } | undefined
   live: PrStateWire | undefined
   currentBranch: string | undefined
 }): PullRequestEntry {
@@ -37,6 +39,7 @@ function entryOf(args: {
     checksFailed: live?.checksFailed,
     mergeable: live?.mergeable,
     current: currentBranch !== undefined && branch === currentBranch,
+    via: args.via,
   }
 }
 
@@ -69,5 +72,9 @@ export function pullRequestEntriesOf(args: {
 export function pinnedPullRequestOf(
   entries: readonly PullRequestEntry[],
 ): PullRequestEntry | undefined {
-  return entries.find((entry) => entry.current) ?? entries.at(-1)
+  return (
+    entries.find((entry) => entry.current) ??
+    entries.findLast((entry) => entry.via === undefined) ??
+    entries.at(-1)
+  )
 }

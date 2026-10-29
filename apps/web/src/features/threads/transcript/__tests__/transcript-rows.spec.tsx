@@ -5,7 +5,12 @@ import { act } from 'react'
 import { EAgentStatus } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
-import { ETranscriptKind, type ReportItem, type SpawnItem } from '../../data/transcript-items'
+import {
+  EEditBody,
+  ETranscriptKind,
+  type ReportItem,
+  type SpawnItem,
+} from '../../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../../panel/thread-panel-context'
 import { ReportNotice, SpawnCard } from '../transcript-agents'
 import { ToolRow } from '../transcript-tool-row'
@@ -87,6 +92,7 @@ describe('ToolRow', () => {
       panel: panelOf({ openChanges }),
       element: (
         <ToolRow
+          onOpenChanges={openChanges}
           call={{
             id: 'c1',
             kind: EToolKind.Edit,
@@ -101,12 +107,93 @@ describe('ToolRow', () => {
     expect(openChanges).toHaveBeenCalledWith('/repo/src/a.ts')
   })
 
+  it('renders dictated content while running and still opens Changes', async () => {
+    const openChanges = mock((_path?: string) => undefined)
+    await mount({
+      panel: panelOf({ openChanges }),
+      element: (
+        <ToolRow
+          onOpenChanges={openChanges}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Running,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+            change: {
+              kind: EEditBody.Content,
+              text: 'const a = 1',
+              firstLine: 1,
+              total: 1,
+            },
+          }}
+        />
+      ),
+    })
+    expect(document.body.textContent).toContain('const a = 1')
+    await click(document.querySelector('button[aria-label^="Open"]'))
+    expect(openChanges).toHaveBeenCalledWith('/repo/src/a.ts')
+  })
+
+  it('renders the diff of a settled edit', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={() => undefined}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+            change: {
+              kind: EEditBody.Diff,
+              added: 1,
+              removed: 0,
+              lines: [{ kind: 'add', text: 'added line', newNumber: 1 }],
+            },
+          }}
+        />
+      ),
+    })
+    expect(document.body.textContent).toContain('added line')
+    expect(document.querySelector('[data-kind="add"]')).not.toBeNull()
+  })
+
   it('renders an edit without a path as a plain row', async () => {
     await mount({
       panel: panelOf({}),
       element: (
         <ToolRow
-          call={{ id: 'c1', kind: EToolKind.Edit, state: EToolState.Done, label: 'src/a.ts' }}
+          onOpenChanges={() => undefined}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+          }}
+        />
+      ),
+    })
+    expect(document.querySelector('button[aria-label^="Open"]')).toBeNull()
+  })
+})
+
+describe('ToolRow without actions', () => {
+  it('renders an edit without a navigation button', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={null}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+          }}
         />
       ),
     })
@@ -118,7 +205,7 @@ describe('SpawnCard', () => {
   it('carries the spawn DOM id and shows the brief and model', async () => {
     await mount({
       panel: panelOf({}),
-      element: <SpawnCard item={spawn} model="gpt-5" now={0} />,
+      element: <SpawnCard item={spawn} model="gpt-5" now={0} onOpenAgent={null} />,
     })
     expect(document.getElementById('agent-spawn-thr_child')).not.toBeNull()
     expect(document.body.textContent).toContain('Audit the vault')
@@ -130,7 +217,7 @@ describe('SpawnCard', () => {
     const openAgent = mock((_id: string) => undefined)
     await mount({
       panel: panelOf({ openAgent }),
-      element: <SpawnCard item={spawn} model={undefined} now={0} />,
+      element: <SpawnCard item={spawn} model={undefined} now={0} onOpenAgent={openAgent} />,
     })
     await click(buttonNamed('Show in agent detail'))
     expect(openAgent).toHaveBeenCalledWith('thr_child')
@@ -138,9 +225,17 @@ describe('SpawnCard', () => {
 })
 
 describe('ReportNotice', () => {
+  it('hides the open button without an action', async () => {
+    await mount({ panel: panelOf({}), element: <ReportNotice item={report} onOpenAgent={null} /> })
+    expect(buttonNamed('Open in Agents')).toBeUndefined()
+  })
+
   it('opens the reporting agent', async () => {
     const openAgent = mock((_id: string) => undefined)
-    await mount({ panel: panelOf({ openAgent }), element: <ReportNotice item={report} /> })
+    await mount({
+      panel: panelOf({ openAgent }),
+      element: <ReportNotice item={report} onOpenAgent={openAgent} />,
+    })
     await click(buttonNamed('reported'))
     await click(buttonNamed('Open in Agents'))
     expect(openAgent).toHaveBeenCalledWith('thr_child')

@@ -10,7 +10,85 @@ interface AllowedOverride {
   reason: string
 }
 
-const ALLOWED: AllowedOverride[] = []
+const ALLOWED: AllowedOverride[] = [
+  {
+    file: 'features/threads/thread-layout.tsx',
+    component: 'SheetContent',
+    token: 'gap-0',
+    reason:
+      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
+  },
+  {
+    file: 'features/threads/thread-layout.tsx',
+    component: 'SheetContent',
+    token: 'bg-card',
+    reason:
+      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
+  },
+  {
+    file: 'features/threads/thread-layout.tsx',
+    component: 'SheetContent',
+    token: 'p-0',
+    reason:
+      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetContent',
+    token: 'gap-0',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetContent',
+    token: 'bg-sidebar',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetContent',
+    token: 'p-0',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetHeader',
+    token: 'px-4',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetHeader',
+    token: 'pt-4',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'SheetHeader',
+    token: 'pb-2',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'Sidebar',
+    token: 'border-r-0',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+  {
+    file: 'features/settings/settings-mobile-nav.tsx',
+    component: 'Sidebar',
+    token: 'bg-transparent',
+    reason:
+      'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
+  },
+]
 
 const WEB_SRC = join(import.meta.dir, '..')
 

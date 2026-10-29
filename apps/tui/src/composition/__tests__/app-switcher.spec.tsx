@@ -348,7 +348,7 @@ describe('pinning the models worth coming back to', () => {
   }, 60_000)
 
   it('takes the pin back off the model it is already on', async () => {
-    const app = appWith({ pinned: 'anthropic/claude-haiku-4-5' })
+    const app = appWith({ pinned: '["anthropic/claude-haiku-4-5"]' })
     const setup = await opened(app)
 
     try {
@@ -362,7 +362,7 @@ describe('pinning the models worth coming back to', () => {
   }, 60_000)
 
   it('gathers what is pinned into a group above the providers', async () => {
-    const app = appWith({ pinned: 'anthropic/claude-sonnet-5' })
+    const app = appWith({ pinned: '["anthropic/claude-sonnet-5"]' })
     const setup = await opened(app)
 
     try {

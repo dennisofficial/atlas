@@ -25,6 +25,7 @@ import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript
 export { ENoticeTone, ETranscriptKind }
 export type { NoticeContext, NoticeItem }
 export { EToolFamily, type ToolCallItem } from './transcript-tools'
+export { EEditBody, type EditBody } from './transcript-edit-body'
 export type { ReportItem, SpawnItem } from './transcript-agents'
 
 type Timed = { at?: string | undefined }

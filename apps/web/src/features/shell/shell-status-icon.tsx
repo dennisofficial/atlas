@@ -36,12 +36,12 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
   },
   [EThreadStatus.PrOpen]: {
     label: 'Pull request open',
-    className: 'text-success',
+    className: 'text-pr-open',
     Icon: GitPullRequest,
   },
   [EThreadStatus.PrMerged]: {
     label: 'Pull request merged',
-    className: 'text-chart-5',
+    className: 'text-pr-merged',
     Icon: GitMerge,
   },
   [EThreadStatus.Starting]: {

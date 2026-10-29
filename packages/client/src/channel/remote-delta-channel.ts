@@ -75,11 +75,6 @@ export function createRemoteDeltaChannel(
     pause: () => upstream.send({ kind: EClientFrame.Pause }),
     resume: () => upstream.send({ kind: EClientFrame.Resume }),
 
-    syncSettings({ content }) {
-      if (state.abandoned) return
-      upstream.send({ kind: EClientFrame.Settings, content })
-    },
-
     request: (request) => {
       if (state.abandoned) {
         return Promise.reject(

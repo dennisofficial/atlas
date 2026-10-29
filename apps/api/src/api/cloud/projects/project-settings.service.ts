@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { PROJECT_SETTING_REGISTRY, validateProjectSetting } from '@dltech/atlas-wire/web'
+import { isProjectSettingKey, validateProjectSetting } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import type { SettingDto } from '../settings/settings.types'
@@ -18,8 +18,7 @@ const assertPatch = (values: Record<string, string | null>): [string, string | n
     if (value !== null && typeof value !== 'string') {
       throw new BadRequestException(`the value for ${key} must be a string or null`)
     }
-    if (!PROJECT_SETTING_REGISTRY.has(key))
-      throw new BadRequestException(`unknown setting key: ${key}`)
+    if (!isProjectSettingKey(key)) throw new BadRequestException(`unknown setting key: ${key}`)
     if (value === null) continue
     const verdict = validateProjectSetting({ key, stored: value })
     if (!verdict.ok) throw new BadRequestException(verdict.reason)

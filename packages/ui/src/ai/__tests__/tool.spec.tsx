@@ -28,6 +28,12 @@ describe('Tool', () => {
     expect(html).not.toContain('trace-collapsible')
   })
 
+  it('renders children on a running line', () => {
+    const html = render(EToolState.Running, { children: <p>live body</p>, defaultOpen: true })
+
+    expect(html).toContain('live body')
+  })
+
   it('renders a done line as a collapsible', () => {
     const html = render(EToolState.Done)
 

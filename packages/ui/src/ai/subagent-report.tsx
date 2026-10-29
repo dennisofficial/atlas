@@ -20,7 +20,7 @@ export interface SubagentReportEntry {
 
 export interface SubagentReportsProps {
   reports: SubagentReportEntry[]
-  onOpen: (id: string) => void
+  onOpen?: ((id: string) => void) | undefined
 }
 
 interface ReportTitleInput {
@@ -47,10 +47,10 @@ function ReportLine({
   onOpen,
 }: {
   entry: SubagentReportEntry
-  onOpen: (id: string) => void
+  onOpen: ((id: string) => void) | undefined
 }) {
   const failed = entry.display === EAgentDisplay.Failed
-  const handleOpen = () => onOpen(entry.id)
+  const handleOpen = () => onOpen?.(entry.id)
   return (
     <Step
       icon={
@@ -65,9 +65,11 @@ function ReportLine({
       contentClassName="flex flex-col items-start gap-3"
     >
       <ReportBody entry={entry} failed={failed} />
-      <Button variant="ghost" size="xs" onClick={handleOpen}>
-        Open in Agents
-      </Button>
+      {onOpen ? (
+        <Button variant="ghost" size="xs" onClick={handleOpen}>
+          Open in Agents
+        </Button>
+      ) : null}
     </Step>
   )
 }

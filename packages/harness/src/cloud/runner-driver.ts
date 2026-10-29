@@ -22,7 +22,6 @@ export type PodProvisionArgs<THandle> = {
   name: string
   threadId: string
   token?: string | undefined
-  pinnedModel?: string | undefined
   putContextOnFreshBoot?: ((handle: THandle) => Promise<void>) | undefined
   environment?: Record<string, string> | undefined
   onRotationStarted?: (() => void) | undefined

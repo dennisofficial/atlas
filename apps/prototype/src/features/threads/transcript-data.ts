@@ -1,3 +1,4 @@
+import type { DiffLine } from '@dltech/atlas-ui/ai/diff-viewer'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import { EStepStatus, type PlanStep } from '@dltech/atlas-ui/ai/plan'
 
@@ -17,6 +18,7 @@ export interface StepSpec {
   output?: string
   errorText?: string
   elapsed?: string
+  diff?: { added: number; removed: number; lines: DiffLine[] }
 }
 
 export const FIRST_PROMPT =
@@ -75,7 +77,12 @@ export const FIRST_TURN_STEPS: StepSpec[] = [
     label: 'packages/ui/src/ai/diff-viewer.tsx',
     elapsed: '0.5s',
   },
-  { id: 't1-tool', kind: EToolKind.Edit, label: 'packages/ui/src/ai/tool.tsx', elapsed: '0.6s' },
+  {
+    id: 't1-tool',
+    kind: EToolKind.Edit,
+    label: 'packages/ui/src/ai/tool.tsx',
+    elapsed: '0.6s',
+  },
 ]
 
 export const FIRST_TURN_REASONING = REASONING_TEXT
@@ -93,6 +100,22 @@ const PAGE_STEP: StepSpec = {
   kind: EToolKind.Edit,
   label: 'apps/web/src/app/page.tsx',
   elapsed: '0.2s',
+  diff: {
+    added: 2,
+    removed: 1,
+    lines: [
+      {
+        kind: 'context',
+        text: 'export default function Page() {',
+        oldNumber: 3,
+        newNumber: 3,
+      },
+      { kind: 'remove', text: '  return <Landing />', oldNumber: 4 },
+      { kind: 'add', text: '  const theme = useTheme()', newNumber: 4 },
+      { kind: 'add', text: '  return <Landing theme={theme} />', newNumber: 5 },
+      { kind: 'context', text: '}', oldNumber: 5, newNumber: 6 },
+    ],
+  },
 }
 
 const TYPECHECK_RUNNING: StepSpec = {

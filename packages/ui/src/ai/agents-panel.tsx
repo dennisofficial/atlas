@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { BotIcon } from 'lucide-react'
 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '#components/empty'
@@ -32,6 +32,7 @@ export interface AgentsPanelProps {
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
   onJumpToSpawn: (id: string) => void
+  renderTranscript?: (agent: AgentsPanelAgent) => ReactNode
 }
 
 function EmptyAgents() {
@@ -57,6 +58,7 @@ export function AgentsPanel({
   onDetailChange,
   onOpenTeammate,
   onJumpToSpawn,
+  renderTranscript,
 }: AgentsPanelProps) {
   const [doneExpanded, setDoneExpanded] = useState(false)
   const detail = agents.find((agent) => agent.id === detailId)
@@ -74,6 +76,7 @@ export function AgentsPanel({
         agent={detail}
         onBack={handleBack}
         onJumpToSpawn={onJumpToSpawn}
+        renderTranscript={renderTranscript}
       />
     )
   }

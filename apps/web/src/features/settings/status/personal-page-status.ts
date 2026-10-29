@@ -24,7 +24,7 @@ export const PERSONAL_PAGE_STATUS = {
   [ESettingsPage.ModelsEffort]: {
     status: EPageStatus.Partial,
     detail:
-      'model.id, model.effort and agents.subagentModel reach sandboxes. The preset, subagent effort and classifier model and effort are saved only.',
+      'Default, subagent, quick-call and compaction models and the default effort are delivered to every sandbox when it starts. The preset marks which bundle you chose.',
   },
   [ESettingsPage.Providers]: { status: EPageStatus.Live },
   [ESettingsPage.Secrets]: {
@@ -38,6 +38,14 @@ export const PERSONAL_PAGE_STATUS = {
   },
   [ESettingsPage.Notifications]: { status: EPageStatus.Stored },
   [ESettingsPage.Agent]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
+  },
+  [ESettingsPage.Experimental]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
+  },
+  [ESettingsPage.Quality]: {
     status: EPageStatus.Live,
     detail: 'Saved to your account and delivered to every sandbox when it starts.',
   },

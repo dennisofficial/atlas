@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
-import type { DeltaChannel } from '@dltech/atlas-harness'
 
 import { hydrateWhenRegistered } from '../serve-hydrate'
 import { threadModelPersisterOf } from '../serve-thread-model-persist'
 import { bindServeWriteBehind } from '../serve-write-behind'
-
-import type { ServeApp } from '../serve-app'
 
 const threadId = toThreadId('thr_local_pod')
 const cloud = { ATLAS_CLOUD_URL: 'https://api.example.com', ATLAS_SERVE_TOKEN: 't' }
@@ -66,10 +63,7 @@ describe('local pod mirrors no thread state', () => {
   it('has no write-behind', () => {
     const bound = bindServeWriteBehind({
       env: localPod,
-      app: {} as Pick<ServeApp, 'log' | 'rewind' | 'compaction'> & {
-        threads: Pick<ServeApp['threads'], 'onRename'>
-        channel: Pick<DeltaChannel, 'subscribe'>
-      },
+      app: {} as Parameters<typeof bindServeWriteBehind>[0]['app'],
       threadId,
       durableHead: 0,
       remote: {

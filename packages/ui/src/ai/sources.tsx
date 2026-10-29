@@ -27,31 +27,40 @@ export function dedupeSources(sources: Source[]): Source[] {
   )
 }
 
+function SourceLink({ source }: { source: Source }) {
+  return (
+    <StepLink
+      href={source.url}
+      icon={<GlobeIcon />}
+      title={
+        <>
+          {source.title ?? hostnameOf(source.url)}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </>
+      }
+      trailing={<ArrowUpRightIcon />}
+    />
+  )
+}
+
 export function Sources({ sources, defaultOpen }: SourcesProps) {
   const unique = dedupeSources(sources)
-  if (unique.length === 0) return null
+  const [only] = unique
+  if (only === undefined) return null
+  if (unique.length === 1) {
+    return (
+      <Trace>
+        <SourceLink source={only} />
+      </Trace>
+    )
+  }
 
   return (
     <Trace>
-      <Step
-        icon={<GlobeIcon />}
-        title={`Used ${unique.length} ${unique.length === 1 ? 'source' : 'sources'}`}
-        defaultOpen={defaultOpen}
-      >
+      <Step icon={<GlobeIcon />} title={`Used ${unique.length} sources`} defaultOpen={defaultOpen}>
         <Trace>
           {unique.map((source) => (
-            <StepLink
-              key={source.url}
-              href={source.url}
-              icon={<GlobeIcon />}
-              title={
-                <>
-                  {source.title ?? hostnameOf(source.url)}
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </>
-              }
-              trailing={<ArrowUpRightIcon />}
-            />
+            <SourceLink key={source.url} source={source} />
           ))}
         </Trace>
       </Step>
