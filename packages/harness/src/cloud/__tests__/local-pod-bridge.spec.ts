@@ -128,21 +128,50 @@ describe('createLocalPodBridge birth', () => {
   })
 
   it('leaves the lease in place when Docker fails to create the pod', async () => {
-    const { driver } = fakePodDriver({ created: true })
+    const { driver, events } = fakePodDriver({ created: true })
     driver.createOrResume = async () => {
+      events.push('create')
       throw new Error('image pull failed')
     }
     const registered: Array<{ threadId: string; token: string }> = []
 
     await expect(
-      podBridgeWith({ driver, registered }).sandboxes.create({
+      podBridgeWith({
+        driver,
+        registered,
+        events,
+        overrides: {
+          registerThread: async () => {
+            events.push('thread')
+          },
+        },
+      }).sandboxes.create({
         threadId,
         projectId: null,
         birth: { effort: 'low' },
       }),
     ).rejects.toThrow('image pull failed')
 
+    expect(events).toEqual(['register', 'thread', 'create'])
     expect(registered).toEqual([{ threadId, token: serveToken }])
+  })
+
+  it('never touches Docker on a resume whose lease is refused', async () => {
+    const { driver, events } = fakePodDriver({ created: false })
+
+    await expect(
+      podBridgeWith({
+        driver,
+        events,
+        overrides: {
+          registerPodLease: async () => {
+            throw new Error('lease refused')
+          },
+        },
+      }).sandboxes.create({ threadId, projectId: null }),
+    ).rejects.toThrow('lease refused')
+
+    expect(events).toEqual([])
   })
 
   it('registers the lease, then the born thread with its project, model and effort, before the pod is created', async () => {
