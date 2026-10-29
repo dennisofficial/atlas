@@ -3,11 +3,11 @@
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { AgentsPanel } from '@dltech/atlas-ui/ai/agents-panel'
+import { AgentsPanel, type AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 
 import type { AgentsData } from '../data/use-agents'
-import { useAgentDetail } from '../data/use-agents-detail'
 import { useNow } from '../data/use-now'
+import { AgentTranscript } from './agents/agent-transcript'
 import { agentsOfflineCopyOf } from './agents/agents-offline-copy'
 import { panelAgentOf } from './agents/agents-panel-model'
 import { documentLookup, jumpToSpawn } from './agents/agents-spawn-jump'
@@ -19,17 +19,12 @@ export function AgentsTab(props: { data: AgentsData }) {
   const { agentId, openAgent, clearAgent, closePanel, channel, pod } = useThreadPanel()
   const router = useRouter()
   const now = useNow(agents.some((agent) => agent.live))
-  const selected = agents.find((agent) => agent.id === agentId)
-  const detail = useAgentDetail({
-    agentId: selected?.id,
-    refreshKey: `${selected?.display}:${selected?.toolCalls}`,
-  })
   const panelAgents = useMemo(
-    () =>
-      agents.map((view) =>
-        panelAgentOf({ view, detail: view.id === selected?.id ? detail : null, now }),
-      ),
-    [agents, selected?.id, detail, now],
+    () => agents.map((view) => panelAgentOf({ view, now })),
+    [agents, now],
+  )
+  const renderTranscript = (agent: AgentsPanelAgent) => (
+    <AgentTranscript key={agent.id} agentId={agent.id} fallback={agent} />
   )
 
   const handleDetailChange = (id: string | undefined) => {
@@ -56,6 +51,7 @@ export function AgentsTab(props: { data: AgentsData }) {
       onDetailChange={handleDetailChange}
       onOpenTeammate={handleOpenTeammate}
       onJumpToSpawn={handleJumpToSpawn}
+      renderTranscript={renderTranscript}
     />
   )
 }

@@ -3,7 +3,6 @@ import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import type { AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 
 import type { AgentView } from '../../data/agents-model'
-import type { AgentDetail } from '../../data/use-agents-detail'
 
 const UNKNOWN_MODEL = '—'
 
@@ -14,13 +13,8 @@ function elapsedOf(args: { view: AgentView; now: number }): string {
   return formatElapsed(Math.max(0, end - view.startedAt))
 }
 
-export function panelAgentOf(args: {
-  view: AgentView
-  detail: AgentDetail | null
-  now: number
-}): AgentsPanelAgent {
-  const { view, detail } = args
-  const brief = detail?.brief ?? ''
+export function panelAgentOf(args: { view: AgentView; now: number }): AgentsPanelAgent {
+  const { view } = args
   return {
     id: view.id,
     agentType: view.agentType,
@@ -28,8 +22,8 @@ export function panelAgentOf(args: {
     display: view.display,
     elapsed: elapsedOf(args),
     model: view.model ?? UNKNOWN_MODEL,
-    brief: brief.length > 0 ? brief : view.intent,
-    calls: detail?.calls ?? [],
+    brief: view.intent,
+    calls: [],
     ...(view.context === undefined ? {} : { context: view.context }),
     ...(view.latestCall === undefined ? {} : { latestCall: view.latestCall }),
     ...(view.endedAt === undefined ? {} : { endedAt: view.endedAt }),

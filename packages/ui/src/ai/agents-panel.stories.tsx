@@ -57,3 +57,17 @@ function InteractivePanel(args: AgentsPanelProps) {
 }
 
 export const Interactive: Story = { render: (args) => <InteractivePanel {...args} /> }
+
+export const WithTranscript: Story = {
+  args: {
+    detailId: 'a1',
+    renderTranscript: (agent) => (
+      <div className="flex flex-1 flex-col gap-3 px-4 text-sm">
+        <p className="rounded-lg border bg-muted/40 px-3 py-2 text-muted-foreground">
+          {agent.brief}
+        </p>
+        <p>Full transcript renders here</p>
+      </div>
+    ),
+  },
+}
