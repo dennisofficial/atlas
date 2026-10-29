@@ -1,4 +1,4 @@
-# 0015. Cloud settings are the source of truth; pods pull, clients never push
+# 0016. Cloud settings are the source of truth; pods pull, clients never push
 
 Accepted 2026-10-29.
 

@@ -4,8 +4,36 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
-import { EHeaderState } from '../data/header-model'
+import { EHeaderState, type PullRequestBadge } from '../data/header-model'
+import type { PullRequestsView } from '../data/use-pull-requests'
 import { ThreadHeader, type ThreadHeaderProps } from '../thread-header'
+
+const BADGE: PullRequestBadge = {
+  label: '#12',
+  stateLabel: 'Open',
+  url: 'https://github.com/o/r/pull/12',
+  overflow: 0,
+}
+
+const view = (over: Partial<PullRequestsView> = {}): PullRequestsView => ({
+  badge: BADGE,
+  rows: [
+    {
+      key: 'o/r#12',
+      label: '#12',
+      url: BADGE.url,
+      branch: 'feat',
+      state: 'open',
+      checksLabel: undefined,
+      failing: false,
+      conflicts: false,
+    },
+  ],
+  bells: { 'o/r#12': { watching: false, busy: false, label: 'Watch pull request' } },
+  pinnedKey: 'o/r#12',
+  handleToggle: () => undefined,
+  ...over,
+})
 
 const render = (props: Partial<ThreadHeaderProps>): string =>
   renderToStaticMarkup(
@@ -42,10 +70,7 @@ describe('ThreadHeader', () => {
   })
 
   it('renders the branch and a pull request link when present', () => {
-    const html = render({
-      branch: 'dennis/feature',
-      pullRequest: { label: '#12', stateLabel: 'Open', url: 'https://github.com/o/r/pull/12' },
-    })
+    const html = render({ branch: 'dennis/feature', pullRequests: view() })
     expect(html).toContain('dennis/feature')
     expect(html).toContain('href="https://github.com/o/r/pull/12"')
     expect(html).toContain('#12')
@@ -69,29 +94,41 @@ describe('ThreadHeader', () => {
     expect(html).toContain('href="/threads/new"')
   })
 
-  it('shows the bell beside the pull request and labels its state', () => {
-    const pullRequest = { label: '#12', stateLabel: 'Open', url: 'https://github.com/o/r/pull/12' }
-    const off = render({
-      pullRequest,
-      bell: { watching: false, busy: false, label: 'Watch pull request' },
-      onToggleBell: () => undefined,
-    })
+  it('shows the pinned bell and labels its state', () => {
+    const off = render({ pullRequests: view() })
     expect(off).toContain('aria-label="Watch pull request"')
     expect(off).toContain('aria-pressed="false"')
 
     const on = render({
-      pullRequest,
-      bell: { watching: true, busy: false, label: 'Stop watching pull request' },
-      onToggleBell: () => undefined,
+      pullRequests: view({
+        bells: { 'o/r#12': { watching: true, busy: false, label: 'Stop watching pull request' } },
+      }),
     })
     expect(on).toContain('aria-pressed="true"')
   })
 
-  it('shows no bell without a pull request', () => {
+  it('shows no overflow trigger for a single pull request', () => {
+    expect(render({ pullRequests: view() })).not.toContain('more pull requests')
+  })
+
+  it('shows the overflow trigger when other pull requests exist', () => {
+    const base = view()
+    const [first] = base.rows
     const html = render({
-      bell: { watching: false, busy: false, label: 'Watch pull request' },
-      onToggleBell: () => undefined,
+      pullRequests: view({
+        badge: { ...BADGE, overflow: 2 },
+        rows:
+          first === undefined
+            ? []
+            : [first, { ...first, key: 'o/r#13' }, { ...first, key: 'o/r#14' }],
+      }),
     })
+    expect(html).toContain('aria-label="2 more pull requests"')
+    expect(html).toContain('+2')
+  })
+
+  it('shows no pull request controls without a badge', () => {
+    const html = render({ pullRequests: view({ badge: undefined }) })
     expect(html).not.toContain('Watch pull request')
   })
 })

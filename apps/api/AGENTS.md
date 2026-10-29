@@ -20,9 +20,9 @@ controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1
 (`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`), which exits if its
 `wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
 the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
-rows; a TUI BYO row (none) is never taken over by a web send or Retry. A TUI local pod registers its
-`Thread` row itself at birth, after its `LocalPodLease` (no `firstMessage`, so no claim and no
-`SandboxBootStep` rows), and the send and Retry paths refuse a leased thread with 409.
+rows; a TUI BYO row (none) is never taken over by a web send or Retry. A TUI local pod registers only its
+`LocalPodLease`: it never gets a `Thread` row, `Event` rows or a checkpoint row, and the send and
+Retry paths refuse a leased thread with 409.
 
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
 resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A
@@ -78,9 +78,11 @@ GitHub webhooks).
   `@UseMiddlewares(SessionOrSandboxMiddleware)` (a session, a sandbox token or a pod lease token).
   A procedure opts token kinds in with `meta({ podReachable: true, sandboxReachable: true })` and
   tunes the throttle with `meta({ throttle: { limit, ttlMs } | false })`
-  (`src/_module/trpc/procedure-meta.ts`). A sandbox or pod token reaches any procedure whose
-  input names a `threadId` in its own thread family. On a threadless procedure both need
-  `sandboxReachable`, and `podReachable` additionally admits a pod token.
+  (`src/_module/trpc/procedure-meta.ts`). A sandbox token reaches any procedure whose
+  input names a `threadId` in its own thread family, and a threadless one marked
+  `sandboxReachable`. A pod token reaches only `podReachable` procedures, never thread-family: mark
+  a procedure `podReachable` only for a threadless, user-scoped capability a local pod uses
+  (decision 0015).
 - The generated `AppRouter` (`packages/api-router/src/generated/server.ts`) is committed. The
   pre-commit hook regenerates it when api or wire sources are staged, the CI `check` job fails on
   drift, and `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.

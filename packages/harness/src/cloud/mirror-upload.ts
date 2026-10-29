@@ -3,7 +3,9 @@ import { join } from 'node:path'
 
 import {
   EExecutionLocation,
+  ERunner,
   executionLocationOf,
+  runnerOf,
   toThreadId,
   type LogPort,
   type ThreadId,
@@ -91,6 +93,7 @@ const cloudThreadDirs = async (args: {
       }).catch(() => undefined)
       if (meta === undefined) return []
       if (executionLocationOf(meta.executionLocation) !== EExecutionLocation.Cloud) return []
+      if (runnerOf(meta.runner) === ERunner.Local) return []
       return [{ sessionDir, threadId }]
     }),
   )

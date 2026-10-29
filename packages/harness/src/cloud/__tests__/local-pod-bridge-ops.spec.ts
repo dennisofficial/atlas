@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { EResizeApplies } from '../cloud-bridge'
 import { podNameFor } from '../local-pod/pod-create'
@@ -68,63 +67,6 @@ describe('createLocalPodBridge pass-through', () => {
     driver.inspect = async () => ({ state: 'running', url: 'http://127.0.0.1:20111' })
 
     expect(await podBridgeWith({ driver }).sandboxes.find({ threadId })).toEqual({
-      state: ECloudSandboxState.Running,
-      url: 'http://127.0.0.1:20111',
-      checkpoint: null,
-    })
-  })
-})
-
-const checkpoint: RuntimeCheckpoint = {
-  threadId,
-  runtimeId: 'runtime-1',
-  sandboxSessionId: name,
-  revision: 4,
-  phase: ERuntimePhase.Parked,
-  reportedAt: '2026-10-28T00:00:00.000Z',
-  transcript: { head: 7, count: 7, digest: 'a'.repeat(64) },
-}
-
-describe('createLocalPodBridge find with a mirrored checkpoint', () => {
-  it('answers a stopped pod with the checkpoint mirrored for its thread', async () => {
-    const { driver } = fakePodDriver({ created: false })
-    const bridge = podBridgeWith({
-      driver,
-      overrides: { readPodCheckpoint: async () => checkpoint },
-    })
-
-    expect(await bridge.sandboxes.find({ threadId })).toEqual({
-      state: ECloudSandboxState.Stopped,
-      checkpoint,
-    })
-  })
-
-  it('discards a checkpoint naming another thread', async () => {
-    const { driver } = fakePodDriver({ created: false })
-    const bridge = podBridgeWith({
-      driver,
-      overrides: { readPodCheckpoint: async () => ({ ...checkpoint, threadId: 'other-thread' }) },
-    })
-
-    expect(await bridge.sandboxes.find({ threadId })).toEqual({
-      state: ECloudSandboxState.Stopped,
-      checkpoint: null,
-    })
-  })
-
-  it('answers no checkpoint when the read fails', async () => {
-    const { driver } = fakePodDriver({ created: false })
-    driver.inspect = async () => ({ state: 'running', url: 'http://127.0.0.1:20111' })
-    const bridge = podBridgeWith({
-      driver,
-      overrides: {
-        readPodCheckpoint: async () => {
-          throw new Error('offline')
-        },
-      },
-    })
-
-    expect(await bridge.sandboxes.find({ threadId })).toEqual({
       state: ECloudSandboxState.Running,
       url: 'http://127.0.0.1:20111',
       checkpoint: null,

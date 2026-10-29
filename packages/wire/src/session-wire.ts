@@ -30,6 +30,7 @@ export const wireThreadSchema = z.object({
     .array(z.object({ provider: z.string(), target: z.json(), status: z.string() }))
     .optional(),
   executionLocation: z.string().optional(),
+  runner: z.string().optional(),
   projectId: z.string().nullable().optional(),
   pinnedAt: z.string().nullable().optional(),
   archivedAt: z.string().nullable().optional(),

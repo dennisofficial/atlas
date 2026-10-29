@@ -35,8 +35,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
-import { usePullRequestBadge } from './data/use-pull-request-badge'
-import { usePullRequestBell } from './data/use-pull-request-bell'
+import { usePullRequests } from './data/use-pull-requests'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
 import { useThreadSignals } from './data/use-thread-signals'
@@ -79,12 +78,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
   const rightPanel = useRightPanel()
-  const { bell, handleToggle: handleToggleBell } = usePullRequestBell({
-    threadId,
-    channel,
-    thread: thread.data,
-  })
-  const pullRequest = usePullRequestBadge({ channel, thread: thread.data })
+  const pullRequests = usePullRequests({ threadId, channel, thread: thread.data })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
@@ -196,9 +190,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
-      pullRequest={pullRequest}
-      bell={bell}
-      onToggleBell={handleToggleBell}
+      pullRequests={pullRequests}
       podChip={
         <ThreadPodChip
           pod={pod}

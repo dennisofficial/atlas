@@ -32,6 +32,7 @@ export enum EServeEvent {
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
   ProfileStepFailed = 'serve.profile-step-failed',
+  GithubTokenAbsent = 'serve.github-token-absent',
   TranscriptRestored = 'serve.transcript-restored',
   TranscriptFailed = 'serve.transcript-failed',
   ChildrenAdopted = 'serve.children-adopted',

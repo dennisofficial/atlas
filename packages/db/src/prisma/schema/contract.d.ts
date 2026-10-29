@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'7e0c420de4f0a5096eabb3d87bb07f1563da8304e1ea5976887359ebacb62e49'>;
+  StorageHashBase<'59978259fa36ad6e18bf185c0a2e0e301f7ba9360c039132c9ff29c46426245b'>;
 export type ExecutionHash =
-  ExecutionHashBase<'d6b94731c80a9019d5c23190cdd14036da73cd0853748206ea1bba7733cdaf38'>;
+  ExecutionHashBase<'c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -340,11 +340,10 @@ export namespace Models {
     wakeClaim: FieldOutputTypes['public']['CloudSandbox']['wakeClaim'];
     wakeFailedAt: FieldOutputTypes['public']['CloudSandbox']['wakeFailedAt'];
     workspaceRemoteUrl: FieldOutputTypes['public']['CloudSandbox']['workspaceRemoteUrl'];
-    githubSubscriptions: public_GithubSubscription[];
     oauthConnections: public_OauthConnectionSandbox[];
     thread: public_Thread;
     user: public_User;
-    readonly [RelationKeys]?: 'githubSubscriptions' | 'oauthConnections' | 'thread' | 'user';
+    readonly [RelationKeys]?: 'oauthConnections' | 'thread' | 'user';
   };
   export type public_DeviceCode = {
     clientId: FieldOutputTypes['public']['DeviceCode']['clientId'];
@@ -416,8 +415,16 @@ export namespace Models {
     prNumber: FieldOutputTypes['public']['GithubPrEvent']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubPrEvent']['repoFullName'];
     userId: FieldOutputTypes['public']['GithubPrEvent']['userId'];
+    deliveries: public_GithubPrEventDelivery[];
     user: public_User;
-    readonly [RelationKeys]?: 'user';
+    readonly [RelationKeys]?: 'deliveries' | 'user';
+  };
+  export type public_GithubPrEventDelivery = {
+    deliveredAt: FieldOutputTypes['public']['GithubPrEventDelivery']['deliveredAt'];
+    eventId: FieldOutputTypes['public']['GithubPrEventDelivery']['eventId'];
+    threadId: FieldOutputTypes['public']['GithubPrEventDelivery']['threadId'];
+    event: public_GithubPrEvent;
+    readonly [RelationKeys]?: 'event';
   };
   export type public_GithubPrState = {
     checksFailed: FieldOutputTypes['public']['GithubPrState']['checksFailed'];
@@ -458,21 +465,8 @@ export namespace Models {
     repoFullName: FieldOutputTypes['public']['GithubSubscription']['repoFullName'];
     threadId: FieldOutputTypes['public']['GithubSubscription']['threadId'];
     userId: FieldOutputTypes['public']['GithubSubscription']['userId'];
-    sandbox: public_CloudSandbox | null;
     user: public_User;
-    readonly [RelationKeys]?: 'sandbox' | 'user';
-  };
-  export type public_LocalPodCheckpoint = {
-    checkpoint: FieldOutputTypes['public']['LocalPodCheckpoint']['checkpoint'];
-    createdAt: FieldOutputTypes['public']['LocalPodCheckpoint']['createdAt'];
-    id: FieldOutputTypes['public']['LocalPodCheckpoint']['id'];
-    revision: FieldOutputTypes['public']['LocalPodCheckpoint']['revision'];
-    threadId: FieldOutputTypes['public']['LocalPodCheckpoint']['threadId'];
-    updatedAt: FieldOutputTypes['public']['LocalPodCheckpoint']['updatedAt'];
-    userId: FieldOutputTypes['public']['LocalPodCheckpoint']['userId'];
-    thread: public_Thread;
-    user: public_User;
-    readonly [RelationKeys]?: 'thread' | 'user';
+    readonly [RelationKeys]?: 'user';
   };
   export type public_LocalPodLease = {
     createdAt: FieldOutputTypes['public']['LocalPodLease']['createdAt'];
@@ -618,6 +612,7 @@ export namespace Models {
     error: FieldOutputTypes['public']['SandboxBootStep']['error'];
     gap: FieldOutputTypes['public']['SandboxBootStep']['gap'];
     id: FieldOutputTypes['public']['SandboxBootStep']['id'];
+    outcome: FieldOutputTypes['public']['SandboxBootStep']['outcome'];
     state: FieldOutputTypes['public']['SandboxBootStep']['state'];
     step: FieldOutputTypes['public']['SandboxBootStep']['step'];
     threadId: FieldOutputTypes['public']['SandboxBootStep']['threadId'];
@@ -673,7 +668,6 @@ export namespace Models {
     cloudSandbox: public_CloudSandbox | null;
     events: public_Event[];
     forks: public_Thread[];
-    localPodCheckpoints: public_LocalPodCheckpoint[];
     parent: public_Thread | null;
     project: public_Project | null;
     spawned: public_Thread[];
@@ -685,7 +679,6 @@ export namespace Models {
       | 'cloudSandbox'
       | 'events'
       | 'forks'
-      | 'localPodCheckpoints'
       | 'parent'
       | 'project'
       | 'spawned'
@@ -730,7 +723,6 @@ export namespace Models {
     githubPrEvents: public_GithubPrEvent[];
     githubRepoHooks: public_GithubRepoHook[];
     githubSubscriptions: public_GithubSubscription[];
-    localPodCheckpoints: public_LocalPodCheckpoint[];
     localPodLeases: public_LocalPodLease[];
     mcpServers: public_UserMcpServer[];
     memories: public_Memory[];
@@ -757,7 +749,6 @@ export namespace Models {
       | 'githubPrEvents'
       | 'githubRepoHooks'
       | 'githubSubscriptions'
-      | 'localPodCheckpoints'
       | 'localPodLeases'
       | 'mcpServers'
       | 'memories'
@@ -851,10 +842,10 @@ export declare const models: {
     GithubAppNoticeDismissal: Models.public_GithubAppNoticeDismissal;
     GithubConnection: Models.public_GithubConnection;
     GithubPrEvent: Models.public_GithubPrEvent;
+    GithubPrEventDelivery: Models.public_GithubPrEventDelivery;
     GithubPrState: Models.public_GithubPrState;
     GithubRepoHook: Models.public_GithubRepoHook;
     GithubSubscription: Models.public_GithubSubscription;
-    LocalPodCheckpoint: Models.public_LocalPodCheckpoint;
     LocalPodLease: Models.public_LocalPodLease;
     Memory: Models.public_Memory;
     OauthConnection: Models.public_OauthConnection;
@@ -1945,6 +1936,59 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly GithubPrEventDelivery: {
+              columns: {
+                readonly deliveredAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly eventId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['eventId', 'threadId'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'GithubPrEventDelivery_eventId_idx_6a266d47';
+                  readonly prefix: 'GithubPrEventDelivery_eventId_idx';
+                  readonly columns: readonly ['eventId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubPrEventDelivery_threadId_idx';
+                  readonly columns: readonly ['threadId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubPrEventDelivery';
+                    readonly columns: readonly ['eventId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'GithubPrEvent';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly GithubPrState: {
               columns: {
                 readonly checksFailed: {
@@ -2244,107 +2288,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'GithubSubscription';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'CloudSandbox';
-                    readonly columns: readonly ['threadId'];
-                  };
-                },
-              ];
-            };
-            readonly LocalPodCheckpoint: {
-              columns: {
-                readonly checkpoint: {
-                  readonly dataType: 'pg/jsonb';
-                  readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly revision: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['threadId'];
-                  readonly name: 'LocalPodCheckpoint_threadId_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'LocalPodCheckpoint_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'LocalPodCheckpoint';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'LocalPodCheckpoint';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -3379,6 +3322,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly outcome: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly state: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -4309,6 +4258,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubPrEvent';
     };
+    readonly GithubPrEventDelivery: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'GithubPrEventDelivery';
+    };
     readonly GithubPrState: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubPrState';
@@ -4320,10 +4273,6 @@ type ContractBase = Omit<
     readonly GithubSubscription: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubSubscription';
-    };
-    readonly LocalPodCheckpoint: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'LocalPodCheckpoint';
     };
     readonly LocalPodLease: {
       readonly namespace: 'public' & NamespaceId;
@@ -4791,17 +4740,6 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
-              readonly githubSubscriptions: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'GithubSubscription';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
               readonly oauthConnections: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -5264,6 +5202,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly deliveries: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubPrEventDelivery';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['eventId'];
+                };
+              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -5286,6 +5235,49 @@ type ContractBase = Omit<
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly GithubPrEventDelivery: {
+            readonly fields: {
+              readonly deliveredAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly eventId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly threadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly event: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'GithubPrEvent';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['eventId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'GithubPrEventDelivery';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly deliveredAt: { readonly column: 'deliveredAt' };
+                readonly eventId: { readonly column: 'eventId' };
+                readonly threadId: { readonly column: 'threadId' };
               };
             };
           };
@@ -5498,18 +5490,6 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
-              readonly sandbox: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'CloudSandbox';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -5533,82 +5513,6 @@ type ContractBase = Omit<
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly threadId: { readonly column: 'threadId' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly LocalPodCheckpoint: {
-            readonly fields: {
-              readonly checkpoint: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly revision: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'LocalPodCheckpoint';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly checkpoint: { readonly column: 'checkpoint' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly revision: { readonly column: 'revision' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
               };
             };
@@ -6478,6 +6382,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly outcome: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly state: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6513,6 +6421,7 @@ type ContractBase = Omit<
                 readonly error: { readonly column: 'error' };
                 readonly gap: { readonly column: 'gap' };
                 readonly id: { readonly column: 'id' };
+                readonly outcome: { readonly column: 'outcome' };
                 readonly state: { readonly column: 'state' };
                 readonly step: { readonly column: 'step' };
                 readonly threadId: { readonly column: 'threadId' };
@@ -6805,17 +6714,6 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['parentThreadId'];
-                };
-              };
-              readonly localPodCheckpoints: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'LocalPodCheckpoint';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['threadId'];
                 };
               };
               readonly parent: {
@@ -7166,17 +7064,6 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'GithubSubscription';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly localPodCheckpoints: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'LocalPodCheckpoint';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7844,23 +7731,6 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'GithubSubscription';
             readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'LocalPodCheckpoint';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'LocalPodCheckpoint';
-            readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
         },

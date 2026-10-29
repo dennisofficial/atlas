@@ -13,6 +13,9 @@ import {
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
+import { linkedThreadsOf } from './github-sandbox-wake-linked'
+import { LocalPodWakes } from './github-local-pod-wake'
+import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
@@ -52,6 +55,7 @@ export class GithubSandboxWakeService {
   private readonly inFlight = new Set<string>()
   private readonly lookupsInFlight = new Set<Promise<void>>()
   private readonly bootsInFlight = new Set<Promise<void>>()
+  private readonly localPods: LocalPodWakes
 
   constructor(
     private readonly env: EnvService,
@@ -61,7 +65,10 @@ export class GithubSandboxWakeService {
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(WAKE_DEBOUNCE) private readonly debounceMs: number,
     private readonly signals: ThreadSignalsService,
-  ) {}
+    fanout: GithubPrFanoutService,
+  ) {
+    this.localPods = new LocalPodWakes(fanout)
+  }
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
     this.track({
@@ -108,26 +115,19 @@ export class GithubSandboxWakeService {
     repoFullName: string
     prNumber: number
   }): Promise<void> {
-    const subscriptions = await db.orm.public.GithubSubscription.where({
+    const { subscriptions, sandboxes } = await linkedThreadsOf(args)
+    await this.localPods.push({
       userId: args.userId,
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
+      subscriptions,
+      cloudThreadIds: new Set(sandboxes.keys()),
     })
-      .where((subscription) => subscription.threadId.isNotNull())
-      .include('sandbox')
-      .all()
     const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
     const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS)
     const targets = subscriptions
-      .filter(
-        (subscription): subscription is typeof subscription & { threadId: string } =>
-          subscription.threadId !== null,
-      )
-      .flatMap((subscription): WakeTarget[] =>
-        subscription.sandbox === null
-          ? []
-          : [{ threadId: subscription.threadId, sandbox: subscription.sandbox }],
-      )
+      .flatMap((subscription): WakeTarget[] => {
+        const sandbox = sandboxes.get(subscription.threadId)
+        return sandbox === undefined ? [] : [{ threadId: subscription.threadId, sandbox }]
+      })
       .filter(
         (target) =>
           wakeableOf(target.sandbox) &&

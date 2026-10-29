@@ -79,7 +79,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: podEventsPostSchema,
     output: podEventsReplySchema,
-    meta: meta({ podReachable: true }),
   })
   events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
     return applyPodEvents({
@@ -92,7 +91,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: podEventsTruncateSchema,
     output: podEventsReplySchema,
-    meta: meta({ podReachable: true }),
   })
   truncateEvents(
     @Input() input: PodEventsTruncate,

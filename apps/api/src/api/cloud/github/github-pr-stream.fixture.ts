@@ -52,6 +52,11 @@ export const ctxFor = (userId: string): SessionOrSandboxTrpcCtx => ({
   auth: { userId, sessionId: 'ses', email: '' },
 })
 
+export const podCtxFor = (args: { userId: string; threadId: string }): SessionOrSandboxTrpcCtx => ({
+  ...ctxFor(args.userId),
+  pod: { threadId: args.threadId },
+})
+
 export const optionsFor = (signal?: AbortSignal) => ({
   ctx: undefined,
   input: undefined,
@@ -61,7 +66,11 @@ export const optionsFor = (signal?: AbortSignal) => ({
   signal,
 })
 
-type StreamFakes = { states?: GithubPrStateDto[] | Error; undelivered?: GithubPrEventDto[] | Error }
+type StreamFakes = {
+  states?: GithubPrStateDto[] | Error
+  undelivered?: GithubPrEventDto[] | Error
+  threadMissed?: GithubPrEventDto[]
+}
 
 export const fakeSubscriptions = (states: StreamFakes['states'] = []) => ({
   currentStates: async (): Promise<GithubPrStateDto[]> => {
@@ -70,11 +79,15 @@ export const fakeSubscriptions = (states: StreamFakes['states'] = []) => ({
   },
 })
 
-export const fakeMailbox = (undelivered: StreamFakes['undelivered'] = []) => ({
+export const fakeMailbox = (
+  undelivered: StreamFakes['undelivered'] = [],
+  threadMissed: StreamFakes['threadMissed'] = [],
+) => ({
   replayUndelivered: async (): Promise<GithubPrEventDto[]> => {
     if (undelivered instanceof Error) throw undelivered
     return undelivered
   },
+  replayForThread: async (): Promise<GithubPrEventDto[]> => threadMissed,
 })
 
 export function routerWith(fakes: StreamFakes = {}): {
@@ -88,7 +101,7 @@ export function routerWith(fakes: StreamFakes = {}): {
     fanout,
     fakeSubscriptions(fakes.states) as unknown as GithubSubscriptionsService,
     drain,
-    fakeMailbox(fakes.undelivered) as unknown as GithubPrEventMailboxService,
+    fakeMailbox(fakes.undelivered, fakes.threadMissed) as unknown as GithubPrEventMailboxService,
   )
   return { router, fanout, drain }
 }

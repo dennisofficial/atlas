@@ -74,7 +74,7 @@ describeLive('a multi-turn session in a local pod', () => {
           if (path === '/v1/trpc/accountLease.get') {
             return Response.json({ result: { data: OPENROUTER_LEASE } })
           }
-          if (path === '/v1/trpc/podLeases.register' || path === '/v1/trpc/threads.create')
+          if (path === '/v1/trpc/podLeases.register')
             return Response.json({ result: { data: null } })
           if (path === '/v1/trpc/sandboxConfig.get')
             return Response.json({ result: { data: CLASSIFIER_OFF_CONFIG } })

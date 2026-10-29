@@ -1,5 +1,6 @@
 import {
   EBootStep,
+  EBootStepOutcome,
   EBootStepState,
   isApiProvisioned,
   NOOP_BOOT_REPORTER,
@@ -42,23 +43,44 @@ export const bootReporterFor = (args: {
   })
 }
 
+const CLONE_OUTCOME = {
+  [EWorkspaceState.Materialized]: EBootStepOutcome.Cloned,
+  [EWorkspaceState.Present]: EBootStepOutcome.Reused,
+  [EWorkspaceState.Skipped]: EBootStepOutcome.NoRepository,
+} as const
+
 export const trackClone = async (args: {
   reporter: BootReporter
   work: () => Promise<WorkspaceReadiness>
 }): Promise<WorkspaceReadiness> => {
   const { reporter } = args
-  await reporter.report({ step: EBootStep.Clone, state: EBootStepState.Running })
+  await reporter.report({
+    step: EBootStep.Clone,
+    state: EBootStepState.Running,
+  })
   try {
     const readiness = await args.work()
     await reporter.report(
       readiness.state === EWorkspaceState.Failed
-        ? { step: EBootStep.Clone, state: EBootStepState.Error, error: readiness.reason }
-        : { step: EBootStep.Clone, state: EBootStepState.Done },
+        ? {
+            step: EBootStep.Clone,
+            state: EBootStepState.Error,
+            error: readiness.reason,
+          }
+        : {
+            step: EBootStep.Clone,
+            state: EBootStepState.Done,
+            outcome: CLONE_OUTCOME[readiness.state],
+          },
     )
     return readiness
   } catch (failure) {
     const error = failure instanceof Error ? failure.message : String(failure)
-    await reporter.report({ step: EBootStep.Clone, state: EBootStepState.Error, error })
+    await reporter.report({
+      step: EBootStep.Clone,
+      state: EBootStepState.Error,
+      error,
+    })
     throw failure
   }
 }
@@ -82,16 +104,27 @@ export const trackAgentStep = async <T>(args: {
     await strictSink([{ step: EBootStep.Agent, state: EBootStepState.Running }])
   } catch (failure) {
     const error = failure instanceof Error ? failure.message : String(failure)
-    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Error, error })
+    await reporter.report({
+      step: EBootStep.Agent,
+      state: EBootStepState.Error,
+      error,
+    })
     throw failure
   }
   try {
     const result = await args.work()
-    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Done })
+    await reporter.report({
+      step: EBootStep.Agent,
+      state: EBootStepState.Done,
+    })
     return result
   } catch (failure) {
     const error = failure instanceof Error ? failure.message : String(failure)
-    await reporter.report({ step: EBootStep.Agent, state: EBootStepState.Error, error })
+    await reporter.report({
+      step: EBootStep.Agent,
+      state: EBootStepState.Error,
+      error,
+    })
     throw failure
   }
 }

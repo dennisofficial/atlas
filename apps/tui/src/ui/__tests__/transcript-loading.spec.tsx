@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  LOADING_TRANSCRIPT_LABEL,
+  loadingTranscriptLabel,
   TranscriptLoading,
   transcriptLoading,
 } from '../components/transcript-loading'
@@ -11,7 +11,7 @@ import { frameOf } from './transcript-fixture'
 await grammarsReady()
 
 const parked = {
-  welcome: true,
+  empty: true,
   bootingCloudThread: true,
   attachFailed: false,
   firstReadLanded: false,
@@ -25,13 +25,14 @@ describe('the loading state of a parked cloud thread', () => {
 
   it('never shows for a thread that is not a booting cloud thread, or after the attach failed', () => {
     expect(transcriptLoading({ ...parked, bootingCloudThread: false })).toBe(false)
-    expect(transcriptLoading({ ...parked, welcome: false })).toBe(false)
+    expect(transcriptLoading({ ...parked, empty: false })).toBe(false)
     expect(transcriptLoading({ ...parked, attachFailed: true })).toBe(false)
   })
 
   it('draws a visible line in the transcript area instead of a blank screen', async () => {
-    const frame = await frameOf(<TranscriptLoading />, 60)
+    const frame = await frameOf(<TranscriptLoading name="the cloud thread" />, 60)
 
-    expect(frame).toContain(LOADING_TRANSCRIPT_LABEL)
+    expect(frame).toContain('Opening the cloud thread')
+    expect(loadingTranscriptLabel(null)).toBe('Opening thread')
   })
 })

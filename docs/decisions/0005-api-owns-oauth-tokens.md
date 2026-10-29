@@ -11,7 +11,7 @@ the copy everyone else holds.
 ## Decision
 
 Atlas Cloud holds the refresh token. A pod leases short-lived access tokens with
-`POST /v1/oauth-connections/:connectionId/access-token`, and the API refreshes as needed
+the tRPC procedure `oauthConnections.accessToken`, and the API refreshes as needed
 (`apps/api/src/api/platform/oauth-connections/oauth-connections.service.ts`). This applies to local
 pods as well as Vercel ones. No token rides in the birth bundle: a pod starts with the access token
 from its account lease at boot and leases a new one when that is stale or rejected
@@ -27,5 +27,5 @@ credential halfway through.
 - A local pod calls the API outbound and holds an authentication lease (`LocalPodLease`), but it
   has no `CloudSandbox` registration, so it never appears in the cloud listing.
 - OAuth accounts in a pod need an Atlas Cloud sign-in.
-- The account lease (`GET /v1/account-lease`) blanks OAuth refresh tokens.
+- The account lease (`accountLease.get`) blanks OAuth refresh tokens.
 - Pod birth relies on the API being up, accepted because it runs on Vercel.

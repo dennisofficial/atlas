@@ -5,13 +5,17 @@ import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
+import {
+  pinnedPullRequestOf,
+  pullRequestEntriesOf,
+} from '@/features/threads/data/pull-request-entries'
 import { UNTITLED } from '@/features/threads/data/untitled'
 
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
-import { linkedPullRequestOf, threadStatusOf } from './thread-status'
+import { threadStatusOf } from './thread-status'
 
 export interface ThreadRowProps {
   thread: WireThread
@@ -20,7 +24,7 @@ export interface ThreadRowProps {
 }
 
 export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
-  const pullRequest = linkedPullRequestOf(thread)
+  const pullRequest = pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))
   const { onToggleArchive } = useThreadActions()
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined

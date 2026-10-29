@@ -12,7 +12,7 @@ pod threads?
 
 - **No import.** The cloud stores start empty. The user re-enters API keys and Vercel settings once.
   Local `settings.json`, `secrets.json` and `auth.json` stay on disk and are never copied up.
-  Signed in, pod mode reads them only for settings stored locally (see 0015) and client-held `sandbox-serve:*` and
+  Signed in, pod mode reads them only for settings stored locally (see 0016) and client-held `sandbox-serve:*` and
   `mcp-oauth:*` secrets.
 - **Old threads are greenfield.** With pods on, the thread list shows only cloud-placed threads
   (`apps/tui/src/composition/cloud/cloud-listing.ts`). Host and docker threads are hidden, not
@@ -28,4 +28,4 @@ Re-entering a few keys costs minutes.
 - OAuth logins were already in the cloud (0005), so only API keys and settings need re-entering.
 - With `experimental.pods` off, local state is read as before and host threads list again; see 0013.
 - Which settings stay local is a per-setting property, and signed in the rest resolve from Cloud
-  only; see 0015.
+  only; see 0016.

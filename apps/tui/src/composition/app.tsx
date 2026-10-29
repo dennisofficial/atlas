@@ -9,9 +9,13 @@ import React, {
 
 import { projectOf, type ThreadId } from '@dltech/atlas-core'
 
+import { cachedTranscripts } from './cached-transcript-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
 import { isApiProvisioned } from './cloud/api-provisioned'
+import { createOpenThreadWaker } from './cloud/open-thread-waker'
+import { watchThreadWakes } from '@dltech/atlas-harness'
+import { clientVersionHeader } from '../build/info'
 
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
@@ -57,6 +61,10 @@ export function App(props: {
   const registry = useMemo(() => createKeyRegistry(), [])
   const owner = props.app.sessionOwner
   const snapshot = useSyncExternalStore(owner.subscribe, owner.snapshot)
+  const cached = useSyncExternalStore(
+    cachedTranscripts(props.app).subscribe,
+    cachedTranscripts(props.app).snapshot,
+  )
   const [reopened, setReopened] = useState<OpenedConversation | null>(null)
   const [reloaded, setReloaded] = useState<ReloadedSession | null>(null)
 
@@ -93,6 +101,24 @@ export function App(props: {
     sink.set((frame) => void current.onPrEvent(frame))
     return () => sink.set(null)
   }, [props.app, createBridge, owner])
+
+  useEffect(() => {
+    const session = props.app.cloud.session()
+    if (session === null) return
+    const waker = createOpenThreadWaker({
+      openThreadId: () => owner.snapshot().threadId,
+      runnerOf: async (threadId) => (await props.app.threads.find({ threadId }))?.runner,
+      wakeOpen: () => cloudAttachmentOf(owner.snapshot().binding)?.session.wake(),
+    })
+    const controller = new AbortController()
+    void watchThreadWakes({
+      session,
+      clientVersion: clientVersionHeader(),
+      signal: controller.signal,
+      onWake: (wake) => void waker.onWake(wake),
+    })
+    return () => controller.abort()
+  }, [props.app, owner])
 
   const reloading = useRef(false)
   const reloadPending = useRef(false)
@@ -188,7 +214,9 @@ export function App(props: {
     attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId
       ? attachment.opened
       : undefined
-  const openedFor = reloadedHere?.opened ?? cloudOpened ?? localOpened ?? reopened ?? props.opened
+  const cachedHere = cloud === undefined && cached?.threadId === snapshot.threadId ? cached : null
+  const openedFor =
+    reloadedHere?.opened ?? cloudOpened ?? cachedHere ?? localOpened ?? reopened ?? props.opened
   const carried = draftReader.current?.()
   const draftText =
     carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
@@ -198,7 +226,9 @@ export function App(props: {
       <Workspace
         key={
           cloud === undefined
-            ? `local:${reopened?.threadId ?? props.opened.threadId}`
+            ? cachedHere !== null
+              ? `cached:${cachedHere.threadId}`
+              : `local:${reopened?.threadId ?? props.opened.threadId}`
             : `cloud:${cloud.opened.threadId}:${keyOf(snapshot.binding)}:${reloadedHere?.reloads ?? 0}`
         }
         app={app}

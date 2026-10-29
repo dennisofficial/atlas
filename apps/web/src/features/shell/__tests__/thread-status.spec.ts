@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EThreadStatus, linkedPullRequestOf, threadStatusOf } from '../thread-status'
+import { EThreadStatus, threadStatusOf } from '../thread-status'
 import { threadOf } from './fixtures'
 
 const pr = (number: number, state?: string) => ({
@@ -24,9 +24,23 @@ describe('threadStatusOf', () => {
     expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1)] }))).toBe(EThreadStatus.PrOpen)
   })
 
-  it('is PR merged when any pull request merged, ahead of an open one', () => {
+  it('is PR open when an open pull request sits beside a merged one', () => {
+    expect(
+      threadStatusOf(
+        threadOf({
+          id: 'a',
+          pullRequests: [pr(1467, 'merged'), pr(1469, 'open')],
+        }),
+      ),
+    ).toBe(EThreadStatus.PrOpen)
     expect(
       threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'open'), pr(2, 'merged')] })),
+    ).toBe(EThreadStatus.PrOpen)
+  })
+
+  it('is PR merged when merged is the only non-closed state', () => {
+    expect(
+      threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed'), pr(2, 'merged')] })),
     ).toBe(EThreadStatus.PrMerged)
   })
 
@@ -34,18 +48,5 @@ describe('threadStatusOf', () => {
     expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed')] }))).toBe(
       EThreadStatus.Idle,
     )
-  })
-})
-
-describe('linkedPullRequestOf', () => {
-  it('prefers a non-closed pull request and falls back to the first', () => {
-    expect(
-      linkedPullRequestOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed'), pr(2, 'open')] }))
-        ?.number,
-    ).toBe(2)
-    expect(
-      linkedPullRequestOf(threadOf({ id: 'a', pullRequests: [pr(1, 'closed')] }))?.number,
-    ).toBe(1)
-    expect(linkedPullRequestOf(threadOf({ id: 'a' }))).toBeUndefined()
   })
 })
