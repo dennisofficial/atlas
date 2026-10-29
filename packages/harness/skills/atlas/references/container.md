@@ -21,11 +21,13 @@ Sources do not merge; `container.json` wins outright, so a `postCreateCommand` i
 
 ## `.atlas/container.json`
 
-Unknown keys are an error (typos are not silently dropped). Every field is optional.
+Parsed as JSONC: `//` and `/* */` comments and trailing commas are fine. Unknown keys are an error (typos are not
+silently dropped). Every field is optional.
 
 | Field    | Type                                         | Meaning                                                                                                     |
 | -------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `image`  | non-empty string                             | Image reference to run (e.g. `node:22-bookworm`). Omitted: the default Atlas image.                         |
+| `dockerfile` | non-empty string                         | Dockerfile to build instead, relative to `.atlas/` and inside it. Cannot be combined with `image`.          |
 | `setup`  | non-empty string                             | Shell script (`sh -c`) run once, as root, in the repo directory, right after the container is first created. |
 | `start`  | non-empty string                             | Shell script run as the normal user in the repo directory every time the sandbox is brought up.             |
 | `env`    | object of string → string                    | Env vars set on the container. Changing them recreates the container.                                       |
@@ -64,19 +66,21 @@ key are never mounted: credentials do not enter the container.
 
 Only `image` and a string `postCreateCommand` (used as `setup`) are honoured; everything else (`features`,
 `build`, `mounts`, `containerEnv`, array/object `postCreateCommand`, …) is ignored, and Atlas shows a note listing
-what it ignored. There is no `start`, `env` or mounts from this source. The file is parsed as strict JSON, so a
-devcontainer.json containing `//` comments or trailing commas is refused as not JSON and Atlas falls through.
+what it ignored. There is no `start`, `env` or mounts from this source. Like `container.json`, it is parsed as JSONC,
+so comments and trailing commas are fine.
 
 ## Dockerfiles
 
-A Dockerfile is the escape hatch: Atlas notes that naming an image in `container.json` starts faster and cannot
-break on a build. The image is built through the Docker daemon and tagged `atlas-dockerfile:<12-hex content hash>`.
+A Dockerfile is the escape hatch: naming an image in `container.json` starts faster and cannot break on a build.
+There are two ways to use one. `"dockerfile": "Dockerfile"` (any path inside `.atlas/`) in `container.json` builds
+it and still applies that file's `setup`, `start`, `env` and `mounts`. A bare `.atlas/Dockerfile` with no
+`container.json` is used on its own, with no scripts, env or mounts. The image is built through the Docker daemon and tagged `atlas-dockerfile:<12-hex content hash>`.
 The hash covers every file in the context (names, types, symlink targets, bytes; `.git` is skipped), so any edit
 to the Dockerfile or a file beside it rebuilds, and an unchanged context reuses the existing image. A changed hash
 also recreates a running sandbox. `.atlas/Dockerfile` ships the entire `.atlas/` directory as context (keep it
 small, and `COPY` paths are relative to `.atlas/`); the Atlas-home Dockerfile ships only itself, so it cannot `COPY`
-anything. Dockerfile sources cannot declare `setup`, `start`, `env` or mounts; put those in `container.json`,
-which then needs an `image`, so a Dockerfile plus `container.json` is not possible — use an image or a Dockerfile.
+anything. Both `.atlas/` forms build with the whole `.atlas/` directory as context. A `dockerfile` that is absolute,
+escapes `.atlas/`, is set together with `image`, or does not exist is refused and resolution falls through.
 Basing the Dockerfile on the default Atlas image (`FROM ghcr.io/dennisofficial/atlas-sandbox:latest`) is the
 safe starting point, since that image bakes the toolchain.
 
@@ -96,12 +100,16 @@ Shown as notices (refusals as warnings) when the sandbox is anchored:
 
 ## Where it applies
 
-These files are read only for the local Docker execution location, from the directory the session is anchored to
-(the repo or worktree root). They are not read on the host (`/container off`) and I found no code path that reads
-them for Cloud (Vercel) sandboxes: a cloud sandbox's image comes from the `sandbox.image` setting /
-`ATLAS_SANDBOX_IMAGE`, and its setup script is a per-project field in the Atlas Cloud web UI (whose help text says it
-overrides `setup` in `.atlas/container.json`, but the local harness does not apply `container.json` itself). Treat
-`container.json` as unverified for cloud sandboxes and do not promise it; see the cloud page.
+Local Docker (`/container docker`) applies everything above, from the directory the session is anchored to (the
+repo or worktree root). The host (`/container off`) reads none of it.
+
+Cloud (Vercel) sandboxes, whether started from Atlas Cloud web or the TUI, apply `setup`, `start` and `env` from
+`.atlas/container.json` once the repo is cloned: `setup` runs once per sandbox (a failed setup retries on the next
+boot), `start` runs on every boot, and `env` reaches the session's shells and services. The project's Setup script
+in the Atlas Cloud project settings, when non-empty, runs in place of `setup`. A failed `setup` or `start` is shown
+with the end of its output. Cloud sandboxes cannot change their image, so `image`, `dockerfile` and `mounts` are
+not applied there and Atlas says so; the cloud image comes from the `sandbox.image` setting
+(`ATLAS_SANDBOX_IMAGE`). devcontainer.json and bare Dockerfiles are local-Docker only.
 
 In container mode the container is the only place to install or run things: never run installs or anything under
 `node_modules` on the host, since native binaries there are built for the other platform. Reading the mounted files
@@ -119,4 +127,5 @@ from the host is fine. CPU/RAM limits come from the `container.cpus` and `contai
    (absolute host paths; `rw` only where writes are needed).
 5. Commit `.atlas/container.json`. Tell the user to run `/container docker`, then check for notices; editing the
    file later takes effect when the sandbox is next started or the directory re-anchored.
-6. Only if no image can do it, add `.atlas/Dockerfile` (delete or leave out `container.json`).
+6. Only if no image can do it, add `.atlas/Dockerfile` and point `"dockerfile": "Dockerfile"` at it in place of
+   `image`, keeping the other fields.

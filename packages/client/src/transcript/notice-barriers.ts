@@ -6,6 +6,7 @@ export const deliberateAgentRestart = (event: EventOfType<'agent-restarted'>): b
 const breaksEveryRun = (event: Event): boolean =>
   event.type === 'user-said' ||
   event.type === 'nudge' ||
+  event.type === 'sandbox-setup-reported' ||
   event.type === 'background-shell-ended' ||
   event.type === 'background-shell-awaiting-input' ||
   event.type === 'background-shell-matched' ||

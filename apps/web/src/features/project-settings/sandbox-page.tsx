@@ -156,8 +156,8 @@ function SetupScript({
           }
           description={
             <>
-              Overrides <FileChip>setup</FileChip> in <FileChip>.atlas/container.json</FileChip>{' '}
-              when both are set.
+              Runs once per sandbox in place of <FileChip>setup</FileChip> in{' '}
+              <FileChip>.atlas/container.json</FileChip>.
             </>
           }
           layout={ERowLayout.Stacked}

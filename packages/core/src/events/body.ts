@@ -149,6 +149,7 @@ export type EventBody =
       triggeredBy?: string | undefined
     }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
+  | { type: 'sandbox-setup-reported'; text: string; failed: boolean }
   | {
       type: 'loop-watch-verdict'
       consulted: boolean

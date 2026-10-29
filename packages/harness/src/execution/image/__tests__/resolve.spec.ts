@@ -220,3 +220,73 @@ describe('resolveContainerConfig precedence', () => {
     }
   })
 })
+
+describe('resolveContainerConfig dockerfile field and JSONC', () => {
+  it('resolves a commented devcontainer.json', async () => {
+    const resolution = await resolveWith({
+      [`${DIR}/.devcontainer/devcontainer.json`]:
+        '{\n  // base image\n  "image": "dev/img", // trailing\n}',
+    })
+
+    expect(resolution.source).toBe(EConfigSource.DevcontainerJson)
+    expect(resolution.image).toEqual({ kind: EImageKind.Image, reference: 'dev/img' })
+  })
+
+  it('builds the named Dockerfile and keeps setup, start, env and mounts', async () => {
+    const resolution = await resolveWith({
+      [`${DIR}/.atlas/container.json`]: JSON.stringify({
+        dockerfile: 'docker/dev.Dockerfile',
+        setup: 'bun install',
+        start: 'bun dev',
+        env: { A: '1' },
+        mounts: [{ path: '/data/x' }],
+      }),
+      [`${DIR}/.atlas/docker/dev.Dockerfile`]: 'FROM node:22-slim\n',
+    })
+
+    expect(resolution.source).toBe(EConfigSource.ContainerJson)
+    expect(resolution.image).toEqual({
+      kind: EImageKind.Dockerfile,
+      path: `${DIR}/.atlas/docker/dev.Dockerfile`,
+      context: EBuildContext.AtlasDirectory,
+    })
+    expect(resolution.setup).toBe('bun install')
+    expect(resolution.start).toBe('bun dev')
+    expect(resolution.env).toEqual({ A: '1' })
+    expect(resolution.mounts).toEqual([{ path: '/data/x', mode: EMountMode.ReadOnly }])
+  })
+
+  it('refuses image plus dockerfile and falls through', async () => {
+    const resolution = await resolveWith({
+      [`${DIR}/.atlas/container.json`]: JSON.stringify({ image: 'a/b', dockerfile: 'Dockerfile' }),
+    })
+
+    expect(resolution.source).toBe(EConfigSource.BuiltIn)
+    expect(resolution.refusals[0]?.refusal).toBe(EConfigRefusal.DockerfileWithImage)
+  })
+
+  it('refuses a dockerfile escaping .atlas', async () => {
+    const resolution = await resolveWith({
+      [`${DIR}/.atlas/container.json`]: JSON.stringify({ dockerfile: '../Dockerfile' }),
+      [`${DIR}/Dockerfile`]: 'FROM scratch\n',
+    })
+
+    expect(resolution.source).toBe(EConfigSource.BuiltIn)
+    expect(resolution.refusals[0]?.refusal).toBe(EConfigRefusal.DockerfileEscapes)
+  })
+
+  it('refuses a dockerfile that does not exist', async () => {
+    const resolution = await resolveWith({
+      [`${DIR}/.atlas/container.json`]: JSON.stringify({ dockerfile: 'Missing.Dockerfile' }),
+    })
+
+    expect(resolution.source).toBe(EConfigSource.BuiltIn)
+    expect(resolution.refusals[0]?.refusal).toBe(EConfigRefusal.Unreadable)
+  })
+
+  it('mentions the dockerfile field in the escape-hatch note', async () => {
+    const resolution = await resolveWith({ [`${DIR}/.atlas/Dockerfile`]: 'FROM scratch\n' })
+
+    expect(resolution.notes.some((note) => note.includes('"dockerfile"'))).toBe(true)
+  })
+})

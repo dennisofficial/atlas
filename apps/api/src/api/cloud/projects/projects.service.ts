@@ -94,6 +94,7 @@ export class ProjectsService {
       baseBranch: row.baseBranch,
       additionalRepos: reposOf(row),
       githubToken: (await this.github.findToken({ userId: args.userId })) ?? null,
+      setupScript: row.setupScript,
     }
   }
 

@@ -14,7 +14,8 @@
     "generate:catalogue": "bun scripts/generate-catalogue.ts",
     "generate:claude-code-version": "bun scripts/generate-claude-code-version.ts",
     "generate:codex-version": "bun scripts/generate-codex-version.ts",
-    "plugins:generate": "bun scripts/generate-plugins.ts"
+    "plugins:generate": "bun scripts/generate-plugins.ts",
+    "plugin-types:generate": "bun scripts/generate-plugin-types.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.87",
@@ -43,6 +44,7 @@
   "devDependencies": {
     "@dltech/bun-test-shims": "workspace:*",
     "@types/bun": "latest",
-    "@types/turndown": "^5.0.6"
+    "@types/turndown": "^5.0.6",
+    "dts-bundle-generator": "^9.5.1"
   }
 }

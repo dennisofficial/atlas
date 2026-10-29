@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ServeArgs } from './serve-args'
+import { collectNotices, recordNoticeEvents } from './container-notice-events'
 import { bootServeFiles } from './serve-boot'
 import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot-reporter'
 import { composeBootApp } from './serve-compose-boot'
@@ -32,6 +33,7 @@ export async function bootServeApp(args: {
     sandboxSessionId: args.sandboxSessionId,
     log,
   })
+  const collected = collectNotices(notice)
   const { workspace, activeCwd, spec, identity, refreshCloudState } = await bootServeFiles({
     env,
     threadId,
@@ -42,6 +44,7 @@ export async function bootServeApp(args: {
     profile: serveArgs.profile,
     contextFiles: serveArgs.contextFiles,
     reporter,
+    notice: collected.port,
     ...remote,
   })
   let hydrated: { remoteHead: number } | undefined
@@ -49,7 +52,13 @@ export async function bootServeApp(args: {
     reporter,
     strictSink: strictBootSinkFor({ env, ...remote }),
     work: async () => {
-      hydrated = await hydrateWhenRegistered({ env, atlasHome, threadId, log, ...remote })
+      hydrated = await hydrateWhenRegistered({
+        env,
+        atlasHome,
+        threadId,
+        log,
+        ...remote,
+      })
       return composeBootApp({
         compose: serveArgs.compose,
         model: serveArgs.model,
@@ -67,6 +76,7 @@ export async function bootServeApp(args: {
       })
     },
   })
+  await recordNoticeEvents({ posts: collected.posts, threadId, app, log })
   const writeBehind = bindServeWriteBehind({
     env,
     app,
@@ -75,5 +85,13 @@ export async function bootServeApp(args: {
     remote,
     log,
   })
-  return { app, recovery, workspace, fetchFn, clientVersion, writeBehind, refreshCloudState }
+  return {
+    app,
+    recovery,
+    workspace,
+    fetchFn,
+    clientVersion,
+    writeBehind,
+    refreshCloudState,
+  }
 }

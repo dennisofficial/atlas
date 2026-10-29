@@ -1,4 +1,8 @@
-import { HARNESS_SETTING_ENTRIES, HARNESS_SETTING_PREFIXES } from './harness-settings'
+import {
+  HARNESS_SETTING_ENTRIES,
+  HARNESS_SETTING_PREFIXES,
+  USER_ONLY_SETTING_ENTRIES,
+} from './harness-settings'
 import type { CloudSettingEntry, SettingValidation } from './setting-entry'
 import { entryFor, validateAgainst } from './setting-entry'
 import { WEB_ONLY_SETTING_ENTRIES } from './web-only-settings'
@@ -13,6 +17,7 @@ export * from './setting-enums'
 
 export const CLOUD_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> = new Map([
   ...HARNESS_SETTING_ENTRIES,
+  ...USER_ONLY_SETTING_ENTRIES,
   ...WEB_ONLY_SETTING_ENTRIES,
 ])
 
