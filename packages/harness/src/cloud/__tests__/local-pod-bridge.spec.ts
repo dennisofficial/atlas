@@ -64,11 +64,12 @@ describe('createLocalPodBridge birth', () => {
     await podBridgeWith({ driver }).sandboxes.create({
       threadId,
       projectId: null,
+      model: 'claude-x',
       birth: { effort: 'low' },
     })
 
     const spec = writes.find((write) => write.path === WORKSPACE_SPEC_PATH)
-    expect(JSON.parse(String(spec?.content))).toMatchObject({ effort: 'low' })
+    expect(JSON.parse(String(spec?.content))).toMatchObject({ model: 'claude-x', effort: 'low' })
   })
 
   it('always hands the driver the serve token and the pod name', async () => {
