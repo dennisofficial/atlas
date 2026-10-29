@@ -38,6 +38,7 @@ import { usePodStatus } from './data/use-pod-status'
 import { usePullRequests } from './data/use-pull-requests'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
+import { useMarkRead } from './data/use-mark-read'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -69,6 +70,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const signals = useThreadSignals(threadId)
+  useMarkRead({ threadId, signals, head: thread.data?.head })
   const source = useThreadSource({
     threadId,
     signals,

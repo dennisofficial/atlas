@@ -53,3 +53,6 @@ export const subscribeListSignals: SubscribeListSignals = (handlers) =>
 
 export const resizePod = (args: { threadId: string; vcpus: number }) =>
   cloudCall(api.threadPod.resize.mutate(args))
+
+export const markThreadRead = (args: { threadId: string; seq: number }) =>
+  cloudCall(api.threads.markRead.mutate(args))
