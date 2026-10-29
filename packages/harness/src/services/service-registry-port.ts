@@ -31,7 +31,10 @@ export abstract class ServiceRegistryPort {
     cwd?: string | undefined
     exposure?: PortExposure | undefined
   }): Promise<StartedServiceOutcome>
-  abstract stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome
+  abstract stop(args: {
+    serviceId: string
+    by: EKilledBy
+  }): Promise<ServiceStopOutcome> | ServiceStopOutcome
   /**
    * A caller that just stopped services is already waiting, so the endings it caused should sit in
    * the notice queue when it moves on: an exit that lands after the caller's next drain would hang

@@ -38,7 +38,8 @@ export async function endShellsOf({
   shells: ShellRegistryPort
 }): Promise<void> {
   for (const shell of shells.list({ threadId })) {
-    if (shell.status === EShellStatus.Running) shells.kill({ shellId: shell.shellId, by, threadId })
+    if (shell.status === EShellStatus.Running)
+      await shells.kill({ shellId: shell.shellId, by, threadId })
   }
   await shells.awaitEndings({ threadId, ms: KILL_SETTLE_MS })
 }

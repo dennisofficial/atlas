@@ -1,4 +1,4 @@
-import type { EKilledBy, EventDraft, ThreadId } from '@dltech/atlas-core'
+import { EStopAction, type EKilledBy, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import {
   ServiceRegistryPort,
   type ServiceSnapshot,
@@ -6,20 +6,20 @@ import {
   type ServiceStopOutcome,
 } from '@dltech/atlas-harness'
 
+import { readServiceLog, stopService, type RequestChannel } from '@dltech/atlas-client/channel'
+
 import { heldIfSame, type SharedRoster } from './roster-reader'
 
 const NO_PENDING_SERVICES: readonly ServiceSnapshot[] = Object.freeze([])
 
-/**
- * The service registry as a cloud session's surfaces read it: the roster the sandbox's serve
- * pushes over the channel. Services are session-global infrastructure owned by the sandbox, so
- * start and stop refuse rather than touching a process on the wrong machine.
- */
 export class RemoteServiceRegistry extends ServiceRegistryPort {
   private held: readonly ServiceSnapshot[] = []
   private revision = 0
 
-  constructor(private readonly roster: SharedRoster) {
+  constructor(
+    private readonly roster: SharedRoster,
+    private readonly channel: RequestChannel,
+  ) {
     super()
     roster.subscribe(() => this.sync())
     this.sync()
@@ -45,10 +45,23 @@ export class RemoteServiceRegistry extends ServiceRegistryPort {
     }
   }
 
-  stop(_args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome {
-    return {
-      ok: false,
-      reason: 'a cloud session stops services in its sandbox, not on this machine',
+  async stop(args: { serviceId: string; by: EKilledBy }): Promise<ServiceStopOutcome> {
+    try {
+      const reply = await stopService({ channel: this.channel, serviceId: args.serviceId })
+      return reply.ok ? { ok: true, snapshot: reply.snapshot, action: EStopAction.Term } : reply
+    } catch {
+      return {
+        ok: false,
+        reason: 'the sandbox answered the stop with a shape this build does not know',
+      }
+    }
+  }
+
+  override async logTail(args: { serviceId: string; characters: number }): Promise<string> {
+    try {
+      return await readServiceLog({ channel: this.channel, ...args })
+    } catch {
+      return ''
     }
   }
 

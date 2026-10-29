@@ -36,7 +36,7 @@ export class ServiceStopTool extends SchemaTool<typeof inputSchema> {
   }
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const stopped = this.services.stop({ serviceId: input.id, by: EKilledBy.Model })
+    const stopped = await this.services.stop({ serviceId: input.id, by: EKilledBy.Model })
     if (!stopped.ok) return stopped
 
     const { snapshot, action } = stopped
