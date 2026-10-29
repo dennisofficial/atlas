@@ -46,18 +46,17 @@ describe('liveBridgeOptionsFor', () => {
       'projectIdOf',
       'registration',
       'sendRegistration',
-      'settings',
       'vercel',
     ])
   })
 
-  it('reports the local log head and hands over the settings', async () => {
-    const { app, settings } = fakeApp()
+  it('reports the local log head and hands over no settings', async () => {
+    const { app } = fakeApp()
 
     const options = liveBridgeOptionsFor(app)
 
     expect(await options.lastEventSeq?.({ threadId: THREAD })).toBe(42)
-    expect(options.settings).toBe(settings as never)
+    expect(options).not.toHaveProperty('settings')
   })
 
   it('authorizes through the app cloud service', async () => {

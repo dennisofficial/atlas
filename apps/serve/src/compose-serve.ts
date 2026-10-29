@@ -66,7 +66,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       threadId: args.threadId,
     },
     env: args.env,
-    settings: loadSettings({ env: args.env, cwd: args.cwd }),
+    settings: loadSettings({ env: args.env, cwd: args.cwd, cloudScoped: true }),
     clientVersion: args.clientVersion,
     ports: inProcessPortBindings,
     surface: {

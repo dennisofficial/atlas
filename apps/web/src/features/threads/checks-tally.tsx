@@ -17,7 +17,7 @@ export function ChecksTally({ checks }: { checks: ChecksTallyValue }) {
     >
       {checks.running > 0 ? (
         <span className="inline-flex items-center gap-0.5 text-warning">
-          <Spinner aria-hidden role="presentation" className="size-3" />
+          <Spinner aria-hidden role="presentation" />
           {checks.running}
         </span>
       ) : null}

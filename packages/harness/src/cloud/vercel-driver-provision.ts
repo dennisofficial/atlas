@@ -77,7 +77,6 @@ export type ProvisionArgs = {
    * caller override from the bridge slice, which still owns the wire side of it.
    */
   token?: string | undefined
-  pinnedModel?: string | undefined
   /**
    * Writes the session's bootstrap onto the sandbox filesystem. Runs after the sandbox exists and
    * before serve launches, so serve finds the workspace spec and context archive on its first
@@ -154,7 +153,6 @@ export async function provisionSandbox(
       threadId: args.threadId,
       token: serveToken,
       environment: args.environment,
-      pinnedModel: args.pinnedModel,
       onCreate: () => {
         created = true
         return Promise.resolve()

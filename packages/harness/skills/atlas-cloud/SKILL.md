@@ -52,13 +52,14 @@ There are no `/lift`, `/descend`, park, or wake commands.
 
 ## What a cloud birth carries
 
-A cloud-born thread's sandbox boots with a context archive from the local machine: user skills,
-global instructions, user MCP configuration, and project-local instruction files. Everything else
-it pulls from Atlas Cloud at boot: the Project to clone, accounts (OAuth ones without refresh
-tokens), secrets, settings, and the latest bundle published with `atlas push`, which overwrites
-matching archive files. Provider OAuth and MCP OAuth have the restrictions below. The workspace is
-cloned fresh in the sandbox at `/atlas/workspaces/<repo-name>` — sibling clones under that root are
-ephemeral: sandbox destruction deletes them, so preserve their work outside the sandbox.
+A cloud-born thread's sandbox pulls everything from Atlas Cloud and nothing from the local machine:
+the Project to clone, accounts (OAuth ones without refresh tokens), secrets, settings, the Cloud
+instructions and MCP rows, and the latest bundle published with `atlas push`. Settings are pulled
+again before each turn, so a change in Cloud applies on the next turn; a client never pushes
+settings into a sandbox. MCP changes apply on the next sandbox start, since servers connect at
+boot. Provider OAuth and MCP OAuth have the restrictions below. The workspace is cloned fresh in
+the sandbox at `/atlas/workspaces/<repo-name>` — sibling clones under that root are ephemeral:
+sandbox destruction deletes them, so preserve their work outside the sandbox.
 
 ## Grandfathered threads
 

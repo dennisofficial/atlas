@@ -1,18 +1,18 @@
-const SEPARATOR = ','
-
 export function parseFavourites(held: string | undefined): readonly string[] {
-  if (held === undefined) return []
+  if (held === undefined || held.trim() === '') return []
 
-  const named = held
-    .split(SEPARATOR)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0)
-
-  return [...new Set(named)]
+  try {
+    const parsed: unknown = JSON.parse(held)
+    if (!Array.isArray(parsed)) return []
+    const named = parsed.filter((entry): entry is string => typeof entry === 'string')
+    return [...new Set(named.map((entry) => entry.trim()).filter((entry) => entry.length > 0))]
+  } catch {
+    return []
+  }
 }
 
 export const formatFavourites = (favourites: readonly string[]): string =>
-  favourites.join(SEPARATOR)
+  favourites.length === 0 ? '' : JSON.stringify(favourites)
 
 export const isFavourite = (args: { favourites: readonly string[]; key: string }): boolean =>
   args.favourites.includes(args.key)

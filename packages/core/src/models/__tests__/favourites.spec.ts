@@ -9,26 +9,34 @@ describe('what the pinned list reads back as', () => {
   })
 
   it('names each model once, in the order it was written', () => {
-    expect(parseFavourites('anthropic/opus-5,openai/gpt-5')).toEqual([
+    expect(parseFavourites('["anthropic/opus-5","openai/gpt-5"]')).toEqual([
       'anthropic/opus-5',
       'openai/gpt-5',
     ])
   })
 
   it('forgives the spacing a hand-edited settings file arrives with', () => {
-    expect(parseFavourites(' anthropic/opus-5 , openai/gpt-5 ,,')).toEqual([
+    expect(parseFavourites('[" anthropic/opus-5 ","openai/gpt-5",""]')).toEqual([
       'anthropic/opus-5',
       'openai/gpt-5',
     ])
   })
 
   it('keeps a model pinned once however many times it was written down', () => {
-    expect(parseFavourites('a/b,a/b,c/d')).toEqual(['a/b', 'c/d'])
+    expect(parseFavourites('["a/b","a/b","c/d"]')).toEqual(['a/b', 'c/d'])
   })
 
   it('round-trips through the text a setting holds', () => {
     const pinned = ['anthropic/opus-5', 'openai/gpt-5']
     expect(parseFavourites(formatFavourites(pinned))).toEqual(pinned)
+  })
+})
+
+describe('what a malformed pinned value reads back as', () => {
+  it('is empty for anything that is not a json array of names', () => {
+    expect(parseFavourites('a/b,c/d')).toEqual([])
+    expect(parseFavourites('{"a":1}')).toEqual([])
+    expect(parseFavourites('[1,"a/b"]')).toEqual(['a/b'])
   })
 })
 

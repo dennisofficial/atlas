@@ -1,4 +1,10 @@
-import { ESettingId, ESettingKind, ESettingPage, type SettingDefinition } from '@dltech/atlas-core'
+import {
+  ESettingId,
+  ESettingKind,
+  ESettingPage,
+  ESettingStorage,
+  type SettingDefinition,
+} from '@dltech/atlas-core'
 
 /**
  * The sandbox and cloud-client configuration: plain local settings, stored in the user settings
@@ -8,6 +14,7 @@ import { ESettingId, ESettingKind, ESettingPage, type SettingDefinition } from '
 export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   {
     id: ESettingId.VercelTeamId,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel team',
@@ -19,6 +26,7 @@ export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.VercelProjectId,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel project',
@@ -56,6 +64,7 @@ export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.CloudUrl,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Hidden,
     group: 'Cloud',
     label: 'Cloud API',

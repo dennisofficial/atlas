@@ -10,7 +10,6 @@ export enum EServeEnv {
   Port = 'ATLAS_SERVE_PORT',
   ThreadId = 'ATLAS_THREAD_ID',
   CloudUrl = 'ATLAS_CLOUD_URL',
-  Model = 'ATLAS_MODEL',
 }
 
 export const POD_TELEMETRY_IDENTITY_ENV = 'ATLAS_TELEMETRY_IDENTITY'
@@ -29,7 +28,6 @@ export const POD_ENV_IDENTITY_KEYS: readonly string[] = [
   'ATLAS_POD_NAME',
   'ATLAS_SANDBOX_SESSION_ID',
   POD_TELEMETRY_IDENTITY_ENV,
-  EServeEnv.Model,
 ]
 
 export const POD_ENV_API_PROVISIONED_KEYS: readonly string[] = [API_PROVISIONED_ENV]

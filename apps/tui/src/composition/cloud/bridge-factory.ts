@@ -6,6 +6,8 @@ export type BootStepListener = (args: { threadId: ThreadId; label: string }) => 
 
 export type CloudBridgeFactory = (args: {
   runner: ERunner
+  birth?: boolean | undefined
+  apiProvisioned?: boolean | undefined
   onBootStep?: BootStepListener | undefined
 }) => CloudBridge
 

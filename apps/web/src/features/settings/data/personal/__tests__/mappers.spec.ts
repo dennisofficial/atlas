@@ -196,7 +196,24 @@ describe('models settings', () => {
         ['model.id', 'openai/gpt-5'],
       ]),
     )
-    expect(config[EAgentRole.Main]).toEqual({ model: 'openai/gpt-5', effort: EEffort.High })
+    expect(config[EAgentRole.Main]).toEqual({ model: 'openai/gpt-5', effort: EEffort.XHigh })
+  })
+
+  it('maps quick, compaction and subagent roles onto their harness keys', () => {
+    const config = modelsConfigFrom(
+      new Map([
+        ['model.quickModel', 'openai/gpt-5-mini'],
+        ['model.compactionModel', 'anthropic/claude-opus-5'],
+      ]),
+    )
+    expect(config[EAgentRole.Quick]).toEqual({ model: 'openai/gpt-5-mini' })
+    expect(config[EAgentRole.Compaction]).toEqual({ model: 'anthropic/claude-opus-5' })
+    expect(config[EAgentRole.Subagents]).toEqual({ model: 'auto' })
+    const changes = modelsChanges({
+      saved: config,
+      draft: { ...config, [EAgentRole.Main]: { model: 'auto', effort: EEffort.Minimal } },
+    })
+    expect(changes['model.effort']).toBe('minimal')
   })
 
   it('writes only changed keys, with auto as empty and a preset marker', () => {

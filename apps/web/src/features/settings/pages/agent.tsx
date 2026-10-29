@@ -10,6 +10,7 @@ import {
   agentSettingsFrom,
   isValidDecisionsUrl,
 } from '../data/personal/agent-settings'
+import { fieldChanges, fieldValuesFrom } from '../data/personal/setting-fields'
 import { QueryPage } from '../data/personal/query-boundary'
 import { useAgentKeys } from '../data/personal/use-agent-keys'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
@@ -20,6 +21,8 @@ import {
   EDecisionsProvider,
   SEARCH_BACKEND_ITEMS,
 } from '../fixtures/settings-decisions'
+import { CONTEXT_FIELDS } from '../fixtures/settings-fields'
+import { SettingFieldRows } from '../parts/setting-fields'
 import { ConfigFooter } from '../parts/agent-config-footer'
 import { ChoiceSelect } from '../parts/agent-choice-select'
 import { DecisionsKeyRow, SearchKeyRow } from '../parts/agent-key-row'
@@ -27,7 +30,7 @@ import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../set
 
 const TITLE = 'Agent'
 const DESCRIPTION =
-  'How the agent judges risky tool calls and searches the web. Every sandbox loads these when it starts.'
+  'How the agent judges risky tool calls, searches the web, reads context and compacts. Every sandbox loads these when it starts.'
 const ENDPOINT_INPUT_ID = 'agent-decisions-url'
 const MODEL_INPUT_ID = 'agent-decisions-model'
 const URL_ERROR = 'Enter an absolute http:// or https:// URL'
@@ -54,13 +57,32 @@ function AgentEditor({
     toChanges: agentSettingsChanges,
     save,
   })
+  const fieldsDraft = useSettingsDraft({
+    values,
+    fromValues: (all) => fieldValuesFrom({ fields: CONTEXT_FIELDS, values: all }),
+    toChanges: fieldChanges,
+    save,
+  })
   const { savedNames, handleSaveKey } = useAgentKeys()
   const { value, setValue } = draft
   const custom = value.provider === EDecisionsProvider.Custom
   const urlValid = isValidDecisionsUrl(value.url)
-  const pending = agentSettingsChanges({ saved: agentSettingsFrom(values), draft: value })
-  const dirty = Object.keys(pending).length > 0 && !saving
+  const pending = agentSettingsChanges({
+    saved: agentSettingsFrom(values),
+    draft: value,
+  })
+  const agentDirty = Object.keys(pending).length > 0
+  const fieldsDirty = fieldsDraft.draft.dirty
+  const dirty = (agentDirty || fieldsDirty) && !saving && !fieldsDraft.saving
   const canSave = dirty && (!custom || urlValid)
+  const handleSaveAll = async () => {
+    if (agentDirty) await handleSave()
+    if (fieldsDirty) await fieldsDraft.handleSave()
+  }
+  const handleDiscardAll = () => {
+    draft.discard()
+    fieldsDraft.draft.discard()
+  }
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
@@ -163,11 +185,23 @@ function AgentEditor({
           />
         </SettingsCard>
       </SettingsSection>
+      <SettingsSection
+        title="Context and skills"
+        description="What the agent reads before each turn, when it compacts, and where it works."
+      >
+        <SettingsCard>
+          <SettingFieldRows
+            fields={CONTEXT_FIELDS}
+            value={fieldsDraft.draft.value}
+            onChange={fieldsDraft.draft.setValue}
+          />
+        </SettingsCard>
+      </SettingsSection>
       <ConfigFooter
         dirty={dirty}
         canSave={canSave}
-        onDiscard={draft.discard}
-        onSave={() => void handleSave()}
+        onDiscard={handleDiscardAll}
+        onSave={() => void handleSaveAll()}
       />
     </SettingsPage>
   )

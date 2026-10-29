@@ -16,6 +16,25 @@ export type CloudSettingEntry = {
   consumer: ESettingConsumer
 }
 
+export type CloudSettingPrefixEntry = Omit<CloudSettingEntry, 'key'> & {
+  prefix: string
+}
+
+export const prefixEntry = (entry: CloudSettingPrefixEntry): CloudSettingPrefixEntry => entry
+
+export const entryFor = (args: {
+  registry: ReadonlyMap<string, CloudSettingEntry>
+  prefixes: readonly CloudSettingPrefixEntry[]
+  key: string
+}): CloudSettingEntry | undefined => {
+  const exact = args.registry.get(args.key)
+  if (exact !== undefined) return exact
+  const match = args.prefixes.find(
+    (entry) => args.key.startsWith(entry.prefix) && args.key.length > entry.prefix.length,
+  )
+  return match === undefined ? undefined : { ...match, key: args.key }
+}
+
 export type SettingValidation = { ok: true } | { ok: false; reason: string }
 
 export const settingEntry = (entry: CloudSettingEntry): [string, CloudSettingEntry] => [
@@ -25,11 +44,12 @@ export const settingEntry = (entry: CloudSettingEntry): [string, CloudSettingEnt
 
 export const validateAgainst = (args: {
   registry: ReadonlyMap<string, CloudSettingEntry>
+  prefixes: readonly CloudSettingPrefixEntry[]
   key: string
   stored: string
   unknownKeyIsOk: boolean
 }): SettingValidation => {
-  const entry = args.registry.get(args.key)
+  const entry = entryFor(args)
   if (entry === undefined) {
     return args.unknownKeyIsOk
       ? { ok: true }

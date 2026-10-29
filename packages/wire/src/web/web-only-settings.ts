@@ -1,12 +1,9 @@
 import { z } from 'zod'
 
-import { PINNED_MODELS_FALLBACK, pinnedModelsSettingSchema } from './pinned-models'
 import type { CloudSettingEntry } from './setting-entry'
 import { ESettingConsumer, settingEntry } from './setting-entry'
 import {
   EDensity,
-  EEffortLevel,
-  effortSchema,
   EModelPreset,
   ETheme,
   NOTIFY_CHANNEL_IDS,
@@ -55,22 +52,6 @@ export const WEB_ONLY_SETTING_ENTRIES = [
     key: 'web.models.preset',
     schema: z.enum(EModelPreset),
     fallback: EModelPreset.Balanced,
-  }),
-  webEntry({
-    key: 'web.models.subagentEffort',
-    schema: effortSchema,
-    fallback: EEffortLevel.Medium,
-  }),
-  webEntry({
-    key: 'web.models.pinned',
-    schema: pinnedModelsSettingSchema,
-    fallback: PINNED_MODELS_FALLBACK,
-  }),
-  webEntry({ key: 'web.models.classifierModel', schema: z.string(), fallback: '' }),
-  webEntry({
-    key: 'web.models.classifierEffort',
-    schema: effortSchema,
-    fallback: EEffortLevel.Low,
   }),
   ...EXPERIMENTAL_DEFAULTS.map(([name, fallback]) =>
     boolEntry({ key: `web.experimental.${name}`, fallback }),

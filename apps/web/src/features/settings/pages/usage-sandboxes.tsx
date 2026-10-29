@@ -11,6 +11,9 @@ import { QueryPage } from '../data/personal/query-boundary'
 import { destroySandbox, fetchSandboxes, splitSandboxes } from '../data/personal/sandboxes-api'
 import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
+import { SettingFieldsEditor } from '../parts/setting-fields-editor'
+import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
+import { usePersonalSettings } from '../data/personal/use-settings-draft'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
 import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
@@ -18,6 +21,20 @@ import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Usage: Sandboxes'
 const DESCRIPTION = 'Cloud sandboxes your threads are running on.'
+
+function SandboxDefaults() {
+  const settings = usePersonalSettings()
+  if (settings.query.data === undefined) return null
+  return (
+    <SettingFieldsEditor
+      values={settings.query.data}
+      save={settings.save}
+      title="New sandboxes"
+      description="Size and image a new cloud sandbox boots with."
+      fields={SANDBOX_FIELDS}
+    />
+  )
+}
 
 export function UsageSandboxesView({
   running,
@@ -75,6 +92,7 @@ export function UsageSandboxesView({
       <p className="text-xs text-muted-foreground">
         Sandboxes pause automatically when idle. Size and cost per sandbox are not reported yet.
       </p>
+      <SandboxDefaults />
     </SettingsPage>
   )
 }

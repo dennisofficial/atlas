@@ -37,7 +37,6 @@ describe('local pod env contract', () => {
     const keys = Object.keys(
       envOf({
         ...baseArgs,
-        pinnedModel: 'x',
         environment: { ATLAS_TELEMETRY_IDENTITY: TELEMETRY_ID },
       }),
     )
@@ -62,7 +61,6 @@ describe('local pod env contract', () => {
         [EServeEnv.ThreadId]: 'other-thread',
         [EServeEnv.CloudUrl]: 'https://evil.example',
         ATLAS_HOME: '/tmp',
-        [EServeEnv.Model]: 'caller-model',
       },
     })
 
@@ -72,7 +70,6 @@ describe('local pod env contract', () => {
       [EServeEnv.CloudUrl]: 'https://cloud.example',
       ATLAS_HOME: '/atlas/home',
     })
-    expect(env).not.toHaveProperty(EServeEnv.Model)
   })
 
   it('names the telemetry identity the harness reads', () => {

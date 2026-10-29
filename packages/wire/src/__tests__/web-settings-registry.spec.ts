@@ -49,6 +49,10 @@ describe('cloud setting registry', () => {
       ['sandbox.vcpus', 0, false],
       ['experimental.grillingCeremony', true, true],
       ['experimental.grillingCeremony', 'yes', false],
+      ['model.favourites', '["a/b"]', true],
+      ['model.favourites', '', true],
+      ['model.favourites', 'a,b', false],
+      ['model.favourites', 3, false],
       ['experimental.placementChooserShape', 'hero', true],
       ['experimental.placementChooserShape', 'wide', false],
       ['github.prEvents.verdictTiming', 'settled', true],
@@ -86,7 +90,7 @@ describe('cloud setting registry', () => {
       ['not json', false],
     ]
     for (const [value, ok] of cases) {
-      expect(validateCloudSetting({ key: 'web.models.pinned', stored: stored(value) }).ok).toBe(ok)
+      expect(validateCloudSetting({ key: 'model.favourites', stored: stored(value) }).ok).toBe(ok)
     }
   })
 

@@ -1,58 +1,21 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import {
-  PauseSignal,
-  ETurnStatus,
-  type RotationSettle,
-  type TurnOutcome,
-  type MessageIntake,
-} from '@dltech/atlas-harness'
+import { PauseSignal, ETurnStatus, type TurnOutcome } from '@dltech/atlas-harness'
 
 import type { ServeApp } from './serve-app'
 import { createHistoryAdmission } from './history-admission'
 import { createRotationSettle } from './rotation-settle'
-import { createTurnCommit, type Said } from './turn-commit'
+import { createTurnCommit } from './turn-commit'
+import { messageOf } from './turn-message'
+import type { ServeTurnDriver, TurnDriverHooks, TurnRunOptions } from './turn-driver-types'
 
-export type TurnRunOptions = {
-  resume?: boolean | undefined
-  onlyIfIdle?: boolean | undefined
-}
-
-export type ServeTurnDriver = {
-  say: (args: Said) => Promise<void>
-  run: (options?: TurnRunOptions) => void
-  sayOrRun: () => boolean
-  interrupt: () => void
-  pause: () => void
-  beginRelocation: () => Promise<void>
-  beginRotation: () => RotationSettle
-  relocationResumable: () => boolean
-  resume: () => void
-  running: () => boolean
-  busy: () => boolean
-  outcome: () => TurnOutcome | null
-  failure: () => Error | null
-  outcomePending: () => boolean
-  settled: () => Promise<void>
-  attach: (shared: MessageIntake) => () => void
-  holdHistory: () => () => void
-  holdForRotation: () => () => void
-}
-
-export type TurnDriverHooks = {
-  onTurnStarted: () => void
-  onTurnEnded: () => void
-  onOutcome: (outcome: TurnOutcome) => void
-  onFailure: (reason: string) => void
-}
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : 'the turn stopped for a reason it did not name'
+export type { ServeTurnDriver, TurnDriverHooks, TurnRunOptions } from './turn-driver-types'
 
 export function createTurnDriver(
   args: {
     app: ServeApp
     threadId: ThreadId
     refusal?: (() => string | undefined) | undefined
+    beforeTurn?: (() => Promise<void>) | undefined
   } & TurnDriverHooks,
 ): ServeTurnDriver {
   const { app } = args
@@ -110,6 +73,7 @@ export function createTurnDriver(
         pause = new PauseSignal()
         if (relocationFrozen) pause.pause()
         const resuming = resumeRelocation || resumeThisTurn
+        if (!resuming) await args.beforeTurn?.().catch(() => undefined)
         resumeRelocation = false
         resumeThisTurn = false
         const outcome = resuming

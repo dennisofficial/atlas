@@ -6,6 +6,8 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { cloudProvisioningConfigured } from '@dltech/atlas-harness'
+
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import type { BirthPreflight } from './bridge-factory'
@@ -14,6 +16,16 @@ import { bornPlacementChip } from './born-placement-chip'
 
 export const SIGN_IN_TO_BIRTH_NOTICE =
   'sign in to Atlas Cloud to start a session — pods lease your model tokens and signing key from it'
+
+export const VERCEL_NOT_SET_UP_NOTICE =
+  'Vercel sandboxes are not set up — add your Vercel token, team and project in settings'
+
+const vercelConfigured = (app: AtlasApp): Promise<boolean> =>
+  cloudProvisioningConfigured({
+    settings: app.settings,
+    secrets: app.secrets,
+    vercel: app.cloud.vercel(),
+  })
 
 export type BornCloudArgs = {
   app: AtlasApp
@@ -29,7 +41,10 @@ export function rememberPlacement(args: {
   app: Pick<AtlasApp, 'settings'>
   runner: ERunner
 }): void {
-  args.app.settings.set({ id: ESettingId.LastBornPlacement, value: args.runner })
+  args.app.settings.set({
+    id: ESettingId.LastBornPlacement,
+    value: args.runner,
+  })
 }
 
 export function preferredRunner(app: Pick<AtlasApp, 'settings'>): ERunner {
@@ -57,7 +72,9 @@ export async function bornWith(args: BornCloudArgs): Promise<boolean> {
 
   const runner = args.choice ?? preferredRunner(app)
 
-  const refusal = (await args.preflightBirth?.({ runner })) ?? null
+  const refusal =
+    (await args.preflightBirth?.({ runner })) ??
+    (runner === ERunner.Vercel && !(await vercelConfigured(app)) ? VERCEL_NOT_SET_UP_NOTICE : null)
   if (refusal !== null) {
     notify({
       key: 'born-cloud-preflight',

@@ -45,7 +45,6 @@ export async function mountWithRetries(args: {
   environment?: Record<string, string> | undefined
   /** False for an API-provisioned sandbox: its pod must never read the owner's Vercel token. */
   injectVercelCredentials?: boolean | undefined
-  pinnedModel?: string | undefined
   onCreate: () => Promise<void>
   onSettleWait?: ((notice: SettleWaitNotice) => void) | undefined
 }): Promise<Sandbox> {
@@ -75,7 +74,6 @@ export async function mountWithRetries(args: {
                 VERCEL_TEAM_ID: args.credentials.teamId,
                 VERCEL_PROJECT_ID: args.credentials.projectId,
               }),
-          ...(args.pinnedModel === undefined ? {} : { ATLAS_MODEL: args.pinnedModel }),
           ...args.environment,
         },
         signal: AbortSignal.timeout(SANDBOX_LAUNCH_TIMEOUT_MS),

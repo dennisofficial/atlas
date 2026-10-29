@@ -12,6 +12,7 @@ import { projectOf, type ThreadId } from '@dltech/atlas-core'
 import { cachedTranscripts } from './cached-transcript-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
+import { isApiProvisioned } from './cloud/api-provisioned'
 import { createOpenThreadWaker } from './cloud/open-thread-waker'
 import { watchThreadWakes } from '@dltech/atlas-harness'
 import { clientVersionHeader } from '../build/info'
@@ -92,6 +93,8 @@ export function App(props: {
         project: projectOf(props.app.workspace),
         bridge: createBridge,
         activeThreadId: () => owner.snapshot().threadId,
+        apiProvisioned: ({ threadId, runner }) =>
+          isApiProvisioned({ secrets: props.app.secrets, threadId, runner }),
       })
     }
     const current = forwarder.current

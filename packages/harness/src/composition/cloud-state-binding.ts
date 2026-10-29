@@ -83,15 +83,18 @@ function swapUserLayer(args: {
   let service: SettingsService | undefined
   let store: CloudUserSettingsStore | undefined
 
-  const bound = settings.withUserStore((local) => {
-    store = new CloudUserSettingsStore({
-      local,
-      cloud,
-      localOnly,
-      notice,
-      onChange: () => service?.reload(),
-    })
-    return store
+  const bound = settings.withUserStore({
+    wrap: (local) => {
+      store = new CloudUserSettingsStore({
+        local,
+        cloud,
+        localOnly,
+        notice,
+        onChange: () => service?.reload(),
+      })
+      return store
+    },
+    cloudScoped: () => cloud.signedIn(),
   })
 
   service = bound.service
@@ -101,17 +104,22 @@ function swapUserLayer(args: {
 }
 
 export async function bindCloudState(args: {
-  enabled: boolean
+  settingsEnabled: boolean
+  secretsAndAccountsEnabled: boolean
   container: DependencyContainer
   settings: SettingsBinding
   clientVersion: string
   notice: NoticePort
   budgetMs?: number
 }): Promise<CloudStateBinding> {
-  if (!args.enabled) return { settings: args.settings, cloudBacked: false }
+  if (!args.settingsEnabled && !args.secretsAndAccountsEnabled) {
+    return { settings: args.settings, cloudBacked: false }
+  }
 
   const { container, notice } = args
-  registerCloudBackedStores({ container, clientVersion: args.clientVersion })
+  if (args.secretsAndAccountsEnabled) {
+    registerCloudBackedStores({ container, clientVersion: args.clientVersion })
+  }
 
   const cloud = container.resolve(CloudSettingsStoreToken)
   await pullWithinBudget({
@@ -122,7 +130,9 @@ export async function bindCloudState(args: {
   })
 
   return {
-    settings: swapUserLayer({ container, settings: args.settings, cloud, notice }),
-    cloudBacked: true,
+    settings: args.settingsEnabled
+      ? swapUserLayer({ container, settings: args.settings, cloud, notice })
+      : args.settings,
+    cloudBacked: args.secretsAndAccountsEnabled,
   }
 }
