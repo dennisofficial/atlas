@@ -259,7 +259,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onCancel={rewind.handleCancel}
                   onConfirm={() => void rewind.handleConfirm()}
                 />
-                <ComposerDock dock={dock} onOpenDetails={rightPanel.openDetails} />
+                <ComposerDock dock={dock} />
                 <ThreadComposer
                   value={draft}
                   onValueChange={setDraft}
