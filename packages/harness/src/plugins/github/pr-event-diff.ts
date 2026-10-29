@@ -32,7 +32,10 @@ const verdictDrafts = (args: {
   current: PullRequest
 }): readonly PrEventDraft[] => {
   const sameTip = args.previous.headSha === args.current.headSha
-  if (sameTip && args.previous.checks === args.current.checks) return []
+  const settled = args.current.tally.running === 0
+  const failureFinished =
+    args.current.checks === EChecksState.Failing && args.previous.tally.running > 0 && settled
+  if (sameTip && args.previous.checks === args.current.checks && !failureFinished) return []
 
   const verdict = verdictOf(args.current.checks)
   if (verdict === null) return []
@@ -46,6 +49,7 @@ const verdictDrafts = (args: {
       url: args.current.url,
       verdict,
       headSha: args.current.headSha,
+      settled,
     },
   ]
 }
@@ -210,6 +214,7 @@ const frameOf = (args: {
       body: draft.body,
       verdict: draft.verdict,
       headSha: draft.headSha,
+      settled: draft.settled,
       mergeable: draft.mergeable,
       state: draft.state,
       reviewState: draft.reviewState,
