@@ -257,6 +257,7 @@ export async function composeHarness<
       ? container.resolve(registeredPortToken(SessionAuthorityPort))
       : undefined,
   })
+  if (launch.threadId !== undefined) await executionLocation.activate({ threadId: launch.threadId })
   const ledger = container.resolve(registeredPortToken(TurnLedgerPort))
 
   const lateRotation = new LateRotation()

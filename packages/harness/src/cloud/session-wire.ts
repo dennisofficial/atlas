@@ -2,6 +2,7 @@ import {
   EForkMode,
   eventBodySchema,
   executionLocationOf,
+  runnerOf,
   stampEvent,
   toEventId,
   toRunId,
@@ -55,6 +56,7 @@ export function eventFromWire(wire: WireEvent): Event {
 
 export function threadFromWire(wire: WireThread): ThreadSummary {
   const location = executionLocationOf(wire.executionLocation)
+  const runner = runnerOf(wire.runner)
   return {
     id: toThreadId(wire.id),
     head: wire.head,
@@ -79,5 +81,6 @@ export function threadFromWire(wire: WireThread): ThreadSummary {
     ...(wire.pullRequests === undefined ? {} : { pullRequests: [...wire.pullRequests] }),
     ...(wire.subscriptions === undefined ? {} : { subscriptions: [...wire.subscriptions] }),
     ...(location === undefined ? {} : { executionLocation: location }),
+    ...(runner === undefined ? {} : { runner }),
   }
 }
