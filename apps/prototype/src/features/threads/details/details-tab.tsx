@@ -6,7 +6,6 @@ import { CrewSection } from './crew-section'
 import { type CrewRow } from './details-model'
 import { DetailsFooter } from './footer'
 import { GithubSection } from './github-section'
-import { GrantsSection } from './grants-section'
 import { HeadSection } from './head-section'
 import { PodSection } from './pod-section'
 import { ProcessesSection } from './processes-section'
@@ -51,7 +50,6 @@ export function DetailsTab(props: DetailsTabProps) {
             <GithubSection />
             <ContextSection current={props.contextPath} onOpen={props.onOpenContextFile} />
             <ProcessesSection />
-            <GrantsSection />
             <TodoSection />
             <CrewSection
               teammates={props.teammates}

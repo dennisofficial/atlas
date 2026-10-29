@@ -19,8 +19,6 @@ export enum ECapability {
    * with that field (#1025); the capability marks the field's presence.
    */
   SandboxSessionIdentity = 'sandbox-session-identity',
-  /** The serve answers the `revoke-grant` request. */
-  RevokeGrant = 'revoke-grant',
 }
 
 export const capabilitySchema = z.enum(ECapability)
@@ -46,5 +44,4 @@ export const supports = (args: { capabilities: CapabilitySet; capability: ECapab
 export const SERVE_CAPABILITIES: readonly ECapability[] = [
   ECapability.RotationPreparation,
   ECapability.SandboxSessionIdentity,
-  ECapability.RevokeGrant,
 ]

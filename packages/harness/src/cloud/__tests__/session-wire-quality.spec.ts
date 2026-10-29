@@ -38,7 +38,7 @@ const wireEventOf = (draft: { type: string; body: string }): WireEvent => ({
 
 describe('a matched session decodes code-quality-reviewed events', () => {
   it('retains the already compatible protocol version', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(30)
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(31)
   })
 
   it('round-trips a quality review through the wire unchanged', () => {

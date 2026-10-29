@@ -34,7 +34,7 @@ describe('skewViolations', () => {
   it('fails a bump that drops the protocol the last build spoke', () => {
     const [violation] = violationsOf({
       base: wire({ version: 29, requests: ['a'] }),
-      head: wire({ version: 30, requests: ['a', 'revoke-grant'] }),
+      head: wire({ version: 30, requests: ['a', 'new-op'] }),
     })
     expect(violation).toContain('drops protocol 29')
   })

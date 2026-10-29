@@ -10,7 +10,6 @@ import {
   type CallId,
   type ERiskDimension,
   type Event,
-  type Grant,
   type PlanTask,
 } from '@dltech/atlas-core'
 
@@ -26,7 +25,6 @@ export type LogAccumulator = {
   pauses: number
   dimensionTally: Map<ERiskDimension, number>
   judgeUnreachable: string | null
-  grants: Map<string, Grant>
   tokens: number
   treeMutations: number
   worktree: ActiveWorktree | undefined
@@ -44,7 +42,6 @@ export const emptyLogAccumulator = (): LogAccumulator => ({
   pauses: 0,
   dimensionTally: new Map(),
   judgeUnreachable: null,
-  grants: new Map(),
   tokens: 0,
   treeMutations: 0,
   worktree: undefined,
@@ -56,7 +53,6 @@ export const cloneLogAccumulator = (acc: LogAccumulator): LogAccumulator => ({
   ...acc,
   pendingPlanInputs: new Map(acc.pendingPlanInputs),
   dimensionTally: new Map(acc.dimensionTally),
-  grants: new Map(acc.grants),
 })
 
 const foldPlanResult = (args: { acc: LogAccumulator; event: Event & { type: 'tool-result' } }) => {
@@ -116,19 +112,6 @@ export function foldLogEvent(args: {
       }
       return
     }
-    case 'permission-granted':
-      acc.grants.set(event.grantId, {
-        grantId: event.grantId,
-        dimensions: event.dimensions,
-        scope: event.scope,
-        subject: event.subject,
-        reason: event.reason,
-        seq: event.seq,
-      })
-      return
-    case 'permission-revoked':
-      acc.grants.delete(event.grantId)
-      return
     case 'worktree-entered':
       acc.worktree = {
         path: event.path,

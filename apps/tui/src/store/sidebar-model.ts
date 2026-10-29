@@ -4,7 +4,6 @@ import {
   EServiceStatus,
   type ECrewStanding,
   type Event,
-  type Grant,
 } from '@dltech/atlas-core'
 
 import {
@@ -60,7 +59,6 @@ export type SidebarModel = {
   teammates?: readonly SidebarTeammate[]
   sections?: readonly SidebarSection[]
   classifier?: ClassifierFold
-  grants?: readonly Grant[]
   container?: SidebarContainer
   cloud?: SidebarCloud
 }
@@ -101,8 +99,7 @@ export const sameSidebar = (left: SidebarModel, right: SidebarModel): boolean =>
   left.crewStandings === right.crewStandings &&
   left.teammates === right.teammates &&
   left.sections === right.sections &&
-  left.classifier === right.classifier &&
-  left.grants === right.grants
+  left.classifier === right.classifier
 
 export type SidebarEventFold = {
   opening: string | null
@@ -110,7 +107,6 @@ export type SidebarEventFold = {
   lastActivity: string | null
   todo: readonly SidebarTask[]
   classifier: ClassifierFold | null
-  grants: readonly Grant[]
 }
 
 export function sidebarFoldFrom(acc: LogAccumulator): SidebarEventFold {
@@ -133,7 +129,6 @@ export function sidebarFoldFrom(acc: LogAccumulator): SidebarEventFold {
             topDimension: commonestDimension(acc.dimensionTally),
             judgeUnreachable: acc.judgeUnreachable,
           },
-    grants: [...acc.grants.values()].sort((one, other) => one.seq - other.seq),
   }
 }
 
@@ -167,7 +162,6 @@ export function sidebarFrom(args: {
     lastActivity: fold.lastActivity,
     ...(fold.todo.length === 0 ? {} : { todo: fold.todo }),
     ...(fold.classifier === null ? {} : { classifier: fold.classifier }),
-    ...(fold.grants.length === 0 ? {} : { grants: fold.grants }),
   }
 }
 

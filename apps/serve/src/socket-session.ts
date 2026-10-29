@@ -101,10 +101,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     persistModel: args.persistModel,
     tools: args.tools,
     processes: args.processes,
-    grants: args.grants && {
-      ...args.grants,
-      changed: () => broadcast(buffer.push({ type: 'events-appended' })),
-    },
   })
 
   const checkpointField = (): { checkpoint?: RuntimeCheckpoint } => {

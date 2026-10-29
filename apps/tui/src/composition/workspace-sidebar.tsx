@@ -9,7 +9,6 @@ import type { AtlasApp } from './compose'
 import { TeammateSidebar } from './teammate-sidebar'
 import type { AgentView } from './use-agent-view'
 import type { ContextControl } from './use-context'
-import type { Conversation } from './use-conversation'
 import type { ServicesControl } from './use-services'
 import type { ShellsControl } from './use-shells'
 
@@ -30,7 +29,6 @@ export function WorkspaceSidebar(props: {
   services: Pick<ServicesControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
   agentView: Pick<AgentView, 'scopedTo' | 'backLabel' | 'handleBack' | 'handleSelect'>
   contextBrowser: Pick<ContextControl, 'tree'>
-  onRevokeGrant: Conversation['handleRevokeGrant']
 }): React.ReactNode {
   const { agentView, shells, services, naming, overlay, contextBrowser } = props
   const tree = contextBrowser.tree
@@ -96,7 +94,6 @@ export function WorkspaceSidebar(props: {
       onOpenService={services.handleOpen}
       onSelectSubagent={agentView.handleSelect}
       context={context}
-      onRevokeGrant={props.onRevokeGrant}
       {...(back === undefined ? {} : { back })}
     />
   )

@@ -11,16 +11,14 @@ import {
   ETurnStatus,
   killShellReplySchema,
   readShellOutputParamsSchema,
-  revokeGrantParamsSchema,
-  revokeGrantReplySchema,
   setThreadModelParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
 
 describe('the protocol stamp', () => {
-  it('speaks the version carrying the revoke-grant op', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(30)
+  it('speaks the current protocol version', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(31)
   })
 })
 
@@ -234,24 +232,5 @@ describe('the process-control ops', () => {
     expect(killShellReplySchema.safeParse({ ok: true, snapshot: shell }).success).toBe(true)
     expect(killShellReplySchema.safeParse({ ok: false, reason: 'gone' }).success).toBe(true)
     expect(killShellReplySchema.safeParse({ ok: true }).success).toBe(false)
-  })
-})
-
-describe('the revoke-grant schemas', () => {
-  it('names the op', () => {
-    expect(String(EClientRequest.RevokeGrant)).toBe('revoke-grant')
-  })
-
-  it('wants exactly a thread and a grant', () => {
-    expect(revokeGrantParamsSchema.safeParse({ threadId: 't', grantId: 'g' }).success).toBe(true)
-    expect(revokeGrantParamsSchema.safeParse({ threadId: 't' }).success).toBe(false)
-    expect(revokeGrantParamsSchema.safeParse({ threadId: 't', grantId: 'g', x: 1 }).success).toBe(
-      false,
-    )
-  })
-
-  it('replies with a boolean', () => {
-    expect(revokeGrantReplySchema.safeParse({ revoked: false }).success).toBe(true)
-    expect(revokeGrantReplySchema.safeParse({}).success).toBe(false)
   })
 })

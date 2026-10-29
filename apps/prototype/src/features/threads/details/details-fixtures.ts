@@ -40,17 +40,6 @@ export const SERVICES: ProcessRow[] = [
 
 export const SERVICES_HIDDEN = { hidden: 2, failed: true }
 
-export interface GrantRow {
-  id: string
-  subject: string
-  dimensions: string[]
-}
-
-export const GRANTS: GrantRow[] = [
-  { id: 'gr-1', subject: 'github.com', dimensions: ['network', 'read'] },
-  { id: 'gr-2', subject: 'bun install', dimensions: ['shell', 'write'] },
-]
-
 export const TODOS: TodoTask[] = [
   { id: 't-1', text: 'Map tokens onto variables', status: ETodoStatus.Done },
   { id: 't-2', text: 'Regenerate theme.css', status: ETodoStatus.Done },
