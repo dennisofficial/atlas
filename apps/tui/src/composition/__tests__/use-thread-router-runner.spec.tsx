@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
 import { ERunner, toThreadId } from '@dltech/atlas-core'
-import type { CloudBridge } from '@dltech/atlas-harness'
+import { sandboxServeTokenName, type CloudBridge } from '@dltech/atlas-harness'
 
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { unstartedConversation } from '../open-conversation'
@@ -70,6 +70,59 @@ describe('the thread router across runners', () => {
         state: ERunner.Vercel,
       } as never)
       expect(asked).toEqual([ERunner.Local, ERunner.Vercel])
+    } finally {
+      await teardown(setup)
+    }
+  })
+
+  it('keys the bridge by how the thread was provisioned', async () => {
+    const app = fakeApp({
+      model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
+      secrets: { [sandboxServeTokenName(VERCEL_THREAD)]: 'tok' },
+    })
+    const API_THREAD = toThreadId('brn_api_thread')
+    app.threads.seedThread(row(VERCEL_THREAD))
+    app.threads.seedThread(row(API_THREAD))
+    const asked: Array<boolean | undefined> = []
+    const probe: { router: ThreadRouter | null } = { router: null }
+
+    function Probe(): React.ReactNode {
+      probe.router = useThreadRouter({
+        localApp: app,
+        cloudBridge: null,
+        cloudSession: null,
+        createBridge: ({ runner, apiProvisioned }) => {
+          asked.push(apiProvisioned)
+          return bridgeAnswering(`${runner}:${apiProvisioned}`)
+        },
+        containerMove: {} as never,
+        working: false,
+        activeThreadId: 'other',
+        opened: unstartedConversation({ ids: app.ids }),
+        onReload: async () => undefined,
+        onLeaveCloud: () => undefined,
+        onLocalSwap: () => undefined,
+      })
+      return null
+    }
+
+    let setup!: Awaited<ReturnType<typeof testRender>>
+    await act(async () => {
+      setup = await testRender(<Probe />, { width: 10, height: 3 })
+    })
+    try {
+      await act(async () => {
+        await setup.renderOnce()
+      })
+      const sandbox = probe.router?.findSandbox()
+
+      expect(await sandbox?.find({ threadId: VERCEL_THREAD })).toEqual({
+        state: 'vercel:false',
+      } as never)
+      expect(await sandbox?.find({ threadId: API_THREAD })).toEqual({
+        state: 'vercel:true',
+      } as never)
+      expect(asked).toEqual([false, true])
     } finally {
       await teardown(setup)
     }

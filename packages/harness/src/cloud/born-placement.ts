@@ -8,12 +8,19 @@ import {
 } from '@dltech/atlas-core'
 
 import type { SettingsService } from '../settings/service'
+import type { VercelCredentialStore } from './vercel-credential-store'
 
-/** Sandboxes can be provisioned: the operator's own Vercel triple is all a create rides on. */
-export function cloudProvisioningConfigured(args: {
+/** Sandboxes can be provisioned: signed in, the Cloud userVercel resource holds the triple; signed out, the operator's local one. */
+export async function cloudProvisioningConfigured(args: {
   settings: SettingsService
   secrets: SecretsPort
-}): boolean {
+  vercel?: VercelCredentialStore | undefined
+}): Promise<boolean> {
+  if (args.vercel?.signedIn() === true) {
+    await args.vercel.refresh().catch(() => undefined)
+    const held = args.vercel.snapshot()
+    return held.configured && held.teamId.length > 0 && held.projectId.length > 0
+  }
   const token = args.secrets.read(ESettingId.VercelToken)
   if (token === undefined || token.trim().length === 0) return false
   const resolution = args.settings.snapshot().resolution

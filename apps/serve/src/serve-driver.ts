@@ -18,6 +18,7 @@ export function createServeDriver(args: {
   log: ServeLog
   idleStop: () => Pick<ServeIdleStop, 'note'>
   emitLifecycle: (frame: LifecycleFrame) => void
+  beforeTurn?: (() => Promise<void>) | undefined
   activity?: ActivityTracker | undefined
 }) {
   const { app, log } = args
@@ -26,6 +27,7 @@ export function createServeDriver(args: {
     app,
     threadId: args.threadId,
     refusal: () => workspaceRefusalOf(args.workspace),
+    beforeTurn: args.beforeTurn,
     onTurnStarted: () => {
       activity.turnStarted()
       args.idleStop().note()

@@ -142,7 +142,6 @@ const createFresh = async (args: {
         vcpus: deps.vcpus,
         token: args.token,
         cloudUrl: deps.cloudUrl,
-        pinnedModel: provision.pinnedModel,
         environment: provision.environment ?? {},
       }),
     })

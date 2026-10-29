@@ -36,7 +36,7 @@ describe('pullRequestListOf', () => {
     expect(list.rows[0]?.branch).toBe('b1')
   })
 
-  it('flags failing checks and conflicts from live state', () => {
+  it('tallies checks and flags conflicts from live state', () => {
     const live: PrStateWire = {
       repo: 'o/r',
       number: 2,
@@ -49,14 +49,29 @@ describe('pullRequestListOf', () => {
       mergeable: false,
     }
     const row = pullRequestListOf({ thread, states: [live] }).rows[1]
-    expect(row?.checksLabel).toBe('✕ 2 failing')
-    expect(row?.failing).toBe(true)
+    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2 })
     expect(row?.conflicts).toBe(true)
   })
 
-  it('leaves settled pull requests without checks or conflicts', () => {
+  it('leaves pull requests without live state without checks or conflicts', () => {
     const row = pullRequestListOf({ thread, states: [] }).rows[0]
-    expect(row?.checksLabel).toBeUndefined()
+    expect(row?.checks).toBeUndefined()
     expect(row?.conflicts).toBe(false)
+  })
+
+  it('labels a teammate row with its title, or teammate when untitled', () => {
+    const list = pullRequestListOf({
+      thread: threadOf({
+        id: 't',
+        pullRequests: [
+          linked(1, 'b1', 'open'),
+          { ...linked(2, 'b2', 'open'), via: { threadId: 'm', title: 'fix it' } },
+          { ...linked(3, 'b3', 'open'), via: { threadId: 'n', title: null } },
+        ],
+      }),
+      states: [],
+    })
+    expect(list.rows.map((row) => row.via)).toEqual([undefined, 'via fix it', 'via teammate'])
+    expect(list.pinnedKey).toBe('o/r#1')
   })
 })

@@ -1,6 +1,6 @@
 import {
   ENoticeTone,
-  ESettingPage,
+  isLocalSetting,
   NOTICE_WARN_MS,
   type JsonValue,
   type NoticePort,
@@ -13,12 +13,6 @@ import {
 import type { CloudSettingsStore } from './cloud-settings-store'
 import { decodeSettingValue, encodeSettingValue } from './sync-settings'
 
-const LOCAL_ONLY_PAGES: readonly ESettingPage[] = [
-  ESettingPage.Appearance,
-  ESettingPage.Experimental,
-  ESettingPage.Hidden,
-]
-
 const ORIGIN = 'Atlas Cloud settings'
 
 type Pending = { value: string | null; sequence: number }
@@ -26,11 +20,7 @@ type Pending = { value: string | null; sequence: number }
 export const localOnlySettingIds = (
   definitions: readonly SettingDefinition[],
 ): ReadonlySet<string> =>
-  new Set(
-    definitions
-      .filter((definition) => LOCAL_ONLY_PAGES.includes(definition.page))
-      .map((definition) => definition.id),
-  )
+  new Set(definitions.filter(isLocalSetting).map((definition) => definition.id))
 
 const sameValue = (args: { left: JsonValue | undefined; right: JsonValue | undefined }): boolean =>
   JSON.stringify(args.left) === JSON.stringify(args.right)

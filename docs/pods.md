@@ -114,12 +114,13 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
   `ATLAS_HOME=/atlas/home` (`packages/wire/src/serve-env.ts`); on a local pod the pod name and the
   sandbox session id (`packages/harness/src/cloud/local-pod/pod-create.ts`); and a telemetry id. An API-provisioned pod gets `ATLAS_API_PROVISIONED=1` and a telemetry id
   derived from the owner's user id (an HMAC under the API's `ATLAS_TELEMETRY_PEPPER`, rendered as a
-  UUID), so every pod a user starts reports as the same person. A Vercel pod the TUI launches gets
-  the Vercel token, team and project so serve can stop its own sandbox on park; the API never
-  injects them into an API-provisioned pod.
-  **No settings travel as environment**: settings reach a pod only through the cloud scoped config
-  serve writes at boot (step 6 below), because an env-var setting would silently outrank cloud
-  values (`packages/core/src/settings/layers.ts`). An optional pinned model is the one exception,
+  UUID), so every pod a user starts reports as the same person. Signed in, every new Vercel birth
+  provisions through the API, so a TUI-started and a web-started Vercel pod are the same and the API
+  never injects the Vercel token, team and project. A Vercel thread already born directly from the
+  TUI keeps waking with the local credentials, which serve uses to stop its own sandbox on park.
+  **No settings travel as environment**: settings reach a pod only through the Cloud scoped config
+  serve writes at boot and refreshes before each turn (step 6 below), because an env-var setting
+  would silently outrank Cloud values (`packages/core/src/settings/layers.ts`). An optional pinned model is the one exception,
   carried for the pod's first boot. The allowed and forbidden keys are a contract in
   `packages/wire/src/serve-env.ts`, tested against both launchers
   (`packages/harness/src/cloud/local-pod/__tests__/pod-create-env-contract.spec.ts`,
@@ -132,9 +133,9 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
 - **The serve binary**, on dev builds only.
 
 No copy of the laptop's account vault, `secrets.json`, `settings.json`, `mcp.json`, skills,
-instructions, git state, local checkout or GitHub token crosses. The user layer reaches a pod only
-through the `atlas push` bundle
-([0011](decisions/0011-explicit-atlas-push.md)).
+instructions, git state, local checkout or GitHub token crosses. Everything a pod knows comes from
+Atlas Cloud: the Project, accounts, secrets, scoped settings, the Cloud `ATLAS.md` and MCP rows,
+and the `atlas push` bundle ([0011](decisions/0011-explicit-atlas-push.md)).
 
 ### What serve does, in order
 
@@ -164,16 +165,19 @@ through the `atlas push` bundle
    `sandboxConfig.get` (scoped to the boot `projectId`) concurrently under one 60 s deadline,
    falling back to the legacy `settings.list` + `secrets.list` when the scoped endpoint is missing
    (`apps/serve/src/cloud-state.ts`). It writes the pod's `auth.json` vault, `secrets.json`,
-   `settings.json` and any cloud MCP servers under `/atlas/home`. The scoped config merges
+   `settings.json` and any Cloud MCP servers under `/atlas/home`. The scoped config merges
    Default → User → Project and drops provisioning-only names
    (`packages/wire/src/web/scoped-config-resolve.ts`). The account lease blanks OAuth refresh
    tokens but keeps the current access token and its expiry. Secrets named `sandbox-serve:*` or
    `mcp-oauth:*` are client-held and skipped. On failure serve logs it and boots with whatever is
-   on disk.
+   on disk. Serve composes with no project-file or `ATLAS_*` environment layer for Cloud settings,
+   so `settings.json` is the Cloud scoped result.
 7. **`atlas push` bundle.** `publishedBundles.current` returns the latest version the
    user published and a presigned download URL. Serve checks the size and SHA-256, then installs
-   only skill, `ATLAS.md` and `mcp.json` entries (`apps/serve/src/published-bundle.ts`). It is
-   the only source of the user layer in a pod. No bundle is a no-op. This runs on every boot, so
+   only skill, `ATLAS.md` and `mcp.json` entries (`apps/serve/src/published-bundle.ts`). The
+   Cloud `userFiles` `ATLAS.md` and the Cloud MCP rows also reach the pod
+   (`apps/serve/src/cloud-instructions.ts`), so the bundle is not the only source of the user
+   layer. No bundle is a no-op. This runs on every boot, so
    a wake picks up a newer version ([0011](decisions/0011-explicit-atlas-push.md)).
 8. **Thread meta.** A fresh pod writes its thread meta with the `projectId`, and a local pod stamps
    `runner: local` (`apps/serve/src/serve-boot.ts`).
@@ -181,8 +185,17 @@ through the `atlas push` bundle
     credential (`apps/serve/src/compose-serve.ts`), then hands its handlers to the listener and
     arms the idle timer (`apps/serve/src/serve-boot-finish.ts`).
 
-Two pulls happen after boot, on use:
+Three pulls happen after boot.
 
+- **Cloud state, before each turn.** Settings reach a pod only from Cloud scoped config: at boot
+  and again before every turn. `createCloudStateRefresh` re-runs `applyCloudState` with a 5 s
+  budget and one attempt, rewrites `settings.json`, `secrets.json` and `auth.json` only when the
+  content changed, and re-exports env secrets (`apps/serve/src/cloud-state-refresh.ts`, the
+  `beforeTurn` hook in `apps/serve/src/turn-driver.ts`). A failed refresh is logged and the turn
+  runs on the current state. A resumed turn skips it. Clients never push settings: serve ignores
+  an `EClientFrame.Settings` frame and logs it as dropped
+  (`apps/serve/src/socket-commands.ts`). The settings service watches `settings.json`, so a
+  changed model or effort applies on the next turn.
 - **Memory.** The memory tools `read_memory`, `write_memory`, `edit_memory` and `delete_memory`
   talk to the `memories` procedures through `CloudMemoryPort` (`packages/harness/src/memory/cloud-memory-port.ts`).
   A before-turn hook loads the index once and again after a failed load, and core renders it into
@@ -195,28 +208,47 @@ Two pulls happen after boot, on use:
   and refreshes (`packages/harness/src/credentials/cloud-managed-credential-port.ts`)
   ([0005](decisions/0005-api-owns-oauth-tokens.md)).
 
-MCP server config reaches a pod through the bundle, not through the `mcpServers` router,
-which is session-only.
+MCP config is rewritten on each refresh, but servers connect once at boot, so an MCP change takes
+effect on the next pod start. MCP OAuth stays on the client and never reaches a pod.
 
 The user-layer sync engine (the `userFiles` router, skills and instructions) never runs in a pod. Serve
 composes with its serve token as `ServeSessionToken`, and the binding chooses a no-op whenever that
 token is present, on either runner (`packages/harness/src/composition/user-layer-sync-binding.ts`).
 Only signed-in host sessions run the engine.
 
-### The TUI's own stores in pod mode
+### The TUI's own stores
 
-With the flag on and the user signed in, the TUI's account, secret and user-settings stores read
-and write Atlas Cloud instead of local files. The switch is one argument, `cloudState: pods`,
-passed into `composeHarness` (`packages/harness/src/composition/cloud-state-binding.ts`,
-`packages/harness/src/container/register-cloud-backed-stores.ts`). Some things stay local:
+Whether a setting lives locally or in Atlas Cloud is a property of the setting, `storage`
+(`ESettingStorage`, default Cloud), not of its page (`packages/core/src/settings/definition.ts`,
+`packages/core/src/settings/registry.ts`). The Local settings are terminal or host specific:
 
-- secrets named `sandbox-serve:*` and `mcp-oauth:*`
-  (`packages/harness/src/cloud/secrets-store-proxy.ts`);
-- settings on the Appearance, Experimental and Hidden pages, which include `experimental.pods`
-  and `placement.lastBorn` (`packages/harness/src/cloud/cloud-user-settings-store.ts`);
-- everything, while signed out.
+- Appearance: `appearance.accent`, `appearance.blockPadding`, `appearance.composerEdge`,
+  `appearance.logo`.
+- Display: `transcript.smoothStreaming`, `transcript.thinkingBlocks`, `transcript.imageRows`,
+  `transcript.fenceWrap`, `tldr.footer`, `tldr.status`, `sidebar.width`, `sidebar.foldBelow`,
+  `usage.meters`, `usage.warnFiveHour`, `usage.warnWeekly`, `notifications.seconds`.
+- Host: `files.editor`, `dev.autoRestart`, `execution.location`, `container.cpus`,
+  `container.memory`, `container.idleMinutes`.
+- Placement and flags: `experimental.pods`, `placement.lastBorn`,
+  `experimental.placementChooserShape`.
+- `sandbox.vercelToken`, the local secret.
 
-The cloud stores start empty, and nothing is imported from the local files
+Every other setting is Cloud, and the web edits the same ones the TUI does
+([0016](decisions/0016-cloud-settings-are-the-source-of-truth.md)).
+
+Signed in, the TUI reads and writes Cloud settings whether or not the flag is on. Cloud settings
+ignore the project `.atlas/settings.json` and the `ATLAS_*` environment layers; project-level
+values come from Cloud Project settings. Local settings still use those layers. Signed out,
+everything is local. With the flag off, the TUI still keeps local secrets, accounts, skills,
+instructions, MCP and plugins.
+
+Secrets and accounts are the other half. They read and write Atlas Cloud only with the flag on and
+the user signed in. The switch is `cloudState` passed into `composeHarness`, split into settings
+and secrets-and-accounts (`packages/harness/src/composition/cloud-state-binding.ts`,
+`packages/harness/src/container/register-cloud-backed-stores.ts`). Secrets named `sandbox-serve:*`
+and `mcp-oauth:*` stay local (`packages/harness/src/cloud/secrets-store-proxy.ts`).
+
+The Cloud stores start empty, and nothing is imported from the local files
 ([0012](decisions/0012-cloud-state-starts-empty.md)).
 
 ## Security model

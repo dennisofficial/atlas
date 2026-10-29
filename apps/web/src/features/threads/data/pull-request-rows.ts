@@ -1,6 +1,6 @@
 import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 
-import { checksLabelOf, entryHasConflicts } from './header-model'
+import { checksTallyOf, entryHasConflicts, type ChecksTally } from './header-model'
 import {
   pinnedPullRequestOf,
   pullRequestEntriesOf,
@@ -14,9 +14,9 @@ export type PullRequestRow = {
   url: string
   branch: string
   state: string | undefined
-  checksLabel: string | undefined
-  failing: boolean
+  checks: ChecksTally | undefined
   conflicts: boolean
+  via: string | undefined
 }
 
 export type PullRequestList = {
@@ -26,16 +26,15 @@ export type PullRequestList = {
 }
 
 export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
-  const checksLabel = checksLabelOf(entry)
   return {
     key: pullRequestKeyOf(entry),
     label: `#${entry.number}`,
     url: entry.url,
     branch: entry.branch,
     state: entry.state,
-    checksLabel,
-    failing: checksLabel !== undefined && (entry.checksFailed ?? 0) > 0,
+    checks: checksTallyOf(entry),
     conflicts: entryHasConflicts(entry),
+    via: entry.via === undefined ? undefined : `via ${entry.via.title ?? 'teammate'}`,
   }
 }
 

@@ -6,12 +6,13 @@ import { ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 
 import type { ModelPicker } from '@/features/threads/data/use-model-picker'
 
+import type { EEffortLevel } from '@dltech/atlas-wire/web'
+
 import { roleModelOptions } from '../data/personal/role-model-options'
 import {
   EFFORT_STEPS,
   ROLE_META,
   type EAgentRole,
-  type EEffort,
   type RoleSetting,
 } from '../fixtures/settings-agent'
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
@@ -37,10 +38,11 @@ export function RoleCard({
     autoLabel: meta.autoLabel,
     currentId: setting.model,
   })
-  const effortLabel = EFFORT_STEPS.find((step) => step.effort === setting.effort)?.label
+  const effort = setting.effort
+  const effortLabel = EFFORT_STEPS.find((step) => step.effort === effort)?.label
 
   const handleModelChange = (model: string) => onChange({ ...setting, model })
-  const handleEffortChange = (effort: EEffort) => onChange({ ...setting, effort })
+  const handleEffortChange = (next: EEffortLevel) => onChange({ ...setting, effort: next })
   const handleManageProviders = () => router.push(PROVIDERS_HREF)
 
   return (
@@ -48,7 +50,7 @@ export function RoleCard({
       <SettingsCard>
         <SettingsRow
           title="Model"
-          description="Auto picks the best available model for your connected providers."
+          description={meta.modelHint}
           control={
             <ModelSelector
               models={models}
@@ -64,17 +66,19 @@ export function RoleCard({
             />
           }
         />
-        <SettingsRow
-          title="Effort"
-          description="Higher effort thinks longer and costs more per turn."
-          control={<span className="font-mono text-xs text-muted-foreground">{effortLabel}</span>}
-        >
-          <EffortSlider
-            value={setting.effort}
-            onChange={handleEffortChange}
-            label={`${meta.title} effort`}
-          />
-        </SettingsRow>
+        {effort === undefined ? null : (
+          <SettingsRow
+            title="Effort"
+            description="Higher effort thinks longer and costs more per turn."
+            control={<span className="font-mono text-xs text-muted-foreground">{effortLabel}</span>}
+          >
+            <EffortSlider
+              value={effort}
+              onChange={handleEffortChange}
+              label={`${meta.title} effort`}
+            />
+          </SettingsRow>
+        )}
       </SettingsCard>
     </SettingsSection>
   )

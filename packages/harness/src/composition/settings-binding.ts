@@ -16,7 +16,10 @@ const PROJECT_PREFIX = '.'
 export type SettingsBinding = {
   service: SettingsService
   bindTo: (container: DependencyContainer) => void
-  withUserStore?: (wrap: (local: SettingsStorePort) => SettingsStorePort) => SettingsBinding
+  withUserStore?: (args: {
+    wrap: (local: SettingsStorePort) => SettingsStorePort
+    cloudScoped: () => boolean
+  }) => SettingsBinding
 }
 
 /**
@@ -26,6 +29,7 @@ export type SettingsBinding = {
 export function loadSettings(args: {
   env: Record<string, string | undefined>
   cwd: string
+  cloudScoped?: boolean
 }): SettingsBinding {
   const userFile = userSettingsFile()
   const projectFile = projectSettingsFile(args.cwd)
@@ -47,20 +51,26 @@ export function loadSettings(args: {
 
   const environment = environmentLayer({ definitions, env: args.env })
 
-  const bindOver = (userLayer: SettingsStorePort): SettingsBinding => ({
+  const bindOver = (args: {
+    userLayer: SettingsStorePort
+    cloudScoped: () => boolean
+  }): SettingsBinding => ({
     service: createSettingsService({
       definitions,
-      user: userLayer,
+      user: args.userLayer,
       project,
       environment,
       watch: { files: [userFile, projectFile] },
+      cloudScoped: args.cloudScoped,
     }),
     bindTo: (container) => {
       container.register(UserSettingsStoreToken, { useValue: user })
       container.register(ProjectSettingsStoreToken, { useValue: project })
     },
-    withUserStore: (wrap) => bindOver(wrap(user)),
+    withUserStore: ({ wrap, cloudScoped: scoped }) =>
+      bindOver({ userLayer: wrap(user), cloudScoped: scoped }),
   })
 
-  return bindOver(user)
+  const serveScoped = args.cloudScoped === true
+  return bindOver({ userLayer: user, cloudScoped: () => serveScoped })
 }

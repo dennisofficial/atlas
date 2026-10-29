@@ -134,11 +134,6 @@ describe('podCreateBody', () => {
     })
   })
 
-  it('sets ATLAS_MODEL only when a model is pinned', () => {
-    expect(envOf(baseArgs)).not.toHaveProperty('ATLAS_MODEL')
-    expect(envOf({ ...baseArgs, pinnedModel: 'claude-opus' }).ATLAS_MODEL).toBe('claude-opus')
-  })
-
   it('merges the caller environment under its own plumbing and drops every VERCEL_ key', () => {
     const env = envOf({
       ...baseArgs,

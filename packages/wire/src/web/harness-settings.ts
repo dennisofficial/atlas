@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-import { ESettingConsumer, settingEntry } from './setting-entry'
+import { PINNED_MODELS_FALLBACK, pinnedModelsSettingSchema } from './pinned-models'
+
+import { ESettingConsumer, prefixEntry, settingEntry } from './setting-entry'
 import {
   DEFAULT_DECISIONS_MODEL_WIRE,
   DEFAULT_DECISIONS_PROVIDER_WIRE,
@@ -48,6 +50,12 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
+    key: 'model.favourites',
+    schema: pinnedModelsSettingSchema,
+    fallback: PINNED_MODELS_FALLBACK,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
     key: 'experimental.placementChooserShape',
     schema: z.enum(EPlacementChooserShape),
     fallback: EPlacementChooserShape.Chip,
@@ -87,6 +95,78 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'web.searchBackend',
     schema: z.enum(EWebSearchBackendWire),
     fallback: EWebSearchBackendWire.DuckDuckGo,
+    consumer: ESettingConsumer.Harness,
+  }),
+  ...[
+    'context.projectInstructions',
+    'context.userInstructions',
+    'context.reload',
+    'skills.suggest',
+  ].map((key) =>
+    settingEntry({
+      key,
+      schema: z.boolean(),
+      fallback: true,
+      consumer: ESettingConsumer.Harness,
+    }),
+  ),
+  settingEntry({
+    key: 'context.filenames',
+    schema: z.enum(['both', 'claude', 'agents', 'none']),
+    fallback: 'both',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'context.autoCompact',
+    schema: z.number().int().min(0).max(100),
+    fallback: 90,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'worktree.directory',
+    schema: z.string().min(1),
+    fallback: '.atlas/worktrees',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'model.quickModel',
+    schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'model.compactionModel',
+    schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'sandbox.image',
+    schema: z.string(),
+    fallback: 'atlas-sandbox:latest',
+    consumer: ESettingConsumer.Harness,
+  }),
+  ...['quality.enabled', 'quality.recordExamples'].map((key) =>
+    settingEntry({
+      key,
+      schema: z.boolean(),
+      fallback: false,
+      consumer: ESettingConsumer.Harness,
+    }),
+  ),
+]
+
+export const HARNESS_SETTING_PREFIXES = [
+  prefixEntry({
+    prefix: 'agents.type.',
+    schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  prefixEntry({
+    prefix: 'quality.policies.',
+    schema: z.boolean(),
+    fallback: false,
     consumer: ESettingConsumer.Harness,
   }),
 ]

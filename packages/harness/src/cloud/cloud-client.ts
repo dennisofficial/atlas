@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import type { ApiClient } from '@dltech/atlas-api-router'
 import type { Project } from '@dltech/atlas-wire'
+import type { UserVercelCredential, UserVercelCredentialUpsert } from '@dltech/atlas-wire/web'
 import { mcpTransportSchema as mcpTransportWireSchema } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
@@ -227,6 +228,18 @@ export class CloudClient {
 
   disconnectGithub(): Promise<void> {
     return disconnectGithubVia(this.api)
+  }
+
+  async readVercel(): Promise<UserVercelCredential> {
+    return cloudCall(this.api.userVercel.get.query())
+  }
+
+  async saveVercel(input: UserVercelCredentialUpsert): Promise<void> {
+    await cloudCall(this.api.userVercel.save.mutate(input))
+  }
+
+  async removeVercel(): Promise<void> {
+    await cloudCall(this.api.userVercel.remove.mutate())
   }
 
   listProjects(): Promise<Project[]> {

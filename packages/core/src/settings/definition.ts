@@ -13,6 +13,11 @@ export enum ESettingPage {
   Hidden = 'hidden',
 }
 
+export enum ESettingStorage {
+  Cloud = 'cloud',
+  Local = 'local',
+}
+
 export type SettingPage = {
   id: ESettingPage
   label: string
@@ -26,6 +31,7 @@ type SettingFacts = {
   description: string
   environmentVariable?: string
   writeLayer?: ESettingsLayer.User | ESettingsLayer.Project
+  storage?: ESettingStorage
   visibleWhen?: (args: { resolution: SettingsResolution }) => boolean
 }
 
@@ -84,6 +90,9 @@ export type SettingDefinition =
   | TextDefinition
   | ModelDefinition
   | SecretDefinition
+
+export const isLocalSetting = (definition: SettingDefinition): boolean =>
+  definition.storage === ESettingStorage.Local
 
 export function definitionsOfPage(args: {
   definitions: readonly SettingDefinition[]

@@ -10,6 +10,8 @@ import {
 
 import { createSettingsService, MemorySettingsStore } from '../../settings'
 import { bornPlacementFor, cloudProvisioningConfigured } from '../born-placement'
+import type { CloudClient } from '../cloud-client'
+import { VercelCredentialStore } from '../vercel-credential-store'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../settings-definitions'
 
 class FakeSecrets extends SecretsPort {
@@ -78,39 +80,90 @@ describe('bornPlacementFor', () => {
 })
 
 describe('cloudProvisioningConfigured', () => {
-  it('needs the token, the team and the project', () => {
+  it('needs the token, the team and the project', async () => {
     expect(
-      cloudProvisioningConfigured({
+      await cloudProvisioningConfigured({
         settings: settingsWith(SCOPING),
         secrets: new FakeSecrets(TOKEN),
       }),
     ).toBe(true)
   })
 
-  it('is false without the token', () => {
+  it('is false without the token', async () => {
     expect(
-      cloudProvisioningConfigured({
+      await cloudProvisioningConfigured({
         settings: settingsWith(SCOPING),
         secrets: new FakeSecrets({}),
       }),
     ).toBe(false)
   })
 
-  it('is false with a blank token', () => {
+  it('is false with a blank token', async () => {
     const secrets = new FakeSecrets({ [ESettingId.VercelToken]: '   ' })
 
-    expect(cloudProvisioningConfigured({ settings: settingsWith(SCOPING), secrets })).toBe(false)
+    expect(await cloudProvisioningConfigured({ settings: settingsWith(SCOPING), secrets })).toBe(
+      false,
+    )
   })
 
-  it('is false without the team', () => {
+  it('is false without the team', async () => {
     const settings = settingsWith({ [ESettingId.VercelProjectId]: 'prj_1' })
 
-    expect(cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(false)
+    expect(await cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(
+      false,
+    )
   })
 
-  it('is false without the project', () => {
+  it('is false without the project', async () => {
     const settings = settingsWith({ [ESettingId.VercelTeamId]: 'team_1' })
 
-    expect(cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(false)
+    expect(await cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(
+      false,
+    )
+  })
+
+  const cloudStore = (wire: {
+    configured: boolean
+    teamId: string | null
+    vercelProjectId: string | null
+  }) =>
+    new VercelCredentialStore(
+      () =>
+        ({
+          readVercel: async () => ({ ...wire, updatedAt: null }),
+        }) as unknown as CloudClient,
+    )
+
+  it('asks the cloud resource when signed in, ignoring local values', async () => {
+    const vercel = cloudStore({ configured: true, teamId: 't', vercelProjectId: 'p' })
+    expect(
+      await cloudProvisioningConfigured({
+        settings: settingsWith({}),
+        secrets: new FakeSecrets({}),
+        vercel,
+      }),
+    ).toBe(true)
+  })
+
+  it('is false when the cloud resource is unconfigured even with local values', async () => {
+    const vercel = cloudStore({ configured: false, teamId: null, vercelProjectId: null })
+    expect(
+      await cloudProvisioningConfigured({
+        settings: settingsWith(SCOPING),
+        secrets: new FakeSecrets(TOKEN),
+        vercel,
+      }),
+    ).toBe(false)
+  })
+
+  it('uses the local values when signed out', async () => {
+    const vercel = new VercelCredentialStore(() => null)
+    expect(
+      await cloudProvisioningConfigured({
+        settings: settingsWith(SCOPING),
+        secrets: new FakeSecrets(TOKEN),
+        vercel,
+      }),
+    ).toBe(true)
   })
 })

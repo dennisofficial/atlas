@@ -138,7 +138,7 @@ describe('livePullRequestBadgeOf', () => {
     ...over,
   })
 
-  it('prefers the pushed state and adds a failing-checks label', () => {
+  it('prefers the pushed state and adds the checks tally', () => {
     const badge = livePullRequestBadgeOf({
       states: [pushed({ state: EPullRequestStateWire.Draft, mergeable: false })],
       thread: linked,
@@ -147,21 +147,19 @@ describe('livePullRequestBadgeOf', () => {
       label: '#2',
       stateLabel: 'Draft',
       url: 'https://github.com/o/r/pull/2',
-      checksLabel: '✕ 2 failing',
+      checks: { running: 1, passed: 3, failed: 2 },
       mergeable: false,
       overflow: 0,
     })
   })
 
-  it('ranks running over passing and leaves the label off when no checks report', () => {
+  it('tallies running, passed and failed separately and leaves it off when no checks report', () => {
     const running = pushed({ checksFailed: 0 })
-    expect(livePullRequestBadgeOf({ states: [running], thread: linked })?.checksLabel).toBe(
-      '1 running',
-    )
-    const passing = pushed({ checksFailed: 0, checksRunning: 0 })
-    expect(livePullRequestBadgeOf({ states: [passing], thread: linked })?.checksLabel).toBe(
-      '✓ 3 passing',
-    )
+    expect(livePullRequestBadgeOf({ states: [running], thread: linked })?.checks).toEqual({
+      running: 1,
+      passed: 3,
+      failed: 0,
+    })
     const quiet = pushed({
       checksFailed: 0,
       checksRunning: 0,
@@ -169,7 +167,7 @@ describe('livePullRequestBadgeOf', () => {
       mergeable: true,
     })
     const badge = livePullRequestBadgeOf({ states: [quiet], thread: linked })
-    expect(badge?.checksLabel).toBeUndefined()
+    expect(badge?.checks).toBeUndefined()
     expect(badge?.mergeable).toBe(true)
   })
 
@@ -179,7 +177,7 @@ describe('livePullRequestBadgeOf', () => {
       thread: linked,
     })
     expect(unmatched?.label).toBe('#2')
-    expect(unmatched?.checksLabel).toBeUndefined()
+    expect(unmatched?.checks).toBeUndefined()
     expect(
       livePullRequestBadgeOf({
         states: [pushed({ repo: 'x/y' })],
@@ -214,7 +212,7 @@ describe('livePullRequestBadgeOf', () => {
     })
     expect(badge?.label).toBe('#9')
     expect(badge?.overflow).toBe(1)
-    expect(badge?.checksLabel).toBe('✓ 3 passing')
+    expect(badge?.checks).toEqual({ running: 0, passed: 3, failed: 0 })
   })
 
   it('flags conflicts only on an open pull request that cannot merge', () => {
@@ -233,13 +231,13 @@ describe('livePullRequestBadgeOf', () => {
     )
   })
 
-  it('merged/closed states carry no checks label', () => {
+  it('merged and closed states keep their checks tally', () => {
     for (const state of [EPullRequestStateWire.Merged, EPullRequestStateWire.Closed]) {
       const badge = livePullRequestBadgeOf({
         states: [pushed({ state })],
         thread: linked,
       })
-      expect(badge?.checksLabel).toBeUndefined()
+      expect(badge?.checks).toEqual({ running: 1, passed: 3, failed: 2 })
     }
   })
 })

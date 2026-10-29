@@ -32,7 +32,7 @@ export async function bootServeApp(args: {
     sandboxSessionId: args.sandboxSessionId,
     log,
   })
-  const { workspace, activeCwd, spec, identity } = await bootServeFiles({
+  const { workspace, activeCwd, spec, identity, refreshCloudState } = await bootServeFiles({
     env,
     threadId,
     cwd,
@@ -75,5 +75,5 @@ export async function bootServeApp(args: {
     remote,
     log,
   })
-  return { app, recovery, workspace, fetchFn, clientVersion, writeBehind }
+  return { app, recovery, workspace, fetchFn, clientVersion, writeBehind, refreshCloudState }
 }

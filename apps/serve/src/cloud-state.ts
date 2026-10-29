@@ -106,6 +106,12 @@ const writeSettings = (args: {
   })
 }
 
+export type CloudStateSeen = {
+  lease?: string | undefined
+  config?: string | undefined
+  exported: Set<string>
+}
+
 export const applyCloudState = async (args: {
   atlasHome: string
   controlPlaneUrl: string
@@ -118,10 +124,14 @@ export const applyCloudState = async (args: {
   sleep?: ((ms: number) => Promise<void>) | undefined
   retryBudgetMs?: number | undefined
   now?: (() => number) | undefined
+  maxAttempts?: number | undefined
+  seen?: CloudStateSeen | undefined
+  onConfigWritten?: (() => void) | undefined
 }): Promise<void> => {
   const sleep = args.sleep ?? defaultSleep
   const retryBudgetMs = args.retryBudgetMs ?? DEFAULT_RETRY_BUDGET_MS
   const now = args.now ?? Date.now
+  const maxAttempts = args.maxAttempts ?? MAX_ATTEMPTS
   const url = args.controlPlaneUrl.replace(/\/+$/, '')
 
   const deadline = now() + retryBudgetMs
@@ -141,7 +151,7 @@ export const applyCloudState = async (args: {
       try {
         return await attempt()
       } catch (error) {
-        if (!isRegistering(error) || attempts >= MAX_ATTEMPTS || remainingMs() <= RETRY_DELAY_MS) {
+        if (!isRegistering(error) || attempts >= maxAttempts || remainingMs() <= RETRY_DELAY_MS) {
           throw error
         }
         await sleep(RETRY_DELAY_MS)
@@ -190,14 +200,32 @@ export const applyCloudState = async (args: {
 
   try {
     const [lease, config] = await Promise.all([leasePatiently(), scopedConfig()])
+    const leaseFingerprint = JSON.stringify(lease)
+    const configFingerprint = JSON.stringify(config)
+    const leaseChanged = args.seen?.lease !== leaseFingerprint
+    const configChanged = args.seen?.config !== configFingerprint
+    if (!leaseChanged && !configChanged) return
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
-    writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })
+    if (leaseChanged) {
+      writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })
+    }
     const secretCount = writeSecrets({ atlasHome: args.atlasHome, cipher, secrets: config.secrets })
     writeSettings({ atlasHome: args.atlasHome, settings: config.settings })
     mergeCloudMcpServers({ atlasHome: args.atlasHome, servers: config.mcpServers })
     const exported =
-      args.env === undefined ? 0 : exportEnvSecrets({ env: args.env, secrets: config.secrets })
+      args.env === undefined
+        ? 0
+        : exportEnvSecrets({
+            env: args.env,
+            secrets: config.secrets,
+            exported: args.seen?.exported,
+          })
+    if (args.seen !== undefined) {
+      args.seen.lease = leaseFingerprint
+      args.seen.config = configFingerprint
+    }
+    args.onConfigWritten?.()
     args.log({
       event: EServeEvent.CloudStateReady,
       accounts: accounts.length,

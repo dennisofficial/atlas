@@ -5,7 +5,12 @@ import { act } from 'react'
 import { EAgentStatus } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
-import { ETranscriptKind, type ReportItem, type SpawnItem } from '../../data/transcript-items'
+import {
+  EEditBody,
+  ETranscriptKind,
+  type ReportItem,
+  type SpawnItem,
+} from '../../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../../panel/thread-panel-context'
 import { ReportNotice, SpawnCard } from '../transcript-agents'
 import { ToolRow } from '../transcript-tool-row'
@@ -102,13 +107,72 @@ describe('ToolRow', () => {
     expect(openChanges).toHaveBeenCalledWith('/repo/src/a.ts')
   })
 
+  it('renders dictated content while running and still opens Changes', async () => {
+    const openChanges = mock((_path?: string) => undefined)
+    await mount({
+      panel: panelOf({ openChanges }),
+      element: (
+        <ToolRow
+          onOpenChanges={openChanges}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Running,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+            change: {
+              kind: EEditBody.Content,
+              text: 'const a = 1',
+              firstLine: 1,
+              total: 1,
+            },
+          }}
+        />
+      ),
+    })
+    expect(document.body.textContent).toContain('const a = 1')
+    await click(document.querySelector('button[aria-label^="Open"]'))
+    expect(openChanges).toHaveBeenCalledWith('/repo/src/a.ts')
+  })
+
+  it('renders the diff of a settled edit', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={() => undefined}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+            change: {
+              kind: EEditBody.Diff,
+              added: 1,
+              removed: 0,
+              lines: [{ kind: 'add', text: 'added line', newNumber: 1 }],
+            },
+          }}
+        />
+      ),
+    })
+    expect(document.body.textContent).toContain('added line')
+    expect(document.querySelector('[data-kind="add"]')).not.toBeNull()
+  })
+
   it('renders an edit without a path as a plain row', async () => {
     await mount({
       panel: panelOf({}),
       element: (
         <ToolRow
           onOpenChanges={() => undefined}
-          call={{ id: 'c1', kind: EToolKind.Edit, state: EToolState.Done, label: 'src/a.ts' }}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+          }}
         />
       ),
     })
