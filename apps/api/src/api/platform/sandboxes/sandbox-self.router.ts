@@ -3,6 +3,7 @@ import {
   podEventsPostSchema,
   podEventsReplySchema,
   podEventsTruncateSchema,
+  sandboxActivityPostSchema,
   sandboxExposePortReplySchema,
   sandboxExposePortRequestSchema,
   sandboxSelfStopRequestSchema,
@@ -10,6 +11,7 @@ import {
   type PodEventsPost,
   type PodEventsReply,
   type PodEventsTruncate,
+  type SandboxActivityPost,
   type SandboxExposePortReply,
   type SandboxExposePortRequest,
   type SandboxSelfStopRequest,
@@ -22,6 +24,7 @@ import { meta } from '../../../_module/trpc/procedure-meta'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
+import { applyThreadActivity } from './thread-activity'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { PreviewTunnelService } from './preview-tunnel.service'
@@ -101,5 +104,14 @@ export class SandboxSelfRouter {
       toSeq: input.toSeq,
       signals: this.signals,
     })
+  }
+
+  @Mutation({
+    input: sandboxActivityPostSchema,
+    output: z.void(),
+    meta: meta({ podReachable: true }),
+  })
+  async activity(@Input() input: SandboxActivityPost, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
+    await applyThreadActivity({ threadId: ctx.sandbox.threadId, activity: input })
   }
 }
