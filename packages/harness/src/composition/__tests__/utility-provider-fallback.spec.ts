@@ -29,6 +29,9 @@ import { createSettingsService } from '../../settings/service'
 import { recordingNotices } from './fakes'
 import { createUtilityModel } from '../utility-model'
 
+const settledOf = (settings: ReturnType<typeof createSettingsService>) => () =>
+  settings.snapshot().resolution
+
 const card = (ref: ModelCard['ref']): ModelCard => ({
   ref,
   label: ref.modelId,
@@ -95,17 +98,19 @@ describe('utility fallback across real provider transports', () => {
         const model = createUtilityModel({
           role,
           notice: notices.port,
-          settings: createSettingsService({
-            definitions: ATLAS_SETTINGS,
-            user: new MemorySettingsStore({
-              document: {
-                values: {
-                  [ESettingId.QuickModel]: 'openrouter/google/gemini-flash',
-                  [ESettingId.CompactionModel]: 'openrouter/google/gemini-flash',
+          settled: settledOf(
+            createSettingsService({
+              definitions: ATLAS_SETTINGS,
+              user: new MemorySettingsStore({
+                document: {
+                  values: {
+                    [ESettingId.QuickModel]: 'openrouter/google/gemini-flash',
+                    [ESettingId.CompactionModel]: 'openrouter/google/gemini-flash',
+                  },
                 },
-              },
+              }),
             }),
-          }),
+          ),
           catalogue: {
             providers: [
               { id: primary.id, label: primary.label, cards: [PRIMARY] },
