@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import type { QueuedMessageSave } from '@dltech/atlas-ui/ai/queued-messages'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
-import { planStepsOf } from './composer-plan'
 import { QUEUE_PLACEHOLDER, queuedOf, takeBackableIdOf, TOO_LATE_NOTICE } from './composer-queue'
 import { contextUsageOf } from './context-usage'
 import { eventsFromWire } from './events-from-wire'
@@ -25,7 +24,6 @@ export function useComposerDock(args: {
   const { threadId, visible, source, picker, selection, onRestore } = args
   const { channel } = source
   const events = useMemo(() => eventsFromWire(visible), [visible])
-  const steps = useMemo(() => planStepsOf(events), [events])
   const queued = useMemo(() => queuedOf(source.pending), [source.pending])
   const usage = useMemo(
     () =>
@@ -71,7 +69,6 @@ export function useComposerDock(args: {
   }
 
   return {
-    steps,
     queued,
     usage,
     placeholder: source.working ? QUEUE_PLACEHOLDER : undefined,
