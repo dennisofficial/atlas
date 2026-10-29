@@ -65,17 +65,34 @@ describe('a pr-event in the transcript', () => {
     expect(entry.text.length).toBeLessThan(160)
   })
 
-  it('keeps the whole body for the fold, so the operator sees what the agent saw', () => {
-    const body = 'first line\nsecond line\nthird line'
-    const entry = onlyPrEntry(log([prEvent({ body })]))
+  it('folds the notice the agent was sent, not just the comment text', () => {
+    const entry = onlyPrEntry(log([prEvent({ body: 'first line\nsecond line\nthird line' })]))
 
     expect(entry.text).not.toContain('second line')
-    expect(entry.body).toBe(body)
+    expect(entry.body).toBe(
+      'PR #42 in github.com/owner/repo: comment — first line\nsecond line\nthird line. https://github.com/owner/repo/pull/42',
+    )
     expect(isExpandable(entry)).toBe(true)
   })
 
-  it('does not offer a fold when the event carried no body', () => {
-    expect(isExpandable(onlyPrEntry(log([prEvent({ body: undefined })])))).toBe(false)
+  it('folds the agent notice for a CI verdict, which carries no GitHub text', () => {
+    const entry = onlyPrEntry(
+      log([
+        prEvent({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'abc1234def' }),
+      ]),
+    )
+
+    expect(entry.body).toBe('PR #42 in github.com/owner/repo: checks green on abc1234.')
+    expect(isExpandable(entry)).toBe(true)
+  })
+
+  it('folds the agent notice for mergeability and state changes', () => {
+    expect(
+      onlyPrEntry(log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: true })])).body,
+    ).toBe('PR #42 in github.com/owner/repo: now mergeable.')
+    expect(onlyPrEntry(log([prEvent({ kind: EPrEventKind.State, state: 'merged' })])).body).toBe(
+      'PR #42 in github.com/owner/repo: now merged.',
+    )
   })
 
   it('renders an approval plainly', () => {
@@ -120,7 +137,9 @@ describe('a pr-event in the transcript', () => {
     )
 
     expect(entry.text).toBe('PR #42: dennis left an inline review comment — nit: rename this')
-    expect(entry.body).toBe('nit: rename this\nrest of the comment')
+    expect(entry.body).toBe(
+      'PR #42 in github.com/owner/repo: review comment from dennis — nit: rename this\nrest of the comment. https://github.com/owner/repo/pull/42',
+    )
   })
 
   it('renders a green verdict', () => {
