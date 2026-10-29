@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EGithubCallSource } from './github-call-log'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows, seedPrState } from '../../../../test/github-seed'
 import {
@@ -30,6 +31,7 @@ describe('GithubDeliveryService fill', () => {
 
     expect(outcome.handled).toBe(true)
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.DeliveryFill,
       token: 'ghu_creator',
       owner: 'compai',
       repo: 'app',
@@ -106,6 +108,7 @@ describe('GithubDeliveryService fill', () => {
     })
 
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.DeliveryFill,
       token: 'ghu_sub',
       owner: 'compai',
       repo: 'app',

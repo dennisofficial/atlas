@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { EGithubCallSource } from './github-call-log'
 import { GithubRepoReads } from './github-repo-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 
@@ -24,7 +25,7 @@ describe('GithubRepoReads', () => {
     it('asks github for the most recently pushed repos the user can reach, as the user', async () => {
       fetchStub.mockResolvedValue(json([]))
 
-      await reads.listRepos({ token: 'gho_abc' })
+      await reads.listRepos({ source: EGithubCallSource.RepoList, token: 'gho_abc' })
 
       const [url, init] = fetchStub.mock.calls[0] as [string, RequestInit]
       expect(url).toBe(
@@ -53,7 +54,7 @@ describe('GithubRepoReads', () => {
         ]),
       )
 
-      const repos = await reads.listRepos({ token: 't' })
+      const repos = await reads.listRepos({ source: EGithubCallSource.RepoList, token: 't' })
 
       expect(repos).toEqual([
         {
@@ -69,7 +70,9 @@ describe('GithubRepoReads', () => {
     it('throws GithubUserReadFailed carrying the github status', async () => {
       fetchStub.mockResolvedValue(new Response('bad credentials', { status: 401 }))
 
-      const failure = await reads.listRepos({ token: 't' }).catch((error: unknown) => error)
+      const failure = await reads
+        .listRepos({ source: EGithubCallSource.RepoList, token: 't' })
+        .catch((error: unknown) => error)
 
       expect(failure).toBeInstanceOf(GithubUserReadFailed)
       expect((failure as GithubUserReadFailed).status).toBe(401)
@@ -80,7 +83,12 @@ describe('GithubRepoReads', () => {
     it('lists the first hundred branches of the repo', async () => {
       fetchStub.mockResolvedValue(json([]))
 
-      await reads.listBranches({ token: 'gho_abc', owner: 'octocat', repo: 'Hello-World' })
+      await reads.listBranches({
+        source: EGithubCallSource.RepoList,
+        token: 'gho_abc',
+        owner: 'octocat',
+        repo: 'Hello-World',
+      })
 
       const [url, init] = fetchStub.mock.calls[0] as [string, RequestInit]
       expect(url).toBe('https://api.github.com/repos/octocat/Hello-World/branches?per_page=100')
@@ -95,7 +103,12 @@ describe('GithubRepoReads', () => {
         ]),
       )
 
-      const branches = await reads.listBranches({ token: 't', owner: 'o', repo: 'r' })
+      const branches = await reads.listBranches({
+        source: EGithubCallSource.RepoList,
+        token: 't',
+        owner: 'o',
+        repo: 'r',
+      })
 
       expect(branches).toEqual(['main', 'feature/x'])
     })
@@ -104,7 +117,7 @@ describe('GithubRepoReads', () => {
       fetchStub.mockResolvedValue(new Response('{"message":"Not Found"}', { status: 404 }))
 
       const failure = await reads
-        .listBranches({ token: 't', owner: 'o', repo: 'r' })
+        .listBranches({ source: EGithubCallSource.RepoList, token: 't', owner: 'o', repo: 'r' })
         .catch((error: unknown) => error)
 
       expect(failure).toBeInstanceOf(GithubUserReadFailed)

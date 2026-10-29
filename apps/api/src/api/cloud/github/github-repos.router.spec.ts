@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
+import { EGithubCallSource } from './github-call-log'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
@@ -105,7 +106,10 @@ describe('GithubReposRouter', () => {
 
       expect(reply.status).toBe(200)
       expect(reply.body).toEqual({ result: { data: REPOS } })
-      expect(reads.listRepos).toHaveBeenCalledWith({ token: 'gho_user-a' })
+      expect(reads.listRepos).toHaveBeenCalledWith({
+        source: EGithubCallSource.RepoList,
+        token: 'gho_user-a',
+      })
     })
 
     it.each([401, 403, 500])('answers 502 when github answers %i, never 401', async (status) => {
@@ -148,7 +152,11 @@ describe('GithubReposRouter', () => {
 
       expect(reply.status).toBe(200)
       expect(reply.body).toEqual({ result: { data: ['main', 'feature/x'] } })
-      expect(reads.listBranches).toHaveBeenCalledWith({ token: 'gho_user-a', ...HELLO })
+      expect(reads.listBranches).toHaveBeenCalledWith({
+        source: EGithubCallSource.RepoList,
+        token: 'gho_user-a',
+        ...HELLO,
+      })
     })
 
     it.each([

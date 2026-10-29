@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useMemo } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
@@ -32,9 +33,17 @@ export function ShellSidebarContent({
   query: CloudQuery<ProjectThreads[]>
   activeThreadId: string | null
 }) {
+  const router = useRouter()
+  const handleArchived = useCallback(
+    (threadId: string) => {
+      if (threadId === activeThreadId) router.replace('/threads')
+    },
+    [activeThreadId, router],
+  )
   const { entries, handleToggleArchive } = useThreadArchive({
     entries: query.data,
     reload: query.reload,
+    onArchived: handleArchived,
   })
   const actions = useMemo(() => ({ onToggleArchive: handleToggleArchive }), [handleToggleArchive])
 

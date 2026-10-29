@@ -8,6 +8,7 @@ import {
 import { BadGatewayException, NotFoundException } from '@nestjs/common'
 import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { EGithubCallSource } from './github-call-log'
 import { GithubRepoReads } from './github-repo-reads'
 import { GithubUserReadFailed } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -24,7 +25,7 @@ export class GithubReposRouter {
   async list(@Ctx() ctx: SessionTrpcCtx): Promise<GithubRepoSummary[]> {
     const token = await this.tokenOf(ctx)
     try {
-      return await this.reads.listRepos({ token })
+      return await this.reads.listRepos({ source: EGithubCallSource.RepoList, token })
     } catch {
       throw new BadGatewayException('github could not list repositories')
     }
@@ -37,7 +38,12 @@ export class GithubReposRouter {
   ): Promise<string[]> {
     const token = await this.tokenOf(ctx)
     try {
-      return await this.reads.listBranches({ token, owner: input.owner, repo: input.repo })
+      return await this.reads.listBranches({
+        source: EGithubCallSource.RepoList,
+        token,
+        owner: input.owner,
+        repo: input.repo,
+      })
     } catch (failure) {
       if (failure instanceof GithubUserReadFailed && failure.status === 404) {
         throw new NotFoundException('repository not found')

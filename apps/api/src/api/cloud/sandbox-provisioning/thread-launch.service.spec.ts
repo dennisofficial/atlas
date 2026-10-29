@@ -159,6 +159,43 @@ describe('ThreadLaunchService', () => {
     ])
   })
 
+  it('schedules titling for a new thread from its first message', async () => {
+    await seedBase()
+    const { service, titleFirstMessage, keepAlive } = launchWith()
+
+    const reply = await create(service)
+
+    expect(titleFirstMessage).toHaveBeenCalledTimes(1)
+    expect(titleFirstMessage.mock.calls[0]?.[0]).toMatchObject({
+      userId: 'usr-1',
+      threadId: reply.thread.id,
+      projectId: 'prj-1',
+      text: FIRST.text,
+    })
+    expect(keepAlive).toHaveBeenCalledTimes(1)
+  })
+
+  it('schedules titling even when the launch is not configured', async () => {
+    await seedBase()
+    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
+    const { service, titleFirstMessage } = launchWith({ scoped })
+
+    await create(service)
+
+    expect(titleFirstMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not schedule titling again for a replayed sendId', async () => {
+    await seedBase()
+    const { service, titleFirstMessage } = launchWith()
+
+    await create(service)
+    await create(service)
+
+    expect(titleFirstMessage).toHaveBeenCalledTimes(1)
+  })
+
   it('returns the existing thread for a retried sendId without creating or dispatching again', async () => {
     await seedBase()
     const { service, dispatch } = launchWith()

@@ -1,3 +1,7 @@
+import { basename } from 'node:path'
+
+import type { LogPort } from '@dltech/atlas-core'
+
 import {
   EForge,
   EPullRequestLookup,
@@ -6,7 +10,25 @@ import {
   type RepositoryCheckout,
 } from './pure'
 import { parseGhPullRequest } from './parse-gh-pull-request'
-import { ESpawnFailure, spawnCommand, type CommandRunner } from './run-command'
+import { ESpawnFailure, spawnCommand, type CommandRun, type CommandRunner } from './run-command'
+
+export enum EGhPollRole {
+  FailoverFallback = 'failover-fallback',
+  SignedOut = 'signed-out',
+}
+
+export enum EGhCallKind {
+  Checkout = 'checkout',
+  Linked = 'linked',
+}
+
+enum EGhCallOutcome {
+  Found = 'found',
+  Absent = 'absent',
+  Unavailable = 'unavailable',
+}
+
+export const GH_CALL_LOG_SOURCE = 'github.gh-call'
 
 export const GH_TIMEOUT_MS = 10_000
 
@@ -38,6 +60,12 @@ const unavailable = (retryable: boolean): PullRequestReading => ({
 
 const ABSENT: PullRequestReading = { lookup: EPullRequestLookup.Absent }
 
+const outcomeOf = (reading: PullRequestReading): EGhCallOutcome => {
+  if (reading.lookup === EPullRequestLookup.Found) return EGhCallOutcome.Found
+  if (reading.lookup === EPullRequestLookup.Absent) return EGhCallOutcome.Absent
+  return EGhCallOutcome.Unavailable
+}
+
 const jsonOf = (text: string): unknown => {
   try {
     return JSON.parse(text)
@@ -60,9 +88,14 @@ export class GhPullRequestPort extends PullRequestPort {
   private readonly run: CommandRunner
   private installed = true
 
-  constructor(args?: { run?: CommandRunner }) {
+  private readonly log: LogPort | null
+  private readonly role: EGhPollRole
+
+  constructor(args?: { run?: CommandRunner; log?: LogPort; role?: EGhPollRole }) {
     super()
     this.run = args?.run ?? spawnCommand
+    this.log = args?.log ?? null
+    this.role = args?.role ?? EGhPollRole.SignedOut
   }
 
   /**
@@ -74,7 +107,12 @@ export class GhPullRequestPort extends PullRequestPort {
   async read({ checkout }: { checkout: RepositoryCheckout }): Promise<PullRequestReading> {
     if (checkout.forge === EForge.Other) return unavailable(false)
 
-    return this.ask({ argv: GH_PULL_REQUEST_ARGV, cwd: checkout.directory })
+    return this.ask({
+      argv: GH_PULL_REQUEST_ARGV,
+      cwd: checkout.directory,
+      kind: EGhCallKind.Checkout,
+      target: basename(checkout.directory),
+    })
   }
 
   /**
@@ -89,21 +127,48 @@ export class GhPullRequestPort extends PullRequestPort {
     repo: string
     number: number
   }): Promise<PullRequestReading> {
-    return this.ask({ argv: linkedArgv({ repo, number }), cwd: process.cwd() })
+    return this.ask({
+      argv: linkedArgv({ repo, number }),
+      cwd: process.cwd(),
+      kind: EGhCallKind.Linked,
+      target: `${repo}#${number}`,
+    })
   }
 
   private async ask(request: {
     argv: readonly string[]
     cwd: string
+    kind: EGhCallKind
+    target: string
   }): Promise<PullRequestReading> {
     if (!this.installed) return unavailable(false)
 
+    const startedAt = performance.now()
     const run = await this.run({
       argv: request.argv,
       cwd: request.cwd,
       timeoutMs: GH_TIMEOUT_MS,
     })
+    const reading = this.interpret(run)
 
+    this.log?.info({
+      source: GH_CALL_LOG_SOURCE,
+      message: 'gh pr view',
+      data: {
+        role: this.role,
+        kind: request.kind,
+        target: request.target,
+        exitCode: run.code,
+        failure: run.failure,
+        durationMs: Math.round(performance.now() - startedAt),
+        outcome: outcomeOf(reading),
+      },
+    })
+
+    return reading
+  }
+
+  private interpret(run: CommandRun): PullRequestReading {
     if (run.failure !== null) {
       if (run.failure !== ESpawnFailure.BinaryMissing) return unavailable(true)
 

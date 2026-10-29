@@ -35,7 +35,7 @@ function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
     try {
       await deleteProject(projectId)
       toast.success('Project deleted')
-      router.push('/')
+      router.push('/threads')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not delete the project')
       setDeleting(false)

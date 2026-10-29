@@ -19,7 +19,7 @@ export function DeviceResult({ result }: { result: EDeviceResult }) {
           title="Return to your terminal"
           description="Your device is authorized. Atlas in your terminal will finish signing in on its own, and you can close this tab."
         />
-        <LinkButton href="/" variant="outline">
+        <LinkButton href="/threads" variant="outline">
           Go to Atlas Cloud
         </LinkButton>
       </div>
@@ -34,7 +34,7 @@ export function DeviceResult({ result }: { result: EDeviceResult }) {
           title="Request denied"
           description="The device was not signed in. If this wasn't you, no action is needed."
         />
-        <LinkButton href="/" variant="outline">
+        <LinkButton href="/threads" variant="outline">
           Go to Atlas Cloud
         </LinkButton>
       </div>

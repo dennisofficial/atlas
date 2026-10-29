@@ -13,7 +13,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 }
 
 const ALLOWED_EXTERNAL =
-  /^(?:@dltech\/(?:atlas-wire|atlas-db|bun-test-shims)(?:\/|$)|@dltech\/atlas-harness\/models$)/
+  /^(?:@dltech\/(?:atlas-wire|atlas-db|bun-test-shims)(?:\/|$)|@dltech\/atlas-harness\/(?:models|titling)$)/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)

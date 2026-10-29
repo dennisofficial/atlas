@@ -10,7 +10,7 @@ export function ShellMobileBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b px-2 md:hidden">
       <SidebarTrigger aria-label="Open navigation" size="icon-lg" />
-      <Link href="/" className="flex items-center gap-2 px-1 text-sm font-medium">
+      <Link href="/threads" className="flex items-center gap-2 px-1 text-sm font-medium">
         <AtlasMark className="size-5" />
         Atlas
       </Link>

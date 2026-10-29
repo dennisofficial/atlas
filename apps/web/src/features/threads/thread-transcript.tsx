@@ -12,16 +12,19 @@ import type { PodStatus } from '@dltech/atlas-wire/web'
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
+import type { BootView } from './data/boot-view'
 import { rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
 import { ETurnKind, turnsOf } from './data/transcript-turns'
-import { useNow } from './data/use-now'
+import { useNow, useNowEvery } from './data/use-now'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { TurnView, type TranscriptRewind } from './transcript/transcript-turn'
 
 export type { TranscriptRewind }
+
+const BOOT_TICK_MS = 100
 
 function ParkedLine() {
   return (
@@ -36,13 +39,23 @@ function ParkedLine() {
   )
 }
 
+function TickingSandboxBoot({ view, onRetry }: { view: BootView; onRetry?: () => void }) {
+  const { startedAtMs } = view
+  const now = useNowEvery({ enabled: startedAtMs !== undefined, tickMs: BOOT_TICK_MS })
+  const ticked =
+    startedAtMs === undefined ? view : { ...view, elapsedMs: Math.max(0, now - startedAtMs) }
+  return <SandboxBoot {...sandboxBootPropsOf(ticked)} {...(onRetry ? { onRetry } : {})} />
+}
+
 function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => void }) {
   return (
     <ChatItem id={entry.id}>
       {entry.kind === EBootEntryKind.Parked ? (
         <ParkedLine />
+      ) : entry.live ? (
+        <TickingSandboxBoot view={entry.view} onRetry={onRetry} />
       ) : (
-        <SandboxBoot {...sandboxBootPropsOf(entry.view)} {...(entry.live ? { onRetry } : {})} />
+        <SandboxBoot {...sandboxBootPropsOf(entry.view)} />
       )}
     </ChatItem>
   )
@@ -52,7 +65,6 @@ export function ThreadTranscript({
   items,
   failure,
   pod,
-  bootNow,
   working,
   onRetryBoot,
   rewind,
@@ -60,7 +72,6 @@ export function ThreadTranscript({
   items: readonly TranscriptRow[]
   failure: string | null
   pod: PodStatus | null
-  bootNow: number
   working: boolean
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
@@ -70,7 +81,7 @@ export function ThreadTranscript({
   const { channel, openChanges, openAgent } = useThreadPanel()
   const models = rosterModelsOf(useRoster(channel))
   const turns = turnsOf({ items, working })
-  const boot = bootTimelineOf({ turns, pod, now: bootNow })
+  const boot = bootTimelineOf({ turns, pod, now: 0 })
   const userName = user?.name
   const actions = useMemo(
     () => ({ rewind, openChanges, openAgent }),

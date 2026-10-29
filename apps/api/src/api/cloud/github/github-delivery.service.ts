@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
@@ -183,6 +184,7 @@ export class GithubDeliveryService {
   }): Promise<GithubPrStateRecord | null> {
     try {
       const fields = await this.reads.readPullRequest({
+        source: EGithubCallSource.DeliveryFill,
         token: args.token,
         owner: args.owner,
         repo: args.repo,

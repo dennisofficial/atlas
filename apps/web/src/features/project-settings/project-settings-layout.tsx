@@ -39,7 +39,7 @@ function ProjectNotFound() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/" />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/threads" />}>
           Back to Atlas
         </Button>
       </EmptyContent>

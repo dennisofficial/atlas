@@ -2,12 +2,15 @@ import {
   BookOpenTextIcon,
   BotIcon,
   BrainIcon,
+  FlaskConicalIcon,
   GaugeIcon,
   PaletteIcon,
   PlugIcon,
   ServerIcon,
+  ShieldCheckIcon,
   UserIcon,
   VariableIcon,
+  WrenchIcon,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +26,9 @@ export enum ESettingsPage {
   Appearance = 'appearance',
   Notifications = 'notifications',
   Security = 'security',
+  Agent = 'agent',
+  Experimental = 'experimental',
+  Quality = 'quality',
 }
 
 export type SettingsNavItem = {
@@ -54,6 +60,9 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
       { page: ESettingsPage.Memory, label: 'Memory', icon: BrainIcon },
       { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },
+      { page: ESettingsPage.Agent, label: 'Agent', icon: WrenchIcon },
+      { page: ESettingsPage.Quality, label: 'Code Quality', icon: ShieldCheckIcon },
+      { page: ESettingsPage.Experimental, label: 'Experimental', icon: FlaskConicalIcon },
     ],
   },
   {

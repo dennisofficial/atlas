@@ -29,8 +29,9 @@ const withoutOverride = (args: { overrides: ArchiveOverrides; threadId: string }
 export function useThreadArchive(args: {
   entries: readonly ProjectThreads[] | undefined
   reload: () => void
+  onArchived: (threadId: string) => void
 }) {
-  const { entries, reload } = args
+  const { entries, reload, onArchived } = args
   const [overrides, setOverrides] = useState<ArchiveOverrides>(NO_OVERRIDES)
 
   const settled = entries === undefined ? overrides : settleArchiveOverrides({ entries, overrides })
@@ -52,13 +53,14 @@ export function useThreadArchive(args: {
       setOverrides((current) => withOverride({ overrides: current, threadId, archivedAt }))
       try {
         await setThreadArchived({ threadId, archived })
+        if (archived) onArchived(threadId)
         reload()
       } catch {
         setOverrides((current) => withoutOverride({ overrides: current, threadId }))
         toast.error(archived ? "Couldn't archive the thread" : "Couldn't restore the thread")
       }
     },
-    [reload],
+    [reload, onArchived],
   )
 
   return { entries: shown, handleToggleArchive }

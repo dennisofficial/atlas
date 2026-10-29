@@ -102,6 +102,9 @@ const settingsOver = (values: Record<string, string>) =>
     user: new MemorySettingsStore({ document: { values } }),
   })
 
+const settledOf = (settings: ReturnType<typeof settingsOver>) => () =>
+  settings.snapshot().resolution
+
 const sessionModel = (modelId: string): LanguageModelV4 => ({
   specificationVersion: 'v4',
   provider: 'session',
@@ -129,7 +132,7 @@ describe('createUtilityModel', () => {
     const builds: BuiltModel[] = []
     const model = createUtilityModel({
       role: EUtilityModelRole.Tldr,
-      settings: settingsOver({ [ESettingId.ModelId]: 'anthropic/claude-sonnet-5' }),
+      settled: settledOf(settingsOver({ [ESettingId.ModelId]: 'anthropic/claude-sonnet-5' })),
       catalogue: fakeCatalogue({ builds }),
       notice: recordingNotices().port,
     })
@@ -143,10 +146,12 @@ describe('createUtilityModel', () => {
     const builds: BuiltModel[] = []
     const model = createUtilityModel({
       role: EUtilityModelRole.Tldr,
-      settings: settingsOver({
-        [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
-        [ESettingId.QuickModel]: 'openai/gpt-5.1-codex-mini',
-      }),
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
+          [ESettingId.QuickModel]: 'openai/gpt-5.1-codex-mini',
+        }),
+      ),
       catalogue: fakeCatalogue({ builds }),
       notice: recordingNotices().port,
     })
@@ -161,7 +166,7 @@ describe('createUtilityModel', () => {
     const builds: BuiltModel[] = []
     const model = createUtilityModel({
       role: EUtilityModelRole.Compaction,
-      settings: settingsOver({}),
+      settled: settledOf(settingsOver({})),
       catalogue: fakeCatalogue({ builds }),
       notice: recordingNotices().port,
     })
@@ -176,7 +181,7 @@ describe('createUtilityModel', () => {
     const settings = settingsOver({})
     const model = createUtilityModel({
       role: EUtilityModelRole.Titler,
-      settings,
+      settled: settledOf(settings),
       catalogue: fakeCatalogue({ builds }),
       notice: recordingNotices().port,
     })
@@ -197,7 +202,7 @@ describe('createUtilityModel', () => {
       const notices = recordingNotices()
       const model = createUtilityModel({
         role,
-        settings: settingsOver({}),
+        settled: settledOf(settingsOver({})),
         catalogue: fakeCatalogue({ builds: [], fails: true }),
         notice: notices.port,
         fallback: () => sessionModel('claude-sonnet-5'),
@@ -219,7 +224,7 @@ describe('createUtilityModel', () => {
     let resolved = 0
     const model = createUtilityModel({
       role: EUtilityModelRole.Tldr,
-      settings: settingsOver({}),
+      settled: settledOf(settingsOver({})),
       catalogue: fakeCatalogue({ builds: [], fails: true }),
       notice: recordingNotices().port,
       fallback: () => {
@@ -238,7 +243,7 @@ describe('createUtilityModel', () => {
   it('lets the failure surface when no fallback can answer', async () => {
     const model = createUtilityModel({
       role: EUtilityModelRole.Tldr,
-      settings: settingsOver({}),
+      settled: settledOf(settingsOver({})),
       catalogue: fakeCatalogue({ builds: [], fails: true }),
       notice: recordingNotices().port,
       fallback: () => undefined,
@@ -251,7 +256,7 @@ describe('createUtilityModel', () => {
     const notices = recordingNotices()
     const model = createUtilityModel({
       role: EUtilityModelRole.Judge,
-      settings: settingsOver({}),
+      settled: settledOf(settingsOver({})),
       catalogue: fakeCatalogue({ builds: [], fails: true }),
       notice: notices.port,
     })
