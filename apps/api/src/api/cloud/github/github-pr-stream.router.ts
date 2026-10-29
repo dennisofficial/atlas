@@ -1,8 +1,11 @@
 import {
+  EGithubPrStatesFrame,
   EGithubPrStreamFrame,
   EGithubWakeFrame,
+  githubPrStatesOutputSchema,
   githubPrStreamOutputSchema,
   githubWakeStreamOutputSchema,
+  type GithubPrStatesFrame,
   type GithubPrStreamFrame,
   type GithubWakeFrame,
 } from '@dltech/atlas-wire'
@@ -80,6 +83,45 @@ export class GithubPrStreamRouter {
         })
         const heartbeat = setInterval(() => {
           sink.push({ type: EGithubWakeFrame.Heartbeat })
+        }, PR_STREAM_HEARTBEAT_INTERVAL_MS)
+        return () => {
+          clearInterval(heartbeat)
+          close()
+        }
+      },
+    })
+  }
+
+  @Subscription({ output: githubPrStatesOutputSchema })
+  states(
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ): AsyncGenerator<GithubPrStatesFrame> {
+    if (this.drain.isDraining()) {
+      throw new ServiceUnavailableException('the api is restarting — retry the stream')
+    }
+    const userId = ctx.auth.userId
+    return prStreamFrames<GithubPrStatesFrame>({
+      signal: opts.signal,
+      attach: (sink) => {
+        sink.push({ type: EGithubPrStatesFrame.Heartbeat })
+        void this.replayKnownStates({
+          userId,
+          sink: {
+            ...sink,
+            push: (frame) => {
+              if (frame.type !== EGithubPrStreamFrame.PrState) return
+              sink.push({ type: EGithubPrStatesFrame.PrState, state: frame.state })
+            },
+          },
+        })
+        const close = this.fanout.openStream({
+          userId,
+          handler: (state) => sink.push({ type: EGithubPrStatesFrame.PrState, state }),
+          onClosed: () => sink.close(),
+        })
+        const heartbeat = setInterval(() => {
+          sink.push({ type: EGithubPrStatesFrame.Heartbeat })
         }, PR_STREAM_HEARTBEAT_INTERVAL_MS)
         return () => {
           clearInterval(heartbeat)

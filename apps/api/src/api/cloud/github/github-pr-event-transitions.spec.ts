@@ -49,12 +49,14 @@ describe('transitionsOf', () => {
     expect(events[0]?.payload.verdict).toBe('green')
   })
 
-  it('fail-fast default emits no green verdict when the settle carries failures', () => {
+  it('fail-fast default announces the settled run when a failure was already announced', () => {
     const events = transitionsOf({
-      prior: { ...runningNoMergeable, checksFailed: 1 },
-      next: { ...base, checksRunning: 0, checksPassed: 9, checksFailed: 1, mergeable: null },
+      prior: { ...runningNoMergeable, checksRunning: 5, checksPassed: 3, checksFailed: 1 },
+      next: { ...base, checksRunning: 0, checksPassed: 8, checksFailed: 1, mergeable: null },
     })
-    expect(events).toEqual([])
+    expect(kindsOf(events)).toEqual([EPrEventKind.Verdict])
+    expect(events[0]?.payload.verdict).toBe('failed')
+    expect(events[0]?.payload.settled).toBe(true)
   })
 
   it('suppresses the standalone mergeability flip while checks are still running', () => {

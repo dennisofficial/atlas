@@ -222,6 +222,7 @@ export type EventBody =
       body?: string | undefined
       verdict?: EPrVerdict | undefined
       headSha?: string | undefined
+      settled?: boolean | undefined
       mergeable?: boolean | undefined
       state?: string | undefined
       reviewState?: EPrReviewState | undefined

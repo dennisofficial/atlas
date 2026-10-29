@@ -48,6 +48,7 @@ const eventSchema = z.object({
     mergeable: z.boolean().exactOptional(),
     state: z.enum(['merged', 'closed']).exactOptional(),
     headSha: z.string().exactOptional(),
+    settled: z.boolean().exactOptional(),
   }),
   createdAt: z.string(),
 })

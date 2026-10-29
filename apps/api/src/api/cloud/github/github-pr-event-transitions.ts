@@ -40,10 +40,15 @@ export function transitionsOf(args: {
         kind: EPrEventKind.Verdict,
         payload: { url: args.next.url, verdict: 'failed', headSha: args.next.headSha },
       })
-    } else if (settledFromRunning && args.next.checksFailed === 0) {
+    } else if (settledFromRunning) {
       events.push({
         kind: EPrEventKind.Verdict,
-        payload: { url: args.next.url, verdict: 'green', headSha: args.next.headSha },
+        payload: {
+          url: args.next.url,
+          verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
+          headSha: args.next.headSha,
+          ...(args.next.checksFailed > 0 && args.prior.checksFailed > 0 ? { settled: true } : {}),
+        },
       })
     }
   } else if (settledFromRunning) {

@@ -163,3 +163,18 @@ export type GithubWakeFrame = z.infer<typeof githubWakeFrameSchema>
 export const githubWakeStreamOutputSchema = z.custom<AsyncIterable<GithubWakeFrame>>((value) =>
   isAsyncIterable<GithubWakeFrame>(value),
 )
+
+export enum EGithubPrStatesFrame {
+  PrState = 'pr-state',
+  Heartbeat = 'heartbeat',
+}
+
+export const githubPrStatesFrameSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal(EGithubPrStatesFrame.PrState), state: githubPrStateSchema }),
+  z.object({ type: z.literal(EGithubPrStatesFrame.Heartbeat) }),
+])
+export type GithubPrStatesFrame = z.infer<typeof githubPrStatesFrameSchema>
+
+export const githubPrStatesOutputSchema = z.custom<AsyncIterable<GithubPrStatesFrame>>((value) =>
+  isAsyncIterable<GithubPrStatesFrame>(value),
+)
