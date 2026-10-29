@@ -25,10 +25,10 @@ type Story = StoryObj<typeof meta>
 export const Done: Story = { args: { duration: '12s' } }
 
 export const Running: Story = {
-  args: { running: true, text: REASONING_TEXT.split('\n\n')[0] ?? '' },
+  args: { live: true, text: REASONING_TEXT.split('\n\n')[0] ?? '' },
 }
 
-export const Empty: Story = { args: { running: true, text: '' } }
+export const Empty: Story = { args: { live: true, text: '' } }
 
 function StreamingDemo() {
   const [length, setLength] = useState(0)
@@ -43,7 +43,7 @@ function StreamingDemo() {
   return (
     <Reasoning
       text={REASONING_TEXT.slice(0, length)}
-      running={!finished}
+      live={!finished}
       duration={finished ? '7s' : undefined}
     />
   )

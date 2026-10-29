@@ -23,6 +23,7 @@ const thought = (id: string, at?: string): TranscriptItem => ({
   id,
   text: id,
   streaming: false,
+  heldOpen: false,
   ...(at === undefined ? {} : { at }),
 })
 const tools = (id: string, count: number, at?: string): TranscriptItem => ({
