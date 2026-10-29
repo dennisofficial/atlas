@@ -1,4 +1,4 @@
-import type { SecretDetail } from '@dltech/atlas-wire/web'
+import type { SecretSummary } from '@dltech/atlas-wire/web'
 
 export interface SecretDto {
   name: string
@@ -10,6 +10,6 @@ export interface SecretListDto {
   secrets: SecretDto[]
 }
 
-export interface SecretDetailListDto {
-  secrets: SecretDetail[]
+export interface SecretSummaryListDto {
+  secrets: SecretSummary[]
 }

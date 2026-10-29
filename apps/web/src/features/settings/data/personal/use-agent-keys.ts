@@ -4,7 +4,6 @@ import { useCallback } from 'react'
 
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { ESecretKind } from '../../fixtures/settings-library'
 import type { KeyEntry } from '../../parts/agent-key-row'
 import { EKeyNoun } from './agent-keys'
 import { fetchSecretNames, putSecret } from './secrets-api'
@@ -23,7 +22,7 @@ export function useAgentKeys(): {
   const handleSaveKey = useCallback(
     async (entry: KeyEntry) => {
       const done = await run({
-        work: () => putSecret({ name: entry.name, value: entry.value, kind: ESecretKind.Secret }),
+        work: () => putSecret({ name: entry.name, value: entry.value }),
         success: entry.noun === EKeyNoun.Url ? 'URL saved' : 'Key saved',
       })
       if (done) reload()

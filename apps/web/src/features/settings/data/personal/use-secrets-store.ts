@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react'
 
-import { ENV_NAME_PATTERN, type SecretDetail } from '@dltech/atlas-wire/web'
+import { ENV_NAME_PATTERN, type SecretSummary } from '@dltech/atlas-wire/web'
 
 import type { LibraryMember } from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
@@ -13,22 +13,22 @@ const INVALID_NAME =
   'Names start with a letter or underscore and use only letters, digits and underscores.'
 
 export function useSecretsStore(args: {
-  details: SecretDetail[]
+  summaries: SecretSummary[]
   currentMember: LibraryMember
   reload: () => void
 }): SecretsStore {
-  const { details, currentMember, reload } = args
+  const { summaries, currentMember, reload } = args
   const secrets = useMemo(
-    () => details.map((detail) => toLibrarySecret({ detail, addedBy: currentMember })),
-    [details, currentMember],
+    () => summaries.map((summary) => toLibrarySecret({ summary, addedBy: currentMember })),
+    [summaries, currentMember],
   )
   const save = useCallback(
     async (entry: SecretEntry) => {
       if (!ENV_NAME_PATTERN.test(entry.key)) throw new Error(INVALID_NAME)
-      await saveSecretEntry({ entry, secrets })
+      await saveSecretEntry({ entry })
       reload()
     },
-    [secrets, reload],
+    [reload],
   )
   const remove = useCallback(
     async (key: string) => {

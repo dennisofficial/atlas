@@ -137,7 +137,7 @@ describe('per-turn Cloud refresh', () => {
   })
 
   it('updates and removes the env secrets it exported, never inherited ones', async () => {
-    const envSecret = (name: string, value: string) => ({ name, value, kind: 'env' })
+    const envSecret = (name: string, value: string) => ({ name, value })
     const { state, refresh, env, cloud } = rig({
       secrets: [envSecret('DATABASE_URL', 'postgres://a'), envSecret('INHERITED', 'cloud')],
     })

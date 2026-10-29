@@ -2,6 +2,7 @@ export interface VerifiedSession {
   userId: string
   sessionId: string
   email: string
+  sessionCreatedAt?: Date | undefined
 }
 
 /**

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d23bb282103f356355aa25e6ef1b04f866cf8ec2c86579853d9410d1f7f0831e'>;
+  StorageHashBase<'a7d41c08974879da5ec02d956fc526de4d5f955818d32119a17019e198d0a159'>;
 export type ExecutionHash =
   ExecutionHashBase<'0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d'>;
 export type ProfileHash =
@@ -588,7 +588,6 @@ export namespace Models {
   export type public_ProjectSecret = {
     createdAt: FieldOutputTypes['public']['ProjectSecret']['createdAt'];
     id: FieldOutputTypes['public']['ProjectSecret']['id'];
-    kind: FieldOutputTypes['public']['ProjectSecret']['kind'];
     name: FieldOutputTypes['public']['ProjectSecret']['name'];
     projectId: FieldOutputTypes['public']['ProjectSecret']['projectId'];
     sealedValue: FieldOutputTypes['public']['ProjectSecret']['sealedValue'];
@@ -835,7 +834,6 @@ export namespace Models {
   export type public_UserSecret = {
     createdAt: FieldOutputTypes['public']['UserSecret']['createdAt'];
     id: FieldOutputTypes['public']['UserSecret']['id'];
-    kind: FieldOutputTypes['public']['UserSecret']['kind'];
     name: FieldOutputTypes['public']['UserSecret']['name'];
     sealedValue: FieldOutputTypes['public']['UserSecret']['sealedValue'];
     updatedAt: FieldOutputTypes['public']['UserSecret']['updatedAt'];
@@ -3212,16 +3210,6 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly kind: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'secret'>;
-                  };
-                  readonly many: false;
-                };
                 readonly name: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3513,16 +3501,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly kind: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'secret'>;
-                  };
                   readonly many: false;
                 };
                 readonly name: {
@@ -6539,10 +6517,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly name: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6584,7 +6558,6 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
                 readonly name: { readonly column: 'name' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly sealedValue: { readonly column: 'sealedValue' };
@@ -7942,10 +7915,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly name: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7984,7 +7953,6 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
                 readonly name: { readonly column: 'name' };
                 readonly sealedValue: { readonly column: 'sealedValue' };
                 readonly updatedAt: { readonly column: 'updatedAt' };

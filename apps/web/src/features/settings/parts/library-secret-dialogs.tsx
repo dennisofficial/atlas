@@ -14,11 +14,8 @@ import {
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
-import { ESecretKind } from '../fixtures/settings-library'
-
-export type SecretEntry = { key: string; value: string; kind: ESecretKind }
+export type SecretEntry = { key: string; value: string }
 
 const FORM_NOTE = 'Only you can see this. Project values override it.'
 
@@ -32,7 +29,6 @@ export function parseBulkLines(text: string): SecretEntry[] {
       return {
         key: line.slice(0, index).trim(),
         value: line.slice(index + 1).trim(),
-        kind: ESecretKind.EnvVar,
       }
     })
     .filter((entry) => entry.key.length > 0)
@@ -43,21 +39,14 @@ function SecretForm({
   onCancel,
   onSubmit,
 }: {
-  initial: SecretEntry | null
+  initial: Pick<SecretEntry, 'key'> | null
   onCancel: () => void
   onSubmit: (entry: SecretEntry) => void
 }) {
   const editing = initial !== null
   const [key, setKey] = useState(initial?.key ?? '')
   const [value, setValue] = useState('')
-  const [kind, setKind] = useState(initial?.kind ?? ESecretKind.Secret)
-
-  const handleKindChange = (next: readonly unknown[]) => {
-    const first = next[0]
-    if (first === ESecretKind.Secret || first === ESecretKind.EnvVar) setKind(first)
-  }
-
-  const canSubmit = key.trim().length > 0 && (editing || value.length > 0)
+  const canSubmit = key.trim().length > 0 && value.length > 0
 
   return (
     <>
@@ -82,36 +71,18 @@ function SecretForm({
           <Input
             id="library-secret-value"
             className="font-mono text-xs"
-            type={kind === ESecretKind.Secret ? 'password' : 'text'}
-            placeholder={editing ? 'Leave blank to keep the current value' : 'Value'}
+            type="password"
+            placeholder={editing ? 'New value' : 'Value'}
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Type</Label>
-          <ToggleGroup
-            variant="outline"
-            size="sm"
-            spacing={0}
-            value={[kind]}
-            onValueChange={handleKindChange}
-          >
-            <ToggleGroupItem value={ESecretKind.Secret}>Secret</ToggleGroupItem>
-            <ToggleGroupItem value={ESecretKind.EnvVar}>Env var</ToggleGroupItem>
-          </ToggleGroup>
-          <p className="text-xs text-muted-foreground">
-            {kind === ESecretKind.Secret
-              ? 'Secrets are encrypted and never shown again after saving.'
-              : 'Env vars are plain values you can reveal later.'}
-          </p>
         </div>
       </div>
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onCancel}>
           Cancel
         </Button>
-        <Button size="sm" disabled={!canSubmit} onClick={() => onSubmit({ key, value, kind })}>
+        <Button size="sm" disabled={!canSubmit} onClick={() => onSubmit({ key, value })}>
           {editing ? 'Save' : 'Add'}
         </Button>
       </DialogFooter>
@@ -127,7 +98,7 @@ export function SecretDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  initial: SecretEntry | null
+  initial: Pick<SecretEntry, 'key'> | null
   onSubmit: (entry: SecretEntry) => void
 }) {
   return (
@@ -162,7 +133,6 @@ function BulkForm({
         <DialogTitle>Bulk add</DialogTitle>
         <DialogDescription>
           Paste one <span className="font-mono text-xs">KEY=value</span> per line, like a .env file.
-          Lines are added as env vars.
         </DialogDescription>
       </DialogHeader>
       <Textarea

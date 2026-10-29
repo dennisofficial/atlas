@@ -21,7 +21,6 @@ export const SHIP_BEHAVIORS: readonly {
 
 export interface SecretRow {
   name: string
-  value: string
   updated: string
 }
 

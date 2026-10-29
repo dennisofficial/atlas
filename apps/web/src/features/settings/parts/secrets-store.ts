@@ -22,11 +22,14 @@ export function useLocalSecretsStore(args: {
       const next: LibrarySecret = existing
         ? {
             ...existing,
-            kind: entry.kind,
-            value: entry.value || existing.value,
             updated: 'just now',
           }
-        : { id: `new-${entry.key}`, ...entry, updated: 'just now', addedBy: args.currentMember }
+        : {
+            id: `new-${entry.key}`,
+            key: entry.key,
+            updated: 'just now',
+            addedBy: args.currentMember,
+          }
       return [next, ...current.filter((secret) => secret.key !== entry.key)]
     })
   }

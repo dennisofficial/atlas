@@ -1,55 +1,37 @@
 import { describe, expect, test } from 'bun:test'
 
-import {
-  ESecretKind,
-  ESecretsScope,
-  type LibrarySecret,
-} from '../../../settings/fixtures/settings-library'
+import { ESecretsScope, type LibrarySecret } from '../../../settings/fixtures/settings-library'
 import {
   overriddenKeys,
   parseEnvText,
   partitionByScope,
-  splitByKind,
   updateEntry,
   upsertEntries,
 } from '../secrets-model'
 
-function row({
-  key,
-  scope,
-  kind = ESecretKind.Secret,
-}: {
-  key: string
-  scope: ESecretsScope
-  kind?: ESecretKind
-}): LibrarySecret {
-  return { id: `${scope}-${key}`, key, kind, value: 'old', updated: '1d ago', scope }
+function row({ key, scope }: { key: string; scope: ESecretsScope }): LibrarySecret {
+  return { id: `${scope}-${key}`, key, value: 'old', updated: '1d ago', scope }
 }
 
 describe('parseEnvText', () => {
   test('skips comments, blanks and lines without an equals sign', () => {
     const text = '# note\n\nA=1\nnot a pair\nB=two=parts'
-    expect(parseEnvText({ text, kind: ESecretKind.EnvVar })).toEqual([
-      { key: 'A', value: '1', kind: ESecretKind.EnvVar },
-      { key: 'B', value: 'two=parts', kind: ESecretKind.EnvVar },
+    expect(parseEnvText({ text })).toEqual([
+      { key: 'A', value: '1' },
+      { key: 'B', value: 'two=parts' },
     ])
   })
 
   test('strips export prefixes and matching quotes', () => {
     const text = 'export TOKEN="abc def"\nNAME=\'x\''
-    expect(parseEnvText({ text, kind: ESecretKind.Secret })).toEqual([
-      { key: 'TOKEN', value: 'abc def', kind: ESecretKind.Secret },
-      { key: 'NAME', value: 'x', kind: ESecretKind.Secret },
+    expect(parseEnvText({ text })).toEqual([
+      { key: 'TOKEN', value: 'abc def' },
+      { key: 'NAME', value: 'x' },
     ])
   })
 
-  test('applies the requested kind to every line', () => {
-    const entries = parseEnvText({ text: 'A=1\nB=2', kind: ESecretKind.Secret })
-    expect(entries.every((entry) => entry.kind === ESecretKind.Secret)).toBe(true)
-  })
-
   test('drops lines with an empty key', () => {
-    expect(parseEnvText({ text: '=value', kind: ESecretKind.EnvVar })).toEqual([])
+    expect(parseEnvText({ text: '=value' })).toEqual([])
   })
 })
 
@@ -76,7 +58,7 @@ describe('upsertEntries', () => {
     ]
     const next = upsertEntries({
       rows,
-      entries: [{ key: 'A', value: 'new', kind: ESecretKind.EnvVar }],
+      entries: [{ key: 'A', value: 'new' }],
       scope: ESecretsScope.Project,
     })
     expect(next).toHaveLength(2)
@@ -90,22 +72,10 @@ describe('updateEntry', () => {
     const rows = [row({ key: 'A', scope: ESecretsScope.Personal })]
     const next = updateEntry({
       rows,
-      entry: { key: 'A', value: '', kind: ESecretKind.EnvVar },
+      entry: { key: 'A', value: '' },
       scope: ESecretsScope.Personal,
     })
-    expect(next[0]).toMatchObject({ value: 'old', kind: ESecretKind.EnvVar, updated: 'just now' })
-  })
-})
-
-describe('splitByKind', () => {
-  test('groups env vars and secrets', () => {
-    const rows = [
-      row({ key: 'A', scope: ESecretsScope.Personal, kind: ESecretKind.EnvVar }),
-      row({ key: 'B', scope: ESecretsScope.Personal }),
-    ]
-    const { envVars, secrets } = splitByKind(rows)
-    expect(envVars.map((r) => r.key)).toEqual(['A'])
-    expect(secrets.map((r) => r.key)).toEqual(['B'])
+    expect(next[0]).toMatchObject({ value: 'old', updated: 'just now' })
   })
 })
 
@@ -141,7 +111,7 @@ describe('editing a personal value from the project page', () => {
   test('updates the personal row and leaves the project row alone', () => {
     const next = updateEntry({
       rows,
-      entry: { key: 'A', value: 'mine', kind: ESecretKind.Secret },
+      entry: { key: 'A', value: 'mine' },
       scope: ESecretsScope.Personal,
     })
     expect(next[0]).toMatchObject({ scope: ESecretsScope.Project, value: 'old' })

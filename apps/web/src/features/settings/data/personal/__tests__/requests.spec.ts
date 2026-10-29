@@ -3,68 +3,34 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire/web'
 
 import { answerTrpc, resetTrpc, restoreTrpc, trpcCalls, trpcData } from '@/lib/__tests__/fake-trpc'
-import { ESecretKind } from '../../../fixtures/settings-library'
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { addMcpServer } from '../mcp-api'
 import { deleteMemory, fetchMemoryEntry, fetchMemoryGroups } from '../memory-api'
-import { deleteSecret, saveSecretEntry } from '../secrets-api'
+import { deleteSecret, revealSecret, saveSecretEntry } from '../secrets-api'
 
 beforeEach(resetTrpc)
 afterEach(restoreTrpc)
 
-const stored = {
-  id: 'API_KEY',
-  key: 'API_KEY',
-  kind: ESecretKind.Secret,
-  value: 'hunter2',
-  updated: 'now',
-  addedBy: { name: 'Me', initials: 'M' },
-}
-
 describe('personal secret save', () => {
-  it('keeps the stored value when an edit leaves the value blank', async () => {
-    await saveSecretEntry({
-      entry: { key: 'API_KEY', value: '', kind: ESecretKind.Secret },
-      secrets: [stored],
-    })
+  it('sends the typed value', async () => {
+    await saveSecretEntry({ entry: { key: 'API_KEY', value: 'new' } })
     expect(trpcCalls).toEqual([
-      {
-        url: '/v1/trpc/secrets.set',
-        method: 'POST',
-        body: { name: 'API_KEY', value: 'hunter2', kind: ESecretKind.Secret },
-      },
+      { url: '/v1/trpc/secrets.set', method: 'POST', body: { name: 'API_KEY', value: 'new' } },
     ])
   })
 
-  it('keeps the stored value on a kind-only change', async () => {
-    await saveSecretEntry({
-      entry: { key: 'API_KEY', value: '', kind: ESecretKind.EnvVar },
-      secrets: [stored],
-    })
-    expect(trpcCalls[0]?.body).toEqual({
-      name: 'API_KEY',
-      value: 'hunter2',
-      kind: ESecretKind.EnvVar,
-    })
+  it('refuses a blank value without calling the API', () => {
+    expect(() => saveSecretEntry({ entry: { key: 'API_KEY', value: '' } })).toThrow(
+      'A value is required',
+    )
+    expect(trpcCalls).toHaveLength(0)
   })
 
-  it('sends a typed value and refuses a blank new secret', async () => {
-    await saveSecretEntry({
-      entry: { key: 'API_KEY', value: 'new', kind: ESecretKind.Secret },
-      secrets: [stored],
-    })
-    expect(trpcCalls[0]?.body).toEqual({
-      name: 'API_KEY',
-      value: 'new',
-      kind: ESecretKind.Secret,
-    })
-    expect(() =>
-      saveSecretEntry({
-        entry: { key: 'OTHER', value: '', kind: ESecretKind.Secret },
-        secrets: [stored],
-      }),
-    ).toThrow('A value is required')
-    expect(trpcCalls).toHaveLength(1)
+  it('reveals one value by name through secrets.reveal', async () => {
+    answerTrpc(() => trpcData({ value: 'hunter2' }))
+    expect(await revealSecret('API_KEY')).toBe('hunter2')
+    expect(trpcCalls[0]?.url).toContain('/v1/trpc/secrets.reveal')
+    expect(decodeURIComponent(trpcCalls[0]?.url ?? '')).toContain('"name":"API_KEY"')
   })
 
   it('deletes by name', async () => {

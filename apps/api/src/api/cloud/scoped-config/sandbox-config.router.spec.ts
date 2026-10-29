@@ -49,7 +49,7 @@ describe('sandboxConfig router', () => {
     expect(response.headers['cache-control']).toBe('no-store')
     expect(data.settings).toEqual({ [KEY]: setting('high') })
     expect(data.provenance[`setting:${KEY}`]).toBe('project')
-    expect(data.secrets).toEqual([{ name: 'API', value: 'proj', kind: 'env' }])
+    expect(data.secrets).toEqual([{ name: 'API', value: 'proj' }])
     const body = JSON.stringify(response.body)
     for (const leaked of ['vercel', 'vtok', 'team_', 'prj_']) expect(body).not.toContain(leaked)
   })

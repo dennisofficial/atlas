@@ -1,7 +1,12 @@
 import { z } from 'zod'
 
 import { mcpServerSchema, mcpUpsertSchema } from './mcp-wire'
-import { secretDetailSchema, secretSetSchema } from './secrets-wire'
+import {
+  secretSetSchema,
+  secretSummarySchema,
+  secretValueSchema,
+  type SecretValue,
+} from './secrets-wire'
 
 export const personalSettingKeySchema = z.strictObject({ key: z.string().min(1) })
 export type PersonalSettingKey = z.infer<typeof personalSettingKeySchema>
@@ -19,8 +24,11 @@ export type PersonalSecret = z.infer<typeof personalSecretSchema>
 export const personalSecretListSchema = z.object({ secrets: z.array(personalSecretSchema) })
 export type PersonalSecretList = z.infer<typeof personalSecretListSchema>
 
-export const personalSecretDetailListSchema = z.object({ secrets: z.array(secretDetailSchema) })
-export type PersonalSecretDetailList = z.infer<typeof personalSecretDetailListSchema>
+export const personalSecretSummaryListSchema = z.object({ secrets: z.array(secretSummarySchema) })
+export type PersonalSecretSummaryList = z.infer<typeof personalSecretSummaryListSchema>
+
+export const personalSecretValueSchema = secretValueSchema
+export type PersonalSecretValue = SecretValue
 
 export const personalSecretNamesSchema = z.object({ names: z.array(z.string()) })
 export type PersonalSecretNames = z.infer<typeof personalSecretNamesSchema>
