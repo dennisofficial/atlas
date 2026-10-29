@@ -5,6 +5,7 @@ import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { LoadFailed } from '@/features/settings/data/shared/query-gate'
+import { setThreadArchived } from '@/features/threads/data/threads-api'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { ThreadList } from './shell-thread-list'
@@ -44,6 +45,7 @@ export function ShellSidebarContent({
     entries: query.data,
     reload: query.reload,
     onArchived: handleArchived,
+    archive: setThreadArchived,
   })
   const actions = useMemo(() => ({ onToggleArchive: handleToggleArchive }), [handleToggleArchive])
 

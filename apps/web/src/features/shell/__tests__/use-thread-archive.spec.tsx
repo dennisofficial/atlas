@@ -6,8 +6,6 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 
 const setThreadArchived = mock(async (_args: { threadId: string; archived: boolean }) => {})
 
-mock.module('@/features/threads/data/threads-api', () => ({ setThreadArchived }))
-
 const { useThreadArchive } = await import('../use-thread-archive')
 
 beforeAll(() => {
@@ -37,6 +35,7 @@ async function toggle(thread: WireThread): Promise<string[]> {
       entries: [],
       reload: () => {},
       onArchived: (threadId) => archived.push(threadId),
+      archive: setThreadArchived,
     }).handleToggleArchive
     return null
   }
