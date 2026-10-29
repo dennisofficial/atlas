@@ -1,5 +1,3 @@
-**Atlas TUI and Atlas Cloud web have exactly one user: Dennis. Atlas is still in development, so there is no other user's data or workflow to preserve.**
-
 # CLAUDE.md
 
 Guidance for Claude Code (claude.ai/code) working in this repository.
@@ -16,11 +14,12 @@ subscription credentials are one provider implementation among several, not a fo
 
 ## Who uses Atlas
 
-**A small team, in a public repo.** Atlas is built by the people who run it every day — there is
-no separate customer base, no support burden, and no migration window. Weigh decisions
-accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody has asked
-for is a feature nobody needs. But the code is read by contributors and strangers now, so keep
-interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
+**Mainly one developer, in a public repo, with the occasional outside contributor.** Atlas is
+still in development and its only user is the person building it — there is no customer base, no
+other user's data or workflow to preserve, no support burden, and no migration window. Weigh
+decisions accordingly: a breaking change costs an afternoon, not a quarter, and a feature nobody
+has asked for is a feature nobody needs. But the code is read by contributors and strangers, so
+keep interfaces honest and note setup-breaking changes in the PR. Spend the saved effort on the things
 daily users still feel: a hang, a silent failure, a seam that makes the next feature cheap.
 
 Contributions are welcome — `CONTRIBUTING.md` holds the setup and the PR flow.
