@@ -12,6 +12,7 @@ import {
   settleRetry,
   NOOP_BOOT_REPORTER,
   EBootStep,
+  EBootStepOutcome,
   type BootReporter,
   type ServeLauncher,
   type VercelCredentials,
@@ -86,7 +87,10 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     this.log = deps.log
     this.launch =
       deps.launch ??
-      createServeLauncher({ log: deps.log, installServe: releaseOnlyServeInstaller() })
+      createServeLauncher({
+        log: deps.log,
+        installServe: releaseOnlyServeInstaller(),
+      })
   }
 
   async boot(args: WakeBootArgs): Promise<WakeBootResult> {
@@ -96,6 +100,7 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
       const sandbox = await reporter.track({
         step: EBootStep.Provision,
         work: () => this.mount({ args, onCreate: () => (created = true) }),
+        outcomeOf: () => (created ? EBootStepOutcome.Created : EBootStepOutcome.Resumed),
       })
       if (created) await args.onFreshSandbox()
       const token = created ? args.freshToken : args.resumeToken

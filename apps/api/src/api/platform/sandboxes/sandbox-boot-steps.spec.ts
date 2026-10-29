@@ -1,4 +1,9 @@
-import { EBootStep, EBootStepState, EVercelCredentialGap } from '@dltech/atlas-wire'
+import {
+  EBootStep,
+  EBootStepOutcome,
+  EBootStepState,
+  EVercelCredentialGap,
+} from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -38,13 +43,23 @@ describe('boot step store', () => {
     })
     await recordBootSteps({
       threadId: 'thr-1',
-      steps: [{ step: EBootStep.Provision, state: EBootStepState.Error, error: 'boom' }],
+      steps: [
+        {
+          step: EBootStep.Provision,
+          state: EBootStepState.Error,
+          error: 'boom',
+        },
+      ],
     })
 
     const read = await readBootSteps({ threadId: 'thr-1' })
 
     expect(read.map(({ step, state, error }) => ({ step, state, error }))).toEqual([
-      { step: EBootStep.Provision, state: EBootStepState.Running, error: undefined },
+      {
+        step: EBootStep.Provision,
+        state: EBootStepState.Running,
+        error: undefined,
+      },
       { step: EBootStep.Provision, state: EBootStepState.Error, error: 'boom' },
     ])
     expect(read.every((step) => !Number.isNaN(Date.parse(step.at)))).toBe(true)
@@ -66,7 +81,11 @@ describe('boot step store', () => {
   })
 
   it('skips rows whose step or state is not part of the wire enums', async () => {
-    await db.orm.public.SandboxBootStep.create({ threadId: 'thr-1', step: 'legacy', state: 'done' })
+    await db.orm.public.SandboxBootStep.create({
+      threadId: 'thr-1',
+      step: 'legacy',
+      state: 'done',
+    })
 
     expect(await readBootSteps({ threadId: 'thr-1' })).toEqual([])
   })
@@ -88,5 +107,23 @@ describe('boot step store', () => {
     const read = await readBootSteps({ threadId: 'thr-1' })
 
     expect(read.map((step) => step.gap)).toEqual([EVercelCredentialGap.UserCredential, undefined])
+  })
+
+  it('reads back the outcome a step reported', async () => {
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [
+        {
+          step: EBootStep.Provision,
+          state: EBootStepState.Done,
+          outcome: EBootStepOutcome.Resumed,
+        },
+        { step: EBootStep.Clone, state: EBootStepState.Done },
+      ],
+    })
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.outcome)).toEqual([EBootStepOutcome.Resumed, undefined])
   })
 })
