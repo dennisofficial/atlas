@@ -206,8 +206,9 @@ export function ThreadTranscript({
     boot
       .filter((entry) => entry.afterIndex === index)
       .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
+  const lastUserTurnId = turns.findLast((turn) => turn.kind === ETurnKind.User)?.id ?? null
   return (
-    <Chat>
+    <Chat jumpKey={lastUserTurnId}>
       {bootAfter(-1)}
       {turns.map((turn, index) => (
         <Fragment key={turn.id}>
