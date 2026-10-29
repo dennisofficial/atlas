@@ -1,4 +1,4 @@
-import { MODEL_ID, OPENROUTER_LEASE } from './pod-session-live-fixture'
+import { CLASSIFIER_OFF_CONFIG, MODEL_ID, OPENROUTER_LEASE } from './pod-session-live-fixture'
 
 export const REMEMBER_TRIGGER = 'remember the pod fact'
 
@@ -168,12 +168,16 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
     hostname: '0.0.0.0',
     fetch: async (request) => {
       const url = new URL(request.url)
-      if (url.pathname === '/v1/trpc/podLeases.register') {
+      if (
+        url.pathname === '/v1/trpc/podLeases.register' ||
+        url.pathname === '/v1/trpc/threads.create'
+      ) {
         return Response.json({ result: { data: null } })
       }
       if (url.pathname === '/v1/trpc/accountLease.get') {
         return Response.json({ result: { data: OPENROUTER_LEASE } })
       }
+      if (url.pathname === '/v1/trpc/sandboxConfig.get') return trpcData(CLASSIFIER_OFF_CONFIG)
       if (url.pathname === '/v1/trpc/settings.list') return trpcData({ settings: [] })
       if (url.pathname === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
       const bearer = request.headers.get('authorization')

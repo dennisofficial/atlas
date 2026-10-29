@@ -4,7 +4,10 @@ A **pod** is the external runtime a session runs in: a local Docker container or
 The **runner** is which of the two hosts it (`ERunner` in `packages/core/src/execution/runner.ts`).
 Both runners boot the same `atlas-serve` binary and run the same serve code, so a session in a pod
 behaves the same on either. The loop, the transcript and the tools live in serve. The TUI is a
-detached client of it over the wire protocol.
+detached client of it over the wire protocol. Detached clients, the TUI and the web app, also drive
+the pod's background shells and services over the channel: start a shell, read its output, kill it,
+stop a service, tail its log (channel protocol 28, `packages/wire/src/channel-wire.ts`). An operator
+can start a shell in a pod; starting a *service* stays model-only, exactly as in-process.
 
 This file describes pods as they are on `main`. Why they are shaped this way is in
 `docs/decisions/`. Much of the code still says "sandbox" where it means pod
@@ -79,9 +82,15 @@ The `projectId` is stored in the thread meta, and a wake passes the same one bac
 | Driver | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`) | `VercelDriver` over `@vercel/sandbox` (`packages/harness/src/cloud/vercel-driver.ts`) |
 | Image | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry |
 | Name | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`) |
-| Ports | serve and an in-pod ingress (`packages/harness/src/cloud/local-pod/ingress.ts`), both published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | provider-routed ports (`packages/wire/src/sandbox-sdk.ts`) |
+| Ports | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`) |
 | Resize | live, `POST /containers/<id>/update` | applies on restart |
 | Persistence | named volumes, kept across park and wake | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`) |
+
+`exposePort` works the same on both runners: serve asks the API (`sandboxSelf.exposePort`), which
+routes `https://<port>-<label>.byatlas.dev` through the thread's Cloudflare tunnel and hands back its
+token, and serve runs `cloudflared` in the pod (`apps/serve/src/api-port-exposer.ts`,
+`apps/api/src/api/platform/sandboxes/preview-tunnel.service.ts`). The URL shows on the TUI sidebar
+pill and the web preview list like any other exposure.
 
 Serve installs the same way on both. A release build downloads the serve binary matching the
 client's version and checks its SHA-256 (`packages/wire/src/sandbox-serve-install.ts`). A dev
@@ -101,20 +110,30 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
   Cloud session, once, before it registers the thread row or asks Docker for the container, so a
   thread row never exists without its lease. The API keeps only its hash
   (`LocalPodLease`). A Vercel pod is registered as a `CloudSandbox` row instead.
-- **Environment.** The serve token, thread id, Atlas Cloud URL and `ATLAS_HOME=/atlas/home`
-  (`packages/wire/src/serve-env.ts`); an optional pinned model; the decisions, classifier and
-  web-search settings and a telemetry id (`apps/tui/src/composition/live-cloud.ts`). A Vercel pod
-  also gets the Vercel token, team and project, so serve can publish ports itself.
-- **`/atlas/home/bootstrap/workspace-spec.json`**, whose only inputs are the `projectId` and the
-  optional model. Its `remoteUrl` and `githubToken` fields are always `null`.
+- **Environment.** Identity and plumbing only: the serve token, thread id, Atlas Cloud URL and
+  `ATLAS_HOME=/atlas/home` (`packages/wire/src/serve-env.ts`); on a local pod the pod name and the
+  sandbox session id (`packages/harness/src/cloud/local-pod/pod-create.ts`); and a telemetry id. An API-provisioned pod gets `ATLAS_API_PROVISIONED=1` and a telemetry id
+  derived from the owner's user id (an HMAC under the API's `ATLAS_TELEMETRY_PEPPER`, rendered as a
+  UUID), so every pod a user starts reports as the same person. A Vercel pod the TUI launches gets
+  the Vercel token, team and project so serve can stop its own sandbox on park; the API never
+  injects them into an API-provisioned pod.
+  **No settings travel as environment**: settings reach a pod only through the cloud scoped config
+  serve writes at boot (step 6 below), because an env-var setting would silently outrank cloud
+  values (`packages/core/src/settings/layers.ts`). An optional pinned model is the one exception,
+  carried for the pod's first boot. The allowed and forbidden keys are a contract in
+  `packages/wire/src/serve-env.ts`, tested against both launchers
+  (`packages/harness/src/cloud/local-pod/__tests__/pod-create-env-contract.spec.ts`,
+  `apps/api/src/api/cloud/sandbox-provisioning/pod-provision-env-contract.spec.ts`). A caller's
+  environment can never override the local pod's own plumbing keys.
+- **`/atlas/home/bootstrap/workspace-spec.json`**, whose inputs are the `projectId` and the
+  optional model and effort. Its `remoteUrl` and `githubToken` fields are always `null`.
   A local pod stages only once: a resume finds `/opt/atlas/pod-staged` and skips staging
   entirely (`packages/harness/src/cloud/local-pod/pod-staged.ts`).
 - **The serve binary**, on dev builds only.
 
 No copy of the laptop's account vault, `secrets.json`, `settings.json`, `mcp.json`, skills,
-instructions, git state, local checkout or GitHub token crosses. The settings above travel as
-environment variables, and a Vercel pod gets its Vercel credentials the same way. The user layer
-reaches a pod only through the `atlas push` bundle
+instructions, git state, local checkout or GitHub token crosses. The user layer reaches a pod only
+through the `atlas push` bundle
 ([0011](decisions/0011-explicit-atlas-push.md)).
 
 ### What serve does, in order
@@ -141,12 +160,16 @@ reaches a pod only through the `atlas push` bundle
    `tag.gpgsign`, the user's GitHub name and email, and `gpg.ssh.allowedSignersFile`
    (`apps/serve/src/signing-key-env.ts`). If the lease fails, boot continues without installing
    the signing configuration ([0006](decisions/0006-ssh-signing-key-replaces-gpg.md)).
-6. **Accounts, settings and secrets.** `applyCloudState` calls `accountLease.get`,
-   `settings.list` and `secrets.list` concurrently under one 60 s deadline. It writes the
-   pod's `auth.json` vault, `secrets.json` and `settings.json` under `/atlas/home`
-   (`apps/serve/src/cloud-state.ts`). The account lease blanks OAuth refresh tokens but keeps the
-   current access token and its expiry. Secrets named `sandbox-serve:*` or `mcp-oauth:*` are
-   client-held and skipped. On failure serve logs it and boots with whatever is on disk.
+6. **Accounts, settings and secrets.** `applyCloudState` calls `accountLease.get` and
+   `sandboxConfig.get` (scoped to the boot `projectId`) concurrently under one 60 s deadline,
+   falling back to the legacy `settings.list` + `secrets.list` when the scoped endpoint is missing
+   (`apps/serve/src/cloud-state.ts`). It writes the pod's `auth.json` vault, `secrets.json`,
+   `settings.json` and any cloud MCP servers under `/atlas/home`. The scoped config merges
+   Default → User → Project and drops provisioning-only names
+   (`packages/wire/src/web/scoped-config-resolve.ts`). The account lease blanks OAuth refresh
+   tokens but keeps the current access token and its expiry. Secrets named `sandbox-serve:*` or
+   `mcp-oauth:*` are client-held and skipped. On failure serve logs it and boots with whatever is
+   on disk.
 7. **`atlas push` bundle.** `publishedBundles.current` returns the latest version the
    user published and a presigned download URL. Serve checks the size and SHA-256, then installs
    only skill, `ATLAS.md` and `mcp.json` entries (`apps/serve/src/published-bundle.ts`). It is
@@ -211,25 +234,35 @@ reservation of 2 GiB per vCPU with no hard cap.
 principals. Each tRPC procedure opts a token kind in through its typed `meta({...})`
 (`apps/api/src/_module/trpc/procedure-meta.ts`).
 
-A local pod's lease token is accepted only on procedures with `meta({ podReachable: true })` and
-gets 403 everywhere else, a procedure on its own `threadId` included. On those procedures it acts
-as the lease's owner. The pod-reachable procedures:
+A local pod's lease token and a Vercel pod's sandbox token follow the same rule in
+`SessionOrSandboxMiddleware`. A procedure whose input names a `threadId` is answered when the
+thread is in the principal's own family, its thread or a direct sub-agent (`assertThreadInFamily`
+in `sandboxes.service.ts`). A threadless procedure needs `meta({ sandboxReachable: true })`, or
+`podReachable: true` on the few sandbox-token procedures a local pod may also call, such as
+`sandboxSelf.events` and `sandboxCheckpoint.put` (`sandbox-token.middleware.ts`, 401 otherwise). A
+token reaching a thread outside its family is refused 401; a
+threadless procedure without reach meta is refused 403. A token creates only direct sub-agent
+threads of its own thread (`assertTokenSpawn` in `threads.router.ts`, 403 otherwise). In-pod
+teammates can spawn their own sub-agents inside the harness, so if those grandchildren are ever
+mirrored to the API under the pod's token, the one-level rule refuses them.
 
-- `projectWorkspace.get` and `sandboxConfig.get`
-- `publishedBundles.current`
-- `settings.list`, `secrets.list`, `accountLease.get`
-- `oauthConnections.accessToken`
-- `sshSigningKey.lease`
-- `memories.*`, reads and writes
+The carve-outs are the procedures that physically drive Vercel or record API provisioning:
+`sandboxSelf.stop` and `sandboxSelf.bootSteps` stay sandbox-only
+(`apps/api/src/api/platform/sandboxes/sandbox-token.middleware.ts`). A local pod never has a
+`CloudSandbox` row. Its park checkpoints mirror through `sandboxCheckpoint.put` to a
+`LocalPodCheckpoint` row, one per thread, and the TUI reads them back through
+`localPodCheckpoint.get`. Its birth registers the thread as an API `Thread` row with no boot
+steps, and a web send or Retry on that thread is refused with 409: the runner is a container on
+the operator's machine.
 
-For a local pod, memory is the only writable store. Writes to settings, secrets, accounts,
-Projects, bundles and the signing key need a user session from either kind of pod.
+Beyond their own thread family, both kinds of pod can write memory, the user-files store
+(`userFiles.put`/`remove`), GitHub PR subscriptions, and direct sub-agent threads. Writes to
+settings, secrets, accounts, Projects, bundles and the signing key need a user session.
 
-A Vercel pod's token is a `CloudSandbox` principal. It reaches every procedure above (each also
-carries `sandboxReachable: true`), procedures whose input names a `threadId` in its own thread
-family, and other `sandboxReachable` procedures, which include the `userFiles` router
-(`apps/api/src/api/cloud/user-files/user-files.router.ts`). A sandbox token on any other threadless
-procedure is refused with 403.
+Pod parity is contract-tested: the middleware's per-procedure pod and sandbox allow/deny table
+lives in `session-or-sandbox.middleware.spec.ts` and `pod-lease-auth.spec.ts`, and the launch-env
+contract in the launcher specs listed under "Environment" above
+([0014](decisions/0014-local-pod-principal-is-sandbox-reach.md)).
 
 **Ownership and the reaper** ([0007](decisions/0007-pod-home-label.md)). Each pod and its volumes
 carry the labels `atlas-pod.thread`, `atlas-pod.role=pod` and `atlas-pod.home`, the last being a
@@ -255,10 +288,12 @@ daemon.
   name (`apps/tui/src/composition/cloud/cloud-runner.ts`). Opening a parked thread whose
   transcript is on disk renders it first; when the pod reports itself parked, the open does not
   wake it, and the next send does (`apps/tui/src/composition/cloud/cloud-open.ts`,
-  `packages/harness/src/cloud/remote-turn-runner.ts`). A local pod reports no park checkpoint
-  (`packages/harness/src/cloud/local-pod-bridge.ts`), so opening its thread wakes it in the
-  background. A thread with no local transcript wakes before it opens. Serve boots again from
-  step 1; a workspace that is already cloned is kept.
+  `packages/harness/src/cloud/remote-turn-runner.ts`). A local pod mirrors its park checkpoint to
+  the API (`LocalPodCheckpoint`), and the bridge's `find` reads it back with a 1.5 s deadline
+  (`packages/harness/src/cloud/local-pod-bridge.ts`, `local-pod-registration.ts`), so opening a
+  parked local thread renders from the mirrored checkpoint without waking the pod. A thread with
+  no local transcript wakes before it opens. Serve boots again from step 1; a workspace that is
+  already cloned is kept.
 - **Detached work.** A turn runs in serve whether or not a client is attached. Closing the TUI
   drops only the socket, and serve logs the execution as preserved
   (`apps/serve/src/socket-session.ts`, `apps/serve/src/turn-driver.ts`). A pod with services and

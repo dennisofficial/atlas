@@ -9,6 +9,7 @@ export interface ISandboxEnv {
   SANDBOX_MAX_SESSION_MINUTES: number
   SANDBOX_MAX_ACTIVE_PER_USER: number
   SANDBOX_IMAGE: string
+  ATLAS_TELEMETRY_PEPPER?: string
 }
 
 export const sandboxEnvSchema = {
@@ -20,4 +21,5 @@ export const sandboxEnvSchema = {
   SANDBOX_MAX_SESSION_MINUTES: Joi.number().integer().min(1).default(240),
   SANDBOX_MAX_ACTIVE_PER_USER: Joi.number().integer().min(1).default(3),
   SANDBOX_IMAGE: Joi.string().default('atlas-sandbox:latest'),
+  ATLAS_TELEMETRY_PEPPER: Joi.string().optional(),
 }

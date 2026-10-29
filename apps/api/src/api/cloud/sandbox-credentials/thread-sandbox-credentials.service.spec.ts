@@ -66,7 +66,11 @@ describe('ThreadSandboxCredentialsService', () => {
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
 
-    expect(credentials).toMatchObject({ token: 'user-token', ownerCredential: true })
+    expect(credentials).toMatchObject({
+      token: 'user-token',
+      ownerCredential: true,
+      userId: 'user-a',
+    })
     expect(vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'user-a' } })
   })
 
@@ -129,6 +133,7 @@ describe('ThreadSandboxCredentialsService', () => {
       teamId: 'env-team',
       projectId: 'env-prj',
       ownerCredential: false,
+      userId: undefined,
     })
     expect(vercelCredentials).not.toHaveBeenCalled()
   })
@@ -144,6 +149,7 @@ describe('ThreadSandboxCredentialsService', () => {
     ).forThread({ threadId: 'missing' })
 
     expect(credentials.ownerCredential).toBe(false)
+    expect(credentials.userId).toBeUndefined()
   })
 
   it('answers 503 when a legacy thread finds no env credential', async () => {

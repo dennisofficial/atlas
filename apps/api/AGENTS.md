@@ -20,7 +20,9 @@ controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1
 (`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`), which exits if its
 `wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
 the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
-rows; a TUI BYO row (none) is never taken over by a web send or Retry.
+rows; a TUI BYO row (none) is never taken over by a web send or Retry. A TUI local pod registers its
+`Thread` row itself at birth, after its `LocalPodLease` (no `firstMessage`, so no claim and no
+`SandboxBootStep` rows), and the send and Retry paths refuse a leased thread with 409.
 
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
 resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A

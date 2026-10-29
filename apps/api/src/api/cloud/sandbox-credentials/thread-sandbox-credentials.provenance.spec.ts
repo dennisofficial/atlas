@@ -45,6 +45,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
       teamId: 'env-team',
       projectId: 'env-prj',
       ownerCredential: false,
+      userId: undefined,
     })
     expect(scoped.vercelCredentials).not.toHaveBeenCalled()
   })

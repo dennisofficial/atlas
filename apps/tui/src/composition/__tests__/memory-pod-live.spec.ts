@@ -49,7 +49,7 @@ describeLive('memory written in one pod', () => {
       const bridge = createLocalPodBridge({
         ...options,
         pod: () => ({ ...options.pod(), cloudUrl: memoryApi.podUrl }),
-        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url, ATLAS_CLASSIFIER_MODE: 'off' }),
+        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url }),
       })
 
       const born = async (threadId: ThreadId) => {
