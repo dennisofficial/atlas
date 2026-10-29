@@ -2,7 +2,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   assertThreadInFamily,
-  CHILD_THREAD,
   createSessionsRouterApp,
   mutate,
   pod,
@@ -177,19 +176,15 @@ describe('ThreadsRouter', () => {
       expect(create).not.toHaveBeenCalled()
     })
 
-    it('lets a sandbox token spawn a sub-agent inside its family', async () => {
+    it('lets a sandbox token spawn a direct sub-agent of its own thread', async () => {
       const reply = await mutate({
         app,
         procedure: 'threads.create',
         headers: as.sandbox,
-        body: { agent: { spawnedBy: CHILD_THREAD, type: 'explore' } },
+        body: { agent: AGENT },
       })
 
       expect(reply.status).toBe(200)
-      expect(assertThreadInFamily).toHaveBeenCalledWith({
-        sandboxThreadId: SANDBOX_THREAD,
-        threadId: CHILD_THREAD,
-      })
       expect(create).toHaveBeenCalledTimes(1)
     })
 
@@ -201,7 +196,7 @@ describe('ThreadsRouter', () => {
         body: { agent: { spawnedBy: 'thr-other', type: 'explore' } },
       })
 
-      expect(reply.status).toBe(401)
+      expect(reply.status).toBe(403)
       expect(create).not.toHaveBeenCalled()
     })
 

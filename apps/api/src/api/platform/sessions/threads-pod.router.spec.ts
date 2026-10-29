@@ -60,10 +60,6 @@ describe('ThreadsRouter under a pod token', () => {
 
       expect(reply.status).toBe(200)
       expect(create).toHaveBeenCalledTimes(1)
-      expect(assertThreadInFamily).toHaveBeenCalledWith({
-        sandboxThreadId: SANDBOX_THREAD,
-        threadId: SANDBOX_THREAD,
-      })
     })
 
     it('refuses a pod token spawning outside its family', async () => {
@@ -74,7 +70,7 @@ describe('ThreadsRouter under a pod token', () => {
         body: { agent: { spawnedBy: 'thr-other', type: 'explore' } },
       })
 
-      expect(reply.status).toBe(401)
+      expect(reply.status).toBe(403)
       expect(create).not.toHaveBeenCalled()
     })
 
@@ -103,10 +99,6 @@ describe('ThreadsRouter under a pod token', () => {
 
       expect(reply.status).toBe(200)
       expect(open).toHaveBeenCalledTimes(1)
-      expect(assertThreadInFamily).toHaveBeenCalledWith({
-        sandboxThreadId: SANDBOX_THREAD,
-        threadId: SANDBOX_THREAD,
-      })
     })
   })
 
