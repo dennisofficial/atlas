@@ -49,7 +49,7 @@ function SettingsTopBar() {
         variant="ghost"
         size="sm"
         nativeButton={false}
-        render={<Link href="/" />}
+        render={<Link href="/threads" />}
         className="justify-self-start text-muted-foreground"
       >
         <ArrowLeftIcon data-icon="inline-start" />
