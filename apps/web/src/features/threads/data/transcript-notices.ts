@@ -20,7 +20,6 @@ export type NoticeItem = {
   at?: string | undefined
 }
 
-const NO_BODY = 'no body'
 const PRINTED_NOTHING = 'printed nothing'
 const MATCHED_NOTHING = 'matched nothing'
 const NOTICED_PREFIX = 'Atlas noticed — '
@@ -78,7 +77,6 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
       return {
         title: entry.text,
         body: entry.body,
-        emptyNote: NO_BODY,
         tone: toneOfFailed(entry.failed),
       }
     case EEntryKind.SystemNotice:
