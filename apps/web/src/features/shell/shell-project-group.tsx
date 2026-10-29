@@ -34,7 +34,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
           <span className="truncate">{project.name}</span>
         </button>
         <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
-        <div className="hidden shrink-0 items-center gap-1 group-hover/project:flex group-data-popup-open/project:flex">
+        <div className="hidden shrink-0 items-center gap-1 group-hover/project:flex group-data-popup-open/project:flex pointer-coarse:flex">
           <RowAction
             label="New thread in project"
             href={`/threads/new?project=${encodeURIComponent(project.id)}`}

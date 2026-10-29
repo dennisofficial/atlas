@@ -59,7 +59,7 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
             className="mr-2 size-3 shrink-0 text-muted-foreground group-hover/thread:hidden group-data-popup-open/thread:hidden"
           />
         ) : null}
-        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
+        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex pointer-coarse:flex">
           <RowAction
             label={archived ? 'Unarchive thread' : 'Archive thread'}
             onClick={handleArchive}
