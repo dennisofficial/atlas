@@ -59,6 +59,14 @@ describe('transitionsOf', () => {
     expect(events[0]?.payload.settled).toBe(true)
   })
 
+  it('does not re-announce a settled failure when a re-read finishes no new checks', () => {
+    const events = transitionsOf({
+      prior: { ...runningNoMergeable, checksRunning: 1, checksPassed: 2, checksFailed: 1 },
+      next: { ...base, checksRunning: 0, checksPassed: 2, checksFailed: 1, mergeable: null },
+    })
+    expect(events).toEqual([])
+  })
+
   it('suppresses the standalone mergeability flip while checks are still running', () => {
     const events = transitionsOf({
       prior: runningNoMergeable,

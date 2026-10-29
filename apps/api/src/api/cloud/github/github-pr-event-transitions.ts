@@ -33,6 +33,10 @@ export function transitionsOf(args: {
   const checksSettled =
     args.next.checksRunning === 0 && args.next.checksPassed + args.next.checksFailed > 0
   const settledFromRunning = checksSettled && args.prior.checksRunning > 0
+  const completedMore =
+    args.next.checksPassed + args.next.checksFailed >
+    args.prior.checksPassed + args.prior.checksFailed
+  const failureAlreadyAnnounced = args.next.checksFailed > 0 && args.prior.checksFailed > 0
 
   if (verdictTiming === 'fail-fast') {
     if (args.next.checksFailed > 0 && args.prior.checksFailed === 0) {
@@ -40,14 +44,14 @@ export function transitionsOf(args: {
         kind: EPrEventKind.Verdict,
         payload: { url: args.next.url, verdict: 'failed', headSha: args.next.headSha },
       })
-    } else if (settledFromRunning) {
+    } else if (settledFromRunning && (!failureAlreadyAnnounced || completedMore)) {
       events.push({
         kind: EPrEventKind.Verdict,
         payload: {
           url: args.next.url,
           verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
           headSha: args.next.headSha,
-          ...(args.next.checksFailed > 0 && args.prior.checksFailed > 0 ? { settled: true } : {}),
+          ...(failureAlreadyAnnounced ? { settled: true } : {}),
         },
       })
     }
