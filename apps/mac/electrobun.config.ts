@@ -10,6 +10,7 @@ export default {
     mainProcess: 'bun',
     bun: { entrypoint: 'src/main/index.ts' },
     copy: { 'web-out': 'web' },
+    mac: { codesign: true, notarize: true, createDmg: true },
   },
   runtime: { exitOnLastWindowClosed: true },
 } satisfies ElectrobunConfig
