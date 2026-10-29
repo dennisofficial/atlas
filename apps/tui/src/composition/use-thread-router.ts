@@ -6,6 +6,8 @@ import { messageOf } from './error-text'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { bootBlocks } from './boot-block-store'
+import { cachedTranscripts } from './cached-transcript-store'
+import { readCachedCloudTranscript } from './cloud/cached-transcript'
 import { openCloudThread } from './cloud/cloud-open'
 import { clearAttachFailure, recordAttachFailure } from './attach-failure'
 import { cloudAttachmentOf } from './session-binding'
@@ -92,6 +94,18 @@ export function useThreadRouter(args: {
         .activateLocal({ threadId: toThreadId(threadId) })
         .catch(() => undefined)
 
+      const cache = cachedTranscripts(localApp)
+      let adoptedYet = false
+      void readCachedCloudTranscript({
+        app: localApp,
+        threadId: toThreadId(threadId),
+        effects: (name) => localApp.tools.find(name)?.effect,
+      }).then((cached) => {
+        if (adoptedYet || cached === null) return
+        if (localApp.sessionOwner.snapshot().threadId !== cached.threadId) return
+        cache.put(cached)
+      })
+
       const adopted = await openCloudThread({
         app: localApp,
         bridge,
@@ -122,6 +136,8 @@ export function useThreadRouter(args: {
           })
           return null
         })
+      adoptedYet = true
+      if (cache.snapshot()?.threadId === threadId) cache.put(null)
       if (adopted === null) return
       clearAttachFailure()
       cloudAttachmentOf(adopted)?.settleOpen()
