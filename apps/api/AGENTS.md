@@ -76,8 +76,9 @@ GitHub webhooks).
   `@UseMiddlewares(SessionOrSandboxMiddleware)` (a session, a sandbox token or a pod lease token).
   A procedure opts token kinds in with `meta({ podReachable: true, sandboxReachable: true })` and
   tunes the throttle with `meta({ throttle: { limit, ttlMs } | false })`
-  (`src/_module/trpc/procedure-meta.ts`). A sandbox token on a threadless procedure needs
-  `sandboxReachable`; a pod token needs `podReachable`.
+  (`src/_module/trpc/procedure-meta.ts`). A sandbox or pod token reaches any procedure whose
+  input names a `threadId` in its own thread family. On a threadless procedure both need
+  `sandboxReachable`, and `podReachable` additionally admits a pod token.
 - The generated `AppRouter` (`packages/api-router/src/generated/server.ts`) is committed. The
   pre-commit hook regenerates it when api or wire sources are staged, the CI `check` job fails on
   drift, and `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.

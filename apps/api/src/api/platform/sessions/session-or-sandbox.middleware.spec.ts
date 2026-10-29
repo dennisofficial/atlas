@@ -215,6 +215,12 @@ describe('SessionOrSandboxMiddleware', () => {
     expect(reply.status).toBe(403)
   })
 
+  it('answers 403 for a sandbox token on a pod-only threadless route', async () => {
+    const reply = await post({ procedure: 'podOpen', headers: as(SANDBOX_TOKEN) })
+
+    expect(reply.status).toBe(403)
+  })
+
   it('authenticates a sandbox token on a sandboxReachable threadless route', async () => {
     const reply = await post({ procedure: 'sandboxOpen', headers: as(SANDBOX_TOKEN) })
 
