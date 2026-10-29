@@ -34,16 +34,16 @@ export function Bucket({ label, hint, entries, activeThreadId }: BucketProps) {
         <span className="font-mono text-xs tabular-nums">{countThreads(entries)}</span>
       </button>
       {open &&
-        entries.map(({ project, threads }) => (
+        entries.map(({ project, sessions }) => (
           <div key={project.id} className="flex flex-col gap-0.5">
             <p className="truncate px-2 pt-1 text-xs text-muted-foreground">{project.name}</p>
             <SidebarMenu>
-              {threads.map((thread) => (
+              {sessions.map((session) => (
                 <ThreadRow
-                  key={thread.id}
-                  thread={thread}
+                  key={session.id}
+                  session={session}
                   projectName={project.name}
-                  active={thread.id === activeThreadId}
+                  activeThreadId={activeThreadId}
                 />
               ))}
             </SidebarMenu>

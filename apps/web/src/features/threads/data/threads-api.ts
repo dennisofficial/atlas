@@ -9,7 +9,10 @@ import type { SubscribeThreadStream } from './thread-signals'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
-export const fetchThreads = (projectId: string) => cloudCall(api.threads.list.query({ projectId }))
+export const fetchSessions = (projectId: string) =>
+  cloudCall(api.sessions.list.query({ projectId }))
+
+export type SessionNode = Awaited<ReturnType<typeof fetchSessions>>[number]
 
 export const createThread = async (body: CreateThreadBody) =>
   createThreadReplySchema.parse(await cloudCall(api.threads.create.mutate(body)))

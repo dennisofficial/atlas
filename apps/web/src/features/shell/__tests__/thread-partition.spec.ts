@@ -6,9 +6,13 @@ import {
   EThreadBucket,
   hasThread,
   INACTIVE_AFTER_MS,
+  mainThreadsOf,
   partitionThreads,
 } from '../thread-partition'
-import { agoIso, HOUR_MS, NOW, projectOf, threadOf } from './fixtures'
+import { agoIso, HOUR_MS, NOW, projectOf, sessionOf, threadOf } from './fixtures'
+
+const idsOf = (list: { sessions: { mainThread: { id: string } }[] }[]) =>
+  list.map((entry) => entry.sessions.map((session) => session.mainThread.id))
 
 describe('bucketOf', () => {
   it('keeps a thread updated exactly 72h ago active', () => {
@@ -52,22 +56,23 @@ describe('partitionThreads', () => {
   const entries = [
     {
       project: projectOf('p1'),
-      threads: [
-        threadOf({ id: 'old', updatedAt: agoIso(100) }),
-        threadOf({ id: 'fresh', updatedAt: agoIso(1) }),
-        threadOf({ id: 'newer', updatedAt: agoIso(0.5) }),
-        threadOf({ id: 'pinned', updatedAt: agoIso(60), pinnedAt: agoIso(2) }),
-        threadOf({ id: 'gone', updatedAt: agoIso(2), archivedAt: agoIso(1) }),
-        threadOf({ id: 'gone-old', updatedAt: agoIso(200), archivedAt: agoIso(150) }),
+      sessions: [
+        sessionOf(threadOf({ id: 'old', updatedAt: agoIso(100) })),
+        sessionOf(threadOf({ id: 'fresh', updatedAt: agoIso(1) })),
+        sessionOf(threadOf({ id: 'newer', updatedAt: agoIso(0.5) })),
+        sessionOf(threadOf({ id: 'pinned', updatedAt: agoIso(60), pinnedAt: agoIso(2) })),
+        sessionOf(threadOf({ id: 'gone', updatedAt: agoIso(2), archivedAt: agoIso(1) })),
+        sessionOf(threadOf({ id: 'gone-old', updatedAt: agoIso(200), archivedAt: agoIso(150) })),
       ],
     },
-    { project: projectOf('p2'), threads: [threadOf({ id: 'solo', updatedAt: agoIso(2) })] },
-    { project: projectOf('p3'), threads: [] },
+    {
+      project: projectOf('p2'),
+      sessions: [sessionOf(threadOf({ id: 'solo', updatedAt: agoIso(2) }))],
+    },
+    { project: projectOf('p3'), sessions: [] },
   ]
 
   const partition = partitionThreads({ entries, now: NOW })
-  const idsOf = (list: { threads: { id: string }[] }[]) =>
-    list.map((entry) => entry.threads.map((thread) => thread.id))
 
   it('sorts pinned first, then most recently updated, within each group', () => {
     expect(idsOf(partition.groups)).toEqual([['pinned', 'newer', 'fresh'], ['solo'], []])
@@ -89,5 +94,23 @@ describe('partitionThreads', () => {
     expect(countThreads(partition.archived)).toBe(2)
     expect(hasThread({ entries, threadId: 'solo' })).toBe(true)
     expect(hasThread({ entries, threadId: 'missing' })).toBe(false)
+  })
+})
+
+describe('teammates', () => {
+  const teammate = sessionOf(threadOf({ id: 'mate', updatedAt: agoIso(1) }))
+  const manager = sessionOf(threadOf({ id: 'boss', updatedAt: agoIso(100) }), [teammate])
+  const entries = [{ project: projectOf('p1'), sessions: [manager] }]
+
+  it('keeps a teammate in its manager bucket whatever its own age', () => {
+    const partition = partitionThreads({ entries, now: NOW })
+    expect(idsOf(partition.groups)).toEqual([[]])
+    expect(idsOf(partition.inactive)).toEqual([['boss']])
+    expect(partition.inactive[0]?.sessions[0]?.teammates).toEqual([teammate])
+  })
+
+  it('finds a teammate main thread as the active thread', () => {
+    expect(hasThread({ entries, threadId: 'mate' })).toBe(true)
+    expect(mainThreadsOf([manager]).map((thread) => thread.id)).toEqual(['boss', 'mate'])
   })
 })
