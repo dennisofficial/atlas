@@ -58,8 +58,8 @@ describe('partitionThreads', () => {
       project: projectOf('p1'),
       sessions: [
         sessionOf(threadOf({ id: 'old', updatedAt: agoIso(100) })),
-        sessionOf(threadOf({ id: 'fresh', updatedAt: agoIso(1) })),
-        sessionOf(threadOf({ id: 'newer', updatedAt: agoIso(0.5) })),
+        sessionOf(threadOf({ id: 'newer', createdAt: agoIso(3), updatedAt: agoIso(0.5) })),
+        sessionOf(threadOf({ id: 'fresh', createdAt: agoIso(5), updatedAt: agoIso(1) })),
         sessionOf(threadOf({ id: 'pinned', updatedAt: agoIso(60), pinnedAt: agoIso(2) })),
         sessionOf(threadOf({ id: 'gone', updatedAt: agoIso(2), archivedAt: agoIso(1) })),
         sessionOf(threadOf({ id: 'gone-old', updatedAt: agoIso(200), archivedAt: agoIso(150) })),
@@ -74,8 +74,8 @@ describe('partitionThreads', () => {
 
   const partition = partitionThreads({ entries, now: NOW })
 
-  it('sorts pinned first, then most recently updated, within each group', () => {
-    expect(idsOf(partition.groups)).toEqual([['pinned', 'newer', 'fresh'], ['solo'], []])
+  it('sorts pinned first, then oldest created first, ignoring activity', () => {
+    expect(idsOf(partition.groups)).toEqual([['pinned', 'fresh', 'newer'], ['solo'], []])
   })
 
   it('keeps every project as a group, even with no active threads', () => {

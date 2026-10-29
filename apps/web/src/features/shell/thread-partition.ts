@@ -23,8 +23,8 @@ export interface ThreadPartition {
 
 const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
 
-const updatedAtOf = (thread: WireThread): number => {
-  const parsed = Date.parse(thread.updatedAt)
+const createdAtOf = (thread: WireThread): number => {
+  const parsed = Date.parse(thread.createdAt)
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
@@ -41,7 +41,7 @@ export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
   return [...sessions].sort((left, right) => {
     const pinned =
       Number(isSet(right.mainThread.pinnedAt)) - Number(isSet(left.mainThread.pinnedAt))
-    return pinned !== 0 ? pinned : updatedAtOf(right.mainThread) - updatedAtOf(left.mainThread)
+    return pinned !== 0 ? pinned : createdAtOf(left.mainThread) - createdAtOf(right.mainThread)
   })
 }
 
