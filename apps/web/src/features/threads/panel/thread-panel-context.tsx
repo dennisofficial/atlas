@@ -15,10 +15,13 @@ export type ThreadPanelValue = {
   working: boolean
   changesPath: string | undefined
   agentId: string | undefined
+  contextPath: string | undefined
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
   openDetails: () => void
   clearAgent: () => void
+  openContextFile: (path: string) => void
+  closeContextFile: () => void
   closePanel: () => void
   refreshPod: () => void
 }

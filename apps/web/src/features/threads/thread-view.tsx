@@ -44,6 +44,7 @@ import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { ThreadMainSlot } from './context-viewer/main-slot'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { NotConfiguredAlert } from './not-configured-alert'
@@ -240,7 +241,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
               </Alert>
             </div>
           ) : null}
-          <div className="min-h-0 flex-1">
+          <ThreadMainSlot>
             <ThreadTranscript
               items={view.items}
               failure={view.failure}
@@ -252,7 +253,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 onRewind: (picked) => void rewind.handlePick(picked),
               }}
             />
-          </div>
+          </ThreadMainSlot>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
             {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
             {operator.request === null ? null : (

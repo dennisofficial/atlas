@@ -67,4 +67,19 @@ describe('useRightPanel', () => {
     await act(async () => state().clearAgent())
     expect(state().agentId).toBeUndefined()
   })
+
+  it('openContextFile remembers the path and closes the sheet', async () => {
+    const state = await mount()
+    await act(async () => state().openDetails())
+    await act(async () => state().openContextFile('plans/a.md'))
+    expect(state().contextPath).toBe('plans/a.md')
+    expect(state().sheetOpen).toBe(false)
+  })
+
+  it('closeContextFile returns to the transcript', async () => {
+    const state = await mount()
+    await act(async () => state().openContextFile('a.md'))
+    await act(async () => state().closeContextFile())
+    expect(state().contextPath).toBeUndefined()
+  })
 })

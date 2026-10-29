@@ -121,6 +121,10 @@ export function contextRowsOf({
   })
 }
 
+export const CONTEXT_INDENT_PX = 12
+
+export const contextIndentOf = (depth: number): number => Math.max(0, depth) * CONTEXT_INDENT_PX
+
 export function findContextNode(nodes: ContextNode[], path: string): ContextNode | undefined {
   for (const node of nodes) {
     if (node.path === path) return node

@@ -22,6 +22,8 @@ export interface DetailsTabProps {
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
   onJumpToSpawn: (id: string) => void
+  contextPath?: string
+  onOpenContextFile: (path: string) => void
 }
 
 export function DetailsTab(props: DetailsTabProps) {
@@ -47,7 +49,7 @@ export function DetailsTab(props: DetailsTabProps) {
             <HeadSection title={props.title} />
             <PodSection />
             <GithubSection />
-            <ContextSection />
+            <ContextSection current={props.contextPath} onOpen={props.onOpenContextFile} />
             <ProcessesSection />
             <GrantsSection />
             <TodoSection />
