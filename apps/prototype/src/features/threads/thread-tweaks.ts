@@ -7,6 +7,7 @@ import type { Control, Values } from '@/proto/use-prototype'
 import { type AppThread, SESSION_THREAD_ID } from '../shell/fixtures/app'
 import { enumValueOf } from './enum-value'
 import { projectLabelOf } from './new-thread-data'
+import { EPrDesign, MAX_PULL_REQUESTS, pullRequestsOf } from './pull-request-model'
 import { RUNNING_POD, type PodChipConfig } from './pod-status'
 import { MAX_QUEUED } from './queue-fixtures'
 import type { SessionViewProps } from './session-view'
@@ -44,8 +45,29 @@ export const THREAD_CONTROLS = {
     options: Object.values(EPodTweak),
     default: EPodTweak.None,
   },
+  prDesign: {
+    type: 'select',
+    label: 'PR design',
+    options: Object.values(EPrDesign),
+    default: EPrDesign.PinnedPopover,
+  },
+  prCount: {
+    type: 'range',
+    label: 'Pull requests',
+    min: 0,
+    max: MAX_PULL_REQUESTS,
+    step: 1,
+    default: 3,
+  },
   detail: { type: 'boolean', label: 'Agent detail', default: false },
-  queued: { type: 'range', label: 'Queued', min: 0, max: MAX_QUEUED, step: 1, default: 2 },
+  queued: {
+    type: 'range',
+    label: 'Queued',
+    min: 0,
+    max: MAX_QUEUED,
+    step: 1,
+    default: 2,
+  },
 } satisfies Record<string, Control>
 
 export type ThreadTweaks = Values<typeof THREAD_CONTROLS>
@@ -63,12 +85,21 @@ export function podChipFor(pod: EPodTweak): PodChipConfig | undefined {
 export function headerFor({
   thread,
   pod,
+  prDesign,
+  prCount,
 }: {
   thread: AppThread | undefined
   pod: EPodTweak
+  prDesign: EPrDesign
+  prCount: number
 }): SessionViewProps['header'] {
   const podStatus = podChipFor(pod)
-  if (!thread || thread.id === SESSION_THREAD_ID) return { podStatus }
+  if (!thread || thread.id === SESSION_THREAD_ID) {
+    return {
+      podStatus,
+      pullRequests: { design: prDesign, prs: pullRequestsOf(prCount) },
+    }
+  }
   return {
     title: thread.title,
     subtitle: { label: projectLabelOf(thread.projectId), icon: FolderGit2Icon },
@@ -97,6 +128,11 @@ export function tweaksOf(values: ThreadTweaks) {
       options: Object.values(EPodTweak),
       value: values.pod,
       fallback: EPodTweak.None,
+    }),
+    prDesign: enumValueOf({
+      options: Object.values(EPrDesign),
+      value: values.prDesign,
+      fallback: EPrDesign.PinnedPopover,
     }),
   }
 }

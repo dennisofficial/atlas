@@ -2,24 +2,16 @@
 
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import {
-  BellIcon,
-  BellOffIcon,
-  ChevronRightIcon,
-  GitBranchIcon,
-  GitPullRequestIcon,
-  PanelRightIcon,
-  PlusIcon,
-} from 'lucide-react'
+import { ChevronRightIcon, GitBranchIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
-import type { PullRequestBell } from './data/subscription-model'
-import { EHeaderState, hasConflicts, STATE_LABEL, type PullRequestBadge } from './data/header-model'
+import { EHeaderState, STATE_LABEL } from './data/header-model'
+import type { PullRequestsView } from './data/use-pull-requests'
+import { PullRequestControls } from './pull-request-controls'
 
 export type HeaderParent = {
   id: string
@@ -31,9 +23,7 @@ export type ThreadHeaderProps = {
   state: EHeaderState
   parent?: HeaderParent | undefined
   branch?: string | undefined
-  pullRequest?: PullRequestBadge | undefined
-  bell?: PullRequestBell | undefined
-  onToggleBell?: (() => void) | undefined
+  pullRequests?: PullRequestsView | undefined
   podChip?: ReactNode
   onOpenPanel: () => void
 }
@@ -66,51 +56,8 @@ function ParentCrumb({ parent }: { parent: HeaderParent }) {
   )
 }
 
-function PullRequestLink({ pullRequest }: { pullRequest: PullRequestBadge }) {
-  return (
-    <Badge
-      variant="outline"
-      render={<a href={pullRequest.url} target="_blank" rel="noreferrer" />}
-      className="hidden sm:inline-flex"
-    >
-      <GitPullRequestIcon />
-      <span className="font-mono">{pullRequest.label}</span>
-      {pullRequest.stateLabel}
-      {pullRequest.checksLabel === undefined ? null : (
-        <span className="text-muted-foreground tabular-nums">{pullRequest.checksLabel}</span>
-      )}
-      {hasConflicts(pullRequest) ? <span className="text-muted-foreground">conflicts</span> : null}
-    </Badge>
-  )
-}
-
-function PullRequestBellButton(props: { bell: PullRequestBell; onToggle: () => void }) {
-  const { bell, onToggle } = props
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={bell.label}
-            aria-pressed={bell.watching}
-            disabled={bell.busy}
-            className="hidden sm:inline-flex"
-            onClick={onToggle}
-          />
-        }
-      >
-        {bell.watching ? <BellIcon /> : <BellOffIcon />}
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{bell.label}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, state, parent, branch, pullRequest, bell, onToggleBell, podChip, onOpenPanel } =
-    props
+  const { title, state, parent, branch, pullRequests, podChip, onOpenPanel } = props
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -129,9 +76,14 @@ export function ThreadHeader(props: ThreadHeaderProps) {
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {pullRequest ? <PullRequestLink pullRequest={pullRequest} /> : null}
-        {pullRequest && bell && onToggleBell ? (
-          <PullRequestBellButton bell={bell} onToggle={onToggleBell} />
+        {pullRequests?.badge ? (
+          <PullRequestControls
+            pullRequest={pullRequests.badge}
+            rows={pullRequests.rows}
+            bells={pullRequests.bells}
+            pinnedKey={pullRequests.pinnedKey}
+            onToggleBell={pullRequests.handleToggle}
+          />
         ) : null}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
         {podChip}
