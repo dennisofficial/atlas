@@ -95,6 +95,7 @@ describe('bootViewOf', () => {
     })
     expect(view?.state).toBe(EBootStepState.Running)
     expect(view?.elapsedMs).toBe(9000)
+    expect(view?.startedAtMs).toBe(T0)
     expect(view?.steps.map((entry) => entry.state)).toEqual([
       EBootStepState.Done,
       EBootStepState.Running,
@@ -114,6 +115,7 @@ describe('bootViewOf', () => {
     })
     expect(view?.state).toBe(EBootStepState.Done)
     expect(view?.elapsedMs).toBe(11_000)
+    expect(view?.startedAtMs).toBeUndefined()
   })
 
   it('orders steps by time before folding them', () => {

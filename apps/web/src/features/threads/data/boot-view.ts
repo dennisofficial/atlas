@@ -55,6 +55,7 @@ export type BootView = {
   state: EBootStepState
   error?: string
   elapsedMs?: number
+  startedAtMs?: number
 }
 
 const atOf = (step: RecordedBootStep): number => Date.parse(step.at)
@@ -119,11 +120,14 @@ function attemptViewOf(args: {
   const state = overallStateOf(steps)
   const error = steps.find((step) => step.state === EBootStepState.Error)?.detail
   const elapsedMs = elapsedOf({ state, attempt, now: args.now })
+  const first = attempt[0]
+  const running = state === EBootStepState.Running && first !== undefined
   return {
     steps,
     state,
     ...(error === undefined ? {} : { error }),
     ...(elapsedMs === undefined ? {} : { elapsedMs }),
+    ...(running ? { startedAtMs: atOf(first) } : {}),
   }
 }
 
