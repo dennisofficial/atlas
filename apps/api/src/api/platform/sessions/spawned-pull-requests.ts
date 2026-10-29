@@ -8,12 +8,19 @@ async function spawnedBy(args: {
   reader: SessionReader
   threadIds: readonly string[]
 }): Promise<SpawnedThread[]> {
-  return args.reader.orm.public.Thread.where((thread) =>
+  const threads = await args.reader.orm.public.Thread.where((thread) =>
     thread.spawnerThreadId.in([...args.threadIds]),
   )
-    .select('id', 'title')
+    .select('id', 'sessionId', 'agentType')
     .orderBy((thread) => thread.createdAt.asc())
     .all()
+  const sessions = await args.reader.orm.public.Session.where((session) =>
+    session.mainThreadId.in(threads.map((thread) => thread.id)),
+  )
+    .select('mainThreadId', 'title')
+    .all()
+  const titles = new Map(sessions.map((session) => [session.mainThreadId, session.title]))
+  return threads.map((thread) => ({ id: thread.id, title: titles.get(thread.id) ?? null }))
 }
 
 export async function spawnedPullRequests(args: {

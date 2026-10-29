@@ -433,8 +433,11 @@ carries the procedure.
 
 **A sub-agent is a first-class Atlas thread that Atlas spawned**, not `runTurn` called recursively
 with different arguments. It has its own thread row, its own event log, its own loop and its own context window;
-it runs in the background; it stands in the sidebar while it runs; and the operator can open it,
-read it and type into it exactly as they read the main conversation. Every one of those properties
+it runs in the background; it is listed in its spawner's Agents pane while it runs; and the operator
+can open it, read it and type into it exactly as they read the main conversation. A sub-agent is a
+thread inside its spawner's session, never a session of its own, so the session list (the web
+sidebar) never shows it. A teammate is the exception: it is its own session, managed by the session
+that spawned it, and the sidebar nests it under that session. Every one of those properties
 is already true of a background shell, which is why `harness/src/agents/registry/` reads as a
 sibling of `harness/src/shells/` — the notice queue, the wake path, the ownership scoping and the
 exit guard are the same machinery over a thread instead of a process. When a question here has no
@@ -657,6 +660,12 @@ is not a delegation: `/resume` lists the conversations the operator started, so 
 hides any thread carrying an `agent` while showing every fork, which one overloaded column could
 not express. `ThreadStorePort.fork` accordingly nulls the agent fields on the thread it returns — a
 fork of a child is a conversation, not a second child.
+
+In Atlas Cloud a third relation sits above both: a `Session` owns a main thread, the sub-agent
+threads spawned inside it, and the pod (`CloudSandbox`, `SandboxBootStep`), plus the per-conversation
+fields (project, repo, workspace, execution location, title, pin, archive). A fork starts a new
+session. A teammate starts a new session whose `managedBySessionId` points at its manager's; until
+teammates get pods of their own it runs in the manager's pod, and pod lookups walk that link.
 
 ### Agent types
 

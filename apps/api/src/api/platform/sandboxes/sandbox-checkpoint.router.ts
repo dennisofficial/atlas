@@ -1,3 +1,4 @@
+import { podSessionOf } from '../sessions/session-of-thread'
 import {
   readRuntimeCheckpointReplySchema,
   runtimeCheckpointSchema,
@@ -41,7 +42,8 @@ export class SandboxCheckpointRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ReadRuntimeCheckpointReply> {
     const { threadId } = input
-    const row = await db.orm.public.CloudSandbox.where({ threadId, userId: ctx.auth.userId })
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.where({ sessionId, userId: ctx.auth.userId })
       .select(...CHECKPOINT_COLUMNS)
       .first()
     if (row === null) throw new NotFoundException('sandbox not found')
@@ -73,8 +75,9 @@ export class SandboxCheckpointRouter {
     }
     const { threadId, userId } = ctx.sandbox
     const revision = input.revision
+    const sessionId = await podSessionOf({ reader: db, threadId })
     const updated = await db.orm.public.CloudSandbox.where({
-      threadId,
+      sessionId,
       userId,
       tokenHash: hashSessionToken(bearer),
     })
@@ -91,7 +94,7 @@ export class SandboxCheckpointRouter {
       return { checkpoint: input }
     }
 
-    const stored = await db.orm.public.CloudSandbox.where({ threadId, userId })
+    const stored = await db.orm.public.CloudSandbox.where({ sessionId, userId })
       .select(...CHECKPOINT_COLUMNS)
       .first()
     if (stored === null) throw new NotFoundException('sandbox not found')

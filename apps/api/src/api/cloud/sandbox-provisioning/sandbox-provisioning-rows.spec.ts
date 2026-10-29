@@ -25,7 +25,7 @@ describe('claimRow', () => {
   it('keeps the serve token an existing row already holds', async () => {
     await seedThread()
     await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       tokenHash: hashSessionToken(HELD_TOKEN),
     })
     const before = await heldRow()
@@ -47,7 +47,7 @@ describe('claimRow', () => {
   it('mints a token for an existing row that holds none', async () => {
     await seedThread()
     await seedSandboxRow({ wakeClaim: null, wakeFailedAt: new Date() })
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({ sealedToken: null })
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({ sealedToken: null })
 
     const claim = await claimRow({
       thread: await threadRow(),

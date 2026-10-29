@@ -1,6 +1,6 @@
 import { UNTITLED } from '@/features/threads/data/untitled'
 
-import type { ProjectThreads } from './thread-partition'
+import { mainThreadsOf, type ProjectThreads } from './thread-partition'
 import { threadStatusOf, type EThreadStatus } from './thread-status'
 
 export enum ESearchKind {
@@ -24,13 +24,13 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
 } {
   const threads: SearchItem[] = []
   const projects: SearchItem[] = []
-  for (const { project, threads: projectThreads } of entries) {
+  for (const { project, sessions } of entries) {
     projects.push({
       kind: ESearchKind.Project,
       id: project.id,
       label: project.name,
     })
-    for (const thread of projectThreads) {
+    for (const thread of mainThreadsOf(sessions)) {
       threads.push({
         kind: ESearchKind.Thread,
         id: thread.id,

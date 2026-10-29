@@ -80,7 +80,7 @@ describe('runPodProvision after the pod was destroyed', () => {
   it('keeps the sandbox when a newer wake took the claim under the same name', async () => {
     const { output, sdk } = await provisionWhile({
       during: async () => {
-        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+        await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
           wakeClaim: new Date(Date.now() + 60_000),
         })
       },
@@ -94,7 +94,7 @@ describe('runPodProvision after the pod was destroyed', () => {
   it('keeps the sandbox when the claim was cleared by a failure recorded after it', async () => {
     const { sdk } = await provisionWhile({
       during: async () => {
-        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+        await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
           wakeClaim: null,
           wakeFailedAt: new Date(Date.now() + 1_000),
         })

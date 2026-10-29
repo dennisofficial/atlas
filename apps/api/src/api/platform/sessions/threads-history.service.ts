@@ -6,10 +6,12 @@ import type {
   RewindThreadInput,
   SummariseThreadInput,
 } from '@dltech/atlas-wire'
-import { nextEventId, nextRunId, nextThreadId } from './append'
+import { createSessionWithMainThread } from './create-session'
+import { sessionOfThread } from './session-of-thread'
+import { nextEventId, nextRunId, nextSessionId, nextThreadId } from './append'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { toThreadDto } from './rows'
-import { advanceHead } from './thread-head'
+import { advanceHead, bumpMainSession } from './thread-head'
 import { ThreadSignalsService } from './thread-signals.service'
 import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import type { ThreadDto } from './sessions.types'
@@ -48,6 +50,9 @@ async function dropRewoundChildren(args: {
 
   const removable = args.agentIds.filter((agentId) => !referencedIds.has(agentId))
   if (removable.length > 0) {
+    await args.tx.orm.public.Session.where((session) =>
+      session.mainThreadId.in(removable),
+    ).deleteAndCount()
     await args.tx.orm.public.Thread.where((thread) => thread.id.in(removable))
       .where({ userId: args.userId })
       .deleteAndCount()
@@ -74,6 +79,7 @@ export class ThreadsHistoryService {
         head: args.draft.toSeq,
         updatedAt: at,
       })
+      await bumpMainSession({ tx, threadId: args.threadId, at })
     })
     await this.signals.headMoved({ threadId: args.threadId, head: args.draft.toSeq })
   }
@@ -112,23 +118,33 @@ export class ThreadsHistoryService {
 
     const at = new Date()
     const into = nextThreadId()
+    const sourceSession = await sessionOfThread({ reader: db, threadId: args.threadId })
     const row = await db.transaction(async (tx) => {
-      const created = await tx.orm.public.Thread.create({
-        id: into,
-        userId: args.userId,
-        head: args.draft.seq,
-        createdAt: at,
-        updatedAt: at,
-        parentThreadId: args.threadId,
-        forkSeq: args.draft.seq,
-        forkMode: args.draft.mode,
-        workspace: source.workspace,
-        repo: source.repo,
-        modelRef: source.modelRef,
-        modelEffort: source.modelEffort,
-        executionLocation: source.executionLocation,
-        projectId: source.projectId,
-        ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
+      const created = await createSessionWithMainThread({
+        tx,
+        session: {
+          id: nextSessionId(),
+          userId: args.userId,
+          projectId: sourceSession.projectId,
+          repo: sourceSession.repo,
+          workspace: sourceSession.workspace,
+          executionLocation: sourceSession.executionLocation,
+          title: args.draft.title,
+          createdAt: at,
+          updatedAt: at,
+        },
+        thread: {
+          id: into,
+          userId: args.userId,
+          head: args.draft.seq,
+          createdAt: at,
+          updatedAt: at,
+          parentThreadId: args.threadId,
+          forkSeq: args.draft.seq,
+          forkMode: args.draft.mode,
+          modelRef: source.modelRef,
+          modelEffort: source.modelEffort,
+        },
       })
 
       if (args.draft.mode === 'copy') {
@@ -213,6 +229,7 @@ export class ThreadsHistoryService {
         userId: args.userId,
       })
       await tx.orm.public.Thread.where({ id: args.threadId }).update({ updatedAt: at })
+      await bumpMainSession({ tx, threadId: args.threadId, at })
 
       const thread = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
       return { replaced, head: thread.head }

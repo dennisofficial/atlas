@@ -39,7 +39,7 @@ const seedThreadWithProject = async (
   })
   if (extra.apiProvisioned === true) {
     await db.orm.public.SandboxBootStep.create({
-      threadId: 'thr-1',
+      sessionId: 'ses_thr-1',
       step: 'provision',
       state: 'running',
     })

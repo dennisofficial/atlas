@@ -7,6 +7,7 @@ import {
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { failureText, type SandboxWakeBoot } from '../github/github-sandbox-wake-boot'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -42,7 +43,8 @@ export async function runPodProvision(args: {
   const { payload, deps } = args
   const { threadId } = payload
   const wakeClaim = new Date(payload.wakeClaim)
-  const row = await db.orm.public.CloudSandbox.first({ threadId })
+  const podSessionId = await podSessionOf({ reader: db, threadId })
+  const row = await db.orm.public.CloudSandbox.first({ sessionId: podSessionId })
   if (row === null || row.wakeClaim?.getTime() !== wakeClaim.getTime()) {
     deps.log(`pod-provision for thread ${threadId} was superseded; nothing to do`)
     return { outcome: EPodProvisionOutcome.Superseded }
@@ -63,6 +65,7 @@ export async function runPodProvision(args: {
     if (row.sealedToken === null) throw new Error('the sandbox row holds no session token')
     const token = deps.cipher.decrypt(row.sealedToken)
     const thread = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
+    const session = await sessionOfThread({ reader: db, threadId })
     const credentials = await deps.scoped.vercelCredentials({ thread })
     const { serveUrl } = await deps.boot.boot({
       credentials,
@@ -80,7 +83,7 @@ export async function runPodProvision(args: {
         pepper: deps.telemetryPepper,
       }),
       reporter,
-      prepare: workspaceSpecWriter({ projectId: thread.projectId, model: thread.modelRef }),
+      prepare: workspaceSpecWriter({ projectId: session.projectId, model: thread.modelRef }),
     })
     const marked = await markRunning({ threadId, wakeClaim, serveUrl })
     if (!marked) {

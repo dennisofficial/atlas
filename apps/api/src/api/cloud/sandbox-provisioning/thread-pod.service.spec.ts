@@ -166,7 +166,7 @@ describe('ThreadPodService', () => {
       wakeClaim: null,
       wakeFailedAt: new Date(),
     })
-    const existing = await db.orm.public.CloudSandbox.first({ threadId: 'thr-1' })
+    const existing = await db.orm.public.CloudSandbox.first({ sessionId: 'ses_thr-1' })
     const thread = await db.orm.public.Thread.where({ id: 'thr-1' }).all().firstOrThrow()
 
     const claim = await podLaunchWith().pod.claim({ thread, existing })

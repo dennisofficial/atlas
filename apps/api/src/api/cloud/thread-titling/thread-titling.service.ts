@@ -67,8 +67,9 @@ export class ThreadTitlingService {
   }
 
   private async writeIfUntitled(args: { threadId: string; title: string }): Promise<boolean> {
-    const statement = db.raw.sql`UPDATE "Thread" SET "title" = ${args.title}
-      WHERE "id" = ${args.threadId} AND "title" IS NULL`
+    const statement = db.raw.sql`UPDATE "Session" SET "title" = ${args.title}
+      WHERE "id" = (SELECT "sessionId" FROM "Thread" WHERE "id" = ${args.threadId})
+        AND "title" IS NULL`
       .affectedCount()
       .build()
     const { affectedRows } = await db.execute(statement)

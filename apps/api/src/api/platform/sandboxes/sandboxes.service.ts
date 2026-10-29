@@ -3,6 +3,7 @@ import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
+import { podSessionOf } from '../sessions/session-of-thread'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
@@ -116,12 +117,21 @@ export class SandboxesService {
     const rows = await db.orm.public.CloudSandbox.where({ userId: args.userId })
       .orderBy((sandbox) => sandbox.lastActivityAt.desc())
       .all()
-    return rows.map((row) => ({
-      threadId: row.threadId,
-      name: row.name,
-      state: sandboxStateOf(row),
-      lastActivityAt: row.lastActivityAt.toISOString(),
-    }))
+    const sessions = await db.orm.public.Session.where((session) =>
+      session.id.in(rows.map((row) => row.sessionId)),
+    ).all()
+    const mainOf = new Map(sessions.map((session) => [session.id, session.mainThreadId]))
+    return rows
+      .flatMap((row) => {
+        const threadId = mainOf.get(row.sessionId)
+        return threadId === null || threadId === undefined ? [] : [{ row, threadId }]
+      })
+      .map(({ row, threadId }) => ({
+        threadId,
+        name: row.name,
+        state: sandboxStateOf(row),
+        lastActivityAt: row.lastActivityAt.toISOString(),
+      }))
   }
 
   status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
@@ -130,8 +140,8 @@ export class SandboxesService {
 
   async stop(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     const row = await ownedSandbox(args)
-    await this.park({ row, reason: 'the sandbox was stopped' })
-    return { ...toSandboxDto(row), state: ESandboxState.Parked }
+    await this.park({ row, threadId: args.threadId, reason: 'the sandbox was stopped' })
+    return { ...toSandboxDto({ row, threadId: args.threadId }), state: ESandboxState.Parked }
   }
 
   /**
@@ -140,12 +150,14 @@ export class SandboxesService {
    */
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
     await ownedSandbox(args)
-    await db.orm.public.CloudSandbox.where({ threadId: args.threadId }).delete()
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+    await db.orm.public.CloudSandbox.where({ sessionId }).delete()
     await this.signals.podChanged({ threadId: args.threadId })
   }
 
   async verifySessionToken(args: { threadId: string; token: string }): Promise<{ userId: string }> {
-    const row = await db.orm.public.CloudSandbox.where({ threadId: args.threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+    const row = await db.orm.public.CloudSandbox.where({ sessionId })
       .select('tokenHash', 'userId')
       .first()
     if (row === null || !tokenMatches({ token: args.token, tokenHash: row.tokenHash })) {
@@ -157,12 +169,24 @@ export class SandboxesService {
   async verifyTokenPrincipal(args: { token: string }): Promise<TokenPrincipal> {
     const tokenHash = hashSessionToken(args.token)
     const [sandbox, pod] = await Promise.all([
-      db.orm.public.CloudSandbox.where({ tokenHash }).select('id', 'threadId', 'userId').first(),
+      this.sandboxPrincipal(tokenHash),
       db.orm.public.LocalPodLease.where({ tokenHash }).select('threadId', 'userId').first(),
     ])
     if (sandbox !== null && pod === null) return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
     if (pod !== null && sandbox === null) return { kind: ETokenPrincipalKind.Pod, ...pod }
     throw new UnauthorizedException('a valid sandbox session token is required')
+  }
+
+  private async sandboxPrincipal(tokenHash: string) {
+    const row = await db.orm.public.CloudSandbox.where({ tokenHash })
+      .select('id', 'sessionId', 'userId')
+      .first()
+    if (row === null) return null
+    const session = await db.orm.public.Session.where({ id: row.sessionId })
+      .select('mainThreadId')
+      .first()
+    if (session?.mainThreadId == null) return null
+    return { id: row.id, userId: row.userId, threadId: session.mainThreadId }
   }
 
   /**
@@ -186,26 +210,28 @@ export class SandboxesService {
   }
 
   async park(args: {
-    row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>
+    row: Pick<Row<'CloudSandbox'>, 'sessionId' | 'name'>
+    threadId: string
     reason: string
   }): Promise<void> {
     await this.notifyParked(args)
-    await this.vercel.stop({ threadId: args.row.threadId, name: args.row.name })
-    await db.orm.public.CloudSandbox.where({ threadId: args.row.threadId }).update({
+    await this.vercel.stop({ threadId: args.threadId, name: args.row.name })
+    await db.orm.public.CloudSandbox.where({ sessionId: args.row.sessionId }).update({
       state: ESandboxState.Parked,
       updatedAt: new Date(),
     })
-    await this.signals.podChanged({ threadId: args.row.threadId })
+    await this.signals.podChanged({ threadId: args.threadId })
   }
 
   /** Best-effort: a sandbox that cannot be reached must still stop, so every failure is swallowed. */
   private async notifyParked(args: {
-    row: Pick<Row<'CloudSandbox'>, 'threadId' | 'name'>
+    row: Pick<Row<'CloudSandbox'>, 'name'>
+    threadId: string
     reason: string
   }): Promise<void> {
     try {
       await this.vercel.notifyParked({
-        threadId: args.row.threadId,
+        threadId: args.threadId,
         name: args.row.name,
         reason: args.reason,
       })

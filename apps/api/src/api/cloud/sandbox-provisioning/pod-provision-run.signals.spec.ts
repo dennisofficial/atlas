@@ -50,7 +50,7 @@ describe('runPodProvision signals', () => {
     await seedThread()
     await seedSandboxRow()
     const payload = await payloadOf()
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
     })
     const { signals, framesOf } = recordingSignals()

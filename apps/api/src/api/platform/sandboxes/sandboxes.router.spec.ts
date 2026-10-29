@@ -153,7 +153,7 @@ describe('SandboxesRouter', () => {
     const reply = await destroy({ threadId: THREAD })
 
     expect(reply.status).toBe(200)
-    expect(await db.orm.public.CloudSandbox.where({ threadId: THREAD }).all()).toEqual([])
+    expect(await db.orm.public.CloudSandbox.where({ sessionId: `ses_${THREAD}` }).all()).toEqual([])
   })
 
   it('404s a destroy of a sandbox the user does not own, leaving the row', async () => {
@@ -162,7 +162,9 @@ describe('SandboxesRouter', () => {
     const reply = await destroy({ threadId: THREAD })
 
     expect(reply.status).toBe(404)
-    expect(await db.orm.public.CloudSandbox.where({ threadId: THREAD }).all()).toHaveLength(1)
+    expect(
+      await db.orm.public.CloudSandbox.where({ sessionId: `ses_${THREAD}` }).all(),
+    ).toHaveLength(1)
   })
 
   it('answers 401 on every procedure without a session', async () => {

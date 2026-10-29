@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
 import { applyArchiveOverrides, settleArchiveOverrides } from '../archive-overrides'
-import { agoIso, projectOf, threadOf } from './fixtures'
+import { agoIso, projectOf, sessionOf, threadOf } from './fixtures'
 
 const entries = [
   {
     project: projectOf('p1'),
-    threads: [
-      threadOf({ id: 'a' }),
-      threadOf({ id: 'b', archivedAt: agoIso(2) }),
-      threadOf({ id: 'c', archivedAt: null }),
+    sessions: [
+      sessionOf(threadOf({ id: 'a' })),
+      sessionOf(threadOf({ id: 'b', archivedAt: agoIso(2) })),
+      sessionOf(threadOf({ id: 'c', archivedAt: null })),
     ],
   },
 ]
@@ -28,13 +28,13 @@ describe('applyArchiveOverrides', () => {
         ['b', null],
       ]),
     })
-    const threads = result[0]?.threads ?? []
-    expect(threads.map((thread) => thread.archivedAt)).toEqual([stamp, null, null])
+    const sessions = result[0]?.sessions ?? []
+    expect(sessions.map((session) => session.mainThread.archivedAt)).toEqual([stamp, null, null])
   })
 
   it('does not mutate the source entries', () => {
     applyArchiveOverrides({ entries, overrides: new Map([['a', agoIso(0)]]) })
-    expect(entries[0]?.threads[0]?.archivedAt).toBeUndefined()
+    expect(entries[0]?.sessions[0]?.mainThread.archivedAt).toBeUndefined()
   })
 })
 
@@ -50,7 +50,10 @@ describe('settleArchiveOverrides', () => {
       entries: [
         {
           project: projectOf('p1'),
-          threads: [threadOf({ id: 'a', archivedAt: agoIso(0) }), threadOf({ id: 'b' })],
+          sessions: [
+            sessionOf(threadOf({ id: 'a', archivedAt: agoIso(0) })),
+            sessionOf(threadOf({ id: 'b' })),
+          ],
         },
       ],
       overrides,

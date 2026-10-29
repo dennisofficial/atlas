@@ -8,13 +8,16 @@ import {
   type SearchItem,
 } from '../search-items'
 import { EThreadStatus } from '../thread-status'
-import { projectOf, threadOf } from './fixtures'
+import { projectOf, sessionOf, threadOf } from './fixtures'
 
 describe('searchItemsOf', () => {
   const { threads, projects } = searchItemsOf([
     {
       project: projectOf('p1'),
-      threads: [threadOf({ id: 't1', title: 'Fix login' }), threadOf({ id: 't2' })],
+      sessions: [
+        sessionOf(threadOf({ id: 't1', title: 'Fix login' })),
+        sessionOf(threadOf({ id: 't2' })),
+      ],
     },
   ])
 

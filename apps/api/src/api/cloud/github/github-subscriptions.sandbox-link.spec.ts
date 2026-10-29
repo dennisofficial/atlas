@@ -139,7 +139,7 @@ describe('sandbox link and park survival', () => {
     const service = serviceWith({ token: 'ghu_1' })
     await sandboxRow({ threadId: 'thr_gone' })
     await expiredRow({ threadId: 'thr_gone' })
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr_gone' }).deleteAndCount()
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr_gone' }).deleteAndCount()
 
     expect(await service.liveSubscriptions({ userId: 'usr_1' })).toHaveLength(0)
   })

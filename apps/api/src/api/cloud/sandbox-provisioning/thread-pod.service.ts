@@ -17,6 +17,7 @@ import {
   SandboxMissingError,
   VercelSandboxClient,
 } from '../../platform/sandboxes/vercel-sandbox.client'
+import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import {
   hasBootSteps,
   latestAttemptOf,
@@ -49,11 +50,12 @@ export class ThreadPodService {
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
     const { userId, threadId } = args
     await ownedThread({ reader: db, userId, threadId })
-    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
     const steps = await readBootSteps({ threadId })
     return {
       state: podStateOf({ row, lastBootStepState: steps.at(-1)?.state }),
-      ...(row === null ? {} : { resources: await this.resourcesOf(row) }),
+      ...(row === null ? {} : { resources: await this.resourcesOf({ row, threadId }) }),
       steps: latestAttemptOf(steps),
       history: steps,
     }
@@ -62,7 +64,8 @@ export class ThreadPodService {
   async resize(args: { userId: string; threadId: string; vcpus: number }): Promise<PodResizeReply> {
     const { userId, threadId, vcpus } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
-    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null) throw new NotFoundException('this thread has no pod to resize')
     if (!(await hasBootSteps({ threadId }))) throw new ConflictException(RESIZE_UNMANAGED_MESSAGE)
     const standing = standingStateOf(row)
@@ -77,7 +80,8 @@ export class ThreadPodService {
   async destroy(args: { userId: string; threadId: string }): Promise<void> {
     const { userId, threadId } = args
     await ownedThread({ reader: db, userId, threadId })
-    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null) return
     await db.orm.public.CloudSandbox.where({ id: row.id }).updateAndCount({
       wakeClaim: null,
@@ -99,7 +103,7 @@ export class ThreadPodService {
 
   private async restart(args: { thread: Row<'Thread'>; row: Row<'CloudSandbox'> }): Promise<void> {
     const { thread, row } = args
-    await this.sandboxes.park({ row, reason: RESIZE_PARK_REASON })
+    await this.sandboxes.park({ row, threadId: thread.id, reason: RESIZE_PARK_REASON })
     const { reply, dispatchFailed } = await this.pod.launch({ thread, existing: row })
     if (dispatchFailed) throw dispatchFailure()
     if (reply.state === ESandboxProvisionState.NotConfigured) {
@@ -107,10 +111,14 @@ export class ThreadPodService {
     }
   }
 
-  private async resourcesOf(row: Row<'CloudSandbox'>): Promise<PodResources> {
+  private async resourcesOf(args: {
+    row: Row<'CloudSandbox'>
+    threadId: string
+  }): Promise<PodResources> {
+    const { row } = args
     const identity = { sandboxId: row.sandboxId, region: row.region }
     try {
-      const live = await this.vercel.readResources({ threadId: row.threadId, name: row.name })
+      const live = await this.vercel.readResources({ threadId: args.threadId, name: row.name })
       return { ...identity, ...live }
     } catch (failure) {
       this.logger.warn(`reading resources of ${row.name} failed: ${String(failure)}`)

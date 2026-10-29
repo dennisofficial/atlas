@@ -8,11 +8,11 @@ export const WAKE_CLAIM_TTL_MS = 15 * 60 * 1_000
 
 export type SandboxLifecycleColumns = Pick<
   Row<'CloudSandbox'>,
-  'threadId' | 'state' | 'runtimeCheckpoint' | 'runtimeCheckpointRevision' | 'wakeClaim'
+  'sessionId' | 'state' | 'runtimeCheckpoint' | 'runtimeCheckpointRevision' | 'wakeClaim'
 >
 
 export const SANDBOX_LIFECYCLE_COLUMNS = [
-  'threadId',
+  'sessionId',
   'state',
   'runtimeCheckpoint',
   'runtimeCheckpointRevision',
@@ -36,7 +36,6 @@ const legacyStateOf = (column: string): ESandboxState => {
 
 function mirroredRecordOf(row: SandboxLifecycleColumns): RuntimeCheckpoint | null {
   return storedCheckpointOf({
-    threadId: row.threadId,
     checkpoint: row.runtimeCheckpoint,
     revision: row.runtimeCheckpointRevision,
   })

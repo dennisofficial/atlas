@@ -200,7 +200,7 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
       await seedThread({ db, id: `thr-${sandboxId}`, userId: ownerId })
       await db.orm.public.CloudSandbox.create({
         id: sandboxId,
-        threadId: `thr-${sandboxId}`,
+        sessionId: `ses_thr-${sandboxId}`,
         userId: ownerId,
         sandboxId: `p-${sandboxId}`,
         name: sandboxId,

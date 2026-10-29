@@ -17,6 +17,7 @@ import { linkedThreadsOf } from './github-sandbox-wake-linked'
 import { LocalPodWakes } from './github-local-pod-wake'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
+import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
@@ -28,10 +29,8 @@ export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
 
 async function archivedThread(args: { threadId: string }): Promise<boolean> {
-  const thread = await db.orm.public.Thread.where({ id: args.threadId })
-    .select('archivedAt')
-    .first()
-  return thread?.archivedAt !== null && thread?.archivedAt !== undefined
+  const session = await sessionOfThread({ reader: db, threadId: args.threadId }).catch(() => null)
+  return session?.archivedAt !== null && session?.archivedAt !== undefined
 }
 
 type WakeTarget = {
@@ -185,7 +184,8 @@ export class GithubSandboxWakeService {
   }
 
   private async claimAndBoot(args: { threadId: string }): Promise<void> {
-    const row = await db.orm.public.CloudSandbox.first({ threadId: args.threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null || !wakeableOf(row)) {
       this.logger.log(`wake of thread ${args.threadId} skipped — the row is no longer parked`)
       return
@@ -196,7 +196,7 @@ export class GithubSandboxWakeService {
     }
     const wakeClaim = new Date()
     const claimed = await db.orm.public.CloudSandbox.where({
-      threadId: args.threadId,
+      sessionId: row.sessionId,
       wakeClaim: row.wakeClaim,
       runtimeCheckpointRevision: row.runtimeCheckpointRevision,
       state: row.state,
@@ -209,18 +209,18 @@ export class GithubSandboxWakeService {
     }
     await this.signals.podChanged({ threadId: args.threadId })
     try {
-      await this.bootClaimed({ row })
+      await this.bootClaimed({ row, threadId: args.threadId })
     } catch (failure) {
-      await this.releaseClaim({ threadId: args.threadId, wakeClaim })
+      await this.releaseClaim({ threadId: args.threadId, sessionId: row.sessionId, wakeClaim })
       throw failure
     }
   }
 
-  private async bootClaimed(args: { row: Row<'CloudSandbox'> }): Promise<void> {
-    const { row } = args
+  private async bootClaimed(args: { row: Row<'CloudSandbox'>; threadId: string }): Promise<void> {
+    const { row, threadId } = args
     const freshToken = randomBytes(32).toString('hex')
     const { ownerCredential, userId, ...credentials } = await this.credentials.forThread({
-      threadId: row.threadId,
+      threadId,
     })
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials,
@@ -234,31 +234,31 @@ export class GithubSandboxWakeService {
           }
         : {}),
       name: row.name,
-      threadId: row.threadId,
+      threadId,
       image: this.env.get('SANDBOX_IMAGE'),
       cloudUrl: this.env.get('ATLAS_CLOUD_URL') ?? 'https://api.byatlas.io',
       serveVersion: row.serveVersion ?? undefined,
       freshToken,
       resumeToken: this.unsealedToken(row),
-      onFreshSandbox: () => this.adoptFreshSandbox({ threadId: row.threadId, token: freshToken }),
+      onFreshSandbox: () => this.adoptFreshSandbox({ sessionId: row.sessionId, token: freshToken }),
     })
     const at = new Date()
-    await db.orm.public.CloudSandbox.where({ threadId: row.threadId }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: row.sessionId }).update({
       state: ESandboxState.Running,
       serveUrl,
       wakeFailedAt: null,
       lastActivityAt: at,
       updatedAt: at,
     })
-    await this.signals.podChanged({ threadId: row.threadId })
+    await this.signals.podChanged({ threadId })
     this.logger.log(
-      `woke sandbox ${row.name} for thread ${row.threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
+      `woke sandbox ${row.name} for thread ${threadId} (${created ? 'created fresh' : 'resumed from snapshot'}) — serve at ${serveUrl}`,
     )
   }
 
   /** The prior sandbox's lifecycle record died with it; the fresh serve mirrors from revision 1. */
-  private async adoptFreshSandbox(args: { threadId: string; token: string }): Promise<void> {
-    await db.orm.public.CloudSandbox.where({ threadId: args.threadId }).update({
+  private async adoptFreshSandbox(args: { sessionId: string; token: string }): Promise<void> {
+    await db.orm.public.CloudSandbox.where({ sessionId: args.sessionId }).update({
       tokenHash: hashSessionToken(args.token),
       sealedToken: this.cipher.encrypt(args.token),
       runtimeCheckpoint: null,
@@ -281,10 +281,14 @@ export class GithubSandboxWakeService {
     }
   }
 
-  private async releaseClaim(args: { threadId: string; wakeClaim: Date }): Promise<void> {
+  private async releaseClaim(args: {
+    threadId: string
+    sessionId: string
+    wakeClaim: Date
+  }): Promise<void> {
     const at = new Date()
     await db.orm.public.CloudSandbox.where({
-      threadId: args.threadId,
+      sessionId: args.sessionId,
       wakeClaim: args.wakeClaim,
     }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
     await this.signals.podChanged({ threadId: args.threadId })

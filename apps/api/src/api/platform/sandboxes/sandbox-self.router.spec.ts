@@ -179,9 +179,9 @@ describe('SandboxSelfRouter', () => {
 
       expect(reply.status).toBe(200)
       const rows = await db.orm.public.SandboxBootStep.all()
-      expect(rows.map((row) => [row.threadId, row.step, row.state, row.error]).sort()).toEqual([
-        ['thr-1', 'clone', 'error', 'no network'],
-        ['thr-1', 'clone', 'running', null],
+      expect(rows.map((row) => [row.sessionId, row.step, row.state, row.error]).sort()).toEqual([
+        ['ses_thr-1', 'clone', 'error', 'no network'],
+        ['ses_thr-1', 'clone', 'running', null],
       ])
     })
 
@@ -219,7 +219,7 @@ describe('SandboxSelfRouter', () => {
     })
 
     it('answers 404 and records nothing when the thread row is gone', async () => {
-      await db.orm.public.Thread.where({ id: 'thr-1' }).delete()
+      await db.orm.public.Session.where({ id: 'ses_thr-1' }).delete()
 
       const reply = await send('bootSteps', SANDBOX_TOKEN, {
         steps: [{ step: EBootStep.Agent, state: EBootStepState.Running }],

@@ -148,7 +148,7 @@ describe('ThreadMessagesService.send', () => {
       threadId: 'thr-1',
       events: [podAnswer(2), podAnswer(3)],
     })
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       state: 'parked',
       wakeClaim: null,
       wakeFailedAt: null,

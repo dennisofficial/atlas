@@ -82,7 +82,7 @@ describe('boot step store', () => {
 
   it('skips rows whose step or state is not part of the wire enums', async () => {
     await db.orm.public.SandboxBootStep.create({
-      threadId: 'thr-1',
+      sessionId: 'ses_thr-1',
       step: 'legacy',
       state: 'done',
     })

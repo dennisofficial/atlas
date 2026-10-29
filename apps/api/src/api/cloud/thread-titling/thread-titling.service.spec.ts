@@ -5,6 +5,12 @@ import { recordingSignals } from '../../platform/sessions/thread-signals.fixture
 import { seedThread, threadRow } from '../sandbox-provisioning/sandbox-provisioning.fixture'
 import { ThreadTitlingService, type TitlerFactory } from './thread-titling.service'
 
+const sessionTitle = async () => {
+  const thread = await threadRow()
+  if (thread === null) return undefined
+  return (await db.orm.public.Session.first({ id: thread.sessionId }))?.title
+}
+
 const REQUEST = { userId: 'usr-1', threadId: 'thr-1', projectId: 'prj-1', text: 'fix login' }
 
 function serviceWith(args: { titler: () => Promise<string | null> }) {
@@ -35,7 +41,7 @@ describe('ThreadTitlingService', () => {
 
     await service.titleFirstMessage(REQUEST)
 
-    expect((await threadRow())?.title).toBe('Fix login')
+    expect(await sessionTitle()).toBe('Fix login')
     expect(frames).toHaveLength(1)
     expect(listFrames).toHaveLength(1)
     expect(factory).toHaveBeenCalledTimes(1)
@@ -43,13 +49,14 @@ describe('ThreadTitlingService', () => {
 
   it('does not overwrite an existing title', async () => {
     await seedThread()
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ title: 'Mine' })
+    const thread = await threadRow()
+    await db.orm.public.Session.where({ id: thread?.sessionId ?? '' }).update({ title: 'Mine' })
     const { service, framesOf } = serviceWith({ titler: async () => 'Generated' })
     const frames = framesOf('thr-1')
 
     await service.titleFirstMessage(REQUEST)
 
-    expect((await threadRow())?.title).toBe('Mine')
+    expect(await sessionTitle()).toBe('Mine')
     expect(frames).toHaveLength(0)
   })
 
@@ -63,6 +70,6 @@ describe('ThreadTitlingService', () => {
 
     await service.titleFirstMessage(REQUEST)
 
-    expect((await threadRow())?.title).toBeNull()
+    expect(await sessionTitle()).toBeNull()
   })
 })

@@ -2,6 +2,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { seedThreadRow } from '../../../../test/session-seed'
 import {
   ESeededSubscription,
   fakeBoot,
@@ -14,12 +15,9 @@ import {
 } from '../../../../test/github-sandbox-wake-fixture'
 
 async function seedAgentThread(args: { id: string; spawnedBy: string; type: string }) {
-  const at = new Date()
-  await db.orm.public.Thread.create({
+  await seedThreadRow({
     id: args.id,
     userId: 'usr-1',
-    createdAt: at,
-    updatedAt: at,
     spawnerThreadId: args.spawnedBy,
     agentType: args.type,
   })

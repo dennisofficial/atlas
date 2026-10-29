@@ -24,11 +24,17 @@ export const SANDBOX_STATUS_COLUMNS = [
 ] as const
 
 /** The identity columns a token check needs; the row's blob columns never ride along. */
-export type SandboxPrincipal = Pick<Row<'CloudSandbox'>, 'id' | 'threadId' | 'userId'>
+export type SandboxPrincipal = Pick<Row<'CloudSandbox'>, 'id' | 'userId'> & { threadId: string }
 
-export function toSandboxDto(row: SandboxStatusColumns): SandboxStatusDto {
+export function toSandboxDto({
+  row,
+  threadId,
+}: {
+  row: SandboxStatusColumns
+  threadId: string
+}): SandboxStatusDto {
   return {
-    threadId: row.threadId,
+    threadId,
     name: row.name,
     region: row.region,
     state: sandboxStateOf(row),

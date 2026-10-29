@@ -67,7 +67,7 @@ describe('the client-provisioned register path endpoints', () => {
       clientToken: CLIENT_TOKEN,
       serveUrl: SERVE_URL,
     })
-    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: `ses_${THREAD}` }).update({
       state: ESandboxState.Parked,
     })
 
@@ -85,7 +85,7 @@ describe('the client-provisioned register path endpoints', () => {
       clientToken: CLIENT_TOKEN,
       serveUrl: SERVE_URL,
     })
-    await db.orm.public.CloudSandbox.where({ threadId: THREAD }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: `ses_${THREAD}` }).update({
       state: ESandboxState.Parked,
     })
 

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   sandboxByThread,
   seedThreadRow,
+  sessionOfThreadRow,
   threadById,
   USER_A,
   USER_B,
@@ -86,9 +87,10 @@ describe('the client-provisioned register path', () => {
     })
 
     const thread = await threadById(THREAD)
-    expect(thread?.executionLocation).toBe('cloud')
-    expect(thread?.title).toBe('fix the flake')
-    expect(thread?.repo).toBe('compai/atlas')
+    const session = await sessionOfThreadRow(THREAD)
+    expect(session?.executionLocation).toBe('cloud')
+    expect(session?.title).toBe('fix the flake')
+    expect(session?.repo).toBe('compai/atlas')
     expect(thread?.modelRef).toBe('claude-opus-4-6')
   })
 

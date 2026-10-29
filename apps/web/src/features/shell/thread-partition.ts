@@ -1,5 +1,7 @@
 import type { Project, WireThread } from '@dltech/atlas-wire/web'
 
+import type { SessionNode } from '@/features/threads/data/threads-api'
+
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
 
 export enum EThreadBucket {
@@ -10,7 +12,7 @@ export enum EThreadBucket {
 
 export interface ProjectThreads {
   project: Project
-  threads: WireThread[]
+  sessions: SessionNode[]
 }
 
 export interface ThreadPartition {
@@ -35,15 +37,16 @@ export function bucketOf(args: { thread: WireThread; now: number }): EThreadBuck
   return now - updatedAt > INACTIVE_AFTER_MS ? EThreadBucket.Inactive : EThreadBucket.Active
 }
 
-export function sortThreads(threads: readonly WireThread[]): WireThread[] {
-  return [...threads].sort((left, right) => {
-    const pinned = Number(isSet(right.pinnedAt)) - Number(isSet(left.pinnedAt))
-    return pinned !== 0 ? pinned : updatedAtOf(right) - updatedAtOf(left)
+export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
+  return [...sessions].sort((left, right) => {
+    const pinned =
+      Number(isSet(right.mainThread.pinnedAt)) - Number(isSet(left.mainThread.pinnedAt))
+    return pinned !== 0 ? pinned : updatedAtOf(right.mainThread) - updatedAtOf(left.mainThread)
   })
 }
 
-const withThreads = (entries: ProjectThreads[]): ProjectThreads[] =>
-  entries.filter((entry) => entry.threads.length > 0)
+const withSessions = (entries: ProjectThreads[]): ProjectThreads[] =>
+  entries.filter((entry) => entry.sessions.length > 0)
 
 export function partitionThreads(args: {
   entries: readonly ProjectThreads[]
@@ -52,31 +55,37 @@ export function partitionThreads(args: {
   const groups: ProjectThreads[] = []
   const inactive: ProjectThreads[] = []
   const archived: ProjectThreads[] = []
-  for (const { project, threads } of args.entries) {
-    const byBucket: Record<EThreadBucket, WireThread[]> = {
+  for (const { project, sessions } of args.entries) {
+    const byBucket: Record<EThreadBucket, SessionNode[]> = {
       [EThreadBucket.Active]: [],
       [EThreadBucket.Inactive]: [],
       [EThreadBucket.Archived]: [],
     }
-    for (const thread of sortThreads(threads)) {
-      byBucket[bucketOf({ thread, now: args.now })].push(thread)
+    for (const session of sortSessions(sessions)) {
+      byBucket[bucketOf({ thread: session.mainThread, now: args.now })].push(session)
     }
-    groups.push({ project, threads: byBucket[EThreadBucket.Active] })
-    inactive.push({ project, threads: byBucket[EThreadBucket.Inactive] })
-    archived.push({ project, threads: byBucket[EThreadBucket.Archived] })
+    groups.push({ project, sessions: byBucket[EThreadBucket.Active] })
+    inactive.push({ project, sessions: byBucket[EThreadBucket.Inactive] })
+    archived.push({ project, sessions: byBucket[EThreadBucket.Archived] })
   }
   return {
     groups,
-    inactive: withThreads(inactive),
-    archived: withThreads(archived),
+    inactive: withSessions(inactive),
+    archived: withSessions(archived),
   }
 }
 
 export const countThreads = (entries: readonly ProjectThreads[]): number =>
-  entries.reduce((total, entry) => total + entry.threads.length, 0)
+  entries.reduce((total, entry) => total + entry.sessions.length, 0)
+
+export function mainThreadsOf(sessions: readonly SessionNode[]): WireThread[] {
+  return sessions.flatMap((session) => [session.mainThread, ...mainThreadsOf(session.teammates)])
+}
 
 export const hasThread = (args: {
   entries: readonly ProjectThreads[]
   threadId: string
 }): boolean =>
-  args.entries.some((entry) => entry.threads.some((thread) => thread.id === args.threadId))
+  args.entries.some((entry) =>
+    mainThreadsOf(entry.sessions).some((thread) => thread.id === args.threadId),
+  )

@@ -27,6 +27,7 @@ model User {
   githubRepoHooks          GithubRepoHook[]
   publishedBundles         PublishedBundle[]
   secrets                  UserSecret[]
+  authSessions             AuthSession[]
   sessions                 Session[]
   sshSigningKey            SshSigningKey?
   threads                  Thread[]

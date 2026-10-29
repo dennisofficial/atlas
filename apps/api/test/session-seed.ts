@@ -14,15 +14,63 @@ export async function seedUsers(...ids: string[]): Promise<void> {
   for (const id of ids) await seedUser({ db, id })
 }
 
+type SessionPartial = Partial<
+  Pick<
+    Row<'Session'>,
+    | 'projectId'
+    | 'repo'
+    | 'workspace'
+    | 'executionLocation'
+    | 'title'
+    | 'pinnedAt'
+    | 'archivedAt'
+    | 'managedBySessionId'
+  >
+>
+
 export async function seedThreadRow(
-  partial: Partial<Row<'Thread'>> & { id: string },
+  partial: Partial<Row<'Thread'>> & { id: string } & SessionPartial,
 ): Promise<Row<'Thread'>> {
-  return db.orm.public.Thread.create({
+  const {
+    projectId,
+    repo,
+    workspace,
+    executionLocation,
+    title,
+    pinnedAt,
+    archivedAt,
+    managedBySessionId,
+    ...threadColumns
+  } = partial
+  const userId = threadColumns.userId ?? USER_A
+  const sessionId = threadColumns.sessionId ?? `ses_${partial.id}`
+  const owned = threadColumns.sessionId === undefined
+  if (owned) {
+    await db.orm.public.Session.create({
+      id: sessionId,
+      userId,
+      createdAt: STAMP,
+      updatedAt: threadColumns.updatedAt ?? STAMP,
+      ...(projectId === undefined ? {} : { projectId }),
+      ...(repo === undefined ? {} : { repo }),
+      ...(workspace === undefined ? {} : { workspace }),
+      ...(executionLocation === undefined ? {} : { executionLocation }),
+      ...(title === undefined ? {} : { title }),
+      ...(pinnedAt === undefined ? {} : { pinnedAt }),
+      ...(archivedAt === undefined ? {} : { archivedAt }),
+      ...(managedBySessionId === undefined ? {} : { managedBySessionId }),
+    })
+  }
+  const thread = await db.orm.public.Thread.create({
     createdAt: STAMP,
     updatedAt: STAMP,
-    userId: USER_A,
-    ...partial,
+    userId,
+    ...threadColumns,
+    sessionId,
   })
+  if (owned)
+    await db.orm.public.Session.where({ id: sessionId }).update({ mainThreadId: thread.id })
+  return thread
 }
 
 export async function seedEventRow(
@@ -63,26 +111,35 @@ export async function seedTurnRow(
 export async function seedSandboxRow(
   partial: Partial<Row<'CloudSandbox'>> & { threadId: string },
 ): Promise<Row<'CloudSandbox'>> {
-  const userId = partial.userId ?? USER_A
-  const existing = await db.orm.public.Thread.where({ id: partial.threadId }).select('id').first()
-  if (existing === null) await seedThreadRow({ id: partial.threadId, userId })
+  const { threadId, ...columns } = partial
+  const userId = columns.userId ?? USER_A
+  const existing = await db.orm.public.Thread.where({ id: threadId }).select('sessionId').first()
+  if (existing === null) await seedThreadRow({ id: threadId, userId })
+  const sessionId =
+    columns.sessionId ??
+    existing?.sessionId ??
+    (await threadById(threadId))?.sessionId ??
+    `ses_${threadId}`
   return db.orm.public.CloudSandbox.create({
-    id: `sbx_${partial.threadId}`,
+    id: `sbx_${threadId}`,
     userId,
     sandboxId: 'sandbox-id',
-    name: `atlas-thread-${partial.threadId}`,
+    name: `atlas-thread-${threadId}`,
     region: 'iad1',
     state: 'running',
     lastActivityAt: STAMP,
-    tokenHash: `hash_${partial.threadId}`,
+    tokenHash: `hash_${threadId}`,
     createdAt: STAMP,
     updatedAt: STAMP,
-    ...partial,
+    ...columns,
+    sessionId,
   })
 }
 
 export async function sandboxByThread(threadId: string): Promise<Row<'CloudSandbox'> | null> {
-  return db.orm.public.CloudSandbox.where({ threadId }).first()
+  const thread = await threadById(threadId)
+  if (thread === null) return null
+  return db.orm.public.CloudSandbox.where({ sessionId: thread.sessionId }).first()
 }
 
 export async function threadById(id: string): Promise<Row<'Thread'> | null> {
@@ -93,4 +150,10 @@ export async function eventsOf(threadId: string): Promise<Row<'Event'>[]> {
   return db.orm.public.Event.where({ threadId })
     .orderBy((event) => event.seq.asc())
     .all()
+}
+
+export async function sessionOfThreadRow(threadId: string): Promise<Row<'Session'> | null> {
+  const thread = await threadById(threadId)
+  if (thread === null) return null
+  return db.orm.public.Session.where({ id: thread.sessionId }).first()
 }

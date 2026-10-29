@@ -16,6 +16,10 @@
       "model": "AgentAccount",
       "namespace": "public"
     },
+    "AuthSession": {
+      "model": "AuthSession",
+      "namespace": "public"
+    },
     "CloudSandbox": {
       "model": "CloudSandbox",
       "namespace": "public"
@@ -620,6 +624,123 @@
               "table": "AgentAccount"
             }
           },
+          "AuthSession": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ipAddress": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "token": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userAgent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "expiresAt": {
+                  "column": "expiresAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "ipAddress": {
+                  "column": "ipAddress"
+                },
+                "token": {
+                  "column": "token"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userAgent": {
+                  "column": "userAgent"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "AuthSession"
+            }
+          },
           "CloudSandbox": {
             "fields": {
               "contextPending": {
@@ -733,14 +854,14 @@
                   "kind": "scalar"
                 }
               },
-              "state": {
+              "sessionId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "threadId": {
+              "state": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -815,19 +936,19 @@
                   "namespace": "public"
                 }
               },
-              "thread": {
+              "session": {
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
                   "localFields": [
-                    "threadId"
+                    "sessionId"
                   ],
                   "targetFields": [
                     "id"
                   ]
                 },
                 "to": {
-                  "model": "Thread",
+                  "model": "Session",
                   "namespace": "public"
                 }
               },
@@ -895,11 +1016,11 @@
                 "serveVersion": {
                   "column": "serveVersion"
                 },
+                "sessionId": {
+                  "column": "sessionId"
+                },
                 "state": {
                   "column": "state"
-                },
-                "threadId": {
-                  "column": "threadId"
                 },
                 "tokenHash": {
                   "column": "tokenHash"
@@ -2951,6 +3072,21 @@
                   "namespace": "public"
                 }
               },
+              "sessions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "Session",
+                  "namespace": "public"
+                }
+              },
               "settings": {
                 "cardinality": "1:N",
                 "on": {
@@ -2963,21 +3099,6 @@
                 },
                 "to": {
                   "model": "ProjectSetting",
-                  "namespace": "public"
-                }
-              },
-              "threads": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "projectId"
-                  ]
-                },
-                "to": {
-                  "model": "Thread",
                   "namespace": "public"
                 }
               }
@@ -3481,6 +3602,13 @@
                   "kind": "scalar"
                 }
               },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "state": {
                 "nullable": false,
                 "type": {
@@ -3494,29 +3622,22 @@
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
-              },
-              "threadId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
-              "thread": {
+              "session": {
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
                   "localFields": [
-                    "threadId"
+                    "sessionId"
                   ],
                   "targetFields": [
                     "id"
                   ]
                 },
                 "to": {
-                  "model": "Thread",
+                  "model": "Session",
                   "namespace": "public"
                 }
               }
@@ -3538,14 +3659,14 @@
                 "outcome": {
                   "column": "outcome"
                 },
+                "sessionId": {
+                  "column": "sessionId"
+                },
                 "state": {
                   "column": "state"
                 },
                 "step": {
                   "column": "step"
-                },
-                "threadId": {
-                  "column": "threadId"
                 }
               },
               "namespaceId": "public",
@@ -3554,6 +3675,16 @@
           },
           "Session": {
             "fields": {
+              "archivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -3564,14 +3695,11 @@
                   }
                 }
               },
-              "expiresAt": {
-                "nullable": false,
+              "executionLocation": {
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
                 }
               },
               "id": {
@@ -3581,15 +3709,46 @@
                   "kind": "scalar"
                 }
               },
-              "ipAddress": {
+              "mainThreadId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "token": {
-                "nullable": false,
+              "managedBySessionId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "pinnedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "projectId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "repo": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -3605,15 +3764,15 @@
                   }
                 }
               },
-              "userAgent": {
-                "nullable": true,
+              "userId": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "userId": {
-                "nullable": false,
+              "workspace": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -3621,6 +3780,115 @@
               }
             },
             "relations": {
+              "bootSteps": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "SandboxBootStep",
+                  "namespace": "public"
+                }
+              },
+              "cloudSandbox": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "CloudSandbox",
+                  "namespace": "public"
+                }
+              },
+              "mainThread": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "mainThreadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "managedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "managedBySessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Session",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "teammates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "managedBySessionId"
+                  ]
+                },
+                "to": {
+                  "model": "Session",
+                  "namespace": "public"
+                }
+              },
+              "threads": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -3640,29 +3908,44 @@
             },
             "storage": {
               "fields": {
+                "archivedAt": {
+                  "column": "archivedAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
-                "expiresAt": {
-                  "column": "expiresAt"
+                "executionLocation": {
+                  "column": "executionLocation"
                 },
                 "id": {
                   "column": "id"
                 },
-                "ipAddress": {
-                  "column": "ipAddress"
+                "mainThreadId": {
+                  "column": "mainThreadId"
                 },
-                "token": {
-                  "column": "token"
+                "managedBySessionId": {
+                  "column": "managedBySessionId"
+                },
+                "pinnedAt": {
+                  "column": "pinnedAt"
+                },
+                "projectId": {
+                  "column": "projectId"
+                },
+                "repo": {
+                  "column": "repo"
+                },
+                "title": {
+                  "column": "title"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
                 },
-                "userAgent": {
-                  "column": "userAgent"
-                },
                 "userId": {
                   "column": "userId"
+                },
+                "workspace": {
+                  "column": "workspace"
                 }
               },
               "namespaceId": "public",
@@ -3812,16 +4095,6 @@
                   "kind": "scalar"
                 }
               },
-              "archivedAt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
               "awaiting": {
                 "nullable": true,
                 "type": {
@@ -3837,13 +4110,6 @@
                   "typeParams": {
                     "precision": 3
                   }
-                }
-              },
-              "executionLocation": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
                 }
               },
               "forkMode": {
@@ -3909,38 +4175,14 @@
                   "kind": "scalar"
                 }
               },
-              "pinnedAt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "projectId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "repo": {
-                "nullable": true,
+              "sessionId": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "spawnerThreadId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "title": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3970,47 +4212,9 @@
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
-              },
-              "workspace": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
               }
             },
             "relations": {
-              "bootSteps": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "threadId"
-                  ]
-                },
-                "to": {
-                  "model": "SandboxBootStep",
-                  "namespace": "public"
-                }
-              },
-              "cloudSandbox": {
-                "cardinality": "1:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "threadId"
-                  ]
-                },
-                "to": {
-                  "model": "CloudSandbox",
-                  "namespace": "public"
-                }
-              },
               "events": {
                 "cardinality": "1:N",
                 "on": {
@@ -4041,6 +4245,22 @@
                   "namespace": "public"
                 }
               },
+              "mainOfSession": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "mainThreadId"
+                  ]
+                },
+                "to": {
+                  "model": "Session",
+                  "namespace": "public"
+                }
+              },
               "parent": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -4057,22 +4277,6 @@
                   "namespace": "public"
                 }
               },
-              "project": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "projectId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Project",
-                  "namespace": "public"
-                }
-              },
               "reads": {
                 "cardinality": "1:N",
                 "on": {
@@ -4085,6 +4289,22 @@
                 },
                 "to": {
                   "model": "ThreadRead",
+                  "namespace": "public"
+                }
+              },
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Session",
                   "namespace": "public"
                 }
               },
@@ -4159,17 +4379,11 @@
                 "agentType": {
                   "column": "agentType"
                 },
-                "archivedAt": {
-                  "column": "archivedAt"
-                },
                 "awaiting": {
                   "column": "awaiting"
                 },
                 "createdAt": {
                   "column": "createdAt"
-                },
-                "executionLocation": {
-                  "column": "executionLocation"
                 },
                 "forkMode": {
                   "column": "forkMode"
@@ -4198,20 +4412,11 @@
                 "parentThreadId": {
                   "column": "parentThreadId"
                 },
-                "pinnedAt": {
-                  "column": "pinnedAt"
-                },
-                "projectId": {
-                  "column": "projectId"
-                },
-                "repo": {
-                  "column": "repo"
+                "sessionId": {
+                  "column": "sessionId"
                 },
                 "spawnerThreadId": {
                   "column": "spawnerThreadId"
-                },
-                "title": {
-                  "column": "title"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -4221,9 +4426,6 @@
                 },
                 "working": {
                   "column": "working"
-                },
-                "workspace": {
-                  "column": "workspace"
                 }
               },
               "namespaceId": "public",
@@ -4592,6 +4794,21 @@
                 },
                 "to": {
                   "model": "AgentAccount",
+                  "namespace": "public"
+                }
+              },
+              "authSessions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "AuthSession",
                   "namespace": "public"
                 }
               },
@@ -5932,6 +6149,109 @@
               },
               "uniques": []
             },
+            "AuthSession": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "expiresAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "ipAddress": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "token": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userAgent": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "AuthSession_userId_idx_a489d58a"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "AuthSession"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "AuthSession_userId_idx_a489d58a",
+                  "prefix": "AuthSession_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "token"
+                  ],
+                  "name": "AuthSession_token_key"
+                }
+              ]
+            },
             "CloudSandbox": {
               "columns": {
                 "contextPending": {
@@ -6019,12 +6339,12 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "state": {
+                "sessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "threadId": {
+                "state": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
@@ -6094,14 +6414,14 @@
                 {
                   "index": {
                     "unique": [
-                      "threadId"
+                      "sessionId"
                     ]
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
-                      "threadId"
+                      "sessionId"
                     ],
                     "namespaceId": "public",
                     "tableName": "CloudSandbox"
@@ -6111,7 +6431,7 @@
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Thread"
+                    "tableName": "Session"
                   }
                 }
               ],
@@ -6145,9 +6465,9 @@
                 },
                 {
                   "columns": [
-                    "threadId"
+                    "sessionId"
                   ],
-                  "name": "CloudSandbox_threadId_key"
+                  "name": "CloudSandbox_sessionId_key"
                 }
               ]
             },
@@ -8496,6 +8816,11 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
                 "state": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -8505,23 +8830,18 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
-                },
-                "threadId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "SandboxBootStep_threadId_at_idx"
+                    "name": "SandboxBootStep_sessionId_at_idx"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
-                      "threadId"
+                      "sessionId"
                     ],
                     "namespaceId": "public",
                     "tableName": "SandboxBootStep"
@@ -8531,17 +8851,17 @@
                       "id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Thread"
+                    "tableName": "Session"
                   }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "threadId",
+                    "sessionId",
                     "at"
                   ],
-                  "name": "SandboxBootStep_threadId_at_idx",
+                  "name": "SandboxBootStep_sessionId_at_idx",
                   "unique": false
                 }
               ],
@@ -8648,40 +8968,64 @@
             },
             "Session": {
               "columns": {
+                "archivedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nullable": false,
                   "typeParams": {
                     "precision": 3
                   }
                 },
-                "expiresAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
+                "executionLocation": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "ipAddress": {
+                "mainThreadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "token": {
+                "managedBySessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
+                },
+                "pinnedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "projectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "repo": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -8691,15 +9035,15 @@
                     "precision": 3
                   }
                 },
-                "userAgent": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "userId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "workspace": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -8723,15 +9067,118 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
+                },
+                {
+                  "index": {
+                    "name": "Session_projectId_idx"
+                  },
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "projectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Session"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Project"
+                  }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "mainThreadId"
+                    ]
+                  },
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "mainThreadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Session"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "Session_managedBySessionId_idx"
+                  },
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "managedBySessionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Session"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Session"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "managedBySessionId"
+                  ],
+                  "name": "Session_managedBySessionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "projectId"
+                  ],
+                  "name": "Session_projectId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId"
                   ],
                   "name": "Session_userId_idx_a489d58a",
                   "prefix": "Session_userId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "repo",
+                    "updatedAt"
+                  ],
+                  "name": "Session_userId_repo_updatedAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "updatedAt"
+                  ],
+                  "name": "Session_userId_updatedAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "workspace",
+                    "updatedAt"
+                  ],
+                  "name": "Session_userId_workspace_updatedAt_idx",
                   "unique": false
                 }
               ],
@@ -8743,9 +9190,9 @@
               "uniques": [
                 {
                   "columns": [
-                    "token"
+                    "mainThreadId"
                   ],
-                  "name": "Session_token_key"
+                  "name": "Session_mainThreadId_key"
                 }
               ]
             },
@@ -8862,14 +9309,6 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "archivedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": true,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
                 "awaiting": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -8882,11 +9321,6 @@
                   "typeParams": {
                     "precision": 3
                   }
-                },
-                "executionLocation": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 },
                 "forkMode": {
                   "codecId": "pg/text@1",
@@ -8941,30 +9375,12 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "pinnedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": true,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "projectId": {
+                "sessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
-                },
-                "repo": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "spawnerThreadId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "title": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
@@ -8990,14 +9406,30 @@
                     "value": false
                   },
                   "nullable": false
-                },
-                "workspace": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 }
               },
               "foreignKeys": [
+                {
+                  "index": {
+                    "name": "Thread_sessionId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Session"
+                  }
+                },
                 {
                   "index": {
                     "name": "Thread_userId_updatedAt_idx"
@@ -9058,27 +9490,6 @@
                     "namespaceId": "public",
                     "tableName": "Thread"
                   }
-                },
-                {
-                  "index": {
-                    "name": "Thread_projectId_idx"
-                  },
-                  "onDelete": "setNull",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "projectId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Thread"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Project"
-                  }
                 }
               ],
               "indexes": [
@@ -9091,9 +9502,9 @@
                 },
                 {
                   "columns": [
-                    "projectId"
+                    "sessionId"
                   ],
-                  "name": "Thread_projectId_idx",
+                  "name": "Thread_sessionId_idx",
                   "unique": false
                 },
                 {
@@ -9106,27 +9517,9 @@
                 {
                   "columns": [
                     "userId",
-                    "repo",
-                    "updatedAt"
-                  ],
-                  "name": "Thread_userId_repo_updatedAt_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "userId",
                     "updatedAt"
                   ],
                   "name": "Thread_userId_updatedAt_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "workspace",
-                    "updatedAt"
-                  ],
-                  "name": "Thread_userId_workspace_updatedAt_idx",
                   "unique": false
                 }
               ],
@@ -9690,10 +10083,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0f9e1beccbc9d90f3600620a6ab23c0d7b2978b57813c9531f56acd2d57d9ad7"
+    "storageHash": "d23bb282103f356355aa25e6ef1b04f866cf8ec2c86579853d9410d1f7f0831e"
   },
   "execution": {
-    "executionHash": "c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4",
+    "executionHash": "0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d",
     "mutations": {
       "defaults": [
         {
@@ -9737,6 +10130,21 @@
           },
           "ref": {
             "entry": "AgentAccount",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "AuthSession",
             "field": "updatedAt",
             "namespace": "public"
           }
@@ -10046,21 +10454,6 @@
           },
           "ref": {
             "entry": "SecretEntry",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "Session",
             "field": "updatedAt",
             "namespace": "public"
           }

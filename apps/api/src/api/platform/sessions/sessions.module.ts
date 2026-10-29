@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common'
 import { HealthModule } from '../health/health.module'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
 import { EventsService } from './events.service'
+import { SessionsRouter } from './sessions.router'
+import { SessionsService } from './sessions.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
@@ -23,6 +25,8 @@ import { TurnsService } from './turns.service'
     EventsService,
     TurnsService,
     ThreadsRouter,
+    SessionsService,
+    SessionsRouter,
     ThreadEventsRouter,
     ThreadTurnsRouter,
     SessionOrSandboxMiddleware,

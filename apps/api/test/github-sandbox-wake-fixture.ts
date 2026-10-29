@@ -135,10 +135,12 @@ export function mirroredRecord(args: {
 
 export async function seedParkedSandbox(
   partial: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & {
+    threadId?: string
     runtimeCheckpoint?: unknown
   } = {},
 ): Promise<void> {
-  const threadId = partial.threadId ?? 'thr-1'
+  const { threadId: ownThread, ...columns } = partial
+  const threadId = ownThread ?? 'thr-1'
   const record = mirroredRecord({ threadId, phase: ERuntimePhase.Parked })
   await seedCloudSandbox({
     id: `sbx-${threadId}`,
@@ -152,7 +154,7 @@ export async function seedParkedSandbox(
     sealedToken: cipher.encrypt('stored-token'),
     runtimeCheckpoint: record,
     runtimeCheckpointRevision: record.revision,
-    ...partial,
+    ...columns,
     threadId,
   })
 }
@@ -168,7 +170,7 @@ export async function patchSandbox(
 ): Promise<void> {
   const { runtimeCheckpoint, ...columns } = patch
   const held = await readSandbox()
-  await db.orm.public.CloudSandbox.where({ threadId: held.threadId }).update({
+  await db.orm.public.CloudSandbox.where({ sessionId: held.sessionId }).update({
     ...columns,
     ...(runtimeCheckpoint === undefined
       ? {}

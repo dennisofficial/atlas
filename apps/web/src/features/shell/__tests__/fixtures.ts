@@ -1,4 +1,4 @@
-import type { Project, WireThread } from '@dltech/atlas-wire/web'
+import type { Project, WireSessionNode, WireThread } from '@dltech/atlas-wire/web'
 
 export const NOW = Date.parse('2026-10-24T12:00:00.000Z')
 export const HOUR_MS = 60 * 60 * 1000
@@ -14,6 +14,10 @@ export function threadOf(overrides: Partial<WireThread> & { id: string }): WireT
     repo: null,
     ...overrides,
   }
+}
+
+export function sessionOf(thread: WireThread, teammates: WireSessionNode[] = []): WireSessionNode {
+  return { id: `ses_${thread.id}`, mainThread: thread, teammates }
 }
 
 export function projectOf(id: string): Project {

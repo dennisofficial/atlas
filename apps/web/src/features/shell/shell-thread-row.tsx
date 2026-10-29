@@ -1,74 +1,37 @@
-import { Archive, ArchiveRestore, Pin } from 'lucide-react'
-import Link from 'next/link'
+import { SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
+import type { SessionNode } from '@/features/threads/data/threads-api'
 
-import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
-import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
-import { cn } from '@dltech/atlas-ui/lib/utils'
-import type { WireThread } from '@dltech/atlas-wire/web'
-
-import { rowNamingOf, useThreadNaming } from './active-naming'
-import { RowAction } from './shell-row-action'
-import { ThreadStatusIcon } from './shell-status-icon'
-import { useThreadActions } from './thread-actions-context'
-import { ThreadHoverCard } from './thread-hover-card'
-import { isUnread, isWorking, threadStatusOf } from './thread-status'
-import { UnreadDot } from './unread-dot'
+import { FolderToggle, TeammateList } from './shell-teammate-folder'
+import { ThreadRowBody } from './shell-thread-row-body'
+import { mainThreadsOf } from './thread-partition'
+import { useFollowActive } from './use-follow-active'
 
 export interface ThreadRowProps {
-  thread: WireThread
+  session: SessionNode
   projectName: string
-  active: boolean
+  activeThreadId: string | null
 }
 
-export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
-  const { onToggleArchive } = useThreadActions()
-  const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
-  const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
-  const naming = rowNamingOf({
-    listedTitle: thread.title ?? null,
-    published: useThreadNaming(thread.id),
-  })
-  const handleArchive = () => onToggleArchive(thread)
+export function ThreadRow({ session, projectName, activeThreadId }: ThreadRowProps) {
+  const teammates = mainThreadsOf(session.teammates)
+  const holdsActive = teammates.some((teammate) => teammate.id === activeThreadId)
+  const folder = useFollowActive(holdsActive)
+  const thread = session.mainThread
   return (
     <SidebarMenuItem>
-      <ThreadHoverCard
+      <ThreadRowBody
         thread={thread}
         projectName={projectName}
-        className={cn(
-          'group/thread flex items-center rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
-          active && 'bg-sidebar-accent',
-        )}
-      >
-        <SidebarMenuButton
-          isActive={active}
-          size="sm"
-          render={<Link href={`/threads/${encodeURIComponent(thread.id)}`} />}
-          className="min-w-0 flex-1 text-sm"
-        >
-          <ThreadStatusIcon status={threadStatusOf(thread)} />
-          <NamingTitle
-            title={naming.title}
-            naming={naming.naming}
-            className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
-          />
-        </SidebarMenuButton>
-        {isUnread({ thread, active }) ? <UnreadDot /> : null}
-        {pinned ? (
-          <Pin
-            role="img"
-            aria-label="Pinned"
-            className="mr-2 size-3 shrink-0 text-muted-foreground group-hover/thread:hidden group-data-popup-open/thread:hidden"
-          />
-        ) : null}
-        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex pointer-coarse:flex">
-          <RowAction
-            label={archived ? 'Unarchive thread' : 'Archive thread'}
-            onClick={handleArchive}
-          >
-            {archived ? <ArchiveRestore /> : <Archive />}
-          </RowAction>
-        </div>
-      </ThreadHoverCard>
+        active={thread.id === activeThreadId}
+        trailing={
+          teammates.length > 0 ? (
+            <FolderToggle open={folder.open} teammates={teammates} onToggle={folder.handleToggle} />
+          ) : null
+        }
+      />
+      {teammates.length > 0 && folder.open ? (
+        <TeammateList teammates={teammates} activeThreadId={activeThreadId} />
+      ) : null}
     </SidebarMenuItem>
   )
 }

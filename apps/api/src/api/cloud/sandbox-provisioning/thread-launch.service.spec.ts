@@ -37,13 +37,13 @@ describe('ThreadLaunchService', () => {
     expect(thread).toMatchObject({
       id: reply.thread.id,
       userId: 'usr-1',
-      projectId: 'prj-1',
-      executionLocation: 'cloud',
       modelRef: 'claude-x',
       modelEffort: 'high',
       head: 1,
     })
     expect(reply.thread.head).toBe(1)
+    const session = await db.orm.public.Session.first({ id: thread?.sessionId ?? '' })
+    expect(session).toMatchObject({ projectId: 'prj-1', executionLocation: 'cloud' })
 
     const [event] = await eventsOf(reply.thread.id)
     expect(event).toMatchObject({ seq: 1, type: 'user-said', userId: 'usr-1' })
@@ -55,7 +55,7 @@ describe('ThreadLaunchService', () => {
     })
 
     const [claimed] = await sandboxRows()
-    expect(claimed).toMatchObject({ threadId: reply.thread.id, state: 'resuming' })
+    expect(claimed).toMatchObject({ sessionId: reply.thread.sessionId, state: 'resuming' })
     expect(cipher.decrypt(claimed?.sealedToken ?? '')).toHaveLength(43)
     expect(dispatch).toHaveBeenCalledTimes(1)
     expect(dispatch.mock.calls[0]?.[0]).toMatchObject({
@@ -91,7 +91,9 @@ describe('ThreadLaunchService', () => {
 
     await service.launch({ userId: 'usr-1', draft: {}, firstMessage: FIRST })
 
-    expect(await threads()).toMatchObject([{ projectId: null }])
+    const [created] = await threads()
+    const owner = await db.orm.public.Session.first({ id: created?.sessionId ?? '' })
+    expect(owner?.projectId).toBeNull()
     expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
     expect(dispatch).toHaveBeenCalledTimes(1)
   })

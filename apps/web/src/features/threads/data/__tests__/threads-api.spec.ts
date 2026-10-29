@@ -8,7 +8,7 @@ import {
   fetchEvents,
   fetchPod,
   fetchThread,
-  fetchThreads,
+  fetchSessions,
   patchThreadModel,
   provisionSandbox,
   setThreadArchived,
@@ -54,12 +54,13 @@ describe('thread reads', () => {
     repo: null,
   }
 
-  it('lists a project through threads.list', async () => {
-    const calls = fakeFetch(() => trpcOk([thread]))
-    expect(await fetchThreads('proj 1')).toEqual([thread])
+  it('lists a project through sessions.list', async () => {
+    const node = { id: 'ses_1', mainThread: thread, teammates: [] }
+    const calls = fakeFetch(() => trpcOk([node]))
+    expect(await fetchSessions('proj 1')).toEqual([node])
     expect(calls).toEqual([
       {
-        url: queryUrl({ procedure: 'threads.list', input: { projectId: 'proj 1' } }),
+        url: queryUrl({ procedure: 'sessions.list', input: { projectId: 'proj 1' } }),
         method: 'GET',
         body: undefined,
       },

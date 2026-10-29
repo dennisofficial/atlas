@@ -16,7 +16,7 @@ export interface ProjectGroupProps {
 }
 
 export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: ProjectGroupProps) {
-  const { project, threads } = entry
+  const { project, sessions } = entry
   const handleToggle = () => onOpenChange(!open)
   return (
     <section className="flex flex-col gap-0.5">
@@ -42,7 +42,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
             <SquarePen />
           </RowAction>
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {threads.length}
+            {sessions.length}
           </span>
           <button
             type="button"
@@ -56,12 +56,12 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
       </ProjectHoverCard>
       {open && (
         <SidebarMenu>
-          {threads.map((thread) => (
+          {sessions.map((session) => (
             <ThreadRow
-              key={thread.id}
-              thread={thread}
+              key={session.id}
+              session={session}
               projectName={project.name}
-              active={thread.id === activeThreadId}
+              activeThreadId={activeThreadId}
             />
           ))}
         </SidebarMenu>

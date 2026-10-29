@@ -1,3 +1,4 @@
+import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-wire'
 import type { SessionReader } from './fork-chain'
 import {
   EThreadSubscriptionStatus,
@@ -12,8 +13,6 @@ export const SUBSCRIPTION_EVENT_TYPES = [
 ]
 
 export const PULL_REQUEST_PROVIDER_KIND = 'github.pull-request'
-
-const TEAMMATE_AGENT_TYPE = 'teammate'
 
 type EventRow = { threadId: string; seq: number; type: string; body: string }
 

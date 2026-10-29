@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
+import { sessionOfThread } from './session-of-thread'
 import { ownedThread } from './ownership'
 import { ThreadSignalsService } from './thread-signals.service'
 import {
@@ -25,7 +26,8 @@ export class ThreadArchiveService {
     const { userId, threadId, archived } = args
     await ownedThread({ reader: db, userId, threadId })
     const archivedAt = archived ? new Date() : null
-    await db.orm.public.Thread.where({ id: threadId }).update({ archivedAt })
+    const session = await sessionOfThread({ reader: db, threadId })
+    await db.orm.public.Session.where({ id: session.id }).update({ archivedAt })
     await this.signals.listChanged({ userId, threadId })
     if (archivedAt === null) return
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
