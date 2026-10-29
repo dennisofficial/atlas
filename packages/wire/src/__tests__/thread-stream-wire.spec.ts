@@ -19,6 +19,9 @@ describe('the thread stream wire', () => {
     expect(threadStreamFrameSchema.parse({ type: EThreadStreamFrame.Heartbeat })).toEqual({
       type: EThreadStreamFrame.Heartbeat,
     })
+    expect(threadStreamFrameSchema.parse({ type: EThreadStreamFrame.Title })).toEqual({
+      type: EThreadStreamFrame.Title,
+    })
   })
 
   it('rejects a head frame without an integer head and an unknown kind', () => {

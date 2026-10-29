@@ -572,6 +572,22 @@ describe('driving a turn over the wire', () => {
     expect(renames).toEqual([{ threadId: THREAD, title: 'a better name' }])
   })
 
+  it('hands a thread-titling frame to its listeners with the thread id branded', () => {
+    const { channel, open, receive } = harness()
+    const frames: { threadId: string; titling: boolean }[] = []
+    channel.onThreadTitling((frame) => void frames.push(frame))
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 1 })
+
+    receive({ kind: EServeFrame.ThreadTitling, threadId: THREAD, titling: true })
+    receive({ kind: EServeFrame.ThreadTitling, threadId: THREAD, titling: false })
+
+    expect(frames).toEqual([
+      { threadId: THREAD, titling: true },
+      { threadId: THREAD, titling: false },
+    ])
+  })
+
   it('hands a thread-model-changed frame to its listeners', () => {
     const { channel, open, receive } = harness()
     const changes: { threadId: string; model: { ref: string; effort: string } }[] = []

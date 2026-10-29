@@ -1,12 +1,12 @@
 import { Archive, ArchiveRestore, Pin } from 'lucide-react'
 import Link from 'next/link'
 
+import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { UNTITLED } from '@/features/threads/data/untitled'
-
+import { useThreadNaming } from './active-naming'
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
@@ -24,6 +24,7 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
   const { onToggleArchive } = useThreadActions()
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
+  const published = useThreadNaming(thread.id)
   const handleArchive = () => onToggleArchive(thread)
   return (
     <SidebarMenuItem>
@@ -42,9 +43,11 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           className="min-w-0 flex-1 text-sm"
         >
           <ThreadStatusIcon status={threadStatusOf(thread)} />
-          <span className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}>
-            {thread.title ?? UNTITLED}
-          </span>
+          <NamingTitle
+            title={published === null ? (thread.title ?? null) : published.title}
+            naming={published?.naming ?? false}
+            className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
+          />
         </SidebarMenuButton>
         {isUnread({ thread, active }) ? <UnreadDot /> : null}
         {pinned ? (

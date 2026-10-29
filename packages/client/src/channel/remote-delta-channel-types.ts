@@ -31,6 +31,8 @@ export type InterruptAck = { turnInFlight: boolean }
 
 export type ThreadRenamedFrame = { threadId: ThreadId; title: string }
 
+export type ThreadTitlingFrame = { threadId: ThreadId; titling: boolean }
+
 export type ThreadModelChangedFrame = { threadId: ThreadId; model: { ref: string; effort: string } }
 
 export type SandboxAttachment = { url: string; token: string }
@@ -67,6 +69,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
   pendingEntries(): readonly PendingEntryWire[]
   onPendingChanged(listener: (entries: readonly PendingEntryWire[]) => void): Unsubscribe
   onThreadRenamed(listener: (renamed: ThreadRenamedFrame) => void): Unsubscribe
+  onThreadTitling(listener: (frame: ThreadTitlingFrame) => void): Unsubscribe
   onThreadModelChanged(listener: (changed: ThreadModelChangedFrame) => void): Unsubscribe
   onTurnEnded(listener: (outcome: TurnOutcome) => void): Unsubscribe
   onError(listener: (failure: ChannelFailure) => void): Unsubscribe

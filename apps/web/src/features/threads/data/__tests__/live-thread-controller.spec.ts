@@ -252,6 +252,45 @@ describe('createLiveThreadController', () => {
     expect(seen).toEqual([{ ref: 'openai/gpt-5', effort: 'low' }])
   })
 
+  it('tracks the titling flag from thread-titling frames', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    expect(test.state().titling).toBe(false)
+
+    test.receive({ kind: EServeFrame.ThreadTitling, threadId: 'thr_1', titling: true })
+    expect(test.state().titling).toBe(true)
+
+    test.receive({ kind: EServeFrame.ThreadTitling, threadId: 'thr_1', titling: false })
+    expect(test.state().titling).toBe(false)
+  })
+
+  it('ignores titling and rename frames for another thread', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.receive({ kind: EServeFrame.ThreadTitling, threadId: 'thr_other', titling: true })
+    test.receive({ kind: EServeFrame.ThreadRenamed, threadId: 'thr_other', title: 'nope' })
+
+    expect(test.state().titling).toBe(false)
+    expect(test.state().liveTitle).toBeNull()
+  })
+
+  it('holds the title from a thread-renamed frame as the live title', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    expect(test.state().liveTitle).toBeNull()
+
+    test.receive({ kind: EServeFrame.ThreadRenamed, threadId: 'thr_1', title: 'Fix the login' })
+
+    expect(test.state().liveTitle).toBe('Fix the login')
+  })
+
   it('exposes the extracted actions', () => {
     const { controller } = rig()
     expect(typeof controller.chooseModel).toBe('function')

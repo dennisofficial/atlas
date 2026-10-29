@@ -23,7 +23,7 @@ import {
 } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
-import { UNTITLED } from './data/untitled'
+import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useComposerDock } from './data/use-composer-dock'
@@ -39,6 +39,7 @@ import { usePullRequests } from './data/use-pull-requests'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
 import { useMarkRead } from './data/use-mark-read'
+import { useTitleRefresh } from './data/use-title-refresh'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -70,6 +71,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
   const signals = useThreadSignals(threadId)
+  useTitleRefresh({
+    signals,
+    titled: thread.data?.title != null,
+    reload: thread.reload,
+  })
   useMarkRead({ threadId, signals, head: thread.data?.head })
   const source = useThreadSource({
     threadId,
@@ -174,17 +180,26 @@ export function ThreadView({ threadId }: { threadId: string }) {
     toast.error('Could not reach the sandbox to stop the turn')
   }
 
+  const naming = useThreadNaming({
+    threadId,
+    loading: thread.state === EQueryState.Loading,
+    storedTitle: thread.data?.title ?? null,
+    liveTitle: source.liveTitle,
+    titling: source.titling,
+    pod,
+  })
+
   if (thread.state === EQueryState.Failed && thread.error.status === NOT_FOUND) {
     return <ThreadMissing />
   }
 
   const starting = isBootStarting(boot)
   const failed = isPodFailed(pod)
-  const title = thread.state === EQueryState.Loading ? null : (thread.data?.title ?? UNTITLED)
 
   const header = (
     <ThreadHeader
-      title={title}
+      title={naming.headerTitle}
+      naming={naming.naming}
       state={headerStateOf({
         failed,
         working,

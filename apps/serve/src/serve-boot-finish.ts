@@ -151,6 +151,7 @@ export async function finishServeBoot(args: {
     refusal: () => workspaceRefusalOf(workspace) ?? null,
     log,
     roster: app.roster,
+    titling: app.titling,
     prStates: app.prStates,
     subscriptions: app.subscriptions,
     rewind: app.rewind,
@@ -165,6 +166,7 @@ export async function finishServeBoot(args: {
 
   const detachSubscriptions = bindServeSubscriptions({
     app,
+    threadId,
     buffer,
     handlers,
     contextReader,

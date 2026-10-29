@@ -11,10 +11,10 @@ describe('createThreadBodyOf', () => {
   it('omits projectId for a thread with no project', () => {
     const body = createThreadBodyOf({ projectId: null, text: '  fix\n the bug ', sendId: 's1' })
     expect(body).toEqual({
-      title: 'fix the bug',
       firstMessage: { sendId: 's1', text: '  fix\n the bug ' },
     })
     expect('projectId' in body).toBe(false)
+    expect('title' in body).toBe(false)
   })
 
   it('carries the project, model and effort when given', () => {
@@ -28,7 +28,6 @@ describe('createThreadBodyOf', () => {
       }),
     ).toEqual({
       projectId: 'p1',
-      title: 'hi',
       model: 'm',
       effort: 'high',
       firstMessage: { sendId: 's1', text: 'hi' },

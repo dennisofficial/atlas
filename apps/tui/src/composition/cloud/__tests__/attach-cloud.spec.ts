@@ -95,6 +95,7 @@ const fakeChannel = (args: { events: readonly Event[] }) => ({
     throw new Error(`unexpected channel op ${request.op}`)
   },
   onThreadRenamed: () => () => undefined,
+  onThreadTitling: () => () => undefined,
   onThreadModelChanged: () => () => undefined,
 })
 

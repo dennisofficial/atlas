@@ -67,6 +67,7 @@ export enum EServeEvent {
   EventFlushRefused = 'serve.event-flush-refused',
   ActivityReportFailed = 'serve.activity-report-failed',
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
+  RenameForwardFailed = 'serve.rename-forward-failed',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

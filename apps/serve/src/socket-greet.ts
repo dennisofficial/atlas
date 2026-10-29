@@ -22,6 +22,7 @@ export function createSocketGreeter(args: {
   driver: SessionHandlersArgs['driver']
   pending: SessionHandlersArgs['pending']
   operatorInput: SessionHandlersArgs['operatorInput']
+  titling: SessionHandlersArgs['titling']
   checkpointField: () => { checkpoint?: import('@dltech/atlas-wire').RuntimeCheckpoint }
   historyGeneration: () => number
   refusal: () => string | null
@@ -81,6 +82,11 @@ export function createSocketGreeter(args: {
           seq: Math.max(0, buffer.nextSeq() - 1),
           signal: { type: 'rotation-changed', rotation: rotating },
         },
+      })
+    if (args.titling?.titling({ threadId: threadId() }) === true)
+      send({
+        socket,
+        frame: { kind: EServeFrame.ThreadTitling, threadId: threadId(), titling: true },
       })
     const reloadedMidStep = resumed ? null : liveStepId()
     socket.data.alias = reloadedMidStep === null ? null : args.aliaser.next(reloadedMidStep)

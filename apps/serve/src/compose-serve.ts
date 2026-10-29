@@ -217,6 +217,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       registry: app.surface.subscriptions,
       projectDirectory: app.workspace.workspace,
     },
+    titling: app.titling,
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],

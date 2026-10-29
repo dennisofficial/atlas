@@ -347,6 +347,7 @@ export function fakeCloudChannel(
         threadRenames.delete(listener)
       }
     },
+    onThreadTitling: () => () => undefined,
     onThreadModelChanged: (listener) => {
       threadModelChanges.add(listener)
       return () => {

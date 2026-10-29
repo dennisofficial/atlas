@@ -112,6 +112,12 @@ export function createFrameHandler(core: ChannelCore) {
     if (frame.kind === EServeFrame.ThreadRenamed) {
       return on.threadRenames.emit({ threadId: toThreadId(frame.threadId), title: frame.title })
     }
+    if (frame.kind === EServeFrame.ThreadTitling) {
+      return on.threadTitlings.emit({
+        threadId: toThreadId(frame.threadId),
+        titling: frame.titling,
+      })
+    }
     if (frame.kind === EServeFrame.ThreadModelChanged) {
       return on.threadModelChanges.emit({
         threadId: toThreadId(frame.threadId),

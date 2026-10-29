@@ -7,11 +7,15 @@ describe('createThreadSignalHub', () => {
     const hub = createThreadSignalHub()
     const heads: number[] = []
     let pods = 0
+    let titles = 0
     let starts = 0
     hub.listen({ onHead: (head) => heads.push(head) })
     hub.listen({
       onPod: () => {
         pods += 1
+      },
+      onTitle: () => {
+        titles += 1
       },
       onStarted: () => {
         starts += 1
@@ -20,9 +24,10 @@ describe('createThreadSignalHub', () => {
 
     hub.emitHead(2)
     hub.emitPod()
+    hub.emitTitle()
     hub.emitStarted()
 
-    expect({ heads, pods, starts }).toEqual({ heads: [2], pods: 1, starts: 1 })
+    expect({ heads, pods, titles, starts }).toEqual({ heads: [2], pods: 1, titles: 1, starts: 1 })
   })
 
   it('stops delivering to a listener once it unlistens', () => {

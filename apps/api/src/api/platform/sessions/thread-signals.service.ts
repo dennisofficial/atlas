@@ -17,7 +17,7 @@ import {
 
 export type ThreadSignalPublisher = Pick<
   ThreadSignalsService,
-  'headMoved' | 'podChanged' | 'listChanged' | 'listChangedForOwner'
+  'headMoved' | 'podChanged' | 'titleChanged' | 'listChanged' | 'listChangedForOwner'
 >
 
 type OpenStream = {
@@ -100,6 +100,10 @@ export class ThreadSignalsService implements OnModuleDestroy {
       threadId: args.threadId,
       frame: { type: EThreadStreamFrame.Head, head: args.head },
     })
+  }
+
+  titleChanged(args: { threadId: string }): Promise<void> {
+    return this.publish({ threadId: args.threadId, frame: { type: EThreadStreamFrame.Title } })
   }
 
   listChanged(args: { userId: string; threadId: string }): Promise<void> {

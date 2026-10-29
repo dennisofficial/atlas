@@ -14,6 +14,7 @@ import {
 import { createEventFlusher, httpPostPodEvents, httpTruncatePodEvents } from './serve-event-flush'
 import { mirrorHistoryEdits } from './serve-history-mirror'
 import type { ServeLog } from './serve-log'
+import { forwardRenamesToApi } from './serve-rename-forward'
 
 export type ServeWriteBehind = {
   flush: () => Promise<boolean>
@@ -22,7 +23,7 @@ export type ServeWriteBehind = {
 
 type WriteBehindApp = Pick<ServeApp, 'log' | 'rewind' | 'compaction'> & {
   channel: Pick<DeltaChannel, 'subscribe'>
-  threads?: Pick<ServeApp['threads'], 'spawned'> | undefined
+  threads?: Pick<ServeApp['threads'], 'spawned' | 'onRename'> | undefined
   roster?: Pick<NonNullable<ServeApp['roster']>, 'snapshot' | 'subscribe'> | undefined
 }
 
@@ -132,6 +133,10 @@ export function bindServeWriteBehind(args: {
     },
   })
   const unsubscribeRoster = app.roster?.subscribe(() => void discover())
+  const unforward =
+    app.threads === undefined
+      ? undefined
+      : forwardRenamesToApi({ threads: app.threads, remote, log })
   void flusher.flush()
   void discover()
 
@@ -147,6 +152,7 @@ export function bindServeWriteBehind(args: {
     detach: () => {
       unsubscribeRoot()
       unsubscribeRoster?.()
+      unforward?.()
       for (const mirror of children.values()) mirror.detach()
       children.clear()
     },

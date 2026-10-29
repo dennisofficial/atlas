@@ -1,6 +1,7 @@
 export type ThreadSignalListener = {
   onHead?: (head: number) => void
   onPod?: () => void
+  onTitle?: () => void
   onStarted?: () => void
 }
 
@@ -8,6 +9,7 @@ export type ThreadSignalHub = {
   listen: (listener: ThreadSignalListener) => () => void
   emitHead: (head: number) => void
   emitPod: () => void
+  emitTitle: () => void
   emitStarted: () => void
 }
 
@@ -25,6 +27,9 @@ export function createThreadSignalHub(): ThreadSignalHub {
     },
     emitPod: () => {
       for (const listener of [...listeners]) listener.onPod?.()
+    },
+    emitTitle: () => {
+      for (const listener of [...listeners]) listener.onTitle?.()
     },
     emitStarted: () => {
       for (const listener of [...listeners]) listener.onStarted?.()

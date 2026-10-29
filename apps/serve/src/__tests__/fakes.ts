@@ -46,6 +46,7 @@ export type FakeServeApp = ServeApp & {
   renames: readonly { threadId: ThreadId; title: string }[]
   chosenModels: readonly { threadId: ThreadId; model: { ref: string; effort: string } }[]
   fireRename: (args: { threadId: ThreadId; title: string }) => void
+  fireTitling: (args: { threadId: ThreadId; titling: boolean }) => void
   fireModelChosen: (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
 }
 
@@ -306,6 +307,8 @@ export function fakeServeApp(args: {
   const modelChosenListeners = new Set<
     (args: { threadId: ThreadId; model: { ref: string; effort: string } }) => void
   >()
+  const titlingListeners = new Set<(titling: boolean) => void>()
+  let titlingNow = false
 
   return {
     channel,
@@ -325,6 +328,16 @@ export function fakeServeApp(args: {
       renameListeners,
       modelChosenListeners,
     }),
+
+    titling: {
+      titling: () => titlingNow,
+      onTitling: (given) => {
+        titlingListeners.add(given.listener)
+        return () => {
+          titlingListeners.delete(given.listener)
+        }
+      },
+    },
 
     ledger: fakeLedger(),
 
@@ -375,6 +388,10 @@ export function fakeServeApp(args: {
     chosenModels,
     fireRename: (given) => {
       for (const listener of [...renameListeners]) listener(given)
+    },
+    fireTitling: (given) => {
+      titlingNow = given.titling
+      for (const listener of [...titlingListeners]) listener(given.titling)
     },
     fireModelChosen: (given) => {
       for (const listener of [...modelChosenListeners]) listener(given)

@@ -7,6 +7,7 @@ import { ChevronRightIcon, GitBranchIcon, PanelRightIcon, PlusIcon } from 'lucid
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
+import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { EHeaderState, STATE_LABEL } from './data/header-model'
@@ -20,6 +21,7 @@ export type HeaderParent = {
 
 export type ThreadHeaderProps = {
   title: string | null
+  naming?: boolean | undefined
   state: EHeaderState
   parent?: HeaderParent | undefined
   branch?: string | undefined
@@ -57,16 +59,18 @@ function ParentCrumb({ parent }: { parent: HeaderParent }) {
 }
 
 export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, state, parent, branch, pullRequests, podChip, onOpenPanel } = props
+  const { title, naming = false, state, parent, branch, pullRequests, podChip, onOpenPanel } = props
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger aria-label="Open navigation" />
         {parent ? <ParentCrumb parent={parent} /> : null}
-        {title === null ? (
+        {title === null && !naming ? (
           <Skeleton className="h-4 w-48" />
         ) : (
-          <h1 className="truncate text-sm font-medium">{title}</h1>
+          <h1 className="min-w-0 text-sm font-medium">
+            <NamingTitle title={title} naming={naming} />
+          </h1>
         )}
         {branch ? (
           <span className="hidden min-w-0 items-center gap-1 font-mono text-xs text-muted-foreground sm:flex">

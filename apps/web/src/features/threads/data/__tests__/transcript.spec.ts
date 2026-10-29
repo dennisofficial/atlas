@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { BOOT_STEP_EVENT_TYPE, type WireEvent } from '@dltech/atlas-wire/web'
 
-import { coreEventsOf, ETranscriptKind, threadTitleOf, transcriptOf } from '../transcript'
+import { coreEventsOf, ETranscriptKind, transcriptOf } from '../transcript'
 
 const T0 = Date.parse('2026-10-21T10:00:00.000Z')
 const isoAt = (offsetMs: number) => new Date(T0 + offsetMs).toISOString()
@@ -66,12 +66,5 @@ describe('legacy boot events', () => {
   it('are dropped from the core events', () => {
     const events = [legacyBoot(1), said(2, 'hi'), legacyBoot(3), answered(4, [])]
     expect(coreEventsOf(events).map((event) => event.seq)).toEqual([2, 4])
-  })
-})
-
-describe('threadTitleOf', () => {
-  it('collapses whitespace and caps at 60 characters', () => {
-    expect(threadTitleOf('  fix\n the   bug ')).toBe('fix the bug')
-    expect(threadTitleOf('x'.repeat(100))).toHaveLength(60)
   })
 })

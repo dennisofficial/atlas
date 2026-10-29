@@ -33,6 +33,7 @@ export function createThreadSignals(args: {
   subscribe: SubscribeThreadStream
   onHead: (head: number) => void
   onPod: () => void
+  onTitle: () => void
   onStarted: () => void
   schedule?: Schedule
   now?: () => number
@@ -84,6 +85,7 @@ export function createThreadSignals(args: {
       framed = true
       if (frame.type === EThreadStreamFrame.Head) args.onHead(frame.head)
       if (frame.type === EThreadStreamFrame.Pod) args.onPod()
+      if (frame.type === EThreadStreamFrame.Title) args.onTitle()
     }
 
     const handleStarted = () => {

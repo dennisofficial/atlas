@@ -12,7 +12,7 @@ import {
 function rig() {
   const subscriptions: { handlers: ThreadStreamHandlers; unsubscribed: boolean }[] = []
   const tasks: { delayMs: number; run: () => void; cancelled: boolean }[] = []
-  const seen = { heads: [] as number[], pods: 0, starts: 0 }
+  const seen = { heads: [] as number[], pods: 0, titles: 0, starts: 0 }
   let clock = 0
   const signals = createThreadSignals({
     threadId: 'thr_1',
@@ -28,6 +28,9 @@ function rig() {
     onHead: (head) => seen.heads.push(head),
     onPod: () => {
       seen.pods += 1
+    },
+    onTitle: () => {
+      seen.titles += 1
     },
     onStarted: () => {
       seen.starts += 1
@@ -70,8 +73,9 @@ describe('createThreadSignals', () => {
     handlers?.onData({ type: EThreadStreamFrame.Head, head: 4 })
     handlers?.onData({ type: EThreadStreamFrame.Heartbeat })
     handlers?.onData({ type: EThreadStreamFrame.Pod })
+    handlers?.onData({ type: EThreadStreamFrame.Title })
 
-    expect(test.seen).toEqual({ heads: [4], pods: 1, starts: 1 })
+    expect(test.seen).toEqual({ heads: [4], pods: 1, titles: 1, starts: 1 })
   })
 
   it('resubscribes at once when a healthy stream completes', () => {
