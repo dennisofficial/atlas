@@ -3,7 +3,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
+import { livePreviewCount } from '../data/preview-ports'
 import { useAgents } from '../data/use-agents'
+import { usePreviews } from '../data/use-previews'
 import { useSubscriptions } from '../data/use-subscriptions'
 import { AgentsTab } from './agents-tab'
 import { ChangesTab } from './changes-tab'
@@ -21,14 +23,13 @@ export type RightPanelProps = {
 }
 
 const TAB_BODY: Record<
-  Exclude<ERightTab, ERightTab.Agents | ERightTab.Subscriptions>,
+  Exclude<ERightTab, ERightTab.Agents | ERightTab.Subscriptions | ERightTab.Preview>,
   () => React.JSX.Element
 > = {
   [ERightTab.Changes]: ChangesTab,
   [ERightTab.Files]: FilesTab,
   [ERightTab.Terminal]: TerminalTab,
   [ERightTab.Processes]: ProcessesTab,
-  [ERightTab.Preview]: PreviewTab,
 }
 
 function bodyOf(tab: keyof typeof TAB_BODY): React.JSX.Element {
@@ -40,9 +41,11 @@ function TabBody(props: {
   tab: ERightTab
   agents: ReturnType<typeof useAgents>
   subscriptions: ReturnType<typeof useSubscriptions>
+  previews: ReturnType<typeof usePreviews>
 }) {
   if (props.tab === ERightTab.Agents) return <AgentsTab data={props.agents} />
   if (props.tab === ERightTab.Subscriptions) return <SubscriptionsTab data={props.subscriptions} />
+  if (props.tab === ERightTab.Preview) return <PreviewTab data={props.previews} />
   return bodyOf(props.tab)
 }
 
@@ -52,6 +55,8 @@ export function RightPanel({ tab, onTabChange }: RightPanelProps) {
   const running = activeAgentCount(agents.agents)
   const subscriptions = useSubscriptions({ threadId, channel })
   const watching = subscriptions.subscriptions.length
+  const previews = usePreviews(channel)
+  const serving = livePreviewCount(previews.ports)
   const handleTabChange = (value: unknown) => {
     if (isRightTab(value)) onTabChange(value)
   }
@@ -70,13 +75,21 @@ export function RightPanel({ tab, onTabChange }: RightPanelProps) {
                 {value === ERightTab.Subscriptions && watching > 0 ? (
                   <span className="font-mono text-xs tabular-nums">{watching}</span>
                 ) : null}
+                {value === ERightTab.Preview && serving > 0 ? (
+                  <span className="font-mono text-xs tabular-nums">{serving}</span>
+                ) : null}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
         {Object.values(ERightTab).map((value) => (
           <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
-            <TabBody tab={value} agents={agents} subscriptions={subscriptions} />
+            <TabBody
+              tab={value}
+              agents={agents}
+              subscriptions={subscriptions}
+              previews={previews}
+            />
           </TabsContent>
         ))}
       </Tabs>
