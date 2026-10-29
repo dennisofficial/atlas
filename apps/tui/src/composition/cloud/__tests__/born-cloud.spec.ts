@@ -43,7 +43,6 @@ const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }
     },
     resolveProject: async () => ({ projectId: null }),
     birthCloud: (born) => calls.births.push(born),
-    arrival: { text: 'first words' },
   })
   return { calls, run, threadId }
 }
@@ -90,7 +89,6 @@ describe('where a thread is born on its first send', () => {
       threadId,
       runner: ERunner.Local,
       provisioning: true,
-      arrival: { text: 'first words' },
     })
   })
 

@@ -28,7 +28,7 @@ export function useUnbornThread(args: {
   threadId: ThreadId
   unplaced: boolean
   attached: boolean
-  onArrival: (send: SendArgs) => void
+  onArrivals: (sends: readonly SendArgs[]) => void
 }): void {
   const latest = useRef(args)
   latest.current = args
@@ -49,11 +49,12 @@ export function useUnbornThread(args: {
         held === null ||
         held.threadId !== threadId ||
         held.provisioning ||
-        held.arrival === undefined
+        held.arrivals === undefined ||
+        held.arrivals.length === 0
       )
         return
-      chip.set({ ...held, arrival: undefined })
-      latest.current.onArrival(held.arrival)
+      chip.set({ ...held, arrivals: undefined })
+      latest.current.onArrivals(held.arrivals)
     }
     handleArrival()
     return chip.subscribe(handleArrival)

@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import React, { useSyncExternalStore } from 'react'
+import React, { useMemo, useSyncExternalStore } from 'react'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EConnectionView } from '@dltech/atlas-harness'
@@ -18,6 +18,7 @@ import type { CloudHealth, CloudSession } from './cloud/cloud-session'
 import type { AtlasApp } from './compose'
 import { SubagentTranscript } from './subagent-transcript'
 import { TeammateTranscript } from './teammate-transcript'
+import type { InlineBoot } from './use-inline-boot'
 import { useSessionOwner } from './use-session-owner'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
@@ -28,6 +29,7 @@ export function WorkspaceTranscript(props: {
   app: AtlasApp
   welcome: boolean
   bootingCloudThread: boolean
+  inlineBoot: InlineBoot
   wide: boolean
   width: number
   modelId: string
@@ -80,6 +82,10 @@ export function WorkspaceTranscript(props: {
     (attachFailed.threadId === threadId || props.bootingCloudThread)
   const connection =
     cloudHealth?.view.state ?? (attachClosed ? EConnectionView.Disconnected : undefined)
+  const pending = useMemo(
+    () => [...conversation.pending, ...props.inlineBoot.arrivalRows],
+    [conversation.pending, props.inlineBoot.arrivalRows],
+  )
   const updating = connection === EConnectionView.Updating
   const loadingTranscript = transcriptLoading({
     welcome,
@@ -149,7 +155,8 @@ export function WorkspaceTranscript(props: {
               }
             : {})}
           sends={props.sends}
-          pending={conversation.pending}
+          pending={pending}
+          boot={props.inlineBoot.block}
           background={props.background}
           waitingSince={props.waitingSince}
           {...(conversation.handleRetry === null ? {} : { onRetry: conversation.handleRetry })}

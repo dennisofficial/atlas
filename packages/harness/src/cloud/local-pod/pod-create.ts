@@ -31,6 +31,8 @@ export const memoryReservationBytesFor = (args: { vcpus: number }): number =>
 
 export const POD_NAME_ENV = 'ATLAS_POD_NAME'
 
+export const POD_INGRESS_HOST_PORT_ENV = 'ATLAS_POD_INGRESS_HOST_PORT'
+
 export const SANDBOX_SESSION_ID_ENV = 'ATLAS_SANDBOX_SESSION_ID'
 
 const DIGEST_LENGTH = 24
@@ -87,6 +89,7 @@ const podEnv = (args: PodCreateArgs): string[] =>
     [EServeEnv.CloudUrl]: args.cloudUrl,
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
+    [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
     ...callerEnvironment(args.environment),

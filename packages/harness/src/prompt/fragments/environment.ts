@@ -1,5 +1,6 @@
 import {
   EExecutionLocation,
+  ERunner,
   PromptFragment,
   type ClockPort,
   type PromptContext,
@@ -28,7 +29,16 @@ export class TodayFragment extends VolatilePromptFragment {
   }
 }
 
-const placementLine = (placement: EExecutionLocation | undefined): string => {
+const POD_LINE =
+  "This session is running in a local Docker pod on the operator's machine; your filesystem, /tmp, and localhost are the pod's, not the operator's machine. " +
+  "The service_start and bash exposePort options publish a port to the operator's machine as a loopback URL (http://<port>.sandbox.localhost:<host-port>/); bind the server to 0.0.0.0, not 127.0.0.1."
+
+const placementLine = (args: {
+  placement: EExecutionLocation | undefined
+  runner: ERunner | undefined
+}): string => {
+  const { placement } = args
+  if (placement === EExecutionLocation.Cloud && args.runner === ERunner.Local) return POD_LINE
   if (placement === EExecutionLocation.Cloud) {
     return "This session is running in the cloud — a Vercel sandbox; your filesystem, /tmp, and localhost are the sandbox's alone, not the operator's machine."
   }
@@ -42,12 +52,12 @@ export class ExecutionLocationFragment extends VolatilePromptFragment {
   readonly id = 'environment.execution-location'
 
   stamp(ctx: PromptContext): string {
-    return ctx.placement ?? ''
+    return `${ctx.placement ?? ''}:${ctx.runner ?? ''}`
   }
 
   text(ctx: PromptContext): string {
     return [
-      placementLine(ctx.placement),
+      placementLine({ placement: ctx.placement, runner: ctx.runner }),
       'New cloud workspaces place the primary repository at /atlas/workspaces/<repo-name>.',
       'Repositories the project configures are already cloned beside it; clone others there too and use explicit workdir or absolute paths to work in them.',
       'Adjacent clones are ephemeral; sandbox cleanup deletes them.',

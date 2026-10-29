@@ -24,7 +24,7 @@ import { transferSpans } from './transfer-meter'
 
 const NARROWEST = 24
 
-const rowSpans = (row: MoveRow): readonly Span[] => {
+export const rowSpans = (row: MoveRow): readonly Span[] => {
   if (row.mark === EStepMark.Done) {
     return [
       { text: '✓ ', fg: theme.ok },

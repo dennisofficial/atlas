@@ -1,6 +1,7 @@
 import {
   EExecutionLocation,
   EHarnessPlacement,
+  type ERunner,
   locationOfPlacement,
   placementOf,
   type PlacementRecord,
@@ -28,6 +29,7 @@ export * from './placement-controller-types'
 export class PlacementController {
   private active: ThreadId | undefined
   private readonly records = new Map<ThreadId, PlacementRecord>()
+  private readonly runners = new Map<ThreadId, ERunner>()
   private readonly listeners = new Set<() => void>()
   private readonly moving = new Set<ThreadId>()
   private readonly gates = new Set<
@@ -51,6 +53,11 @@ export class PlacementController {
     const record = this.records.get(threadId)
     return record === undefined ? undefined : locationOfPlacement(record.placement)
   }
+
+  readonly runnerOf = (threadId: ThreadId): ERunner | undefined => this.runners.get(threadId)
+
+  readonly currentRunner = (): ERunner | undefined =>
+    this.active === undefined ? undefined : this.runnerOf(this.active)
 
   readonly activeThread = (): ThreadId | undefined => this.active
 
@@ -94,6 +101,8 @@ export class PlacementController {
     fallback?: EExecutionLocation | undefined
   }): Promise<PlacementRecord> {
     const record = await this.binding?.threads.readPlacement({ threadId: args.threadId })
+    const runner = (await this.binding?.threads.find({ threadId: args.threadId }))?.runner
+    if (runner !== undefined) this.runners.set(args.threadId, runner)
     const resolved = record ??
       this.records.get(args.threadId) ?? {
         placement: placementOf(args.fallback ?? this.initial),

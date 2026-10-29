@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { ERunner } from '@dltech/atlas-core'
 import { EConnectionView } from '@dltech/atlas-harness'
 
 import type { SidebarCloud } from '../../../store/cloud-state'
@@ -24,11 +25,14 @@ export const markFor = (state: EConnectionView): Span => {
   }
 }
 
+export const cloudHeadingOf = (cloud: SidebarCloud): string =>
+  cloud.runner === ERunner.Local ? 'Pod' : 'Cloud'
+
 export function CloudSection(props: { cloud: SidebarCloud; cells: number }): React.ReactNode {
   const { cloud, cells } = props
 
   return (
-    <Section label="Cloud">
+    <Section label={cloudHeadingOf(cloud)}>
       <Row label={cloud.state} labelFg={theme.hover} cells={cells} mark={markFor(cloud.state)} />
     </Section>
   )

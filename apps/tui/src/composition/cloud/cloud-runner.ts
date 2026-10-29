@@ -4,10 +4,10 @@ import type { SettleWaitNotice } from '@dltech/atlas-wire'
 
 import { WAKE_HEADING } from '../container-move'
 import { messageOf } from '../error-text'
-import type { ContainerMoveControl } from '../use-container-move'
+import type { BootNarration } from '../boot-block-store'
 import type { CloudBridge, CloudChannel } from '@dltech/atlas-harness'
 
-export const ROTATE_HEADING = 'UPDATING THE POD'
+export const ROTATE_HEADING = 'Updating the pod'
 
 const WAKE_ROWS = [
   { id: 'waiting', text: 'waiting for the pod', nodeIds: ['waiting'] },
@@ -27,7 +27,7 @@ export async function wakeSandbox(args: {
   bridge: CloudBridge
   threadId: ThreadId
   projectId: string | null
-  move?: ContainerMoveControl | undefined
+  move?: BootNarration | undefined
   onRotationStarted?: (() => void) | undefined
 }): Promise<{ url: string; token: string; created: boolean }> {
   args.move?.handleBegin({
@@ -56,24 +56,24 @@ export async function wakeSandbox(args: {
   return { url: woken.url, token: woken.token, created: woken.created }
 }
 
-export type CloudWake = (options?: { quiet?: boolean }) => Promise<void>
+export type CloudWake = () => Promise<void>
 
 /**
  * One wake at a time: a background wake still provisioning when the operator sends (or a second
  * send racing the first) joins the wake already in flight instead of claiming the sandbox twice.
- * A quiet wake runs behind an already-rendered transcript, so it narrates nothing through `move`.
  */
 export function createCloudWake(args: {
   bridge: CloudBridge
   channel: CloudChannel
   threadId: ThreadId
   projectId: string | null
-  move?: ContainerMoveControl | undefined
+  move?: BootNarration | undefined
   onWoken?: ((woken: { created: boolean }) => void) | undefined
 }): CloudWake {
   let inFlight: Promise<void> | null = null
 
-  const run = async (move: ContainerMoveControl | undefined): Promise<void> => {
+  const run = async (): Promise<void> => {
+    const move = args.move
     try {
       const woken = await wakeSandbox({
         bridge: args.bridge,
@@ -91,9 +91,9 @@ export function createCloudWake(args: {
     }
   }
 
-  return (options) => {
+  return () => {
     if (inFlight !== null) return inFlight
-    inFlight = run(options?.quiet === true ? undefined : args.move).finally(() => {
+    inFlight = run().finally(() => {
       inFlight = null
     })
     return inFlight
@@ -105,7 +105,7 @@ export function createCloudRunner(args: {
   channel: CloudChannel
   threadId: ThreadId
   projectId: string | null
-  move?: ContainerMoveControl | undefined
+  move?: BootNarration | undefined
   wake?: CloudWake | undefined
 }): RemoteTurnRunner {
   const wake = args.wake ?? createCloudWake(args)

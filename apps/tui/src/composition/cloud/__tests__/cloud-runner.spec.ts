@@ -137,7 +137,7 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `expand:rotating:UPDATING THE POD`,
+      `expand:rotating:Updating the pod`,
       'active:attaching',
       'settle',
     ])
@@ -168,7 +168,7 @@ describe('waking a cloud runner whose channel is not open', () => {
 
     expect(move.calls).toEqual([
       `begin:${EExecutionLocation.Cloud}`,
-      `expand:rotating:UPDATING THE POD`,
+      `expand:rotating:Updating the pod`,
       'active:attaching',
       'settle',
     ])

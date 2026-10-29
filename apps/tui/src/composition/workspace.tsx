@@ -1,32 +1,27 @@
 import React from 'react'
 
-import { useWorkspaceContext, WorkspaceContextPane } from './workspace-context'
+import { WorkspaceContextPane } from './workspace-context'
 import { workspaceHeader } from './workspace-header'
-import { useWorkspaceQualityHealth } from './use-workspace-quality-health'
 import { useCopyOnSelect } from '../ui/selection/use-copy-on-select'
 import { useComposerPaste } from './use-composer-paste'
 import { useModelChecks } from './use-model-checks'
-import { useServices } from './use-services'
 import { useSettings } from './use-settings'
-import { useShells } from './use-shells'
 import { useWorkspaceAccounts } from './use-workspace-accounts'
-import { useWorkspaceAgents } from './use-workspace-agents'
 import { useWorkspaceComposer } from './use-workspace-composer'
 import { useWorkspaceExit } from './use-workspace-exit'
 import { useWorkspaceFooter } from './use-workspace-footer'
 import { useWorkspaceInput } from './use-workspace-input'
-import { useChromePanel, useWorkspaceFrame, useWorkspaceLayout } from './use-workspace-layout'
+import { useWorkspaceFrame, useWorkspaceLayout } from './use-workspace-layout'
 import { useModelChoiceRelay, useWorkspaceModels } from './use-workspace-models'
+import { useWorkspaceActions } from './use-workspace-actions'
+import { useWorkspacePanels } from './use-workspace-panels'
 import { useWorkspaceNaming } from './use-workspace-naming'
 import { useWorkspaceNavigation } from './use-workspace-navigation'
-import { useWorkspaceNotices } from './use-workspace-notices'
-import { useWorkspaceCommands } from './use-workspace-commands'
-import { useWorkspaceLifecycle } from './use-workspace-lifecycle'
-import { useContainerResources } from './use-container-resources'
-import { useWorkspaceLocation } from './use-workspace-location'
 import { useWorkspacePlacement } from './use-workspace-placement'
 import { useWorkspaceSession } from './use-workspace-session'
 import { OverlayStack } from './overlay-stack'
+import { bootBlocks } from './boot-block-store'
+import { useInlineBoot } from './use-inline-boot'
 import { WorkspaceChrome } from './workspace-chrome'
 import type { WorkspaceProps } from './workspace-props'
 import { WorkspaceSidebar } from './workspace-sidebar'
@@ -35,7 +30,6 @@ import { WorkspaceView } from './workspace-view'
 
 export function Workspace(props: WorkspaceProps): React.ReactNode {
   const exit = useWorkspaceExit({ props })
-  const { exitGuard } = exit
   const relay = useModelChoiceRelay()
 
   const settings = useSettings({ app: props.app, onChooseModel: relay.handleChoose })
@@ -64,43 +58,33 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     conversation,
   })
 
-  const shells = useShells({ app: props.app, threadId: conversation.threadId })
-  const services = useServices({ app: props.app })
-  const contextBrowser = useWorkspaceContext({
-    readers: props.attachment?.context,
-    threadId: conversation.threadId,
-    onClosePeek: frame.handleClosePeek,
-    local: props.attachment === undefined || props.attachment.kind === 'local',
-  })
-
-  useWorkspaceNotices({
-    app: props.app,
-    conversation,
-    noticeSeconds: settings.noticeSeconds,
-  })
-  const chrome = useChromePanel()
-
-  const { agentView, viewed, agents, background, waitingSince } = useWorkspaceAgents({
-    app: props.app,
-    conversation,
+  const {
     shells,
-    selection,
-    meters: models.meters,
-    viewedPicker: models.viewedPicker,
-    onFocusComposer: session.handleFocusComposer,
-  })
-
-  const qualityHealth = useWorkspaceQualityHealth({
-    app: props.app,
+    services,
+    contextBrowser,
+    chrome,
     agentView,
-    conversationThreadId: conversation.threadId,
+    viewed,
+    agents,
+    background,
+    waitingSince,
+    qualityHealth,
+  } = useWorkspacePanels({
+    props,
+    conversation,
     settings,
+    models,
+    frame,
+    handleFocusComposer: session.handleFocusComposer,
   })
 
+  const boot = bootBlocks(props.localApp)
+  const inlineBoot = useInlineBoot({ app: props.localApp, threadId: conversation.threadId })
   const layout = useWorkspaceLayout({
     frame,
     conversation,
     addressing: agentView.addressing,
+    booting: inlineBoot.active,
   })
   const sidebarNaming = useWorkspaceNaming({ conversation })
 
@@ -115,58 +99,27 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     onChooseModel: relay.handleChoose,
   })
 
-  const containerResources = useContainerResources({
-    readResources: () => {
-      if (props.cloudBridge === null) return Promise.resolve({})
-      return props.cloudBridge.sandboxes.readResources({ threadId: conversation.threadId })
-    },
-    updateResources: async (vcpus) => {
-      if (props.cloudBridge === null) throw new Error('no cloud bridge attached')
-      return await props.cloudBridge.sandboxes.updateResources({
-        threadId: conversation.threadId,
-        vcpus,
-      })
-    },
-  })
-  const { containerGuard, handleContainer, handleContainerResources } = useWorkspaceLocation({
-    props,
-    conversation,
-    execution: placement.execution,
-    containerMove,
-    containerResources,
-    shells,
-  })
-  const { handleRestart, handleQuit } = useWorkspaceLifecycle({
-    props,
-    conversation,
-    draft,
-    containerMove,
-    containerGuard,
-    shells,
-    agents,
-    services,
-    exit,
-    autoRestart: settings.autoRestart,
-    trackedAccount: models.trackedAccount,
-  })
-  const { commands, loadedSkills } = useWorkspaceCommands({
-    app: props.app,
-    onRestart: props.onRestart,
-    cloud: session.cloud,
-    conversation,
-    rewind,
-    settings,
-    shells,
-    switcher,
-    chrome,
-    handleContainer,
-    handleContainerResources,
-    handleRestart,
-    handleQuit,
-    handleOpenAccounts,
-    handleNewConversation: session.handleNewConversation,
-    handleResumeConversation: navigation.handleResumeConversation,
-  })
+  const { containerResources, containerGuard, handleQuit, commands, loadedSkills } =
+    useWorkspaceActions({
+      props,
+      conversation,
+      draft,
+      execution: placement.execution,
+      containerMove,
+      shells,
+      agents,
+      services,
+      exit,
+      settings,
+      switcher,
+      chrome,
+      rewind,
+      trackedAccount: models.trackedAccount,
+      cloud: session.cloud,
+      handleOpenAccounts,
+      handleNewConversation: session.handleNewConversation,
+      handleResumeConversation: navigation.handleResumeConversation,
+    })
 
   const composer = useWorkspaceComposer({
     app: props.app,
@@ -222,26 +175,24 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     whatsNew,
     footerStrip: footer.footerStrip,
     rewind,
-    exitGuard,
+    exitGuard: exit.exitGuard,
     containerGuard,
     containerMove,
+    boot,
     containerResources,
     contextBrowser,
   })
-
   useComposerPaste({ overlaid, tokens, handleAttachImage: composer.handleAttachImage })
-
-  const header = workspaceHeader({
-    welcome: layout.welcome,
-    width: frame.width,
-    projectDirectory: conversation.projectDirectory,
-    repoRoot: layout.repoRoot,
-    diff: layout.headerDiff,
-  })
 
   return (
     <WorkspaceView
-      header={header}
+      header={workspaceHeader({
+        welcome: layout.welcome,
+        width: frame.width,
+        projectDirectory: conversation.projectDirectory,
+        repoRoot: layout.repoRoot,
+        diff: layout.headerDiff,
+      })}
       contentWidth={layout.contentWidth}
       pane={
         contextBrowser.viewer === null ? null : (
@@ -252,6 +203,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
         <WorkspaceTranscript
           app={props.app}
           welcome={layout.welcome}
+          inlineBoot={inlineBoot}
           bootingCloudThread={props.opened.bootCloudThreadId !== undefined}
           wide={frame.wide}
           width={layout.contentWidth}
@@ -335,7 +287,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
           }}
           rewindConfirm={conversation.rewindConfirm}
           operatorInput={conversation.operatorInput}
-          {...{ exitGuard, containerGuard, containerResources }}
+          {...{ exitGuard: exit.exitGuard, containerGuard, containerResources }}
           compacting={conversation.compacting}
           containerMove={containerMove.move}
           containerMoveNow={containerMove.now}

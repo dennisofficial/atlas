@@ -7,6 +7,7 @@ import { containerPillOf, exposedPortsOf, type SidebarContainer } from '../store
 import type { CloudConnection } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import { useSessionOwner } from './use-session-owner'
+import { useThreadRunner } from './use-thread-runner'
 
 /** At most one of these is ever set: the pill says where the loop runs, and it runs in one place. */
 export type ContainerPills = {
@@ -49,15 +50,16 @@ export function useContainerPill(args: {
   const { app } = args
   const connection = args.connection ?? null
 
-  const { location } = useSessionOwner({ app })
+  const { location, threadId } = useSessionOwner({ app })
+  const runner = useThreadRunner({ app, threadId, refreshKey: location })
   const container = useSyncExternalStore(app.containerStatus.subscribe, app.containerStatus.current)
   const exposed = useExposedPorts({ shells: app.shells })
 
   return useMemo(
     () => ({
       container: containerPillOf({ location, container, exposed }),
-      cloud: cloudPillOf({ connection }),
+      cloud: cloudPillOf({ connection, runner }),
     }),
-    [location, container, exposed, connection],
+    [location, container, exposed, connection, runner],
   )
 }

@@ -20,7 +20,7 @@ export type BornPlacementState = {
   runner?: ERunner | undefined
   provisioning: boolean
   preference?: boolean | undefined
-  arrival?: SendArgs | undefined
+  arrivals?: readonly SendArgs[] | undefined
 }
 
 export type BornPlacementChip = {
@@ -28,6 +28,8 @@ export type BornPlacementChip = {
   subscribe: (listener: () => void) => () => void
   set: (state: BornPlacementState | null) => void
   retire: (threadId: ThreadId) => void
+  enqueueArrival: (args: { threadId: ThreadId; send: SendArgs }) => void
+  clearArrivals: (args: { threadId: ThreadId }) => void
   bindFlip: (flip: () => void) => () => void
   flip: () => void
 }
@@ -53,6 +55,14 @@ function createChip(): BornPlacementChip {
     set: put,
     retire: (threadId) => {
       if (held?.threadId === threadId) put(null)
+    },
+    enqueueArrival: ({ threadId, send }) => {
+      if (held?.threadId !== threadId) return
+      put({ ...held, arrivals: [...(held.arrivals ?? []), send] })
+    },
+    clearArrivals: ({ threadId }) => {
+      if (held?.threadId !== threadId || held.arrivals === undefined) return
+      put({ ...held, arrivals: undefined })
     },
     bindFlip: (flip) => {
       flipper = flip

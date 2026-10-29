@@ -11,8 +11,9 @@ import {
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
+import { birthHeading } from '../container-move'
 import { cloudAnchorOf, cloudBindingOf, prepareOn } from '../session-binding'
-import type { ContainerMoveControl } from '../use-container-move'
+import type { BootNarration } from '../boot-block-store'
 import type { CloudBridgeFactory } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
@@ -34,7 +35,7 @@ const warn = (text: string): void =>
 export function birthNewborn(args: {
   app: AtlasApp
   owner: SessionOwner<SessionRuntime>
-  move: ContainerMoveControl
+  move: BootNarration
   createBridge: CloudBridgeFactory
   threadId: ThreadId
   runner: ERunner
@@ -88,7 +89,7 @@ export function birthNewborn(args: {
           text: wave.label,
           nodeIds: wave.ids,
         })),
-        heading: 'STARTING A POD',
+        heading: birthHeading(runner),
         onCancel: handleCancel,
       }),
     onNodeStart: (nodeId) => move.handleNodeStart(nodeId),
@@ -136,7 +137,7 @@ export function birthNewborn(args: {
       const session = createCloudSession({
         channel: attachment.channel,
         sandboxes: bridge.sandboxes,
-        wake: () => wake({ quiet: true }),
+        wake: () => wake(),
         onReload: args.onReload,
         appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
         subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
@@ -165,8 +166,14 @@ export function birthNewborn(args: {
       if (!born.ok) return failed(birthFailedNotice(born))
       const chip = bornPlacementChip(app)
       const held = chip.snapshot()
-      const arrival = held?.threadId === threadId ? held.arrival : undefined
-      chip.set({ threadId, harness: EHarnessPlacement.Cloud, runner, provisioning: false, arrival })
+      const arrivals = held?.threadId === threadId ? held.arrivals : undefined
+      chip.set({
+        threadId,
+        harness: EHarnessPlacement.Cloud,
+        runner,
+        provisioning: false,
+        arrivals,
+      })
       move.handleSettle()
     })
     .catch((error: unknown) => {

@@ -9,6 +9,7 @@ import {
   dindVolumeNameFor,
   memoryReservationBytesFor,
   podCreateBody,
+  POD_INGRESS_HOST_PORT_ENV,
   podHomeDigestOf,
   podHomeLabel,
   podNameFor,
@@ -132,6 +133,7 @@ describe('podCreateBody', () => {
       ATLAS_CLOUD_URL: 'https://cloud.example',
       ATLAS_HOME: SANDBOX_HOME_PATH,
       ATLAS_POD_NAME: podNameFor({ threadId: 'thread-1' }),
+      [POD_INGRESS_HOST_PORT_ENV]: '23457',
       ATLAS_SANDBOX_SESSION_ID: podNameFor({ threadId: 'thread-1' }),
     })
   })
@@ -157,5 +159,11 @@ describe('podCreateBody', () => {
     expect(env.EXTRA).toBe('value')
     expect(env.ATLAS_HOME).toBe('/override')
     expect(Object.keys(env).filter((key) => key.startsWith('VERCEL_'))).toEqual([])
+  })
+})
+
+describe('pod ingress env', () => {
+  it('carries the ingress host port so serve can build exposure urls', () => {
+    expect(envOf(baseArgs)[POD_INGRESS_HOST_PORT_ENV]).toBe('23457')
   })
 })

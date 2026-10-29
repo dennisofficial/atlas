@@ -4,6 +4,7 @@ import { ERunner, type ThreadId } from '@dltech/atlas-core'
 import type { CloudReload, SessionOwner, SessionRuntime } from '@dltech/atlas-harness'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { bootBlocks } from './boot-block-store'
 import { birthNewborn } from './cloud/birth-newborn'
 import { bornWith, preferredRunner, rememberPlacement } from './cloud/born-cloud'
 import { bornPlacementChip } from './cloud/born-placement-chip'
@@ -25,7 +26,7 @@ export type ThreadBirth = {
   handleUnbornSend: (sent: UnbornSend) => boolean
 }
 
-const birthInFlight = (move: ContainerMoveControl): boolean =>
+const moveInFlight = (move: ContainerMoveControl): boolean =>
   move.move !== null && move.move.failure === null
 
 export function useThreadBirth(args: {
@@ -46,18 +47,26 @@ export function useThreadBirth(args: {
   const latest = useRef(args)
   latest.current = args
   const resolveProject = useProjectResolution({ app: args.app, prompt: args.projectPrompt })
-  const undelivered = useRef<{ threadId: ThreadId; restore: () => void } | null>(null)
+  const undelivered = useRef<{
+    threadId: ThreadId
+    restores: (() => void)[]
+    closed: boolean
+  } | null>(null)
 
   const restoreDraft = useCallback((threadId: ThreadId) => {
     const held = undelivered.current
     if (held === null || held.threadId !== threadId) return
-    held.restore()
+    bornPlacementChip(latest.current.app).clearArrivals({ threadId })
+    for (const restore of [...held.restores].reverse()) restore()
+    held.restores = []
+    held.closed = true
   }, [])
 
   const releaseAttempt = useCallback((threadId: ThreadId) => {
     const held = undelivered.current
     if (held === null || held.threadId !== threadId) return
     undelivered.current = null
+    bornPlacementChip(latest.current.app).clearArrivals({ threadId })
   }, [])
 
   const restoreUndelivered = useCallback(
@@ -69,18 +78,18 @@ export function useThreadBirth(args: {
   )
 
   const birth = useCallback(
-    (born: { threadId: ThreadId; runner: ERunner; arrival: SendArgs }) => {
+    (born: { threadId: ThreadId; runner: ERunner }) => {
       const { threadId } = born
       const birthCloud = (next: {
         threadId: ThreadId
         runner: ERunner
         projectId: string | null
       }): void => {
-        const { app, owner, containerMove, createBridge } = latest.current
+        const { app, owner, createBridge } = latest.current
         birthNewborn({
           app,
           owner,
-          move: containerMove,
+          move: bootBlocks(app).narrationFor({ threadId: next.threadId }),
           createBridge,
           threadId: next.threadId,
           runner: next.runner,
@@ -97,7 +106,6 @@ export function useThreadBirth(args: {
         app: latest.current.app,
         threadId,
         choice: born.runner,
-        arrival: born.arrival,
         preflightBirth: latest.current.preflightBirth,
         requireSignIn: () => latest.current.onSignInRequired(),
         resolveProject,
@@ -121,7 +129,7 @@ export function useThreadBirth(args: {
 
   const handleNewThread = useCallback(() => {
     const { app, adopt, containerMove } = latest.current
-    if (birthInFlight(containerMove) || undelivered.current !== null) return
+    if (moveInFlight(containerMove) || undelivered.current !== null) return
     adopt(unstartedConversation({ ids: app.ids }))
   }, [])
 
@@ -131,15 +139,27 @@ export function useThreadBirth(args: {
       if (!app.pods || attached || !unplaced) return false
       const record = app.sessionOwner.placement.snapshot(threadId)
       if (record !== undefined && record.revision > 0) return false
-      if (birthInFlight(containerMove) || undelivered.current !== null) {
+      const chip = bornPlacementChip(app)
+      const held = undelivered.current
+      if (held !== null && held.threadId === threadId && held.closed) {
         sent.onUndelivered()
         return true
       }
-      const chip = bornPlacementChip(app).snapshot()
+      if (held !== null && held.threadId === threadId) {
+        held.restores.push(sent.onUndelivered)
+        chip.enqueueArrival({ threadId, send: sent.send })
+        return true
+      }
+      if (moveInFlight(containerMove)) {
+        sent.onUndelivered()
+        return true
+      }
+      const state = chip.snapshot()
       const runner =
-        chip?.threadId === threadId && chip.runner !== undefined ? chip.runner : undefined
-      undelivered.current = { threadId, restore: sent.onUndelivered }
-      birth({ threadId, runner: runner ?? preferredRunner(app), arrival: sent.send })
+        state?.threadId === threadId && state.runner !== undefined ? state.runner : undefined
+      undelivered.current = { threadId, restores: [sent.onUndelivered], closed: false }
+      chip.enqueueArrival({ threadId, send: sent.send })
+      birth({ threadId, runner: runner ?? preferredRunner(app) })
       return true
     },
     [birth],
@@ -165,9 +185,20 @@ export function useThreadBirth(args: {
     threadId: args.threadId,
     unplaced: args.app.pods && args.unplaced,
     attached: args.attached,
-    onArrival: (send) => {
+    onArrivals: (sends) => {
       undelivered.current = null
-      latest.current.onArrival(send)
+      const [first, ...rest] = sends
+      if (first === undefined) return
+      latest.current.onArrival(first)
+      const queue = latest.current.app.pending.forThread({ threadId: latest.current.threadId })
+      for (const send of rest) {
+        queue.enqueue({
+          text: send.text,
+          images: send.images ?? [],
+          files: send.files ?? [],
+          context: send.context,
+        })
+      }
     },
   })
 
