@@ -98,7 +98,8 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
 - **The serve token.** The client generates one per thread and keeps it in its local secrets as
   `sandbox-serve:<threadId>` (`packages/harness/src/cloud/sandbox-attachment.ts`). For a local pod
   the client registers it with the tRPC mutation `podLeases.register` under the operator's Atlas
-  Cloud session, before staging and again after the pod is up. The API keeps only its hash
+  Cloud session, once, before it registers the thread row or asks Docker for the container, so a
+  thread row never exists without its lease. The API keeps only its hash
   (`LocalPodLease`). A Vercel pod is registered as a `CloudSandbox` row instead.
 - **Environment.** The serve token, thread id, Atlas Cloud URL and `ATLAS_HOME=/atlas/home`
   (`packages/wire/src/serve-env.ts`); an optional pinned model; the decisions, classifier and

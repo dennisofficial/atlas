@@ -10,7 +10,7 @@ const threadId = toThreadId('thread-pod-bridge')
 const serveToken = `serve-token-${threadId}`
 
 describe('createLocalPodBridge birth', () => {
-  it('stages the spec and registers the lease before the bootstrap write and again after launch', async () => {
+  it('registers the lease once, before the pod is created, then stages the spec', async () => {
     const { driver, events, created } = fakePodDriver({ created: true })
     const registered: Array<{ threadId: string; token: string }> = []
     const bridge = podBridgeWith({ driver, registered, events })
@@ -20,17 +20,8 @@ describe('createLocalPodBridge birth', () => {
       projectId: null,
     })
 
-    expect(events).toEqual([
-      'create',
-      'register',
-      `write:${WORKSPACE_SPEC_PATH}`,
-      'launch',
-      'register',
-    ])
-    expect(registered).toEqual([
-      { threadId, token: serveToken },
-      { threadId, token: serveToken },
-    ])
+    expect(events).toEqual(['register', 'create', `write:${WORKSPACE_SPEC_PATH}`, 'launch'])
+    expect(registered).toEqual([{ threadId, token: serveToken }])
     expect(created.map((one) => one.name)).toEqual([podNameFor({ threadId })])
     expect(sandbox).toMatchObject({
       url: 'http://127.0.0.1:20111',
@@ -109,12 +100,12 @@ describe('createLocalPodBridge birth', () => {
     })
 
     expect(writes).toEqual([])
-    expect(events).toEqual(['create', 'launch', 'register'])
+    expect(events).toEqual(['register', 'create', 'launch'])
     expect(registered).toEqual([{ threadId, token: serveToken }])
     expect(sandbox.created).toBe(false)
   })
 
-  it('rejects a fresh birth before any bootstrap write or launch when the lease cannot be registered', async () => {
+  it('rejects a birth before touching Docker or the thread row when the lease cannot be registered', async () => {
     const { driver, events, writes } = fakePodDriver({ created: true })
     const bridge = podBridgeWith({
       driver,
@@ -123,31 +114,38 @@ describe('createLocalPodBridge birth', () => {
         registerPodLease: async () => {
           throw new Error('lease refused')
         },
+        registerThread: async () => {
+          events.push('thread')
+        },
       },
     })
 
-    await expect(bridge.sandboxes.create({ threadId, projectId: null })).rejects.toThrow(
-      'lease refused',
-    )
-    expect(events).toEqual(['create'])
+    await expect(
+      bridge.sandboxes.create({ threadId, projectId: null, birth: { effort: 'low' } }),
+    ).rejects.toThrow('lease refused')
+    expect(events).toEqual([])
     expect(writes).toEqual([])
   })
 
-  it('registers nothing when the driver refuses a resume without staging', async () => {
-    const { driver } = fakePodDriver({ created: false })
+  it('leaves the lease in place when Docker fails to create the pod', async () => {
+    const { driver } = fakePodDriver({ created: true })
     driver.createOrResume = async () => {
-      throw new Error('token refused')
+      throw new Error('image pull failed')
     }
     const registered: Array<{ threadId: string; token: string }> = []
 
     await expect(
-      podBridgeWith({ driver, registered }).sandboxes.create({ threadId, projectId: null }),
-    ).rejects.toThrow('token refused')
+      podBridgeWith({ driver, registered }).sandboxes.create({
+        threadId,
+        projectId: null,
+        birth: { effort: 'low' },
+      }),
+    ).rejects.toThrow('image pull failed')
 
-    expect(registered).toEqual([])
+    expect(registered).toEqual([{ threadId, token: serveToken }])
   })
 
-  it('registers a born thread with its project, model and effort before the pod is created', async () => {
+  it('registers the lease, then the born thread with its project, model and effort, before the pod is created', async () => {
     const { driver, events } = fakePodDriver({ created: true })
     const registeredThreads: unknown[] = []
 
@@ -167,13 +165,12 @@ describe('createLocalPodBridge birth', () => {
       birth: { effort: 'high' },
     })
 
-    expect(events[0]).toBe('thread')
-    expect(events.slice(1)).toEqual([
-      'create',
+    expect(events).toEqual([
       'register',
+      'thread',
+      'create',
       `write:${WORKSPACE_SPEC_PATH}`,
       'launch',
-      'register',
     ])
     expect(registeredThreads).toEqual([
       { threadId, projectId: 'proj_1', model: 'claude-x', effort: 'high' },

@@ -56,7 +56,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     const name = podNameFor({ threadId: createArgs.threadId })
 
     const stage = async (handle: RunnerPodHandle): Promise<void> => {
-      await args.registerPodLease({ threadId: createArgs.threadId, token })
       await driver.writeBootstrapFile({
         name: handle.name,
         path: WORKSPACE_SPEC_PATH,
@@ -69,6 +68,8 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     }
 
     const environment: Record<string, string> = { ...args.environment?.() }
+
+    await args.registerPodLease({ threadId: createArgs.threadId, token })
 
     if (createArgs.birth !== undefined) {
       await registerBornThread({
@@ -90,8 +91,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
         : { onRotationStarted: createArgs.onRotationStarted }),
       ...(createArgs.onSettleWait === undefined ? {} : { onSettleWait: createArgs.onSettleWait }),
     })
-
-    await args.registerPodLease({ threadId: createArgs.threadId, token })
 
     return {
       url: placement.url,
