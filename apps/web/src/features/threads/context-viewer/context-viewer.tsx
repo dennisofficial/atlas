@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowLeftIcon, CheckIcon, CopyIcon } from 'lucide-react'
-import Image from 'next/image'
 
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -40,7 +39,7 @@ function Notice({ children }: { children: string }) {
   return <p className="text-sm text-muted-foreground">{children}</p>
 }
 
-function Body(props: { loaded: LoadedContextFile; path: string }) {
+export function ContextFileBody(props: { loaded: LoadedContextFile; path: string }) {
   const { loaded, path } = props
   if (loaded.state === 'loading') return <Notice>Reading file…</Notice>
   if (loaded.state === 'failed') return <Notice>File unavailable</Notice>
@@ -48,13 +47,11 @@ function Body(props: { loaded: LoadedContextFile; path: string }) {
   if (file.type === 'refused') return <Notice>{file.reason}</Notice>
   if (file.type === 'image') {
     return (
-      <Image
-        unoptimized
+      // eslint-disable-next-line @next/next/no-img-element -- next/image cannot optimize a data: URL
+      <img
         src={`data:${file.mediaType};base64,${file.data}`}
         alt={path}
-        width={0}
-        height={0}
-        className="h-auto max-w-full"
+        className="h-auto w-auto max-w-full self-start"
       />
     )
   }
@@ -88,7 +85,7 @@ export function ContextViewer({ path }: { path: string }) {
         {text === null ? null : <CopyButton text={text} />}
       </header>
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 overflow-auto px-4 py-6">
-        <Body loaded={loaded} path={path} />
+        <ContextFileBody loaded={loaded} path={path} />
       </div>
     </section>
   )
