@@ -19,7 +19,7 @@ import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
 import type { PullRequestBell } from './data/subscription-model'
-import { EHeaderState, STATE_LABEL, type PullRequestBadge } from './data/header-model'
+import { EHeaderState, hasConflicts, STATE_LABEL, type PullRequestBadge } from './data/header-model'
 
 export type HeaderParent = {
   id: string
@@ -76,6 +76,10 @@ function PullRequestLink({ pullRequest }: { pullRequest: PullRequestBadge }) {
       <GitPullRequestIcon />
       <span className="font-mono">{pullRequest.label}</span>
       {pullRequest.stateLabel}
+      {pullRequest.checksLabel === undefined ? null : (
+        <span className="text-muted-foreground tabular-nums">{pullRequest.checksLabel}</span>
+      )}
+      {hasConflicts(pullRequest) ? <span className="text-muted-foreground">conflicts</span> : null}
     </Badge>
   )
 }

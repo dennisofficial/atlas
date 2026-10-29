@@ -9,13 +9,7 @@ import { liveSteps } from '@dltech/atlas-client/transcript'
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import {
-  branchOf,
-  headerStateOf,
-  pullRequestBadgeOf,
-  sandboxSettingsHrefOf,
-  spawnerIdOf,
-} from './data/header-model'
+import { branchOf, headerStateOf, sandboxSettingsHrefOf, spawnerIdOf } from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
@@ -41,6 +35,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { usePullRequestBadge } from './data/use-pull-request-badge'
 import { usePullRequestBell } from './data/use-pull-request-bell'
 import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
@@ -89,6 +84,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     channel,
     thread: thread.data,
   })
+  const pullRequest = usePullRequestBadge({ channel, thread: thread.data })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
@@ -200,7 +196,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
-      pullRequest={pullRequestBadgeOf(thread.data)}
+      pullRequest={pullRequest}
       bell={bell}
       onToggleBell={handleToggleBell}
       podChip={
