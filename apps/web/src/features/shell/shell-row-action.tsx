@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ComponentProps, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
@@ -7,13 +7,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/compon
 export function RowAction({
   label,
   href,
-  external = false,
   onClick,
   children,
 }: {
   label: string
   href?: string
-  external?: boolean
   onClick?: () => void
   children: ReactNode
 }) {
@@ -22,13 +20,7 @@ export function RowAction({
       ? {}
       : {
           nativeButton: false,
-          render: external ? (
-            (props: ComponentProps<'a'>) => (
-              <a {...props} href={href} target="_blank" rel="noreferrer" />
-            )
-          ) : (
-            <Link href={href} />
-          ),
+          render: <Link href={href} />,
         }
   return (
     <Tooltip>
