@@ -276,7 +276,7 @@ daemon.
 ## Lifecycle
 
 - **Birth** happens on the first send, as above. Not at launch and not on `/new`.
-- **Park.** Serve parks itself after 5 minutes with no turn, child, shell or pending input,
+- **Park.** Serve parks itself after 30 minutes with no turn, child, shell or pending input,
   whether or not a client is attached. Running services change that: while a client is attached
   the pod does not park, and with no client it parks after 30 idle minutes
   (`apps/serve/src/idle-stop.ts`, `serveIdleDue` in `packages/core/src/execution/lifecycle.ts`).

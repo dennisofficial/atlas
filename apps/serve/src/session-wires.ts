@@ -45,6 +45,7 @@ export function wireThreadOf(thread: ThreadSummary): WireThread {
     ...(thread.executionLocation === undefined
       ? {}
       : { executionLocation: thread.executionLocation }),
+    ...(thread.runner === undefined ? {} : { runner: thread.runner }),
   }
 }
 

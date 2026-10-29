@@ -18,6 +18,10 @@ import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
 import { Message, MessageContent, MessageFooter, MessageHeader } from '#components/message'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 
+import { MessageImages, type MessageImage } from './message-images'
+
+export type { MessageImage } from './message-images'
+
 export enum EFeedback {
   Good = 'good',
   Bad = 'bad',
@@ -29,10 +33,11 @@ export interface MessageAttachment {
 }
 
 export interface UserMessageProps {
-  children: ReactNode
+  children?: ReactNode
   author?: string
   timestamp?: string
   attachments?: MessageAttachment[]
+  images?: readonly MessageImage[]
   onEdit?: () => void
   onRewind?: () => void
 }
@@ -115,6 +120,7 @@ export function UserMessage({
   author,
   timestamp,
   attachments = [],
+  images = [],
   onEdit,
   onRewind,
 }: UserMessageProps) {
@@ -122,9 +128,12 @@ export function UserMessage({
     <Message align="end">
       <MessageContent>
         <Meta author={author} timestamp={timestamp} />
-        <Bubble align="end" variant="muted">
-          <BubbleContent>{children}</BubbleContent>
-        </Bubble>
+        <MessageImages images={images} />
+        {children === undefined || children === null ? null : (
+          <Bubble align="end" variant="muted">
+            <BubbleContent>{children}</BubbleContent>
+          </Bubble>
+        )}
         {attachments.length > 0 ? (
           <div className="flex flex-wrap justify-end gap-1.5">
             {attachments.map((attachment) => (

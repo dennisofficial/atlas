@@ -1,10 +1,12 @@
 import {
   BOOT_STEP_ORDER,
   EBootStep,
+  EBootStepOutcome,
   EBootStepState,
   EPodState,
   foldBootSteps,
   type BootStepEvent,
+  type BootStepStatus,
   type PodStatus,
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
@@ -18,6 +20,27 @@ const BOOT_LABELS: Record<EBootStep, string> = {
   [EBootStep.Context]: 'Load skills and instructions',
   [EBootStep.Settings]: 'Apply settings',
   [EBootStep.Agent]: 'Start agent',
+}
+
+const OUTCOME_LABELS: Record<EBootStepOutcome, string> = {
+  [EBootStepOutcome.Created]: 'Create sandbox',
+  [EBootStepOutcome.Resumed]: 'Resume sandbox',
+  [EBootStepOutcome.Cloned]: 'Clone repository',
+  [EBootStepOutcome.Reused]: 'Reuse repository',
+  [EBootStepOutcome.NoRepository]: 'No repository to clone',
+}
+
+const RESUMED_CLONE_LABEL = 'Check repository'
+
+function labelOf(args: {
+  id: EBootStep
+  status: BootStepStatus
+  folded: Record<EBootStep, BootStepStatus>
+}): string {
+  if (args.status.outcome !== undefined) return OUTCOME_LABELS[args.status.outcome]
+  const resumed = args.folded[EBootStep.Provision].outcome === EBootStepOutcome.Resumed
+  if (args.id === EBootStep.Clone && resumed) return RESUMED_CLONE_LABEL
+  return BOOT_LABELS[args.id]
 }
 
 export type BootStepView = {
@@ -42,6 +65,7 @@ const eventOf = (step: RecordedBootStep): BootStepEvent => ({
   step: step.step,
   state: step.state,
   ...(step.error === undefined ? {} : { error: step.error }),
+  ...(step.outcome === undefined ? {} : { outcome: step.outcome }),
 })
 
 function overallStateOf(steps: readonly BootStepView[]): EBootStepState {
@@ -86,7 +110,7 @@ function attemptViewOf(args: {
     const detail = status.state === EBootStepState.Error ? status.error : undefined
     return {
       id,
-      label: BOOT_LABELS[id],
+      label: labelOf({ id, status, folded }),
       state: status.state,
       ...(detail === undefined ? {} : { detail }),
     }

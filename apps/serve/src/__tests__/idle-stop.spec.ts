@@ -335,6 +335,30 @@ describe('startServeIdleStop', () => {
     test.stop.halt()
   })
 
+  it('by default parks only after thirty quiet minutes', () => {
+    let now = 1_000_000
+    const due: number[] = []
+    const stop = startServeIdleStop({
+      turnRunning: () => false,
+      childrenSettling: () => false,
+      runningShells: () => 0,
+      runningServices: () => 0,
+      onDue: () => due.push(now),
+      tickMs: 60_000,
+      now: () => now,
+    })
+
+    stop.check()
+    now += 30 * 60_000 - 1
+    stop.check()
+    expect(due).toHaveLength(0)
+
+    now += 1
+    stop.check()
+    expect(due).toHaveLength(1)
+    stop.halt()
+  })
+
   it('fires once on the timer, never twice', async () => {
     const test = idleHarness({}, 5)
 
