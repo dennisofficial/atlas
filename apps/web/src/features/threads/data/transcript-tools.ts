@@ -2,11 +2,13 @@ import {
   classify,
   ECallState,
   formatElapsed,
+  imageOf,
   inputOf,
   str,
   targetOf,
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
+import type { MessageImage } from '@dltech/atlas-ui/ai/message'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
 import { editBodyOf, type EditBody } from './transcript-edit-body'
@@ -29,6 +31,7 @@ export type ToolCallItem = {
   family?: EToolFamily
   path?: string
   change?: EditBody
+  image?: MessageImage
   at?: string
   output?: string
   errorText?: string
@@ -85,6 +88,18 @@ export function editPathOf(call: ToolCall): string | undefined {
   return str(input.path) ?? str(input.file_path) ?? str(input.filePath)
 }
 
+const fileNameOf = (path: string): string => path.split('/').at(-1) || path
+
+function pictureOf(call: ToolCall): MessageImage | undefined {
+  const read = imageOf(call)
+  if (call.image === undefined || read === null) return undefined
+  return {
+    id: `${call.callId}#image`,
+    src: `data:${call.image.mediaType};base64,${call.image.data}`,
+    alt: fileNameOf(read.path),
+  }
+}
+
 export function toolCallItemOf(call: ToolCall): ToolCallItem {
   const state = STATE_OF_CALL[call.state]
   const note = call.note === null ? undefined : clipped(call.note)
@@ -92,6 +107,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
   const kind = KIND_OF_TOOL[call.name]
   const path = editPathOf(call)
   const change = kind === EToolKind.Edit ? editBodyOf({ call, state }) : undefined
+  const image = pictureOf(call)
   return {
     id: call.callId,
     kind: kind ?? EToolKind.Shell,
@@ -103,6 +119,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
     label: targetOf({ call, cwd: '' }) ?? str(inputOf(call).url) ?? call.name,
     ...(path === undefined ? {} : { path }),
     ...(change === undefined ? {} : { change }),
+    ...(image === undefined ? {} : { image }),
     ...(state === EToolState.Done && clipped(call.modelText) !== undefined
       ? { output: clipped(call.modelText) }
       : {}),
