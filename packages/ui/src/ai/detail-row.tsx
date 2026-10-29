@@ -18,7 +18,7 @@ export interface DetailRowProps {
 }
 
 const ROW =
-  'group/detail-row flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left text-sm font-normal transition-colors outline-none'
+  'group/detail-row flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left text-sm font-normal transition-colors outline-none has-[a:hover]:bg-muted'
 
 const INTERACTIVE =
   'cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 aria-[current=true]:bg-muted'
