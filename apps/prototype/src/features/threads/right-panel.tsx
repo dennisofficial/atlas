@@ -32,6 +32,8 @@ export interface RightPanelProps {
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
   onJumpToSpawn: (id: string) => void
+  contextPath?: string
+  onOpenContextFile: (path: string) => void
 }
 
 const TAB_LABEL: Record<ERightTab, string> = {
@@ -60,6 +62,8 @@ export function RightPanel({
   onDetailChange,
   onOpenTeammate,
   onJumpToSpawn,
+  contextPath,
+  onOpenContextFile,
 }: RightPanelProps) {
   const running = runningAgentCount(agents)
   const [scope, setScope] = useState('all')
@@ -94,6 +98,8 @@ export function RightPanel({
           onDetailChange={onDetailChange}
           onOpenTeammate={onOpenTeammate}
           onJumpToSpawn={onJumpToSpawn}
+          contextPath={contextPath}
+          onOpenContextFile={onOpenContextFile}
         />
       </TabsContent>
       <TabsContent value={ERightTab.Changes} className="min-h-0 flex-1">

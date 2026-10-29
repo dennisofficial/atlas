@@ -18,12 +18,18 @@ export function DetailsSection(props: {
   )
 }
 
-export function RowButton(props: { onClick: () => void; children: ReactNode; label?: string }) {
+export function RowButton(props: {
+  onClick: () => void
+  children: ReactNode
+  label?: string
+  current?: boolean
+}) {
   return (
     <Button
       variant="ghost"
       size="sm"
       aria-label={props.label}
+      aria-current={props.current ? 'true' : undefined}
       className="w-full justify-start font-normal"
       onClick={props.onClick}
     >

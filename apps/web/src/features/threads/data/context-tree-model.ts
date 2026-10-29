@@ -52,3 +52,7 @@ export function contextStatusOf(args: {
   if (root === undefined) return EContextStatus.Loading
   return root.error ? EContextStatus.Unavailable : EContextStatus.Empty
 }
+
+export const CONTEXT_INDENT_PX = 12
+
+export const contextIndentOf = (depth: number): number => Math.max(0, depth) * CONTEXT_INDENT_PX

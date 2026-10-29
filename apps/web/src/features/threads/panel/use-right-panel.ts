@@ -7,12 +7,15 @@ export type RightPanelState = {
   sheetOpen: boolean
   changesPath: string | undefined
   agentId: string | undefined
+  contextPath: string | undefined
   setTab: (tab: ERightTab) => void
   setSheetOpen: (open: boolean) => void
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
   openDetails: () => void
   clearAgent: () => void
+  openContextFile: (path: string) => void
+  closeContextFile: () => void
 }
 
 export function useRightPanel(): RightPanelState {
@@ -20,6 +23,8 @@ export function useRightPanel(): RightPanelState {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [changesPath, setChangesPath] = useState<string | undefined>(undefined)
   const [agentId, setAgentId] = useState<string | undefined>(undefined)
+
+  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
 
   const openChanges = useCallback((path?: string) => {
     setChangesPath(path)
@@ -40,16 +45,26 @@ export function useRightPanel(): RightPanelState {
 
   const clearAgent = useCallback(() => setAgentId(undefined), [])
 
+  const openContextFile = useCallback((path: string) => {
+    setContextPath(path)
+    setSheetOpen(false)
+  }, [])
+
+  const closeContextFile = useCallback(() => setContextPath(undefined), [])
+
   return {
     tab,
     sheetOpen,
     changesPath,
     agentId,
+    contextPath,
     setTab,
     setSheetOpen,
     openChanges,
     openAgent,
     openDetails,
     clearAgent,
+    openContextFile,
+    closeContextFile,
   }
 }

@@ -19,8 +19,18 @@ export function useThreadPanelValue(args: {
   refresh: () => void
 }): ThreadPanelValue {
   const { threadId, channel, pod, details, working, rightPanel, refresh } = args
-  const { changesPath, agentId, openChanges, openAgent, openDetails, clearAgent, setSheetOpen } =
-    rightPanel
+  const {
+    changesPath,
+    agentId,
+    contextPath,
+    openChanges,
+    openAgent,
+    openDetails,
+    clearAgent,
+    openContextFile,
+    closeContextFile,
+    setSheetOpen,
+  } = rightPanel
   const closePanel = useCallback(() => setSheetOpen(false), [setSheetOpen])
 
   return useMemo<ThreadPanelValue>(
@@ -32,10 +42,13 @@ export function useThreadPanelValue(args: {
       working,
       changesPath,
       agentId,
+      contextPath,
       openChanges,
       openAgent,
       openDetails,
       clearAgent,
+      openContextFile,
+      closeContextFile,
       closePanel,
       refreshPod: refresh,
     }),
@@ -47,10 +60,13 @@ export function useThreadPanelValue(args: {
       working,
       changesPath,
       agentId,
+      contextPath,
       openChanges,
       openAgent,
       openDetails,
       clearAgent,
+      openContextFile,
+      closeContextFile,
       closePanel,
       refresh,
     ],

@@ -15,6 +15,8 @@ import { toPanelAgent } from './agent-adapters'
 import { subagentRowsOf, teammateRowsOf } from './details/crew-rows'
 import type { AgentRun } from './agent-run'
 import type { PodPanelState } from './pod-state'
+import { ContextViewer } from './details/context-viewer'
+import { useEscapeClose } from './details/use-escape-close'
 import { RightPanel } from './right-panel'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { DEFAULT_TITLE, SessionHeader, type SessionHeaderProps } from './session-header'
@@ -63,12 +65,16 @@ export function SessionPane({
   const [approval, setApproval] = useState(EConfirmationState.Pending)
   const { flashId, flash } = useSpawnFlash()
   const panelAgents = useMemo(() => agents.map(toPanelAgent), [agents])
+  const [contextPath, setContextPath] = useState<string>()
   const busy = state === ESessionState.Running
 
   const handleOpenFile = (path: string) => {
     setTab(ERightTab.Changes)
     setExpanded((previous) => (previous.includes(path) ? previous : [...previous, path]))
   }
+
+  const handleCloseContext = () => setContextPath(undefined)
+  useEscapeClose({ active: contextPath !== undefined, onClose: handleCloseContext })
 
   const handleOpenDetails = () => setTab(ERightTab.Details)
 
@@ -80,6 +86,9 @@ export function SessionPane({
   }
 
   const renderMain = () => {
+    if (contextPath !== undefined) {
+      return <ContextViewer path={contextPath} onBack={handleCloseContext} />
+    }
     if (openedTeammate) return <TeammateTranscript teammate={openedTeammate} />
     if (renderTranscript) return renderTranscript({ onOpenFile: handleOpenFile })
     return (
@@ -131,6 +140,8 @@ export function SessionPane({
             onDetailChange={setDetailId}
             onOpenTeammate={handleOpenTeammate}
             onJumpToSpawn={flash}
+            contextPath={contextPath}
+            onOpenContextFile={setContextPath}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
