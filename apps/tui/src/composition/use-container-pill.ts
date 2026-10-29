@@ -22,10 +22,10 @@ const samePorts = (left: readonly BoundPort[], right: readonly BoundPort[]): boo
       one.containerPort === right[at]?.containerPort && one.hostPort === right[at]?.hostPort,
   )
 
-function useExposedPorts(args: { shells: AtlasApp['shells'] }): readonly BoundPort[] {
+function useExposedPorts(args: { services: AtlasApp['services'] }): readonly BoundPort[] {
   const read = useCallback(
-    () => exposedPortsOf({ shells: args.shells.listEverywhere() }),
-    [args.shells],
+    () => exposedPortsOf({ services: args.services.list() }),
+    [args.services],
   )
   const [exposed, setExposed] = useState(read)
 
@@ -37,8 +37,8 @@ function useExposedPorts(args: { shells: AtlasApp['shells'] }): readonly BoundPo
       })
 
     update()
-    return args.shells.subscribe(update)
-  }, [args.shells, read])
+    return args.services.subscribe(update)
+  }, [args.services, read])
 
   return exposed
 }
@@ -53,7 +53,7 @@ export function useContainerPill(args: {
   const { location, threadId } = useSessionOwner({ app })
   const runner = useThreadRunner({ app, threadId, refreshKey: location })
   const container = useSyncExternalStore(app.containerStatus.subscribe, app.containerStatus.current)
-  const exposed = useExposedPorts({ shells: app.shells })
+  const exposed = useExposedPorts({ services: app.services })
 
   return useMemo(
     () => ({

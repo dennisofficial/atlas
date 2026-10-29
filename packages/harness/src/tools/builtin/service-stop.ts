@@ -11,6 +11,7 @@ import {
 
 import { EKilledBy } from '../../shells/background-shell'
 import { ServiceRegistryPort } from '../../services'
+import { resolveServiceRef } from '../../services/service-ref'
 
 const inputSchema = z.strictObject({
   id: z.string().min(1),
@@ -18,7 +19,7 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Stop a service that is still running.',
-  'Takes the id that service_start returned.',
+  'Takes the id that service_start returned, or the name a service was declared under.',
   'The whole process group is signalled, so anything the service forked goes with it.',
   'SIGTERM first; a service that keeps ignoring it is escalated to SIGKILL automatically after a grace period.',
   'You will be told when it has actually exited, the same as any other ending.',
@@ -36,7 +37,11 @@ export class ServiceStopTool extends SchemaTool<typeof inputSchema> {
   }
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const stopped = await this.services.stop({ serviceId: input.id, by: EKilledBy.Model })
+    const target = resolveServiceRef({ services: this.services.list(), ref: input.id })
+    const stopped = await this.services.stop({
+      serviceId: target?.serviceId ?? input.id,
+      by: EKilledBy.Model,
+    })
     if (!stopped.ok) return stopped
 
     const { snapshot, action } = stopped

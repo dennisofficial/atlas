@@ -104,6 +104,12 @@ async function openHarness(args: { withChannel: boolean; operational?: LogPort }
   return { shells, log, seen, channel }
 }
 
+const untilPublished = async (args: { seen: readonly unknown[]; count: number }): Promise<void> => {
+  for (let attempt = 0; attempt < 200 && args.seen.length < args.count; attempt += 1) {
+    await Bun.sleep(5)
+  }
+}
+
 const untilDurable = async (args: { log: EventLogPort }): Promise<void> => {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const events = await args.log.readOwn({ threadId: THREAD })
@@ -129,6 +135,7 @@ describe('a background shell ending while its thread is idle', () => {
     expect(seen).toEqual([{ type: 'events-appended' }])
 
     await untilDurable({ log })
+    await untilPublished({ seen, count: 2 })
 
     const events = await log.readOwn({ threadId: THREAD })
     const endings = events.filter((event) => event.type === 'background-shell-ended')
@@ -184,6 +191,7 @@ describe('a background shell ending while its thread is idle', () => {
     if (!started.ok) throw new Error(started.reason)
 
     await untilDurable({ log })
+    await untilPublished({ seen, count: 2 })
 
     const events = await log.readOwn({ threadId: THREAD })
     expect(events.some((event) => event.type === 'background-shell-ended')).toBe(true)

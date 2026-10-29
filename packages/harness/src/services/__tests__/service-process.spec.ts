@@ -250,3 +250,25 @@ describe('logTail', () => {
     expect(logTail({ path: join(tmpdir(), 'atlas-no-such-log.log'), characters: 100 })).toBe('')
   })
 })
+
+describe('startService env', () => {
+  it('layers the service env over the inherited one', () => {
+    const port = new FakePort()
+    const root = mkdtempSync(join(tmpdir(), 'atlas-service-env-'))
+    roots.push(root)
+    startService({
+      serviceId: 'svc_1',
+      command: 'serve',
+      description: 'env',
+      cwd: root,
+      logPath: join(root, 'svc.log'),
+      clock: new FixedClock(),
+      processes: port,
+      threadId: THREAD,
+      env: { PORT: '20123', PATH: '/override' },
+      onExit: () => undefined,
+    })
+    expect(port.spawned[0]?.env?.PORT).toBe('20123')
+    expect(port.spawned[0]?.env?.PATH).toBe('/override')
+  })
+})

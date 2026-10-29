@@ -1,13 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { EPreviewStatus } from '@dltech/atlas-ui/ai/preview-frame'
-import {
-  EServiceStatus,
-  EShellStatus,
-  type RosterWire,
-  type ServiceSnapshotWire,
-  type ShellSnapshotWire,
-} from '@dltech/atlas-wire/web'
+import { EServiceStatus, type RosterWire, type ServiceSnapshotWire } from '@dltech/atlas-wire/web'
 
 import { livePreviewCount, previewPortsOf } from '../preview-ports'
 
@@ -16,20 +10,6 @@ const exposure = (port: number) => ({
   hostPort: port + 1000,
   url: `https://${port}.example.dev`,
 })
-
-const shell = (overrides: Partial<ShellSnapshotWire>): ShellSnapshotWire =>
-  ({
-    shellId: 'sh_1',
-    threadId: 'thr_1',
-    command: 'bun run dev',
-    description: 'Dev server',
-    status: EShellStatus.Running,
-    startedAt: '2026-10-26T10:00:00Z',
-    lastOutputAt: '2026-10-26T10:00:00Z',
-    totalCharacters: 0,
-    awaitingInput: false,
-    ...overrides,
-  }) as ShellSnapshotWire
 
 const service = (overrides: Partial<ServiceSnapshotWire>): ServiceSnapshotWire => ({
   serviceId: 'svc_1',
@@ -51,14 +31,20 @@ const roster = (parts: Partial<RosterWire>): RosterWire => ({
 describe('previewPortsOf', () => {
   test('is empty without a roster or exposures', () => {
     expect(previewPortsOf(null)).toEqual([])
-    expect(previewPortsOf(roster({ shells: [shell({})], services: [service({})] }))).toEqual([])
+    expect(previewPortsOf(roster({ services: [service({})] }))).toEqual([])
   })
 
-  test('lists exposed shells and services by port with running as live', () => {
+  test('lists exposed services by port with running as live', () => {
     const ports = previewPortsOf(
       roster({
-        shells: [shell({ exposure: exposure(5173) })],
-        services: [service({ exposure: exposure(3000), status: EServiceStatus.Exited })],
+        services: [
+          service({ exposure: exposure(5173), description: 'Dev server' }),
+          service({
+            serviceId: 'svc_2',
+            exposure: exposure(3000),
+            status: EServiceStatus.Exited,
+          }),
+        ],
       }),
     )
     expect(ports.map((port) => [port.port, port.label, port.status, port.url])).toEqual([
@@ -70,12 +56,8 @@ describe('previewPortsOf', () => {
   test('falls back to the command and truncates long labels', () => {
     const [port] = previewPortsOf(
       roster({
-        shells: [
-          shell({
-            description: ' ',
-            command: 'x'.repeat(60),
-            exposure: exposure(8080),
-          }),
+        services: [
+          service({ description: ' ', command: 'x'.repeat(60), exposure: exposure(8080) }),
         ],
       }),
     )
@@ -86,32 +68,25 @@ describe('previewPortsOf', () => {
   test('one entry per port: a live process beats a stopped one, then the newest wins', () => {
     const ports = previewPortsOf(
       roster({
-        shells: [
-          shell({
-            shellId: 'old',
-            description: 'Old',
-            exposure: exposure(3000),
-            status: EShellStatus.Killed,
-          }),
-          shell({
-            shellId: 'a',
-            description: 'A',
+        services: [
+          service({ serviceId: 'old', exposure: exposure(3000), status: EServiceStatus.Killed }),
+          service({ serviceId: 'live', exposure: exposure(3000) }),
+          service({
+            serviceId: 'a',
             exposure: exposure(4000),
             startedAt: '2026-10-26T09:00:00Z',
           }),
-          shell({
-            shellId: 'b',
-            description: 'B',
+          service({
+            serviceId: 'b',
             exposure: exposure(4000),
             startedAt: '2026-10-26T11:00:00Z',
           }),
         ],
-        services: [service({ exposure: exposure(3000) })],
       }),
     )
     expect(ports.map((port) => [port.port, port.id, port.status])).toEqual([
-      [3000, 'service:svc_1', EPreviewStatus.Live],
-      [4000, 'shell:b', EPreviewStatus.Live],
+      [3000, 'service:live', EPreviewStatus.Live],
+      [4000, 'service:b', EPreviewStatus.Live],
     ])
   })
 })
@@ -120,9 +95,9 @@ describe('livePreviewCount', () => {
   test('counts only the ports still serving', () => {
     const ports = previewPortsOf(
       roster({
-        shells: [shell({ exposure: exposure(5173) })],
         services: [
           service({ exposure: exposure(3000) }),
+          service({ serviceId: 'svc_3', exposure: exposure(5173) }),
           service({ serviceId: 'svc_2', exposure: exposure(8080), status: EServiceStatus.Exited }),
         ],
       }),

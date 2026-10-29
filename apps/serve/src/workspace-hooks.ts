@@ -53,7 +53,15 @@ export function stopWorkspaceProcessesFor(args: {
   killedBy?: EKilledBy | undefined
   root: ThreadId
   shells: Pick<ShellRegistryPort, 'stopOwners' | 'drainNotifications'>
-  services: Pick<ServiceRegistryPort, 'list' | 'stop' | 'awaitEndings' | 'drainNotifications'>
+  services: Pick<
+    ServiceRegistryPort,
+    | 'list'
+    | 'stop'
+    | 'awaitEndings'
+    | 'drainNotifications'
+    | 'suspendSupervision'
+    | 'resumeSupervision'
+  >
   threads: Pick<ThreadStorePort, 'spawned'>
   log: Pick<EventLogPort, 'append'>
   ids: Pick<IdPort, 'nextRunId'>
@@ -62,7 +70,7 @@ export function stopWorkspaceProcessesFor(args: {
   const killedBy = args.killedBy ?? EKilledBy.ContainerSwitch
   const pending = pendingProcessEndings.get(shells) ?? new Map<ThreadId, readonly EventDraft[]>()
   pendingProcessEndings.set(shells, pending)
-  return async () => {
+  const stopFamily = async (): Promise<void> => {
     const family = await familyThreadIdsOf({ root: args.root, threads: args.threads })
     const shellEndings = shells.stopOwners({
       threadIds: [...family],
@@ -93,6 +101,14 @@ export function stopWorkspaceProcessesFor(args: {
       pending.set(threadId, drafts)
       await args.log.append({ threadId, runId: args.ids.nextRunId(), drafts })
       pending.delete(threadId)
+    }
+  }
+  return async () => {
+    services.suspendSupervision?.()
+    try {
+      await stopFamily()
+    } finally {
+      services.resumeSupervision?.()
     }
   }
 }

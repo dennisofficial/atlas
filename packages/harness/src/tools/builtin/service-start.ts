@@ -11,6 +11,7 @@ import {
   ProcessPort,
   SchemaTool,
   serviceEnding,
+  serviceEnv,
   type DeclaredPathField,
   type PortExposure,
   type ThreadId,
@@ -20,12 +21,14 @@ import {
 
 import { LocalProcessPort } from '../../execution/local-process'
 import { logTail, ServiceRegistryPort } from '../../services'
-import { exposureClause, exposureUnsupported } from './bash-prose'
+import { allocateServicePort, processPortProbe } from '../../services/service-port'
+import { exposureClause, exposureUnsupported } from './exposure-prose'
 
 const inputSchema = z.strictObject({
   description: z.string().min(1),
   command: z.string().min(1),
   workdir: z.string().min(1).optional(),
+  port: z.number().int().min(1).max(65_535).optional(),
   exposePort: z.number().int().min(1).max(65_535).optional(),
 })
 
@@ -39,6 +42,7 @@ const description = [
   'Its stdout and stderr go to one log file, named in the reply; read or grep that file to check on it, and stop it with service_stop.',
   'In bash, pipe the log through the atlas-svc helper: `atlas-svc logs svc_1 | grep ...` resolves the id to its log and execs tail, so -n and -f pass straight through into whatever pipe you build.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
+  'It runs with PORT set (port, else exposePort, else a free port from 20000-29999) and ATLAS_THREAD_ID; with exposePort it also gets PUBLIC_URL and the Vite allowed host, so listen on $PORT.',
   'exposePort publishes the port the service listens on and answers with the URL to hand the operator.',
   'In a sandbox - Docker or cloud - any port can be exposed: have the service listen on 0.0.0.0 - 127.0.0.1 is invisible outside the sandbox - and pass the port it listens on; the reply carries the URL to hand the operator, and localhost there is the sandbox, not the operator’s machine.',
 ].join(' ')
@@ -105,8 +109,19 @@ export class ServiceStartTool extends SchemaTool<typeof inputSchema> {
     })
     if (!exposure.ok) return exposure
 
+    const port =
+      input.port ??
+      input.exposePort ??
+      (await allocateServicePort({
+        threadId,
+        name: input.description,
+        isFree: processPortProbe({ processes: this.processes }),
+      }))
+
     const started = await this.services.start({
       threadId,
+      port,
+      env: serviceEnv({ port, threadId, publicUrl: exposure.exposure?.url }),
       command: input.command,
       description: input.description,
       cwd,

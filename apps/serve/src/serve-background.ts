@@ -117,3 +117,15 @@ export function settleLostShellsInBackground(args: {
     if (failed?.status === 'rejected') throw failed.reason
   })
 }
+
+export async function resumeDeclaredServicesNow(args: {
+  app: Pick<ServeApp, 'resumeDeclaredServices'>
+  threadId: ThreadId
+  log: ServeLog
+}): Promise<void> {
+  try {
+    await args.app.resumeDeclaredServices?.({ threadId: args.threadId })
+  } catch (error) {
+    args.log({ event: EServeEvent.DeclaredServicesResumeFailed, reason: messageOf(error) })
+  }
+}

@@ -98,9 +98,8 @@ procedure; a timeout is not permission to destroy a live sandbox.
 Signed-in startup may retire registered sandboxes whose last recorded activity exceeds seven days,
 including destroying their drives. Preserve work before leaving it unused. Parking is
 not indefinite storage; signed-out sessions also retain Vercel billing and storage responsibilities.
-For previews, use `service_start` with `exposePort`, bind to `0.0.0.0`, and hand over the returned URL.
-`localhost` is the sandbox, not the operator's machine. Up to fifteen ports can be exposed, including
-Atlas's serve port. Use background `bash` for finite jobs. Restart services after sandbox recreation.
+`localhost` is the sandbox, not the operator's machine. For previews and servers, load `atlas-services`;
+use background `bash` only for finite jobs.
 
 ## Diagnose with evidence
 

@@ -3,10 +3,12 @@ import type { EventDraft, ThreadId } from '@dltech/atlas-core'
 import type { ServiceEventJournal } from './service-journal'
 import { serviceEndedDraft, type ServiceNoticeQueue } from './service-notices'
 import type { Service } from './service-process'
+import type { ServiceStartArgs } from './service-registry-port'
 
 export type TrackedService = {
   service: Service
   threadId: ThreadId
+  launch: ServiceStartArgs
   announced: boolean
   draft?: EventDraft | undefined
   ending?: Promise<void> | undefined

@@ -8,7 +8,19 @@ import type {
 } from '@dltech/atlas-core'
 
 import type { InputBatch } from '../intake/input-batch'
+import type { EnsuredService } from './declared-ensure'
 import type { ServiceSnapshot } from './service-process'
+
+export type ServiceStartArgs = {
+  threadId: ThreadId
+  command: string
+  description: string
+  cwd?: string | undefined
+  exposure?: PortExposure | undefined
+  env?: Record<string, string> | undefined
+  name?: string | undefined
+  port?: number | undefined
+}
 
 export type StartedServiceOutcome =
   | { ok: true; snapshot: ServiceSnapshot }
@@ -24,13 +36,16 @@ export type ServiceStopOutcome =
  * only so its ending routes to the log of the thread that started it.
  */
 export abstract class ServiceRegistryPort {
-  abstract start(args: {
+  abstract start(args: ServiceStartArgs): Promise<StartedServiceOutcome>
+  restart?(args: { serviceId: string }): Promise<StartedServiceOutcome>
+  suspendSupervision?(): void
+  resumeSupervision?(): void
+  restartPending?(args: { name: string }): boolean
+  crashLooping?(args: { name: string }): boolean
+  ensureDeclared?(args: {
     threadId: ThreadId
-    command: string
-    description: string
-    cwd?: string | undefined
-    exposure?: PortExposure | undefined
-  }): Promise<StartedServiceOutcome>
+    names?: readonly string[] | undefined
+  }): Promise<readonly EnsuredService[]>
   abstract stop(args: {
     serviceId: string
     by: EKilledBy

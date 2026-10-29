@@ -2,8 +2,19 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { testRender } from '@opentui/react/test-utils'
 
-import { EExecutionLocation, ESettingId, type SettingsDocument } from '@dltech/atlas-core'
-import { ESandboxState, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
+import {
+  EExecutionLocation,
+  EServiceStatus,
+  ESettingId,
+  type SettingsDocument,
+} from '@dltech/atlas-core'
+import {
+  ESandboxState,
+  EShellStatus,
+  toShellId,
+  type ServiceSnapshot,
+  type ShellSnapshot,
+} from '@dltech/atlas-harness'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { dismissNotice } from '../../ui/notice-store'
@@ -319,16 +330,13 @@ const endedShell = (): ShellSnapshot => ({
   awaitingInput: false,
 })
 
-const shellExposing = (args: { containerPort: number; hostPort: number }): ShellSnapshot => ({
-  shellId: toShellId('bash_1'),
-  threadId: THREAD,
+const serviceExposing = (args: { containerPort: number; hostPort: number }): ServiceSnapshot => ({
+  serviceId: 'svc_1',
   command: 'bun run dev',
   description: 'dev server',
-  status: EShellStatus.Running,
+  status: EServiceStatus.Running,
+  logPath: '/tmp/svc_1.log',
   startedAt: '2026-09-05T12:00:00.000Z',
-  lastOutputAt: '2026-09-05T12:00:00.000Z',
-  totalCharacters: 0,
-  awaitingInput: false,
   exposure: {
     containerPort: args.containerPort,
     hostPort: args.hostPort,
@@ -503,7 +511,7 @@ describe('the container pill in the sidebar', () => {
       expect(running).toContain('atlas-dev-0123456789ab')
       expect(running).not.toContain('3000→20123')
 
-      app.shells.place(shellExposing({ containerPort: 3000, hostPort: 20_123 }))
+      app.services.place(serviceExposing({ containerPort: 3000, hostPort: 20_123 }))
       await setup.flush()
       await settle(250)
       await setup.flush()

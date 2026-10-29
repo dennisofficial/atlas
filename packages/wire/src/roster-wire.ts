@@ -64,7 +64,6 @@ export const shellSnapshotWireSchema = z.object({
   awaitingInput: z.boolean(),
   inputSupported: z.boolean().optional(),
   outputPath: z.string().optional(),
-  exposure: portExposureSchema.optional(),
 })
 
 export type ShellSnapshotWire = z.infer<typeof shellSnapshotWireSchema>
