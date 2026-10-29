@@ -11,6 +11,7 @@ import type { SessionTools } from './session-tool-requests'
 import type { ContextReaders } from './context-requests'
 import type { MentionRouting } from './mention-requests'
 import type { FrameBuffer, SignalFrame } from './frame-buffer'
+import type { ServeProcesses } from './process-requests'
 import type { TranscriptReaders } from './requests'
 import type {
   ServeAgentSteer,
@@ -90,5 +91,7 @@ export type SessionHandlersArgs = {
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
+  /** The sandbox's own shell and service registries; absent in fakes, which refuse the process ops. */
+  processes?: ServeProcesses | undefined
   /** The session-directory mirror's read surface; absent in fakes, which refuse the ops. */
 }

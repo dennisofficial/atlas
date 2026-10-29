@@ -6,6 +6,7 @@ import type { RotationStateWire } from '@dltech/atlas-wire'
 import { answerSessionTool, isSessionToolOp, type SessionTools } from './session-tool-requests'
 import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
 import { routeOperatorInput } from './operator-input'
+import { routeProcessRequest, type ServeProcesses } from './process-requests'
 import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
 import { routeMentionRead, type MentionRouting } from './mention-requests'
 import {
@@ -51,6 +52,7 @@ export function createRequestRouter(args: {
   selectModel?: ((model: { ref: string; effort: string }) => void) | undefined
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
+  processes?: ServeProcesses | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -181,6 +183,16 @@ export function createRequestRouter(args: {
         frame,
         threadId,
         operatorInput: args.operatorInput,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
+      return
+
+    if (
+      routeProcessRequest({
+        frame,
+        threadId,
+        processes: args.processes,
         reply: (reply) => send({ socket, frame: reply }),
       })
     )

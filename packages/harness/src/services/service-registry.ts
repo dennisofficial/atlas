@@ -29,6 +29,7 @@ import {
   type ServiceStopOutcome,
   type StartedServiceOutcome,
 } from './service-registry-port'
+import { serviceLogTail } from './service-log-tail'
 import { diedWithin, unknownService, within } from './service-registry-support'
 
 export * from './service-registry-port'
@@ -228,6 +229,10 @@ export class BunServiceRegistry extends ServiceRegistryPort {
 
   list(): readonly ServiceSnapshot[] {
     return [...this.tracked.values()].map((entry) => entry.service.snapshot())
+  }
+
+  override logTail(args: { serviceId: string; characters: number }): string {
+    return serviceLogTail({ services: this, ...args })
   }
 
   override hasRunningFor({ threadId }: { threadId: ThreadId }): boolean {
