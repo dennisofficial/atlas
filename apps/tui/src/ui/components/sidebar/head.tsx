@@ -1,7 +1,8 @@
 import React from 'react'
 
 import type { SidebarModel } from '../../../store/sidebar-model'
-import { costTone, formatUsd, spendFigures } from '../../../store/sidebar-spend'
+import { formatUsd } from '@dltech/atlas-core'
+import { costTone, spendFigures } from '../../../store/sidebar-spend'
 import { theme } from '../../theme'
 import { NAMING_SIDEBAR_LINE } from '../../naming-frames'
 import { ENamingPhase, NamingLine, type NamingState } from '../naming-line'

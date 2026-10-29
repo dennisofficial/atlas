@@ -30,9 +30,9 @@ async function mount() {
 }
 
 describe('useRightPanel', () => {
-  it('starts on Agents with the sheet closed', async () => {
+  it('starts on Details with the sheet closed', async () => {
     const state = await mount()
-    expect(state().tab).toBe(ERightTab.Agents)
+    expect(state().tab).toBe(ERightTab.Details)
     expect(state().sheetOpen).toBe(false)
   })
 
@@ -44,12 +44,20 @@ describe('useRightPanel', () => {
     expect(state().sheetOpen).toBe(true)
   })
 
-  it('openAgent selects the agent, switches to Agents and opens the sheet', async () => {
+  it('openAgent selects the agent, switches to Details and opens the sheet', async () => {
     const state = await mount()
     await act(async () => state().openChanges('a.ts'))
     await act(async () => state().openAgent('agent-1'))
-    expect(state().tab).toBe(ERightTab.Agents)
+    expect(state().tab).toBe(ERightTab.Details)
     expect(state().agentId).toBe('agent-1')
+    expect(state().sheetOpen).toBe(true)
+  })
+
+  it('openDetails selects Details and opens the sheet', async () => {
+    const state = await mount()
+    await act(async () => state().setTab(ERightTab.Files))
+    await act(async () => state().openDetails())
+    expect(state().tab).toBe(ERightTab.Details)
     expect(state().sheetOpen).toBe(true)
   })
 

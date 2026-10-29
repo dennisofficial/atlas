@@ -2,11 +2,6 @@ import { EPodState, type PodStatus } from '@dltech/atlas-ui/ai/pod-status-chip'
 
 const RESIZE_DELAY_MS = 700
 
-export interface PodChipConfig {
-  status: PodStatus
-  defaultOpen?: boolean
-}
-
 export const RUNNING_POD: PodStatus = {
   state: EPodState.Running,
   vcpus: 4,

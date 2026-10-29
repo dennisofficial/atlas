@@ -1,3 +1,11 @@
+import {
+  EPlanStatus,
+  foldPlan,
+  PLAN_DONE_TAIL,
+  PLAN_FOLD_MIN,
+  planTaskLabel,
+} from '@dltech/atlas-core'
+
 import { ESidebarTaskState, type SidebarTask } from '../store/sidebar-model'
 import { wrapCells } from './components/sidebar/cells'
 
@@ -16,9 +24,11 @@ export type TodoRow = {
 }
 
 export function todoLabel(task: SidebarTask): string {
-  if (task.state !== ESidebarTaskState.Running) return task.label
-
-  return task.activeForm ?? task.label
+  return planTaskLabel({
+    text: task.label,
+    status: PLAN_STATUS_OF[task.state],
+    activeForm: task.activeForm,
+  })
 }
 
 function taskRows(args: { task: SidebarTask; cells: number }): TodoRow[] {
@@ -36,25 +46,22 @@ export function todoRows(args: { tasks: readonly SidebarTask[]; cells: number })
   return args.tasks.flatMap((task) => taskRows({ task, cells: room }))
 }
 
-export const TODO_DONE_TAIL = 2
-export const TODO_FOLD_MIN = 2
-
 export type TodoFold = {
   shown: readonly SidebarTask[]
   hidden: number
 }
 
+const PLAN_STATUS_OF: Record<ESidebarTaskState, EPlanStatus> = {
+  [ESidebarTaskState.Pending]: EPlanStatus.Pending,
+  [ESidebarTaskState.Running]: EPlanStatus.InProgress,
+  [ESidebarTaskState.Done]: EPlanStatus.Completed,
+}
+
 export function foldTodo(args: { tasks: readonly SidebarTask[]; expanded: boolean }): TodoFold {
-  const completed = args.tasks.filter((task) => task.state === ESidebarTaskState.Done)
-  const folded = completed.length - TODO_DONE_TAIL
-  if (folded < TODO_FOLD_MIN) return { shown: args.tasks, hidden: 0 }
+  const folded = foldPlan({
+    tasks: args.tasks.map((task) => ({ task, status: PLAN_STATUS_OF[task.state] })),
+    expanded: args.expanded,
+  })
 
-  const active = args.tasks.filter((task) => task.state !== ESidebarTaskState.Done)
-  const hidden = completed.slice(0, folded)
-  const tail = completed.slice(folded)
-
-  return {
-    shown: [...(args.expanded ? hidden : []), ...tail, ...active],
-    hidden: hidden.length,
-  }
+  return { shown: folded.shown.map((entry) => entry.task), hidden: folded.hidden }
 }

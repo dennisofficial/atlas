@@ -1,4 +1,10 @@
-import { EShellStatus, type ProviderIdentity, type ThreadId } from '@dltech/atlas-core'
+import {
+  EShellStatus,
+  standingsOfCrew,
+  type CrewMember,
+  type ProviderIdentity,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   EPullRequestState,
   TEAMMATE_AGENT_TYPE,
@@ -35,7 +41,6 @@ export function useShellSurfaces(shells: readonly ShellSnapshot[]): readonly She
 }
 
 import { crewPullRequestOf } from '../plugins/github/crew-pull-request'
-import { standingsOfCrew, type CrewMember } from '../store/crew-retirement'
 import { NO_VISITS, lastVisitOf, recordDeparture, type CrewVisits } from '../store/crew-visits'
 import { withCrew, type SidebarModel } from '../store/sidebar-model'
 import { isSubagentWorking, subagentRows, subagentShowsElapsed } from '../store/subagent-row'

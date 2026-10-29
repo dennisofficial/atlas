@@ -1,11 +1,12 @@
 import { EAgentStatus, toRunId, toThreadId } from '@dltech/atlas-core'
 import { EKilledBy } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { frameSettled, frameShowing } from '../../ui/__tests__/waiting'
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
+import { dismissNotice } from '../../ui/notice-store'
 import { SIDEBAR_WIDTH } from '../../ui/theme'
 import { App } from '../app'
 import { until } from './app-fixture'
@@ -13,6 +14,8 @@ import { fakeApp, scriptedModelPort, type FakeApp } from './fake-app'
 import { fakeAgentSnapshot } from './fake-agents'
 
 await grammarsReady()
+
+afterEach(() => dismissNotice())
 
 const THREAD = toThreadId('opened-thread')
 

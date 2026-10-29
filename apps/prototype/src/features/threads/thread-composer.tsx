@@ -8,9 +8,10 @@ export interface ThreadComposerProps {
   steps: PlanStep[]
   initialQueue: QueuedMessageEntry[]
   busy: boolean
+  onOpenPlan: () => void
 }
 
-export function ThreadComposer({ steps, initialQueue, busy }: ThreadComposerProps) {
+export function ThreadComposer({ steps, initialQueue, busy, onOpenPlan }: ThreadComposerProps) {
   const { queued, handleAppend, handleSave, handleRemove } = useQueuedMessages(initialQueue)
 
   const handleSend = (text: string) => {
@@ -22,6 +23,7 @@ export function ThreadComposer({ steps, initialQueue, busy }: ThreadComposerProp
       steps={steps}
       queued={queued}
       busy={busy}
+      onOpenPlan={onOpenPlan}
       onSaveQueued={handleSave}
       onRemoveQueued={handleRemove}
       onSend={handleSend}

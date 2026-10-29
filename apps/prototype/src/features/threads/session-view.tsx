@@ -22,10 +22,7 @@ export interface SessionViewProps {
   initialQueue?: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
   initialPreviewId?: string
-  header?: Pick<
-    SessionHeaderProps,
-    'title' | 'subtitle' | 'detail' | 'badgeLabel' | 'podStatus' | 'pullRequests'
-  >
+  header?: Pick<SessionHeaderProps, 'title' | 'detail' | 'badgeLabel'>
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
   composer?: ReactNode
@@ -34,7 +31,7 @@ export interface SessionViewProps {
 export function SessionView({
   threadId = SESSION_THREAD_ID,
   state = ESessionState.Running,
-  initialTab = ERightTab.Agents,
+  initialTab = ERightTab.Details,
   initialDetailId,
   initialQueue = [],
   initialTerminalConnection,

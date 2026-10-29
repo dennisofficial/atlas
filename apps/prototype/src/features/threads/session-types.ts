@@ -5,7 +5,7 @@ export enum ESessionState {
 }
 
 export enum ERightTab {
-  Agents = 'agents',
+  Details = 'details',
   Changes = 'changes',
   Files = 'files',
   Terminal = 'terminal',

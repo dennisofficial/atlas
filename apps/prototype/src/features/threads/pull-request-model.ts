@@ -5,12 +5,6 @@ export enum EPrState {
   Closed = 'closed',
 }
 
-export enum EPrDesign {
-  PinnedPopover = 'A',
-  InlineSplit = 'B',
-  Panel = 'C',
-}
-
 export interface PrChecks {
   running: number
   failing: number
@@ -27,11 +21,6 @@ export interface PullRequest {
   conflicts: boolean
   checks?: PrChecks
   url: string
-}
-
-export interface PullRequestsConfig {
-  design: EPrDesign
-  prs: PullRequest[]
 }
 
 export const MAX_PULL_REQUESTS = 4
@@ -90,15 +79,6 @@ export function pullRequestsOf(count: number): PullRequest[] {
   const size = Math.min(MAX_PULL_REQUESTS, Math.max(0, Math.floor(count)))
   const included = INCLUSION_PRIORITY.slice(0, size)
   return PULL_REQUEST_FIXTURES.filter((pr) => included.includes(pr.number))
-}
-
-export function pinnedOf(prs: PullRequest[]): PullRequest | undefined {
-  return prs.find((pr) => pr.current) ?? prs[prs.length - 1]
-}
-
-export function othersOf(prs: PullRequest[]): PullRequest[] {
-  const pinned = pinnedOf(prs)
-  return prs.filter((pr) => pr !== pinned)
 }
 
 export function toggleWatched({

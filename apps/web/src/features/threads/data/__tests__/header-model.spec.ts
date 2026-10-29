@@ -1,27 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPullRequestStateWire, type PrStateWire } from '@dltech/atlas-wire/web'
-
 import { threadOf } from '@/features/shell/__tests__/fixtures'
 
 import {
   EHeaderState,
   STATE_LABEL,
   branchOf,
-  hasConflicts,
   headerStateOf,
-  livePullRequestBadgeOf,
-  pullRequestBadgeOf,
   sandboxSettingsHrefOf,
   spawnerIdOf,
 } from '../header-model'
-
-const pullRequest = (overrides: { number: number; state?: string }) => ({
-  url: `https://github.com/o/r/pull/${overrides.number}`,
-  repo: 'o/r',
-  branch: 'feat',
-  ...overrides,
-})
 
 describe('spawnerIdOf', () => {
   it('reads the teammate spawner, never the fork parent', () => {
@@ -58,187 +46,6 @@ describe('branchOf', () => {
       worktree: { path: '/w', branch: 'dennis/x' },
     })
     expect(branchOf(thread)).toBe('dennis/x')
-  })
-})
-
-describe('pullRequestBadgeOf', () => {
-  it('omits the badge without pull requests', () => {
-    expect(pullRequestBadgeOf(threadOf({ id: 't' }))).toBeUndefined()
-    expect(pullRequestBadgeOf(undefined)).toBeUndefined()
-  })
-
-  it('pins the newest linked pull request without a current branch', () => {
-    const thread = threadOf({
-      id: 't',
-      pullRequests: [
-        pullRequest({ number: 1, state: 'closed' }),
-        pullRequest({ number: 2, state: 'open' }),
-      ],
-    })
-    const badge = pullRequestBadgeOf(thread)
-    expect(badge).toEqual({
-      label: '#2',
-      stateLabel: 'Open',
-      url: 'https://github.com/o/r/pull/2',
-      overflow: 1,
-    })
-  })
-
-  it('leaves the state label off when the pull request has no state', () => {
-    const thread = threadOf({
-      id: 't',
-      pullRequests: [pullRequest({ number: 7 })],
-    })
-    expect(pullRequestBadgeOf(thread)?.stateLabel).toBeUndefined()
-  })
-
-  it('pins the open #1469 on the current branch over the merged #1467', () => {
-    const thread = threadOf({
-      id: 't',
-      worktree: { path: '/w', branch: 'feat-b' },
-      pullRequests: [
-        { ...pullRequest({ number: 1467, state: 'merged' }), branch: 'feat-a' },
-        { ...pullRequest({ number: 1469, state: 'open' }), branch: 'feat-b' },
-      ],
-    })
-    const badge = pullRequestBadgeOf(thread)
-    expect(badge?.label).toBe('#1469')
-    expect(badge?.stateLabel).toBe('Open')
-    expect(badge?.overflow).toBe(1)
-  })
-
-  it('pins the current-branch pull request even when a newer one is linked after it', () => {
-    const thread = threadOf({
-      id: 't',
-      worktree: { path: '/w', branch: 'feat-a' },
-      pullRequests: [
-        { ...pullRequest({ number: 1, state: 'open' }), branch: 'feat-a' },
-        { ...pullRequest({ number: 2, state: 'merged' }), branch: 'feat-b' },
-      ],
-    })
-    expect(pullRequestBadgeOf(thread)?.label).toBe('#1')
-  })
-})
-
-describe('livePullRequestBadgeOf', () => {
-  const linked = threadOf({
-    id: 't',
-    pullRequests: [pullRequest({ number: 2, state: 'open' })],
-  })
-  const pushed = (over: Partial<PrStateWire> = {}): PrStateWire => ({
-    repo: 'o/r',
-    number: 2,
-    url: 'https://github.com/o/r/pull/2',
-    branch: 'feat',
-    state: EPullRequestStateWire.Open,
-    checksRunning: 1,
-    checksPassed: 3,
-    checksFailed: 2,
-    mergeable: null,
-    ...over,
-  })
-
-  it('prefers the pushed state and adds the checks tally', () => {
-    const badge = livePullRequestBadgeOf({
-      states: [pushed({ state: EPullRequestStateWire.Draft, mergeable: false })],
-      thread: linked,
-    })
-    expect(badge).toEqual({
-      label: '#2',
-      stateLabel: 'Draft',
-      url: 'https://github.com/o/r/pull/2',
-      checks: { running: 1, passed: 3, failed: 2 },
-      mergeable: false,
-      overflow: 0,
-    })
-  })
-
-  it('tallies running, passed and failed separately and leaves it off when no checks report', () => {
-    const running = pushed({ checksFailed: 0 })
-    expect(livePullRequestBadgeOf({ states: [running], thread: linked })?.checks).toEqual({
-      running: 1,
-      passed: 3,
-      failed: 0,
-    })
-    const quiet = pushed({
-      checksFailed: 0,
-      checksRunning: 0,
-      checksPassed: 0,
-      mergeable: true,
-    })
-    const badge = livePullRequestBadgeOf({ states: [quiet], thread: linked })
-    expect(badge?.checks).toBeUndefined()
-    expect(badge?.mergeable).toBe(true)
-  })
-
-  it('falls back to the linked pull request when the pushed set has no matching repo#number', () => {
-    const unmatched = livePullRequestBadgeOf({
-      states: [pushed({ number: 9 })],
-      thread: linked,
-    })
-    expect(unmatched?.label).toBe('#2')
-    expect(unmatched?.checks).toBeUndefined()
-    expect(
-      livePullRequestBadgeOf({
-        states: [pushed({ repo: 'x/y' })],
-        thread: linked,
-      })?.label,
-    ).toBe('#2')
-    expect(
-      livePullRequestBadgeOf({
-        states: [pushed()],
-        thread: threadOf({ id: 't' }),
-      }),
-    ).toBe(undefined)
-    expect(livePullRequestBadgeOf({ states: [pushed()], thread: undefined })).toBeUndefined()
-  })
-
-  it('shows an unlinked live pull request on the current branch with its checks', () => {
-    const thread = threadOf({
-      id: 't',
-      worktree: { path: '/w', branch: 'feat-c' },
-      pullRequests: [pullRequest({ number: 1, state: 'merged' })],
-    })
-    const badge = livePullRequestBadgeOf({
-      states: [
-        pushed({
-          number: 9,
-          branch: 'feat-c',
-          checksFailed: 0,
-          checksRunning: 0,
-        }),
-      ],
-      thread,
-    })
-    expect(badge?.label).toBe('#9')
-    expect(badge?.overflow).toBe(1)
-    expect(badge?.checks).toEqual({ running: 0, passed: 3, failed: 0 })
-  })
-
-  it('flags conflicts only on an open pull request that cannot merge', () => {
-    const badgeOf = (over: Partial<PrStateWire>) => {
-      const badge = livePullRequestBadgeOf({
-        states: [pushed(over)],
-        thread: linked,
-      })
-      if (badge === undefined) throw new Error('expected a live badge')
-      return badge
-    }
-    expect(hasConflicts(badgeOf({ mergeable: false }))).toBe(true)
-    expect(hasConflicts(badgeOf({ mergeable: null }))).toBe(false)
-    expect(hasConflicts(badgeOf({ mergeable: false, state: EPullRequestStateWire.Draft }))).toBe(
-      false,
-    )
-  })
-
-  it('merged and closed states keep their checks tally', () => {
-    for (const state of [EPullRequestStateWire.Merged, EPullRequestStateWire.Closed]) {
-      const badge = livePullRequestBadgeOf({
-        states: [pushed({ state })],
-        thread: linked,
-      })
-      expect(badge?.checks).toEqual({ running: 1, passed: 3, failed: 2 })
-    }
   })
 })
 

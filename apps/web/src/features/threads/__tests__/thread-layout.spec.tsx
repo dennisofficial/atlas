@@ -6,6 +6,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 
 import { ERightTab } from '../panel/right-tab'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
+import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadLayout } from '../thread-layout'
 
 const panel: ThreadPanelValue = {
@@ -17,6 +18,8 @@ const panel: ThreadPanelValue = {
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,

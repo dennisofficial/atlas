@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ThreadPanelProvider, type ThreadPanelValue, useThreadPanel } from '../thread-panel-context'
+import { EMPTY_DETAILS } from '../details/details-input'
 
 const value: ThreadPanelValue = {
   threadId: 'thr_1',
@@ -12,6 +13,8 @@ const value: ThreadPanelValue = {
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,

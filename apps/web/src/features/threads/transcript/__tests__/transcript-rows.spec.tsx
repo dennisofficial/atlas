@@ -12,6 +12,7 @@ import {
   type SpawnItem,
 } from '../../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../../panel/thread-panel-context'
+import { EMPTY_DETAILS } from '../../panel/details/details-input'
 import { ReportNotice, SpawnCard } from '../transcript-agents'
 import { ToolRow } from '../transcript-tool-row'
 
@@ -37,6 +38,8 @@ const panelOf = (overrides: Partial<ThreadPanelValue>): ThreadPanelValue => ({
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -97,7 +100,11 @@ describe('ToolRow', () => {
             kind: EToolKind.Read,
             state: EToolState.Done,
             label: 'shot.png',
-            image: { id: 'c1#image', src: 'data:image/png;base64,iVBOR', alt: 'shot.png' },
+            image: {
+              id: 'c1#image',
+              src: 'data:image/png;base64,iVBOR',
+              alt: 'shot.png',
+            },
           }}
         />
       ),
@@ -247,7 +254,10 @@ describe('SpawnCard', () => {
 
 describe('ReportNotice', () => {
   it('hides the open button without an action', async () => {
-    await mount({ panel: panelOf({}), element: <ReportNotice item={report} onOpenAgent={null} /> })
+    await mount({
+      panel: panelOf({}),
+      element: <ReportNotice item={report} onOpenAgent={null} />,
+    })
     expect(buttonNamed('Open in Agents')).toBeUndefined()
   })
 

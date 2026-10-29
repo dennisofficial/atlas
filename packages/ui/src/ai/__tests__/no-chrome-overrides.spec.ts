@@ -29,21 +29,6 @@ const ALLOWED: AllowedOverride[] = [
     token: 'gap-3',
     reason: 'spaces the children the pattern composes in the hover body',
   },
-  ...['gap-2', 'px-3', 'py-2', 'bg-muted/50', 'ring-3', 'ring-ring/50', 'ring-inset'].map(
-    (token) => ({
-      file: 'task-dock.tsx',
-      component: 'CollapsibleTrigger',
-      token,
-      reason:
-        'Collapsible is an unstyled primitive; the dock strip row is this pattern’s own surface',
-    }),
-  ),
-  ...['rounded-xl', 'border', 'border-border', 'bg-card'].map((token) => ({
-    file: 'task-dock.tsx',
-    component: 'Collapsible',
-    token,
-    reason: 'Collapsible is an unstyled primitive; the dock frame is this pattern’s own surface',
-  })),
 ]
 
 const SRC_ROOT = join(import.meta.dir, '..', '..')

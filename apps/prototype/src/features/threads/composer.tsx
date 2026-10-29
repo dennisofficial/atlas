@@ -3,13 +3,13 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Context } from '@dltech/atlas-ui/ai/context'
 import { EEffort, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 import type { PlanStep } from '@dltech/atlas-ui/ai/plan'
+import { PlanSummary } from '@dltech/atlas-ui/ai/plan-summary'
 import { PromptInput } from '@dltech/atlas-ui/ai/prompt-input'
 import {
   QueuedMessages,
   type QueuedMessageEntry,
   type QueuedMessageSave,
 } from '@dltech/atlas-ui/ai/queued-messages'
-import { TaskDock } from '@dltech/atlas-ui/ai/task-dock'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { MODELS } from '@dltech/atlas-ui/fixtures/agent'
@@ -18,6 +18,7 @@ export interface ComposerProps {
   steps?: PlanStep[]
   queued?: QueuedMessageEntry[]
   busy?: boolean
+  onOpenPlan?: () => void
   onSaveQueued?: (save: QueuedMessageSave) => void
   onRemoveQueued?: (id: string) => void
   onSend: (text: string) => void
@@ -44,6 +45,7 @@ export function Composer({
   steps = [],
   queued = [],
   busy = false,
+  onOpenPlan = noop,
   onSaveQueued = noop,
   onRemoveQueued = noop,
   onSend,
@@ -83,7 +85,7 @@ export function Composer({
     <div
       className={cn('mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4', className)}
     >
-      <TaskDock steps={steps} queued={[]} />
+      <PlanSummary steps={steps} onOpen={onOpenPlan} />
       <QueuedMessages messages={queued} onSave={onSaveQueued} onRemove={onRemoveQueued} />
       <fieldset disabled={disabled} onKeyDown={handleKeyDown} className="m-0 min-w-0 border-0 p-0">
         <PromptInput

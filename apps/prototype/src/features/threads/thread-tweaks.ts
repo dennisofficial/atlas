@@ -1,24 +1,12 @@
-import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
-import { FolderGit2Icon } from 'lucide-react'
 
 import type { Control, Values } from '@/proto/use-prototype'
 
 import { type AppThread, SESSION_THREAD_ID } from '../shell/fixtures/app'
 import { enumValueOf } from './enum-value'
-import { projectLabelOf } from './new-thread-data'
-import { EPrDesign, MAX_PULL_REQUESTS, pullRequestsOf } from './pull-request-model'
-import { RUNNING_POD, type PodChipConfig } from './pod-status'
 import { MAX_QUEUED } from './queue-fixtures'
 import type { SessionViewProps } from './session-view'
 import { ERightTab, ESessionState } from './session-types'
-
-export enum EPodTweak {
-  None = 'none',
-  Running = 'running',
-  Parked = 'parked',
-  ResizePending = 'resize-pending',
-}
 
 export const THREAD_CONTROLS = {
   state: {
@@ -31,33 +19,13 @@ export const THREAD_CONTROLS = {
     type: 'select',
     label: 'Right tab',
     options: Object.values(ERightTab),
-    default: ERightTab.Agents,
+    default: ERightTab.Details,
   },
   terminal: {
     type: 'select',
     label: 'Terminal',
     options: Object.values(ETerminalConnection),
     default: ETerminalConnection.Connected,
-  },
-  pod: {
-    type: 'select',
-    label: 'Pod',
-    options: Object.values(EPodTweak),
-    default: EPodTweak.None,
-  },
-  prDesign: {
-    type: 'select',
-    label: 'PR design',
-    options: Object.values(EPrDesign),
-    default: EPrDesign.PinnedPopover,
-  },
-  prCount: {
-    type: 'range',
-    label: 'Pull requests',
-    min: 0,
-    max: MAX_PULL_REQUESTS,
-    step: 1,
-    default: 3,
   },
   detail: { type: 'boolean', label: 'Agent detail', default: false },
   queued: {
@@ -72,39 +40,9 @@ export const THREAD_CONTROLS = {
 
 export type ThreadTweaks = Values<typeof THREAD_CONTROLS>
 
-export function podChipFor(pod: EPodTweak): PodChipConfig | undefined {
-  if (pod === EPodTweak.None) return undefined
-  const status = {
-    [EPodTweak.Running]: RUNNING_POD,
-    [EPodTweak.Parked]: { ...RUNNING_POD, state: EPodState.Parked },
-    [EPodTweak.ResizePending]: { ...RUNNING_POD, pendingVcpus: 8 },
-  }[pod]
-  return { status, defaultOpen: true }
-}
-
-export function headerFor({
-  thread,
-  pod,
-  prDesign,
-  prCount,
-}: {
-  thread: AppThread | undefined
-  pod: EPodTweak
-  prDesign: EPrDesign
-  prCount: number
-}): SessionViewProps['header'] {
-  const podStatus = podChipFor(pod)
-  if (!thread || thread.id === SESSION_THREAD_ID) {
-    return {
-      podStatus,
-      pullRequests: { design: prDesign, prs: pullRequestsOf(prCount) },
-    }
-  }
-  return {
-    title: thread.title,
-    subtitle: { label: projectLabelOf(thread.projectId), icon: FolderGit2Icon },
-    podStatus,
-  }
+export function headerFor(thread: AppThread | undefined): SessionViewProps['header'] {
+  if (!thread || thread.id === SESSION_THREAD_ID) return {}
+  return { title: thread.title }
 }
 
 export function tweaksOf(values: ThreadTweaks) {
@@ -117,22 +55,12 @@ export function tweaksOf(values: ThreadTweaks) {
     tab: enumValueOf({
       options: Object.values(ERightTab),
       value: values.tab,
-      fallback: ERightTab.Agents,
+      fallback: ERightTab.Details,
     }),
     terminal: enumValueOf({
       options: Object.values(ETerminalConnection),
       value: values.terminal,
       fallback: ETerminalConnection.Connected,
-    }),
-    pod: enumValueOf({
-      options: Object.values(EPodTweak),
-      value: values.pod,
-      fallback: EPodTweak.None,
-    }),
-    prDesign: enumValueOf({
-      options: Object.values(EPrDesign),
-      value: values.prDesign,
-      fallback: EPrDesign.PinnedPopover,
     }),
   }
 }
