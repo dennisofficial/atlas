@@ -27,7 +27,6 @@ export const claimSandboxInputSchema = z.strictObject({
   metadata: registerSandboxMetadataSchema.optional(),
   workspace: claimWorkspaceSpecSchema.optional(),
   gitToken: z.string().optional(),
-  driveName: z.string().min(1).nullable().optional(),
   contextPending: z.boolean().optional(),
 })
 export type ClaimSandboxInput = z.infer<typeof claimSandboxInputSchema>

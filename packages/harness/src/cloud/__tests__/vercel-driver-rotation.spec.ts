@@ -139,7 +139,7 @@ describe('createOrResume', () => {
     expect(placement.rotatedFrom).toBeUndefined()
   })
 
-  it('preserves a busy sandbox and its drive when its serve cannot confirm preparation', async () => {
+  it('preserves a busy sandbox when its serve cannot confirm preparation', async () => {
     const stale = fakeSandbox({
       installedVersion: '1.80.0',
       installedProtocol: '',

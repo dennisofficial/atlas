@@ -83,7 +83,7 @@ export const threadMetaSchema = z.object({
     .object({
       placement: z.union([
         z.object({ harness: z.literal('host'), tools: z.enum(['host', 'docker']) }),
-        z.object({ harness: z.literal('cloud'), driveName: z.string().optional() }),
+        z.object({ harness: z.literal('cloud') }),
       ]),
       revision: z.number(),
     })

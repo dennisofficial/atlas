@@ -16,17 +16,17 @@ class SilentNotices extends NoticePort {
 }
 
 let root: string
-let driveHome: string
+let atlasHome: string
 let cwd: string
 let previousAtlasHome: string | undefined
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'atlas-persistent-skills-'))
-  driveHome = join(root, 'drive-home')
+  atlasHome = join(root, 'atlas-home')
   cwd = join(root, 'workspace')
   await mkdir(cwd, { recursive: true })
   previousAtlasHome = process.env.ATLAS_HOME
-  process.env.ATLAS_HOME = driveHome
+  process.env.ATLAS_HOME = atlasHome
 })
 
 afterEach(async () => {
@@ -56,13 +56,13 @@ const compose = () =>
     },
     ports: inProcessPortBindings,
     clientVersion: 'persistent-skills-spec',
-    userSkillHome: driveHome,
+    userSkillHome: atlasHome,
     surface: { notice: new SilentNotices() },
   })
 
-describe('skills in a cloud drive home', () => {
-  it('loads a drive-home skill through the composed tool', async () => {
-    const handoff = join(driveHome, '.agents/skills/handoff/SKILL.md')
+describe('skills in a cloud Atlas home', () => {
+  it('loads an Atlas-home skill through the composed tool', async () => {
+    const handoff = join(atlasHome, '.agents/skills/handoff/SKILL.md')
     await put({ path: handoff, content: text({ name: 'handoff', body: 'Edited in cloud.' }) })
     const app = await compose()
     try {

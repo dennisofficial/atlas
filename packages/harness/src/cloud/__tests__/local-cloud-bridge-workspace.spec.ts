@@ -25,7 +25,6 @@ const bridgeSeeing = (args: { environment?: Record<string, string> }) => {
         url: 'https://sb.vercel.run',
         state: ECloudSandboxState.Running,
         created: true,
-        driveName: 'drive-1',
         token: 'tok',
       }
     },

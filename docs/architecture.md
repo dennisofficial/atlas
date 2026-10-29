@@ -1485,7 +1485,7 @@ the default branch from origin credentialed by the brokered GitHub token (`gh au
 over the wire, disarmed from the remote URL once the clone lands). No local files, git state,
 worktrees, or uncommitted work cross: the remote is the only truth at birth, so a stale or dirty
 local checkout cannot leak into the cloud. Portable state (`local-state.json`) carries vault
-accounts, secrets, `settings.json`, and `mcp.json`, staged on the drive and installed into the
+accounts, secrets, `settings.json`, and `mcp.json`, staged in the sandbox and installed into the
 sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
 Portable state and the context archive are deleted: a pod now pulls its accounts, settings and
 secrets from Atlas Cloud at boot, and its skills, instructions and MCP config from the
@@ -1502,10 +1502,10 @@ A cloud birth clones the primary repository at `/atlas/workspaces/<repo-name>`, 
 directory name, and agents can clone additional repositories beside it under `/atlas/workspaces`.
 Those adjacent clones are ephemeral: sandbox teardown deletes them, so their work must be pushed
 or moved into the primary repository. Worktrees the session creates hang beneath the primary
-repository and live and die with the sandbox's drive.
+repository and live and die with the sandbox's filesystem.
 
-Work that never gets pushed dies with the sandbox. The drive is the only retention — retired
-seven days after the last recorded activity by the startup reaper — and there is no sync-back:
+Work that never gets pushed dies with the sandbox. The sandbox's persistent filesystem is the only
+retention — deleted seven days after the last recorded activity by the startup reaper — and there is no sync-back:
 the agent pushes branches, and the operator pulls them. This is documented, not engineered around.
 
 A harness-owned session owner selects the complete runtime binding: runner, channel, stores,
@@ -1515,11 +1515,11 @@ log append, so the TUI republishes on the placement change rather than waiting f
 
 ## Cloud execution lifetime and attachment
 
-Serve diagnostics append to `/atlas/home/operational/atlas-serve.log` on the mounted drive,
-alongside durable session data, so sandbox recreation preserves prior boot and turn evidence.
+Serve diagnostics append to `/atlas/home/operational/atlas-serve.log` on the sandbox filesystem,
+alongside durable session data, so a stop and resume preserves prior boot and turn evidence.
 The serve binary, token, PID and process lock remain under `/opt/atlas` on the runtime filesystem.
 
-User skills also live on the drive: Atlas skills under `/atlas/home/skills`, compatibility skills
+User skills also live under `/atlas/home`: Atlas skills under `/atlas/home/skills`, compatibility skills
 under `/atlas/home/.agents/skills` and `/atlas/home/.claude/skills`. Serve configures the shared
 harness's user skill home to `/atlas/home`; local sessions retain their ordinary OS home. This
 changes only skill discovery, not shell home, credentials or agent-type discovery. Returned skill
@@ -1544,8 +1544,8 @@ Runtime upgrades are a harness-owned recreation ceremony, not a drift warning. A
 runtime is drained at a confirmed family-pause seam: parent commits and
 the current model/tool step finish, every descendant pauses or genuinely completes, and their
 outcomes persist before preparation is acknowledged. Queued inputs and endings are appended before a final checkpoint and preparation
-receipt are written to the thread's existing drive. Only then may the client destroy the sandbox,
-wait for drive detachment, mount that drive into the replacement image, and attach. Progress is
+receipt are written to the sandbox's `/atlas/home`. Only then may the client swap serve in place on
+the same sandbox and attach. Progress is
 projected by the TUI; pause, persistence, and recovery belong to the harness and serve.
 
 An absent socket, a timeout, an unsupported preparation endpoint, or failed persistence is never
@@ -1569,7 +1569,7 @@ recreation intent records only whether automatic continuation is owed. The repla
 before autonomous child adoption or intake wakes, resumes the parent and children from their
 authoritative logs, and retains that intent until a real terminal outcome is durable. An intent
 still being prepared is distinct from the sealed receipt that permits source destruction.
-Serve persists a versioned checkpoint on the drive, identifying its runtime, provider session,
+Serve persists a versioned checkpoint under `/atlas/home`, identifying its runtime, provider session,
 and transcript identity. Progress and finalized idle parking are distinct reports. An optional
 API mirror stores reports without controlling execution or making successful publication a
 condition of parking. Missing or unreliable metadata means freshness is unknown.
