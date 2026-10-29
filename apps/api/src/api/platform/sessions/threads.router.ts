@@ -110,9 +110,17 @@ export class ThreadsRouter {
     @Input() input: OpenThreadInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<{ thread: ThreadDto; events: EventDto[] }> {
+    const principal = ctx.sandbox ?? ctx.pod
+    if (principal !== undefined && input.executionLocation !== undefined) {
+      throw new ForbiddenException('a pod or sandbox token cannot set an execution location')
+    }
     await assertSandboxSpawn({ sandboxes: this.sandboxes, ctx, agent: input.agent })
     const { id, ...rest } = input
-    return this.threads.open({ userId: ctx.auth.userId, draft: { ...rest, threadId: id } })
+    return this.threads.open({
+      userId: ctx.auth.userId,
+      ...(principal === undefined ? {} : { confinedTo: principal.threadId }),
+      draft: { ...rest, threadId: id },
+    })
   }
 
   @Query({ input: recentThreadInputSchema, output: wireThreadSchema.nullable(), meta: readMeta })
