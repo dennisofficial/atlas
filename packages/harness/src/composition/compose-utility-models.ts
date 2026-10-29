@@ -54,7 +54,13 @@ export function bindUtilityModels(args: {
   }
 
   const utility = (role: EUtilityModelRole): LanguageModelV4 =>
-    createUtilityModel({ role, settings, catalogue: models, notice, fallback })
+    createUtilityModel({
+      role,
+      settled: () => settings.snapshot().resolution,
+      catalogue: models,
+      notice,
+      fallback,
+    })
 
   container.register(registeredPortToken(JudgePort), {
     useValue: new RoutedJudge({

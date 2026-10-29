@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./models": "./src/models/index.ts",
+    "./titling": "./src/titling/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {

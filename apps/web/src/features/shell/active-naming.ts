@@ -44,3 +44,11 @@ export function useThreadNaming(threadId: string): ThreadNaming | null {
   )
   return snapshot?.threadId === threadId ? { title: snapshot.title, naming: snapshot.naming } : null
 }
+
+export function rowNamingOf(args: {
+  listedTitle: string | null
+  published: ThreadNaming | null
+}): ThreadNaming {
+  const title = args.published?.title ?? args.listedTitle
+  return { title, naming: title === null && (args.published?.naming ?? false) }
+}

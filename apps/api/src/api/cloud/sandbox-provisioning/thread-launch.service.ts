@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import { ConflictException, Inject, Injectable } from '@nestjs/common'
 import {
   EBootStepState,
   ESandboxProvisionState,
@@ -13,6 +13,8 @@ import {
 import { appendWithin, nextRunId } from '../../platform/sessions/append'
 import { toThreadDto } from '../../platform/sessions/rows'
 import { threadProjectColumn } from '../../platform/sessions/thread-project'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { ThreadTitlingService } from '../thread-titling/thread-titling.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { findFirstMessageThread, lockFirstMessage, userSaidDraftOf } from './first-message'
 import {
@@ -29,6 +31,8 @@ export class ThreadLaunchService extends ThreadLauncher {
   constructor(
     private readonly threads: ThreadsService,
     private readonly pod: PodLaunchService,
+    @Inject(BackgroundWork) private readonly background: BackgroundWork,
+    private readonly titling: ThreadTitlingService,
   ) {
     super()
   }
@@ -73,7 +77,18 @@ export class ThreadLaunchService extends ThreadLauncher {
 
     const row = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const thread = toThreadDto(row)
-    if (!existing) await this.threads.announceCreated({ userId, threadId })
+    if (!existing) {
+      await this.threads.announceCreated({ userId, threadId })
+      this.background.keepAlive(
+        this.titling.titleFirstMessage({
+          userId,
+          threadId,
+          projectId: row.projectId,
+          text: firstMessage.text,
+          images: firstMessage.images,
+        }),
+      )
+    }
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
     const dispatched = claim === null || (await this.pod.dispatch({ threadId, claim }))
