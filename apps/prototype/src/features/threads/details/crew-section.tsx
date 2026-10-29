@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 import { AgentStatusIcon } from '@dltech/atlas-ui/ai/agent-status'
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 
 import { foldCrew, isWorking, settledLabelOf, type CrewRow } from './details-model'
-import { DetailsSection, RowButton } from './section'
+import { DetailsSection } from './section'
 
 function CrewGroup(props: { title: string; rows: CrewRow[]; onOpen: (row: CrewRow) => void }) {
   const [expanded, setExpanded] = useState(false)
@@ -15,24 +16,27 @@ function CrewGroup(props: { title: string; rows: CrewRow[]; onOpen: (row: CrewRo
   return (
     <DetailsSection title={props.title} count={`${working}/${rows.length}`}>
       {fold.shown.map((row) => (
-        <RowButton key={row.id} onClick={() => props.onOpen(row)}>
-          <AgentStatusIcon display={row.display} />
-          <span className="min-w-0 flex-1 truncate text-left">{row.title}</span>
-          {row.subtitle === undefined ? null : (
-            <span className="shrink-0 text-xs text-muted-foreground">{row.subtitle}</span>
-          )}
-        </RowButton>
+        <DetailRow
+          key={row.id}
+          icon={<AgentStatusIcon display={row.display} />}
+          label={row.title}
+          meta={row.subtitle}
+          onClick={() => props.onOpen(row)}
+        />
       ))}
       {fold.collapsed > 0 ? (
-        <RowButton onClick={() => setExpanded((held) => !held)}>
-          <span className="text-xs text-muted-foreground">
-            {settledLabelOf({
-              collapsed: fold.collapsed,
-              expanded,
-              failed: fold.collapsedFailed,
-            })}
-          </span>
-        </RowButton>
+        <DetailRow
+          onClick={() => setExpanded((held) => !held)}
+          label={
+            <span className="text-xs text-muted-foreground">
+              {settledLabelOf({
+                collapsed: fold.collapsed,
+                expanded,
+                failed: fold.collapsedFailed,
+              })}
+            </span>
+          }
+        />
       ) : null}
     </DetailsSection>
   )

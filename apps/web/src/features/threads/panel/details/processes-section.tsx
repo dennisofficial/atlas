@@ -3,6 +3,8 @@
 import { EServiceStatus, foldServices, serviceFailed } from '@dltech/atlas-core'
 import { CircleIcon, CircleXIcon, CircleCheckIcon } from 'lucide-react'
 
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
+
 import type { ProcessesData } from '../../data/use-processes'
 import {
   isShellRunning,
@@ -13,7 +15,15 @@ import {
 import { useNow } from '../../data/use-now'
 import { ERightTab } from '../right-tab'
 import { earlierLabelOf, keptServiceOf } from './details-model'
-import { DetailsSection, RowButton } from './section'
+import { DetailsSection } from './section'
+
+function ServiceIcon({ kept }: { kept: ReturnType<typeof keptServiceOf> }) {
+  if (kept.snapshot.status === EServiceStatus.Running) {
+    return <CircleIcon aria-hidden className="size-2.5 fill-current text-success" />
+  }
+  if (serviceFailed(kept)) return <CircleXIcon aria-hidden className="size-3.5 text-destructive" />
+  return <CircleCheckIcon aria-hidden className="size-3.5 text-muted-foreground" />
+}
 
 export function ProcessesSection(props: { data: ProcessesData; onOpen: (tab: ERightTab) => void }) {
   const { shells, services } = props.data
@@ -27,13 +37,13 @@ export function ProcessesSection(props: { data: ProcessesData; onOpen: (tab: ERi
       {running.length === 0 ? null : (
         <DetailsSection title="Shells" count={running.length}>
           {running.map((shell) => (
-            <RowButton key={shell.shellId} onClick={open}>
-              <CircleIcon aria-hidden className="size-2.5 shrink-0 fill-current text-success" />
-              <span className="min-w-0 flex-1 truncate">{processNameOf(shell)}</span>
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {shellReadoutOf({ shell, now })}
-              </span>
-            </RowButton>
+            <DetailRow
+              key={shell.shellId}
+              icon={<CircleIcon aria-hidden className="size-2.5 fill-current text-success" />}
+              label={processNameOf(shell)}
+              meta={shellReadoutOf({ shell, now })}
+              onClick={open}
+            />
           ))}
         </DetailsSection>
       )}
@@ -42,33 +52,27 @@ export function ProcessesSection(props: { data: ProcessesData; onOpen: (tab: ERi
           {fold.shown.map((kept) => {
             const { snapshot } = kept
             return (
-              <RowButton key={snapshot.serviceId} onClick={open}>
-                {snapshot.status === EServiceStatus.Running ? (
-                  <CircleIcon aria-hidden className="size-2.5 shrink-0 fill-current text-success" />
-                ) : serviceFailed(kept) ? (
-                  <CircleXIcon aria-hidden className="size-3.5 shrink-0 text-destructive" />
-                ) : (
-                  <CircleCheckIcon
-                    aria-hidden
-                    className="size-3.5 shrink-0 text-muted-foreground"
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate">{processNameOf(snapshot)}</span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {serviceReadoutOf({ service: snapshot, now })}
-                </span>
-              </RowButton>
+              <DetailRow
+                key={snapshot.serviceId}
+                icon={<ServiceIcon kept={kept} />}
+                label={processNameOf(snapshot)}
+                meta={serviceReadoutOf({ service: snapshot, now })}
+                onClick={open}
+              />
             )
           })}
           {fold.hidden > 0 ? (
-            <RowButton onClick={open}>
-              <span className="text-xs text-muted-foreground">
-                {earlierLabelOf({
-                  hidden: fold.hidden,
-                  failed: fold.hiddenFailed,
-                })}
-              </span>
-            </RowButton>
+            <DetailRow
+              onClick={open}
+              label={
+                <span className="text-xs text-muted-foreground">
+                  {earlierLabelOf({
+                    hidden: fold.hidden,
+                    failed: fold.hiddenFailed,
+                  })}
+                </span>
+              }
+            />
           ) : null}
         </DetailsSection>
       )}

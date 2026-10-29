@@ -15,6 +15,7 @@ export type RightPanelState = {
   openDetails: () => void
   clearAgent: () => void
   openContextFile: (path: string) => void
+  toggleContextFile: (path: string) => void
   closeContextFile: () => void
 }
 
@@ -50,6 +51,11 @@ export function useRightPanel(): RightPanelState {
     setSheetOpen(false)
   }, [])
 
+  const toggleContextFile = useCallback((path: string) => {
+    setContextPath((held) => (held === path ? undefined : path))
+    setSheetOpen(false)
+  }, [])
+
   const closeContextFile = useCallback(() => setContextPath(undefined), [])
 
   return {
@@ -65,6 +71,7 @@ export function useRightPanel(): RightPanelState {
     openDetails,
     clearAgent,
     openContextFile,
+    toggleContextFile,
     closeContextFile,
   }
 }

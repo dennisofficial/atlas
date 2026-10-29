@@ -76,6 +76,23 @@ describe('useRightPanel', () => {
     expect(state().sheetOpen).toBe(false)
   })
 
+  it('toggleContextFile closes when the path is already open', async () => {
+    const state = await mount()
+    await act(async () => state().toggleContextFile('a.md'))
+    expect(state().contextPath).toBe('a.md')
+    await act(async () => state().toggleContextFile('a.md'))
+    expect(state().contextPath).toBeUndefined()
+  })
+
+  it('toggleContextFile switches to a different path and closes the sheet', async () => {
+    const state = await mount()
+    await act(async () => state().openDetails())
+    await act(async () => state().toggleContextFile('a.md'))
+    await act(async () => state().toggleContextFile('b.md'))
+    expect(state().contextPath).toBe('b.md')
+    expect(state().sheetOpen).toBe(false)
+  })
+
   it('closeContextFile returns to the transcript', async () => {
     const state = await mount()
     await act(async () => state().openContextFile('a.md'))

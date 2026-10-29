@@ -21,6 +21,7 @@ export type ThreadPanelValue = {
   openDetails: () => void
   clearAgent: () => void
   openContextFile: (path: string) => void
+  toggleContextFile: (path: string) => void
   closeContextFile: () => void
   closePanel: () => void
   refreshPod: () => void

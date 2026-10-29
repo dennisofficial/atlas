@@ -74,6 +74,8 @@ export function SessionPane({
   }
 
   const handleCloseContext = () => setContextPath(undefined)
+  const handleToggleContext = (path: string) =>
+    setContextPath((held) => (held === path ? undefined : path))
   useEscapeClose({ active: contextPath !== undefined, onClose: handleCloseContext })
 
   const handleOpenDetails = () => setTab(ERightTab.Details)
@@ -86,9 +88,6 @@ export function SessionPane({
   }
 
   const renderMain = () => {
-    if (contextPath !== undefined) {
-      return <ContextViewer path={contextPath} onBack={handleCloseContext} />
-    }
     if (openedTeammate) return <TeammateTranscript teammate={openedTeammate} />
     if (renderTranscript) return renderTranscript({ onOpenFile: handleOpenFile })
     return (
@@ -111,19 +110,26 @@ export function SessionPane({
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel id="transcript" minSize="35%">
           <div className="flex h-full min-w-0 flex-col">
-            {renderMain()}
-            {composer ?? (
-              <ThreadComposer
-                onOpenPlan={handleOpenDetails}
-                steps={openedTeammate ? [] : planFor(state)}
-                initialQueue={initialQueue}
-                busy={busy}
-              />
+            <div hidden={contextPath !== undefined} className="flex min-h-0 flex-1 flex-col">
+              {renderMain()}
+            </div>
+            {contextPath === undefined ? null : (
+              <ContextViewer key={contextPath} path={contextPath} onBack={handleCloseContext} />
             )}
+            <div hidden={contextPath !== undefined} className="flex flex-col">
+              {composer ?? (
+                <ThreadComposer
+                  onOpenPlan={handleOpenDetails}
+                  steps={openedTeammate ? [] : planFor(state)}
+                  initialQueue={initialQueue}
+                  busy={busy}
+                />
+              )}
+            </div>
           </div>
         </ResizablePanel>
         <ResizableHandle />
-        <ResizablePanel id="right-panel" defaultSize="40%" minSize="26%" maxSize="60%">
+        <ResizablePanel id="right-panel" defaultSize="33%" minSize="26%" maxSize="50%">
           <RightPanel
             tab={tab}
             onTabChange={setTab}
@@ -141,7 +147,7 @@ export function SessionPane({
             onOpenTeammate={handleOpenTeammate}
             onJumpToSpawn={flash}
             contextPath={contextPath}
-            onOpenContextFile={setContextPath}
+            onOpenContextFile={handleToggleContext}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

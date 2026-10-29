@@ -18,6 +18,7 @@ const value: ThreadPanelValue = {
   clearAgent: () => undefined,
   contextPath: undefined,
   openContextFile: () => undefined,
+  toggleContextFile: () => undefined,
   closeContextFile: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,

@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { CircleCheckIcon, CircleIcon, LoaderCircleIcon } from 'lucide-react'
 
 import { EPlanStatus, foldPlan, planFromEvents, planTaskLabel } from '@dltech/atlas-core'
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { useThreadPanel } from '../thread-panel-context'
 import { planCountOf, planDoneLabelOf } from './details-model'
-import { DetailsSection, RowButton } from './section'
+import { DetailsSection } from './section'
 
 const ICON: Record<EPlanStatus, React.JSX.Element> = {
   [EPlanStatus.Completed]: (
@@ -32,24 +33,25 @@ export function TodoSection() {
   return (
     <DetailsSection title="Todo" count={planCountOf(tasks)}>
       {fold.shown.map((task) => (
-        <p key={task.ordinal} className="flex min-w-0 items-center gap-2 px-1 py-0.5 text-sm">
-          <span className="shrink-0">{ICON[task.status]}</span>
-          <span
-            className={cn(
-              'truncate',
-              task.status === EPlanStatus.Completed && 'text-muted-foreground',
-            )}
-          >
-            {planTaskLabel(task)}
-          </span>
-        </p>
+        <DetailRow
+          key={task.ordinal}
+          icon={ICON[task.status]}
+          label={
+            <span className={cn(task.status === EPlanStatus.Completed && 'text-muted-foreground')}>
+              {planTaskLabel(task)}
+            </span>
+          }
+        />
       ))}
       {fold.hidden > 0 ? (
-        <RowButton onClick={() => setExpanded((held) => !held)}>
-          <span className="text-xs text-muted-foreground">
-            {planDoneLabelOf({ hidden: fold.hidden, expanded })}
-          </span>
-        </RowButton>
+        <DetailRow
+          onClick={() => setExpanded((held) => !held)}
+          label={
+            <span className="text-xs text-muted-foreground">
+              {planDoneLabelOf({ hidden: fold.hidden, expanded })}
+            </span>
+          }
+        />
       ) : null}
     </DetailsSection>
   )

@@ -2,6 +2,7 @@
 
 import { Trash2Icon } from 'lucide-react'
 
+import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { ESubscriptionStatusWire, type SubscriptionWire } from '@dltech/atlas-wire/web'
@@ -21,32 +22,37 @@ function SubscriptionRow(props: {
   const { subscription, now, busy } = props
   const active = subscription.status === ESubscriptionStatusWire.Active
   return (
-    <div className="flex items-center gap-2 px-1 py-0.5" data-status={subscription.status}>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-mono text-sm">{subscription.label}</span>
-        <span className="truncate text-xs text-muted-foreground">
+    <DetailRow
+      mono
+      label={subscription.label}
+      detail={
+        <>
           {active ? null : <span className="font-medium">Paused · </span>}
           {detailOf({ subscription, now })}
-        </span>
-      </div>
-      <Switch
-        size="sm"
-        checked={active}
-        disabled={busy}
-        aria-label={`${active ? 'Pause' : 'Resume'} ${subscription.label}`}
-        onCheckedChange={(checked) => props.onPausedChange(!checked)}
-      />
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        disabled={busy}
-        aria-label={`Remove ${subscription.label}`}
-        className="text-muted-foreground"
-        onClick={props.onRemove}
-      >
-        <Trash2Icon />
-      </Button>
-    </div>
+        </>
+      }
+      actions={
+        <>
+          <Switch
+            size="sm"
+            checked={active}
+            disabled={busy}
+            aria-label={`${active ? 'Pause' : 'Resume'} ${subscription.label}`}
+            onCheckedChange={(checked) => props.onPausedChange(!checked)}
+          />
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            disabled={busy}
+            aria-label={`Remove ${subscription.label}`}
+            className="text-muted-foreground"
+            onClick={props.onRemove}
+          >
+            <Trash2Icon />
+          </Button>
+        </>
+      }
+    />
   )
 }
 
