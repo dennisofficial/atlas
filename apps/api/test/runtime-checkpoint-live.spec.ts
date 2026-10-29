@@ -12,7 +12,7 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../src/_module/trpc/trpc-middleware.fixture'
 import { SandboxCheckpointRouter } from '../src/api/platform/sandboxes/sandbox-checkpoint.router'
-import { SandboxThreadTokenMiddleware } from '../src/api/platform/sandboxes/sandbox-thread-token.middleware'
+import { SandboxTokenMiddleware } from '../src/api/platform/sandboxes/sandbox-token.middleware'
 import { hashSessionToken } from '../src/api/platform/sandboxes/sandbox-tokens'
 import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../src/api/platform/sessions/thread-signals.service'
@@ -105,7 +105,7 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
         SandboxCheckpointRouter,
         { provide: ThreadSignalsService, useValue: inertSignals() },
         SessionMiddleware,
-        SandboxThreadTokenMiddleware,
+        SandboxTokenMiddleware,
         { provide: SESSION_VERIFIER, useValue: verifier },
         { provide: SandboxesService, useValue: sandboxes },
       ],
@@ -215,8 +215,8 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
 
   it('allows the sandbox principal only on the thread its token names', async () => {
     const foreignThread = `brn_foreign_${runId}`
-    await put({ ...checkpoint({ revision: 1 }), threadId: foreignThread }).expect(401)
-    await put({ phase: 'running' }).expect(401)
+    await put({ ...checkpoint({ revision: 1 }), threadId: foreignThread }).expect(403)
+    await put({ phase: 'running' }).expect(400)
     await http()
       .post('/v1/trpc/sandboxCheckpoint.put')
       .send(checkpoint({ revision: 1 }))

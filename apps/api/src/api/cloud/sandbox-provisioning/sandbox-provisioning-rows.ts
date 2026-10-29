@@ -12,6 +12,8 @@ const THREAD_UNIQUE = 'CloudSandbox_threadId_key'
 
 export const NOT_RUNNING_MESSAGE = "The sandbox isn't running. Start it first."
 export const SANDBOX_BUSY_MESSAGE = 'The sandbox is busy. Try again in a moment.'
+export const LOCAL_POD_MESSAGE =
+  'This thread runs in a local pod on your machine — open it from the Atlas TUI there.'
 
 export type RowWriter = Pick<Tx, 'orm'>
 
