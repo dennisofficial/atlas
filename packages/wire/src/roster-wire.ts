@@ -45,8 +45,10 @@ const portExposureSchema = z.object({
   url: z.string(),
 })
 
+export const shellIdWireSchema = z.string().min(1).brand<'ShellId'>()
+
 export const shellSnapshotWireSchema = z.object({
-  shellId: z.string().min(1).brand<'ShellId'>(),
+  shellId: shellIdWireSchema,
   threadId: threadIdWireSchema,
   bootId: z.string().min(1).optional(),
   command: z.string(),

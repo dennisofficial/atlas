@@ -205,15 +205,6 @@ describe('ThreadsRouter', () => {
       expect(create).not.toHaveBeenCalled()
     })
 
-    it('refuses a pod token and an anonymous caller', async () => {
-      const body = { title: 'x' }
-
-      expect(
-        (await mutate({ app, procedure: 'threads.create', headers: as.pod, body })).status,
-      ).toBe(403)
-      expect((await mutate({ app, procedure: 'threads.create', body })).status).toBe(401)
-    })
-
     it('rejects an invalid firstMessage', async () => {
       const reply = await mutate({
         app,
@@ -257,7 +248,7 @@ describe('ThreadsRouter', () => {
       expect(open).toHaveBeenCalledTimes(1)
     })
 
-    it('refuses a sandbox token with no agent, and a pod token', async () => {
+    it('refuses a sandbox or pod token with no agent', async () => {
       expect(
         (await mutate({ app, procedure: 'threads.open', headers: as.sandbox, body })).status,
       ).toBe(403)

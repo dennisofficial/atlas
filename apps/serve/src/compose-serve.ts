@@ -260,6 +260,7 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       resume: (steer) => app.agents.resume(steer),
       stop: (steer) => app.agents.stop(steer),
     },
+    processes: { shells: app.shells, services: app.services, cwd: args.cwd },
     operatorInput: app.operatorInput,
     compaction: app.compaction,
     rotation: app.surface.rotation,

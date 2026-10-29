@@ -7,6 +7,7 @@ export const wireWorkspaceSpecSchema = z.object({
   githubToken: z.string().nullable(),
   /** The model the thread is on; null when none was picked, absent on an older control plane. */
   model: z.string().nullable().nullish(),
+  effort: z.string().nullish(),
   projectId: z.string().nullish(),
   baseBranch: z.string().nullish(),
   additionalRepos: z.array(projectRepoSchema).nullish(),

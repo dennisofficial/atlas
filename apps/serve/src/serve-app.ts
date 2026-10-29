@@ -8,6 +8,7 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { UserSettingsTarget } from './apply-user-settings'
+import type { ServeProcesses } from './process-requests'
 import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
 
 import type {
@@ -217,6 +218,8 @@ export type ServeApp = {
    * live here. Absent in a fake without registries, which refuses the op.
    */
   agents?: ServeAgentSteer | undefined
+  /** The shell and service registries the operator's process-control ops reach; absent in a fake, which refuses them. */
+  processes?: ServeProcesses | undefined
   operatorInput?: Pick<OperatorInputPort, 'answer' | 'pending'> | undefined
   compaction?: CompactionPort | undefined
   rotation?: RotationPort | undefined

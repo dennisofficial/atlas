@@ -87,12 +87,13 @@ describe('UserFilesRouter', () => {
     })
   })
 
-  it('reaches a sandbox token for its own user and refuses a pod lease token', async () => {
+  it('reaches a sandbox token and a pod lease token for their own user', async () => {
     await put('session-a', { tree: 'memory', path: 'm.md', ...fileOf('m') }).expect(200)
 
     const sandbox = await list('sandbox-a', { tree: 'memory' }).expect(200)
     expect(dataOf(sandbox.body)).toMatchObject({ files: [{ path: 'm.md' }] })
-    await list('pod-a', { tree: 'memory' }).expect(403)
+    const pod = await list('pod-a', { tree: 'memory' }).expect(200)
+    expect(dataOf(pod.body)).toMatchObject({ files: [{ path: 'm.md' }] })
     await list(undefined, { tree: 'memory' }).expect(401)
   })
 

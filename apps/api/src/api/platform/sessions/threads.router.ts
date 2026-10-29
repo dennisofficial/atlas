@@ -61,13 +61,15 @@ async function assertSandboxSpawn({
   ctx: SessionOrSandboxTrpcCtx
   agent: SupervisedAgentInput | undefined
 }): Promise<void> {
-  const sandbox = ctx.sandbox
-  if (sandbox === undefined) return
+  const principal = ctx.sandbox ?? ctx.pod
+  if (principal === undefined) return
   if (agent === undefined) {
-    throw new ForbiddenException('a sandbox token creates only sub-agent threads of its own family')
+    throw new ForbiddenException(
+      'a pod or sandbox token creates only sub-agent threads of its own family',
+    )
   }
   await sandboxes.assertThreadInFamily({
-    sandboxThreadId: sandbox.threadId,
+    sandboxThreadId: principal.threadId,
     threadId: agent.spawnedBy,
   })
 }
@@ -88,11 +90,14 @@ export class ThreadsRouter {
     @Input() input: CreateThreadInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ThreadDto | ThreadLaunchReply> {
-    if (ctx.sandbox !== undefined && input.firstMessage !== undefined) {
-      throw new ForbiddenException('a sandbox token cannot start a thread with a first message')
+    const viaToken = ctx.sandbox !== undefined || ctx.pod !== undefined
+    if (viaToken && input.firstMessage !== undefined) {
+      throw new ForbiddenException(
+        'a pod or sandbox token cannot start a thread with a first message',
+      )
     }
-    if (ctx.sandbox !== undefined && input.id !== undefined) {
-      throw new ForbiddenException('a sandbox token cannot choose a thread id')
+    if (viaToken && input.id !== undefined) {
+      throw new ForbiddenException('a pod or sandbox token cannot choose a thread id')
     }
     await assertSandboxSpawn({ sandboxes: this.sandboxes, ctx, agent: input.agent })
     const userId = ctx.auth.userId

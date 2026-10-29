@@ -3,7 +3,6 @@ import {
   EExecutionLocation,
   ELocationChangeCause,
   ESettingId,
-  ESettingsLayer,
   textValueOf,
   type SettingsResolution,
   type ThreadId,
@@ -36,22 +35,6 @@ export const releaseBuildOf = (): { version: string } | undefined => {
   const build = buildInfo()
   if (build.kind !== EBuildKind.Release) return undefined
   return { version: build.version }
-}
-
-export const cloudEnvironmentOf = (resolution: SettingsResolution): Record<string, string> => {
-  const entries: Record<string, string> = {}
-  const carry = (id: ESettingId, variable: string): void => {
-    const held = resolution.settings.get(id)
-    if (held === undefined || held.layer === ESettingsLayer.Default) return
-    const value = textValueOf({ resolution, id })
-    if (value.length > 0) entries[variable] = value
-  }
-  carry(ESettingId.DecisionsProvider, 'ATLAS_DECISIONS_PROVIDER')
-  carry(ESettingId.DecisionsUrl, 'ATLAS_DECISIONS_URL')
-  carry(ESettingId.DecisionsModel, 'ATLAS_DECISIONS_MODEL')
-  carry(ESettingId.ClassifierMode, 'ATLAS_CLASSIFIER_MODE')
-  carry(ESettingId.WebSearchBackend, 'ATLAS_SEARCH_BACKEND')
-  return entries
 }
 
 export const telemetryEnvironmentOf = (): Record<string, string> => {
@@ -123,10 +106,7 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
       tone: ENoticeTone.Warn,
     })
   },
-  environment: () => ({
-    ...cloudEnvironmentOf(app.settings.snapshot().resolution),
-    ...telemetryEnvironmentOf(),
-  }),
+  environment: telemetryEnvironmentOf,
 })
 
 export const reapExpiredSandboxesOnBoot = (app: AtlasApp): void => {

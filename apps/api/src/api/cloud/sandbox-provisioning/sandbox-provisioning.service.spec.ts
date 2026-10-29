@@ -18,7 +18,7 @@ import {
   threadRow,
 } from './sandbox-provisioning.fixture'
 import { DISPATCH_FAILED_MESSAGE } from './pod-launch.service'
-import { NOT_RUNNING_MESSAGE } from './sandbox-provisioning-rows'
+import { LOCAL_POD_MESSAGE, NOT_RUNNING_MESSAGE } from './sandbox-provisioning-rows'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1' } as const
 
@@ -114,6 +114,26 @@ describe('SandboxProvisioningService (retry)', () => {
       'thread not found',
     )
     expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('refuses Retry on a thread leased to a local pod', async () => {
+    await seedThread()
+    await db.orm.public.LocalPodLease.create({
+      userId: 'usr-1',
+      threadId: 'thr-1',
+      tokenHash: 'pod-hash',
+    })
+    const { service, dispatch } = provisioningWith()
+
+    await expect(service.provision(ARGS)).rejects.toMatchObject({
+      status: 409,
+      message: LOCAL_POD_MESSAGE,
+    })
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(await sandboxRows()).toHaveLength(0)
+    expect(await bootSteps()).toHaveLength(0)
+    expect((await threadRow())?.executionLocation).toBeNull()
   })
 
   it('re-claims a failed row keeping its serve token and dispatches again', async () => {

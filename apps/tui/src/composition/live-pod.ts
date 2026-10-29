@@ -26,7 +26,6 @@ import type { AtlasApp } from './compose'
 import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
 import {
-  cloudEnvironmentOf,
   cloudUrlOf,
   liveBridgeOptionsFor,
   releaseBuildOf,
@@ -72,10 +71,7 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
       token,
     })
   },
-  environment: () => ({
-    ...cloudEnvironmentOf(app.settings.snapshot().resolution),
-    ...telemetryEnvironmentOf(),
-  }),
+  environment: telemetryEnvironmentOf,
 })
 
 export type BridgeBuilders = {
