@@ -1,6 +1,7 @@
 import { Chat, useChat } from '@ai-sdk/react'
 import { stepsOfMessages, type AtlasStepMessage } from '@dltech/atlas-client/chat'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import { eventsFromWire } from './events-from-wire'
 import { createLiveChatSession, type LiveChatSession } from './live-chat-session'
@@ -22,6 +23,8 @@ const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
 const NOT_TAKEABLE: LiveTakeBackPending = async () => null
 const NOT_INTERRUPTIBLE: LiveInterrupt = () => false
+export const INTERRUPT_LOST =
+  'The sandbox never acknowledged the stop, so the turn may still be running'
 
 export function useLiveThread(args: {
   threadId: string
@@ -50,6 +53,7 @@ export function useLiveThread(args: {
       readStoredModel: async () => (await fetchThread(threadId)).model,
       onChange: setState,
       onModelChanged: (model) => modelChangedRef.current?.(model),
+      onInterruptLost: () => toast.error(INTERRUPT_LOST),
     })
     sendRef.current = next.controller.send
     chooseRef.current = next.controller.chooseModel

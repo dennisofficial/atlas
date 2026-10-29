@@ -47,6 +47,7 @@ export type LiveThreadControllerArgs = {
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   onStepOpened?: () => void
   onReset?: () => void
+  onInterruptLost?: () => void
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
@@ -63,6 +64,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let reminted = 0
   let connected = false
   let modelChoices = 0
+  let interruptPending = false
   let reading = false
   let readAgain = false
   const releases: (() => void)[] = []
@@ -217,8 +219,14 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       live.subscribe({ threadId, listener: handleSignal(live) }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
+      live.onInterruptAck(() => {
+        interruptPending = false
+      }),
       live.onError(() => {
-        if (!everConnected) fallBack()
+        if (!everConnected) return fallBack()
+        if (!interruptPending) return
+        interruptPending = false
+        args.onInterruptLost?.()
       }),
       live.onReload(({ sinceEventSeq }) => {
         signalTransport.dropAll()
@@ -267,6 +275,11 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     start: () => void start(),
     send,
     ...actions,
+    interrupt: () => {
+      const sent = actions.interrupt()
+      if (sent) interruptPending = true
+      return sent
+    },
     stop: () => {
       update({ channel: null, ...RELEASED_FIELDS })
       stopped = true

@@ -82,4 +82,32 @@ describe('interrupt', () => {
 
     expect(interrupts(test)).toEqual([])
   })
+
+  it('reports a lost interrupt when the sandbox never acknowledges it', async () => {
+    let lost = 0
+    const test = rig({ onInterruptLost: () => void (lost += 1) })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.controller.interrupt()
+    for (const timeout of test.timeouts.splice(0)) timeout.run()
+
+    expect(lost).toBe(1)
+  })
+
+  it('stays quiet about later failures once the interrupt is acknowledged', async () => {
+    let lost = 0
+    const test = rig({ onInterruptLost: () => void (lost += 1) })
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    test.controller.interrupt()
+    test.receive({ kind: EServeFrame.InterruptAcked, seq: 1 })
+    test.receive({ kind: EServeFrame.Error, message: 'unrelated' })
+    for (const timeout of test.timeouts.splice(0)) timeout.run()
+
+    expect(lost).toBe(0)
+  })
 })
