@@ -42,7 +42,12 @@ export function transitionsOf(args: {
     if (args.next.checksFailed > 0 && args.prior.checksFailed === 0) {
       events.push({
         kind: EPrEventKind.Verdict,
-        payload: { url: args.next.url, verdict: 'failed', headSha: args.next.headSha },
+        payload: {
+          url: args.next.url,
+          verdict: 'failed',
+          headSha: args.next.headSha,
+          settled: args.next.checksRunning === 0,
+        },
       })
     } else if (settledFromRunning && (!failureAlreadyAnnounced || completedMore)) {
       events.push({
@@ -51,7 +56,7 @@ export function transitionsOf(args: {
           url: args.next.url,
           verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
           headSha: args.next.headSha,
-          ...(failureAlreadyAnnounced ? { settled: true } : {}),
+          settled: true,
         },
       })
     }
@@ -62,6 +67,7 @@ export function transitionsOf(args: {
         url: args.next.url,
         verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
         headSha: args.next.headSha,
+        settled: true,
       },
     })
   }
@@ -77,6 +83,7 @@ export function transitionsOf(args: {
         url: args.next.url,
         verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
         headSha: args.next.headSha,
+        settled: true,
       },
     })
   }

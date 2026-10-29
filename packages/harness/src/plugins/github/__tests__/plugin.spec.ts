@@ -173,6 +173,8 @@ describe('the github plugin as the loader sees it', () => {
     expect(text).toContain(
       'approvals, a green CI verdict and mergeability changes arrive together as one notice when CI settles',
     )
+    expect(text).toContain('Every CI notice says whether CI is still running or has finished')
+    expect(text).toContain('never wait on a run a notice already called finished')
     expect(text).toContain('pass `#<number>` from `gh pr create`\u2019s output')
     expect(text).toContain('`#123`, `owner/repo#123`, or its URL')
     expect(text).toContain('`gh run watch`')
