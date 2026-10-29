@@ -69,17 +69,13 @@ export type PodCreateArgs = {
   vcpus: number
   token: string
   cloudUrl: string
-  pinnedModel?: string | undefined
   environment: Record<string, string>
 }
 
 const callerEnvironment = (environment: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
     Object.entries(environment).filter(
-      ([key]) =>
-        !key.startsWith(VENDOR_ENV_PREFIX) &&
-        key !== EServeEnv.Model &&
-        !FORBIDDEN_POD_ENV_KEYS.includes(key),
+      ([key]) => !key.startsWith(VENDOR_ENV_PREFIX) && !FORBIDDEN_POD_ENV_KEYS.includes(key),
     ),
   )
 
@@ -93,7 +89,6 @@ const podEnv = (args: PodCreateArgs): string[] =>
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
-    ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
   }).map(([key, value]) => `${key}=${value}`)
 
 const loopbackBinding = (hostPort: number) => [{ HostIp: '127.0.0.1', HostPort: String(hostPort) }]

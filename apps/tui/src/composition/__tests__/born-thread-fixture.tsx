@@ -63,7 +63,14 @@ export const fakeProjectsApi = (
     projectOf({ id: 'proj-acme', name: 'widgets', repo: 'acme/widgets' }),
   ]
   const created: CreatedProject[] = []
-  const fetchFn = (async (_url: string, init?: RequestInit) => {
+  const fetchFn = (async (url: string, init?: RequestInit) => {
+    if (String(url).includes('userVercel.get'))
+      return trpcData({
+        configured: true,
+        teamId: 'team_1',
+        vercelProjectId: 'prj_1',
+        updatedAt: null,
+      })
     if (init?.method === 'POST') {
       if (args.createFails === true) return trpcBadRequest('projects are read-only')
       const body = JSON.parse(String(init.body)) as CreatedProject

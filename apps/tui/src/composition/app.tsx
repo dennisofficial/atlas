@@ -11,6 +11,7 @@ import { projectOf, type ThreadId } from '@dltech/atlas-core'
 
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
+import { isApiProvisioned } from './cloud/api-provisioned'
 
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
@@ -84,6 +85,8 @@ export function App(props: {
         project: projectOf(props.app.workspace),
         bridge: createBridge,
         activeThreadId: () => owner.snapshot().threadId,
+        apiProvisioned: ({ threadId, runner }) =>
+          isApiProvisioned({ secrets: props.app.secrets, threadId, runner }),
       })
     }
     const current = forwarder.current

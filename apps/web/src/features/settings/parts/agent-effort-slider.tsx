@@ -2,7 +2,9 @@
 
 import { Slider } from '@dltech/atlas-ui/components/slider'
 
-import { EFFORT_STEPS, type EEffort } from '../fixtures/settings-agent'
+import type { EEffortLevel } from '@dltech/atlas-wire/web'
+
+import { EFFORT_STEPS } from '../fixtures/settings-agent'
 
 const THUMB_INSET_PX = 6
 
@@ -11,8 +13,8 @@ export function EffortSlider({
   onChange,
   label,
 }: {
-  value: EEffort
-  onChange: (next: EEffort) => void
+  value: EEffortLevel
+  onChange: (next: EEffortLevel) => void
   label: string
 }) {
   const index = Math.max(
@@ -50,7 +52,8 @@ export function EffortSlider({
               left: `calc(${THUMB_INSET_PX}px + (100% - ${THUMB_INSET_PX * 2}px) * ${stepIndex / lastIndex})`,
             }}
           >
-            {step.label}
+            <span className="sm:hidden">{step.short}</span>
+            <span className="hidden sm:inline">{step.label}</span>
           </span>
         ))}
       </div>

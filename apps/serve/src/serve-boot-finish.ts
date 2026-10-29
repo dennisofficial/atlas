@@ -56,13 +56,16 @@ export async function finishServeBoot(args: {
   const { serveArgs, env, threadId, token, controlPlaneUrl, startedAt, log } = args
   const { atlasHome, sandboxSessionId, boot } = args
   const { server, port } = boot
-  const { app, recovery, workspace, fetchFn, writeBehind, clientVersion } = await bootServeApp(args)
+  const { app, recovery, workspace, fetchFn, writeBehind, clientVersion, refreshCloudState } =
+    await bootServeApp(args)
 
   const admissionClosed = (): boolean => {
     if (recovery.admissionLatched) return true
     const current = checkpoint.current()
     return current !== null && admissionClosedFor(current.phase)
   }
+
+  refreshCloudState.bindSettings(app.settings)
 
   const buffer = createFrameBuffer({ capacity: serveArgs.bufferSize ?? DEFAULT_FRAME_BUFFER })
   const settling = { count: 0 },
@@ -116,6 +119,7 @@ export async function finishServeBoot(args: {
     log,
     idleStop: () => idleStop,
     emitLifecycle,
+    beforeTurn: refreshCloudState.refresh,
   })
   const detachIntake = app.intake === undefined ? undefined : driver.attach(app.intake)
   const unsubscribeWake = subscribeLegacyWake({

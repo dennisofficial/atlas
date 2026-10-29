@@ -16,12 +16,10 @@ import {
 import { AgentRegistryPort } from '../agents/registry/port'
 import { OperatorInputPort } from '../operator-input/port'
 import { createDeltaChannel } from '../channel/delta-channel'
-import { bindCloudSettingsWriteThrough } from '../cloud/cloud-settings-write-through'
 import { createHarnessContainer } from '../container/create-harness-container'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
-  CloudSettingsStoreToken,
   DockerEngineToken,
   HookMishapReporterToken,
   SleepPreventionToken,
@@ -121,7 +119,8 @@ export async function composeHarness<
   userSkillHome?: string | undefined
   /** Serve passes the drive home so user-layer sync resolves `.agents`/`.claude` under it. */
   userLayerHome?: string | undefined
-  cloudState?: boolean | undefined
+  cloudSettings?: boolean | undefined
+  cloudSecretsAndAccounts?: boolean | undefined
 }): Promise<HarnessApp<TSurface, Command, TPluginSurface>> {
   const { launch, surface } = args
   const notice = surface.notice
@@ -130,7 +129,8 @@ export async function composeHarness<
   container.register(registeredPortToken(NoticePort), { useValue: notice })
   args.bindPorts?.({ container })
   const cloudState = await bindCloudState({
-    enabled: args.cloudState === true,
+    settingsEnabled: args.cloudSettings === true,
+    secretsAndAccountsEnabled: args.cloudSecretsAndAccounts === true,
     container,
     settings: args.settings,
     clientVersion: args.clientVersion,
@@ -235,11 +235,6 @@ export async function composeHarness<
   })
 
   bindQuality({ container, settings })
-  bindCloudSettingsWriteThrough({
-    settings,
-    store: () => container.resolve(CloudSettingsStoreToken),
-    log: container.resolve(registeredPortToken(LogPort)),
-  })
   const log = container.resolve(registeredPortToken(EventLogPort))
   await seedProjectionsFromRestoredLog({ launch, log, projections: plugins.projections })
   const subscriptions = await bindSubscriptions({

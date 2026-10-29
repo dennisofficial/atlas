@@ -4,14 +4,10 @@ import { createRemoteDeltaChannel } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
-import { bindChannelSettingsSync } from './settings-channel-sync'
 import type { CloudBridge, CloudSandboxes } from './cloud-bridge'
 import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
-export type AttachOptions = Pick<
-  LocalCloudBridgeOptions,
-  'lastEventSeq' | 'settings' | 'projectIdOf'
->
+export type AttachOptions = Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'projectIdOf'>
 
 export const attachmentOf =
   (args: { options: AttachOptions; sandboxes: CloudSandboxes }): CloudBridge['attach'] =>
@@ -28,7 +24,6 @@ export const attachmentOf =
   }) => {
     const { options, sandboxes } = args
     const hosted = sandboxThreadId ?? threadId
-    let unbindSettings: (() => void) | undefined
     const channel = createRemoteDeltaChannel({
       threadId,
       url,
@@ -46,11 +41,7 @@ export const attachmentOf =
         })
         return { url: woken, token: minted }
       },
-      onFinished: () => unbindSettings?.(),
     })
-    if (options.settings !== undefined) {
-      unbindSettings = bindChannelSettingsSync({ channel, settings: options.settings })
-    }
     return {
       channel,
       stores: {

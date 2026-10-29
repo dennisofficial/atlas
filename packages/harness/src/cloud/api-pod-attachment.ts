@@ -7,9 +7,8 @@ import { createRemoteDeltaChannel, type SandboxWake } from './remote-delta-chann
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
-import { bindChannelSettingsSync } from './settings-channel-sync'
 
-export type ApiPodAttachOptions = Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'settings'>
+export type ApiPodAttachOptions = Pick<LocalCloudBridgeOptions, 'lastEventSeq'>
 
 export type PodTicketSource = (args: { threadId: ThreadId }) => Promise<PodConnectReply>
 
@@ -25,7 +24,6 @@ export const apiPodAttachmentOf =
   ({ threadId, url, token, sandboxThreadId }) => {
     const { options, ticketOf } = args
     const hosted = sandboxThreadId ?? threadId
-    let unbindSettings: (() => void) | undefined
     const channel = createRemoteDeltaChannel({
       threadId,
       url,
@@ -34,14 +32,7 @@ export const apiPodAttachmentOf =
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),
       wakeSandbox: apiPodWakeOf({ ticketOf, hosted }),
-      onFinished: () => unbindSettings?.(),
     })
-    if (options.settings !== undefined) {
-      unbindSettings = bindChannelSettingsSync({
-        channel,
-        settings: options.settings,
-      })
-    }
     return {
       channel,
       stores: {

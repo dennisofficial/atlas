@@ -5,7 +5,7 @@ import type { CloudBridge } from '@dltech/atlas-harness'
 
 import { fakeBridge } from '../cloud/__tests__/fixture'
 import { liveBridgeFor, liveBirthPreflight, type BridgeBuilders } from '../live-pod'
-import { fakeApp, scriptedModelPort } from './fake-app'
+import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 
 const model = scriptedModelPort({ script: { thinking: '', reply: 'ok' } })
 
@@ -67,6 +67,57 @@ describe('which bridge a runner gets', () => {
     expect(bridge).toBe(bridges.direct)
   })
 
+  it('provisions a new signed-in Vercel birth through the API even with pods off', () => {
+    const { built, bridges, builders } = buildersThatName()
+
+    const bridge = liveBridgeFor(
+      fakeApp({ model, cloud: fakeCloud() }),
+      builders,
+    )({
+      runner: ERunner.Vercel,
+      birth: true,
+    })
+
+    expect(built).toEqual(['api'])
+    expect(bridge).toBe(bridges.api)
+  })
+
+  it('keeps waking an already-born Vercel thread on the direct bridge', () => {
+    const { built, builders } = buildersThatName()
+
+    liveBridgeFor(fakeApp({ model, cloud: fakeCloud() }), builders)({ runner: ERunner.Vercel })
+
+    expect(built).toEqual(['direct'])
+  })
+
+  it('wakes an API-provisioned Vercel thread through the API bridge', () => {
+    const { built, builders } = buildersThatName()
+
+    liveBridgeFor(
+      fakeApp({ model, cloud: fakeCloud() }),
+      builders,
+    )({
+      runner: ERunner.Vercel,
+      apiProvisioned: true,
+    })
+
+    expect(built).toEqual(['api'])
+  })
+
+  it('keeps a direct-born thread on the direct bridge even when signed in', () => {
+    const { built, builders } = buildersThatName()
+
+    liveBridgeFor(
+      fakeApp({ model, cloud: fakeCloud() }),
+      builders,
+    )({
+      runner: ERunner.Vercel,
+      apiProvisioned: false,
+    })
+
+    expect(built).toEqual(['direct'])
+  })
+
   it('hands the boot-step listener and the signed-in session to the API bridge', () => {
     const seen: Array<Parameters<BridgeBuilders['api']>[0]> = []
     const app = fakeApp({ model, pods: true })
@@ -89,7 +140,7 @@ describe('which bridge a runner gets', () => {
     seen[0]?.onBootStep?.({ threadId: toThreadId('thr_x'), label: 'cloning the project' })
 
     expect(seen[0]?.session()).toEqual(app.cloud.session())
-    expect(seen[0]?.settings).toBe(app.settings)
+    expect(seen[0]).not.toHaveProperty('settings')
     expect(steps).toEqual(['cloning the project'])
   })
 })

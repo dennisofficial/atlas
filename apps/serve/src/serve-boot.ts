@@ -27,7 +27,7 @@ import {
   type ApplyEnvironmentProfile,
 } from './environment-profile'
 import { applyCloudInstructions } from './cloud-instructions'
-import { applyCloudState } from './cloud-state'
+import { createCloudStateRefresh } from './cloud-state-refresh'
 import { applyGitAccessEnv } from './git-access-env'
 import {
   createEnsureWorkspace,
@@ -116,20 +116,17 @@ export async function bootServeFiles(args: {
     clientVersion: args.clientVersion,
     fetchFn: args.fetchFn,
   })
-  await reporter.track({
-    step: EBootStep.Settings,
-    work: () =>
-      applyCloudState({
-        atlasHome,
-        log,
-        env,
-        projectId: spec?.projectId ?? null,
-        controlPlaneUrl: args.controlPlaneUrl,
-        token: args.token,
-        clientVersion: args.clientVersion,
-        fetchFn: args.fetchFn,
-      }),
+  const refreshCloudState = createCloudStateRefresh({
+    atlasHome,
+    log,
+    env,
+    projectId: spec?.projectId ?? null,
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
   })
+  await reporter.track({ step: EBootStep.Settings, work: () => refreshCloudState.boot() })
 
   const identity =
     spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
@@ -170,5 +167,5 @@ export async function bootServeFiles(args: {
     })
   }
 
-  return { workspace, activeCwd: cwd, spec, identity }
+  return { workspace, activeCwd: cwd, spec, identity, refreshCloudState }
 }

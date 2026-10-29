@@ -1,19 +1,16 @@
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { EEffortLevel } from '@dltech/atlas-wire/web'
 
 export const INSTRUCTIONS_CHAR_LIMIT = 8000
 
 export enum EAgentRole {
   Main = 'main',
   Subagents = 'subagents',
-  Classifiers = 'classifiers',
+  Quick = 'quick',
+  Compaction = 'compaction',
 }
 
-export enum EEffort {
-  Low = 'low',
-  Medium = 'medium',
-  High = 'high',
-  Max = 'max',
-}
+export { EEffortLevel as EEffort }
 
 export enum EPreset {
   Fast = 'fast',
@@ -21,43 +18,71 @@ export enum EPreset {
   Thorough = 'thorough',
 }
 
-export const EFFORT_STEPS: { effort: EEffort; label: string }[] = [
-  { effort: EEffort.Low, label: 'Low' },
-  { effort: EEffort.Medium, label: 'Medium' },
-  { effort: EEffort.High, label: 'High' },
-  { effort: EEffort.Max, label: 'Max' },
+export const EFFORT_STEPS: {
+  effort: EEffortLevel
+  label: string
+  short: string
+}[] = [
+  { effort: EEffortLevel.Off, label: 'Off', short: 'Off' },
+  { effort: EEffortLevel.Minimal, label: 'Minimal', short: 'Min' },
+  { effort: EEffortLevel.Low, label: 'Low', short: 'Low' },
+  { effort: EEffortLevel.Medium, label: 'Medium', short: 'Med' },
+  { effort: EEffortLevel.High, label: 'High', short: 'High' },
+  { effort: EEffortLevel.XHigh, label: 'XHigh', short: 'XHigh' },
+  { effort: EEffortLevel.Max, label: 'Max', short: 'Max' },
 ]
 
 export const AUTO_MODEL = 'auto'
 
-export type RoleSetting = { model: string; effort: EEffort }
+export type RoleSetting = { model: string; effort?: EEffortLevel }
 export type ModelsConfig = Record<EAgentRole, RoleSetting>
 
 export const ROLE_META: Record<
   EAgentRole,
-  { title: string; description: string; autoLabel: string }
+  {
+    title: string
+    description: string
+    autoLabel: string
+    modelHint: string
+    hasEffort: boolean
+  }
 > = {
   [EAgentRole.Main]: {
     title: 'Main agent',
     description: 'Plans the work, edits code, and talks to you in the thread.',
     autoLabel: 'Auto · Claude Opus',
+    modelHint: 'Auto picks the best available model for your connected providers.',
+    hasEffort: true,
   },
   [EAgentRole.Subagents]: {
     title: 'Subagents',
     description: 'Parallel workers the main agent spawns for search, review, and builds.',
-    autoLabel: 'Auto · Claude Sonnet',
+    autoLabel: 'Follow main agent',
+    modelHint: 'New subagents run on this model. Left on follow, they use the main agent’s model.',
+    hasEffort: false,
   },
-  [EAgentRole.Classifiers]: {
-    title: 'Classifiers',
-    description: 'Small background calls: the guardrail check and the tl;dr feed.',
-    autoLabel: 'Auto · GPT-5 mini',
+  [EAgentRole.Quick]: {
+    title: 'Quick calls',
+    description: 'Background calls: tl;dr footers, session titles and the nudge judge.',
+    autoLabel: 'Follow default',
+    modelHint: 'These calls always run at low effort. Left on follow, they use the default model.',
+    hasEffort: false,
+  },
+  [EAgentRole.Compaction]: {
+    title: 'Compaction',
+    description: 'Summarises older turns when the context window fills.',
+    autoLabel: 'Follow default',
+    modelHint:
+      'The summary is all the next turn sees of what it replaces. Left on follow, it uses the default model.',
+    hasEffort: false,
   },
 }
 
 export const ROLE_ORDER: EAgentRole[] = [
   EAgentRole.Main,
   EAgentRole.Subagents,
-  EAgentRole.Classifiers,
+  EAgentRole.Quick,
+  EAgentRole.Compaction,
 ]
 
 export const PRESET_LABELS: Record<EPreset, string> = {
@@ -68,19 +93,28 @@ export const PRESET_LABELS: Record<EPreset, string> = {
 
 export const PRESETS: Record<EPreset, ModelsConfig> = {
   [EPreset.Fast]: {
-    [EAgentRole.Main]: { model: 'anthropic/claude-sonnet-5', effort: EEffort.Low },
-    [EAgentRole.Subagents]: { model: 'openai/gpt-5-mini', effort: EEffort.Low },
-    [EAgentRole.Classifiers]: { model: 'openai/gpt-5-mini', effort: EEffort.Low },
+    [EAgentRole.Main]: {
+      model: 'anthropic/claude-sonnet-5',
+      effort: EEffortLevel.Low,
+    },
+    [EAgentRole.Subagents]: { model: 'openai/gpt-5-mini' },
+    [EAgentRole.Quick]: { model: 'openai/gpt-5-mini' },
+    [EAgentRole.Compaction]: { model: AUTO_MODEL },
   },
   [EPreset.Balanced]: {
-    [EAgentRole.Main]: { model: AUTO_MODEL, effort: EEffort.Medium },
-    [EAgentRole.Subagents]: { model: AUTO_MODEL, effort: EEffort.Medium },
-    [EAgentRole.Classifiers]: { model: AUTO_MODEL, effort: EEffort.Low },
+    [EAgentRole.Main]: { model: AUTO_MODEL, effort: EEffortLevel.Medium },
+    [EAgentRole.Subagents]: { model: AUTO_MODEL },
+    [EAgentRole.Quick]: { model: AUTO_MODEL },
+    [EAgentRole.Compaction]: { model: AUTO_MODEL },
   },
   [EPreset.Thorough]: {
-    [EAgentRole.Main]: { model: 'anthropic/claude-opus-5', effort: EEffort.Max },
-    [EAgentRole.Subagents]: { model: 'anthropic/claude-opus-5', effort: EEffort.High },
-    [EAgentRole.Classifiers]: { model: 'anthropic/claude-sonnet-5', effort: EEffort.Medium },
+    [EAgentRole.Main]: {
+      model: 'anthropic/claude-opus-5',
+      effort: EEffortLevel.Max,
+    },
+    [EAgentRole.Subagents]: { model: 'anthropic/claude-opus-5' },
+    [EAgentRole.Quick]: { model: 'anthropic/claude-sonnet-5' },
+    [EAgentRole.Compaction]: { model: AUTO_MODEL },
   },
 }
 

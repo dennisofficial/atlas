@@ -47,6 +47,7 @@ export function birthNewborn(args: {
   const { app, move, owner, threadId, runner, projectId } = args
   const bridge = args.createBridge({
     runner,
+    birth: true,
     onBootStep: ({ label }) => {
       for (const nodeId of BOOT_LABEL_ROWS) move.handleRowLabel({ nodeId, text: label })
     },

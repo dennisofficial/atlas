@@ -6,8 +6,10 @@ import {
   typeIntoSecretPrompt,
   type SecretPrompt,
   type SecretsPort,
+  ESettingId,
   type SettingsResolution,
 } from '@dltech/atlas-core'
+import type { VercelCredentialStore, VercelWrite } from '@dltech/atlas-harness'
 import type { KeyEvent, PasteEvent } from '@opentui/core'
 import { usePaste } from '@opentui/react'
 import { useCallback, useMemo, useState } from 'react'
@@ -31,8 +33,10 @@ export type SecretPromptControl = {
 export function useSecretPrompt(args: {
   secrets: SecretsPort
   resolution: SettingsResolution
+  vercel: VercelCredentialStore
+  settle: (result: VercelWrite) => void
 }): SecretPromptControl {
-  const { secrets, resolution } = args
+  const { secrets, resolution, vercel, settle } = args
 
   const [prompt, setPrompt] = useState<SecretPrompt | null>(null)
   const [reads, setReads] = useState(0)
@@ -40,6 +44,22 @@ export function useSecretPrompt(args: {
   const displayOf = useCallback(
     (id: string): Span | undefined => {
       void reads
+      if (vercel.signedIn()) {
+        const held = vercel.snapshot()
+        const shown = new Map<string, string | undefined>([
+          [ESettingId.VercelToken, held.tokenSet ? 'configured' : undefined],
+          [ESettingId.VercelTeamId, held.teamId],
+          [ESettingId.VercelProjectId, held.projectId],
+        ])
+        if (shown.has(id)) {
+          return secretDisplay({
+            held: shown.get(id),
+            masked: false,
+            required: false,
+            takesOne: true,
+          })
+        }
+      }
       const target = secretTargetOf({ id, resolution })
       if (target === undefined) return undefined
 
@@ -50,7 +70,7 @@ export function useSecretPrompt(args: {
         takesOne: target.takesOne,
       })
     },
-    [reads, resolution, secrets],
+    [reads, resolution, secrets, vercel],
   )
 
   const open = useCallback(
@@ -58,7 +78,13 @@ export function useSecretPrompt(args: {
       const target = secretTargetOf({ id, resolution })
       if (target === undefined || !target.takesOne) return false
 
-      setPrompt(openSecretPrompt({ name: target.name, label: target.label, masked: target.masked }))
+      setPrompt(
+        openSecretPrompt({
+          name: target.name,
+          label: target.label,
+          masked: target.masked,
+        }),
+      )
       return true
     },
     [resolution],
@@ -66,12 +92,29 @@ export function useSecretPrompt(args: {
 
   const close = useCallback(() => setPrompt(null), [])
 
-  const refresh = useCallback(() => setReads((read) => read + 1), [])
+  const refresh = useCallback(() => {
+    setReads((read) => read + 1)
+    if (vercel.signedIn()) {
+      void vercel
+        .refresh()
+        .catch(() => undefined)
+        .then(() => setReads((read) => read + 1))
+    }
+  }, [vercel])
 
   const commit = useCallback(
     (current: SecretPrompt) => {
       const committed = commitSecretPrompt(current)
-      if (committed.action === ESecretCommit.Save) {
+      if (vercel.signedIn() && committed.name === ESettingId.VercelToken) {
+        const settled =
+          committed.action === ESecretCommit.Save
+            ? vercel.update({ token: committed.value })
+            : vercel.clear()
+        void settled.then((result) => {
+          settle(result)
+          setReads((read) => read + 1)
+        })
+      } else if (committed.action === ESecretCommit.Save) {
         secrets.write({ name: committed.name, value: committed.value })
       } else {
         secrets.remove(committed.name)
@@ -80,7 +123,7 @@ export function useSecretPrompt(args: {
 
       setPrompt(null)
     },
-    [secrets],
+    [secrets, settle, vercel],
   )
 
   const handleKey = useCallback(

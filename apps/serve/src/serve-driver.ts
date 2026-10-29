@@ -16,12 +16,14 @@ export function createServeDriver(args: {
   log: ServeLog
   idleStop: () => Pick<ServeIdleStop, 'note'>
   emitLifecycle: (frame: LifecycleFrame) => void
+  beforeTurn?: (() => Promise<void>) | undefined
 }) {
   const { app, log } = args
   return createTurnDriver({
     app,
     threadId: args.threadId,
     refusal: () => workspaceRefusalOf(args.workspace),
+    beforeTurn: args.beforeTurn,
     onTurnStarted: () => {
       args.idleStop().note()
       log({ event: EServeEvent.TurnStarted })

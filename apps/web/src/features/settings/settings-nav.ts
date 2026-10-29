@@ -3,10 +3,12 @@ import {
   BookOpenTextIcon,
   BotIcon,
   BrainIcon,
+  FlaskConicalIcon,
   GaugeIcon,
   PaletteIcon,
   PlugIcon,
   ServerIcon,
+  ShieldCheckIcon,
   ShieldIcon,
   UserIcon,
   VariableIcon,
@@ -27,6 +29,8 @@ export enum ESettingsPage {
   Notifications = 'notifications',
   Security = 'security',
   Agent = 'agent',
+  Experimental = 'experimental',
+  Quality = 'quality',
 }
 
 export type SettingsNavItem = {
@@ -59,6 +63,8 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
       { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
       { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },
       { page: ESettingsPage.Agent, label: 'Agent', icon: WrenchIcon },
+      { page: ESettingsPage.Quality, label: 'Code Quality', icon: ShieldCheckIcon },
+      { page: ESettingsPage.Experimental, label: 'Experimental', icon: FlaskConicalIcon },
     ],
   },
   {

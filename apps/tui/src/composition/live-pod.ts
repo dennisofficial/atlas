@@ -60,7 +60,6 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
   },
   attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: app.secrets, threadId }),
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
-  settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   registerPodLease: ({ threadId, token }: { threadId: ThreadId; token: string }) => {
     const session = app.cloud.session()
@@ -119,16 +118,16 @@ export const liveApiPodBridgeFor = (args: {
   (args.build ?? createSignedInApiPodBridge)({
     session: () => args.app.cloud.session(),
     clientVersion: clientVersionHeader(),
-    settings: args.app.settings,
     lastEventSeq: ({ threadId }) => args.app.log.head({ threadId }),
     onBootStep: args.onBootStep,
   })
 
 export const liveBridgeFor =
   (app: AtlasApp, builders: BridgeBuilders = DEFAULT_BUILDERS): CloudBridgeFactory =>
-  ({ runner, onBootStep }) => {
+  ({ runner, onBootStep, birth, apiProvisioned }) => {
     if (runner === ERunner.Local) return builders.pod(livePodBridgeOptionsFor(app))
-    if (app.pods) return liveApiPodBridgeFor({ app, onBootStep, build: builders.api })
+    const apiBorn = (birth === true || apiProvisioned === true) && app.cloud.session() !== null
+    if (app.pods || apiBorn) return liveApiPodBridgeFor({ app, onBootStep, build: builders.api })
     return builders.direct(liveBridgeOptionsFor(app))
   }
 
