@@ -29,11 +29,15 @@ export function SettingsMobileNav({ page }: { page: ESettingsPage }) {
         <span className="truncate">{labelOfPage(page)}</span>
       </Button>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent side="left">
-          <SheetHeader>
+        <SheetContent
+          side="left"
+          initialFocus={(openType) => openType === 'keyboard'}
+          className="gap-0 bg-sidebar p-0"
+        >
+          <SheetHeader className="px-4 pt-4 pb-2">
             <SheetTitle>Settings</SheetTitle>
           </SheetHeader>
-          <Sidebar collapsible="none" className="min-h-0 w-full flex-1">
+          <Sidebar collapsible="none" className="min-h-0 w-full flex-1 border-r-0 bg-transparent">
             <SettingsNavBody page={page} onNavigate={handleClose} />
           </Sidebar>
         </SheetContent>
