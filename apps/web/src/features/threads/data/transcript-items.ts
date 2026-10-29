@@ -2,6 +2,7 @@ import {
   assembleTranscript,
   durableEntries,
   EEntryKind,
+  EThinkingVisibility,
   type InFlightStep,
   type RevealGate,
   type ToolCall,
@@ -40,6 +41,7 @@ export type TranscriptItem = Timed &
         id: string
         text: string
         streaming: boolean
+        heldOpen: boolean
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
   )
@@ -75,6 +77,7 @@ function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
             id: entry.key,
             text: entry.text,
             streaming: entry.streaming,
+            heldOpen: entry.heldOpen,
           }
     default:
       return null
@@ -152,6 +155,7 @@ export function transcriptViewOf(args: {
     durable: args.durable.entries,
     live: args.live,
     outputs: args.outputs,
+    thinking: EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
   const { stamps } = args.durable

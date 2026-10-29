@@ -35,7 +35,7 @@ const AGENT_AUTHOR = 'Atlas'
 function WorkItemView({ item }: { item: TranscriptItem }) {
   switch (item.kind) {
     case ETranscriptKind.Thought:
-      return <Reasoning text={item.text} running={item.streaming} />
+      return <Reasoning text={item.text} live={item.streaming || item.heldOpen} />
     case ETranscriptKind.Tools:
       return (
         <>

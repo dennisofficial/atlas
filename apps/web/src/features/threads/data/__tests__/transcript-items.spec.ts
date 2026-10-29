@@ -83,6 +83,46 @@ describe('transcriptViewOf', () => {
     })
   })
 
+  it('drops a settled thought once later work follows it', () => {
+    const view = viewOf({
+      events: [said(1, 'hi')],
+      signals: [
+        started,
+        chunk({ type: 'reasoning-start', id: 'r1' }),
+        chunk({ type: 'reasoning-delta', id: 'r1', text: 'weighing options' }),
+        chunk({ type: 'reasoning-end', id: 'r1' }),
+        chunk({ type: 'text-start', id: 't1' }),
+        chunk({ type: 'text-delta', id: 't1', text: 'Done' }),
+      ],
+    })
+    expect(view.items.map((item) => item.kind)).toEqual([
+      ETranscriptKind.User,
+      ETranscriptKind.Agent,
+    ])
+  })
+
+  it('keeps the trailing thought live while the tools it opened run', () => {
+    const view = viewOf({
+      events: [said(1, 'hi')],
+      signals: [
+        started,
+        chunk({ type: 'reasoning-start', id: 'r1' }),
+        chunk({ type: 'reasoning-delta', id: 'r1', text: 'check the tree' }),
+        chunk({ type: 'reasoning-end', id: 'r1' }),
+        chunk({
+          type: 'tool-call',
+          callId: toCallId('call_1'),
+          name: 'bash',
+          input: { command: 'ls' },
+        }),
+      ],
+    })
+    const last = view.items.at(-1)
+    expect(last).toMatchObject({ kind: ETranscriptKind.Thought, text: 'check the tree' })
+    if (last?.kind !== ETranscriptKind.Thought) throw new Error('expected a thought item')
+    expect(last.streaming || last.heldOpen).toBe(true)
+  })
+
   it('shows a call still being dictated as a running tool', () => {
     const callId = toCallId('call_1')
     const view = viewOf({

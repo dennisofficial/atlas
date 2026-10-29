@@ -31,5 +31,8 @@ export function isSameItem(args: { previous: TranscriptItem; next: TranscriptIte
   if (previous.kind === ETranscriptKind.Tools) return false
   if (previous.text !== next.text) return false
   if (next.kind === ETranscriptKind.User || previous.kind === ETranscriptKind.User) return true
+  if (previous.kind === ETranscriptKind.Thought && next.kind === ETranscriptKind.Thought) {
+    if (previous.heldOpen !== next.heldOpen) return false
+  }
   return previous.streaming === next.streaming
 }

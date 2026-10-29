@@ -17,7 +17,7 @@ import { EToolKind } from '../tool'
 
 describe('Reasoning', () => {
   it('reads Thinking while running and Thought when done', () => {
-    expect(renderToStaticMarkup(<Reasoning text="hm" running />)).toContain('Thinking')
+    expect(renderToStaticMarkup(<Reasoning text="hm" live />)).toContain('Thinking')
     const done = renderToStaticMarkup(<Reasoning text="hm" duration="12s" />)
 
     expect(done).toContain('Thought')
@@ -25,7 +25,16 @@ describe('Reasoning', () => {
   })
 
   it('renders a plain line with no trigger when there is no text', () => {
-    expect(renderToStaticMarkup(<Reasoning text="" running />)).not.toContain('trace-collapsible')
+    expect(renderToStaticMarkup(<Reasoning text="" live />)).not.toContain('trace-collapsible')
+  })
+
+  it('tails live text in a capped window instead of a collapsible', () => {
+    const live = renderToStaticMarkup(<Reasoning text="weighing it" live />)
+
+    expect(live).toContain('reasoning-tail')
+    expect(live).toContain('max-h-[4lh]')
+    expect(live).toContain('weighing it')
+    expect(live).not.toContain('trace-collapsible')
   })
 })
 
