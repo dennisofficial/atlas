@@ -9,12 +9,11 @@ export const handlerOptionsOf = (args: {
   persist: Parameters<typeof threadModelPersisterOf>[0]
 }): Pick<
   SessionHandlersArgs,
-  'transcript' | 'selectModel' | 'persistModel' | 'mentions' | 'rotation' | 'grants'
+  'transcript' | 'selectModel' | 'persistModel' | 'mentions' | 'rotation'
 > => {
-  const { app, log } = args
+  const { app } = args
   return {
     rotation: app.rotation,
-    grants: { log: app.log, ids: app.ids },
     ...(app.ledger === undefined
       ? {}
       : {

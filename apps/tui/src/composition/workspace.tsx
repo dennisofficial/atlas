@@ -259,7 +259,6 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
             services={services}
             agentView={agentView}
             contextBrowser={contextBrowser}
-            onRevokeGrant={conversation.handleRevokeGrant}
           />
         ) : null
       }

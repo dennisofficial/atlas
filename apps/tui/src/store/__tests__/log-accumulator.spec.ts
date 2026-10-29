@@ -4,7 +4,6 @@ import {
   EClassifierMode,
   EDecision,
   EExecutionLocation,
-  EGrantScope,
   EJudgment,
   ERiskDimension,
   ETriage,
@@ -51,14 +50,6 @@ const varied = (): readonly Event[] =>
       wouldAsk: true,
       elapsedMs: 12,
     },
-    {
-      type: 'permission-granted',
-      grantId: 'grant-1',
-      dimensions: [ERiskDimension.Irreversibility],
-      scope: EGrantScope.Thread,
-      subject: 'bash',
-      reason: 'operator allowed',
-    },
     { type: 'worktree-entered', path: '/repo/.atlas/worktrees/feat', branch: 'dennis/feat' },
     { type: 'directory-changed', path: '/repo/packages', repo: 'repo' },
     {
@@ -80,7 +71,6 @@ const varied = (): readonly Event[] =>
     }),
     result({ n: 3, name: PLAN_TOOL_NAME, output: {} }),
     { type: 'user-said', text: 'keep going' },
-    { type: 'permission-revoked', grantId: 'grant-1' },
     {
       type: 'worktree-exited',
       path: '/repo/.atlas/worktrees/feat',

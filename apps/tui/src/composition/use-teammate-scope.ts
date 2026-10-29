@@ -38,7 +38,7 @@ export function useTeammateThread(args: {
 }
 
 /**
- * The teammate's sidebar model: its own log fold (todo, spend, grants, last activity) with the
+ * The teammate's sidebar model: its own log fold (todo, spend, last activity) with the
  * crew the caller scoped to it merged on top, so its own sub-agents list where the main session's
  * would. The title is the roster's name for it unless its log already named the session.
  */

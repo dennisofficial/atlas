@@ -9,7 +9,6 @@ import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { routeContextRead } from './context-routing'
 import type { ContextReaders } from './context-requests'
 import { routeFileRequest } from './file-routing'
-import { routeGrantRequest, type ServeGrants } from './grant-requests'
 import { createHistoryMutations } from './history-mutations'
 import { routeMentionRead, type MentionRouting } from './mention-requests'
 import { routeOperatorInput } from './operator-input'
@@ -48,7 +47,6 @@ export function createRequestRouter(args: {
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
   processes?: ServeProcesses | undefined
-  grants?: ServeGrants | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -184,17 +182,6 @@ export function createRequestRouter(args: {
         frame,
         threadId,
         processes: args.processes,
-        reply: (reply) => send({ socket, frame: reply }),
-      })
-    )
-      return
-
-    if (
-      routeGrantRequest({
-        frame,
-        threadId,
-        grants: args.grants,
-        run: edits.run,
         reply: (reply) => send({ socket, frame: reply }),
       })
     )

@@ -49,9 +49,9 @@ describe('protocolSkewOf', () => {
 
 describe('capabilitiesSchema', () => {
   it('drops capabilities this build does not know instead of failing', () => {
-    expect(capabilitiesSchema.parse([ECapability.RevokeGrant, 'from-the-future'])).toEqual([
-      ECapability.RevokeGrant,
-    ])
+    expect(
+      capabilitiesSchema.parse([ECapability.SandboxSessionIdentity, 'from-the-future']),
+    ).toEqual([ECapability.SandboxSessionIdentity])
   })
 })
 

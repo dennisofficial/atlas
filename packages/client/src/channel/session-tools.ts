@@ -2,7 +2,6 @@ import {
   killShellReplySchema,
   pendingEditReplySchema,
   readGitChangesReplySchema,
-  revokeGrantReplySchema,
   serviceLogReplySchema,
   shellOutputReplySchema,
   startedShellReplySchema,
@@ -13,7 +12,6 @@ import {
   type KillShellReply,
   type PendingEditReply,
   type ReadGitChangesReply,
-  type RevokeGrantReply,
   type ShellOutputReply,
   type StartedShellReply,
   type StopServiceReply,
@@ -233,15 +231,3 @@ export const openTerminal = async (args: {
     onExit: (listener) => channel.onTerminalExit(mine(listener)),
   }
 }
-
-export const revokeGrant = async (args: {
-  channel: RequestChannel
-  threadId: string
-  grantId: string
-}): Promise<RevokeGrantReply> =>
-  revokeGrantReplySchema.parse(
-    await args.channel.request({
-      op: EClientRequest.RevokeGrant,
-      params: { threadId: args.threadId, grantId: args.grantId },
-    }),
-  )

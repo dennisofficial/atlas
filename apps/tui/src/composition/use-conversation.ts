@@ -7,7 +7,6 @@ import { useDelegatedToolCalls } from '../ui/hooks/use-delegated-tool-calls'
 import { createAwakeClock } from './awake-clock'
 import type { Conversation, ConversationArgs } from './conversation-types'
 import type { OpenedConversation } from './open-conversation'
-import { useRevokeGrant } from './revoke-grant'
 import { endedOnQuestion } from './title-state'
 import { clockReadableAt, transcriptOfTurn } from './turn-progress'
 import { useCompaction } from './use-compaction'
@@ -94,7 +93,6 @@ export function useConversation(args: ConversationArgs): Conversation {
   const logSummary = useSyncExternalStore(store.subscribe, store.getLogSummary)
   useEffect(() => sending.reconcile(events), [events, sending])
 
-  const handleRevokeGrant = useRevokeGrant({ app, threadId, refresh })
   const { name, naming, namingRequest, setName, renameSession } = useSessionName({
     app,
     threads: args.threads ?? app.threads,
@@ -305,6 +303,5 @@ export function useConversation(args: ConversationArgs): Conversation {
     handleCompact: compaction.compact,
     handleCompactAround: compaction.compactAround,
     handleRewindTo: turnDriver.handleRewindTo,
-    handleRevokeGrant,
   }
 }

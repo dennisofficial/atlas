@@ -212,11 +212,3 @@ export const publishedWorkspaceWireSchema = z
   .nullable()
 
 export type PublishedWorkspaceWire = z.infer<typeof publishedWorkspaceWireSchema>
-
-export const revokeGrantParamsSchema = z
-  .object({ threadId: threadIdWireSchema, grantId: z.string().min(1) })
-  .strict()
-export type RevokeGrantParams = z.infer<typeof revokeGrantParamsSchema>
-
-export const revokeGrantReplySchema = z.object({ revoked: z.boolean() })
-export type RevokeGrantReply = z.infer<typeof revokeGrantReplySchema>

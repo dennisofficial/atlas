@@ -11,7 +11,6 @@ import { ContextSection } from './context-section'
 import { CrewSection } from './crew-section'
 import { DetailsFooter } from './footer'
 import { GithubSection } from './github-section'
-import { GrantsSection } from './grants-section'
 import { HeadSection } from './head-section'
 import { PodSection } from './pod-section'
 import { ProcessesSection } from './processes-section'
@@ -40,7 +39,6 @@ export function DetailsTab(props: {
             <GithubSection />
             <ContextSection files={context} />
             <ProcessesSection data={processes} onOpen={props.onOpenTab} />
-            <GrantsSection />
             <TodoSection />
             <CrewSection data={props.agents} />
             <SubscriptionsSection data={props.subscriptions} />

@@ -123,5 +123,4 @@ export type Conversation = {
   handleRotate: (instructions: string | undefined) => void
   handleCompactAround: (args: { anchor: ECompactionAnchor; seq: number }) => void
   handleRewindTo: (toSeq: number) => void
-  handleRevokeGrant: (grantId: string) => void
 }

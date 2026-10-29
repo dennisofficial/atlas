@@ -243,11 +243,11 @@ describe('a durable head that reads off the wire', () => {
       kind: EServeFrame.Ready,
       seq: 4,
       protocol: CHANNEL_PROTOCOL_MIN_VERSION,
-      capabilities: [ECapability.RevokeGrant],
+      capabilities: [ECapability.SandboxSessionIdentity],
     })
 
     expect(channel.connection().state).not.toBe(EConnectionView.Disconnected)
-    expect(channel.capabilities().has(ECapability.RevokeGrant)).toBe(true)
+    expect(channel.capabilities().has(ECapability.SandboxSessionIdentity)).toBe(true)
   })
 
   it('reports itself connecting until the server is ready', () => {
