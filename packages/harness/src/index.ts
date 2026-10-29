@@ -65,6 +65,7 @@ export {
   sandboxConfigFromHost,
 } from './execution/docker/host-environment'
 export { EBuildContext } from './execution/image/build'
+export { parseContainerJson, type ParsedContainerJson } from './execution/image/parse'
 export {
   EImageKind,
   resolveContainerConfig,

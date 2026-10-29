@@ -7,6 +7,7 @@ import type { ImageSummary } from '../docker/engine-images'
 
 export enum EBuildContext {
   Directory = 'directory',
+  AtlasDirectory = 'atlas-directory',
   DockerfileOnly = 'dockerfile-only',
 }
 
@@ -57,7 +58,23 @@ export async function contextEntries(args: { directory: string }): Promise<TarEn
   return await walk({ directory: args.directory, relative: '' })
 }
 
+const ATLAS_SEGMENT = '/.atlas/'
+
+const atlasDirectoryOf = (path: string): string => {
+  const index = path.lastIndexOf(ATLAS_SEGMENT)
+  if (index === -1) throw new Error(`${path} is not inside a .atlas directory`)
+  return path.slice(0, index + ATLAS_SEGMENT.length - 1)
+}
+
 async function dockerfileEntries(args: { dockerfile: DockerfileBuild }): Promise<TarEntry[]> {
+  if (args.dockerfile.context === EBuildContext.AtlasDirectory) {
+    const entries = await contextEntries({ directory: atlasDirectoryOf(args.dockerfile.path) })
+    const named = new Uint8Array(await readFile(args.dockerfile.path))
+    return [
+      ...entries.filter((entry) => entry.name !== 'Dockerfile'),
+      { name: 'Dockerfile', kind: ETarEntryKind.File, body: named },
+    ]
+  }
   if (args.dockerfile.context === EBuildContext.DockerfileOnly) {
     return [
       {

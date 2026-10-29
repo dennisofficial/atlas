@@ -124,6 +124,7 @@ describe('ProjectsService', () => {
         { repo: 'octocat/docs' },
       ],
       githubToken: 'gho_user-a',
+      setupScript: '',
     })
   })
 

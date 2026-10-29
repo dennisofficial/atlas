@@ -164,3 +164,43 @@ describe('ensureBuiltImage', () => {
     expect(after).toBe(first.tag)
   })
 })
+
+const tarNames = (tar: Uint8Array | undefined): string[] => {
+  const names: string[] = []
+  const bytes = tar ?? new Uint8Array(0)
+  const decoder = new TextDecoder()
+  let offset = 0
+  while (offset + 512 <= bytes.length && bytes[offset] !== 0) {
+    const field = (from: number, to: number): string =>
+      decoder.decode(bytes.subarray(offset + from, offset + to)).replace(/\0.*$/s, '')
+    names.push(field(0, 100))
+    const size = parseInt(field(124, 136).trim() || '0', 8)
+    offset += 512 + Math.ceil(size / 512) * 512
+  }
+  return names
+}
+
+describe('ensureBuiltImage with a named Dockerfile and explicit context', () => {
+  it('builds the context directory with the named file as Dockerfile', async () => {
+    await seed({
+      '.atlas/docker/dev.Dockerfile': 'FROM named\n',
+      '.atlas/a.txt': 'a',
+      'outside.txt': 'x',
+    })
+    const { builder, builds } = fakeBuilder({ existing: [] })
+
+    await ensureBuiltImage({
+      builder,
+      dockerfile: {
+        path: join(root, '.atlas', 'docker', 'dev.Dockerfile'),
+        context: EBuildContext.AtlasDirectory,
+      },
+    })
+
+    const names = tarNames(builds[0]?.contextTar)
+    expect(names).toContain('a.txt')
+    expect(names).toContain('docker/dev.Dockerfile')
+    expect(names).not.toContain('outside.txt')
+    expect(names.filter((name) => name === 'Dockerfile')).toHaveLength(1)
+  })
+})

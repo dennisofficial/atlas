@@ -64,6 +64,7 @@ export function projectWorkspaceSpecFetcher(args: {
       projectId: workspace.projectId,
       baseBranch: workspace.baseBranch,
       additionalRepos: workspace.additionalRepos,
+      setupScript: workspace.setupScript,
     }
   }
 }

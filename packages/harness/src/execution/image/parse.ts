@@ -23,6 +23,7 @@ export const RESERVED_CONTAINER_PATHS: readonly string[] = [
 
 export type ContainerJsonFields = {
   image?: string | undefined
+  dockerfile?: string | undefined
   setup?: string | undefined
   start?: string | undefined
   env?: Record<string, string> | undefined
@@ -48,6 +49,7 @@ const mountSchema = z.strictObject({
 
 const containerJsonSchema = z.strictObject({
   image: z.string().min(1).optional(),
+  dockerfile: z.string().min(1).optional(),
   setup: z.string().min(1).optional(),
   start: z.string().min(1).optional(),
   env: z.record(z.string(), z.string()).optional(),
@@ -71,12 +73,12 @@ const firstIssueOf = (error: z.ZodError): string => {
 
 const parseJson = (args: { text: string; file: string }): unknown | ConfigRefusal => {
   try {
-    return JSON.parse(args.text)
+    return Bun.JSONC.parse(args.text)
   } catch (error) {
     return {
       refusal: EConfigRefusal.NotJson,
       file: args.file,
-      detail: `the file is not valid JSON: ${messageOf(error)}`,
+      detail: `the file is not valid JSON (comments and trailing commas are allowed): ${messageOf(error)}`,
     }
   }
 }
@@ -129,6 +131,29 @@ const checkMountPath = (args: { path: string; file: string }): MountPathCheck =>
   return { ok: true, path }
 }
 
+const checkDockerfilePath = (args: {
+  dockerfile: string
+  image: string | undefined
+  file: string
+}): ConfigRefusal | undefined => {
+  if (args.image !== undefined) {
+    return {
+      refusal: EConfigRefusal.DockerfileWithImage,
+      file: args.file,
+      detail: 'name either "image" or "dockerfile", not both — a Dockerfile builds its own image',
+    }
+  }
+  const normalized = posix.normalize(args.dockerfile)
+  if (posix.isAbsolute(args.dockerfile) || normalized === '..' || normalized.startsWith('../')) {
+    return {
+      refusal: EConfigRefusal.DockerfileEscapes,
+      file: args.file,
+      detail: `dockerfile "${args.dockerfile}" must be a path inside .atlas/, relative to it`,
+    }
+  }
+  return undefined
+}
+
 export function parseContainerJson(args: { text: string; file: string }): ParsedContainerJson {
   const raw = parseJson(args)
   if (isRefusal(raw)) return { ok: false, refusal: raw }
@@ -145,6 +170,15 @@ export function parseContainerJson(args: { text: string; file: string }): Parsed
     }
   }
 
+  if (parsed.data.dockerfile !== undefined) {
+    const refusal = checkDockerfilePath({
+      dockerfile: parsed.data.dockerfile,
+      image: parsed.data.image,
+      file: args.file,
+    })
+    if (refusal !== undefined) return { ok: false, refusal }
+  }
+
   const mounts: Mount[] = []
   const refusals: ConfigRefusal[] = []
   for (const entry of parsed.data.mounts ?? []) {
@@ -156,8 +190,8 @@ export function parseContainerJson(args: { text: string; file: string }): Parsed
     mounts.push({ path: checked.path, mode: entry.mode ?? EMountMode.ReadOnly })
   }
 
-  const { image, setup, start, env } = parsed.data
-  return { ok: true, config: { image, setup, start, env }, mounts, refusals }
+  const { image, dockerfile, setup, start, env } = parsed.data
+  return { ok: true, config: { image, dockerfile, setup, start, env }, mounts, refusals }
 }
 
 const UNSUPPORTED_COMMAND_SHAPE = 'postCreateCommand (only the string form is supported)'

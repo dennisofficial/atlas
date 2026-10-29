@@ -79,6 +79,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
     const base = `Atlas moved this conversation's processing to ${locationPhrase(event.to)} — earlier tool results came from ${locationPhrase(event.from)}`
     return event.cwd === undefined ? base : `${base} — the working directory is now ${event.cwd}`
   }
+  if (event.type === 'sandbox-setup-reported') return `Atlas sandbox setup: ${event.text}`
   if (event.type === 'parked') return `Atlas parked this session (${event.reason})`
   if (event.type === 'worktree-entered')
     return `Atlas entered worktree ${event.path} (${event.branch})`

@@ -84,6 +84,18 @@ export function durableEntries(args: {
       ]
     }
 
+    if (event.type === 'sandbox-setup-reported') {
+      return [
+        {
+          kind: EEntryKind.SandboxNotice,
+          author: EAuthor.Model,
+          key: event.id,
+          text: event.text,
+          failed: event.failed,
+        },
+      ]
+    }
+
     if (event.type === 'tool-called') {
       const run = opened.get(event.callId)
       return run === undefined ? [] : [toolsRanEntry(run)]

@@ -187,6 +187,11 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     lifetimeSteps: z.number().int().nonnegative(),
   }),
   z.object({
+    type: z.literal('sandbox-setup-reported'),
+    text: z.string(),
+    failed: z.boolean(),
+  }),
+  z.object({
     type: z.literal('code-quality-reviewed'),
     callId: callIdSchema,
     workspaceNamespace: z.string().min(1),

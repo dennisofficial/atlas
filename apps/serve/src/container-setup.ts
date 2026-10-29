@@ -1,0 +1,104 @@
+import { join } from 'node:path'
+
+import { ENoticeTone, type NoticePort } from '@dltech/atlas-core'
+import { parseContainerJson } from '@dltech/atlas-harness'
+
+import { runCommand, type CommandRunner } from './run-command'
+import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
+
+export const CONTAINER_SETUP_MARKER = 'operational/container-setup.done'
+
+const OUTPUT_TAIL = 2000
+const NOTICE_KEY = 'cloud-container-setup'
+export const CONTAINER_SETUP_FAILURE_KEY = 'cloud-container-setup-failed'
+
+type Plan = {
+  setup: string | undefined
+  start: string | undefined
+  env: Record<string, string>
+  unapplied: string[]
+  problem: string | undefined
+}
+
+const planOf = async (args: { files: WorkspaceFiles; file: string }): Promise<Plan> => {
+  const plan: Plan = {
+    setup: undefined,
+    start: undefined,
+    env: {},
+    unapplied: [],
+    problem: undefined,
+  }
+  if (!(await args.files.exists(args.file))) return plan
+  const parsed = parseContainerJson({
+    text: await args.files.read(args.file),
+    file: args.file,
+  })
+  if (!parsed.ok) return { ...plan, problem: parsed.refusal.detail }
+  const { config } = parsed
+  if (config.image !== undefined) plan.unapplied.push('image')
+  if (config.dockerfile !== undefined) plan.unapplied.push('dockerfile')
+  if (parsed.mounts.length > 0) plan.unapplied.push('mounts')
+  return {
+    ...plan,
+    setup: config.setup,
+    start: config.start,
+    env: config.env ?? {},
+  }
+}
+
+export type ContainerSetup = (args: {
+  cwd: string
+  atlasHome: string
+  env: Record<string, string | undefined>
+  setupScript?: string | null | undefined
+  notice: NoticePort
+}) => Promise<void>
+
+export function createContainerSetup(args: {
+  files?: WorkspaceFiles | undefined
+  run?: CommandRunner | undefined
+}): ContainerSetup {
+  const files = args.files ?? nodeWorkspaceFiles
+  const run = args.run ?? runCommand
+
+  return async ({ cwd, atlasHome, env, setupScript, notice }) => {
+    const warn = (text: string, sticky = false): void =>
+      notice.notify({
+        key: sticky ? CONTAINER_SETUP_FAILURE_KEY : NOTICE_KEY,
+        tone: ENoticeTone.Warn,
+        text,
+        ...(sticky ? { ttlMs: null } : {}),
+      })
+    const plan = await planOf({
+      files,
+      file: join(cwd, '.atlas', 'container.json'),
+    })
+    if (plan.problem !== undefined) warn(`.atlas/container.json was not applied: ${plan.problem}`)
+    else if (plan.unapplied.length > 0) {
+      warn(`.atlas/container.json ${plan.unapplied.join(', ')}: not applied in Cloud sandboxes`)
+    }
+    Object.assign(env, plan.env)
+
+    const script = (name: string, command: string) =>
+      run({ command: ['sh', '-c', command], cwd, env: plan.env }).then((outcome) =>
+        outcome.ok
+          ? undefined
+          : `${name} failed: ${`${outcome.stdout}${outcome.stderr}`.trim().slice(-OUTPUT_TAIL)}`,
+      )
+
+    const override = setupScript?.trim() ?? ''
+    const setup = override === '' ? plan.setup : override
+    const marker = join(atlasHome, CONTAINER_SETUP_MARKER)
+    if (setup !== undefined && !(await files.exists(marker))) {
+      const failure = await script('setup', setup)
+      if (failure !== undefined) {
+        warn(`Cloud ${failure}`, true)
+        return
+      }
+      await files.write({ path: marker, text: new Date().toISOString() })
+    }
+    if (plan.start === undefined) return
+    const failure = await script('start', plan.start)
+    if (failure !== undefined) warn(`Cloud ${failure}`, true)
+  }
+}
