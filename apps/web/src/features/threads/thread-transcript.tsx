@@ -113,7 +113,10 @@ function AgentTurnView({
   )
 }
 
-export type TranscriptRewind = { onRewind: (eventId: string) => void }
+export type TranscriptRewind = {
+  points: ReadonlySet<string>
+  onRewind: (picked: { eventId: string; text: string }) => void
+}
 
 function TurnView({
   turn,
@@ -134,7 +137,11 @@ function TurnView({
         <UserMessage
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
-          onRewind={rewind === null ? undefined : () => rewind.onRewind(turn.item.id)}
+          onRewind={
+            rewind === null || !rewind.points.has(turn.item.id)
+              ? undefined
+              : () => rewind.onRewind({ eventId: turn.item.id, text: turn.item.text })
+          }
         >
           <p className="whitespace-pre-wrap">{turn.item.text}</p>
         </UserMessage>

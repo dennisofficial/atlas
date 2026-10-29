@@ -63,7 +63,7 @@ describe('planRewind', () => {
   it('plans a rewind to before a user message with no kills', () => {
     const events = eventsFrom([said('one'), replied('two'), said('three')])
 
-    expect(planRewind({ events, toSeq: 1, roster: null })).toEqual({
+    expect(planRewind({ events, toSeq: 1, roster: null, threadId: 'thr_1' })).toEqual({
       kind: 'ok',
       toSeq: 1,
       cuts: [],
@@ -75,7 +75,7 @@ describe('planRewind', () => {
   it('carries the wire cuts and cut agent ids the apply needs', () => {
     const events = eventsFrom([said('one'), replied('two'), said('three'), spawned])
 
-    const plan = planRewind({ events, toSeq: 1, roster: null })
+    const plan = planRewind({ events, toSeq: 1, roster: null, threadId: 'thr_1' })
 
     expect(plan).toMatchObject({
       kind: 'ok',
@@ -108,7 +108,7 @@ describe('planRewind', () => {
       1,
     )
 
-    const plan = planRewind({ events, toSeq: 0, roster: null })
+    const plan = planRewind({ events, toSeq: 0, roster: null, threadId: 'thr_1' })
 
     expect(plan.kind).toBe('refused')
     if (plan.kind !== 'refused') throw new Error('expected a refusal')
@@ -134,7 +134,7 @@ describe('planRewind', () => {
   it('falls back to running false when the roster is absent', () => {
     const events = eventsFrom([said('one'), replied('two'), said('three'), spawned])
 
-    const plan = planRewind({ events, toSeq: 1, roster: null })
+    const plan = planRewind({ events, toSeq: 1, roster: null, threadId: 'thr_1' })
 
     if (plan.kind !== 'ok') throw new Error('expected a plan')
     expect(plan.kills).toEqual([{ kind: 'agent', label: 'explore "vault audit"', running: false }])

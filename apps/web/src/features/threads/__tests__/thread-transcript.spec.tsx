@@ -4,7 +4,7 @@ import { act } from 'react'
 
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
-import { ThreadTranscript } from '../thread-transcript'
+import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -42,7 +42,7 @@ const items: TranscriptRow[] = [
   },
 ]
 
-const mount = async (rewind: { onRewind: (eventId: string) => void } | null) => {
+const mount = async (rewind: TranscriptRewind | null) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
@@ -68,14 +68,20 @@ const rewindButton = () => document.body.querySelector('button[aria-label="Rewin
 
 describe('ThreadTranscript rewind', () => {
   it('renders the rewind action on a user turn and reports the event id', async () => {
-    const picked: string[] = []
-    await mount({ onRewind: (eventId) => picked.push(eventId) })
+    const picked: { eventId: string; text: string }[] = []
+    await mount({ points: new Set(['evt_2']), onRewind: (pick) => picked.push(pick) })
 
     await act(async () => {
       rewindButton()?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     })
 
-    expect(picked).toEqual(['evt_2'])
+    expect(picked).toEqual([{ eventId: 'evt_2', text: 'try again' }])
+  })
+
+  it('renders no rewind action on a user turn that is not a rewind point', async () => {
+    await mount({ points: new Set(), onRewind: () => undefined })
+
+    expect(rewindButton()).toBeNull()
   })
 
   it('renders no rewind action without the rewind prop', async () => {

@@ -42,6 +42,7 @@ import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { usePullRequestBell } from './data/use-pull-request-bell'
+import { userRewindPoints } from './data/rewind'
 import { useRewind } from './data/use-rewind'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
@@ -115,18 +116,24 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
   const operator = useOperatorInput(source)
-  const rewind = useRewind({
-    threadId,
-    events: () => parsed,
-    source,
-    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
-  })
   const handoff = useComposerHandoff({
     events: visible,
     pending: source.pending,
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
   const { pod, refresh } = usePodStatus({ threadId, signals })
+  const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
+  const rewind = useRewind({
+    situation: () => ({
+      threadId,
+      events: parsed,
+      live: source.live,
+      working,
+      podState: pod?.state ?? null,
+    }),
+    source,
+    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+  })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
@@ -236,7 +243,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
               bootNow={now}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}
-              rewind={{ onRewind: (eventId) => void rewind.handlePick(eventId) }}
+              rewind={{
+                points: rewindPoints,
+                onRewind: (picked) => void rewind.handlePick(picked),
+              }}
             />
           </div>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">

@@ -1,107 +1,101 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { Event } from '@dltech/atlas-core'
-import type { RewindCutWire } from '@dltech/atlas-wire/web'
-
-import { planRewind, userRewindPoints, type RewindKillRow } from './rewind'
+import { ERewindRoute } from './rewind'
+import {
+  applyRewindPick,
+  decideRewind,
+  ERewindDecision,
+  REWIND_WAITS_FOR_SANDBOX,
+  type RewindPick,
+  type RewindSituation,
+} from './rewind-flow'
 import type { ThreadSource } from './thread-source'
 import { rewindThread } from './threads-api'
 import { messageOf } from './use-send'
 
-export const REWIND_WAITS_FOR_TURN =
-  'Rewind has to wait for this turn — pick the point again when it settles'
+type RewindSource = Pick<ThreadSource, 'applyRewind' | 'readRoster' | 'refreshEvents'>
 
-export type RewindPick = {
-  toSeq: number
-  text: string
-  cuts: readonly RewindCutWire[]
-  cutAgents: string[]
-  kills: RewindKillRow[]
-}
-
-type RewindSource = Pick<
-  ThreadSource,
-  'live' | 'working' | 'applyRewind' | 'readRoster' | 'refreshEvents'
->
-
-const textOf = (args: { events: readonly Event[]; eventId: string }): string => {
-  const said = args.events.find((event) => event.id === args.eventId)
-  return said?.type === 'user-said' ? said.text : ''
+const applyOffline = async (args: { threadId: string; toSeq: number; cutAgents: string[] }) => {
+  await rewindThread(args)
 }
 
 export function useRewind(args: {
-  threadId: string
-  events: () => readonly Event[]
+  situation: () => RewindSituation
   source: RewindSource
   onRestore: (text: string) => void
 }): {
   pick: RewindPick | null
   applying: boolean
-  handlePick: (eventId: string) => Promise<void>
+  handlePick: (picked: { eventId: string; text: string }) => Promise<void>
   handleCancel: () => void
   handleConfirm: () => Promise<void>
 } {
-  const { threadId, source, onRestore } = args
+  const { source, onRestore } = args
   const [pick, setPick] = useState<RewindPick | null>(null)
   const [applying, setApplying] = useState(false)
+  const inFlight = useRef(false)
 
   const apply = async (picked: RewindPick) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setApplying(true)
     try {
-      if (source.live) {
-        await source.applyRewind({ cuts: picked.cuts, toSeq: picked.toSeq })
-      } else {
-        await rewindThread({
-          threadId,
-          toSeq: picked.toSeq,
-          cutAgents: picked.cutAgents,
-        })
-        source.refreshEvents()
-      }
+      await applyRewindPick({
+        threadId: args.situation().threadId,
+        pick: picked,
+        appliers: {
+          applyLive: source.applyRewind,
+          applyOffline,
+          refreshEvents: source.refreshEvents,
+        },
+      })
       setPick(null)
       onRestore(picked.text)
     } catch (failure) {
       toast.error(messageOf(failure))
     } finally {
+      inFlight.current = false
       setApplying(false)
     }
   }
 
-  const handlePick = async (eventId: string) => {
-    if (source.working) {
-      toast.warning(REWIND_WAITS_FOR_TURN)
-      return
+  const handlePick = async (picked: { eventId: string; text: string }) => {
+    if (inFlight.current) return
+    const before = args.situation()
+    const roster = before.live && !before.working ? await source.readRoster() : null
+    const decision = decideRewind({ situation: args.situation(), ...picked, roster })
+    switch (decision.kind) {
+      case ERewindDecision.Warn:
+        toast.warning(decision.message)
+        return
+      case ERewindDecision.Refuse:
+        toast.error(decision.message)
+        return
+      case ERewindDecision.Confirm:
+        setPick(decision.pick)
+        return
+      case ERewindDecision.Apply:
+        await apply(decision.pick)
+        return
+      case ERewindDecision.Ignore:
+        return
     }
-    const events = args.events()
-    const toSeq = userRewindPoints(events).get(eventId)
-    if (toSeq === undefined) return
-    const roster = source.live ? await source.readRoster() : null
-    const plan = planRewind({ events, toSeq, roster })
-    if (plan.kind === 'refused') {
-      toast.error(plan.reason)
-      return
-    }
-    const { kind, ...planned } = plan
-    const picked: RewindPick = {
-      ...planned,
-      text: textOf({ events, eventId }),
-    }
-    if (picked.kills.length > 0) {
-      setPick(picked)
-      return
-    }
-    await apply(picked)
   }
 
   const handleCancel = () => {
-    if (!applying) setPick(null)
+    if (!inFlight.current) setPick(null)
   }
 
   const handleConfirm = async () => {
-    if (pick === null || applying) return
+    if (pick === null) return
+    if (pick.route === ERewindRoute.Live && !args.situation().live) {
+      toast.warning(REWIND_WAITS_FOR_SANDBOX)
+      setPick(null)
+      return
+    }
     await apply(pick)
   }
 

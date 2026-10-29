@@ -40,7 +40,7 @@ export function RewindDialogActions(props: {
 }) {
   return (
     <>
-      <AlertDialogAction variant="outline" onClick={props.onCancel}>
+      <AlertDialogAction variant="outline" disabled={props.applying} onClick={props.onCancel}>
         Cancel
       </AlertDialogAction>
       <AlertDialogAction variant="destructive" disabled={props.applying} onClick={props.onConfirm}>

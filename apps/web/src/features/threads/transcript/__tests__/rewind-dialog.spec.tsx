@@ -64,11 +64,14 @@ describe('RewindDialog', () => {
     expect(calls).toEqual(['confirm', 'cancel'])
   })
 
-  it('disables the rewind action while applying', () => {
+  it('disables both actions while applying', () => {
     const html = renderToStaticMarkup(
       <RewindDialogActions applying onCancel={() => undefined} onConfirm={() => undefined} />,
     )
 
-    expect(html.match(/ disabled=""/g)?.length).toBe(1)
+    const disabled = [...html.matchAll(/<button[^>]* disabled=""[^>]*>([^<]*)<\/button>/g)].map(
+      (match) => match[1],
+    )
+    expect(disabled).toEqual(['Cancel', 'Rewind'])
   })
 })
