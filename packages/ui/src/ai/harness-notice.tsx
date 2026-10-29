@@ -54,9 +54,41 @@ function SectionStep({ section }: { section: HarnessNoticeSection }) {
   )
 }
 
+function hasText(text: string | undefined): text is string {
+  return text !== undefined && text.trim().length > 0
+}
+
+function SingleSectionNotice({
+  title,
+  tone,
+  emptyNote,
+  section,
+}: Omit<HarnessNoticeProps, 'sections' | 'body'> & { section: HarnessNoticeSection }) {
+  const hasContent = hasText(section.content)
+  return (
+    <Trace data-tone={tone}>
+      <Step
+        icon={ICON_OF_TONE[tone]}
+        title={title}
+        description={section.note ?? (hasContent ? undefined : emptyNote)}
+        status={tone === ENoticeTone.Failed ? 'error' : undefined}
+        contentClassName="pt-1 pl-6"
+      >
+        {hasContent ? <Mono>{section.content}</Mono> : undefined}
+      </Step>
+    </Trace>
+  )
+}
+
 export function HarnessNotice({ title, tone, body, emptyNote, sections }: HarnessNoticeProps) {
-  const hasBody = body !== undefined && body.trim().length > 0
+  const hasBody = hasText(body)
   const hasSections = sections !== undefined && sections.length > 0
+  const [onlySection] = sections ?? []
+  if (!hasBody && sections?.length === 1 && onlySection !== undefined) {
+    return (
+      <SingleSectionNotice title={title} tone={tone} emptyNote={emptyNote} section={onlySection} />
+    )
+  }
   const content =
     hasBody || hasSections ? (
       <>
