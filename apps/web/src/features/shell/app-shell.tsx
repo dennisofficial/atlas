@@ -13,7 +13,7 @@ import { CloseSidebarOnNavigate } from './close-sidebar-on-navigate'
 import { EShellBar, shellBarOf } from './shell-bar'
 import { ShellMobileBar } from './shell-mobile-bar'
 
-const SIDEBAR_STYLE = { '--sidebar-width': '14rem' } as CSSProperties
+const SIDEBAR_STYLE = { '--sidebar-width': '18rem' } as CSSProperties
 
 export function EmptyHome() {
   return (
