@@ -8,7 +8,7 @@ export default {
   },
   build: {
     mainProcess: 'bun',
-    bun: { entrypoint: 'src/main/index.ts' },
+    bun: { entrypoint: 'main-out/index.js', external: ['undici'] },
     copy: { 'web-out': 'web' },
     mac: { codesign: true, notarize: true, createDmg: true },
   },

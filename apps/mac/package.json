@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run build:web && hutch electrobun dev --watch",
+    "dev": "bun run build:web && bun run bundle:main && hutch electrobun dev --watch",
+    "bundle:main": "bun scripts/bundle-main.ts",
     "build:web": "bun run --cwd ../web build:desktop && rm -rf web-out && cp -R ../web/out web-out",
-    "build:app": "bun run build:web && hutch electrobun build --env=stable",
+    "build:app": "bun run build:web && bun run bundle:main && hutch electrobun build --env=stable",
     "typecheck": "tsc --noEmit",
     "typecheck:main": "hutch electrobun prepare && tsc --noEmit -p tsconfig.main.json",
     "test": "bun test"
