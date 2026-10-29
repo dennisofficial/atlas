@@ -78,6 +78,10 @@ export const mountCloud = async (args: {
       await settle(250)
       await setup.flush()
     },
+    type: async (text: string) => {
+      await setup.mockInput.typeText(text)
+      await setup.flush()
+    },
     pressEscape: () => setup.mockInput.pressEscape(),
     mutedEntries: (): number => {
       let muted = 0

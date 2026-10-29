@@ -11,6 +11,7 @@ import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import type { OpenedConversation } from '../open-conversation'
 import { cloudAnchorOf, cloudBindingOf, type Binding } from '../session-binding'
+import type { BootBlockStore, BootNarration } from '../boot-block-store'
 import type { ContainerMoveControl } from '../use-container-move'
 import { cloudReadinessOf } from './cloud-readiness'
 import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
@@ -23,6 +24,7 @@ type OpenArgs = {
   bridge: CloudBridge
   threadId: ThreadId
   move?: ContainerMoveControl | undefined
+  boot?: BootBlockStore | undefined
   onReload: (reload: CloudReload) => Promise<void>
 }
 
@@ -45,6 +47,9 @@ const wakeNarrationFor = (args: ResolvedOpenArgs) => ({
   ...(args.move === undefined ? {} : { move: args.move }),
 })
 
+const inlineNarrationFor = (args: ResolvedOpenArgs): BootNarration | undefined =>
+  args.boot?.narrationFor({ threadId: args.threadId }) ?? args.move
+
 async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
   const woken = await wakeSandbox(wakeNarrationFor(args))
   const { channel, stores } = args.bridge.attach({
@@ -55,7 +60,11 @@ async function composeEager(args: ResolvedOpenArgs): Promise<Composed> {
   return {
     channel,
     stores,
-    wake: createCloudWake({ ...wakeNarrationFor(args), channel }),
+    wake: createCloudWake({
+      ...wakeNarrationFor(args),
+      move: inlineNarrationFor(args),
+      channel,
+    }),
     settleOpenOf: () => ALREADY_SETTLED,
     openAgainst: (runner) =>
       openCloudConversation({
@@ -82,14 +91,19 @@ export async function openCloudThread(openArgs: OpenArgs): Promise<Binding> {
     const composed = await composeEager(args)
     const { channel, stores } = composed
 
-    const runner = createCloudRunner({ ...wakeNarrationFor(args), channel, wake: composed.wake })
+    const runner = createCloudRunner({
+      ...wakeNarrationFor(args),
+      move: inlineNarrationFor(args),
+      channel,
+      wake: composed.wake,
+    })
     const opened = await composed.openAgainst(runner)
     const anchor = await cloudAnchorOf({ stores, threadId, opened })
     const stopMirroring = mirrorCloudRenames({ home: app.threads, remote: stores.threads })
     const session = createCloudSession({
       channel,
       sandboxes: bridge.sandboxes,
-      wake: () => composed.wake({ quiet: true }),
+      wake: () => composed.wake(),
       onReload: args.onReload,
       appliedSnapshot: () => cloudReadinessOf(channel).applied(),
       subscribeApplied: (listener) => cloudReadinessOf(channel).subscribe(listener),

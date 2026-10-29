@@ -36,14 +36,19 @@ function placementChipOf(choice: PlacementChoice): FooterItem {
 export function locationPillOf(args: {
   location: EExecutionLocation
   placement?: PlacementChoice | null | undefined
+  runner?: ERunner | undefined
 }): FooterItem | null {
   if (args.placement !== undefined && args.placement !== null)
     return placementChipOf(args.placement)
   if (args.location === EExecutionLocation.Host) return null
 
+  const text =
+    args.location === EExecutionLocation.Cloud
+      ? ` ${args.runner === ERunner.Local ? 'pod' : '☁ cloud'} `
+      : args.location
   return chipItem({
     id: 'execution-location',
-    text: args.location,
+    text,
     ground: theme.link,
     reach: EFooterItemReach.None,
   })

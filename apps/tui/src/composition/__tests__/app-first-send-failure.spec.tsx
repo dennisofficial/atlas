@@ -59,7 +59,7 @@ describe('a first-send birth that fails partway', () => {
     try {
       const threadId = app.sessionOwner.snapshot().threadId!
       await mounted.command('cancel me')
-      expect(await mounted.frameHolds((frame) => frame.includes('STARTING A POD'))).toBe(true)
+      expect(await mounted.frameHolds((frame) => frame.includes('Starting the pod'))).toBe(true)
 
       mounted.dismiss()
 
@@ -86,7 +86,7 @@ describe('a first-send birth that fails partway', () => {
       expect(bridge.created.map((born) => born.threadId)).toEqual([threadId])
       expect(
         await mounted.frameHolds(
-          (frame) => !frame.includes('STARTING A POD') && frame.includes('pod ▾'),
+          (frame) => !frame.includes('Starting the pod') && frame.includes('pod ▾'),
         ),
       ).toBe(true)
 

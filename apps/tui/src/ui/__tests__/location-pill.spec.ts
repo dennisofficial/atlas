@@ -27,7 +27,11 @@ describe('the placement chip before the first send', () => {
   it('reads host with a caret and flips on activation when the thread will start on the host', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Host,
-      placement: { harness: EHarnessPlacement.Host, provisioning: false, onFlip },
+      placement: {
+        harness: EHarnessPlacement.Host,
+        provisioning: false,
+        onFlip,
+      },
     })
 
     expect(chip?.id).toBe(PLACEMENT_CHIP_ID)
@@ -73,7 +77,11 @@ describe('the placement chip before the first send', () => {
   it('goes inert, warm and caret-free while the sandbox is still provisioning', () => {
     const chip = locationPillOf({
       location: EExecutionLocation.Host,
-      placement: { harness: EHarnessPlacement.Cloud, provisioning: true, onFlip },
+      placement: {
+        harness: EHarnessPlacement.Cloud,
+        provisioning: true,
+        onFlip,
+      },
     })
 
     expect(chip?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
@@ -85,8 +93,29 @@ describe('the placement chip before the first send', () => {
   it('is plain display once the thread has started', () => {
     const chip = locationPillOf({ location: EExecutionLocation.Cloud })
 
-    expect(chip?.spans).toEqual([{ text: EExecutionLocation.Cloud, fg: theme.appBg }])
+    expect(chip?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
     expect(chip?.reach).toBe(EFooterItemReach.None)
     expect(chip?.onActivate).toBeUndefined()
+  })
+})
+
+describe('the location pill after the thread has started', () => {
+  it('keeps reading pod for a local-runner thread once the placement chip is gone', () => {
+    const pill = locationPillOf({
+      location: EExecutionLocation.Cloud,
+      runner: ERunner.Local,
+    })
+
+    expect(pill?.spans).toEqual([{ text: ' pod ', fg: theme.appBg }])
+    expect(pill?.reach).toBe(EFooterItemReach.None)
+  })
+
+  it('reads cloud for a vercel-runner thread', () => {
+    const pill = locationPillOf({
+      location: EExecutionLocation.Cloud,
+      runner: ERunner.Vercel,
+    })
+
+    expect(pill?.spans).toEqual([{ text: ' ☁ cloud ', fg: theme.appBg }])
   })
 })

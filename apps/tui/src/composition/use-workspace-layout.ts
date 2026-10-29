@@ -97,11 +97,16 @@ export function useWorkspaceLayout(args: {
     'model' | 'repo' | 'projectDirectory' | 'activeWorktree' | 'working' | 'mutations'
   >
   addressing: ThreadId | null
+  booting: boolean
 }) {
   const { frame, conversation, addressing } = args
   const { width, sidebarWidth, wide } = frame
 
-  const welcome = welcoming({ model: conversation.model, addressingChild: addressing !== null })
+  const welcome = welcoming({
+    model: conversation.model,
+    addressingChild: addressing !== null,
+    booting: args.booting,
+  })
   const sidebarVisible =
     !welcome && sidebarShown({ layout: frame.sidebarMode, peeking: frame.peeking })
   const overlay = sidebarVisible && !wide
