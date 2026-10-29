@@ -115,9 +115,9 @@ export class SandboxCheckpointRouter {
     const { input, userId } = args
     const { threadId, revision } = input
     const checkpoint = asCheckpointJson(input)
-    const thread = await db.orm.public.Thread.where({ id: threadId, userId }).select('id').first()
-    if (thread === null) throw new NotFoundException('thread not found')
     const written = await db.transaction(async (tx) => {
+      const thread = await tx.orm.public.Thread.where({ id: threadId, userId }).select('id').first()
+      if (thread === null) throw new NotFoundException('thread not found')
       await tx.orm.public.LocalPodCheckpoint.upsert({
         create: { userId, threadId },
         update: { userId },

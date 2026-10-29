@@ -76,6 +76,30 @@ describe('SandboxCheckpointRouter.put from a local pod lease token', () => {
     expect(await storedForPod()).toEqual(newer)
   })
 
+  it('never rewrites the pod checkpoint on an equal revision', async () => {
+    await seedLeasedThread()
+    const parked = checkpoint({ revision: 4, phase: ERuntimePhase.Parked })
+    await report(parked)
+
+    const equal = await report(checkpoint({ revision: 4, phase: ERuntimePhase.Serving }))
+
+    expect(dataOf(equal)).toEqual({ checkpoint: parked })
+    expect(await storedForPod()).toEqual(parked)
+  })
+
+  it('404s a pod whose thread was never registered, writing nothing', async () => {
+    await db.orm.public.LocalPodLease.create({
+      userId: USER_A,
+      threadId: THREAD,
+      tokenHash: pod.tokenHash,
+    })
+
+    const reply = await report(validCheckpoint())
+
+    expect(reply.status).toBe(404)
+    expect(await db.orm.public.LocalPodCheckpoint.all()).toEqual([])
+  })
+
   it('refuses a pod token writing another thread', async () => {
     await seedLeasedThread()
     await seedThreadRow({ id: 'brn_other', userId: USER_A })
