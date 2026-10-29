@@ -113,21 +113,29 @@ function AgentTurnView({
   )
 }
 
+export type TranscriptRewind = { onRewind: (eventId: string) => void }
+
 function TurnView({
   turn,
   now,
   models,
   userName,
+  rewind,
 }: {
   turn: Turn
   now: number
   models: ReadonlyMap<string, string>
   userName: string | undefined
+  rewind: TranscriptRewind | null
 }) {
   switch (turn.kind) {
     case ETurnKind.User:
       return (
-        <UserMessage author={userName} timestamp={clockTimeOf(turn.item.at)}>
+        <UserMessage
+          author={userName}
+          timestamp={clockTimeOf(turn.item.at)}
+          onRewind={rewind === null ? undefined : () => rewind.onRewind(turn.item.id)}
+        >
           <p className="whitespace-pre-wrap">{turn.item.text}</p>
         </UserMessage>
       )
@@ -170,6 +178,7 @@ export function ThreadTranscript({
   bootNow,
   working,
   onRetryBoot,
+  rewind,
 }: {
   items: readonly TranscriptRow[]
   failure: string | null
@@ -177,6 +186,7 @@ export function ThreadTranscript({
   bootNow: number
   working: boolean
   onRetryBoot: () => void
+  rewind: TranscriptRewind | null
 }) {
   const { user } = useSessionUser()
   const now = useNow(working)
@@ -195,7 +205,7 @@ export function ThreadTranscript({
       {turns.map((turn, index) => (
         <Fragment key={turn.id}>
           <ChatItem id={turn.id}>
-            <TurnView turn={turn} now={now} models={models} userName={userName} />
+            <TurnView turn={turn} now={now} models={models} userName={userName} rewind={rewind} />
           </ChatItem>
           {bootAfter(index)}
         </Fragment>

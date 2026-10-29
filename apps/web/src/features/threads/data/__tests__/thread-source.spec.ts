@@ -21,6 +21,8 @@ const send = () => false
 const chooseModel = async () => false
 const takeBackPending = async () => null
 const interrupt = () => false
+const applyRewind = async () => undefined
+const readRoster = async () => null
 const liveView = (change: Partial<LiveThreadView>): LiveThreadView => ({
   ...IDLE_LIVE_THREAD,
   steps: [],
@@ -28,6 +30,8 @@ const liveView = (change: Partial<LiveThreadView>): LiveThreadView => ({
   chooseModel,
   takeBackPending,
   interrupt,
+  applyRewind,
+  readRoster,
   ...change,
 })
 
@@ -74,6 +78,20 @@ describe('threadSourceOf interrupt', () => {
     const source = threadSourceOf({ live: liveView({}), polled })
     expect(source.interrupt).toBe(interrupt)
     expect(source.interrupt()).toBe(false)
+  })
+})
+
+describe('threadSourceOf rewind', () => {
+  it('passes the rewind actions through while live', () => {
+    const source = threadSourceOf({ live: liveView({ live: true }), polled })
+    expect(source.applyRewind).toBe(applyRewind)
+    expect(source.readRoster).toBe(readRoster)
+  })
+
+  it('passes the rewind actions through while polling', () => {
+    const source = threadSourceOf({ live: liveView({}), polled })
+    expect(source.applyRewind).toBe(applyRewind)
+    expect(source.readRoster).toBe(readRoster)
   })
 })
 

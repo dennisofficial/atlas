@@ -42,6 +42,7 @@ import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { usePullRequestBell } from './data/use-pull-request-bell'
+import { useRewind } from './data/use-rewind'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -60,6 +61,7 @@ import { ThreadLayout } from './thread-layout'
 import { ThreadMissing } from './thread-missing'
 import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
+import { RewindDialog } from './transcript/rewind-dialog'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
@@ -113,6 +115,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
   })
   const operator = useOperatorInput(source)
+  const rewind = useRewind({
+    threadId,
+    events: () => parsed,
+    source,
+    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+  })
   const handoff = useComposerHandoff({
     events: visible,
     pending: source.pending,
@@ -228,6 +236,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
               bootNow={now}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}
+              rewind={{ onRewind: (eventId) => void rewind.handlePick(eventId) }}
             />
           </div>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
@@ -240,6 +249,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 onSubmit={(value) => void operator.handleSubmit(value)}
               />
             )}
+            <RewindDialog
+              pick={rewind.pick}
+              applying={rewind.applying}
+              onCancel={rewind.handleCancel}
+              onConfirm={() => void rewind.handleConfirm()}
+            />
             <ComposerDock dock={dock} />
             <ThreadComposer
               value={draft}

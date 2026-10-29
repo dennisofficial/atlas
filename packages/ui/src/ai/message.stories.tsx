@@ -50,6 +50,14 @@ export const User: Story = {
   ),
 }
 
+export const UserWithRewind: Story = {
+  render: () => (
+    <UserMessage author="Dennis" timestamp="14:36" onEdit={() => {}} onRewind={() => {}}>
+      Try the migration again without the backfill.
+    </UserMessage>
+  ),
+}
+
 function FeedbackDemo() {
   const [feedback, setFeedback] = useState<EFeedback>()
   return (
