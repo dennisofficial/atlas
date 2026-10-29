@@ -1,4 +1,4 @@
-import { EKilledBy, EShellStatus, type PortExposure, type ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, type ThreadId } from '@dltech/atlas-core'
 
 import type { ShellAttachment } from './port'
 import type { ShellId } from './shell-id'
@@ -20,7 +20,6 @@ export type ShellSnapshot = {
   endedAt?: string | undefined
   totalCharacters: number
   awaitingInput: boolean
-  exposure?: PortExposure | undefined
   outputPath?: string | undefined
   inputSupported?: boolean | undefined
 }
@@ -59,7 +58,6 @@ export type StartShellArgs = {
   watch?: string | undefined
   timeoutMs?: number | undefined
   outputLimitBytes?: number | undefined
-  exposure?: PortExposure | undefined
 }
 
 export type StartedShellOutcome =

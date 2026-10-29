@@ -13,7 +13,7 @@ import { BUILT_IN_SKILLS } from '../manifest.generated'
 import { digestOfBytes } from '../embedded-bundle'
 import { ESkillOrigin, isSkillEntryFilename } from '../skill'
 
-const ATLAS_SKILLS = ['atlas-config', 'atlas-cloud']
+const ATLAS_SKILLS = ['atlas-config', 'atlas-cloud', 'atlas-services']
 
 const registryOfBuiltIns = async (): Promise<LiveSkillRegistry> => {
   const registry = new LiveSkillRegistry({ sources: () => [new EmbeddedSkillSource()] })

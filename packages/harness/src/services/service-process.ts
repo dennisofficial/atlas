@@ -30,6 +30,8 @@ export type ServiceSnapshot = {
   startedAt: string
   endedAt?: string | undefined
   exposure?: PortExposure | undefined
+  name?: string | undefined
+  port?: number | undefined
 }
 
 export type Service = {
@@ -77,6 +79,9 @@ export function startService(spec: {
   processes: ProcessPort
   threadId: ThreadId
   exposure?: PortExposure | undefined
+  env?: Record<string, string> | undefined
+  name?: string | undefined
+  port?: number | undefined
   onExit: (service: Service) => void
 }): StartedService {
   let fd: number
@@ -95,7 +100,11 @@ export function startService(spec: {
     handle = spec.processes.spawn({
       cmd: ['bash', '-c', spec.command],
       cwd: spec.cwd,
-      env: { ...process.env, PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}` },
+      env: {
+        ...process.env,
+        PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
+        ...spec.env,
+      },
       threadId: spec.threadId,
     })
   } catch (error) {
@@ -159,6 +168,8 @@ export function startService(spec: {
       startedAt,
       endedAt,
       ...(spec.exposure === undefined ? {} : { exposure: spec.exposure }),
+      ...(spec.name === undefined ? {} : { name: spec.name }),
+      ...(spec.port === undefined ? {} : { port: spec.port }),
     }),
 
     stop,

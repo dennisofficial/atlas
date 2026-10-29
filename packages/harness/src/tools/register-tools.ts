@@ -57,7 +57,9 @@ import { MultiEditTool } from './builtin/multi-edit'
 import { ReadTool } from './builtin/read'
 import { ServiceListTool } from './builtin/service-list'
 import { ServiceStartTool } from './builtin/service-start'
+import { ServiceRestartTool } from './builtin/service-restart'
 import { ServiceStopTool } from './builtin/service-stop'
+import { ServicesEnsureTool } from './builtin/services-ensure'
 import { ShellKillTool } from './builtin/shell-kill'
 import { ShellListTool } from './builtin/shell-list'
 import { ShellOutputTool } from './builtin/shell-output'
@@ -179,6 +181,12 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new ServiceListTool(serviceRegistry(resolver)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new ServicesEnsureTool(serviceRegistry(resolver)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new ServiceRestartTool(serviceRegistry(resolver)),
   })
   container.register(portToken(ToolDefinition), { useClass: TaskWriteTool })
   container.register(portToken(ToolDefinition), {

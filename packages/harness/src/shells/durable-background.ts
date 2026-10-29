@@ -1,4 +1,4 @@
-import type { ClockPort, PortExposure, ThreadId } from '@dltech/atlas-core'
+import type { ClockPort, ThreadId } from '@dltech/atlas-core'
 import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
 
 import type { BackgroundShell, ShellInputOutcome, ShellSnapshot } from './background-shell'
@@ -27,7 +27,6 @@ export type OpenShellSpec = {
   clock: ClockPort
   cursor: ShellCursor
   watch?: RegExp | undefined
-  exposure?: PortExposure | undefined
   promptSettleMs: number
   matchSettleMs: number
   matchedLinesCap: number
@@ -212,7 +211,6 @@ export function openBackgroundShell(spec: OpenShellSpec): BackgroundShell {
       endedAt,
       totalCharacters: total,
       awaitingInput: status === EShellStatus.Running && awaitingSettled,
-      exposure: spec.exposure,
       outputPath: attachment.outputPath,
       inputSupported: attachment.inputSupported,
     }),

@@ -1,15 +1,10 @@
-import { Archive, ArchiveRestore, ExternalLink, Pin } from 'lucide-react'
+import { Archive, ArchiveRestore, Pin } from 'lucide-react'
 import Link from 'next/link'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { SidebarMenuButton, SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
-
-import {
-  pinnedPullRequestOf,
-  pullRequestEntriesOf,
-} from '@/features/threads/data/pull-request-entries'
 
 import { useThreadNaming } from './active-naming'
 import { RowAction } from './shell-row-action'
@@ -26,7 +21,6 @@ export interface ThreadRowProps {
 }
 
 export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
-  const pullRequest = pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))
   const { onToggleArchive } = useThreadActions()
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
@@ -70,11 +64,6 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           >
             {archived ? <ArchiveRestore /> : <Archive />}
           </RowAction>
-          {pullRequest === undefined ? null : (
-            <RowAction label="Open pull request on GitHub" href={pullRequest.url} external>
-              <ExternalLink />
-            </RowAction>
-          )}
         </div>
       </ThreadHoverCard>
     </SidebarMenuItem>

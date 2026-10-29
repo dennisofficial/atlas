@@ -39,6 +39,7 @@ export enum EServeEvent {
   ChildAdoptionFailed = 'serve.child-adoption-failed',
   LostShellsSettled = 'serve.lost-shells-settled',
   LostShellSettlementFailed = 'serve.lost-shell-settlement-failed',
+  DeclaredServicesResumeFailed = 'serve.declared-services-resume-failed',
   LostAgentsSettled = 'serve.lost-agents-settled',
   LostAgentSettlementFailed = 'serve.lost-agent-settlement-failed',
   CloudStateReady = 'serve.cloud-state-ready',

@@ -5,64 +5,67 @@ import {
   EKilledBy,
   EServiceStatus,
   type ClockPort,
-  type Event,
-  type EventDraft,
-  type PortExposure,
   type ProcessPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import type { InputBatch } from '../intake/input-batch'
-import { bootId } from './boot'
+import {
+  ensureDeclaredServices,
+  type EnsuredService,
+  type DeclaredEnsureOptions,
+} from './declared-ensure'
+import { ServiceChangeFeed } from './service-change-feed'
 import { ServiceEndings, type TrackedService } from './service-endings'
 import { ServiceEventJournal, type ServiceStartRecording } from './service-journal'
-import { requeueOwedServiceNotices } from './owed-notices'
-import { ServiceNoticeQueue } from './service-notices'
+import { ServiceNoticeRegistry } from './service-notice-registry'
 import {
   SERVICE_SETTLE_MS,
   startService,
   type Service,
   type ServiceSnapshot,
 } from './service-process'
-import {
-  ServiceRegistryPort,
-  type ServiceStopOutcome,
-  type StartedServiceOutcome,
+import type {
+  ServiceStartArgs,
+  ServiceStopOutcome,
+  StartedServiceOutcome,
 } from './service-registry-port'
 import { serviceLogTail } from './service-log-tail'
-import { diedWithin, unknownService, within } from './service-registry-support'
+import {
+  awaitServiceEndings,
+  CLOSE_GRACE_MS,
+  KILLED_GRACE_MS,
+  stopAllServices,
+} from './service-teardown'
+import { startedDraftOf } from './service-started-draft'
+import { unknownService, within } from './service-registry-support'
+import { ServiceRestarter } from './service-restarter'
+import type { Scheduler } from './service-supervisor'
 
 export * from './service-registry-port'
 export type { ServiceStartRecording } from './service-journal'
 
-export const CLOSE_GRACE_MS = 300
-export const KILLED_GRACE_MS = 5_000
+export * from './service-teardown'
 
-/** The escalation window plus slack: a stop that outlives this is handed back to the announcement path. */
-export const STOP_SETTLE_MS = KILLED_GRACE_MS + 2_000
-
-export class BunServiceRegistry extends ServiceRegistryPort {
+export class BunServiceRegistry extends ServiceNoticeRegistry {
   private readonly tracked = new Map<string, TrackedService>()
-  private readonly notices: ServiceNoticeQueue
   private readonly endings: ServiceEndings
   private readonly journal: ServiceEventJournal | undefined
+  private readonly feed = new ServiceChangeFeed()
+  private readonly restarter: ServiceRestarter
+  private readonly ensuring = new Map<string, Promise<EnsuredService>>()
   /**
    * Ids restart at svc_1 in every session, but the log directory is shared — the token keeps two
    * live sessions from writing the same file, and the shim resolves a bare id to its newest match.
    */
   private readonly sessionToken = randomUUID().slice(0, 8)
   private started = 0
-
-  private revision = 0
-  private readonly listeners = new Set<() => void>()
-  private readonly settledListeners = new Set<() => void>()
   private recordingStarts = 0
-  private flushQueued = false
 
   private readonly root: string
   private readonly clock: ClockPort
   private readonly logsDirectory: string
   private readonly processes: ProcessPort
+  private readonly declared: DeclaredEnsureOptions | undefined
   constructor(args: {
     root: string
     clock: ClockPort
@@ -70,13 +73,20 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     processes: ProcessPort
     recording?: ServiceStartRecording | undefined
     warn?: ((message: string) => void) | undefined
+    scheduler?: Scheduler | undefined
+    declared?: DeclaredEnsureOptions | undefined
   }) {
-    super()
+    super({ scheduler: args.scheduler })
     this.root = args.root
     this.clock = args.clock
     this.logsDirectory = args.logsDirectory
     this.processes = args.processes
-    this.notices = new ServiceNoticeQueue()
+    this.declared = args.declared
+    this.restarter = new ServiceRestarter({
+      supervisor: this.supervisor,
+      clock: args.clock,
+      relaunch: (launch) => this.launch(launch),
+    })
     this.journal =
       args.recording === undefined
         ? undefined
@@ -88,24 +98,19 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       journal: this.journal,
       notices: this.notices,
       isCurrent: (entry) => this.tracked.get(entry.service.serviceId) === entry,
-      onAnnounced: () => this.bump(),
+      onAnnounced: () => this.feed.bump(),
       onChanged: () => {
-        if (!this.settling()) this.announceSettled()
+        if (!this.settling()) this.feed.announceSettled()
       },
     })
   }
 
-  /**
-   * The settle wait is not a health check: it exists so a start that was never viable
-   * (`command not found`) comes back as an immediate exit rather than a lying "Started".
-   */
-  async start(args: {
-    threadId: ThreadId
-    command: string
-    description: string
-    cwd?: string | undefined
-    exposure?: PortExposure | undefined
-  }): Promise<StartedServiceOutcome> {
+  async start(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
+    if (args.name !== undefined) this.supervisor.forget(args.name)
+    return this.launch(args)
+  }
+
+  private async launch(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
     this.started += 1
     const serviceId = `svc_${this.started}`
 
@@ -119,6 +124,9 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       processes: this.processes,
       threadId: args.threadId,
       exposure: args.exposure,
+      env: args.env,
+      name: args.name,
+      port: args.port,
       onExit: (service) => this.announceExit(service),
     })
     if (!opened.ok) return opened
@@ -126,13 +134,14 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     this.tracked.set(serviceId, {
       service: opened.service,
       threadId: args.threadId,
+      launch: args,
       announced: false,
     })
-    this.bump()
+    this.feed.bump()
     this.recordStart({ serviceId, args })
 
     void opened.service.exited.finally(() => {
-      if (!this.settling()) this.announceSettled()
+      if (!this.settling()) this.feed.announceSettled()
     })
 
     await within(SERVICE_SETTLE_MS, opened.service.exited)
@@ -140,13 +149,39 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     return { ok: true, snapshot: opened.service.snapshot() }
   }
 
+  override async restart({ serviceId }: { serviceId: string }): Promise<StartedServiceOutcome> {
+    const entry = this.tracked.get(serviceId)
+    if (entry === undefined) {
+      return { ok: false, reason: unknownService({ serviceId, known: [...this.tracked.keys()] }) }
+    }
+
+    const { name } = entry.launch
+    if (name !== undefined) this.supervisor.forget(name)
+    entry.service.stop(EKilledBy.Model)
+    await within(KILLED_GRACE_MS + CLOSE_GRACE_MS, entry.service.exited)
+    return this.start(entry.launch)
+  }
+
+  override ensureDeclared(args: {
+    threadId: ThreadId
+    names?: readonly string[] | undefined
+  }): Promise<readonly EnsuredService[]> {
+    return ensureDeclaredServices({
+      ...args,
+      services: this,
+      processes: this.processes,
+      root: this.root,
+      inflight: this.ensuring,
+      options: this.declared,
+    })
+  }
+
   version(): number {
-    return this.revision
+    return this.feed.version()
   }
 
   subscribe(listener: () => void): () => void {
-    this.listeners.add(listener)
-    return () => this.listeners.delete(listener)
+    return this.feed.subscribe(listener)
   }
 
   override settling(): boolean {
@@ -159,22 +194,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
   }
 
   override onSettled(listener: () => void): () => void {
-    this.settledListeners.add(listener)
-    return () => this.settledListeners.delete(listener)
-  }
-
-  private announceSettled(): void {
-    for (const listener of [...this.settledListeners]) listener()
-  }
-
-  private bump(): void {
-    this.revision += 1
-    if (this.flushQueued) return
-    this.flushQueued = true
-    queueMicrotask(() => {
-      this.flushQueued = false
-      for (const listener of this.listeners) listener()
-    })
+    return this.feed.onSettled(listener)
   }
 
   stop({ serviceId, by }: { serviceId: string; by: EKilledBy }): ServiceStopOutcome {
@@ -183,23 +203,13 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       return { ok: false, reason: unknownService({ serviceId, known: [...this.tracked.keys()] }) }
     }
 
+    if (entry.launch.name !== undefined) this.supervisor.cancel(entry.launch.name)
     const action = entry.service.stop(by)
     return { ok: true, snapshot: entry.service.snapshot(), action }
   }
 
-  async awaitEndings({ ms }: { ms: number }): Promise<number> {
-    const signalled = [...this.tracked.values()].filter(
-      (entry) => entry.service.snapshot().status !== EServiceStatus.Running,
-    )
-    const deaths = await Promise.all(
-      signalled.map((entry) =>
-        diedWithin(
-          ms,
-          entry.service.exited.then(() => entry.ending),
-        ),
-      ),
-    )
-    return deaths.filter((died) => !died).length
+  awaitEndings({ ms }: { ms: number }): Promise<number> {
+    return awaitServiceEndings({ entries: [...this.tracked.values()], ms })
   }
 
   override async retryEndings(args: { threadId?: ThreadId | undefined }): Promise<void> {
@@ -216,6 +226,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     for (const serviceId of serviceIds) {
       const entry = this.tracked.get(serviceId)
       if (entry === undefined) continue
+      if (entry.launch.name !== undefined) this.supervisor.forget(entry.launch.name)
       entry.announced = true
       this.endings.disown(entry)
       if (entry.service.snapshot().status === EServiceStatus.Running) entry.service.stop(by)
@@ -224,7 +235,7 @@ export class BunServiceRegistry extends ServiceRegistryPort {
     }
     if (!removed) return
     this.notices.dropServices({ serviceIds })
-    this.bump()
+    this.feed.bump()
   }
 
   list(): readonly ServiceSnapshot[] {
@@ -246,96 +257,44 @@ export class BunServiceRegistry extends ServiceRegistryPort {
       .filter((snapshot) => snapshot.status === EServiceStatus.Running)
   }
 
-  drainNotifications({ threadId }: { threadId: ThreadId }): readonly EventDraft[] {
-    return this.notices.drain({ threadId })
-  }
-
-  override prepareNotifications({ threadId }: { threadId: ThreadId }): InputBatch {
-    void this.retryEndings({ threadId })
-    return this.notices.prepare({ threadId })
-  }
-
-  pendingNotices({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {
-    return this.notices.pending({ threadId })
-  }
-
-  threadsAwaitingNotice(): readonly ThreadId[] {
-    return this.notices.threadsAwaiting()
-  }
-
-  override threadsWithPendingInput(): readonly ThreadId[] {
-    return this.notices.threadsQueued()
-  }
-
-  onNotice(listener: () => void): () => void {
-    return this.notices.onNotice(listener)
-  }
-
-  forgetNotices({ threadId: threadIdToForget }: { threadId: ThreadId }): void {
-    this.notices.forget({ threadId: threadIdToForget })
-  }
-
-  override requeueOwed({
-    events,
-    threadId,
-  }: {
-    events: readonly Event[]
-    threadId: ThreadId
-  }): void {
-    requeueOwedServiceNotices({ events, threadId, notices: this.notices })
-  }
-
-  reassignNotices({ from, to }: { from: ThreadId; to: ThreadId }): void {
-    this.notices.reassign({ from, to })
-  }
-
   /**
    * Teardown stops everything but suppresses nothing: every ending is recorded to its thread's log
    * before this resolves, and a recording that failed gets one more attempt.
    */
   async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
-    const killedBy = args?.killedBy ?? EKilledBy.SessionEnd
-    const entries = [...this.tracked.values()]
-    for (const entry of entries) entry.service.stop(killedBy)
-    await Promise.all(entries.map((entry) => within(CLOSE_GRACE_MS, entry.service.exited)))
-    for (const entry of entries) entry.service.stop(killedBy)
-    await Promise.all(entries.map((entry) => within(KILLED_GRACE_MS, entry.service.exited)))
-    await within(KILLED_GRACE_MS, Promise.all(entries.map((entry) => entry.ending)))
-    await within(KILLED_GRACE_MS, this.retryEndings({}))
+    this.restarter.close()
+    await stopAllServices({
+      entries: [...this.tracked.values()],
+      killedBy: args?.killedBy ?? EKilledBy.SessionEnd,
+      retry: () => this.retryEndings({}),
+    })
     this.tracked.clear()
-    this.listeners.clear()
-    this.settledListeners.clear()
+    this.feed.clear()
   }
 
-  /**
-   * Fire-and-forget — a service already running must never wait on, or die with, its own record.
-   */
-  private recordStart(args: {
-    serviceId: string
-    args: { threadId: ThreadId; command: string; description: string }
-  }): void {
+  private recordStart(args: { serviceId: string; args: ServiceStartArgs }): void {
     if (this.journal === undefined) return
     this.recordingStarts += 1
     void this.journal
       .started({
         threadId: args.args.threadId,
         serviceId: args.serviceId,
-        draft: {
-          type: 'service-started',
-          serviceId: args.serviceId,
-          command: args.args.command,
-          description: args.args.description,
-          bootId,
-        },
+        draft: startedDraftOf(args),
       })
       .finally(() => {
         this.recordingStarts -= 1
-        if (!this.settling()) this.announceSettled()
+        if (!this.settling()) this.feed.announceSettled()
       })
   }
 
   private announceExit(service: Service): void {
     const entry = this.tracked.get(service.serviceId)
-    if (entry !== undefined) this.endings.exited(entry)
+    if (entry === undefined) return
+
+    const { name } = entry.launch
+    if (name !== undefined && service.snapshot().status === EServiceStatus.Exited) {
+      this.restarter.crashed({ launch: entry.launch, name, logPath: service.logPath })
+    }
+    this.endings.exited(entry)
   }
 }

@@ -172,6 +172,7 @@ export type ServeApp = {
    * unrecorded ending so the next open reads it off the transcript. Absent in a fake without a log.
    */
   recordLostShells?: ((args: { threadId: ThreadId }) => Promise<readonly LostShell[]>) | undefined
+  resumeDeclaredServices?: ((args: { threadId: ThreadId }) => Promise<unknown>) | undefined
   recordLostServices?:
     | ((args: { threadId: ThreadId }) => Promise<readonly LostService[]>)
     | undefined

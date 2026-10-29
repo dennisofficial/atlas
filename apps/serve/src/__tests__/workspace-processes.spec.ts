@@ -74,6 +74,7 @@ const harness = (args: {
   const killed: string[] = []
   const stopped: string[] = []
   const killReasons: EKilledBy[] = []
+  const supervision: string[] = []
   let failAppend = args.appendFailsOnce === true
   const appended: { threadId: ThreadId; drafts: readonly EventDraft[] }[] = []
   const queued = new Map<ThreadId, EventDraft[]>(Object.entries(args.endings ?? {}) as never)
@@ -104,6 +105,8 @@ const harness = (args: {
       },
       awaitEndings: async () => args.serviceStragglers ?? 0,
       drainNotifications: () => [],
+      suspendSupervision: () => void supervision.push('suspend'),
+      resumeSupervision: () => void supervision.push('resume'),
     },
     log: {
       append: async (given) => {
@@ -117,10 +120,20 @@ const harness = (args: {
     },
     ids: { nextRunId: () => toRunId('run-stop') },
   })
-  return { stop, killed, stopped, appended, killReasons }
+  return { stop, killed, stopped, appended, killReasons, supervision }
 }
 
 describe('stopping the workspace processes before a capture', () => {
+  it('suspends supervision before stopping and resumes after, even when the stop is refused', async () => {
+    const test = harness({
+      shells: [],
+      services: [{ serviceId: 'svc', status: EServiceStatus.Running }],
+      serviceEnds: false,
+    })
+    await expect(test.stop()).rejects.toThrow()
+    expect(test.supervision).toEqual(['suspend', 'resume'])
+  })
+
   it('attributes both shells and services to the requested rotation', async () => {
     const test = harness({
       shells: [{ shellId: 'a', threadId: root, status: EShellStatus.Running }],

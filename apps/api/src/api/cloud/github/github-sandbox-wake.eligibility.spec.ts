@@ -1,4 +1,5 @@
 import { ERuntimePhase } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
@@ -73,6 +74,18 @@ describe('GithubSandboxWakeService eligibility', () => {
   it('ignores parked sandboxes whose last activity fell outside the wake window', async () => {
     await seedParkedSandbox({ lastActivityAt: pastDate(PARK_WAKE_WINDOW_MS + 60_000) })
     await seedSubscription()
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot }).notifyEvent(PR_EVENT)
+    await flushDebounce()
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('never wakes the sandbox of an archived thread', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ archivedAt: new Date() })
     const { boot, calls } = fakeBoot()
 
     serviceWith({ boot }).notifyEvent(PR_EVENT)

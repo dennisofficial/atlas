@@ -20,13 +20,15 @@ const inputSchema = z.strictObject({
 const description = [
   'List the services running in this session, whoever started them.',
   'Set runningOnly to leave out the ones that have already exited.',
-  'Each entry names its id, its command, whether it is still running, and where its log is.',
+  'Each entry names its id, its declared name and url when it has them, its command, whether it is still running, and where its log is.',
   'Do not poll this to watch a service: if one dies you will be told, and its log file says what it is doing.',
 ].join(' ')
 
 function lineFor(snapshot: ServiceSnapshot): string {
   const state = snapshot.status === EServiceStatus.Running ? 'running' : serviceEnding(snapshot)
-  return `${snapshot.serviceId}  ${quotedShellCommand(snapshot.command)}  ${state}\n    log: ${snapshot.logPath}`
+  const named = snapshot.name === undefined ? '' : ` [${snapshot.name}]`
+  const url = snapshot.exposure === undefined ? '' : `\n    url: ${snapshot.exposure.url}`
+  return `${snapshot.serviceId}${named}  ${quotedShellCommand(snapshot.command)}  ${state}\n    log: ${snapshot.logPath}${url}`
 }
 
 export class ServiceListTool extends SchemaTool<typeof inputSchema> {
@@ -70,6 +72,9 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
           ...(snapshot.pid === undefined ? {} : { pid: snapshot.pid }),
           logPath: snapshot.logPath,
           startedAt: snapshot.startedAt,
+          ...(snapshot.name === undefined ? {} : { name: snapshot.name }),
+          ...(snapshot.port === undefined ? {} : { port: snapshot.port }),
+          ...(snapshot.exposure === undefined ? {} : { exposure: snapshot.exposure }),
         })),
       },
       modelText: shown.map(lineFor).join('\n'),

@@ -1,11 +1,5 @@
 import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-frame'
-import {
-  EServiceStatus,
-  EShellStatus,
-  type RosterWire,
-  type ServiceSnapshotWire,
-  type ShellSnapshotWire,
-} from '@dltech/atlas-wire/web'
+import { EServiceStatus, type RosterWire, type ServiceSnapshotWire } from '@dltech/atlas-wire/web'
 
 const MAX_LABEL = 28
 
@@ -18,21 +12,6 @@ const labelOf = (args: { description: string; command: string }): string => {
 
 const statusOf = (running: boolean): EPreviewStatus =>
   running ? EPreviewStatus.Live : EPreviewStatus.Stopped
-
-function fromShell(shell: ShellSnapshotWire): Candidate | null {
-  const { exposure } = shell
-  if (exposure === undefined) return null
-  return {
-    startedAt: shell.startedAt,
-    port: {
-      id: `shell:${shell.shellId}`,
-      port: exposure.containerPort,
-      label: labelOf(shell),
-      url: exposure.url,
-      status: statusOf(shell.status === EShellStatus.Running),
-    },
-  }
-}
 
 function fromService(service: ServiceSnapshotWire): Candidate | null {
   const { exposure } = service
@@ -62,7 +41,7 @@ export const livePreviewCount = (ports: PreviewPort[]): number =>
 
 export function previewPortsOf(roster: RosterWire | null): PreviewPort[] {
   if (roster === null) return []
-  const candidates = [...roster.shells.map(fromShell), ...roster.services.map(fromService)]
+  const candidates = roster.services.map(fromService)
   const byPort = new Map<number, Candidate>()
   for (const candidate of candidates) {
     if (candidate === null) continue
