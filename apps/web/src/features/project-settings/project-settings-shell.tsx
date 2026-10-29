@@ -32,7 +32,7 @@ export function ProjectSettingsShell({
           size="sm"
           className="justify-self-start text-muted-foreground"
           nativeButton={false}
-          render={<Link href="/" />}
+          render={<Link href="/threads" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
           <span className="sr-only sm:not-sr-only">Back to Atlas</span>

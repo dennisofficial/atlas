@@ -13,7 +13,7 @@ export function SettingsTopBar() {
         size="sm"
         className="shrink-0 text-muted-foreground md:justify-self-start"
         nativeButton={false}
-        render={<Link href="/" />}
+        render={<Link href="/threads" />}
       >
         <ArrowLeftIcon data-icon="inline-start" />
         <span className="sr-only sm:not-sr-only">Back to Atlas</span>
