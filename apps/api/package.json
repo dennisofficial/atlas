@@ -27,7 +27,6 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.87",
-    "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",

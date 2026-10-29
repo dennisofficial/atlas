@@ -1,4 +1,4 @@
-import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-core'
+import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-wire'
 import type { Row, Tx } from '@dltech/atlas-db'
 import { sessionOfThread } from './session-of-thread'
 

@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common'
 import type { PodChildRegister, PodEventsReply } from '@dltech/atlas-wire'
-import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-core'
+import { TEAMMATE_AGENT_TYPE } from '@dltech/atlas-wire'
 import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { assertWithinSandboxFamily } from './pod-family'
 import { nextSessionId } from '../sessions/append'
