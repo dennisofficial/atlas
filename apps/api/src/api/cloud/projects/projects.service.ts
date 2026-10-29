@@ -55,7 +55,7 @@ export class ProjectsService {
 
   async list(args: { userId: string }): Promise<Project[]> {
     const rows = await db.orm.public.Project.where({ ownerUserId: args.userId })
-      .orderBy((project) => project.updatedAt.desc())
+      .orderBy((project) => project.createdAt.asc())
       .all()
     return rows.map((row) => toProject(row))
   }

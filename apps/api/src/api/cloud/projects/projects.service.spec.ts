@@ -79,7 +79,7 @@ describe('ProjectsService', () => {
     ])
   })
 
-  it('lists newest-updated first and only the caller’s own projects', async () => {
+  it('lists oldest-created first, ignoring edits, and only the caller’s own projects', async () => {
     const first = await service.create({ userId: USER_A, input: input({ name: 'first' }) })
     await tick()
     const second = await service.create({
@@ -87,8 +87,14 @@ describe('ProjectsService', () => {
       input: input({ name: 'second', repo: 'a/b', additionalRepos: [] }),
     })
     await service.create({ userId: USER_B, input: input({ name: 'theirs' }) })
+    await tick()
+    await service.replace({
+      userId: USER_A,
+      projectId: first.id,
+      input: input({ name: 'first-renamed' }),
+    })
 
-    expect((await service.list({ userId: USER_A })).map((p) => p.id)).toEqual([second.id, first.id])
+    expect((await service.list({ userId: USER_A })).map((p) => p.id)).toEqual([first.id, second.id])
   })
 
   it("answers 404 for another user's project on read, replace, remove and workspace", async () => {
