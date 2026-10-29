@@ -62,6 +62,45 @@ describe('ThreadsService open confined to a token family', () => {
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
+  it('re-opening confined to a token family refuses a grandchild of its own sub-agent', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_root', runId: 'run_0', drafts: [] },
+    })
+    await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_child',
+        runId: 'run_1',
+        drafts: [],
+        agent: { spawnedBy: 'brn_root', type: 'explore' },
+      },
+    })
+    await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_grand',
+        runId: 'run_2',
+        drafts: [],
+        agent: { spawnedBy: 'brn_child', type: 'explore' },
+      },
+    })
+
+    await expect(
+      service.open({
+        userId: USER_A,
+        confinedTo: 'brn_root',
+        draft: {
+          threadId: 'brn_grand',
+          runId: 'run_3',
+          drafts: [],
+          title: 'stolen',
+          agent: { spawnedBy: 'brn_root', type: 'explore' },
+        },
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
   it("re-opening confined to a token family reaches the token's own thread", async () => {
     await service.open({
       userId: USER_A,
