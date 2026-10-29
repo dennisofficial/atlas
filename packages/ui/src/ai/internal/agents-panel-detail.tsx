@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { ArrowLeftIcon, ArrowUpToLineIcon } from 'lucide-react'
 
 import { Badge } from '#components/badge'
@@ -142,9 +142,15 @@ interface AgentsPanelDetailProps {
   agent: AgentsPanelAgent
   onBack: () => void
   onJumpToSpawn: (id: string) => void
+  renderTranscript?: ((agent: AgentsPanelAgent) => ReactNode) | undefined
 }
 
-export function AgentsPanelDetail({ agent, onBack, onJumpToSpawn }: AgentsPanelDetailProps) {
+export function AgentsPanelDetail({
+  agent,
+  onBack,
+  onJumpToSpawn,
+  renderTranscript,
+}: AgentsPanelDetailProps) {
   const handleJump = () => onJumpToSpawn(agent.id)
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 pt-2">
@@ -159,7 +165,11 @@ export function AgentsPanelDetail({ agent, onBack, onJumpToSpawn }: AgentsPanelD
         </Button>
       </div>
       <DetailHeader agent={agent} />
-      <DetailList agent={agent} />
+      {renderTranscript ? (
+        <div className="flex min-h-0 flex-1 flex-col">{renderTranscript(agent)}</div>
+      ) : (
+        <DetailList agent={agent} />
+      )}
     </div>
   )
 }

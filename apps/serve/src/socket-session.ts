@@ -69,7 +69,6 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     buffer,
     log,
     send,
-    applyUserSettings: args.applyUserSettings,
   })
 
   const router = createRequestRouter({

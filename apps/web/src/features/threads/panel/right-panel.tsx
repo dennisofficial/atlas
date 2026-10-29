@@ -1,5 +1,6 @@
 'use client'
 
+import { cn } from '@dltech/atlas-ui/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
@@ -20,6 +21,7 @@ import { useThreadPanel } from './thread-panel-context'
 export type RightPanelProps = {
   tab: ERightTab
   onTabChange: (tab: ERightTab) => void
+  tabBarClassName?: string
 }
 
 const TAB_BODY: Record<
@@ -49,7 +51,7 @@ function TabBody(props: {
   return bodyOf(props.tab)
 }
 
-export function RightPanel({ tab, onTabChange }: RightPanelProps) {
+export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProps) {
   const { threadId, channel, working } = useThreadPanel()
   const agents = useAgents({ threadId, channel, working })
   const running = activeAgentCount(agents.agents)
@@ -64,7 +66,12 @@ export function RightPanel({ tab, onTabChange }: RightPanelProps) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-card">
       <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
-        <div className="flex h-10 shrink-0 items-end overflow-x-auto border-b px-3">
+        <div
+          className={cn(
+            'flex h-10 shrink-0 items-end overflow-x-auto border-b px-3',
+            tabBarClassName,
+          )}
+        >
           <TabsList variant="line" className="justify-start">
             {Object.values(ERightTab).map((value) => (
               <TabsTrigger key={value} value={value} className="flex-none">

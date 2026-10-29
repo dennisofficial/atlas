@@ -56,6 +56,17 @@ describe('AgentsPanel', () => {
     expect((html.match(/data-index="/g) ?? []).length).toBeLessThan(40)
   })
 
+  it('replaces the brief and call rows with the transcript slot', () => {
+    const html = panel({
+      detailId: 'a1',
+      renderTranscript: (agent) => <p>transcript of {agent.id}</p>,
+    })
+
+    expect(html).toContain('transcript of a1')
+    expect(html).toContain('All agents')
+    expect(html).not.toContain('Brief from Atlas')
+  })
+
   it('renders the error text for a failed agent', () => {
     expect(panel({ detailId: 'd1' })).toContain('Sandbox lost connection after 9m')
   })

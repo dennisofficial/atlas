@@ -9,7 +9,6 @@ import { CodeBlock, CodeBlockContent } from '@dltech/atlas-ui/components/code-bl
 import { Trace } from '@dltech/atlas-ui/components/trace'
 
 import { EEditBody, EToolFamily, type EditBody, type ToolCallItem } from '../data/transcript-items'
-import { useThreadPanel } from '../panel/thread-panel-context'
 
 const ICON_OF_FAMILY: Record<EToolFamily, ReactNode> = {
   [EToolFamily.Agent]: <BotIcon />,
@@ -35,26 +34,55 @@ function EditBodyView({ body, label }: { body: EditBody; label: string }) {
   )
 }
 
-function EditToolRow({ call }: { call: ToolCallItem & { path: string } }) {
-  const { openChanges } = useThreadPanel()
-  const handleOpen = () => openChanges(call.path)
+function EditLine({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem & { path: string }
+  onOpenChanges: ((path: string) => void) | null
+}) {
+  const line = (
+    <ToolLine kind={call.kind} state={call.state} label={call.label} elapsed={call.elapsed} />
+  )
+  if (onOpenChanges === null) return line
+  const handleOpen = () => onOpenChanges(call.path)
+  return (
+    <button
+      type="button"
+      aria-label={`Open ${call.label} in Changes`}
+      onClick={handleOpen}
+      className="w-fit max-w-full rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      {line}
+    </button>
+  )
+}
+
+function EditToolRow({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem & { path: string }
+  onOpenChanges: ((path: string) => void) | null
+}) {
   return (
     <Trace>
-      <button
-        type="button"
-        aria-label={`Open ${call.label} in Changes`}
-        onClick={handleOpen}
-        className="w-fit max-w-full rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <ToolLine kind={call.kind} state={call.state} label={call.label} elapsed={call.elapsed} />
-      </button>
+      <EditLine call={call} onOpenChanges={onOpenChanges} />
       {call.change === undefined ? null : <EditBodyView body={call.change} label={call.label} />}
     </Trace>
   )
 }
 
-export function ToolRow({ call }: { call: ToolCallItem }) {
-  if (isOpenableEdit(call)) return <EditToolRow call={call} />
+export function ToolRow({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem
+  onOpenChanges: ((path: string) => void) | null
+}) {
+  if (isOpenableEdit(call) && (onOpenChanges !== null || call.change !== undefined)) {
+    return <EditToolRow call={call} onOpenChanges={onOpenChanges} />
+  }
   return (
     <Tool
       kind={call.kind}

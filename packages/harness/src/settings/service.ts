@@ -6,6 +6,7 @@ import {
   serialiseSettingsDocument,
   withoutSetting,
   withSetting,
+  isLocalSetting,
   type SettingDefinition,
   type SettingsDocument,
   type SettingsLayerInput,
@@ -57,12 +58,28 @@ type WriteTarget = {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'could not be written'
 
+function localSettingsOnly(args: {
+  input: SettingsLayerInput
+  definitions: readonly SettingDefinition[]
+}): SettingsLayerInput {
+  const local = new Set(args.definitions.filter(isLocalSetting).map((definition) => definition.id))
+  const keep = (record: Readonly<Record<string, unknown>>): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(record).filter(([key]) => local.has(key)))
+  const { origins } = args.input
+  return {
+    ...args.input,
+    values: keep(args.input.values),
+    ...(origins === undefined ? {} : { origins: keep(origins) as Record<string, string> }),
+  }
+}
+
 export function createSettingsService(args: {
   definitions: readonly SettingDefinition[]
   user: SettingsStorePort
   project?: SettingsStorePort
   environment?: SettingsLayerInput
   watch?: SettingsWatchOptions
+  cloudScoped?: () => boolean
 }): SettingsService {
   const listeners = new Set<() => void>()
   let definitions = args.definitions
@@ -89,9 +106,13 @@ export function createSettingsService(args: {
       args.project === undefined ? undefined : readLayer(args.project, ESettingsLayer.Project)
     layerReads = { user: user.document, project: project?.document }
 
+    const scoped = args.cloudScoped?.() === true
+    const narrow = (input: SettingsLayerInput): SettingsLayerInput =>
+      scoped ? localSettingsOnly({ input, definitions }) : input
+
     const layers: SettingsLayerInput[] = [user.input]
-    if (project !== undefined) layers.push(project.input)
-    if (args.environment !== undefined) layers.push(args.environment)
+    if (project !== undefined) layers.push(narrow(project.input))
+    if (args.environment !== undefined) layers.push(narrow(args.environment))
 
     const problems: string[] = []
     if (user.problem !== undefined) problems.push(user.problem)

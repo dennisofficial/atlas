@@ -81,7 +81,6 @@ export const liveBridgeOptionsFor = (app: AtlasApp): LocalCloudBridgeOptions => 
   // The local durable log is the truth the serve's currency vouch is checked against: report
   // its head on the Hello so a clean re-attach of an unchanged transcript is vouched current.
   lastEventSeq: ({ threadId }) => app.log.head({ threadId }),
-  settings: app.settings,
   projectIdOf: async ({ threadId }) => (await app.threads.find({ threadId }))?.projectId ?? null,
   authorizeSandbox: (authorization) => app.cloud.prepareSandboxOauth(authorization),
   cloudUrl: () => cloudUrlOf(app),

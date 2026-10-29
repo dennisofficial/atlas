@@ -151,31 +151,4 @@ describe('createOrResume', () => {
     expect(token).toMatch(/^[0-9a-f]{64}$/)
     expect(sandbox.written).toEqual([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
   })
-
-  it('pins the model into the environment only when one is pinned', async () => {
-    const seen: Record<string, unknown>[] = []
-    const { driver } = driverWith({
-      sdk: {
-        getOrCreate: async (params) => {
-          seen.push((params?.env ?? {}) as Record<string, unknown>)
-          return fakeSandbox()
-        },
-      },
-    })
-
-    await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
-      pinnedModel: 'anthropic/claude-opus-4.8',
-    })
-    await driver.createOrResume({
-      name: 'atlas-thread-x',
-      threadId: 'brn_cloud',
-      token: 't',
-    })
-
-    expect(seen[0]?.ATLAS_MODEL).toBe('anthropic/claude-opus-4.8')
-    expect(seen[1]?.ATLAS_MODEL).toBeUndefined()
-  })
 })

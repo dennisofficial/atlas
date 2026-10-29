@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { messageOf } from './error-text'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
+import { isApiProvisioned } from './cloud/api-provisioned'
 import { cloudListing } from './cloud/cloud-listing'
 import { bootBlocks } from './boot-block-store'
 import { cachedTranscripts } from './cached-transcript-store'
@@ -49,17 +50,19 @@ export function useThreadRouter(args: {
 }): ThreadRouter {
   const { localApp, cloudBridge, cloudSession, createBridge, containerMove } = args
   const { handleRowLabel } = containerMove
-  const bridgesRef = useRef(new Map<ERunner, CloudBridge>())
+  const bridgesRef = useRef(new Map<string, CloudBridge>())
 
   const bridgeFor = useCallback(
-    (runner: ERunner): CloudBridge => {
-      const held = bridgesRef.current.get(runner)
+    ({ runner, apiProvisioned }: { runner: ERunner; apiProvisioned: boolean }): CloudBridge => {
+      const key = `${runner}:${apiProvisioned}`
+      const held = bridgesRef.current.get(key)
       if (held !== undefined) return held
       const created = createBridge({
         runner,
+        apiProvisioned,
         onBootStep: ({ label }) => handleRowLabel({ nodeId: 'waiting', text: label }),
       })
-      bridgesRef.current.set(runner, created)
+      bridgesRef.current.set(key, created)
       return created
     },
     [createBridge, handleRowLabel],
@@ -75,9 +78,17 @@ export function useThreadRouter(args: {
   const bridgeOf = useCallback(
     async (threadId: string): Promise<CloudBridge> => {
       if (cloudBridge !== null && threadId === args.activeThreadId) return cloudBridge
-      return bridgeFor(await runnerOf(threadId))
+      const runner = await runnerOf(threadId)
+      return bridgeFor({
+        runner,
+        apiProvisioned: isApiProvisioned({
+          secrets: localApp.secrets,
+          threadId: toThreadId(threadId),
+          runner,
+        }),
+      })
     },
-    [args.activeThreadId, bridgeFor, cloudBridge, runnerOf],
+    [args.activeThreadId, bridgeFor, cloudBridge, localApp, runnerOf],
   )
 
   const listing = useCallback(
@@ -127,7 +138,10 @@ export function useThreadRouter(args: {
           return binding
         })
         .catch((error: unknown) => {
-          recordAttachFailure({ threadId: toThreadId(threadId), detail: messageOf(error) })
+          recordAttachFailure({
+            threadId: toThreadId(threadId),
+            detail: messageOf(error),
+          })
           notify({
             key: 'cloud-open-failed',
             text: messageOf(error),

@@ -1,7 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import type { RuntimeCheckpoint, VercelSandboxConfig } from '@dltech/atlas-wire'
 
-import type { SettingsService } from '../settings/service'
 import type { BridgeDriver, RegistrationSender, SandboxRegistration } from './local-cloud-bootstrap'
 
 export type SandboxAuthorizer = (args: {
@@ -29,6 +28,5 @@ export type LocalCloudBridgeOptions = {
    */
   lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
   driverWith?: ((config: VercelSandboxConfig) => BridgeDriver) | undefined
-  settings?: SettingsService | undefined
   projectIdOf?: ((args: { threadId: ThreadId }) => Promise<string | null>) | undefined
 }

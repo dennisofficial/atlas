@@ -102,14 +102,15 @@ describe('where a thread is born on its first send', () => {
     expect(bornPlacementChip(app).snapshot()?.runner).toBe(ERunner.Vercel)
   })
 
-  it('births on Vercel without laptop credentials, because Atlas Cloud holds them', async () => {
+  it('shows the not-configured notice and births nothing when Vercel has no credential', async () => {
     const app = appOn({ signedIn: true, vercel: false })
-    const { calls, run, threadId } = rig({ app, choice: ERunner.Vercel })
+    const { calls, run } = rig({ app, choice: ERunner.Vercel })
 
     await run
 
-    expect(calls.births).toEqual([{ threadId, runner: ERunner.Vercel, projectId: null }])
-    expect(currentNotices()).toEqual([])
+    expect(calls.births).toEqual([])
+    expect(noticeKeys()).toEqual(['born-cloud-preflight'])
+    expect(currentNotices()[0]?.text).toContain('not set up')
   })
 
   it('names Docker Desktop and births nothing when the pod preflight refuses', async () => {

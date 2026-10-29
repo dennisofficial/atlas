@@ -64,11 +64,17 @@ export function createPrEventForwarder(args: {
   project: string
   bridge: CloudBridgeFactory
   activeThreadId: () => ThreadId | undefined
+  apiProvisioned?: ((args: { threadId: ThreadId; runner: ERunner }) => boolean) | undefined
 }): PrEventForwarder {
   const channels = new Map<ThreadId, CloudChannel>()
   const runners = new Map<ThreadId, ERunner>()
-  const bridgeFor = (threadId: ThreadId) =>
-    args.bridge({ runner: runners.get(threadId) ?? ERunner.Vercel })
+  const bridgeFor = (threadId: ThreadId) => {
+    const runner = runners.get(threadId) ?? ERunner.Vercel
+    return args.bridge({
+      runner,
+      apiProvisioned: args.apiProvisioned?.({ threadId, runner }) ?? false,
+    })
+  }
 
   const channelFor = (threadId: ThreadId): CloudChannel => {
     const held = channels.get(threadId)

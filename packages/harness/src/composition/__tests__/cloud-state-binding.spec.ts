@@ -90,7 +90,7 @@ beforeEach(async () => {
   process.env.ATLAS_HOME = atlasHome
   calls = []
   cloudAccounts = [ACCOUNT]
-  cloudSettings = new Map([[ESettingId.SmoothStreaming, encodeSettingValue(false)]])
+  cloudSettings = new Map([[ESettingId.ReloadInstructions, encodeSettingValue(false)]])
   server = Bun.serve({ port: 0, fetch: handle })
 })
 
@@ -111,7 +111,7 @@ const signIn = (): void => {
   })
 }
 
-const compose = async (cloudState: boolean | undefined) => {
+const compose = async (cloudState: boolean | undefined, settingsOnly = false) => {
   const notices = recordingNotices()
   const app = await composeHarness<undefined, never>({
     launch: { cwd: project, command: 'atlas-test', model: undefined, executionLocation: undefined },
@@ -120,7 +120,8 @@ const compose = async (cloudState: boolean | undefined) => {
     ports: testPortBindings(),
     clientVersion: 'cloud-state-spec',
     surface: { notice: notices.port },
-    ...(cloudState === undefined ? {} : { cloudState }),
+    cloudSettings: cloudState === true || settingsOnly,
+    cloudSecretsAndAccounts: cloudState === true && !settingsOnly,
   })
   opened.push(app)
   return { app, notices }
@@ -173,11 +174,11 @@ describe('composeHarness with cloudState on', () => {
     signIn()
     const { app } = await compose(true)
 
-    expect(app.settings.snapshot().resolution.settings.get(ESettingId.SmoothStreaming)?.value).toBe(
-      false,
-    )
+    expect(
+      app.settings.snapshot().resolution.settings.get(ESettingId.ReloadInstructions)?.value,
+    ).toBe(false)
 
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+    expect(app.settings.set({ id: ESettingId.InstructionFilenames, value: 'claude' })).toEqual({
       ok: true,
     })
     expect(app.settings.set({ id: ESettingId.Accent, value: 'moss' })).toEqual({ ok: true })
@@ -186,15 +187,15 @@ describe('composeHarness with cloudState on', () => {
     const puts = requestsTo('settings').filter(isWrite)
     expect(puts).toHaveLength(1)
     expect(puts[0]?.body).toEqual({
-      key: ESettingId.ThinkingBlocks,
-      value: encodeSettingValue('hidden'),
+      key: ESettingId.InstructionFilenames,
+      value: encodeSettingValue('claude'),
     })
 
     expect(localSettingsFile()[ESettingId.Accent]).toBe('moss')
-    expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBeUndefined()
-    expect(app.settings.snapshot().resolution.settings.get(ESettingId.ThinkingBlocks)?.value).toBe(
-      'hidden',
-    )
+    expect(localSettingsFile()[ESettingId.InstructionFilenames]).toBeUndefined()
+    expect(
+      app.settings.snapshot().resolution.settings.get(ESettingId.InstructionFilenames)?.value,
+    ).toBe('claude')
   })
 
   it('does not post the legacy local-accounts notice even when the cloud holds no accounts', async () => {
@@ -217,6 +218,22 @@ describe('composeHarness with cloudState on', () => {
 
     expect(calls).toEqual([])
     expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBe('hidden')
+  })
+})
+
+describe('composeHarness with cloud settings only', () => {
+  it('reads Cloud settings while secrets and accounts stay local', async () => {
+    signIn()
+    const { app } = await compose(undefined, true)
+
+    expect(
+      app.settings.snapshot().resolution.settings.get(ESettingId.ReloadInstructions)?.value,
+    ).toBe(false)
+    expect(requestsTo('settings').length).toBeGreaterThan(0)
+    expect(await app.accounts.list()).toEqual([])
+    expect(app.secrets.read('search.tavily')).toBeUndefined()
+    expect(requestsTo('secrets')).toEqual([])
+    expect(requestsTo('accounts')).toEqual([])
   })
 })
 

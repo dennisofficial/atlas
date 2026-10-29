@@ -1,11 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { z } from 'zod'
 
-import {
-  encodePinnedModels,
-  parsePinnedModels,
-  PINNED_MODELS_FALLBACK,
-} from '@dltech/atlas-wire/web'
+import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'
 
 import { fetchAccounts } from '@/features/settings/data/personal/accounts-api'
 import { useCloudSettings } from '@/lib/cloud-settings'
@@ -26,7 +22,10 @@ export type ModelPicker = {
 }
 
 export function useModelPicker(args: { currentId?: string | undefined } = {}): ModelPicker {
-  const source = useCloudQuery({ key: 'model-picker-source', load: loadSource })
+  const source = useCloudQuery({
+    key: 'model-picker-source',
+    load: loadSource,
+  })
   const settings = useCloudSettings()
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const { save, read } = settings
@@ -40,15 +39,13 @@ export function useModelPicker(args: { currentId?: string | undefined } = {}): M
     [source.data, args.currentId],
   )
 
-  const stored = parsePinnedModels(
-    read({ key: 'web.models.pinned', schema: z.string() }) || PINNED_MODELS_FALLBACK,
-  )
+  const stored = decodeModelFavourites(read({ key: 'model.favourites', schema: z.string() }))
   const pinned = localPinned ?? stored
 
   const handlePinnedChange = useCallback(
     (ids: string[]) => {
       setLocalPinned(ids)
-      save({ 'web.models.pinned': encodePinnedModels(ids) }).catch(() => setLocalPinned(null))
+      save({ 'model.favourites': encodeModelFavourites(ids) }).catch(() => setLocalPinned(null))
     },
     [save],
   )

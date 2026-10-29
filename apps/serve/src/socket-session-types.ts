@@ -69,7 +69,6 @@ export type SessionHandlersArgs = {
   checkpoint?: (() => RuntimeCheckpoint | null) | undefined
   checkpointChanged?: (() => void) | undefined
   log: ServeLog
-  applyUserSettings?: ((content: string) => void) | undefined
   roster?: ServeRoster | undefined
   /** The github plugin's live PR readings; absent in fakes, which answer empty. */
   prStates?: ServePrStates | undefined

@@ -15,7 +15,7 @@ import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
-import { isUnread, threadStatusOf } from './thread-status'
+import { isUnread, isWorking, threadStatusOf } from './thread-status'
 import { UnreadDot } from './unread-dot'
 
 export interface ThreadRowProps {
@@ -47,7 +47,9 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           className="min-w-0 flex-1 text-sm"
         >
           <ThreadStatusIcon status={threadStatusOf(thread)} />
-          <span>{thread.title ?? UNTITLED}</span>
+          <span className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}>
+            {thread.title ?? UNTITLED}
+          </span>
         </SidebarMenuButton>
         {isUnread({ thread, active }) ? <UnreadDot /> : null}
         {pinned ? (
@@ -57,7 +59,7 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
             className="mr-2 size-3 shrink-0 text-muted-foreground group-hover/thread:hidden group-data-popup-open/thread:hidden"
           />
         ) : null}
-        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
+        <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex pointer-coarse:flex">
           <RowAction
             label={archived ? 'Unarchive thread' : 'Archive thread'}
             onClick={handleArchive}

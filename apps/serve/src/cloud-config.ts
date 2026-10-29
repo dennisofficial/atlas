@@ -45,14 +45,19 @@ export const mergeCloudMcpServers = (args: {
 export const exportEnvSecrets = (args: {
   env: Record<string, string | undefined>
   secrets: readonly CloudSecret[]
+  exported?: Set<string> | undefined
 }): number => {
-  let exported = 0
+  const previous = args.exported ?? new Set<string>()
+  const current = new Set<string>()
   for (const secret of args.secrets) {
     if (secret.kind !== ESecretKind.EnvVar) continue
     if (!ENV_NAME_PATTERN.test(secret.name) || secret.name.startsWith(RESERVED_ENV_PREFIX)) continue
-    if (args.env[secret.name] !== undefined) continue
+    if (args.env[secret.name] !== undefined && !previous.has(secret.name)) continue
     args.env[secret.name] = secret.value
-    exported += 1
+    current.add(secret.name)
   }
-  return exported
+  for (const name of previous) if (!current.has(name)) delete args.env[name]
+  previous.clear()
+  for (const name of current) previous.add(name)
+  return current.size
 }

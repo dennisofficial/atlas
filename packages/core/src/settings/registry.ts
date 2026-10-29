@@ -2,7 +2,12 @@ import { EExecutionLocation } from '../execution/location'
 import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
 import { EClassifierMode } from '../policy/classifier/triage'
 import { EWebSearchBackend } from '../web/search'
-import { ESettingPage, type SettingDefinition, type SettingPage } from './definition'
+import {
+  ESettingPage,
+  ESettingStorage,
+  type SettingDefinition,
+  type SettingPage,
+} from './definition'
 import {
   DECISIONS_PRESETS,
   DEFAULT_DECISIONS_MODEL,
@@ -100,6 +105,7 @@ const onCustomDecisions = (args: { resolution: SettingsResolution }): boolean =>
 export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
     id: ESettingId.SmoothStreaming,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'Smooth streaming',
@@ -111,6 +117,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ThinkingBlocks,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'Thinking blocks',
@@ -127,6 +134,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ImageRows,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'Tallest image',
@@ -142,6 +150,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.FenceWrap,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'Soft-wrap fences',
@@ -158,6 +167,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.TldrFooter,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'tl;dr footer',
@@ -169,6 +179,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.TldrStatus,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'tl;dr status pill',
@@ -180,6 +191,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.Editor,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Transcript',
     label: 'Editor',
@@ -198,6 +210,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.SidebarWidth,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Layout',
     label: 'Sidebar width',
@@ -213,6 +226,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.SidebarFoldBelow,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Layout',
     label: 'Fold the sidebar below',
@@ -319,6 +333,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.FooterMeters,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Usage meters',
     label: 'Meters in the footer',
@@ -335,6 +350,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.WarnFiveHour,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Usage meters',
     label: 'Warn on the session window at',
@@ -350,6 +366,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.WarnWeekly,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Usage meters',
     label: 'Warn on the weekly window at',
@@ -396,6 +413,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.NoticeSeconds,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Notifications',
     label: 'Toast duration',
@@ -411,6 +429,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.AutoRestart,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Development',
     label: 'Restart atlas-dev when it goes stale',
@@ -483,6 +502,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
     id: ESettingId.Accent,
     page: ESettingPage.Appearance,
+    storage: ESettingStorage.Local,
     group: 'Colour',
     label: 'Accent',
     description:
@@ -500,6 +520,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
     id: ESettingId.BlockPadding,
     page: ESettingPage.Appearance,
+    storage: ESettingStorage.Local,
     group: 'Density',
     label: 'Block padding',
     description:
@@ -515,6 +536,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
     id: ESettingId.ComposerEdge,
     page: ESettingPage.Appearance,
+    storage: ESettingStorage.Local,
     group: 'Composer',
     label: 'Composer edge',
     description:
@@ -531,6 +553,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   {
     id: ESettingId.Logo,
     page: ESettingPage.Appearance,
+    storage: ESettingStorage.Local,
     group: 'Logo',
     label: 'Logo',
     description:
@@ -681,13 +704,14 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Model',
     label: 'Pinned models',
     description:
-      'The models the switcher gathers into its own group at the top of the list, in the order they were pinned. Written by the switcher rather than set here.',
+      'The models the switcher gathers into its own group at the top of the list, in the order they were pinned. Written by the switcher rather than set here. Expects a JSON array of model refs.',
     environmentVariable: 'ATLAS_MODEL_FAVOURITES',
     kind: ESettingKind.Text,
     fallback: '',
   },
   {
     id: ESettingId.LastBornPlacement,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Hidden,
     group: 'Execution',
     label: 'Last chosen thread runner',
@@ -703,6 +727,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ExecutionLocation,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Execution',
     label: 'Where sessions run',
@@ -718,6 +743,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ContainerCpus,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Execution',
     label: 'Container CPUs',
@@ -734,6 +760,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ContainerMemory,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Execution',
     label: 'Container memory',
@@ -750,6 +777,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ContainerIdleMinutes,
+    storage: ESettingStorage.Local,
     page: ESettingPage.General,
     group: 'Execution',
     label: 'Stop an idle container after',
@@ -765,6 +793,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.VercelToken,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',
     label: 'Vercel token',
@@ -787,6 +816,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.ExperimentalPods,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Experimental,
     group: 'Placement',
     label: 'pods',
@@ -798,6 +828,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   {
     id: ESettingId.PlacementChooserShape,
+    storage: ESettingStorage.Local,
     page: ESettingPage.Experimental,
     group: 'Placement',
     label: 'placement chooser shape',
