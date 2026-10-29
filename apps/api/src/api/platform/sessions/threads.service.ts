@@ -24,6 +24,15 @@ const THREAD_LISTING_LIMIT = 50
 
 export type OpenThreadDraft = Omit<OpenThreadInput, 'id'> & { threadId?: string | undefined }
 
+const withinFamily = ({
+  row,
+  confinedTo,
+}: {
+  row: { id: string; spawnerThreadId: string | null }
+  confinedTo: string | undefined
+}): boolean =>
+  confinedTo === undefined || row.id === confinedTo || row.spawnerThreadId === confinedTo
+
 const createColumnsOf = (args: {
   userId: string
   draft: ThreadDraft
@@ -79,12 +88,18 @@ export class ThreadsService {
 
   async open(args: {
     userId: string
+    confinedTo?: string | undefined
     draft: OpenThreadDraft
   }): Promise<{ thread: ThreadDto; events: EventDto[] }> {
     const threadId = args.draft.threadId ?? nextThreadId()
     const existing = await db.orm.public.Thread.where({ id: threadId }).select('id').first()
     if (existing !== null) {
-      const reopened = await this.reopen({ userId: args.userId, draft: args.draft, threadId })
+      const reopened = await this.reopen({
+        userId: args.userId,
+        confinedTo: args.confinedTo,
+        draft: args.draft,
+        threadId,
+      })
       if (reopened.moved) {
         await this.signals.headMoved({ threadId, head: reopened.thread.head })
       }
@@ -128,12 +143,16 @@ export class ThreadsService {
    */
   private async reopen(args: {
     userId: string
+    confinedTo: string | undefined
     draft: OpenThreadDraft
     threadId: string
   }): Promise<{ thread: ThreadDto; events: EventDto[]; moved: boolean }> {
     return db.transaction(async (tx) => {
       const row = await tx.orm.public.Thread.where({ id: args.threadId }).all().firstOrThrow()
       if (row.userId !== args.userId) throw new ForbiddenException('thread belongs to another user')
+      if (!withinFamily({ row, confinedTo: args.confinedTo })) {
+        throw new ForbiddenException('a pod or sandbox token reopens only its own thread family')
+      }
 
       const storedCount = row.head
       if (args.draft.drafts.length < storedCount) {
