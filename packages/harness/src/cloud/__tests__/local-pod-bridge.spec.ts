@@ -147,6 +147,74 @@ describe('createLocalPodBridge birth', () => {
     expect(registered).toEqual([])
   })
 
+  it('registers a born thread with its project, model and effort before the pod is created', async () => {
+    const { driver, events } = fakePodDriver({ created: true })
+    const registeredThreads: unknown[] = []
+
+    await podBridgeWith({
+      driver,
+      events,
+      overrides: {
+        registerThread: async (thread) => {
+          events.push('thread')
+          registeredThreads.push(thread)
+        },
+      },
+    }).sandboxes.create({
+      threadId,
+      projectId: 'proj_1',
+      model: 'claude-x',
+      birth: { effort: 'high' },
+    })
+
+    expect(events[0]).toBe('thread')
+    expect(events.slice(1)).toEqual([
+      'create',
+      'register',
+      `write:${WORKSPACE_SPEC_PATH}`,
+      'launch',
+      'register',
+    ])
+    expect(registeredThreads).toEqual([
+      { threadId, projectId: 'proj_1', model: 'claude-x', effort: 'high' },
+    ])
+  })
+
+  it('registers no thread when the create carries no birth', async () => {
+    const { driver } = fakePodDriver({ created: false })
+    const registeredThreads: unknown[] = []
+
+    await podBridgeWith({
+      driver,
+      overrides: {
+        registerThread: async (thread) => {
+          registeredThreads.push(thread)
+        },
+      },
+    }).sandboxes.create({ threadId, projectId: null })
+
+    expect(registeredThreads).toEqual([])
+  })
+
+  it('still boots the pod when the thread cannot be registered, and logs why', async () => {
+    const { driver, created } = fakePodDriver({ created: true })
+    const logged: string[] = []
+
+    const sandbox = await podBridgeWith({
+      driver,
+      overrides: {
+        registerThread: async () => {
+          throw new Error('signed out')
+        },
+        onDriverLog: (line) => logged.push(line),
+      },
+    }).sandboxes.create({ threadId, projectId: null, birth: { effort: 'low' } })
+
+    expect(created).toHaveLength(1)
+    expect(sandbox.created).toBe(true)
+    expect(logged).toEqual(['thread registration failed: signed out'])
+  })
+
   it('offers no sandbox registration, authorization, omission or checkpoint hooks', () => {
     const { driver } = fakePodDriver({ created: true })
     const bridge = podBridgeWith({ driver })
