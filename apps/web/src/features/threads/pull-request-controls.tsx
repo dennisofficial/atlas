@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/compon
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+import { ChecksTally } from './checks-tally'
 import { hasConflicts, type PullRequestBadge } from './data/header-model'
 import type { PullRequestRow } from './data/pull-request-rows'
 import type { PullRequestBell } from './data/subscription-model'
@@ -30,10 +31,10 @@ export type PullRequestControlsProps = {
 }
 
 const STATE_ICON: Record<string, { icon: LucideIcon; tone: string; label: string }> = {
-  open: { icon: GitPullRequestIcon, tone: 'text-success', label: 'Open' },
-  draft: { icon: GitPullRequestDraftIcon, tone: 'text-muted-foreground', label: 'Draft' },
-  merged: { icon: GitMergeIcon, tone: 'text-primary', label: 'Merged' },
-  closed: { icon: GitPullRequestClosedIcon, tone: 'text-destructive', label: 'Closed' },
+  open: { icon: GitPullRequestIcon, tone: 'text-pr-open', label: 'Open' },
+  draft: { icon: GitPullRequestDraftIcon, tone: 'text-pr-draft', label: 'Draft' },
+  merged: { icon: GitMergeIcon, tone: 'text-pr-merged', label: 'Merged' },
+  closed: { icon: GitPullRequestClosedIcon, tone: 'text-pr-closed', label: 'Closed' },
 }
 
 function StateIcon({ state }: { state: string | undefined }) {
@@ -49,14 +50,13 @@ function StateIcon({ state }: { state: string | undefined }) {
 }
 
 function PullRequestChip({ pullRequest }: { pullRequest: PullRequestBadge }) {
+  const stateKey = pullRequest.stateLabel?.toLowerCase()
   return (
     <Badge variant="outline" render={<a href={pullRequest.url} target="_blank" rel="noreferrer" />}>
-      <GitPullRequestIcon />
+      <StateIcon state={stateKey} />
       <span className="font-mono">{pullRequest.label}</span>
       {pullRequest.stateLabel}
-      {pullRequest.checksLabel === undefined ? null : (
-        <span className="text-muted-foreground tabular-nums">{pullRequest.checksLabel}</span>
-      )}
+      {pullRequest.checks === undefined ? null : <ChecksTally checks={pullRequest.checks} />}
       {hasConflicts(pullRequest) ? <span className="text-muted-foreground">conflicts</span> : null}
     </Badge>
   )
@@ -109,16 +109,7 @@ function PullRequestRowItem(props: {
         <span className="truncate font-mono text-xs text-muted-foreground">{row.branch}</span>
       </a>
       <span className="flex shrink-0 flex-col items-end text-xs">
-        {row.checksLabel === undefined ? null : (
-          <span
-            className={cn(
-              'tabular-nums',
-              row.failing ? 'text-destructive' : 'text-muted-foreground',
-            )}
-          >
-            {row.checksLabel}
-          </span>
-        )}
+        {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
         {row.conflicts ? <span className="text-muted-foreground">conflicts</span> : null}
       </span>
       {bell ? (
