@@ -60,7 +60,6 @@ const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = it
           items={rows}
           failure={null}
           pod={null}
-          bootNow={0}
           working={false}
           onRetryBoot={() => undefined}
           rewind={rewind}
