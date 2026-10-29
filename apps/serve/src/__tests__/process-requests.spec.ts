@@ -3,63 +3,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
-import {
-  EKilledBy,
-  EServiceStatus,
-  EShellStatus,
-  EStopAction,
-  toThreadId,
-} from '@dltech/atlas-core'
-import {
-  EClientFrame,
-  EClientRequest,
-  EServeFrame,
-  toShellId,
-  type ServiceSnapshot,
-  type ShellSnapshot,
-  type StartShellArgs,
-} from '@dltech/atlas-harness'
+import { EKilledBy, EServiceStatus, EShellStatus, EStopAction } from '@dltech/atlas-core'
+import { EClientFrame, EClientRequest, type StartShellArgs } from '@dltech/atlas-harness'
 
-import { EWorkspaceState, startServe, type ServeHandle } from '../index'
-import { answerProcessRequest, type ServeProcesses } from '../process-requests'
+import { answerProcessRequest } from '../process-requests'
 import type { RequestFrame } from '../request-reply'
 
-import { connect } from './client'
-import { fakeServeApp } from './fakes'
-
-const threadId = toThreadId('thread-processes')
-const TOKEN = 'session-token'
-
-const SHELL: ShellSnapshot = {
-  shellId: toShellId('shell-1'),
-  threadId,
-  command: 'bun run dev',
-  description: 'dev server',
-  status: EShellStatus.Running,
-  startedAt: '2026-10-28T10:00:00.000Z',
-  lastOutputAt: '2026-10-28T10:00:01.000Z',
-  totalCharacters: 12,
-  awaitingInput: false,
-}
-
-const SERVICE: ServiceSnapshot = {
-  serviceId: 'svc-1',
-  command: 'bun run preview',
-  description: 'preview server',
-  status: EServiceStatus.Running,
-  logPath: '/nowhere/svc-1.log',
-  startedAt: '2026-10-28T10:00:00.000Z',
-}
+import { fakeProcesses, SERVICE, SHELL, threadId } from './process-requests-fixture'
 
 const homes: string[] = []
-const running: ServeHandle[] = []
-let heldAtlasHome: string | undefined
 
-afterEach(async () => {
-  if (heldAtlasHome === undefined) delete process.env.ATLAS_HOME
-  else process.env.ATLAS_HOME = heldAtlasHome
-  heldAtlasHome = undefined
-  while (running.length > 0) await running.pop()?.close()
+afterEach(() => {
   for (const home of homes.splice(0, homes.length)) rmSync(home, { recursive: true, force: true })
 })
 
@@ -72,24 +26,6 @@ const scratch = (): string => {
 const request = (args: { id: string; op: EClientRequest; params: unknown }): RequestFrame => ({
   kind: EClientFrame.Request,
   ...args,
-})
-
-const fakeProcesses = (overrides: {
-  shells?: Partial<ServeProcesses['shells']>
-  services?: Partial<ServeProcesses['services']>
-}): ServeProcesses => ({
-  shells: {
-    start: async () => ({ ok: true, snapshot: SHELL }),
-    peek: async () => 'tail',
-    kill: () => ({ ok: true, snapshot: SHELL }),
-    ...overrides.shells,
-  },
-  services: {
-    list: () => [SERVICE],
-    stop: () => ({ ok: true, snapshot: SERVICE, action: EStopAction.Term }),
-    ...overrides.services,
-  },
-  cwd: '/workspace',
 })
 
 describe('answerProcessRequest', () => {
@@ -314,48 +250,5 @@ describe('answerProcessRequest', () => {
       data: { message: 'kill-shell wants { threadId, shellId }' },
     })
     expect(touched).toBe(false)
-  })
-})
-
-describe('the process-control router branch', () => {
-  it('refuses the ops on a serve composed without process registries', async () => {
-    heldAtlasHome = process.env.ATLAS_HOME
-    process.env.ATLAS_HOME = scratch()
-    const app = fakeServeApp({ threadId, root: '/workspace' })
-    const handle = await startServe({
-      threadId,
-      port: 0,
-      token: TOKEN,
-      controlPlaneUrl: 'https://api.example.com',
-      env: {},
-      cwd: '/workspace',
-      compose: async () => app,
-      ensureWorkspace: async () => ({ state: EWorkspaceState.Skipped }),
-      fetchFn: (async () => new Response(null, { status: 204 })) as unknown as typeof fetch,
-    })
-    running.push(handle)
-    const client = await connect({ port: handle.port, token: TOKEN })
-    client.send({
-      kind: EClientFrame.Hello,
-      threadId,
-      channelCursor: null,
-      lastEventSeq: 0,
-    })
-    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
-
-    client.send({
-      kind: EClientFrame.Request,
-      id: 'kill-4',
-      op: EClientRequest.KillShell,
-      params: { threadId, shellId: 'shell-1' },
-    })
-    const reply = await client.waitFor(
-      (frame) => frame.kind === EServeFrame.Reply && frame.replyTo === 'kill-4',
-    )
-
-    expect(reply).toMatchObject({
-      ok: false,
-      data: { message: 'this serve holds no process registries' },
-    })
   })
 })

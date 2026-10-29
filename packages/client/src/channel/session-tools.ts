@@ -21,7 +21,7 @@ import {
 
 import { EClientRequest } from './channel-wire'
 import type { Unsubscribe } from './delta-channel-types'
-import { RemoteRequestFailed } from './remote-channel-upstream'
+import { RemoteRequestFailed, RemoteRequestLost } from './remote-channel-upstream'
 import type { RemoteDeltaChannel, TerminalFrameChannel } from './remote-delta-channel-types'
 
 export type RequestChannel = Pick<RemoteDeltaChannel, 'request'>
@@ -69,7 +69,9 @@ const refusedOr = async <T>(args: {
   try {
     return await args.request()
   } catch (error) {
-    if (error instanceof RemoteRequestFailed) return args.refused(error.message)
+    if (error instanceof RemoteRequestFailed || error instanceof RemoteRequestLost) {
+      return args.refused(error.message)
+    }
     throw error
   }
 }

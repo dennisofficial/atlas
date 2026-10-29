@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EClientRequest } from '../channel-wire'
-import { RemoteRequestFailed } from '../remote-channel-upstream'
+import { RemoteRequestFailed, RemoteRequestLost } from '../remote-channel-upstream'
 import {
   killShell,
   readServiceLog,
@@ -160,6 +160,26 @@ describe('the process-control helpers', () => {
     expect(stopped).toEqual({
       ok: false,
       reason: 'The sandbox refused the stop-service request: unknown request op.',
+    })
+    expect(log).toBe('')
+  })
+
+  it('a request the socket never answered reads as a refusal, never a throw', async () => {
+    const { channel } = fakeChannel((op) => {
+      throw new RemoteRequestLost({ op, reason: 'the socket closed' })
+    })
+
+    const output = await readShellOutput({
+      channel,
+      threadId: 'thread-1',
+      shellId: 'shell-1',
+      characters: 4000,
+    })
+    const log = await readServiceLog({ channel, serviceId: 'svc-1', characters: 4000 })
+
+    expect(output).toEqual({
+      ok: false,
+      reason: 'The read-shell-output request was never answered: the socket closed.',
     })
     expect(log).toBe('')
   })
