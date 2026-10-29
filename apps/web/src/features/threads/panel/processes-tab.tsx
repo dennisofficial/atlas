@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { WifiOffIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -18,6 +18,7 @@ import {
   serviceToneOf,
   shellReadoutOf,
   shellToneOf,
+  type ProcessRef,
 } from '../data/processes-model'
 import { useNow } from '../data/use-now'
 import { useProcesses, type ProcessesData } from '../data/use-processes'
@@ -33,10 +34,11 @@ function Section(props: {
   running: number
   total: number
   empty: string
+  lead?: ReactNode
   children: ReactNode
 }) {
-  const { title, running, total, empty, children } = props
-  const headingId = `processes-${title.toLowerCase()}`
+  const { title, running, total, empty, lead, children } = props
+  const headingId = useId()
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2 id={headingId} className="flex items-baseline gap-2 text-xs font-medium">
@@ -47,6 +49,7 @@ function Section(props: {
           </span>
         )}
       </h2>
+      {lead}
       {total === 0 ? (
         <p className="text-sm text-muted-foreground">{empty}</p>
       ) : (
@@ -65,9 +68,11 @@ function RunCommand(props: { onStart: (command: string) => Promise<boolean> }) {
     event.preventDefault()
     if (trimmed === '' || starting) return
     setStarting(true)
-    const started = await props.onStart(trimmed)
-    setStarting(false)
-    if (started) setCommand('')
+    try {
+      if (await props.onStart(trimmed)) setCommand('')
+    } finally {
+      setStarting(false)
+    }
   }
 
   return (
@@ -96,18 +101,21 @@ export function ProcessesList(props: { data: ProcessesData }) {
   const runningServices = services.filter(isServiceRunning).length
   const now = useNow(runningShells + runningServices > 0)
 
-  const isOpen = (kind: EProcessKind, id: string) => selected?.kind === kind && selected.id === id
-  const toggle = (kind: EProcessKind, id: string) =>
-    handleSelect(isOpen(kind, id) ? null : { kind, id })
+  const isOpen = (ref: ProcessRef) => selected?.kind === ref.kind && selected.id === ref.id
+  const toggle = (ref: ProcessRef) => handleSelect(isOpen(ref) ? null : ref)
 
   return (
     <div className="flex flex-col gap-5 p-3">
-      {notice === null ? null : (
-        <p role="status" className="text-sm text-muted-foreground">
-          {notice}
-        </p>
-      )}
-      <Section title="Shells" running={runningShells} total={shells.length} empty={NO_SHELLS}>
+      <p role="status" className="text-sm text-muted-foreground empty:hidden">
+        {notice ?? ''}
+      </p>
+      <Section
+        title="Shells"
+        running={runningShells}
+        total={shells.length}
+        empty={NO_SHELLS}
+        lead={<RunCommand onStart={handleStart} />}
+      >
         {shells.map((shell) => (
           <ProcessRow
             key={shell.shellId}
@@ -125,14 +133,13 @@ export function ProcessesList(props: { data: ProcessesData }) {
                   }
                 : undefined
             }
-            expanded={isOpen(EProcessKind.Shell, shell.shellId)}
-            onToggle={() => toggle(EProcessKind.Shell, shell.shellId)}
+            expanded={isOpen({ kind: EProcessKind.Shell, id: shell.shellId })}
+            onToggle={() => toggle({ kind: EProcessKind.Shell, id: shell.shellId })}
             log={log}
             logCaption={`${shell.totalCharacters.toLocaleString('en-US')} chars`}
           />
         ))}
       </Section>
-      <RunCommand onStart={handleStart} />
       <Section
         title="Services"
         running={runningServices}
@@ -156,8 +163,8 @@ export function ProcessesList(props: { data: ProcessesData }) {
                   }
                 : undefined
             }
-            expanded={isOpen(EProcessKind.Service, service.serviceId)}
-            onToggle={() => toggle(EProcessKind.Service, service.serviceId)}
+            expanded={isOpen({ kind: EProcessKind.Service, id: service.serviceId })}
+            onToggle={() => toggle({ kind: EProcessKind.Service, id: service.serviceId })}
             log={log}
             logCaption={undefined}
           />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { CircleCheckIcon, CircleIcon, CircleXIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -26,7 +26,7 @@ const TONE_MARK: Record<EProcessTone, ReactNode> = {
 function ProcessLog(props: { text: string | null; caption: string | undefined }) {
   const scrollRef = useRef<HTMLPreElement>(null)
   const stuckRef = useRef(true)
-  const plain = props.text === null ? '' : plainLogOf(props.text)
+  const plain = useMemo(() => (props.text === null ? '' : plainLogOf(props.text)), [props.text])
 
   useLayoutEffect(() => {
     const element = scrollRef.current

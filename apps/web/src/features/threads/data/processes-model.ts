@@ -25,6 +25,8 @@ export const PEEKED_CHARACTERS = 64_000
 
 export const SERVICE_LOG_POLL_MS = 5_000
 
+export const SHELL_READ_GAP_MS = 500
+
 const READOUT_SEPARATOR = ' · '
 
 const ESCAPE_SEQUENCE =

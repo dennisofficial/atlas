@@ -1,5 +1,5 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -80,11 +80,21 @@ const panel: ThreadPanelValue = {
   refreshPod: () => undefined,
 }
 
+const mounted: Array<() => void> = []
+
+afterEach(async () => {
+  for (const unmount of mounted.splice(0)) await act(async () => unmount())
+})
+
 async function mount(data: ProcessesData) {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
+  mounted.push(() => {
+    root.unmount()
+    container.remove()
+  })
   await act(async () => root.render(<ProcessesList data={data} />))
   return container
 }
@@ -166,5 +176,69 @@ describe('ProcessesTab', () => {
   it('surfaces the notice', () => {
     const html = renderToStaticMarkup(<ProcessesList data={dataOf({ notice: 'no such shell' })} />)
     expect(html).toContain('no such shell')
+  })
+
+  it('renders a Stop button for a running service and calls handleStop', async () => {
+    const stopped: string[] = []
+    const container = await mount(
+      dataOf({
+        services: [service()],
+        handleStop: async (serviceId) => {
+          stopped.push(serviceId)
+        },
+      }),
+    )
+    const stop = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Stop',
+    )
+    await click(stop)
+    expect(stopped).toEqual(['svc_1'])
+  })
+
+  it('runs a command, clears the field on success and keeps it after a refusal', async () => {
+    const commands: string[] = []
+    let accepted = true
+    const container = await mount(
+      dataOf({
+        handleStart: async (command) => {
+          commands.push(command)
+          return accepted
+        },
+      }),
+    )
+    const input = container.querySelector('input')
+    const form = container.querySelector('form')
+    const type = async (value: string) =>
+      act(async () => {
+        if (input === null) return
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+        setter?.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+    const submit = async () =>
+      act(async () => {
+        form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+        await Bun.sleep(0)
+      })
+    await type('  ls -la ')
+    await submit()
+    expect(commands).toEqual(['ls -la'])
+    expect(input?.value).toBe('')
+    accepted = false
+    await type('false')
+    await submit()
+    expect(commands).toEqual(['ls -la', 'false'])
+    expect(input?.value).toBe('false')
+    const run = container.querySelector('button[type="submit"]')
+    expect(run?.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('selects a collapsed row on click', async () => {
+    const chosen: Array<ProcessRef | null> = []
+    const container = await mount(
+      dataOf({ shells: [shell()], handleSelect: (ref) => chosen.push(ref) }),
+    )
+    await click(container.querySelector('[aria-expanded="false"]'))
+    expect(chosen).toEqual([{ kind: EProcessKind.Shell, id: 'shell_1' }])
   })
 })
