@@ -1,0 +1,12 @@
+{
+  "placeholder": "_",
+  "fallbacks": [
+    { "pattern": "^/threads/[^/]+$", "file": "threads/_.html" },
+    { "pattern": "^/projects/[^/]+/settings$", "file": "projects/_/settings.html" },
+    {
+      "pattern": "^/projects/[^/]+/settings/(mcp|overview|sandbox|secrets)$",
+      "file": "projects/_/settings/$1.html"
+    }
+  ],
+  "notFound": "404.html"
+}

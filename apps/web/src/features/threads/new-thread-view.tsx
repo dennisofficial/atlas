@@ -6,6 +6,9 @@ import { toast } from 'sonner'
 
 import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
+import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
+import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
+import { useDesktop } from '@/features/desktop/use-desktop'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -37,6 +40,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     })
   const images = useComposerImages()
   const [creating, setCreating] = useState(false)
+  const desktop = useDesktop()
+  const [runner, setRunner] = useState(ERunnerChoice.Cloud)
   const attempt = useRef<{
     text: string
     images: SaidImageWire[]
@@ -44,6 +49,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     sendId: string
   } | null>(null)
   const projectId = selected === undefined ? (projects[0]?.id ?? null) : selected
+  const local =
+    desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
 
   const handleProjectChange = (next: string | null) => setSelected(next)
 
@@ -58,8 +65,28 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     attempt.current = { text, images: held, projectId, sendId }
     setCreating(true)
     try {
+      if (local && projectId !== null) {
+        const id = await createLocalThread({
+          threadId: newLocalThreadId(),
+          projectId,
+          ...createFieldsOf(selection),
+          text,
+          sendId,
+          images: held,
+        })
+        attempt.current = null
+        images.clear()
+        router.push(`/threads/${encodeURIComponent(id)}`)
+        return
+      }
       const { thread } = await createThread(
-        createThreadBodyOf({ projectId, text, sendId, images: held, ...createFieldsOf(selection) }),
+        createThreadBodyOf({
+          projectId,
+          text,
+          sendId,
+          images: held,
+          ...createFieldsOf(selection),
+        }),
       )
       attempt.current = null
       images.clear()
@@ -79,6 +106,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       {...images.composerProps}
       placeholder="Describe a task for Atlas…"
     >
+      <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
       <ModelPickerControls picker={picker} selection={selection} onSelectionChange={setChosen} />
       <div className="ml-auto flex min-w-0">
         <ProjectSelect

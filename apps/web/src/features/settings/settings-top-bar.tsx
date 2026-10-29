@@ -10,7 +10,10 @@ import { useReturnPath } from '../shell/return-path'
 export function SettingsTopBar() {
   const backHref = useReturnPath()
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3 md:grid md:grid-cols-[1fr_auto_1fr]">
+    <header
+      data-chrome="titlebar-start"
+      className="flex h-12 shrink-0 items-center gap-2 border-b px-3 md:grid md:grid-cols-[1fr_auto_1fr]"
+    >
       <Button
         variant="ghost"
         size="sm"

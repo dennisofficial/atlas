@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 import { changeThreadModel } from './change-thread-model'
 import type { ThreadModelChoice } from './live-thread-view'
 import { existingSelectionOf, UNSET_SELECTION, type ModelSelection } from './model-selection'
-import { patchThreadModel } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 import { useModelPicker } from './use-model-picker'
 import { messageOf } from './use-send'
 
 export function useThreadModel(args: { threadId: string; stored: ThreadModelChoice | undefined }) {
+  const backend = useThreadBackend()
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const selection = chosen ?? existingSelectionOf(args.stored)
   const picker = useModelPicker({
@@ -28,7 +29,7 @@ export function useThreadModel(args: { threadId: string; stored: ThreadModelChoi
         threadId: args.threadId,
         model: { ref: args2.next.id, effort: args2.next.effort },
         chooseLive: args2.chooseLive,
-        patch: patchThreadModel,
+        patch: backend.patchModel,
       })
     } catch (failure) {
       toast.error(messageOf(failure))

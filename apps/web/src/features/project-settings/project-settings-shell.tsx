@@ -28,7 +28,10 @@ export function ProjectSettingsShell({
   const backHref = useReturnPath()
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-10 grid h-12 grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 md:grid-cols-[1fr_auto_1fr]">
+      <header
+        data-chrome="titlebar-start"
+        className="sticky top-0 z-10 grid h-12 grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 md:grid-cols-[1fr_auto_1fr]"
+      >
         <Button
           variant="ghost"
           size="sm"

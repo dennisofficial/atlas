@@ -7,7 +7,7 @@ import { sameImages } from './composer-images'
 import type { Handoff } from './composer-handoff'
 import { deliverMessage } from './send-message'
 import type { LiveSend } from './live-thread-view'
-import { provisionSandbox } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 
 type Attempt = { text: string; images: SaidImageWire[]; sendId: string }
 
@@ -24,6 +24,7 @@ export const isRetryOf = (args: {
   sameImages(args.previous.images, args.images)
 
 export function useSend() {
+  const backend = useThreadBackend()
   const [sending, setSending] = useState(false)
   const attempt = useRef<Attempt | null>(null)
 
@@ -43,7 +44,7 @@ export function useSend() {
       attempt.current = { text: args.text, images, sendId }
       setSending(true)
       try {
-        await deliverMessage({ ...args, sendId })
+        await deliverMessage({ ...args, sendId, post: backend.postMessage })
         attempt.current = null
         return { text: args.text, sendId }
       } catch (failure) {
@@ -53,16 +54,19 @@ export function useSend() {
         setSending(false)
       }
     },
-    [],
+    [backend],
   )
 
-  const retryBoot = useCallback(async (threadId: string): Promise<void> => {
-    try {
-      await provisionSandbox({ threadId })
-    } catch (failure) {
-      toast.error(messageOf(failure))
-    }
-  }, [])
+  const retryBoot = useCallback(
+    async (threadId: string): Promise<void> => {
+      try {
+        await backend.provision({ threadId })
+      } catch (failure) {
+        toast.error(messageOf(failure))
+      }
+    },
+    [backend],
+  )
 
   return { sending, send, retryBoot }
 }

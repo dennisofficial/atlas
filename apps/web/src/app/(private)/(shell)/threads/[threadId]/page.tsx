@@ -1,6 +1,10 @@
-import { ThreadView } from '@/features/threads/thread-view'
+import { ThreadRoute } from '@/features/threads/thread-route'
+import { STATIC_EXPORT_PLACEHOLDER, staticParamsForDesktop } from '@/lib/route-id'
 
-export default async function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
-  const { threadId } = await params
-  return <ThreadView threadId={threadId} />
+export function generateStaticParams() {
+  return staticParamsForDesktop({ threadId: STATIC_EXPORT_PLACEHOLDER })
+}
+
+export default function ThreadPage() {
+  return <ThreadRoute />
 }

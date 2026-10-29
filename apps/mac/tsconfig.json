@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/host", "src/main/vibrancy.ts", "src/main/__tests__"]
+}

@@ -44,6 +44,7 @@ export type LiveThreadControllerArgs = {
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
   onModelChanged?: (model: { ref: string; effort: string }) => void
+  catchUpOnConnect?: boolean
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   onStepOpened?: () => void
   onReset?: () => void
@@ -194,6 +195,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       reminted = 0
       update({ live: true })
       if (!connected) void recheckModel(live)
+      if (!connected && args.catchUpOnConnect) void readFromHead(live)
       connected = true
       return
     }

@@ -67,6 +67,22 @@
         "typescript": "6.0.3",
       },
     },
+    "apps/mac": {
+      "name": "@dltech/atlas-mac",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-api-router": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-harness": "workspace:*",
+        "@dltech/atlas-wire": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^26.3.0",
+        "typescript": "6.0.3",
+      },
+    },
     "apps/prototype": {
       "name": "@dltech/atlas-prototype",
       "version": "0.1.0",
@@ -725,6 +741,8 @@
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 
     "@dltech/atlas-harness": ["@dltech/atlas-harness@workspace:packages/harness"],
+
+    "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
 
     "@dltech/atlas-models": ["@dltech/atlas-models@workspace:packages/models"],
 

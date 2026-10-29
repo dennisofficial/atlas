@@ -1,0 +1,26 @@
+{
+  "name": "@dltech/atlas-mac",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build:web && hutch electrobun dev --watch",
+    "build:web": "bun run --cwd ../web build:desktop && rm -rf web-out && cp -R ../web/out web-out",
+    "build": "bun run build:web && hutch electrobun build --env=stable",
+    "typecheck": "tsc --noEmit",
+    "typecheck:main": "hutch electrobun prepare && tsc --noEmit -p tsconfig.main.json",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^26.3.0",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "@dltech/atlas-api-router": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
+    "zod": "^4.4.3"
+  }
+}

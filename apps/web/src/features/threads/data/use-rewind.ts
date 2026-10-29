@@ -13,14 +13,10 @@ import {
   type RewindSituation,
 } from './rewind-flow'
 import type { ThreadSource } from './thread-source'
-import { rewindThread } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 import { messageOf } from './use-send'
 
 type RewindSource = Pick<ThreadSource, 'applyRewind' | 'readRoster' | 'refreshEvents'>
-
-const applyOffline = async (args: { threadId: string; toSeq: number; cutAgents: string[] }) => {
-  await rewindThread(args)
-}
 
 export function useRewind(args: {
   situation: () => RewindSituation
@@ -34,6 +30,14 @@ export function useRewind(args: {
   handleConfirm: () => Promise<void>
 } {
   const { source, onRestore } = args
+  const backend = useThreadBackend()
+  const applyOffline = async (offline: {
+    threadId: string
+    toSeq: number
+    cutAgents: string[]
+  }) => {
+    await backend.rewind(offline)
+  }
   const [pick, setPick] = useState<RewindPick | null>(null)
   const [applying, setApplying] = useState(false)
   const inFlight = useRef(false)

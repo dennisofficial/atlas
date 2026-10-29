@@ -64,9 +64,11 @@ export function withoutTakenBack(args: {
 export async function takeBack(args: {
   threadId: string
   sendId: string
+  request?: typeof takeBackMessage | undefined
 }): Promise<ETakeBackOutcome> {
+  const { request = takeBackMessage, ...target } = args
   try {
-    await takeBackMessage(args)
+    await request(target)
     return ETakeBackOutcome.TakenBack
   } catch (failure) {
     if (failure instanceof CloudApiError && failure.status === CONFLICT) {
