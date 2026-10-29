@@ -7,6 +7,7 @@ import {
   latestBootAttemptOf,
 } from '@dltech/atlas-wire'
 import { db, type Tx } from '@dltech/atlas-db'
+import { podSessionOf } from '../sessions/session-of-thread'
 
 type Writer = Pick<Tx, 'orm'>
 
@@ -16,9 +17,10 @@ export async function recordBootSteps(args: {
   steps: readonly BootStepEvent[]
 }): Promise<void> {
   const writer = args.writer ?? db
+  const sessionId = await podSessionOf({ reader: writer, threadId: args.threadId })
   for (const step of args.steps) {
     await writer.orm.public.SandboxBootStep.create({
-      threadId: args.threadId,
+      sessionId,
       step: step.step,
       state: step.state,
       error: step.error ?? null,
@@ -32,9 +34,9 @@ export async function hasBootSteps(args: {
   reader?: Writer | undefined
   threadId: string
 }): Promise<boolean> {
-  const step = await (args.reader ?? db).orm.public.SandboxBootStep.first({
-    threadId: args.threadId,
-  })
+  const reader = args.reader ?? db
+  const sessionId = await podSessionOf({ reader, threadId: args.threadId })
+  const step = await reader.orm.public.SandboxBootStep.first({ sessionId })
   return step !== null
 }
 
@@ -51,9 +53,9 @@ export async function readBootSteps(args: {
   reader?: Writer | undefined
   threadId: string
 }): Promise<RecordedBootStep[]> {
-  const rows = await (args.reader ?? db).orm.public.SandboxBootStep.where({
-    threadId: args.threadId,
-  })
+  const reader = args.reader ?? db
+  const sessionId = await podSessionOf({ reader, threadId: args.threadId })
+  const rows = await reader.orm.public.SandboxBootStep.where({ sessionId })
     .orderBy((step) => step.at.asc())
     .all()
   return rows.flatMap((row) => {

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { podSessionOf } from '../sessions/session-of-thread'
 import { ownedSandbox } from './ownership'
 import { toSandboxDto } from './rows'
 import { SANDBOX_LIFECYCLE_COLUMNS, sandboxStateOf } from './sandbox-lifecycle'
@@ -27,8 +28,9 @@ export class SandboxEndpointService {
     userId: string
     threadId: string
   }): Promise<{ token: string; url: string } | null> {
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     const row = await db.orm.public.CloudSandbox.where({
-      threadId: args.threadId,
+      sessionId,
       userId: args.userId,
     })
       .select(...SANDBOX_LIFECYCLE_COLUMNS, 'name', 'sealedToken', 'serveUrl')
@@ -43,7 +45,7 @@ export class SandboxEndpointService {
     if (token === null) return null
     let observed: SandboxObservation
     try {
-      observed = await this.vercel.inspect({ threadId: row.threadId, name: row.name })
+      observed = await this.vercel.inspect({ threadId: args.threadId, name: row.name })
     } catch {
       return null
     }
@@ -55,19 +57,20 @@ export class SandboxEndpointService {
     const row = await ownedSandbox(args)
     if (row.serveUrl !== null) {
       return {
-        ...toSandboxDto(row),
+        ...toSandboxDto({ row, threadId: args.threadId }),
         ...(sandboxStateOf(row) === ESandboxState.Running ? { url: row.serveUrl } : {}),
       }
     }
     try {
-      const observed = await this.vercel.inspect({ threadId: row.threadId, name: row.name })
+      const observed = await this.vercel.inspect({ threadId: args.threadId, name: row.name })
       return {
-        ...toSandboxDto(row),
+        ...toSandboxDto({ row, threadId: args.threadId }),
         state: observed.state,
         ...(observed.url === undefined ? {} : { url: observed.url }),
       }
     } catch (failure) {
-      if (failure instanceof SandboxMissingError) return toSandboxDto(row)
+      if (failure instanceof SandboxMissingError)
+        return toSandboxDto({ row, threadId: args.threadId })
       throw failure
     }
   }

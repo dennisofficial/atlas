@@ -122,7 +122,7 @@ describe('ThreadPodService resize', () => {
 
     await expect(service.resize({ ...scope, vcpus: 4 })).rejects.toMatchObject({ status: 502 })
 
-    const row = await db.orm.public.CloudSandbox.first({ threadId: 'thr-1' })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId: 'ses_thr-1' })
     expect(row?.wakeFailedAt).not.toBeNull()
   })
 })

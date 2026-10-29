@@ -11,6 +11,7 @@ import {
   type ThreadLaunchReply,
 } from '../../../_core/ports/thread-launcher'
 import { appendWithin, nextRunId } from '../../platform/sessions/append'
+import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { toThreadDto } from '../../platform/sessions/rows'
 import { threadProjectColumn } from '../../platform/sessions/thread-project'
 import { ThreadsService } from '../../platform/sessions/threads.service'
@@ -72,7 +73,8 @@ export class ThreadLaunchService extends ThreadLauncher {
     })
 
     const row = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
-    const thread = toThreadDto(row)
+    const session = await sessionOfThread({ reader: db, threadId })
+    const thread = toThreadDto({ thread: row, session })
     if (!existing) await this.threads.announceCreated({ userId, threadId })
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
@@ -82,7 +84,8 @@ export class ThreadLaunchService extends ThreadLauncher {
   }
 
   private async provisionOf(threadId: string): Promise<SandboxProvisionReply> {
-    const row = await db.orm.public.CloudSandbox.first({ threadId })
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
     const standing = row === null ? undefined : standingStateOf(row)
     if (standing !== undefined) return { state: standing }
     const last = (await readBootSteps({ threadId })).at(-1)

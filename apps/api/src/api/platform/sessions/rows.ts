@@ -1,15 +1,22 @@
 import type { Row } from '@dltech/atlas-db'
 import type { EventDto, ThreadDto, TurnDto } from './sessions.types'
 
-export function toThreadDto(row: Row<'Thread'>): ThreadDto {
+export function toThreadDto({
+  thread: row,
+  session,
+}: {
+  thread: Row<'Thread'>
+  session: Row<'Session'>
+}): ThreadDto {
   return {
     id: row.id,
+    sessionId: row.sessionId,
     head: row.head,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    workspace: row.workspace,
-    repo: row.repo,
-    ...(row.title === null ? {} : { title: row.title }),
+    workspace: session.workspace,
+    repo: session.repo,
+    ...(session.title === null ? {} : { title: session.title }),
     ...(row.parentThreadId === null || row.forkSeq === null
       ? {}
       : { parent: { threadId: row.parentThreadId, forkSeq: row.forkSeq } }),
@@ -20,10 +27,10 @@ export function toThreadDto(row: Row<'Thread'>): ThreadDto {
     ...(row.modelRef === null || row.modelEffort === null
       ? {}
       : { model: { ref: row.modelRef, effort: row.modelEffort } }),
-    ...(row.executionLocation === null ? {} : { executionLocation: row.executionLocation }),
-    projectId: row.projectId,
-    pinnedAt: row.pinnedAt === null ? null : row.pinnedAt.toISOString(),
-    archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
+    ...(session.executionLocation === null ? {} : { executionLocation: session.executionLocation }),
+    projectId: session.projectId,
+    pinnedAt: session.pinnedAt === null ? null : session.pinnedAt.toISOString(),
+    archivedAt: session.archivedAt === null ? null : session.archivedAt.toISOString(),
   }
 }
 

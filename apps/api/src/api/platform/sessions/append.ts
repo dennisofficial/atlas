@@ -5,10 +5,12 @@ import type { EventDraftInput } from '@dltech/atlas-wire'
 import type { EventDto } from './sessions.types'
 import { toEventDto } from './rows'
 import { planSegments, type SessionReader } from './fork-chain'
+import { createSessionWithMainThread } from './create-session'
 import { advanceHead } from './thread-head'
 
 export const nextEventId = (): string => `evt_${randomUUID()}`
 export const nextThreadId = (): string => `brn_${randomUUID()}`
+export const nextSessionId = (): string => `ses_${randomUUID()}`
 export const nextRunId = (): string => `run_${randomUUID()}`
 
 type Identity = { slot: string; key: string; digest: string }
@@ -44,12 +46,16 @@ async function claimThread(args: {
     }
     return
   }
-  await args.tx.orm.public.Thread.create({
-    id: args.threadId,
-    userId: args.userId,
-    head: 0,
-    createdAt: args.at,
-    updatedAt: args.at,
+  await createSessionWithMainThread({
+    tx: args.tx,
+    session: { id: nextSessionId(), userId: args.userId, createdAt: args.at, updatedAt: args.at },
+    thread: {
+      id: args.threadId,
+      userId: args.userId,
+      head: 0,
+      createdAt: args.at,
+      updatedAt: args.at,
+    },
   })
 }
 

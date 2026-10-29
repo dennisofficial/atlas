@@ -27,7 +27,9 @@ describe('ThreadLaunchService with a client-chosen id', () => {
     expect(reply.provision).toEqual({ state: ESandboxProvisionState.Booting })
     expect(await threads()).toMatchObject([{ id: FIXED_ID, userId: 'usr-1', head: 1 }])
     expect(await eventsOf(FIXED_ID)).toHaveLength(1)
-    expect(await sandboxRows()).toMatchObject([{ threadId: FIXED_ID, state: 'resuming' }])
+    expect(await sandboxRows()).toMatchObject([
+      { sessionId: expect.any(String), state: 'resuming' },
+    ])
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
 

@@ -5,6 +5,7 @@ import {
   type ThreadSandboxCredentials,
 } from '../../../_core/ports/sandbox-credentials'
 import { db } from '@dltech/atlas-db'
+import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 
 @Injectable()
@@ -17,11 +18,12 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
   }
 
   async forThread(args: { threadId: string }): Promise<ThreadSandboxCredentials> {
-    const thread = await db.orm.public.Thread.select('userId', 'projectId').first({
+    const thread = await db.orm.public.Thread.select('userId', 'sessionId').first({
       id: args.threadId,
     })
     if (thread === null) return this.legacyCredentials()
-    if (thread.projectId === null && !(await this.apiProvisioned(args.threadId))) {
+    const session = await db.orm.public.Session.select('projectId').first({ id: thread.sessionId })
+    if (session?.projectId == null && !(await this.apiProvisioned(args.threadId))) {
       return this.legacyCredentials()
     }
     const credentials = await this.scoped.vercelCredentials({ thread: { userId: thread.userId } })
@@ -29,7 +31,8 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
   }
 
   private async apiProvisioned(threadId: string): Promise<boolean> {
-    const step = await db.orm.public.SandboxBootStep.where({ threadId }).select('id').first()
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const step = await db.orm.public.SandboxBootStep.where({ sessionId }).select('id').first()
     return step !== null
   }
 

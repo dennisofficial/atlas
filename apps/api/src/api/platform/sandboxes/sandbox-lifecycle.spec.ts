@@ -20,7 +20,7 @@ const lifecycleRow = (args: {
 }): SandboxLifecycleColumns => {
   if (args.phase === undefined) {
     return {
-      threadId: 'thr-1',
+      sessionId: 'ses_thr-1',
       state: args.state ?? 'parked',
       runtimeCheckpoint: null,
       runtimeCheckpointRevision: null,
@@ -44,7 +44,7 @@ const lifecycleRow = (args: {
     checkpoint: { ...record, phase: ERuntimePhase.Updating },
   }
   return {
-    threadId: 'thr-1',
+    sessionId: 'ses_thr-1',
     state: args.state ?? 'running',
     runtimeCheckpoint: args.phase === ERuntimePhase.Updating ? { ...record, receipt } : record,
     runtimeCheckpointRevision: 2,

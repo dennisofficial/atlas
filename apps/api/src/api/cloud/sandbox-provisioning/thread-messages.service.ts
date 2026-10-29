@@ -12,6 +12,7 @@ import {
   type ThreadMessageReply,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
+import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { ownedThread } from '../../platform/sessions/ownership'
@@ -55,7 +56,8 @@ export class ThreadMessagesService {
   }): Promise<ThreadMessageReply> {
     const { userId, threadId, sendId, text, images } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
-    if (thread.archivedAt !== null) await this.unarchive({ userId, threadId })
+    const session = await sessionOfThread({ reader: db, threadId })
+    if (session.archivedAt !== null) await this.unarchive({ userId, threadId })
 
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
     if (endpoint !== null) {
@@ -98,7 +100,8 @@ export class ThreadMessagesService {
   }
 
   private async unarchive(args: { userId: string; threadId: string }): Promise<void> {
-    await db.orm.public.Thread.where({ id: args.threadId }).update({ archivedAt: null })
+    const session = await sessionOfThread({ reader: db, threadId: args.threadId })
+    await db.orm.public.Session.where({ id: session.id }).update({ archivedAt: null })
     await this.signals.listChanged(args)
   }
 
@@ -151,7 +154,8 @@ export class ThreadMessagesService {
       await lockThread({ tx, threadId })
       const podLease = await tx.orm.public.LocalPodLease.where({ threadId }).select('id').first()
       if (podLease !== null) throw new ConflictException(LOCAL_POD_MESSAGE)
-      const existing = await tx.orm.public.CloudSandbox.first({ threadId })
+      const sessionId = await podSessionOf({ reader: tx, threadId })
+      const existing = await tx.orm.public.CloudSandbox.first({ sessionId })
       if (existing !== null && !(await hasBootSteps({ reader: tx, threadId }))) {
         throw new ConflictException(NOT_RUNNING_MESSAGE)
       }

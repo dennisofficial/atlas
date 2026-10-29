@@ -36,10 +36,9 @@ describe('registerPodChild', () => {
       userId: 'usr-1',
       spawnerThreadId: 'thr-1',
       agentType: 'explore',
-      workspace: '/workspace',
-      repo: 'acme/app',
-      executionLocation: 'cloud',
+      sessionId: 'ses_thr-1',
     })
+    expect(await db.orm.public.Session.where({ userId: 'usr-1' }).all()).toHaveLength(1)
   })
 
   it('is idempotent and reports the stored head', async () => {

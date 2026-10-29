@@ -4,6 +4,7 @@ import { sandboxProvisionReplySchema } from './sandbox-self-wire'
 
 export const wireThreadSchema = z.object({
   id: z.string(),
+  sessionId: z.string().optional(),
   title: z.string().optional(),
   head: z.number().int(),
   createdAt: z.string(),

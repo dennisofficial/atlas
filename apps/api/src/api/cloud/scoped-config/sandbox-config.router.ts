@@ -40,12 +40,16 @@ export class SandboxConfigRouter {
     @Input() input: SandboxConfigInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ResolvedSandboxConfig> {
-    const thread = await db.orm.public.Thread.select('projectId').first({
+    const thread = await db.orm.public.Thread.select('sessionId').first({
       id: machineThreadOf(ctx),
     })
+    const session =
+      thread === null
+        ? null
+        : await db.orm.public.Session.select('projectId').first({ id: thread.sessionId })
     return this.scoped.resolveForPod({
       userId: ctx.auth.userId,
-      projectId: thread?.projectId ?? requestedProjectOf(input),
+      projectId: session?.projectId ?? requestedProjectOf(input),
     })
   }
 }

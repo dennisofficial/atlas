@@ -39,7 +39,7 @@ describe('runThreadArchiveCleanup', () => {
 
   it('is superseded when the thread was archived again later', async () => {
     await seedSandboxRow({ threadId: 'thr_1' })
-    await db.orm.public.Thread.where({ id: 'thr_1' }).update({
+    await db.orm.public.Session.where({ id: 'ses_thr_1' }).update({
       archivedAt: new Date('2026-10-02T12:00:00.000Z'),
     })
 
@@ -68,7 +68,8 @@ describe('runThreadArchiveCleanup', () => {
     expect(result.outcome).toBe(EThreadArchiveCleanupOutcome.Parked)
     expect(park).toHaveBeenCalledTimes(1)
     expect(park).toHaveBeenCalledWith({
-      row: expect.objectContaining({ threadId: 'thr_1', name: row.name }),
+      row: expect.objectContaining({ sessionId: 'ses_thr_1', name: row.name }),
+      threadId: 'thr_1',
       reason: ARCHIVE_PARK_REASON,
     })
   })

@@ -31,7 +31,7 @@ describe('runPodProvision', () => {
     await seedThread()
     await seedSandboxRow()
     const payload = await payloadOf()
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
     })
     const { boot, calls } = fakeBoot()
@@ -177,7 +177,7 @@ describe('runPodProvision', () => {
     const payload = await payloadOf()
     const boot = {
       boot: async () => {
-        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+        await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
           wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
         })
         return { serveUrl: 'https://serve.example.test', created: true }
@@ -196,7 +196,7 @@ describe('runPodProvision', () => {
     const payload = await payloadOf()
     const boot = {
       boot: async () => {
-        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+        await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
           wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
         })
         throw new Error('vercel is down')
@@ -219,7 +219,7 @@ describe('runPodProvision', () => {
     const boot = {
       boot: async (args: Parameters<ReturnType<typeof fakeBoot>['boot']['boot']>[0]) => {
         await args.reporter?.report({ step: 'provision', state: 'running' } as never)
-        await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+        await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
           wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
         })
         await args.reporter?.report({ step: 'clone', state: 'running' } as never)
@@ -254,7 +254,7 @@ describe('failPodProvision', () => {
     await seedThread()
     await seedSandboxRow()
     const payload = await payloadOf()
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       wakeClaim: new Date(Date.parse(payload.wakeClaim) + 5_000),
     })
 

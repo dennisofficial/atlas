@@ -15,7 +15,7 @@ import {
   seedProvisionedRow,
   seedSandboxRow,
   seedThread,
-  threadRow,
+  sessionRow,
 } from './sandbox-provisioning.fixture'
 import { DISPATCH_FAILED_MESSAGE } from './pod-launch.service'
 import { LOCAL_POD_MESSAGE, NOT_RUNNING_MESSAGE } from './sandbox-provisioning-rows'
@@ -103,7 +103,7 @@ describe('SandboxProvisioningService (retry)', () => {
 
     expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
     expect(dispatch).toHaveBeenCalledTimes(1)
-    expect((await threadRow())?.executionLocation).toBe('cloud')
+    expect((await sessionRow())?.executionLocation).toBe('cloud')
   })
 
   it("does not provision another user's thread", async () => {
@@ -133,7 +133,7 @@ describe('SandboxProvisioningService (retry)', () => {
     expect(dispatch).not.toHaveBeenCalled()
     expect(await sandboxRows()).toHaveLength(0)
     expect(await bootSteps()).toHaveLength(0)
-    expect((await threadRow())?.executionLocation).toBeNull()
+    expect((await sessionRow())?.executionLocation).toBeNull()
   })
 
   it('re-claims a failed row keeping its serve token and dispatches again', async () => {

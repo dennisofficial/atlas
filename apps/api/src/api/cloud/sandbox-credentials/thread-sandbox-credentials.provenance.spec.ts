@@ -35,7 +35,9 @@ describe('ThreadSandboxCredentialsService provenance', () => {
       clientToken: 'a'.repeat(64),
       serveUrl: 'https://atlas-3000-abc.vercel.run',
     })
-    expect((await db.orm.public.Thread.first({ id: THREAD }))?.executionLocation).toBe('cloud')
+    expect((await db.orm.public.Session.first({ id: `ses_${THREAD}` }))?.executionLocation).toBe(
+      'cloud',
+    )
     const scoped = fakeScoped()
 
     const credentials = await serviceWith(scoped).forThread({ threadId: THREAD })
@@ -70,7 +72,7 @@ describe('ThreadSandboxCredentialsService provenance', () => {
     await seedBase()
     await seedThreadRow({ id: 'thr-gap', userId: 'usr-1' })
     await db.orm.public.SandboxBootStep.create({
-      threadId: 'thr-gap',
+      sessionId: 'ses_thr-gap',
       step: 'provision',
       state: 'error',
       error: 'no credential',

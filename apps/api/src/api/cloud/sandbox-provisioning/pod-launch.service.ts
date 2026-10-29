@@ -8,6 +8,7 @@ import {
 import { db, type Row } from '@dltech/atlas-db'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { failureText } from '../github/github-sandbox-wake-boot'
@@ -133,8 +134,9 @@ export class PodLaunchService {
     existing: Row<'CloudSandbox'> | null
   }): Promise<PodLaunchOutcome> {
     const { thread, existing } = args
-    if (thread.executionLocation === null) {
-      await db.orm.public.Thread.where({ id: thread.id }).update({ executionLocation: 'cloud' })
+    const session = await sessionOfThread({ reader: db, threadId: thread.id })
+    if (session.executionLocation === null) {
+      await db.orm.public.Session.where({ id: session.id }).update({ executionLocation: 'cloud' })
     }
     const gap = await this.credentialsOf({ userId: thread.userId })
     if (gap !== null) {

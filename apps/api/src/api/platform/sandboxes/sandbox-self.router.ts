@@ -23,6 +23,7 @@ import { NotFoundException } from '@nestjs/common'
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { meta } from '../../../_module/trpc/procedure-meta'
+import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
@@ -37,11 +38,10 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
 type SandboxIdentity = { threadId: string; name: string }
 
 async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
-  const row = await db.orm.public.CloudSandbox.where({ threadId: ctx.sandbox.threadId })
-    .select('threadId', 'name')
-    .first()
+  const sessionId = await podSessionOf({ reader: db, threadId: ctx.sandbox.threadId })
+  const row = await db.orm.public.CloudSandbox.where({ sessionId }).select('name').first()
   if (row === null) throw new NotFoundException('sandbox not found')
-  return row
+  return { threadId: ctx.sandbox.threadId, name: row.name }
 }
 
 @Router({ alias: 'sandboxSelf' })

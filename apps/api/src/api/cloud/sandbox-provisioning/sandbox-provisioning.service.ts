@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common'
 import type { SandboxProvisionReply } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
@@ -20,7 +21,8 @@ export class SandboxProvisioningService {
       .select('id')
       .first()
     if (podLease !== null) throw new ConflictException(LOCAL_POD_MESSAGE)
-    const existing = await db.orm.public.CloudSandbox.first({ threadId: thread.id })
+    const sessionId = await podSessionOf({ reader: db, threadId: thread.id })
+    const existing = await db.orm.public.CloudSandbox.first({ sessionId })
     const standing = existing === null ? undefined : standingStateOf(existing)
     if (standing !== undefined) return { state: standing }
     if (existing !== null && !(await hasBootSteps({ threadId: thread.id }))) {

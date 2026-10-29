@@ -3,7 +3,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
-import { messagesWith, seedThread, threadRow } from './sandbox-provisioning.fixture'
+import { messagesWith, seedThread, sessionRow } from './sandbox-provisioning.fixture'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const head = (value: number) => ({ type: EThreadStreamFrame.Head, head: value }) as const
@@ -35,24 +35,24 @@ describe('ThreadMessagesService signals', () => {
   })
 
   it('a send to an archived thread unarchives it and signals the list', async () => {
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ archivedAt: new Date() })
+    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
     const { signals, listFramesOf } = recordingSignals()
     const listFrames = listFramesOf('usr-1')
 
     await messagesWith({ signals }).service.send(ARGS)
 
-    expect((await threadRow())?.archivedAt).toBeNull()
+    expect((await sessionRow())?.archivedAt).toBeNull()
     expect(listFrames.length).toBeGreaterThan(0)
   })
 
   it('a live send to an archived thread unarchives it too', async () => {
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ archivedAt: new Date() })
+    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
 
     await messagesWith({
       endpoint: { token: 'tok', url: 'https://serve.example.test' },
     }).service.send(ARGS)
 
-    expect((await threadRow())?.archivedAt).toBeNull()
+    expect((await sessionRow())?.archivedAt).toBeNull()
   })
 
   it('a live delivery appends nothing and signals nothing', async () => {

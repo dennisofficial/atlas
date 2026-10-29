@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { db, violatedConstraint, type Row, type Tx } from '@dltech/atlas-db'
+import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { wakeableOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import { failedAfterClaim, standingStateOf } from '../../platform/sandboxes/pod-state'
@@ -9,7 +10,7 @@ import { mintSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import { SANDBOX_REGION } from '../../platform/sandboxes/vercel-sandbox.client'
 
-const THREAD_UNIQUE = 'CloudSandbox_threadId_key'
+const THREAD_UNIQUE = 'CloudSandbox_sessionId_key'
 
 export const NOT_RUNNING_MESSAGE = "The sandbox isn't running. Start it first."
 export const SANDBOX_BUSY_MESSAGE = 'The sandbox is busy. Try again in a moment.'
@@ -46,6 +47,7 @@ export async function claimRow(args: {
   cipher: SecretCipherService
 }): Promise<RowClaim | null> {
   const writer = args.writer ?? db
+  const sessionId = await podSessionOf({ reader: writer, threadId: args.thread.id })
   const wakeClaim = new Date()
   const name = args.existing?.name ?? sandboxNameFor({ threadId: args.thread.id })
   if (args.existing === null) {
@@ -55,7 +57,7 @@ export async function claimRow(args: {
     try {
       await writer.orm.public.CloudSandbox.create({
         id: sandboxId,
-        threadId: args.thread.id,
+        sessionId,
         userId: args.thread.userId,
         sandboxId: '',
         name,
@@ -77,7 +79,7 @@ export async function claimRow(args: {
   }
   const { token, mintedColumns } = tokenOfExisting({ existing: args.existing, cipher: args.cipher })
   const claimed = await writer.orm.public.CloudSandbox.where({
-    threadId: args.thread.id,
+    sessionId,
     wakeClaim: args.existing.wakeClaim,
   }).updateAndCount({
     wakeClaim,
@@ -94,8 +96,9 @@ export async function markRunning(args: {
   serveUrl: string
 }): Promise<boolean> {
   const at = new Date()
+  const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
   const updated = await db.orm.public.CloudSandbox.where({
-    threadId: args.threadId,
+    sessionId,
     wakeClaim: args.wakeClaim,
   }).updateAndCount({
     state: ESandboxState.Running,
@@ -113,15 +116,16 @@ export async function markFailed(args: {
   wakeClaim: Date
 }): Promise<number> {
   const at = new Date()
-  return (args.writer ?? db).orm.public.CloudSandbox.where({
-    threadId: args.threadId,
+  const writer = args.writer ?? db
+  const sessionId = await podSessionOf({ reader: writer, threadId: args.threadId })
+  return writer.orm.public.CloudSandbox.where({
+    sessionId,
     wakeClaim: args.wakeClaim,
   }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
 }
 
 export async function claimHeld(args: { threadId: string; wakeClaim: Date }): Promise<boolean> {
-  const row = await db.orm.public.CloudSandbox.where({ threadId: args.threadId })
-    .select('wakeClaim')
-    .first()
+  const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+  const row = await db.orm.public.CloudSandbox.where({ sessionId }).select('wakeClaim').first()
   return row?.wakeClaim?.getTime() === args.wakeClaim.getTime()
 }

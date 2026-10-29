@@ -1,4 +1,5 @@
-import { db, type Row } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
+import type { ThreadWithSession } from './thread-with-session'
 import { threadPullRequests, threadWorktree } from './places'
 import { spawnedPullRequests } from './spawned-pull-requests'
 import { withPullRequestStates } from './pull-request-state'
@@ -8,12 +9,11 @@ import { threadStatuses } from './thread-status'
 import { threadsSubscriptions } from './thread-subscriptions'
 
 export async function enrichThreads(args: {
-  rows: readonly Row<'Thread'>[]
+  rows: readonly ThreadWithSession[]
   viewerId: string
 }): Promise<ThreadDto[]> {
-  const { rows } = args
   const places = await Promise.all(
-    rows.map(async (row) => {
+    args.rows.map(async ({ thread: row, session }) => {
       const [worktree, own, spawned] = await Promise.all([
         threadWorktree({ reader: db, threadId: row.id }),
         threadPullRequests({ reader: db, threadId: row.id }),
@@ -24,23 +24,23 @@ export async function enrichThreads(args: {
         ...own,
         ...spawned.filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
       ]
-      return { row, worktree, pullRequests }
+      return { row, session, worktree, pullRequests }
     }),
   )
   const subscriptionsByThread = await threadsSubscriptions({
     reader: db,
-    threadIds: rows.map((row) => row.id),
+    threadIds: args.rows.map(({ thread }) => thread.id),
   })
-  const statuses = await threadStatuses({ rows, viewerId: args.viewerId })
+  const statuses = await threadStatuses({ rows: args.rows, viewerId: args.viewerId })
   const stated = await withPullRequestStates(places.map((entry) => entry.pullRequests))
-  return places.map(({ row, worktree }, index) => {
+  return places.map(({ row, session, worktree }, index) => {
     const pullRequests = stated[index] ?? []
     const subscriptions = (subscriptionsByThread.get(row.id) ?? []).map(
       ({ provider, target, status }) => ({ provider, target, status }),
     )
     const status = statuses.get(row.id)
     return {
-      ...toThreadDto(row),
+      ...toThreadDto({ thread: row, session }),
       ...(status === undefined ? {} : { status }),
       ...(worktree === null ? {} : { worktree }),
       ...(pullRequests.length === 0 ? {} : { pullRequests }),

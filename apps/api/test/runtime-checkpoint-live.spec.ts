@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common'
 import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 import request from 'supertest'
 import { db } from '@dltech/atlas-db'
-import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SessionMiddleware } from '../src/_module/session/session.middleware'
@@ -120,15 +120,10 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     const at = new Date('2026-10-01T00:00:00.000Z')
     await seedUser({ db, id: ownerId })
     await seedUser({ db, id: foreignId })
-    await db.orm.public.Thread.create({
-      id: threadId,
-      userId: ownerId,
-      createdAt: at,
-      updatedAt: at,
-    })
+    await seedThread({ db, id: threadId, userId: ownerId })
     await db.orm.public.CloudSandbox.create({
       id: sandboxId,
-      threadId,
+      sessionId: `ses_${threadId}`,
       userId: ownerId,
       sandboxId: `provider-${sandboxId}`,
       name: sandboxId,
@@ -223,8 +218,8 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
       .expect(401)
     const reply = await put(checkpoint({ revision: 1 })).expect(200)
     expect(dataOf(reply)).toMatchObject({ checkpoint: { revision: 1 } })
-    expect(await db.orm.public.CloudSandbox.where({ threadId: foreignThread }).all()).toHaveLength(
-      0,
-    )
+    expect(
+      await db.orm.public.CloudSandbox.where({ sessionId: `ses_${foreignThread}` }).all(),
+    ).toHaveLength(0)
   })
 })

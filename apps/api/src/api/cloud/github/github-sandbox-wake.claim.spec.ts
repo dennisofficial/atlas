@@ -55,6 +55,7 @@ describe('GithubSandboxWakeService claim and backoff', () => {
       const parked = mirroredRecord({ threadId, phase: ERuntimePhase.Parked })
       await seedParkedSandbox({
         threadId,
+        sessionId: `ses_${threadId}`,
         name: `atlas-sandbox-${threadId}`,
         tokenHash: `hash-${threadId}`,
         runtimeCheckpoint: parked,

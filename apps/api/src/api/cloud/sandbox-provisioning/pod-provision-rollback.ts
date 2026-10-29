@@ -5,12 +5,14 @@ import {
   type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { failureText } from '../github/github-sandbox-wake-boot'
 
 const SANDBOX_DELETE_TIMEOUT_MS = 30_000
 
 async function destroyedDuring(args: { threadId: string; wakeClaim: Date }): Promise<boolean> {
-  const row = await db.orm.public.CloudSandbox.first({ threadId: args.threadId })
+  const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+  const row = await db.orm.public.CloudSandbox.first({ sessionId })
   if (row === null) return true
   if (row.wakeClaim !== null) return false
   return row.wakeFailedAt === null || row.wakeFailedAt.getTime() < args.wakeClaim.getTime()

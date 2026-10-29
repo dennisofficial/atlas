@@ -45,6 +45,7 @@ export type ThreadStatusDto = NonNullable<WireThread['status']>
 
 export type ThreadDto = {
   id: string
+  sessionId?: string | undefined
   title?: string | undefined
   head: number
   createdAt: string

@@ -17,7 +17,7 @@ export async function registerSandboxRow(args: {
   return db.orm.public.CloudSandbox.select('name', 'serveUrl').upsert({
     create: {
       id: `sbx_${randomUUID()}`,
-      threadId: args.thread.id,
+      sessionId: args.thread.sessionId,
       userId: args.thread.userId,
       sandboxId: '',
       name: sandboxNameFor({ threadId: args.thread.id }),
@@ -42,7 +42,7 @@ export async function registerSandboxRow(args: {
       serveUrl: args.serveUrl,
       ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
     },
-    conflictOn: { threadId: args.thread.id },
+    conflictOn: { sessionId: args.thread.sessionId },
   })
 }
 
@@ -51,15 +51,21 @@ export async function stampRegistrationMetadata(args: {
   metadata: RegisterSandboxMetadata | undefined
 }): Promise<void> {
   const metadata = args.metadata
-  await db.orm.public.Thread.where({ id: args.thread.id })
+  const session = await db.orm.public.Session.where({ id: args.thread.sessionId })
+    .select('title')
+    .first()
+  await db.orm.public.Session.where({ id: args.thread.sessionId })
     .select('id')
     .update({
       executionLocation: 'cloud',
       updatedAt: new Date(),
-      ...(metadata?.title === undefined || args.thread.title !== null
-        ? {}
-        : { title: metadata.title }),
+      ...(metadata?.title === undefined || session?.title != null ? {} : { title: metadata.title }),
       ...(metadata?.repo === undefined ? {} : { repo: metadata.repo }),
+    })
+  await db.orm.public.Thread.where({ id: args.thread.id })
+    .select('id')
+    .update({
+      updatedAt: new Date(),
       ...(metadata?.model === undefined ? {} : { modelRef: metadata.model }),
     })
 }
@@ -67,7 +73,7 @@ export async function stampRegistrationMetadata(args: {
 /** The columns provisioning reads back; the blob columns written by the upsert never return. */
 export type ClaimedSandbox = Pick<
   Row<'CloudSandbox'>,
-  'threadId' | 'name' | 'pinnedModel' | 'contextPending' | 'serveUrl'
+  'sessionId' | 'name' | 'pinnedModel' | 'contextPending' | 'serveUrl'
 >
 
 export type ClaimUpdate = Partial<WorkspaceColumns> & {
@@ -123,16 +129,16 @@ export function claimSandboxRow(args: {
   const at = new Date()
   const columns: WorkspaceColumns = workspaceColumnsOf(undefined)
   return (args.writer ?? db).orm.public.CloudSandbox.select(
-    'threadId',
+    'sessionId',
     'name',
     'pinnedModel',
     'contextPending',
     'serveUrl',
   ).upsert({
-    conflictOn: { threadId: args.thread.id },
+    conflictOn: { sessionId: args.thread.sessionId },
     create: {
       id: `sbx_${randomUUID()}`,
-      threadId: args.thread.id,
+      sessionId: args.thread.sessionId,
       userId: args.thread.userId,
       sandboxId: '',
       name: args.name ?? sandboxNameFor({ threadId: args.thread.id }),

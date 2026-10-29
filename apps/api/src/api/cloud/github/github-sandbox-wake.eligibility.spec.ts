@@ -85,7 +85,7 @@ describe('GithubSandboxWakeService eligibility', () => {
   it('never wakes the sandbox of an archived thread', async () => {
     await seedParkedSandbox()
     await seedSubscription()
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update({ archivedAt: new Date() })
+    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
     const { boot, calls } = fakeBoot()
 
     serviceWith({ boot }).notifyEvent(PR_EVENT)

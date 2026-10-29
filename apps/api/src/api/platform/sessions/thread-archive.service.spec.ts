@@ -6,6 +6,7 @@ import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispat
 import {
   seedThreadRow,
   seedUsers,
+  sessionOfThreadRow,
   threadById,
   USER_A,
   USER_B,
@@ -42,9 +43,10 @@ describe('ThreadArchiveService', () => {
     await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
 
     const row = await threadById('thr_1')
-    expect(row?.archivedAt).toBeInstanceOf(Date)
+    const session = await sessionOfThreadRow('thr_1')
+    expect(session?.archivedAt).toBeInstanceOf(Date)
     expect(row?.updatedAt.getTime()).toBe(STAMP.getTime())
-    const archivedAt = row?.archivedAt?.toISOString() ?? ''
+    const archivedAt = session?.archivedAt?.toISOString() ?? ''
     expect(dispatcher.calls).toHaveLength(1)
     expect(dispatcher.calls[0]).toMatchObject({
       task: { id: THREAD_ARCHIVE_CLEANUP_TASK_ID },
@@ -59,7 +61,7 @@ describe('ThreadArchiveService', () => {
     await service.setArchived({ userId: USER_A, threadId: 'thr_2', archived: false })
 
     const row = await threadById('thr_2')
-    expect(row?.archivedAt).toBeNull()
+    expect((await sessionOfThreadRow('thr_2'))?.archivedAt).toBeNull()
     expect(row?.updatedAt.getTime()).toBe(STAMP.getTime())
     expect(dispatcher.calls).toHaveLength(0)
   })
@@ -69,7 +71,7 @@ describe('ThreadArchiveService', () => {
       service.setArchived({ userId: USER_B, threadId: 'thr_1', archived: true }),
     ).rejects.toBeInstanceOf(NotFoundException)
 
-    expect((await threadById('thr_1'))?.archivedAt).toBeNull()
+    expect((await sessionOfThreadRow('thr_1'))?.archivedAt).toBeNull()
     expect(dispatcher.calls).toHaveLength(0)
   })
 
@@ -78,6 +80,6 @@ describe('ThreadArchiveService', () => {
 
     await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
 
-    expect((await threadById('thr_1'))?.archivedAt).toBeInstanceOf(Date)
+    expect((await sessionOfThreadRow('thr_1'))?.archivedAt).toBeInstanceOf(Date)
   })
 })

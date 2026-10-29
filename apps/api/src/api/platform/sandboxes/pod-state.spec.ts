@@ -8,7 +8,7 @@ const AGO = (ms: number) => new Date(NOW.getTime() - ms)
 
 const sandbox = (partial: Partial<Row<'CloudSandbox'>> = {}): Row<'CloudSandbox'> => ({
   id: 'sbx',
-  threadId: 'thr',
+  sessionId: 'ses_thr',
   userId: 'user-a',
   sandboxId: 'sandbox-id',
   name: 'name',

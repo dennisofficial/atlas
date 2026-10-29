@@ -7,6 +7,7 @@ import {
   seedEventRow,
   seedThreadRow,
   seedUsers,
+  sessionOfThreadRow,
   threadById,
   USER_A,
 } from '../../../../test/session-seed'
@@ -170,7 +171,7 @@ describe('ThreadsHistoryService', () => {
       draft: { seq: 0, mode: 'reference' },
     })
 
-    expect((await threadById(forked.id))?.projectId).toBe('prj-1')
+    expect((await sessionOfThreadRow(forked.id))?.projectId).toBe('prj-1')
   })
 
   it('fork past the head is refused', async () => {

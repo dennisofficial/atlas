@@ -35,7 +35,7 @@ async function seedSteps(steps: readonly Step[]): Promise<void> {
   const start = Date.now() - 60_000
   for (const [index, [step, state]] of steps.entries()) {
     await db.orm.public.SandboxBootStep.create({
-      threadId: 'thr-1',
+      sessionId: 'ses_thr-1',
       step,
       state,
       at: new Date(start + index * 1_000),

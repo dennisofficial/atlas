@@ -1,6 +1,8 @@
 import { NotFoundException } from '@nestjs/common'
 
-import type { Db, Row, Tx } from '@dltech/atlas-db'
+import type { Db, Row } from '@dltech/atlas-db'
+import { nextSessionId } from '../sessions/append'
+import { createSessionWithMainThread } from '../sessions/create-session'
 
 /**
  * A lift claims the sandbox before the thread has ever been opened on the control plane — the
@@ -10,7 +12,7 @@ import type { Db, Row, Tx } from '@dltech/atlas-db'
  * already belongs to another user is still a 404, the same as ownership would answer.
  */
 export async function findOrCreateClaimThread(args: {
-  db: Pick<Db, 'orm'> | Tx
+  db: Db
   userId: string
   threadId: string
   workspace?: string | undefined
@@ -22,11 +24,18 @@ export async function findOrCreateClaimThread(args: {
   }
 
   const at = new Date()
-  return args.db.orm.public.Thread.create({
-    id: args.threadId,
-    userId: args.userId,
-    createdAt: at,
-    updatedAt: at,
-    ...(args.workspace === undefined ? {} : { workspace: args.workspace }),
+  return args.db.transaction(async (tx) => {
+    const { thread } = await createSessionWithMainThread({
+      tx,
+      session: {
+        id: nextSessionId(),
+        userId: args.userId,
+        workspace: args.workspace,
+        createdAt: at,
+        updatedAt: at,
+      },
+      thread: { id: args.threadId, userId: args.userId, createdAt: at, updatedAt: at },
+    })
+    return thread
   })
 }

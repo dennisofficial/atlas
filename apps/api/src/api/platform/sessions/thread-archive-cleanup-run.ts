@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { podSessionOf, sessionOfThread } from './session-of-thread'
 import type { SandboxesService } from '../sandboxes/sandboxes.service'
 import type { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
 import { parkedOf } from '../sandboxes/sandbox-lifecycle'
@@ -23,10 +24,10 @@ export async function runThreadArchiveCleanup(args: {
   deps: ThreadArchiveCleanupDeps
 }): Promise<ThreadArchiveCleanupOutput> {
   const { payload, deps } = args
-  const thread = await db.orm.public.Thread.where({ id: payload.threadId })
-    .select('id', 'archivedAt')
-    .first()
-  if (thread === null || thread.archivedAt?.toISOString() !== payload.archivedAt) {
+  const session = await sessionOfThread({ reader: db, threadId: payload.threadId }).catch(
+    () => null,
+  )
+  if (session === null || session.archivedAt?.toISOString() !== payload.archivedAt) {
     return { outcome: EThreadArchiveCleanupOutcome.Superseded }
   }
   const teardownFailure = await deps
@@ -45,11 +46,10 @@ async function parkSandbox(args: {
   threadId: string
   deps: ThreadArchiveCleanupDeps
 }): Promise<ThreadArchiveCleanupOutput> {
-  const row = await db.orm.public.CloudSandbox.first({
-    threadId: args.threadId,
-  })
+  const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+  const row = await db.orm.public.CloudSandbox.first({ sessionId })
   if (row === null) return { outcome: EThreadArchiveCleanupOutcome.NoSandbox }
   if (parkedOf(row)) return { outcome: EThreadArchiveCleanupOutcome.AlreadyParked }
-  await args.deps.park({ row, reason: ARCHIVE_PARK_REASON })
+  await args.deps.park({ row, threadId: args.threadId, reason: ARCHIVE_PARK_REASON })
   return { outcome: EThreadArchiveCleanupOutcome.Parked }
 }

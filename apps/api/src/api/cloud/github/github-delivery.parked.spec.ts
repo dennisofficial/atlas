@@ -107,7 +107,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       threadId: 'thr_gone',
       expiresAt: new Date(Date.now() - 60_000),
     })
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr_gone' }).deleteAndCount()
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr_gone' }).deleteAndCount()
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
     expect(pushes).toHaveLength(0)

@@ -27,7 +27,8 @@ describe('thread status assembly', () => {
   const statusOf = async (viewerId = USER_A) => {
     const row = await db.orm.public.Thread.where({ id: 'thr-1' }).first()
     if (row === null) throw new Error('missing thread')
-    return (await threadStatuses({ rows: [row], viewerId })).get('thr-1')
+    const session = await db.orm.public.Session.where({ id: row.sessionId }).all().firstOrThrow()
+    return (await threadStatuses({ rows: [{ thread: row, session }], viewerId })).get('thr-1')
   }
 
   it('local threads with no sandbox row report podState none and no activity', async () => {
@@ -60,7 +61,7 @@ describe('thread status assembly', () => {
       lastAssistantSeq: 4,
     })
 
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).update({
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr-1' }).update({
       state: 'parked',
     })
     expect(await statusOf()).toMatchObject({
@@ -74,7 +75,7 @@ describe('thread status assembly', () => {
   it('derives failed from the latest boot step', async () => {
     await seedThreadRow({ id: 'thr-1' })
     await db.orm.public.SandboxBootStep.create({
-      threadId: 'thr-1',
+      sessionId: 'ses_thr-1',
       step: 'create',
       state: 'error',
       error: 'boom',

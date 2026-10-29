@@ -53,12 +53,16 @@ export async function seedThread(
 
 export const sandboxRows = () => db.orm.public.CloudSandbox.all()
 
+export const sessionRow = () => db.orm.public.Session.first({ id: 'ses_thr-1' })
+
 export const threadRow = () => db.orm.public.Thread.first({ id: 'thr-1' })
 
-export const bootSteps = (threadId = 'thr-1') =>
-  db.orm.public.SandboxBootStep.where({ threadId })
+export const bootSteps = async (threadId = 'thr-1') => {
+  const thread = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
+  return db.orm.public.SandboxBootStep.where({ sessionId: thread.sessionId })
     .orderBy((step) => step.at.asc())
     .all()
+}
 
 export const eventsOf = (threadId = 'thr-1') =>
   db.orm.public.Event.where({ threadId })
@@ -200,7 +204,7 @@ export async function seedSandboxRow(
   const at = new Date()
   await db.orm.public.CloudSandbox.create({
     id: 'sbx-1',
-    threadId: 'thr-1',
+    sessionId: 'ses_thr-1',
     userId: 'usr-1',
     sandboxId: '',
     name: 'atlas-thread-1',

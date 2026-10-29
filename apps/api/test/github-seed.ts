@@ -125,20 +125,23 @@ export async function seedCloudSandbox(
   if ((await db.orm.public.Thread.first({ id: partial.threadId })) === null) {
     await seedThread({ db, id: partial.threadId, userId })
   }
-  const { runtimeCheckpoint, ...columns } = partial
+  const { runtimeCheckpoint, threadId, ...columns } = partial
+  const owner = await db.orm.public.Thread.select('sessionId').first({ id: threadId })
+  const sessionId = columns.sessionId ?? owner?.sessionId ?? `ses_${threadId}`
   const at = new Date()
   return db.orm.public.CloudSandbox.create({
-    id: `sbx_row_${partial.threadId}`,
+    id: `sbx_row_${threadId}`,
     userId,
     sandboxId: 'vsbx-1',
-    name: `atlas-${partial.threadId}`,
+    name: `atlas-${threadId}`,
     region: 'iad1',
     state: 'parked',
     lastActivityAt: at,
-    tokenHash: `hash-${partial.threadId}`,
+    tokenHash: `hash-${threadId}`,
     createdAt: at,
     updatedAt: at,
     ...columns,
+    sessionId,
     ...(runtimeCheckpoint === undefined ? {} : { runtimeCheckpoint: asJson(runtimeCheckpoint) }),
   })
 }

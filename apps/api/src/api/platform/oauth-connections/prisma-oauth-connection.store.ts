@@ -2,6 +2,7 @@ import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
 import { EConnectionStatus, OauthConnectionStore } from './oauth-connections.types'
 import type { AttemptFence, ConnectionRow } from './oauth-connections.types'
+import { podSessionOf } from '../sessions/session-of-thread'
 
 const fenceWhere = (fence: AttemptFence) => ({
   id: fence.id,
@@ -126,8 +127,10 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
   }
 
   async ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null> {
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId }).catch(() => null)
+    if (sessionId === null) return null
     const row = await db.orm.public.CloudSandbox.select('id').first({
-      threadId: args.threadId,
+      sessionId,
       userId: args.userId,
     })
     return row?.id ?? null

@@ -1,6 +1,12 @@
 import { NotFoundException } from '@nestjs/common'
 import type { Tx } from '@dltech/atlas-db'
 
+export async function bumpMainSession(args: { tx: Tx; threadId: string; at: Date }): Promise<void> {
+  await args.tx.orm.public.Session.where({ mainThreadId: args.threadId }).updateAndCount({
+    updatedAt: args.at,
+  })
+}
+
 export async function advanceHead(args: {
   tx: Tx
   threadId: string
@@ -13,6 +19,7 @@ export async function advanceHead(args: {
     .build()
   const [row] = await args.tx.query(statement)
   if (row === undefined) throw new NotFoundException('thread not found')
+  await bumpMainSession({ tx: args.tx, threadId: args.threadId, at: args.at })
   return row.head
 }
 
@@ -31,4 +38,5 @@ export async function retreatHead(args: { tx: Tx; threadId: string; at: Date }):
     .affectedCount()
     .build()
   await args.tx.execute(statement)
+  await bumpMainSession({ tx: args.tx, threadId: args.threadId, at: args.at })
 }
