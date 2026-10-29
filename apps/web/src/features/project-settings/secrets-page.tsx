@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { EllipsisIcon, EyeIcon, EyeOffIcon, KeyRoundIcon } from 'lucide-react'
+import { EllipsisIcon, KeyRoundIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
@@ -27,10 +27,10 @@ import {
   TableRow,
 } from '@dltech/atlas-ui/components/table'
 
-import { ESecretKind } from '@dltech/atlas-wire/web'
-
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { revealSecret } from '@/features/settings/data/shared/resource-api'
 import { runAction } from '@/features/settings/data/shared/run-action'
+import { SecretValueCell } from '@/features/settings/parts/secret-value-cell'
 
 import { useProjectContext } from './data/project-context'
 import { projectSecretRows } from './data/project-secrets'
@@ -38,29 +38,6 @@ import { useProjectSecrets } from './data/use-project-secrets'
 import type { SecretRow } from './fixtures/project-settings'
 import { AddSecretDialog, BulkAddDialog, type SecretPair } from './secrets-dialogs'
 import { SettingsSection } from './settings-layout'
-
-const MASK = '••••••••••••'
-
-function MaskedValue({ row }: { row: SecretRow }) {
-  const [revealed, setRevealed] = useState(false)
-  const Icon = revealed ? EyeOffIcon : EyeIcon
-  return (
-    <span className="flex min-w-0 items-center gap-1">
-      <span className="truncate font-mono text-xs text-muted-foreground">
-        {revealed ? row.value : MASK}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={`${revealed ? 'Hide' : 'Reveal'} ${row.name}`}
-        aria-pressed={revealed}
-        onClick={() => setRevealed((current) => !current)}
-      >
-        <Icon />
-      </Button>
-    </span>
-  )
-}
 
 function RowMenu({
   row,
@@ -94,10 +71,12 @@ function RowMenu({
 }
 
 function SecretsTable({
+  projectId,
   rows,
   onDelete,
   onEdit,
 }: {
+  projectId: string
   rows: readonly SecretRow[]
   onDelete: (name: string) => void
   onEdit: (name: string) => void
@@ -119,7 +98,10 @@ function SecretsTable({
           <TableRow key={row.name}>
             <TableCell className="truncate font-mono text-xs font-medium">{row.name}</TableCell>
             <TableCell>
-              <MaskedValue row={row} />
+              <SecretValueCell
+                name={row.name}
+                fetchValue={() => revealSecret({ projectId, name: row.name })}
+              />
             </TableCell>
             <TableCell className="text-muted-foreground">{row.updated}</TableCell>
             <TableCell className="text-right">
@@ -154,10 +136,12 @@ function SecretsEmpty() {
 }
 
 function SecretsContent({
+  projectId,
   rows,
   onSave,
   onRemove,
 }: {
+  projectId: string
   rows: readonly SecretRow[]
   onSave: (pairs: readonly SecretPair[]) => Promise<boolean>
   onRemove: (name: string) => void
@@ -181,7 +165,7 @@ function SecretsContent({
       {rows.length === 0 ? (
         <SecretsEmpty />
       ) : (
-        <SecretsTable rows={rows} onDelete={onRemove} onEdit={setEditing} />
+        <SecretsTable projectId={projectId} rows={rows} onDelete={onRemove} onEdit={setEditing} />
       )}
       {editing === null ? null : (
         <AddSecretDialog
@@ -205,7 +189,7 @@ export function SecretsPage() {
     runAction({
       work: async () => {
         for (const pair of pairs) {
-          await own.save({ name: pair.name, value: pair.value, kind: ESecretKind.Secret })
+          await own.save({ name: pair.name, value: pair.value })
         }
       },
       success:
@@ -225,7 +209,14 @@ export function SecretsPage() {
       <QueryGate query={own.query} label="project secrets">
         {(snapshot) => {
           const rows = projectSecretRows({ secrets: snapshot.secrets, now: snapshot.fetchedAt })
-          return <SecretsContent rows={rows} onSave={handleSave} onRemove={handleRemove} />
+          return (
+            <SecretsContent
+              projectId={projectId}
+              rows={rows}
+              onSave={handleSave}
+              onRemove={handleRemove}
+            />
+          )
         }}
       </QueryGate>
     </SettingsSection>

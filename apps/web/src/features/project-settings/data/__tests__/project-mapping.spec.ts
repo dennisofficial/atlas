@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESecretKind, EShipBehavior } from '@dltech/atlas-wire/web'
+import { EShipBehavior } from '@dltech/atlas-wire/web'
 import type { ListedSecret } from '@/features/settings/data/shared/resource-api'
 
 import type { ProjectView } from '../project-api'
@@ -87,13 +87,11 @@ describe('project secret rows', () => {
   it('maps project secrets to rows', () => {
     const secret: ListedSecret = {
       name: 'A',
-      kind: ESecretKind.EnvVar,
-      value: 'v',
       createdAt: '',
       updatedAt: '2026-10-20T11:00:00Z',
     }
     expect(projectSecretRows({ secrets: [secret], now: NOW })).toEqual([
-      { name: 'A', value: 'v', updated: '1h ago' },
+      { name: 'A', updated: '1h ago' },
     ])
   })
 })

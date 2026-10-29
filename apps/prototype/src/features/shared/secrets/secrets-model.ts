@@ -1,10 +1,6 @@
-import {
-  ESecretKind,
-  ESecretsScope,
-  type LibrarySecret,
-} from '../../settings/fixtures/settings-library'
+import { ESecretsScope, type LibrarySecret } from '../../settings/fixtures/settings-library'
 
-export type SecretEntry = { key: string; value: string; kind: ESecretKind }
+export type SecretEntry = { key: string; value: string }
 
 function unquote(value: string): string {
   const quote = value[0]
@@ -14,7 +10,7 @@ function unquote(value: string): string {
   return value
 }
 
-export function parseEnvText({ text, kind }: { text: string; kind: ESecretKind }): SecretEntry[] {
+export function parseEnvText({ text }: { text: string }): SecretEntry[] {
   return text
     .split('\n')
     .map((line) => line.trim().replace(/^export\s+/, ''))
@@ -24,7 +20,6 @@ export function parseEnvText({ text, kind }: { text: string; kind: ESecretKind }
       return {
         key: line.slice(0, index).trim(),
         value: unquote(line.slice(index + 1).trim()),
-        kind,
       }
     })
     .filter((entry) => entry.key.length > 0)
@@ -72,16 +67,9 @@ export function updateEntry({
 }): LibrarySecret[] {
   return rows.map((row) =>
     row.scope === scope && row.key === entry.key
-      ? { ...row, kind: entry.kind, value: entry.value || row.value, updated: 'just now' }
+      ? { ...row, value: entry.value || row.value, updated: 'just now' }
       : row,
   )
-}
-
-export function splitByKind(rows: readonly LibrarySecret[]) {
-  return {
-    envVars: rows.filter((row) => row.kind === ESecretKind.EnvVar),
-    secrets: rows.filter((row) => row.kind === ESecretKind.Secret),
-  }
 }
 
 export function partitionByScope({

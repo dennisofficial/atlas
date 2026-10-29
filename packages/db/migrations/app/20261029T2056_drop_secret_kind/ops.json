@@ -1,0 +1,86 @@
+[
+  {
+    "id": "dropColumn.ProjectSecret.kind",
+    "label": "Drop column \"kind\" from \"ProjectSecret\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "kind",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"kind\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "kind"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"kind\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\" DROP COLUMN \"kind\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"kind\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "kind"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.SecretEntry.kind",
+    "label": "Drop column \"kind\" from \"SecretEntry\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "kind",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"kind\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "kind"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"kind\"",
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\" DROP COLUMN \"kind\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"kind\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "kind"
+        ]
+      }
+    ]
+  }
+]

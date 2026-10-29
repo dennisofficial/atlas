@@ -1,24 +1,23 @@
-import type {
-  ESecretKind,
-  McpServerWire,
-  McpUpsertWire,
-  SecretDetail,
-} from '@dltech/atlas-wire/web'
+import type { McpServerWire, McpUpsertWire, SecretSummary } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
-export type ListedSecret = SecretDetail
+export type ListedSecret = SecretSummary
 
 export async function listSecrets(projectId: string): Promise<ListedSecret[]> {
   const body = await cloudCall(api.projectResources.listSecrets.query({ projectId }))
   return body.secrets
 }
 
+export async function revealSecret(args: { projectId: string; name: string }): Promise<string> {
+  const body = await cloudCall(api.projectResources.revealSecret.query(args))
+  return body.value
+}
+
 export const putSecret = (args: {
   projectId: string
   name: string
   value: string
-  kind: ESecretKind
 }): Promise<void> => cloudCall(api.projectResources.setSecret.mutate(args))
 
 export const deleteSecret = (args: { projectId: string; name: string }): Promise<void> =>

@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EEffortLevel,
-  EMemoryScope,
-  EMemoryType,
-  EMcpTransportKind,
-  ESecretKind as EWireSecretKind,
-} from '@dltech/atlas-wire/web'
+import { EEffortLevel, EMemoryScope, EMemoryType, EMcpTransportKind } from '@dltech/atlas-wire/web'
 
 import { EAgentRole, EEffort, EPreset, PRESETS } from '../../../fixtures/settings-agent'
-import { ESecretKind } from '../../../fixtures/settings-library'
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { EDeviceKind } from '../../../fixtures/settings-security'
 import { apiKeyFor, subscriptionFor } from '../accounts-api'
@@ -113,17 +106,15 @@ describe('memory mapping', () => {
 describe('secrets mapping', () => {
   it('maps a detail onto a library row', () => {
     const row = toLibrarySecret({
-      detail: {
+      summary: {
         name: 'A',
-        kind: EWireSecretKind.EnvVar,
-        value: 'v',
         createdAt: ago(0),
         updatedAt: ago(2 * 3_600_000),
       },
       addedBy: { name: 'Me', initials: 'M' },
       now: NOW,
     })
-    expect(row).toMatchObject({ key: 'A', kind: ESecretKind.EnvVar, value: 'v', updated: '2h ago' })
+    expect(row).toMatchObject({ key: 'A', updated: '2h ago' })
   })
 })
 

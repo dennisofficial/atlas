@@ -1,16 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { EyeIcon, EyeOffIcon } from 'lucide-react'
-
-import { Badge } from '@dltech/atlas-ui/components/badge'
-import { Button } from '@dltech/atlas-ui/components/button'
 import { CardRow } from '@dltech/atlas-ui/components/card'
 
-import { ESecretKind, type LibrarySecret } from '../fixtures/settings-library'
+import type { LibrarySecret } from '../fixtures/settings-library'
+import { revealSecret } from '../data/personal/secrets-api'
 import { LibraryRowMenu } from './library-row-menu'
-
-const MASK = '••••••••'
+import { SecretValueCell } from './secret-value-cell'
 
 export function SecretRow({
   secret,
@@ -21,32 +16,16 @@ export function SecretRow({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const [revealed, setRevealed] = useState(false)
-  const isEnvVar = secret.kind === ESecretKind.EnvVar
-
   return (
     <CardRow className="flex-row flex-wrap items-center">
       <div className="flex min-w-40 flex-1 items-center gap-2">
         <span className="truncate font-mono text-xs font-medium">{secret.key}</span>
-        <Badge variant={isEnvVar ? 'outline' : 'secondary'}>
-          {isEnvVar ? 'Env var' : 'Secret'}
-        </Badge>
       </div>
-      <div className="flex w-40 items-center gap-1">
-        <span className="truncate font-mono text-xs text-muted-foreground">
-          {isEnvVar && revealed ? secret.value : MASK}
-        </span>
-        {isEnvVar ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={revealed ? 'Hide value' : 'Reveal value'}
-            onClick={() => setRevealed(!revealed)}
-          >
-            {revealed ? <EyeOffIcon /> : <EyeIcon />}
-          </Button>
-        ) : null}
-      </div>
+      <SecretValueCell
+        name={secret.key}
+        className="flex w-40 items-center gap-1"
+        fetchValue={() => revealSecret(secret.key)}
+      />
       <span className="w-24 text-right text-xs whitespace-nowrap text-muted-foreground">
         Updated {secret.updated}
       </span>

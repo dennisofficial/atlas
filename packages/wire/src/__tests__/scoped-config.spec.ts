@@ -4,7 +4,6 @@ import {
   EConfigScope,
   EMPTY_SCOPE_LAYER,
   EMcpTransportKind,
-  ESecretKind,
   podFacingConfig,
   PROJECT_SETTING_REGISTRY,
   resolveScopedConfig,
@@ -49,20 +48,20 @@ describe('resolveScopedConfig', () => {
   it('resolves a missing project as user + defaults', () => {
     const resolved = resolveScopedConfig({
       defaults: layer({ settings: { x: 'd' } }),
-      user: layer({ secrets: [{ name: 'TOKEN', value: 'u', kind: ESecretKind.Secret }] }),
+      user: layer({ secrets: [{ name: 'TOKEN', value: 'u' }] }),
       project: null,
     })
     expect(resolved.settings).toEqual({ x: 'd' })
-    expect(resolved.secrets).toEqual([{ name: 'TOKEN', value: 'u', kind: ESecretKind.Secret }])
+    expect(resolved.secrets).toEqual([{ name: 'TOKEN', value: 'u' }])
   })
 
   it('takes the winning entry whole when env and secret kinds clash', () => {
     const resolved = resolveScopedConfig({
       defaults: EMPTY_SCOPE_LAYER,
-      user: layer({ secrets: [{ name: 'API', value: 'u', kind: ESecretKind.Secret }] }),
-      project: layer({ secrets: [{ name: 'API', value: 'p', kind: ESecretKind.EnvVar }] }),
+      user: layer({ secrets: [{ name: 'API', value: 'u' }] }),
+      project: layer({ secrets: [{ name: 'API', value: 'p' }] }),
     })
-    expect(resolved.secrets).toEqual([{ name: 'API', value: 'p', kind: ESecretKind.EnvVar }])
+    expect(resolved.secrets).toEqual([{ name: 'API', value: 'p' }])
     expect(resolved.provenance['secret:API']).toBe(EConfigScope.Project)
   })
 
@@ -85,7 +84,7 @@ describe('resolveScopedConfig', () => {
       user: layer({ settings: { 'sandbox.vercelTeamId': 't', 'model.id': 'a/b' } }),
       project: layer({
         settings: { 'sandbox.vercelProjectId': 'prj' },
-        secrets: [{ name: 'sandbox.vercelToken', value: 'tok', kind: ESecretKind.Secret }],
+        secrets: [{ name: 'sandbox.vercelToken', value: 'tok' }],
       }),
     })
     const pod = podFacingConfig(resolved)

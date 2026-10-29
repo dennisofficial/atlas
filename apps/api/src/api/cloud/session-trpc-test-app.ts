@@ -1,3 +1,4 @@
+import { FRESH_SESSION_WINDOW_MS } from '../../_module/session/fresh-session'
 import type { INestApplication, Provider } from '@nestjs/common'
 import { UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
@@ -24,6 +25,8 @@ const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b
 
 export const testCipher = (): SecretCipherService =>
   new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
+
+export const STALE_PREFIX = 'stale:'
 
 export const SESSIONS: Record<string, string> = {
   'session-a': 'user-a',
@@ -83,9 +86,16 @@ export async function buildSessionTrpcApp(args: {
         provide: SESSION_VERIFIER,
         useValue: {
           async verify(req: { headers: { authorization?: string } }) {
-            const userId = SESSIONS[bearerOf(req)]
+            const token = bearerOf(req)
+            const stale = token.startsWith(STALE_PREFIX)
+            const userId = SESSIONS[stale ? token.slice(STALE_PREFIX.length) : token]
             if (userId === undefined) return null
-            return { userId, sessionId: 'ses', email: '' }
+            return {
+              userId,
+              sessionId: 'ses',
+              email: '',
+              sessionCreatedAt: new Date(Date.now() - (stale ? 2 : 0) * FRESH_SESSION_WINDOW_MS),
+            }
           },
         },
       },

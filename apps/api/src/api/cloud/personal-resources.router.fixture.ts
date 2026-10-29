@@ -3,6 +3,7 @@ import request from 'supertest'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
+import { FRESH_SESSION_WINDOW_MS } from '../../_module/session/fresh-session'
 import { SessionMiddleware } from '../../_module/session/session.middleware'
 import {
   as,
@@ -14,6 +15,8 @@ import { ETokenPrincipalKind } from '../platform/sandboxes/token-principal'
 import { SessionOrSandboxMiddleware } from '../platform/sessions/session-or-sandbox.middleware'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+
+const STALE_PREFIX = 'stale:'
 
 const SESSIONS: Record<string, string> = {
   'session-a': 'user-a',
@@ -45,9 +48,16 @@ export const createPersonalApp = (providers: Provider[]): Promise<INestApplicati
         provide: SESSION_VERIFIER,
         useValue: {
           async verify(req: { headers: { authorization?: string } }) {
-            const userId = SESSIONS[bearerOf(req)]
+            const token = bearerOf(req)
+            const stale = token.startsWith(STALE_PREFIX)
+            const userId = SESSIONS[stale ? token.slice(STALE_PREFIX.length) : token]
             if (userId === undefined) return null
-            return { userId, sessionId: 'ses', email: '' }
+            return {
+              userId,
+              sessionId: 'ses',
+              email: '',
+              sessionCreatedAt: new Date(Date.now() - (stale ? 2 : 0) * FRESH_SESSION_WINDOW_MS),
+            }
           },
         },
       },

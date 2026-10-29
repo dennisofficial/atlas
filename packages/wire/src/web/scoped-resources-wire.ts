@@ -3,13 +3,16 @@ import { z } from 'zod'
 import { projectIdInputSchema } from '../project-wire'
 import { mcpServerSchema, mcpUpsertSchema } from './mcp-wire'
 import { projectSandboxSchema } from './project-settings-wire'
-import { secretDetailSchema, secretSetSchema } from './secrets-wire'
+import { secretSetSchema, secretSummarySchema, secretValueSchema } from './secrets-wire'
 import { settingsPatchSchema } from './settings-wire'
 
 const resourceNameShape = { name: z.string().min(1) }
 
-export const projectSecretListSchema = z.object({ secrets: z.array(secretDetailSchema) })
+export const projectSecretListSchema = z.object({ secrets: z.array(secretSummarySchema) })
 export type ProjectSecretList = z.infer<typeof projectSecretListSchema>
+
+export const projectSecretValueSchema = secretValueSchema
+export type ProjectSecretValue = z.infer<typeof projectSecretValueSchema>
 
 export const resourceMcpServerListSchema = z.object({ servers: z.array(mcpServerSchema) })
 export type ResourceMcpServerList = z.infer<typeof resourceMcpServerListSchema>

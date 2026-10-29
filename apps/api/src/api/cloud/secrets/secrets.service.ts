@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import type { SecretDetail } from '@dltech/atlas-wire/web'
-import type { ESecretKind } from '@dltech/atlas-wire/web'
-import { BadRequestException, Injectable } from '@nestjs/common'
+import type { SecretSummary } from '@dltech/atlas-wire/web'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { kindOf, openSecretValue } from './sealed-secret'
+import { openSecretValue } from './sealed-secret'
 import type { SecretDto } from './secrets.types'
 
 const MAX_NAME_LENGTH = 200
@@ -36,25 +35,28 @@ export class SecretsService {
     return rows.map((row) => row.name)
   }
 
-  async listDetails(args: { userId: string }): Promise<SecretDetail[]> {
+  async listSummaries(args: { userId: string }): Promise<SecretSummary[]> {
     const rows = await db.orm.public.UserSecret.where({ userId: args.userId })
       .orderBy((row) => row.name.asc())
       .all()
     return rows.map((row) => ({
       name: row.name,
-      kind: kindOf(row.kind),
-      value: openSecretValue({ cipher: this.cipher, sealed: row.sealedValue }),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }))
   }
 
-  async set(args: {
-    userId: string
-    name: string
-    value: string
-    kind?: ESecretKind | undefined
-  }): Promise<void> {
+  async reveal(args: { userId: string; name: string }): Promise<string> {
+    assertValidName(args.name)
+    const row = await db.orm.public.UserSecret.where({
+      userId: args.userId,
+      name: args.name,
+    }).first()
+    if (row === null) throw new NotFoundException('secret not found')
+    return openSecretValue({ cipher: this.cipher, sealed: row.sealedValue })
+  }
+
+  async set(args: { userId: string; name: string; value: string }): Promise<void> {
     assertValidName(args.name)
     const sealedValue = this.cipher.encrypt(JSON.stringify(args.value))
     await db.orm.public.UserSecret.upsert({
@@ -64,9 +66,8 @@ export class SecretsService {
         name: args.name,
         sealedValue,
         userId: args.userId,
-        ...(args.kind === undefined ? {} : { kind: args.kind }),
       },
-      update: { sealedValue, ...(args.kind === undefined ? {} : { kind: args.kind }) },
+      update: { sealedValue },
     })
   }
 

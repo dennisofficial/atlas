@@ -9,10 +9,10 @@ const PROBE = 'CLOUD_SECRET_PROBE'
 const config = {
   settings: {},
   secrets: [
-    { name: PROBE, value: 'bar', kind: 'secret' },
-    { name: 'decisions.token.vercel', value: 'decisions-value', kind: 'secret' },
-    { name: '1INVALID', value: 'invalid-value', kind: 'secret' },
-    { name: 'HOME', value: '/hijacked', kind: 'secret' },
+    { name: PROBE, value: 'bar' },
+    { name: 'decisions.token.vercel', value: 'decisions-value' },
+    { name: '1INVALID', value: 'invalid-value' },
+    { name: 'HOME', value: '/hijacked' },
   ],
   mcpServers: [],
   provenance: {},

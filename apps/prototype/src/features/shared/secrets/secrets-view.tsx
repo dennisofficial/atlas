@@ -19,7 +19,6 @@ import { BulkAddDialog, SecretDialog } from './secrets-dialogs'
 import {
   overriddenKeys,
   partitionByScope,
-  splitByKind,
   updateEntry,
   upsertEntries,
   type SecretEntry,
@@ -85,7 +84,6 @@ export function SecretsView({
   const [deleting, setDeleting] = useState<LibrarySecret | null>(null)
 
   const overridden = overriddenKeys(rows)
-  const { envVars, secrets } = splitByKind(rows)
 
   const handleAdd = (entries: SecretEntry[]) =>
     setRows((current) => upsertEntries({ rows: current, entries, scope }))
@@ -123,7 +121,7 @@ export function SecretsView({
 
   return (
     <SettingsPage
-      title="Secrets & Env Vars"
+      title="Secrets"
       description={description}
       actions={
         <>
@@ -152,14 +150,9 @@ export function SecretsView({
       {rows.length === 0 ? (
         <SecretsEmpty />
       ) : (
-        <>
-          <SettingsSection title="Environment variables" count={envVars.length}>
-            {renderGroup({ items: envVars, emptyLabel: 'No environment variables.' })}
-          </SettingsSection>
-          <SettingsSection title="Secrets" count={secrets.length}>
-            {renderGroup({ items: secrets, emptyLabel: 'No secrets.' })}
-          </SettingsSection>
-        </>
+        <SettingsSection title="Secrets" count={rows.length}>
+          {renderGroup({ items: [...rows], emptyLabel: 'No secrets.' })}
+        </SettingsSection>
       )}
 
       <SecretDialog

@@ -1,5 +1,4 @@
 import {
-  ESecretKind,
   ESecretsScope,
   PERSONAL_SECRETS,
   type LibrarySecret,
@@ -202,7 +201,6 @@ export const PROJECT_SECRETS: LibrarySecret[] = [
   {
     id: 'j1',
     key: 'ANTHROPIC_API_KEY',
-    kind: ESecretKind.Secret,
     value: 'sk-ant-api03-q8Zr2mVd7Lk0aPp4xT9e',
     updated: '2h ago',
     scope: ESecretsScope.Project,
@@ -210,7 +208,6 @@ export const PROJECT_SECRETS: LibrarySecret[] = [
   {
     id: 'j2',
     key: 'DATABASE_URL',
-    kind: ESecretKind.Secret,
     value: 'postgres://atlas:hunter2@ep-calm-sun.neon.tech/atlas',
     updated: '3d ago',
     scope: ESecretsScope.Project,
@@ -218,7 +215,6 @@ export const PROJECT_SECRETS: LibrarySecret[] = [
   {
     id: 'j3',
     key: 'NEXT_PUBLIC_APP_URL',
-    kind: ESecretKind.EnvVar,
     value: 'http://localhost:3000',
     updated: '1w ago',
     scope: ESecretsScope.Project,

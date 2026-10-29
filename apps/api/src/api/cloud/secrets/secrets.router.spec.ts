@@ -27,27 +27,46 @@ describe('SecretsRouter', () => {
 
   afterEach(() => app.close())
 
-  it('stores a secret kind and keeps secrets.list free of it', async () => {
-    await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1', kind: 'env' }).expect(200)
+  it('lists summaries without any value and keeps secrets.list carrying values', async () => {
+    await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
     await set('session-a', { name: 'plain', value: 'p' }).expect(200)
-    await set('session-a', { name: 'OPENAI_KEY', value: 'sk-2' }).expect(200)
 
-    const legacy = await query('secrets.list', 'session-a').expect(200)
-    expect(legacy.body.result.data.secrets).toHaveLength(2)
-    for (const entry of legacy.body.result.data.secrets) {
+    const machine = await query('secrets.list', 'session-a').expect(200)
+    for (const entry of machine.body.result.data.secrets) {
       expect(Object.keys(entry).sort()).toEqual(['name', 'updatedAt', 'value'])
     }
 
     const details = await query('secrets.details', 'session-a').expect(200)
     expect(details.headers['cache-control']).toBe('no-store')
-    const rows: { name: string; kind: string }[] = details.body.result.data.secrets
-    expect(Object.fromEntries(rows.map((entry) => [entry.name, entry.kind]))).toEqual({
-      OPENAI_KEY: 'env',
-      plain: 'secret',
-    })
-    expect(rows[0]).toEqual(
-      expect.objectContaining({ createdAt: expect.any(String), updatedAt: expect.any(String) }),
-    )
+    expect(details.text).not.toContain('sk-1')
+    for (const entry of details.body.result.data.secrets) {
+      expect(Object.keys(entry).sort()).toEqual(['createdAt', 'name', 'updatedAt'])
+    }
+  })
+
+  it('reveals one value to a fresh session of its owner only', async () => {
+    await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
+    const reveal = (token?: string, name = 'OPENAI_KEY') =>
+      trpcQuery({ app, procedure: 'secrets.reveal', token, input: { name } })
+
+    const ok = await reveal('session-a').expect(200)
+    expect(ok.body.result.data).toEqual({ value: 'sk-1' })
+    await reveal('session-b').expect(404)
+    await reveal().expect(401)
+    await reveal('pod-token-a').expect(401)
+    await reveal('sandbox-token-a').expect(401)
+  })
+
+  it('answers REAUTH_REQUIRED and no value to a session older than the fresh window', async () => {
+    await set('session-a', { name: 'OPENAI_KEY', value: 'sk-1' }).expect(200)
+    const stale = await trpcQuery({
+      app,
+      procedure: 'secrets.reveal',
+      token: 'stale:session-a',
+      input: { name: 'OPENAI_KEY' },
+    }).expect(403)
+    expect(stale.text).toContain('REAUTH_REQUIRED')
+    expect(stale.text).not.toContain('sk-1')
   })
 
   it('lists secret names without any value or ciphertext', async () => {
@@ -71,8 +90,7 @@ describe('SecretsRouter', () => {
     await query('secrets.names', 'sandbox-token-a').expect(401)
   })
 
-  it('rejects an unknown secret kind and scopes details to the caller', async () => {
-    await set('session-a', { name: 'X', value: 'v', kind: 'weird' }).expect(400)
+  it('scopes details to the caller', async () => {
     await set('session-a', { name: 'X', value: 'v' }).expect(200)
 
     const other = await query('secrets.details', 'session-b').expect(200)

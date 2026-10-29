@@ -11,6 +11,11 @@ export class BetterAuthSessionVerifier implements SessionVerifier {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) })
     if (!session) return null
 
-    return { userId: session.user.id, sessionId: session.session.id, email: session.user.email }
+    return {
+      userId: session.user.id,
+      sessionId: session.session.id,
+      email: session.user.email,
+      sessionCreatedAt: new Date(session.session.createdAt),
+    }
   }
 }

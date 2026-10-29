@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { ATLAS_MCP_FILE_NAME } from '@dltech/atlas-harness'
-import { ENV_NAME_PATTERN, type ESecretKind, type ScopedMcpServer } from '@dltech/atlas-wire/web'
+import { ENV_NAME_PATTERN, type ScopedMcpServer } from '@dltech/atlas-wire/web'
 
 import { writeAtomically } from './owner-only-file'
 
 const RESERVED_ENV_PREFIX = 'ATLAS_'
 
-export type CloudSecret = { name: string; value: string; kind: ESecretKind }
+export type CloudSecret = { name: string; value: string }
 
 export type CloudConfig = {
   settings: readonly { key: string; value: string }[]

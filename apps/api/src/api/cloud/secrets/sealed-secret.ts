@@ -1,4 +1,4 @@
-import { ENV_NAME_PATTERN, ESecretKind } from '@dltech/atlas-wire/web'
+import { ENV_NAME_PATTERN } from '@dltech/atlas-wire/web'
 import { BadRequestException } from '@nestjs/common'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 
@@ -9,9 +9,6 @@ export function assertEnvName(name: string): void {
     )
   }
 }
-
-export const kindOf = (stored: string): ESecretKind =>
-  stored === ESecretKind.EnvVar ? ESecretKind.EnvVar : ESecretKind.Secret
 
 export const sealSecretValue = (args: { cipher: SecretCipherService; value: string }): string =>
   args.cipher.encrypt(JSON.stringify(args.value))
