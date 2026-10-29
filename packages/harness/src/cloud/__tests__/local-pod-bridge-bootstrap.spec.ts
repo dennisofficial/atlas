@@ -19,4 +19,18 @@ describe('bootstrapSpecOf', () => {
       model: 'claude-x',
     })
   })
+
+  it('writes the birth effort alongside the model when one is given', () => {
+    const spec = JSON.parse(
+      bootstrapSpecOf({ projectId: 'proj-1', model: 'claude-x', effort: 'high' }),
+    )
+
+    expect(spec).toMatchObject({ model: 'claude-x', effort: 'high' })
+  })
+
+  it('omits effort when the birth did not set one', () => {
+    const spec = JSON.parse(bootstrapSpecOf({ projectId: null }))
+
+    expect(spec).not.toHaveProperty('effort')
+  })
 })

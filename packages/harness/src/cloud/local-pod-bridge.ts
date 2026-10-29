@@ -42,6 +42,7 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
         content: bootstrapSpecOf({
           projectId: createArgs.projectId,
           ...(createArgs.model === undefined ? {} : { model: createArgs.model }),
+          ...(createArgs.birth === undefined ? {} : { effort: createArgs.birth.effort }),
         }),
       })
     }

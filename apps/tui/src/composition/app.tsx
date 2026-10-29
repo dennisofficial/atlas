@@ -35,11 +35,7 @@ import type { MoveStepTiming } from './use-container-move'
 import { Workspace } from './workspace'
 import { LIVE_WHATS_NEW_DEPS, useWhatsNew, type WhatsNewDeps } from './use-whats-new'
 
-export {
-  cloudEnvironmentOf,
-  reapExpiredSandboxesOnBoot,
-  telemetryEnvironmentOf,
-} from './live-cloud'
+export { reapExpiredSandboxesOnBoot, telemetryEnvironmentOf } from './live-cloud'
 
 type DraftReader = () => { threadId: ThreadId; text: string }
 
