@@ -33,6 +33,7 @@ export type ToolCallItem = {
   change?: EditBody
   image?: MessageImage
   at?: string
+  settledAt?: string
   output?: string
   errorText?: string
   elapsed?: string
@@ -127,5 +128,6 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
     ...(state === EToolState.Error ? { errorText: note ?? FAILED_FALLBACK } : {}),
     ...(elapsed === undefined ? {} : { elapsed }),
     ...(call.at === null ? {} : { at: call.at }),
+    ...(call.settledAt === null ? {} : { settledAt: call.settledAt }),
   }
 }
