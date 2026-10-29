@@ -70,10 +70,10 @@ describe('ThreadsRouter history mutations', () => {
       expect(other.status).toBe(401)
     })
 
-    it('refuses a pod token and an anonymous caller', async () => {
+    it('serves a pod token for its own thread and refuses an anonymous caller', async () => {
       const full = { threadId: SANDBOX_THREAD, ...body }
 
-      expect((await mutate({ app, procedure, headers: pod, body: full })).status).toBe(403)
+      expect((await mutate({ app, procedure, headers: pod, body: full })).status).toBe(200)
       expect((await mutate({ app, procedure, body: full })).status).toBe(401)
     })
 

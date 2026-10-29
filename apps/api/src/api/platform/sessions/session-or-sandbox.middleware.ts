@@ -8,9 +8,9 @@ import type {
   VerifiedSession,
 } from '../../../_core/types/auth.types'
 import { type ApiTrpcCtx, isApiTrpcCtx } from '../../../_module/trpc/api-trpc-context'
-import { metaOf } from '../../../_module/trpc/procedure-meta'
+import { type ApiProcedureMeta, metaOf } from '../../../_module/trpc/procedure-meta'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
+import { ETokenPrincipalKind, type TokenPrincipal } from '../sandboxes/token-principal'
 
 export type SessionOrSandboxTrpcCtx = ApiTrpcCtx & {
   auth: VerifiedSession
@@ -24,6 +24,33 @@ const threadIdOf = (rawInput: unknown): string | undefined => {
   }
   const { threadId } = rawInput
   return typeof threadId === 'string' && threadId.length > 0 ? threadId : undefined
+}
+
+const reachesThreadless = ({
+  principal,
+  procedureMeta,
+}: {
+  principal: TokenPrincipal
+  procedureMeta: ApiProcedureMeta
+}): boolean => {
+  if (procedureMeta.sandboxReachable === true) return true
+  return principal.kind === ETokenPrincipalKind.Pod && procedureMeta.podReachable === true
+}
+
+type PrincipalCtx = { auth: VerifiedSession; sandbox?: SandboxPrincipal; pod?: PodPrincipal }
+
+const principalCtx = (principal: TokenPrincipal): PrincipalCtx => {
+  const email = ''
+  if (principal.kind === ETokenPrincipalKind.Pod) {
+    return {
+      auth: { userId: principal.userId, sessionId: `pod:${principal.threadId}`, email },
+      pod: { threadId: principal.threadId },
+    }
+  }
+  return {
+    auth: { userId: principal.userId, sessionId: `sandbox:${principal.id}`, email },
+    sandbox: { sandboxId: principal.id, threadId: principal.threadId },
+  }
 }
 
 @Injectable()
@@ -42,32 +69,14 @@ export class SessionOrSandboxMiddleware implements TRPCMiddleware {
       const row = await this.sandboxes
         .verifyTokenPrincipal({ token: ctx.bearerToken })
         .catch(() => null)
-      if (row?.kind === ETokenPrincipalKind.Pod) {
-        if (procedureMeta.podReachable !== true) {
-          throw new ForbiddenException('a pod lease token does not reach this route')
-        }
-        const auth: VerifiedSession = {
-          userId: row.userId,
-          sessionId: `pod:${row.threadId}`,
-          email: '',
-        }
-        return next({ ctx: { ...ctx, auth, pod: { threadId: row.threadId } } })
-      }
       if (row !== null) {
         const threadId = threadIdOf(await getRawInput())
         if (threadId !== undefined) {
           await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
-        } else if (procedureMeta.sandboxReachable !== true) {
-          throw new ForbiddenException('a sandbox session token does not reach this route')
+        } else if (!reachesThreadless({ principal: row, procedureMeta })) {
+          throw new ForbiddenException('a pod or sandbox token does not reach this route')
         }
-        const auth: VerifiedSession = {
-          userId: row.userId,
-          sessionId: `sandbox:${row.id}`,
-          email: '',
-        }
-        return next({
-          ctx: { ...ctx, auth, sandbox: { sandboxId: row.id, threadId: row.threadId } },
-        })
+        return next({ ctx: { ...ctx, ...principalCtx(row) } })
       }
     }
 

@@ -36,7 +36,7 @@ export const sessionVerifier = (sessions: Record<string, string>) => ({
 
 export const principalSandboxes = (args: {
   principals: Record<string, unknown>
-  assertThreadInFamily?: () => Promise<void>
+  assertThreadInFamily?: (query: { sandboxThreadId: string; threadId: string }) => Promise<void>
 }) => ({
   async verifyTokenPrincipal(query: { token: string }) {
     const row = args.principals[query.token]
