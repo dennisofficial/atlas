@@ -1,5 +1,5 @@
 export const AUTH_PATHS = {
-  home: '/',
+  home: '/threads',
   signIn: '/sign-in',
   signUp: '/sign-up',
   forgot: '/forgot-password',

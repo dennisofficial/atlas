@@ -15,7 +15,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { nav: EAppNav.Threads, label: 'Threads', href: '/', Icon: MessagesSquare },
+  { nav: EAppNav.Threads, label: 'Threads', href: '/threads', Icon: MessagesSquare },
   { nav: EAppNav.Projects, label: 'Projects', href: '/projects', Icon: FolderKanban },
 ]
 

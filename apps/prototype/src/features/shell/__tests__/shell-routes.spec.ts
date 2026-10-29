@@ -9,7 +9,7 @@ describe('active route', () => {
   test('reads the thread id from the pathname', () => {
     expect(activeThreadIdOf('/threads/thr-snapshots')).toBe('thr-snapshots')
     expect(activeThreadIdOf('/threads/new')).toBeNull()
-    expect(activeThreadIdOf('/')).toBeNull()
+    expect(activeThreadIdOf('/threads')).toBeNull()
   })
 
   test('projects nav is active under /projects only', () => {
