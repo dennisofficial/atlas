@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import {
   CheckIcon,
   CopyIcon,
+  HistoryIcon,
   PencilIcon,
   RefreshCcwIcon,
   ThumbsDownIcon,
@@ -33,6 +34,7 @@ export interface UserMessageProps {
   timestamp?: string
   attachments?: MessageAttachment[]
   onEdit?: () => void
+  onRewind?: () => void
 }
 
 export interface AgentMessageProps {
@@ -114,6 +116,7 @@ export function UserMessage({
   timestamp,
   attachments = [],
   onEdit,
+  onRewind,
 }: UserMessageProps) {
   return (
     <Message align="end">
@@ -134,11 +137,18 @@ export function UserMessage({
             ))}
           </div>
         ) : null}
-        {onEdit ? (
+        {onEdit || onRewind ? (
           <MessageFooter>
-            <ActionButton label="Edit" onClick={onEdit}>
-              <PencilIcon />
-            </ActionButton>
+            {onEdit ? (
+              <ActionButton label="Edit" onClick={onEdit}>
+                <PencilIcon />
+              </ActionButton>
+            ) : null}
+            {onRewind ? (
+              <ActionButton label="Rewind to here" onClick={onRewind}>
+                <HistoryIcon />
+              </ActionButton>
+            ) : null}
           </MessageFooter>
         ) : null}
       </MessageContent>

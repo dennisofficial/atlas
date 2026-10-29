@@ -42,6 +42,8 @@ import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
 import { usePullRequestBell } from './data/use-pull-request-bell'
+import { userRewindPoints } from './data/rewind'
+import { useRewind } from './data/use-rewind'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -60,6 +62,7 @@ import { ThreadLayout } from './thread-layout'
 import { ThreadMissing } from './thread-missing'
 import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
+import { RewindDialog } from './transcript/rewind-dialog'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
@@ -119,6 +122,18 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
   const { pod, refresh } = usePodStatus({ threadId, signals })
+  const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
+  const rewind = useRewind({
+    situation: () => ({
+      threadId,
+      events: parsed,
+      live: source.live,
+      working,
+      podState: pod?.state ?? null,
+    }),
+    source,
+    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+  })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
@@ -228,6 +243,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
               bootNow={now}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}
+              rewind={{
+                points: rewindPoints,
+                onRewind: (picked) => void rewind.handlePick(picked),
+              }}
             />
           </div>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
@@ -240,6 +259,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 onSubmit={(value) => void operator.handleSubmit(value)}
               />
             )}
+            <RewindDialog
+              pick={rewind.pick}
+              applying={rewind.applying}
+              onCancel={rewind.handleCancel}
+              onConfirm={() => void rewind.handleConfirm()}
+            />
             <ComposerDock dock={dock} />
             <ThreadComposer
               value={draft}

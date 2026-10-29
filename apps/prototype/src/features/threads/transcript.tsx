@@ -182,7 +182,7 @@ export function Transcript(props: TranscriptProps) {
       <FirstTurn onOpenFile={props.onOpenFile} />
       <AgentTurns agents={agents} flashId={flashId} onOpenAgent={onOpenAgent} />
       <ChatItem id="u2">
-        <UserMessage author="Dennis" timestamp="14:36">
+        <UserMessage author="Dennis" timestamp="14:36" onRewind={() => undefined}>
           {SECOND_PROMPT}
         </UserMessage>
       </ChatItem>

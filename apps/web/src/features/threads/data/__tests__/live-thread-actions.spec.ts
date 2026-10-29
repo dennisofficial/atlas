@@ -111,3 +111,101 @@ describe('interrupt', () => {
     expect(lost).toBe(0)
   })
 })
+
+describe('rewind', () => {
+  const cuts = [{ kind: 'shell' as const, shellId: 'sh_1', command: 'bun run dev' }]
+
+  const connectedRig = async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+    await flush()
+    return test
+  }
+
+  it('sends the rewind request over a connected live channel', async () => {
+    const test = await connectedRig()
+    const before = test.requests().length
+
+    const applied = test.controller.applyRewind({ cuts, toSeq: 3 })
+    await flush()
+
+    const request = test.requests()[before]
+    expect(request).toMatchObject({
+      kind: EClientFrame.Request,
+      op: EClientRequest.Rewind,
+    })
+    expect(request?.params).toEqual({ threadId: 'thr_1', cuts, toSeq: 3 })
+    test.reply({ index: before, data: {} })
+    await applied
+  })
+
+  it('rejects a rewind without a connected channel', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+
+    await expect(test.controller.applyRewind({ cuts, toSeq: 3 })).rejects.toThrow(
+      'the sandbox is not connected',
+    )
+    expect(test.socket().sent).toEqual([])
+  })
+
+  it('reads the roster over the channel and parses it', async () => {
+    const test = await connectedRig()
+    const before = test.requests().length
+
+    const read = test.controller.readRoster()
+    await flush()
+    expect(test.requests()[before]?.op).toBe(EClientRequest.ListRoster)
+    test.reply({
+      index: before,
+      data: {
+        shells: [],
+        services: [],
+        agents: [
+          {
+            agentId: 'thr_child',
+            spawnedBy: 'thr_1',
+            agentType: 'explore',
+            intent: 'vault audit',
+            status: 'running',
+            turns: 1,
+            toolCalls: 0,
+            startedAt: '2026-10-28T10:00:00.000Z',
+          },
+        ],
+      },
+    })
+
+    const roster = await read
+    expect(roster?.agents[0]).toMatchObject({
+      agentId: 'thr_child',
+      status: 'running',
+    })
+  })
+
+  it('answers null when the roster read fails', async () => {
+    const test = await connectedRig()
+    const before = test.requests().length
+
+    const read = test.controller.readRoster()
+    await flush()
+    const request = test.requests()[before]
+    if (request === undefined) throw new Error('no request')
+    test.receive({
+      kind: EServeFrame.Reply,
+      replyTo: request.id,
+      ok: false,
+      data: 'boom',
+    })
+
+    expect(await read).toBeNull()
+  })
+
+  it('answers null without a connected channel', async () => {
+    const test = rig()
+    expect(await test.controller.readRoster()).toBeNull()
+  })
+})
