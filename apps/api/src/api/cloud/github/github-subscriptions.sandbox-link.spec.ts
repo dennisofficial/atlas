@@ -1,6 +1,7 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { unstubAllGlobals } from '@dltech/bun-test-shims'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   ensureUsers,
   repoHookRows,
@@ -18,6 +19,7 @@ describe('sandbox link and park survival', () => {
   beforeEach(async () => {
     await ensureUsers('usr_1', 'usr_2')
   })
+  afterEach(() => unstubAllGlobals())
 
   const expiredRow = (overrides: Partial<Row<'GithubSubscription'>> = {}) =>
     seedSubscription({
