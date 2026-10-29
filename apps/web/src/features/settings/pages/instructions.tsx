@@ -3,9 +3,9 @@
 import { useCallback, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 
+import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
 import { Button } from '@dltech/atlas-ui/components/button'
-import { CardRow } from '@dltech/atlas-ui/components/card'
-import { Textarea } from '@dltech/atlas-ui/components/textarea'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -17,10 +17,26 @@ import {
 import { QueryPage } from '../data/personal/query-boundary'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { INSTRUCTIONS_CHAR_LIMIT } from '../fixtures/settings-agent'
-import { Mono, SaveFooter, SettingsCard, SettingsPage } from '../settings-layout'
+import { SettingsPage } from '../settings-layout'
 import { useDraft } from '../use-draft'
 
 const COPIED_RESET_MS = 1500
+
+function CharCount({ length }: { length: number }) {
+  const over = length - INSTRUCTIONS_CHAR_LIMIT
+  return (
+    <span
+      role="status"
+      className={cn(
+        'font-mono text-xs tabular-nums',
+        over > 0 ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      {length.toLocaleString('en-US')} / {INSTRUCTIONS_CHAR_LIMIT.toLocaleString('en-US')}
+      {over > 0 ? ` · ${over.toLocaleString('en-US')} over` : null}
+    </span>
+  )
+}
 
 export function InstructionsPage() {
   const query = useCloudQuery({ key: 'personal-instructions', load: fetchInstructions })
@@ -36,8 +52,7 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   const { saving, run } = useSaveAction()
   const [copied, setCopied] = useState(false)
   const [revision, setRevision] = useState(doc.revision)
-  const length = draft.value.length
-  const overLimit = length > INSTRUCTIONS_CHAR_LIMIT
+  const overLimit = draft.value.length > INSTRUCTIONS_CHAR_LIMIT
 
   const handleCopy = () => {
     void navigator.clipboard?.writeText(draft.value)
@@ -61,32 +76,12 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   }, [run, draft.value, revision, commitDraft, onSaved])
 
   return (
-    <SettingsPage title="Instructions">
-      <SettingsCard
-        footer={
-          <div className="flex w-full flex-wrap items-center justify-between gap-2">
-            <Mono className={overLimit ? 'text-destructive' : 'text-muted-foreground'}>
-              {length.toLocaleString('en-US')} / {INSTRUCTIONS_CHAR_LIMIT.toLocaleString('en-US')}{' '}
-              characters
-            </Mono>
-            <div className="flex items-center gap-2">
-              <SaveFooter
-                dirty={draft.dirty && !overLimit && !saving}
-                onDiscard={draft.discard}
-                onSave={() => void handleSave()}
-              />
-            </div>
-          </div>
-        }
-      >
-        <CardRow className="flex-row items-start justify-between">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 className="font-mono text-sm font-medium">Global ATLAS.md</h2>
-            <p className="text-sm text-muted-foreground">
-              Loaded into every thread on every project, before the project&apos;s ATLAS.md,
-              AGENTS.md and CLAUDE.md.
-            </p>
-          </div>
+    <SettingsPage
+      title="Instructions"
+      description="Loaded into every thread, before the project's ATLAS.md, AGENTS.md and CLAUDE.md."
+      actions={
+        <>
+          <CharCount length={draft.value.length} />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -95,18 +90,28 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
           </Button>
-        </CardRow>
-        <CardRow>
-          <Textarea
-            aria-label="Global ATLAS.md"
-            spellCheck={false}
-            placeholder="Machine-wide rules for every repository."
-            className="field-sizing-fixed min-h-96 resize-y font-mono text-xs leading-relaxed"
-            value={draft.value}
-            onChange={(event) => draft.setValue(event.target.value)}
-          />
-        </CardRow>
-      </SettingsCard>
+          {draft.dirty ? (
+            <Button variant="ghost" size="sm" onClick={draft.discard}>
+              Discard
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            disabled={!draft.dirty || overLimit || saving}
+            onClick={() => void handleSave()}
+          >
+            Save
+          </Button>
+        </>
+      }
+    >
+      <MarkdownEditor
+        variant={EMarkdownEditorVariant.Document}
+        ariaLabel="Global ATLAS.md"
+        maxLength={INSTRUCTIONS_CHAR_LIMIT}
+        value={draft.value}
+        onChange={draft.setValue}
+      />
     </SettingsPage>
   )
 }
