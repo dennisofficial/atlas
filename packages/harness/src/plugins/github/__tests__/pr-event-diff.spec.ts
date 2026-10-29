@@ -91,6 +91,47 @@ describe('prEventsOfPoll', () => {
     expect(second(green, aPullRequest({ checks: EChecksState.Running })).events).toEqual([])
   })
 
+  it('marks a failure that lands mid-run as unsettled, and says so again once the run finishes', () => {
+    const running = aPullRequest({
+      checks: EChecksState.Running,
+      tally: { running: 5, passed: 0, failed: 0 },
+    })
+    const failedMidRun = aPullRequest({
+      checks: EChecksState.Failing,
+      tally: { running: 4, passed: 0, failed: 1 },
+    })
+    const finished = aPullRequest({
+      checks: EChecksState.Failing,
+      tally: { running: 0, passed: 4, failed: 1 },
+    })
+
+    const midRun = second(running, failedMidRun)
+    expect(drafts(midRun)).toEqual([
+      expect.objectContaining({ verdict: EPrVerdict.Failed, settled: false }),
+    ])
+
+    const done = diff({ previous: midRun.memory, current: finished })
+    expect(drafts(done)).toEqual([
+      expect.objectContaining({ verdict: EPrVerdict.Failed, settled: true }),
+    ])
+    expect(diff({ previous: done.memory, current: finished }).events).toEqual([])
+  })
+
+  it('marks a green verdict as settled', () => {
+    const running = aPullRequest({
+      checks: EChecksState.Running,
+      tally: { running: 2, passed: 0, failed: 0 },
+    })
+    const green = aPullRequest({
+      checks: EChecksState.Passing,
+      tally: { running: 0, passed: 2, failed: 0 },
+    })
+
+    expect(drafts(second(running, green))).toEqual([
+      expect.objectContaining({ verdict: EPrVerdict.Green, settled: true }),
+    ])
+  })
+
   it('emits mergeability on a definite change, never from or to unknown alone', () => {
     const unknown = aPullRequest({ mergeable: null })
 

@@ -26,7 +26,12 @@ const tipSuffix = (event: PrEvent): string =>
     : ` on ${event.headSha.slice(0, SHORT_SHA_LENGTH)}`
 
 const verdictSentence = (event: PrEvent): string => {
-  if (event.verdict === EPrVerdict.Green) return `checks green${tipSuffix(event)}.`
+  if (event.verdict === EPrVerdict.Green)
+    return `CI finished, all checks passed${tipSuffix(event)}.`
+  if (event.verdict === EPrVerdict.Failed && event.settled === true)
+    return `CI finished, checks failed${tipSuffix(event)}. ${event.url}`
+  if (event.verdict === EPrVerdict.Failed && event.settled === false)
+    return `a check failed${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
   if (event.verdict === EPrVerdict.Failed) return `checks failed${tipSuffix(event)}. ${event.url}`
   return `checks reported. ${event.url}`
 }

@@ -41,6 +41,15 @@ export const CONTEXT_FIELDS: SettingField[] = [
       { value: 'none', label: 'Neither' },
     ],
   },
+  {
+    kind: ESettingFieldKind.Text,
+    key: 'plugins.trustedRepos',
+    title: 'Trusted repositories',
+    description:
+      'Repositories whose .atlas/plugins may run, comma separated, as host/owner/repo. Takes effect on the next session.',
+    fallback: '',
+    placeholder: 'github.com/acme/widget',
+  },
   toggle({
     key: 'context.reload',
     title: 'Reload on change',

@@ -94,6 +94,7 @@ describe('projects router', () => {
       baseBranch: BODY.baseBranch,
       additionalRepos: BODY.additionalRepos,
       githubToken: 'gho_user-a',
+      setupScript: '',
     })
   })
 

@@ -12,6 +12,8 @@ import {
   subscriptionForPullRequest,
   type PullRequestBell,
 } from './subscription-model'
+import { mergePrStates } from './pr-states-merge'
+import { useApiPrStates } from './use-api-pr-states'
 import { usePrStates } from './use-pr-states'
 import { useSubscriptions } from './use-subscriptions'
 
@@ -27,7 +29,12 @@ export function usePullRequests(args: {
   thread: WireThread | undefined
 }): PullRequestsView {
   const { threadId, channel, thread } = args
-  const states = usePrStates(channel)
+  const liveStates = usePrStates(channel)
+  const apiStates = useApiPrStates()
+  const states = useMemo(
+    () => mergePrStates({ live: liveStates, api: apiStates }),
+    [liveStates, apiStates],
+  )
   const { subscriptions, busy, remove, subscribePullRequest } = useSubscriptions({
     threadId,
     channel,

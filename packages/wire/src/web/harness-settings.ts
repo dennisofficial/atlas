@@ -18,6 +18,15 @@ import {
   sandboxVcpusSchema,
 } from './setting-enums'
 
+export const USER_ONLY_SETTING_ENTRIES = [
+  settingEntry({
+    key: 'plugins.trustedRepos',
+    schema: z.string(),
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+]
+
 export const HARNESS_SETTING_ENTRIES = [
   settingEntry({
     key: 'model.id',

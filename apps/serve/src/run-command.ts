@@ -4,15 +4,17 @@ export type CommandRunner = (args: {
   command: readonly string[]
   cwd: string
   stdin?: string | undefined
+  env?: Record<string, string> | undefined
 }) => Promise<CommandRun>
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-export const runCommand: CommandRunner = async ({ command, cwd, stdin }) => {
+export const runCommand: CommandRunner = async ({ command, cwd, stdin, env }) => {
   try {
     const spawned = Bun.spawn([...command], {
       cwd,
+      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
       stdout: 'pipe',
       stderr: 'pipe',
       stdin: stdin === undefined ? 'ignore' : 'pipe',

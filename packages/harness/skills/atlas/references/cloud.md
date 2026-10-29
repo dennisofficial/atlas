@@ -31,6 +31,11 @@ settings page. If Git access fails in a sandbox, check that connection. Released
 matching image; prefer that default. `sandbox.image` / `ATLAS_SANDBOX_IMAGE` overrides it for
 image-access debugging or an intentional runtime. Quota and billing belong to the operator.
 
+Once the repository is cloned, the sandbox applies `.atlas/container.json` `setup` (once per sandbox),
+`start` (every boot) and `env`; the Project's Setup script in the Atlas Cloud project settings, when
+set, runs in place of `setup`. `image`, `dockerfile` and `mounts` cannot apply in a cloud sandbox.
+Failures and that warning appear in the thread's transcript; see `container.md`.
+
 The operator types these slash commands in Atlas, not in a shell:
 
 | Input                                 | Effect                                                            |

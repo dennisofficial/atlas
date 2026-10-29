@@ -6,6 +6,74 @@ import { EConfigRefusal } from '../refusals'
 
 const FILE = '/project/.atlas/container.json'
 
+describe('parseContainerJson dockerfile and JSONC', () => {
+  it('parses comments and trailing commas', () => {
+    const parsed = parseContainerJson({
+      file: FILE,
+      text: '{\n  // toolchain\n  "image": "repo/x", /* why */\n  "setup": "bun install",\n}',
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.config.image).toBe('repo/x')
+    expect(parsed.config.setup).toBe('bun install')
+  })
+
+  it('keeps refusing malformed JSONC as not-json', () => {
+    const parsed = parseContainerJson({ file: FILE, text: '{ "image": ' })
+
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.refusal.refusal).toBe(EConfigRefusal.NotJson)
+  })
+
+  it('carries a dockerfile path next to setup', () => {
+    const parsed = parseContainerJson({
+      file: FILE,
+      text: JSON.stringify({ dockerfile: 'docker/dev.Dockerfile', setup: 'bun install' }),
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.config.dockerfile).toBe('docker/dev.Dockerfile')
+    expect(parsed.config.setup).toBe('bun install')
+  })
+
+  it('refuses image and dockerfile together', () => {
+    const parsed = parseContainerJson({
+      file: FILE,
+      text: JSON.stringify({ image: 'repo/x', dockerfile: 'Dockerfile' }),
+    })
+
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.refusal.refusal).toBe(EConfigRefusal.DockerfileWithImage)
+  })
+
+  it('refuses a dockerfile that escapes .atlas', () => {
+    for (const dockerfile of ['../Dockerfile', '/etc/Dockerfile', 'a/../../Dockerfile']) {
+      const parsed = parseContainerJson({ file: FILE, text: JSON.stringify({ dockerfile }) })
+
+      expect(parsed.ok).toBe(false)
+      if (parsed.ok) continue
+      expect(parsed.refusal.refusal).toBe(EConfigRefusal.DockerfileEscapes)
+    }
+  })
+})
+
+describe('parseDevcontainerJson JSONC', () => {
+  it('parses comments and trailing commas', () => {
+    const parsed = parseDevcontainerJson({
+      file: '/project/.devcontainer/devcontainer.json',
+      text: '{\n  // base\n  "image": "dev/img",\n}',
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.image).toBe('dev/img')
+  })
+})
+
 describe('parseContainerJson', () => {
   it('parses a full config, defaulting mounts to read-only', () => {
     const parsed = parseContainerJson({

@@ -94,14 +94,19 @@ export function routerWith(fakes: StreamFakes = {}): {
   router: GithubPrStreamRouter
   fanout: GithubPrFanoutService
   drain: DrainStateService
+  mailbox: GithubPrEventMailboxService
 } {
   const drain = new DrainStateService()
   const fanout = new GithubPrFanoutService(drain)
+  const mailbox = fakeMailbox(
+    fakes.undelivered,
+    fakes.threadMissed,
+  ) as unknown as GithubPrEventMailboxService
   const router = new GithubPrStreamRouter(
     fanout,
     fakeSubscriptions(fakes.states) as unknown as GithubSubscriptionsService,
     drain,
-    fakeMailbox(fakes.undelivered, fakes.threadMissed) as unknown as GithubPrEventMailboxService,
+    mailbox,
   )
-  return { router, fanout, drain }
+  return { router, fanout, drain, mailbox }
 }

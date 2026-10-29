@@ -21,7 +21,7 @@ type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
 
 const HEADING_CLASSES: Record<HeadingTag, string> = {
   h1: 'mt-6 mb-2 text-lg font-semibold text-balance',
-  h2: 'mt-5 mb-2 text-base font-semibold text-balance',
+  h2: 'mt-5 mb-2 text-base font-semibold text-balance text-primary',
   h3: 'mt-4 mb-1.5 text-sm font-semibold text-balance',
   h4: 'mt-4 mb-1.5 text-sm font-medium text-balance',
   h5: 'mt-3 mb-1 text-sm font-medium text-muted-foreground',
@@ -56,7 +56,7 @@ function MarkdownLink({
       target={inPage ? undefined : '_blank'}
       rel={inPage ? undefined : 'noreferrer'}
       className={cn(
-        'font-medium wrap-anywhere text-primary underline-offset-4 hover:underline',
+        'font-medium wrap-anywhere text-link underline-offset-4 hover:underline',
         className,
       )}
       {...props}

@@ -11,6 +11,14 @@ A plugin is a TypeScript module that Atlas imports at session start from a plugi
 
 Both directories are read at session start. Changes need a new session (restart Atlas or open a fresh one); nothing is hot-reloaded.
 
+User plugins always load. Project plugins load only when the repository is trusted: its key must be listed in the
+user setting "Trusted repositories" (`plugins.trustedRepos`, a comma-separated list, case-insensitive). The key is
+the normalized `origin` remote, `github.com/<owner>/<repo>`, so trust follows the repo into Cloud sandboxes where the
+checkout path differs; a repo with no usable remote is keyed by its absolute path. An untrusted repo with project
+plugins shows one warning, `project plugins not loaded: <ids> — add <key> to Trusted repositories …`, and none of
+them run. Set it in the TUI settings (General → Plugins) or the Atlas Cloud agent settings, then start a new
+session. A repository cannot trust itself: the setting is ignored in `.atlas/settings.json`.
+
 - A plugin is either a bare `*.ts` / `*.tsx` file, or a subdirectory containing `index.ts` / `index.tsx`. Files starting with `.` and `*.d.ts` are ignored, as are dot-directories.
 - A subdirectory with no `index.ts(x)` is reported as unreadable, not skipped silently.
 - Each plugin has a string `id`. If a user plugin and a project plugin share an id, the project one wins. Two files in the same directory with the same id: the first by filename order loads, the second is refused (`duplicate-id`).
@@ -111,4 +119,4 @@ Diagnose by reading the notice, fixing the named file, and starting a fresh sess
 
 ## Safety
 
-There is no sandbox or permission prompt for plugins: they run in the Atlas process with your filesystem, network, and credentials access, and project plugins load automatically when Atlas opens that repo. Review any `.atlas/plugins/` content in an unfamiliar repository before running Atlas there, and prefer hooks in the `Guard` stage for policy rather than relying on prompt text.
+Plugins are not sandboxed: they run in the Atlas process with your filesystem, network, and credentials access. That is why project plugins wait for trust. Review a repository's `.atlas/plugins/` before adding it to Trusted repositories, and prefer hooks in the `Guard` stage for policy rather than relying on prompt text.

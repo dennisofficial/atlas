@@ -61,8 +61,9 @@ re-break webhook management on a timer even after this redesign.
 
 - Env: `GITHUB_OAUTH_CLIENT_ID` (new). `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and the
   `GITHUB_APP_*` keys are retired once the app module is deleted.
-- Requested scopes: `repo read:org admin:repo_hook admin:ssh_signing_key`. (`workflow` is dropped
-  unless a consumer needs it; `admin:repo_hook` is required for on-the-fly hook creation;
+- Requested scopes: `repo read:org admin:repo_hook admin:ssh_signing_key workflow`. (`workflow` is
+  required because sandbox agents push with this token, and GitHub rejects any push touching
+  `.github/workflows/*` without it; `admin:repo_hook` is required for on-the-fly hook creation;
   `admin:ssh_signing_key` is required because deleting a signing key, which rotation and revocation
   do, needs `admin:` rather than `write:`.)
 - The device-flow endpoints (`github-device-client.ts`) stay; only the client id and scope

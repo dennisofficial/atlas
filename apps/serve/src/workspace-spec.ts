@@ -11,6 +11,7 @@ export const wireWorkspaceSpecSchema = z.object({
   projectId: z.string().nullish(),
   baseBranch: z.string().nullish(),
   additionalRepos: z.array(projectRepoSchema).nullish(),
+  setupScript: z.string().nullish(),
 })
 
 export type WorkspaceSpec = z.infer<typeof wireWorkspaceSpecSchema>

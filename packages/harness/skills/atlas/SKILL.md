@@ -24,7 +24,7 @@ Create only what the repo needs; each item is optional and commit the shared one
 5. `.atlas/container.json` (or `.atlas/Dockerfile`): the image and setup for Docker execution.
 6. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
 7. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
-8. Add `.atlas/worktrees` to `.gitignore`: Atlas creates worktrees there.
+8. Worktrees need no setup: Atlas creates them under `.atlas/worktrees` and writes its own `.gitignore` there.
 
 ## Every file Atlas reads
 

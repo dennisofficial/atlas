@@ -1,31 +1,20 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
-import {
-  PLUGIN_TYPES_FILE_NAME,
-  renderPluginTypes,
-  workspaceRootOfThisScript,
-  writePluginTypes,
-} from '../../../scripts/generate-plugin-types'
 import { PLUGIN_API_MODULES, atlasPluginApi } from '../api'
+import { PLUGIN_TYPES_FILE_NAME } from '../../plugin-types/constants'
+import { materializePluginTypes } from '../../plugin-types/materialize'
+import { PLUGIN_TYPES_TEXT } from '../../plugin-types/plugin-types.generated'
 
-const DECLARED_VALUE = /^ {2}export const (\w+):/gm
-
-const DECLARED_TYPE = /^ {2}export type (\w+) =/gm
-
-const namesMatching = (args: { pattern: RegExp; text: string }): readonly string[] =>
-  [...args.text.matchAll(args.pattern)].map((match) => match[1] ?? '').sort()
-
-const rendered = renderPluginTypes({ declarationRoot: '/declarations' })
+const TSC = join(dirname(Bun.resolveSync('typescript/package.json', import.meta.dir)), 'bin', 'tsc')
 
 describe('the shipped types and the curated api', () => {
-  it('declares exactly the values atlasPluginApi exports', () => {
-    expect(namesMatching({ pattern: DECLARED_VALUE, text: rendered })).toEqual(
-      Object.keys(atlasPluginApi).sort(),
-    )
+  it('is one ambient module named atlas with no import of anything outside itself', () => {
+    expect(PLUGIN_TYPES_TEXT).toContain("declare module 'atlas' {")
+    expect(PLUGIN_TYPES_TEXT).not.toMatch(/from '[^']*'|import\(/)
   })
 
   it('claims a companion type only for a name the api actually exports', () => {
@@ -34,38 +23,39 @@ describe('the shipped types and the curated api', () => {
     expect(claimed.filter((name) => !(name in atlasPluginApi))).toEqual([])
   })
 
-  it('declares a type for every value that is also a type, and for every type-only name', () => {
-    const expected = PLUGIN_API_MODULES.flatMap((module) => [...module.valueTypes, ...module.types])
+  it('exports every value atlasPluginApi exports', () => {
+    const exported = [
+      ...PLUGIN_TYPES_TEXT.matchAll(
+        /^ {0,2}export (?:declare )?(?:const|function|class|abstract class|enum) (\w+)/gm,
+      ),
+    ].map((match) => match[1])
+    const missing = Object.keys(atlasPluginApi).filter((name) => !exported.includes(name))
 
-    expect(namesMatching({ pattern: DECLARED_TYPE, text: rendered })).toEqual([...expected].sort())
-  })
-
-  it('points every declaration at the declaration root it was handed', () => {
-    expect(rendered).toContain("import('/declarations/packages/core/src/index')")
-    expect(rendered).toContain("import('/declarations/packages/harness/src/plugins/plugin')")
+    expect(missing).toEqual([])
   })
 })
 
-describe('a fixture plugin typechecked against the emitted file', () => {
+describe('a fixture plugin typechecked against the materialized file alone', () => {
   it('resolves every name it imports and types a hook body without an implicit any', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'atlas-plugin-types-'))
-
-    await writePluginTypes({ sourceRoot: workspaceRootOfThisScript(), directory })
+    await materializePluginTypes({ home: directory })
+    const declared = join(directory, 'types', PLUGIN_TYPES_FILE_NAME)
 
     writeFileSync(
       join(directory, 'tsconfig.json'),
       JSON.stringify({
         compilerOptions: {
           target: 'ES2023',
-          lib: ['ES2023'],
+          lib: ['ES2023', 'DOM'],
           module: 'Preserve',
           moduleResolution: 'bundler',
           strict: true,
           noEmit: true,
-          skipLibCheck: true,
+          skipLibCheck: false,
+          types: [],
           verbatimModuleSyntax: true,
         },
-        files: ['./fixture.ts', `./${PLUGIN_TYPES_FILE_NAME}`],
+        files: ['./fixture.ts', declared],
       }),
     )
 
@@ -108,8 +98,8 @@ export default definePlugin({
 `,
     )
 
-    const checked = Bun.spawn(['bunx', 'tsc', '--noEmit', '-p', directory], {
-      cwd: workspaceRootOfThisScript(),
+    const checked = Bun.spawn(['bun', TSC, '--noEmit', '-p', directory], {
+      cwd: directory,
       stdout: 'pipe',
       stderr: 'pipe',
     })
@@ -118,5 +108,5 @@ export default definePlugin({
 
     expect(reported.trim()).toBe('')
     expect(await checked.exited).toBe(0)
-  }, 60_000)
+  }, 120_000)
 })

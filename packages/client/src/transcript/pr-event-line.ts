@@ -38,6 +38,10 @@ const reviewCommentLine = (event: PrEvent): string =>
   withBody(`${prefix(event)}: ${author(event)} left an inline review comment`, event.body)
 
 const verdictLine = (event: PrEvent): string => {
+  if (event.verdict === EPrVerdict.Failed && event.settled === true)
+    return `${prefix(event)}: CI finished, still failing`
+  if (event.verdict === EPrVerdict.Failed && event.settled === false)
+    return `${prefix(event)}: a check failed, CI still running`
   if (event.verdict === EPrVerdict.Failed) return `${prefix(event)}: CI failed`
   return `${prefix(event)}: CI green`
 }

@@ -61,17 +61,35 @@ describe('handing a PR event to the model', () => {
     )
   })
 
-  it('says checks are green without a link', () => {
+  it('says CI finished with every check passed, without a link', () => {
     const block = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }))
 
-    expect(block).toContain('checks green.')
+    expect(block).toContain('CI finished, all checks passed.')
     expect(block).not.toContain(URL)
   })
 
-  it('says checks failed and links the PR', () => {
+  it('says checks failed and links the PR when it is not known whether CI finished', () => {
     const block = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed }))
 
     expect(block).toContain(`checks failed. ${URL}`)
+  })
+
+  it('says CI finished when a failure arrives after every check completed', () => {
+    const block = prEventBlock(
+      eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, settled: true }),
+    )
+
+    expect(block).toContain(`CI finished, checks failed. ${URL}`)
+  })
+
+  it('says other checks are still running when a failure arrives mid-run', () => {
+    const block = prEventBlock(
+      eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, settled: false }),
+    )
+
+    expect(block).toContain(
+      `a check failed while CI is still running; another notice follows when CI finishes. ${URL}`,
+    )
   })
 
   it('names the tip a verdict belongs to by its first seven characters', () => {
@@ -83,7 +101,7 @@ describe('handing a PR event to the model', () => {
       eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed, headSha: sha }),
     )
 
-    expect(green).toContain('checks green on 0123456.')
+    expect(green).toContain('CI finished, all checks passed on 0123456.')
     expect(failed).toContain(`checks failed on 0123456. ${URL}`)
   })
 
@@ -93,8 +111,8 @@ describe('handing a PR event to the model', () => {
       eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green, headSha: 'abc123' }),
     )
 
-    expect(absent).toContain('checks green.')
-    expect(short).toContain('checks green.')
+    expect(absent).toContain('all checks passed.')
+    expect(short).toContain('all checks passed.')
   })
 
   it('says whether the PR is mergeable', () => {
@@ -165,7 +183,7 @@ describe('messagesFromEvents and PR events', () => {
       content: [
         {
           type: 'text',
-          text: '<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: checks green.\n</system-notice>',
+          text: '<system-notice kind="pr-event">\nPR #12 in github.com/owner/repo: CI finished, all checks passed.\n</system-notice>',
         },
       ],
     })

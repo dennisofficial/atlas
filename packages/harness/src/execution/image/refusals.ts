@@ -6,6 +6,8 @@ export enum EConfigRefusal {
   MountDotDot = 'mount-dot-dot',
   MountOverLong = 'mount-over-long',
   MountReserved = 'mount-reserved',
+  DockerfileWithImage = 'dockerfile-with-image',
+  DockerfileEscapes = 'dockerfile-escapes',
 }
 
 export type ConfigRefusal = {

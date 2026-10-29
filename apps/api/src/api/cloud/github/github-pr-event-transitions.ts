@@ -33,17 +33,31 @@ export function transitionsOf(args: {
   const checksSettled =
     args.next.checksRunning === 0 && args.next.checksPassed + args.next.checksFailed > 0
   const settledFromRunning = checksSettled && args.prior.checksRunning > 0
+  const completedMore =
+    args.next.checksPassed + args.next.checksFailed >
+    args.prior.checksPassed + args.prior.checksFailed
+  const failureAlreadyAnnounced = args.next.checksFailed > 0 && args.prior.checksFailed > 0
 
   if (verdictTiming === 'fail-fast') {
     if (args.next.checksFailed > 0 && args.prior.checksFailed === 0) {
       events.push({
         kind: EPrEventKind.Verdict,
-        payload: { url: args.next.url, verdict: 'failed', headSha: args.next.headSha },
+        payload: {
+          url: args.next.url,
+          verdict: 'failed',
+          headSha: args.next.headSha,
+          settled: args.next.checksRunning === 0,
+        },
       })
-    } else if (settledFromRunning && args.next.checksFailed === 0) {
+    } else if (settledFromRunning && (!failureAlreadyAnnounced || completedMore)) {
       events.push({
         kind: EPrEventKind.Verdict,
-        payload: { url: args.next.url, verdict: 'green', headSha: args.next.headSha },
+        payload: {
+          url: args.next.url,
+          verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
+          headSha: args.next.headSha,
+          settled: true,
+        },
       })
     }
   } else if (settledFromRunning) {
@@ -53,6 +67,7 @@ export function transitionsOf(args: {
         url: args.next.url,
         verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
         headSha: args.next.headSha,
+        settled: true,
       },
     })
   }
@@ -68,6 +83,7 @@ export function transitionsOf(args: {
         url: args.next.url,
         verdict: args.next.checksFailed > 0 ? 'failed' : 'green',
         headSha: args.next.headSha,
+        settled: true,
       },
     })
   }

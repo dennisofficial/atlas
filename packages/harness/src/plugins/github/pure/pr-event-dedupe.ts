@@ -9,6 +9,7 @@ export type PrEventCandidate = {
   kind: EPrEventKind
   verdict?: string | undefined
   headSha?: string | undefined
+  settled?: boolean | undefined
   mergeable?: boolean | undefined
   state?: string | undefined
 }
@@ -25,7 +26,7 @@ const TRANSITION_KINDS: ReadonlySet<EPrEventKind> = new Set([
 
 const readingOf = (candidate: PrEventCandidate): string => {
   if (candidate.kind === EPrEventKind.Verdict)
-    return `${candidate.verdict ?? ''}:${candidate.headSha ?? ''}`
+    return `${candidate.verdict ?? ''}:${candidate.headSha ?? ''}:${candidate.settled === true ? 'settled' : ''}`
   if (candidate.kind === EPrEventKind.Mergeability) return String(candidate.mergeable)
   return candidate.state ?? ''
 }

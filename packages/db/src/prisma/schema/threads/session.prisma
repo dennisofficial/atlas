@@ -17,7 +17,7 @@ model Session {
   cloudSandbox       CloudSandbox?
   bootSteps          SandboxBootStep[]
   teammates          Session[]            @relation(name: "Session_managedBy")
-  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Session_userId_updatedAt_idx")
   project            Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   mainThread         Thread?              @relation(name: "Session_mainThread", fields: [mainThreadId], references: [id], onDelete: NoAction, onUpdate: Cascade)
   managedBy          Session?             @relation(name: "Session_managedBy", fields: [managedBySessionId], references: [id], onDelete: SetNull, onUpdate: NoAction)

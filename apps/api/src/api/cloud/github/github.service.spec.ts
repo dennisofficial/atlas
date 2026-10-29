@@ -70,7 +70,7 @@ describe('GithubService', () => {
     expect(calls[0]?.request.body).toBe(
       JSON.stringify({
         client_id: CLIENT_ID,
-        scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+        scope: 'repo read:org admin:repo_hook admin:ssh_signing_key workflow',
       }),
     )
   })
@@ -122,7 +122,7 @@ describe('GithubService', () => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key workflow',
         })
       }
       return jsonResponse({ login: 'octocat' })
@@ -133,7 +133,7 @@ describe('GithubService', () => {
     expect(result).toEqual({
       status: EGithubPollStatus.Connected,
       login: 'octocat',
-      scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key'],
+      scopes: ['repo', 'read:org', 'admin:repo_hook', 'admin:ssh_signing_key', 'workflow'],
     })
     const verification = calls.find((call) => call.url === 'https://api.github.com/user')
     expect(verification?.request.headers.Authorization).toBe('Bearer gho_raw-token')
@@ -141,7 +141,7 @@ describe('GithubService', () => {
     const row = (await connectionRows())[0]
     expect(row?.userId).toBe(USER_A)
     expect(row?.login).toBe('octocat')
-    expect(row?.scopes).toBe('repo read:org admin:repo_hook admin:ssh_signing_key')
+    expect(row?.scopes).toBe('repo read:org admin:repo_hook admin:ssh_signing_key workflow')
     expect(row?.sealedToken).not.toContain('gho_raw-token')
 
     const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
@@ -153,7 +153,7 @@ describe('GithubService', () => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key workflow',
         })
       }
       return jsonResponse({ login: 'octocat' })
@@ -170,7 +170,7 @@ describe('GithubService', () => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key workflow',
         })
       }
       return jsonResponse({ login: 'octocat' })
@@ -193,7 +193,7 @@ describe('GithubService', () => {
       if (url === 'https://github.com/login/oauth/access_token') {
         return jsonResponse({
           access_token: 'gho_raw-token',
-          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key',
+          scope: 'repo read:org admin:repo_hook admin:ssh_signing_key workflow',
         })
       }
       return jsonResponse({ login: 'octocat' })

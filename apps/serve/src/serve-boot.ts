@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 
 import {
   EExecutionLocation,
+  type NoticePort,
   EHarnessPlacement,
   ERunner,
   normalizeRepoOrigin,
@@ -27,6 +28,7 @@ import {
   EProfileStepState,
   type ApplyEnvironmentProfile,
 } from './environment-profile'
+import { createContainerSetup, type ContainerSetup } from './container-setup'
 import { applyCloudInstructions } from './cloud-instructions'
 import { createCloudStateRefresh } from './cloud-state-refresh'
 import { applyGitAccessEnv } from './git-access-env'
@@ -63,6 +65,8 @@ export async function bootServeFiles(args: {
   clientVersion: string
   fetchFn: typeof fetch
   reporter?: BootReporter | undefined
+  notice?: NoticePort | undefined
+  containerSetup?: ContainerSetup | undefined
 }) {
   const { env, threadId, atlasHome, log } = args
   const reporter = args.reporter ?? NOOP_BOOT_REPORTER
@@ -77,7 +81,10 @@ export async function bootServeFiles(args: {
   )
 
   const workspaceStartedAt = Date.now()
-  const cwd = await resolveWorkspaceDir({ atlasHome, fetchSpec: fetchSpecOnce })
+  const cwd = await resolveWorkspaceDir({
+    atlasHome,
+    fetchSpec: fetchSpecOnce,
+  })
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
   const workspace: WorkspaceReadiness = await trackClone({
@@ -99,15 +106,34 @@ export async function bootServeFiles(args: {
       ms: workspaceMs,
     })
   } else {
-    log({ event: EServeEvent.WorkspaceReady, state: workspace.state, cwd, ms: workspaceMs })
+    log({
+      event: EServeEvent.WorkspaceReady,
+      state: workspace.state,
+      cwd,
+      ms: workspaceMs,
+    })
     for (const outcome of workspace.profile?.steps ?? []) {
       if (outcome.state !== EProfileStepState.Failed) continue
-      log({ event: EServeEvent.ProfileStepFailed, step: outcome.step, detail: outcome.detail })
+      log({
+        event: EServeEvent.ProfileStepFailed,
+        step: outcome.step,
+        detail: outcome.detail,
+      })
     }
   }
 
   const spec = await fetchSpecOnce().catch(() => null)
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
+  if (workspace.state !== EWorkspaceState.Failed && args.notice !== undefined) {
+    const applyContainer = args.containerSetup ?? createContainerSetup({})
+    await applyContainer({
+      cwd,
+      atlasHome,
+      env,
+      setupScript: spec?.setupScript,
+      notice: args.notice,
+    }).catch(() => undefined)
+  }
   if (spec?.projectId && !spec.githubToken) {
     log({ event: EServeEvent.GithubTokenAbsent, projectId: spec.projectId })
   }

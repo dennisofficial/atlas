@@ -6,6 +6,7 @@ import { api, cloudCall } from '@/lib/api-client'
 import type { CreateThreadBody } from './create-thread'
 import type { SubscribeListSignals } from '@/features/shell/list-reload'
 import type { SubscribeThreadStream } from './thread-signals'
+import type { ApiPrStatesSubscribe } from './api-pr-states-source'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
 
@@ -53,6 +54,9 @@ export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handler
 
 export const subscribeListSignals: SubscribeListSignals = (handlers) =>
   api.threads.listSignals.subscribe(undefined, handlers)
+
+export const subscribePrStatesFromApi: ApiPrStatesSubscribe = (handlers) =>
+  api.githubPrs.states.subscribe(undefined, handlers)
 
 export const resizePod = (args: { threadId: string; vcpus: number }) =>
   cloudCall(api.threadPod.resize.mutate(args))

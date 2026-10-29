@@ -5,7 +5,7 @@ import { DEFAULT_SANDBOX_IMAGE } from '../docker/sandbox'
 import { EBuildContext } from './build'
 import { type Mount } from './mounts'
 import { parseContainerJson, parseDevcontainerJson } from './parse'
-import { type ConfigRefusal } from './refusals'
+import { EConfigRefusal, type ConfigRefusal } from './refusals'
 
 export enum EConfigSource {
   ContainerJson = 'container.json',
@@ -48,7 +48,7 @@ export const readTextFile: TextFileReader = async (path) => {
 }
 
 const dockerfileNote = (path: string): string =>
-  `${path}: building this Dockerfile is the escape hatch, taken because nothing names an image — naming one in .atlas/container.json starts faster and cannot break on a build, so keep the Dockerfile for when no image is enough`
+  `${path}: building this Dockerfile is the escape hatch, taken because nothing names an image — naming one in .atlas/container.json starts faster and cannot break on a build, so keep the Dockerfile for when no image is enough (or name it with "dockerfile" in .atlas/container.json to keep setup, start, env and mounts alongside it)`
 
 const ignoredNote = (args: { file: string; ignored: readonly string[] }): string =>
   `${args.file}: ignored ${args.ignored.join(', ')} — only image and postCreateCommand are read from a devcontainer.json`
@@ -66,13 +66,30 @@ export async function resolveContainerConfig(args: {
   const containerText = await read(containerFile)
   if (containerText !== undefined) {
     const parsed = parseContainerJson({ text: containerText, file: containerFile })
-    if (parsed.ok) {
+    const dockerfilePath =
+      parsed.ok && parsed.config.dockerfile !== undefined
+        ? join(args.projectDirectory, '.atlas', parsed.config.dockerfile)
+        : undefined
+    if (parsed.ok && dockerfilePath !== undefined && (await read(dockerfilePath)) === undefined) {
+      refusals.push({
+        refusal: EConfigRefusal.Unreadable,
+        file: dockerfilePath,
+        detail: `${containerFile} names this dockerfile but it does not exist`,
+      })
+    } else if (parsed.ok) {
       refusals.push(...parsed.refusals)
       return {
-        image: {
-          kind: EImageKind.Image,
-          reference: parsed.config.image ?? DEFAULT_SANDBOX_IMAGE,
-        },
+        image:
+          dockerfilePath !== undefined
+            ? {
+                kind: EImageKind.Dockerfile,
+                path: dockerfilePath,
+                context: EBuildContext.AtlasDirectory,
+              }
+            : {
+                kind: EImageKind.Image,
+                reference: parsed.config.image ?? DEFAULT_SANDBOX_IMAGE,
+              },
         setup: parsed.config.setup,
         start: parsed.config.start,
         env: parsed.config.env ?? {},
@@ -81,8 +98,9 @@ export async function resolveContainerConfig(args: {
         notes,
         refusals,
       }
+    } else {
+      refusals.push(parsed.refusal)
     }
-    refusals.push(parsed.refusal)
   }
 
   const devcontainerFile = join(args.projectDirectory, '.devcontainer', 'devcontainer.json')
