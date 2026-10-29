@@ -13,6 +13,7 @@ export enum ETurnKind {
   User = 'user',
   Agent = 'agent',
   Report = 'report',
+  Notice = 'notice',
 }
 
 export enum ESegmentKind {
@@ -59,7 +60,13 @@ export type AgentTurn = {
   running: boolean
 }
 
-export type Turn = UserTurn | ReportTurn | AgentTurn
+export type NoticeTurn = {
+  kind: ETurnKind.Notice
+  id: string
+  item: ItemOf<ETranscriptKind.Notice>
+}
+
+export type Turn = UserTurn | ReportTurn | NoticeTurn | AgentTurn
 
 export const WORKING_TURN_ID = 'working'
 const TURN_START = 'start'
@@ -67,7 +74,12 @@ const TURN_START = 'start'
 const stepsIn = (item: WorkItem): number =>
   item.kind === ETranscriptKind.Thought ? 1 : item.calls.length
 
-type Run = Exclude<TranscriptRow, ItemOf<ETranscriptKind.User> | ReportItem>
+type TurnStart = { id: string; at?: string | undefined }
+
+type Run = Exclude<
+  TranscriptRow,
+  ItemOf<ETranscriptKind.User> | ItemOf<ETranscriptKind.Notice> | ReportItem
+>
 
 function workSegmentOf(args: {
   turnId: string
@@ -133,11 +145,7 @@ function withRunningTail(args: {
   return [...segments, { ...placeholder, running: true }]
 }
 
-function agentTurnOf(args: {
-  run: Run[]
-  after: ItemOf<ETranscriptKind.User> | null
-  running: boolean
-}): AgentTurn {
+function agentTurnOf(args: { run: Run[]; after: TurnStart | null; running: boolean }): AgentTurn {
   const { run } = args
   const spawns = run.filter((item): item is SpawnItem => item.kind === ETranscriptKind.Spawn)
   const rest = run.filter(
@@ -158,7 +166,7 @@ function agentTurnOf(args: {
 export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolean }): Turn[] {
   const turns: Turn[] = []
   let run: Run[] = []
-  let after: ItemOf<ETranscriptKind.User> | null = null
+  let after: TurnStart | null = null
 
   const closeRun = (running: boolean) => {
     if (run.length > 0 || running) turns.push(agentTurnOf({ run, after, running }))
@@ -172,6 +180,12 @@ export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolea
       after = item
       continue
     }
+    if (item.kind === ETranscriptKind.Notice) {
+      closeRun(false)
+      turns.push({ kind: ETurnKind.Notice, id: item.id, item })
+      after = item
+      continue
+    }
     if (item.kind === ETranscriptKind.Report) {
       closeRun(false)
       turns.push({ kind: ETurnKind.Report, id: item.id, item })
@@ -182,7 +196,8 @@ export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolea
   }
 
   const lastKind = turns.at(-1)?.kind
-  const awaitingReply = lastKind === ETurnKind.User || lastKind === ETurnKind.Report
+  const awaitingReply =
+    lastKind === ETurnKind.User || lastKind === ETurnKind.Report || lastKind === ETurnKind.Notice
   closeRun(args.working && (run.length > 0 || awaitingReply))
   return turns
 }

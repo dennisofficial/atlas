@@ -18,10 +18,12 @@ import {
   type ReportItem,
   type SpawnItem,
 } from './transcript-agents'
-import { ETranscriptKind } from './transcript-kind'
+import { ENoticeTone, ETranscriptKind } from './transcript-kind'
+import { noticeItemOf, type NoticeContext, type NoticeItem } from './transcript-notices'
 import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
-export { ETranscriptKind }
+export { ENoticeTone, ETranscriptKind }
+export type { NoticeContext, NoticeItem }
 export { EToolFamily, type ToolCallItem } from './transcript-tools'
 export type { ReportItem, SpawnItem } from './transcript-agents'
 
@@ -49,6 +51,7 @@ export type TranscriptItem = Timed &
         heldOpen: boolean
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
+    | NoticeItem
   )
 
 export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
@@ -87,7 +90,7 @@ function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
             heldOpen: entry.heldOpen,
           }
     default:
-      return null
+      return noticeItemOf(entry)
   }
 }
 

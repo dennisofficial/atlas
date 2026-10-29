@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
-import { ETranscriptKind, type TranscriptItem } from '../transcript-items'
+import { ENoticeTone, ETranscriptKind, type TranscriptItem } from '../transcript-items'
 import { ESegmentKind, ETurnKind, turnsOf, type AgentTurn, type Segment } from '../transcript-turns'
 
 const user = (id: string, at?: string): TranscriptItem => ({
@@ -189,3 +189,45 @@ describe('turnsOf', () => {
 function agentTurnsOf(items: TranscriptItem[], working = false): AgentTurn[] {
   return agentTurns(turnsOf({ items, working }))
 }
+
+const notice = (id: string, at?: string): TranscriptItem => ({
+  kind: ETranscriptKind.Notice,
+  id,
+  title: id,
+  body: '',
+  tone: ENoticeTone.Quiet,
+  ...(at === undefined ? {} : { at }),
+})
+
+describe('harness notices', () => {
+  it('closes the run and starts the next agent turn at the notice time', () => {
+    const turns = turnsOf({
+      items: [
+        user('u1', '2026-10-28T10:00:00.000Z'),
+        agent('a1', '2026-10-28T10:00:05.000Z'),
+        notice('n1', '2026-10-28T10:01:00.000Z'),
+        tools('tl1', 1, '2026-10-28T10:01:10.000Z'),
+        agent('a2', '2026-10-28T10:01:20.000Z'),
+      ],
+      working: false,
+    })
+
+    expect(turns.map((turn) => turn.kind)).toEqual([
+      ETurnKind.User,
+      ETurnKind.Agent,
+      ETurnKind.Notice,
+      ETurnKind.Agent,
+    ])
+    const woken = turns[3]
+    const work = woken?.kind === ETurnKind.Agent ? woken.segments[0] : undefined
+    expect(work?.kind === ESegmentKind.Work ? work.startedAt : undefined).toBe(
+      '2026-10-28T10:01:00.000Z',
+    )
+  })
+
+  it('awaits a reply after a trailing notice while working', () => {
+    const turns = turnsOf({ items: [notice('n1', 't1')], working: true })
+
+    expect(turns.map((turn) => turn.kind)).toEqual([ETurnKind.Notice, ETurnKind.Agent])
+  })
+})

@@ -36,6 +36,7 @@ import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { ReportNotice, SpawnCard } from './transcript/transcript-agents'
+import { TranscriptNotice } from './transcript/transcript-notice'
 import { ToolRow } from './transcript/transcript-tool-row'
 
 const AGENT_AUTHOR = 'Atlas'
@@ -160,6 +161,8 @@ function TurnView({
       )
     case ETurnKind.Report:
       return <ReportNotice item={turn.item} />
+    case ETurnKind.Notice:
+      return <TranscriptNotice item={turn.item} />
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} />
   }
