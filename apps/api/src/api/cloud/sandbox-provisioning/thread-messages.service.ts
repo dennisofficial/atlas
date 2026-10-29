@@ -55,6 +55,7 @@ export class ThreadMessagesService {
   }): Promise<ThreadMessageReply> {
     const { userId, threadId, sendId, text, images } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
+    if (thread.archivedAt !== null) await this.unarchive({ userId, threadId })
 
     const endpoint = await this.endpoints.runningEndpoint({ userId, threadId })
     if (endpoint !== null) {
@@ -94,6 +95,11 @@ export class ThreadMessagesService {
       return { state: EThreadMessageState.Queued, error: DISPATCH_FAILED_MESSAGE }
     }
     return { state: EThreadMessageState.Queued }
+  }
+
+  private async unarchive(args: { userId: string; threadId: string }): Promise<void> {
+    await db.orm.public.Thread.where({ id: args.threadId }).update({ archivedAt: null })
+    await this.signals.listChanged(args)
   }
 
   async takeBack(args: { userId: string; threadId: string; sendId: string }): Promise<void> {

@@ -27,6 +27,13 @@ export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
 
 export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
 
+async function archivedThread(args: { threadId: string }): Promise<boolean> {
+  const thread = await db.orm.public.Thread.where({ id: args.threadId })
+    .select('archivedAt')
+    .first()
+  return thread?.archivedAt !== null && thread?.archivedAt !== undefined
+}
+
 type WakeTarget = {
   threadId: string
   sandbox: SandboxLifecycleColumns & {
@@ -181,6 +188,10 @@ export class GithubSandboxWakeService {
     const row = await db.orm.public.CloudSandbox.first({ threadId: args.threadId })
     if (row === null || !wakeableOf(row)) {
       this.logger.log(`wake of thread ${args.threadId} skipped — the row is no longer parked`)
+      return
+    }
+    if (await archivedThread({ threadId: args.threadId })) {
+      this.logger.log(`wake of thread ${args.threadId} skipped — the thread is archived`)
       return
     }
     const wakeClaim = new Date()
