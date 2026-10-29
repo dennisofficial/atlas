@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { protocolRefusal } from './hello-admission'
+import { unreadableRequestReplyOf } from './unreadable-request'
 import { pendingEntriesOf } from './requests'
 import { EServeEvent } from './serve-log'
 import type { ServeRoster } from './serve-app'
@@ -208,7 +209,14 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     },
 
     message({ socket, message }) {
-      const frame = decodeClientFrame(typeof message === 'string' ? message : message.toString())
+      const raw = typeof message === 'string' ? message : message.toString()
+      const frame = decodeClientFrame(raw)
+      const unreadable =
+        frame === null && socket.data.helloed ? unreadableRequestReplyOf(raw) : null
+      if (unreadable !== null) {
+        send({ socket, frame: unreadable })
+        return
+      }
       if (frame === null) {
         refuse({ socket, reason: 'that frame did not decode' })
         return
@@ -219,7 +227,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
           refuse({ socket, reason: 'hello arrives once' })
           return
         }
-        const mismatch = protocolRefusal(frame.protocol)
+        const mismatch = protocolRefusal(frame)
         if (mismatch !== undefined) {
           refuse({ socket, reason: mismatch })
           return

@@ -19,6 +19,34 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  */
 export const CHANNEL_PROTOCOL_VERSION = 30
 
+/**
+ * The oldest protocol this build still speaks. The API and web deploy ahead of the serve running
+ * in a sandbox, so a bump keeps the previous protocol here until no sandbox can still run it.
+ * `scripts/check-wire-skew.ts` fails CI when a change drops the protocol the last build spoke.
+ */
+export const CHANNEL_PROTOCOL_MIN_VERSION = 29
+
+export type ProtocolRange = { protocol?: number | undefined; minProtocol?: number | undefined }
+
+export enum EProtocolSkew {
+  Compatible = 'compatible',
+  PeerTooNew = 'peer-too-new',
+  PeerTooOld = 'peer-too-old',
+}
+
+/** A peer that stamps no minimum speaks exactly its own protocol; one with no stamp predates stamping. */
+export const protocolSkewOf = (peer: ProtocolRange): EProtocolSkew => {
+  if (peer.protocol === undefined) return EProtocolSkew.Compatible
+  const peerMin = peer.minProtocol ?? peer.protocol
+  if (peerMin > CHANNEL_PROTOCOL_VERSION) return EProtocolSkew.PeerTooNew
+  if (peer.protocol < CHANNEL_PROTOCOL_MIN_VERSION) return EProtocolSkew.PeerTooOld
+  return EProtocolSkew.Compatible
+}
+
+/** The protocol both sides speak: the lower of the two maxima. */
+export const negotiatedProtocolOf = (peer: ProtocolRange): number =>
+  Math.min(peer.protocol ?? CHANNEL_PROTOCOL_VERSION, CHANNEL_PROTOCOL_VERSION)
+
 const BEARER_SUBPROTOCOL_PREFIX = 'bearer.'
 
 export const bearerSubprotocolOf = (token: string): string => `${BEARER_SUBPROTOCOL_PREFIX}${token}`
@@ -202,6 +230,7 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     kind: z.literal(EServeFrame.Ready),
     seq: seqSchema,
     protocol: z.number().int().nonnegative().optional(),
+    minProtocol: z.number().int().nonnegative().optional(),
     turnInFlight: z.boolean().optional(),
     transcriptCurrent: z.boolean().optional(),
     capabilities: capabilitiesSchema.optional(),
@@ -256,6 +285,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     channelCursor: seqSchema.nullable(),
     lastEventSeq: seqSchema,
     protocol: z.number().int().nonnegative().optional(),
+    minProtocol: z.number().int().nonnegative().optional(),
     capabilities: capabilitiesSchema.optional(),
   }),
   z.object({
@@ -296,6 +326,15 @@ const parsedJson = (raw: string): unknown => {
 export const decodeServeFrame = (raw: string): ServeFrame | null => {
   const parsed = serveFrameSchema.safeParse(parsedJson(raw))
   return parsed.success ? parsed.data : null
+}
+
+/** The id of a request frame whose op or params this build cannot read, so it can be refused alone. */
+export const unreadableRequestIdOf = (raw: string): string | null => {
+  const parsed = parsedJson(raw)
+  if (typeof parsed !== 'object' || parsed === null) return null
+  if (!('kind' in parsed) || parsed.kind !== EClientFrame.Request) return null
+  if (!('id' in parsed) || typeof parsed.id !== 'string' || parsed.id === '') return null
+  return parsed.id
 }
 
 export const decodeClientFrame = (raw: string): ClientFrame | null => {

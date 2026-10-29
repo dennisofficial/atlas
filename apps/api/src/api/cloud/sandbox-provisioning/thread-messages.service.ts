@@ -15,6 +15,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { lockThread, retreatHead } from '../../platform/sessions/thread-head'
@@ -28,10 +29,11 @@ import {
   relaunchableOf,
   SANDBOX_BUSY_MESSAGE,
 } from './sandbox-provisioning-rows'
-import { SERVE_SEND, type ServeSend } from './serve-send'
+import { SERVE_SEND, ServeProtocolRefusedError, type ServeSend } from './serve-send'
 import { agentStartedIn, appendUserSaid, servesLiveIn } from './thread-message-queue'
 
 export const DELIVERY_FAILED_MESSAGE = "Couldn't hand the message to the sandbox. Try again."
+const OUTDATED_SERVE_PARK_REASON = "the sandbox is restarting to pick up this Atlas's serve"
 export const TAKE_BACK_TOO_LATE_MESSAGE =
   'The sandbox already picked this message up, so it cannot be taken back.'
 export const TAKE_BACK_NOT_FOUND_MESSAGE = 'message not found'
@@ -45,6 +47,7 @@ export class ThreadMessagesService {
     @Inject(SERVE_SEND) private readonly serve: ServeSend,
     private readonly pod: PodLaunchService,
     private readonly signals: ThreadSignalsService,
+    private readonly sandboxes: SandboxesService,
   ) {}
 
   async send(args: {
@@ -72,15 +75,18 @@ export class ThreadMessagesService {
         if (queued.head !== undefined) await this.signals.headMoved({ threadId, head: queued.head })
         return { state: EThreadMessageState.Queued }
       }
-      await this.serve({ ...endpoint, threadId, sendId, text, images }).catch(
+      const refused = await this.serve({ ...endpoint, threadId, sendId, text, images }).then(
+        () => false,
         (failure: unknown) => {
           this.logger.warn(
             `delivering a message to thread ${threadId} failed: ${failureText(failure)}`,
           )
+          if (failure instanceof ServeProtocolRefusedError) return true
           throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
         },
       )
-      return { state: EThreadMessageState.Delivered }
+      if (!refused) return { state: EThreadMessageState.Delivered }
+      return this.relaunchOutdated({ thread, userId, sendId, text, images })
     }
 
     const { existing, relaunch, head } = await this.appendOnce({
@@ -93,6 +99,31 @@ export class ThreadMessagesService {
     if (head !== undefined) await this.signals.headMoved({ threadId, head })
     if (!relaunch) return { state: EThreadMessageState.Queued }
     const { dispatchFailed } = await this.pod.launch({ thread, existing })
+    if (dispatchFailed) {
+      return { state: EThreadMessageState.Queued, error: DISPATCH_FAILED_MESSAGE }
+    }
+    return { state: EThreadMessageState.Queued }
+  }
+
+  private async relaunchOutdated(args: {
+    thread: Row<'Thread'>
+    userId: string
+    sendId: string
+    text: string
+    images?: readonly SaidImageWire[] | undefined
+  }): Promise<ThreadMessageReply> {
+    const { thread, userId, sendId, text, images } = args
+    const threadId = thread.id
+    const sessionId = await podSessionOf({ reader: db, threadId })
+    const row = await db.orm.public.CloudSandbox.first({ sessionId })
+    if (row === null) throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
+    await this.sandboxes.park({ row, threadId, reason: OUTDATED_SERVE_PARK_REASON })
+    const { head } = await db.transaction(async (tx) => {
+      await lockThread({ tx, threadId })
+      return appendUserSaid({ tx, threadId, userId, sendId, text, images })
+    })
+    if (head !== undefined) await this.signals.headMoved({ threadId, head })
+    const { dispatchFailed } = await this.pod.launch({ thread, existing: row })
     if (dispatchFailed) {
       return { state: EThreadMessageState.Queued, error: DISPATCH_FAILED_MESSAGE }
     }

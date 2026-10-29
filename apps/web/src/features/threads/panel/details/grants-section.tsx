@@ -4,17 +4,19 @@ import { useState } from 'react'
 import { XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { revokeGrant } from '@dltech/atlas-client/channel'
+import { ECapability, revokeGrant } from '@dltech/atlas-client/channel'
 import { grantsFrom } from '@dltech/atlas-core'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { messageOf } from '../../data/use-send'
+import { useServeSupports } from '../../data/use-serve-supports'
 import { useThreadPanel } from '../thread-panel-context'
 import { DetailsSection } from './section'
 
 export function GrantsSection() {
   const { threadId, channel, details } = useThreadPanel()
   const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set())
+  const revocable = useServeSupports({ channel, capability: ECapability.RevokeGrant })
   const grants = grantsFrom(details.events)
   if (grants.length === 0) return null
 
@@ -44,15 +46,17 @@ export function GrantsSection() {
               {grant.dimensions.join(', ')}
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            disabled={channel === null || pending.has(grant.grantId)}
-            aria-label={`Revoke ${grant.subject}`}
-            onClick={() => void handleRevoke(grant.grantId)}
-          >
-            <XIcon />
-          </Button>
+          {revocable && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              disabled={channel === null || pending.has(grant.grantId)}
+              aria-label={`Revoke ${grant.subject}`}
+              onClick={() => void handleRevoke(grant.grantId)}
+            >
+              <XIcon />
+            </Button>
+          )}
         </div>
       ))}
     </DetailsSection>

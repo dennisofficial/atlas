@@ -1,8 +1,17 @@
-import { CHANNEL_PROTOCOL_VERSION } from '@dltech/atlas-harness'
+import {
+  CHANNEL_PROTOCOL_MIN_VERSION,
+  CHANNEL_PROTOCOL_VERSION,
+  EProtocolSkew,
+  protocolSkewOf,
+  type ProtocolRange,
+} from '@dltech/atlas-wire'
 
-export const protocolRefusal = (protocol: number | undefined): string | undefined => {
-  if (protocol === undefined || protocol === CHANNEL_PROTOCOL_VERSION) return undefined
-  return protocol > CHANNEL_PROTOCOL_VERSION
-    ? `this Atlas speaks a newer wire protocol (${protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
-    : `this Atlas speaks an older wire protocol (${protocol}) than this sandbox's serve (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
+const SERVE_RANGE = `${CHANNEL_PROTOCOL_MIN_VERSION}–${CHANNEL_PROTOCOL_VERSION}`
+
+export const protocolRefusal = (peer: ProtocolRange): string | undefined => {
+  const skew = protocolSkewOf(peer)
+  if (skew === EProtocolSkew.Compatible) return undefined
+  return skew === EProtocolSkew.PeerTooNew
+    ? `this Atlas speaks a newer wire protocol (${peer.protocol}) than this sandbox's serve (${SERVE_RANGE}) — re-open the conversation so the sandbox's serve is rebuilt`
+    : `this Atlas speaks an older wire protocol (${peer.protocol}) than this sandbox's serve (${SERVE_RANGE}) — update Atlas, then re-open the conversation`
 }

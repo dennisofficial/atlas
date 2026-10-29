@@ -1,4 +1,5 @@
 import {
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
   EServeFrame,
   SERVE_CAPABILITIES,
@@ -55,6 +56,7 @@ export function createSocketGreeter(args: {
         kind: EServeFrame.Ready,
         seq: buffer.nextSeq(),
         protocol: CHANNEL_PROTOCOL_VERSION,
+        minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
         capabilities: SERVE_CAPABILITIES,
         turnInFlight: driver.outcomePending(),
         ...(head === null ? {} : { transcriptCurrent: head === hello.lastEventSeq && !rewritten }),

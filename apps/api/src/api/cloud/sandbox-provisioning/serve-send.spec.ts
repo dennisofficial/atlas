@@ -1,6 +1,6 @@
 import { EClientFrame, EServeFrame } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
-import { deliverToServe, type ServeSocketHandlers } from './serve-send'
+import { deliverToServe, ServeProtocolRefusedError, type ServeSocketHandlers } from './serve-send'
 
 const DELIVERY = {
   url: 'https://serve.example.test/',
@@ -91,6 +91,16 @@ describe('deliverToServe', () => {
 
     await expect(delivery).rejects.toThrow('protocol mismatch')
     expect(socket.closedCount()).toBe(1)
+  })
+
+  it('rejects with a protocol refusal when serve refuses the wire protocol', async () => {
+    const socket = fakeSocket()
+    const delivery = deliverToServe({ ...DELIVERY, openSocket: socket.open })
+    const message = "this Atlas speaks a newer wire protocol (30) than this sandbox's serve (29)"
+
+    socket.handlers().handleMessage(JSON.stringify({ kind: EServeFrame.Error, message }))
+
+    await expect(delivery).rejects.toBeInstanceOf(ServeProtocolRefusedError)
   })
 
   it('rejects when the socket closes before the ack', async () => {

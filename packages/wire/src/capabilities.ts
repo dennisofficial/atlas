@@ -19,11 +19,20 @@ export enum ECapability {
    * with that field (#1025); the capability marks the field's presence.
    */
   SandboxSessionIdentity = 'sandbox-session-identity',
+  /** The serve answers the `revoke-grant` request. */
+  RevokeGrant = 'revoke-grant',
 }
 
 export const capabilitySchema = z.enum(ECapability)
 
-export const capabilitiesSchema = z.array(capabilitySchema).readonly()
+const knownCapabilityOf = (value: unknown): value is ECapability =>
+  capabilitySchema.safeParse(value).success
+
+/** Drops values this build does not know, so a newer peer's capability never fails the frame. */
+export const capabilitiesSchema = z
+  .array(z.unknown())
+  .transform((values) => values.filter(knownCapabilityOf))
+  .readonly()
 
 export type CapabilitySet = ReadonlySet<ECapability>
 
@@ -37,4 +46,5 @@ export const supports = (args: { capabilities: CapabilitySet; capability: ECapab
 export const SERVE_CAPABILITIES: readonly ECapability[] = [
   ECapability.RotationPreparation,
   ECapability.SandboxSessionIdentity,
+  ECapability.RevokeGrant,
 ]

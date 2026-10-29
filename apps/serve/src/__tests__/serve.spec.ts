@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { CHANNEL_PROTOCOL_VERSION, EClientFrame, EServeFrame } from '@dltech/atlas-harness'
+import {
+  CHANNEL_PROTOCOL_MIN_VERSION,
+  CHANNEL_PROTOCOL_VERSION,
+  EClientFrame,
+  EServeFrame,
+} from '@dltech/atlas-harness'
 
 import { connect } from './client'
 import { hello, releaseServeSpec, start, threadId, TOKEN } from './serve-spec-fixture'
@@ -126,7 +131,7 @@ describe('startServe', () => {
     const client = await connect({ port: handle.port, token: TOKEN })
 
     client.send(
-      hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION - 1 }),
+      hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_MIN_VERSION - 1 }),
     )
 
     expect(await client.closed).toBe(1008)
@@ -134,6 +139,49 @@ describe('startServe', () => {
     expect(last?.kind).toBe(EServeFrame.Error)
     if (last?.kind !== EServeFrame.Error) throw new Error('expected an error frame')
     expect(last.message).toContain('update Atlas')
+  })
+
+  it('greets a hello on the oldest protocol it still speaks', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send(
+      hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_MIN_VERSION }),
+    )
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+  })
+
+  it('greets a newer client whose minimum this serve still speaks', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+
+    client.send({
+      ...hello({ channelCursor: null, lastEventSeq: 0, protocol: CHANNEL_PROTOCOL_VERSION + 1 }),
+      minProtocol: CHANNEL_PROTOCOL_VERSION,
+    })
+
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+  })
+
+  it('refuses a request it cannot read on its own, keeping the socket open', async () => {
+    const { handle } = await start({})
+    const client = await connect({ port: handle.port, token: TOKEN })
+    client.send(hello({ channelCursor: null, lastEventSeq: 0 }))
+    await client.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    client.sendRaw(
+      JSON.stringify({
+        kind: EClientFrame.Request,
+        id: 'req-new',
+        op: 'from-a-newer-client',
+        params: {},
+      }),
+    )
+
+    const reply = await client.waitFor((frame) => frame.kind === EServeFrame.Reply)
+    expect(reply).toMatchObject({ replyTo: 'req-new', ok: false })
+    expect(client.frames.some((frame) => frame.kind === EServeFrame.Error)).toBe(false)
   })
 
   it('greets a hello too old to carry a protocol stamp', async () => {

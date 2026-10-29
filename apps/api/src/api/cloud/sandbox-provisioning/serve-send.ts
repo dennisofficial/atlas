@@ -54,6 +54,13 @@ const openWebSocket: OpenServeSocket = ({ url, protocols, handlers }) => {
 const sessionSocketUrlOf = (url: string): string =>
   `${url.replace(/\/+$/, '').replace(/^http/, 'ws')}${SESSION_PATH}`
 
+export class ServeProtocolRefusedError extends Error {}
+
+// Released serves refuse a mismatched hello with prose naming the "wire protocol"
+// (apps/serve/src/hello-admission.ts); older serves already in sandboxes cannot learn a code.
+const serveRefusalOf = (message: string): Error =>
+  /wire protocol/i.test(message) ? new ServeProtocolRefusedError(message) : new Error(message)
+
 const errorOf = (failure: unknown): Error =>
   failure instanceof Error ? failure : new Error(String(failure))
 
@@ -103,7 +110,7 @@ export function deliverToServe(
           handleMessage: (raw) => {
             const frame = decodeServeFrame(raw)
             if (frame === null) return
-            if (frame.kind === EServeFrame.Error) finish(new Error(frame.message))
+            if (frame.kind === EServeFrame.Error) finish(serveRefusalOf(frame.message))
             if (frame.kind === EServeFrame.SendAcked && frame.sendId === args.sendId) finish()
           },
           handleEnd: () =>

@@ -2,8 +2,13 @@ import { toThreadId } from '@dltech/atlas-core'
 import { ERuntimePhase } from '@dltech/atlas-wire/web'
 
 import {
+  capabilitySetOf,
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
   decodeServeFrame,
+  EProtocolSkew,
+  protocolSkewOf,
+  type ProtocolRange,
   EServeFrame,
   turnOutcomeFromWire,
   type ServeFrame,
@@ -12,17 +17,22 @@ import { checkpointFrom } from './remote-channel-checkpoint'
 import { NOTHING_PENDING, type ChannelCore } from './remote-channel-core'
 import { ESocketLiveness } from './connection-view'
 
-const protocolMismatchOf = (protocol: number): string =>
-  protocol > CHANNEL_PROTOCOL_VERSION
-    ? `the sandbox's serve speaks a newer wire protocol (${protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — update Atlas, then re-open the conversation`
-    : `the sandbox's serve speaks an older wire protocol (${protocol}) than this Atlas (${CHANNEL_PROTOCOL_VERSION}) — re-open the conversation so the sandbox's serve is rebuilt`
+const CLIENT_RANGE = `${CHANNEL_PROTOCOL_MIN_VERSION}–${CHANNEL_PROTOCOL_VERSION}`
+
+const protocolMismatchOf = (peer: ProtocolRange): string | undefined => {
+  const skew = protocolSkewOf(peer)
+  if (skew === EProtocolSkew.Compatible) return undefined
+  return skew === EProtocolSkew.PeerTooNew
+    ? `the sandbox's serve speaks a newer wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — update Atlas, then re-open the conversation`
+    : `the sandbox's serve speaks an older wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — re-open the conversation so the sandbox's serve is rebuilt`
+}
 
 export function createFrameHandler(core: ChannelCore) {
   const { state, on, facts, upstream, checkpoints, inFlight } = core
 
   const handleReady = (frame: Extract<ServeFrame, { kind: EServeFrame.Ready }>) => {
-    if (frame.protocol !== undefined && frame.protocol !== CHANNEL_PROTOCOL_VERSION) {
-      const message = protocolMismatchOf(frame.protocol)
+    const message = protocolMismatchOf(frame)
+    if (message !== undefined) {
       state.abandoned = true
       on.failures.emit({ message })
       on.serverErrors.emit({ message })
@@ -31,6 +41,7 @@ export function createFrameHandler(core: ChannelCore) {
       state.socket?.close()
       return
     }
+    state.capabilities = capabilitySetOf(frame.capabilities)
     const accepted = checkpoints.accept(frame.checkpoint)
     state.attempt = 0
     upstream.attach({ write: core.write })

@@ -303,6 +303,7 @@ export function fakeCloudChannel(
         reloads.delete(listener)
       }
     },
+    capabilities: () => new Set(),
     onReady: (listener) => {
       readies.add(listener)
       return () => {
