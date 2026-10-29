@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
-import { assertLiveSession, SANDBOX_MAX_PORTS, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
+import { assertLiveSession, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { ESandboxState } from './sandboxes.types'
 import { asBadGateway, isSandboxMissing } from './vercel-sandbox.errors'
@@ -119,32 +119,6 @@ export class VercelSandboxClient {
       await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_DELETE_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return
-      throw asBadGateway(failure)
-    }
-  }
-
-  /**
-   * `update` replaces the whole port list, so the already-routed ports go back in alongside the
-   * new one — omitting them would deregister the serve port and cut the session's own channel.
-   */
-  async exposePort(args: { threadId: string; name: string; port: number }): Promise<string> {
-    try {
-      const sandbox = await this.get(args)
-      const routed = sandbox.routes.map((route) => route.port)
-      if (!routed.includes(args.port)) {
-        if (routed.length >= SANDBOX_MAX_PORTS) {
-          throw new Error(
-            `a sandbox exposes at most ${SANDBOX_MAX_PORTS} ports and this one is at the limit`,
-          )
-        }
-        await sandbox.update(
-          { ports: [...routed, args.port] },
-          { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-        )
-      }
-      return sandbox.domain(args.port)
-    } catch (failure) {
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asBadGateway(failure)
     }
   }

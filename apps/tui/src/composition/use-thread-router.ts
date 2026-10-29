@@ -5,6 +5,7 @@ import { messageOf } from './error-text'
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { cloudListing } from './cloud/cloud-listing'
+import { bootBlocks } from './boot-block-store'
 import { openCloudThread } from './cloud/cloud-open'
 import { clearAttachFailure, recordAttachFailure } from './attach-failure'
 import { cloudAttachmentOf } from './session-binding'
@@ -96,6 +97,7 @@ export function useThreadRouter(args: {
         bridge,
         threadId: toThreadId(threadId),
         move: containerMove,
+        boot: bootBlocks(localApp),
         onReload: args.onReload,
       })
         .then(async (binding) => {

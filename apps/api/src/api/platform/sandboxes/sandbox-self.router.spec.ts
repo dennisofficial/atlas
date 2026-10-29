@@ -10,6 +10,7 @@ import {
   as,
   createSandboxSelfApp,
   POD_TOKEN,
+  previews,
   procedurePath,
   SANDBOX_TOKEN,
   vercel,
@@ -56,20 +57,44 @@ describe('SandboxSelfRouter', () => {
 
   beforeEach(async () => {
     await seedUsers('usr-1')
-    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', name: 'atlas-thread-1' })
-    vercel.exposePort.mockClear()
+    await seedSandboxRow({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      name: 'atlas-thread-1',
+    })
+    previews.expose.mockClear()
     vercel.stopSession.mockClear()
   })
 
-  it('lets a sandbox token expose a port on its own sandbox', async () => {
+  it('lets a sandbox token expose a port and returns the url and tunnel token', async () => {
     const reply = await send('exposePort', SANDBOX_TOKEN, { port: 5173 })
 
     expect(reply.status).toBe(200)
-    expect(reply.body).toEqual({ result: { data: { url: 'https://atlas-5173.vercel.run' } } })
-    expect(vercel.exposePort).toHaveBeenCalledWith({
+    expect(reply.body).toEqual({
+      result: {
+        data: {
+          url: 'https://5173-abc.byatlas.dev',
+          tunnelToken: 'tunnel-token',
+        },
+      },
+    })
+    expect(previews.expose).toHaveBeenCalledWith({
       threadId: 'thr-1',
-      name: 'atlas-thread-1',
+      userId: 'usr-1',
+      kind: 'sandbox',
       port: 5173,
+    })
+  })
+
+  it('lets a pod token expose a port', async () => {
+    const reply = await send('exposePort', POD_TOKEN, { port: 3000 })
+
+    expect(reply.status).toBe(200)
+    expect(previews.expose).toHaveBeenCalledWith({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      kind: 'pod',
+      port: 3000,
     })
   })
 
@@ -77,7 +102,7 @@ describe('SandboxSelfRouter', () => {
     const reply = await send('exposePort', SANDBOX_TOKEN, { port: 70_000 })
 
     expect(reply.status).toBe(400)
-    expect(vercel.exposePort).not.toHaveBeenCalled()
+    expect(previews.expose).not.toHaveBeenCalled()
   })
 
   it('stops the live session the token names', async () => {
@@ -102,17 +127,12 @@ describe('SandboxSelfRouter', () => {
     })
   })
 
-  it('answers 404 when the token names a thread with no sandbox row', async () => {
-    await db.orm.public.CloudSandbox.where({ threadId: 'thr-1' }).delete()
-
-    const reply = await send('exposePort', SANDBOX_TOKEN, { port: 5173 })
-
-    expect(reply.status).toBe(404)
-  })
-
   it('answers 401 with no token, an unknown token, or a pod token on sandbox-only routes', async () => {
-    for (const procedure of ['exposePort', 'stop', 'bootSteps']) {
-      const body = { port: 5173, steps: [{ step: EBootStep.Clone, state: EBootStepState.Running }] }
+    for (const procedure of ['stop', 'bootSteps']) {
+      const body = {
+        port: 5173,
+        steps: [{ step: EBootStep.Clone, state: EBootStepState.Running }],
+      }
       const statuses = [
         (await send(procedure, undefined, body)).status,
         (await send(procedure, 'session-a', body)).status,
@@ -120,7 +140,6 @@ describe('SandboxSelfRouter', () => {
       ]
       expect(statuses).toEqual([401, 401, 401])
     }
-    expect(vercel.exposePort).not.toHaveBeenCalled()
     expect(vercel.stopSession).not.toHaveBeenCalled()
     expect(await db.orm.public.SandboxBootStep.all()).toEqual([])
   })
@@ -131,7 +150,12 @@ describe('SandboxSelfRouter', () => {
         {},
         { steps: [] },
         { steps: [{ step: 'nope', state: EBootStepState.Running }] },
-        { steps: Array.from({ length: 51 }, () => ({ step: EBootStep.Clone, state: 'running' })) },
+        {
+          steps: Array.from({ length: 51 }, () => ({
+            step: EBootStep.Clone,
+            state: 'running',
+          })),
+        },
       ]
       for (const body of bad)
         expect((await send('bootSteps', SANDBOX_TOKEN, body)).status).toBe(400)
@@ -145,7 +169,11 @@ describe('SandboxSelfRouter', () => {
         threadId: 'thr-2',
         steps: [
           { step: EBootStep.Clone, state: EBootStepState.Running },
-          { step: EBootStep.Clone, state: EBootStepState.Error, error: 'no network' },
+          {
+            step: EBootStep.Clone,
+            state: EBootStepState.Error,
+            error: 'no network',
+          },
         ],
       })
 
@@ -210,7 +238,9 @@ describe('SandboxSelfRouter', () => {
     })
 
     it('lets a pod lease token write and truncate its own thread', async () => {
-      const written = await send('events', POD_TOKEN, { events: [podEvent(1), podEvent(2)] })
+      const written = await send('events', POD_TOKEN, {
+        events: [podEvent(1), podEvent(2)],
+      })
       expect(written.status).toBe(200)
       expect(written.body).toEqual({ result: { data: { head: 2 } } })
 
@@ -256,7 +286,9 @@ describe('SandboxSelfRouter', () => {
     })
 
     it('truncates the token thread and replies with the head', async () => {
-      await send('events', SANDBOX_TOKEN, { events: [podEvent(1), podEvent(2)] })
+      await send('events', SANDBOX_TOKEN, {
+        events: [podEvent(1), podEvent(2)],
+      })
 
       const reply = await send('truncateEvents', SANDBOX_TOKEN, { toSeq: 1 })
 

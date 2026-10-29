@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import {
   EExecutionLocation,
+  ERunner,
   promptContextFor,
   EPromptAgent,
   type ProviderIdentity,
@@ -9,13 +10,17 @@ import {
 
 import { ExecutionLocationFragment } from '../fragments/environment'
 
-const ctx = (placement?: EExecutionLocation) =>
+const ctx = (placement?: EExecutionLocation, runner?: ERunner) =>
   promptContextFor({
     agent: EPromptAgent.Main,
-    provider: { id: 'test', modelId: 'test-model' } as unknown as ProviderIdentity,
+    provider: {
+      id: 'test',
+      modelId: 'test-model',
+    } as unknown as ProviderIdentity,
     model: { contextWindow: 100000 } as unknown as PromptModel,
     projectDirectory: '/repo',
     placement,
+    runner,
   })
 
 describe('execution-location fragment', () => {
@@ -56,5 +61,31 @@ describe('execution-location fragment', () => {
     const text = new ExecutionLocationFragment().text(ctx())
     expect(text).not.toContain('Lift and descend')
     expect(text).not.toContain('descend leaves them behind')
+  })
+
+  it('describes a local pod, not a Vercel sandbox, when the runner is local', () => {
+    const text = new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud, ERunner.Local))
+    expect(text).toContain('local Docker pod on the operator')
+    expect(text).not.toContain('Vercel')
+    expect(text).not.toContain('cannot publish pod ports')
+    expect(text).not.toContain('curl')
+    expect(text).toContain('exposePort')
+    expect(text).toContain('0.0.0.0')
+    expect(text).toContain('.sandbox.localhost')
+  })
+
+  it('keeps the Vercel line for a vercel or unknown runner', () => {
+    for (const runner of [ERunner.Vercel, undefined]) {
+      expect(new ExecutionLocationFragment().text(ctx(EExecutionLocation.Cloud, runner))).toContain(
+        'a Vercel sandbox',
+      )
+    }
+  })
+
+  it('stamps the runner so a pod and a sandbox never share a cache entry', () => {
+    const fragment = new ExecutionLocationFragment()
+    expect(fragment.stamp(ctx(EExecutionLocation.Cloud, ERunner.Local))).not.toBe(
+      fragment.stamp(ctx(EExecutionLocation.Cloud, ERunner.Vercel)),
+    )
   })
 })

@@ -6,7 +6,6 @@ import {
   EServeEnv,
   FORBIDDEN_POD_ENV_KEYS,
   POD_ENV_IDENTITY_KEYS,
-  POD_INGRESS_HOST_PORT_ENV,
   POD_TELEMETRY_IDENTITY_ENV,
 } from '@dltech/atlas-wire'
 
@@ -19,7 +18,6 @@ const baseArgs: PodCreateArgs = {
   home: '/home/test/.atlas',
   image: DEFAULT_POD_IMAGE,
   serveHostPort: 23_456,
-  ingressHostPort: 23_457,
   vcpus: 2,
   token: 'serve-token',
   cloudUrl: 'https://cloud.example',
@@ -64,7 +62,6 @@ describe('local pod env contract', () => {
         [EServeEnv.ThreadId]: 'other-thread',
         [EServeEnv.CloudUrl]: 'https://evil.example',
         ATLAS_HOME: '/tmp',
-        [POD_INGRESS_HOST_PORT_ENV]: '1',
         [EServeEnv.Model]: 'caller-model',
       },
     })
@@ -74,7 +71,6 @@ describe('local pod env contract', () => {
       [EServeEnv.ThreadId]: 'thread-1',
       [EServeEnv.CloudUrl]: 'https://cloud.example',
       ATLAS_HOME: '/atlas/home',
-      [POD_INGRESS_HOST_PORT_ENV]: '23457',
     })
     expect(env).not.toHaveProperty(EServeEnv.Model)
   })

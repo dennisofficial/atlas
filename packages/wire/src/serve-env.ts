@@ -13,8 +13,6 @@ export enum EServeEnv {
   Model = 'ATLAS_MODEL',
 }
 
-export const POD_INGRESS_HOST_PORT_ENV = 'ATLAS_POD_INGRESS_HOST_PORT'
-
 export const POD_TELEMETRY_IDENTITY_ENV = 'ATLAS_TELEMETRY_IDENTITY'
 
 /**
@@ -30,7 +28,6 @@ export const POD_ENV_IDENTITY_KEYS: readonly string[] = [
   'ATLAS_HOME',
   'ATLAS_POD_NAME',
   'ATLAS_SANDBOX_SESSION_ID',
-  POD_INGRESS_HOST_PORT_ENV,
   POD_TELEMETRY_IDENTITY_ENV,
   EServeEnv.Model,
 ]

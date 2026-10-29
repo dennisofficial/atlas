@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
+import { EnvService } from '../../../_core/config/env/env.service'
+import { CloudflareTunnelClient } from './cloudflare-tunnel.client'
+import { PreviewTunnelService } from './preview-tunnel.service'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxEndpointService } from './sandbox-endpoint'
@@ -18,6 +21,12 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
     SandboxesRouter,
     SandboxCheckpointRouter,
     VercelSandboxClient,
+    PreviewTunnelService,
+    {
+      provide: CloudflareTunnelClient,
+      useFactory: (env: EnvService) => new CloudflareTunnelClient(env),
+      inject: [EnvService],
+    },
   ],
   exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient],
 })

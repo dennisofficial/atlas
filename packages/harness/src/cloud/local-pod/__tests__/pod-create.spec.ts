@@ -23,7 +23,6 @@ const baseArgs: PodCreateArgs = {
   home: '/home/test/.atlas',
   image: DEFAULT_POD_IMAGE,
   serveHostPort: 23_456,
-  ingressHostPort: 23_457,
   vcpus: 2,
   token: 'serve-token',
   cloudUrl: 'https://cloud.example',
@@ -95,14 +94,13 @@ describe('podCreateBody', () => {
     expect(hostConfig).not.toHaveProperty('Memory')
   })
 
-  it('publishes serve and ingress on loopback only', () => {
+  it('publishes serve on loopback only', () => {
     const body = podCreateBody(baseArgs)
 
     expect(body.HostConfig?.PortBindings).toEqual({
       '3000/tcp': [{ HostIp: '127.0.0.1', HostPort: '23456' }],
-      '7676/tcp': [{ HostIp: '127.0.0.1', HostPort: '23457' }],
     })
-    expect(body.ExposedPorts).toEqual({ '3000/tcp': {}, '7676/tcp': {} })
+    expect(body.ExposedPorts).toEqual({ '3000/tcp': {} })
   })
 
   it('labels the pod with its thread, role and owning home', () => {
@@ -133,12 +131,7 @@ describe('podCreateBody', () => {
       ATLAS_HOME: SANDBOX_HOME_PATH,
       ATLAS_POD_NAME: podNameFor({ threadId: 'thread-1' }),
       ATLAS_SANDBOX_SESSION_ID: podNameFor({ threadId: 'thread-1' }),
-      ATLAS_POD_INGRESS_HOST_PORT: '23457',
     })
-  })
-
-  it('publishes the ingress host port into the pod environment', () => {
-    expect(envOf(baseArgs).ATLAS_POD_INGRESS_HOST_PORT).toBe('23457')
   })
 
   it('sets ATLAS_MODEL only when a model is pinned', () => {

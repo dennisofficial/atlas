@@ -1,6 +1,7 @@
 import {
   EExecutionLocation,
   placementOf,
+  type ERunner,
   type PlacementRecord,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -13,16 +14,19 @@ export type FakePlacementStore = PlacementStore & {
     threadId: ThreadId
     location: EExecutionLocation
     agent?: SupervisedAgent
+    runner?: ERunner
   }) => void
 }
 
 export function fakePlacementStore(): FakePlacementStore {
   const records = new Map<ThreadId, PlacementRecord>()
   const agents = new Map<ThreadId, SupervisedAgent>()
+  const runners = new Map<ThreadId, ERunner>()
   const listeners = new Set<(args: { threadId: ThreadId; record: PlacementRecord }) => void>()
 
   return {
-    seed: ({ threadId, location, agent }) => {
+    seed: ({ threadId, location, agent, runner }) => {
+      if (runner !== undefined) runners.set(threadId, runner)
       records.set(threadId, { placement: placementOf(location), revision: 0 })
       if (agent !== undefined) agents.set(threadId, agent)
     },
@@ -46,6 +50,7 @@ export function fakePlacementStore(): FakePlacementStore {
         workspace: null,
         repo: null,
         ...(agent === undefined ? {} : { agent }),
+        ...(runners.has(threadId) ? { runner: runners.get(threadId) } : {}),
       }
     },
   }

@@ -3,6 +3,7 @@ import {
   promptContextFor,
   type CompiledPrompt,
   type EExecutionLocation,
+  type ERunner,
   type ProviderIdentity,
   type PromptModel,
   type PromptPart,
@@ -21,6 +22,7 @@ export function subAgentPrompt({
   projectDirectory,
   agent = EPromptAgent.Sub,
   placement,
+  runner,
 }: {
   prompts: PromptRegistry
   agentType: AgentType
@@ -29,9 +31,10 @@ export function subAgentPrompt({
   projectDirectory: string
   agent?: EPromptAgent | undefined
   placement?: EExecutionLocation | undefined
+  runner?: ERunner | undefined
 }): CompiledPrompt {
   const compiled = prompts.compile(
-    promptContextFor({ agent, provider, model, projectDirectory, placement }),
+    promptContextFor({ agent, provider, model, projectDirectory, placement, runner }),
   )
   const identity = agentType.prompt.trim()
 

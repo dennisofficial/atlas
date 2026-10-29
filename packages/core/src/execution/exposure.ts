@@ -23,7 +23,7 @@ export function exposureInfoPage(args: { hostPort: number }): string {
     'atlas sandbox port proxy',
     '',
     `open a port in this sandbox as http://<port>${EXPOSURE_HOST_SUFFIX}:${args.hostPort}/`,
-    `for example http://3000${EXPOSURE_HOST_SUFFIX}:${args.hostPort}/`,
+    `for example ${exposureUrlFor({ containerPort: 3000, hostPort: args.hostPort })}/`,
     '',
   ].join('\n')
 }

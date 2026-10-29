@@ -9,7 +9,6 @@ import {
 import { EngineRequestFailed, type DockerEngine } from '../../execution/docker/engine'
 import type { DockerPodEngine, PodDetails } from '../../execution/docker/pod-engine'
 import type { PodPlacement, PodProvisionArgs, RunnerPodHandle } from '../runner-driver'
-import { ensurePodIngress, POD_INGRESS_CONTAINER_PORT } from './ingress'
 import {
   dindVolumeNameOf,
   podCreateBody,
@@ -34,7 +33,7 @@ export type PodDriverEngine = Pick<DockerEngine, 'listContainers' | 'createConta
     | 'execSh'
   >
 
-export type PodHostPorts = { serveHostPort: number; ingressHostPort: number }
+export type PodHostPorts = { serveHostPort: number }
 
 export type PodProvisionDeps = {
   engine: PodDriverEngine
@@ -193,13 +192,7 @@ const boot = async (args: {
   const pod = await deps.engine.inspectPod({ id: located.id })
   if (pod === undefined) throw new Error(`pod ${provision.name} vanished while starting`)
   const serveHostPort = hostPortOf({ pod, containerPort: SANDBOX_SERVE_PORT, what: 'serve' })
-  const ingressHostPort = hostPortOf({
-    pod,
-    containerPort: POD_INGRESS_CONTAINER_PORT,
-    what: 'the ingress',
-  })
 
-  await ensurePodIngress({ engine: deps.engine, id: located.id, ingressHostPort })
   const needsStaging =
     located.created ||
     !(await isPodStaged({ engine: deps.engine, id: located.id, name: provision.name }))

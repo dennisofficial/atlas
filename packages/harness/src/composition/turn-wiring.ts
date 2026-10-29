@@ -3,7 +3,6 @@ import {
   ENoticeTone,
   EPromptAgent,
   ESettingId,
-  NOTICE_WARN_MS,
   promptContextFor,
   promptModelOf,
   contextWindowOf,
@@ -55,6 +54,7 @@ import type { TurnPolicy } from '../loop/turn-policy'
 import { LocalRewindMachinery } from '../store/local-rewind-machinery'
 import { createUsageTracker } from './usage-tracker'
 import { turnBackgroundState } from './turn-background-state'
+import { loopNotices } from './loop-notices'
 
 const asClockJumps = (wake: WakeSignal): ClockJumpDetector => ({
   onJump: (callback) => wake.subscribe((jump) => callback(jump.gapMs)),
@@ -129,6 +129,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
         model: promptModelOf(models.cardFor(model.choice().ref)),
         projectDirectory,
         placement: executionLocation.current(),
+        runner: executionLocation.currentRunner(),
       }),
     )
 
@@ -168,30 +169,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       decisions: container.resolve(registeredPortToken(DecisionPort)),
       enabled: args.decisionsEnabled,
     }),
-    onLoopWatch: () =>
-      notice.notify({
-        tone: ENoticeTone.Warn,
-        text: 'the watchdog judged this turn to be looping and could not cut it — the agent was nudged to break the pattern, and the turn will stop if it keeps going',
-        ttlMs: NOTICE_WARN_MS,
-      }),
-    onLoopWatchCut: ({ steps }) =>
-      notice.notify({
-        tone: ENoticeTone.Warn,
-        text: `the watchdog cut ${steps} steps from this turn — the decision model judged them a loop and loops left in context invite more looping. If the pattern re-forms, the turn will be stopped`,
-        ttlMs: NOTICE_WARN_MS,
-      }),
-    onLoopStop: () =>
-      notice.notify({
-        tone: ENoticeTone.Warn,
-        text: 'the watchdog stopped this turn — it still looked stuck after a warning, so the turn ended instead of spinning. Send a message to pick it back up',
-        ttlMs: NOTICE_WARN_MS,
-      }),
-    onLoopCut: (cut) =>
-      notice.notify({
-        tone: ENoticeTone.Warn,
-        text: `cut a runaway loop: ${cut.names.join(', ')} returned identical results ${cut.repeats} times in a row, so the turn was rewound to before the repetition`,
-        ttlMs: NOTICE_WARN_MS,
-      }),
+    ...loopNotices({ notice }),
   }
 
   const childModels = {
@@ -236,6 +214,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
               },
               projectDirectory,
               placement: executionLocation.current(),
+              runner: executionLocation.currentRunner(),
             }),
           launchDirectory: working ?? workspace.workspace,
           repoRoot: workspace.repo ?? undefined,

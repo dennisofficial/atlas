@@ -3,14 +3,12 @@ import { createHash } from 'node:crypto'
 import {
   EServeEnv,
   FORBIDDEN_POD_ENV_KEYS,
-  POD_INGRESS_HOST_PORT_ENV,
   SANDBOX_HOME_PATH,
   SANDBOX_SERVE_PORT,
   SANDBOX_WORKSPACES_PATH,
 } from '@dltech/atlas-wire'
 
 import type { CreateContainerBody } from '../../execution/docker/engine'
-import { POD_INGRESS_CONTAINER_PORT } from './ingress'
 
 export const DEFAULT_POD_IMAGE = 'ghcr.io/dennisofficial/atlas-sandbox:latest'
 
@@ -68,7 +66,6 @@ export type PodCreateArgs = {
   home: string
   image: string
   serveHostPort: number
-  ingressHostPort: number
   vcpus: number
   token: string
   cloudUrl: string
@@ -96,7 +93,6 @@ const podEnv = (args: PodCreateArgs): string[] =>
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
-    [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
   }).map(([key, value]) => `${key}=${value}`)
 
@@ -104,14 +100,13 @@ const loopbackBinding = (hostPort: number) => [{ HostIp: '127.0.0.1', HostPort: 
 
 export function podCreateBody(args: PodCreateArgs): CreateContainerBody {
   const servePort = `${SANDBOX_SERVE_PORT}/tcp`
-  const ingressPort = `${POD_INGRESS_CONTAINER_PORT}/tcp`
 
   return {
     Image: args.image,
     Cmd: ['sleep', 'infinity'],
     Labels: podLabelsFor({ threadId: args.threadId, home: args.home }),
     Env: podEnv(args),
-    ExposedPorts: { [servePort]: {}, [ingressPort]: {} },
+    ExposedPorts: { [servePort]: {} },
     HostConfig: {
       Init: true,
       Privileged: true,
@@ -123,7 +118,6 @@ export function podCreateBody(args: PodCreateArgs): CreateContainerBody {
       MemoryReservation: memoryReservationBytesFor({ vcpus: args.vcpus }),
       PortBindings: {
         [servePort]: loopbackBinding(args.serveHostPort),
-        [ingressPort]: loopbackBinding(args.ingressHostPort),
       },
     },
   }

@@ -22,7 +22,6 @@ import {
   type PodHostPorts,
   type PodProvisionDeps,
 } from './driver-provision'
-import { POD_INGRESS_CONTAINER_PORT } from './ingress'
 import {
   DEFAULT_POD_IMAGE,
   dindVolumeNameOf,
@@ -30,7 +29,7 @@ import {
   MIB,
   workspaceVolumeNameOf,
 } from './pod-create'
-import { podHostPortsFor } from './ports'
+import { hostPortFor } from './ports'
 import { fileProvisionLock, type ProvisionLock } from './provision-lock'
 import { boundedScript, shellQuoted } from './serve-exec'
 import {
@@ -79,12 +78,12 @@ const stateOf = (status: string): SandboxStateWire => {
   }
 }
 
-const defaultHostPorts = (args: { threadId: string }): PodHostPorts =>
-  podHostPortsFor({
+const defaultHostPorts = (args: { threadId: string }): PodHostPorts => ({
+  serveHostPort: hostPortFor({
     session: args.threadId,
-    serveContainerPort: SANDBOX_SERVE_PORT,
-    ingressContainerPort: POD_INGRESS_CONTAINER_PORT,
-  })
+    containerPort: SANDBOX_SERVE_PORT,
+  }),
+})
 
 const dockerEngineAt = (socketPath: string): PodDriverEngine => {
   const docker = new DockerEngine({ socketPath })
@@ -191,7 +190,9 @@ export class DockerPodDriver implements RunnerDriver {
       id: args.name,
       resources: {
         nanoCpus: args.vcpus * NANO_CPUS_PER_VCPU,
-        memoryReservationBytes: memoryReservationBytesFor({ vcpus: args.vcpus }),
+        memoryReservationBytes: memoryReservationBytesFor({
+          vcpus: args.vcpus,
+        }),
       },
     })
   }

@@ -17,9 +17,8 @@ export const PERSONAL_PAGE_STATUS = {
       'Sandboxes come from Atlas Cloud. Repository, size and cost columns are not reported yet.',
   },
   [ESettingsPage.Instructions]: {
-    status: EPageStatus.Stored,
-    detail:
-      "Saved to Atlas Cloud, but sandboxes don't load it yet. Only a bundle published with `atlas push` reaches them.",
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
   },
   [ESettingsPage.Memory]: { status: EPageStatus.Live },
   [ESettingsPage.ModelsEffort]: {

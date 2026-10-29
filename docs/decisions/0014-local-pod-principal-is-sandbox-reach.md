@@ -15,9 +15,10 @@ reached the API.
 - A local pod authenticates as a principal equal to a Vercel sandbox in
   `SessionOrSandboxMiddleware`: procedures whose input names a `threadId` in its own thread family,
   plus threadless procedures marked `sandboxReachable`.
-- The exceptions are the procedures that physically drive Vercel: `sandboxSelf.stop`,
-  `sandboxSelf.exposePort` and `sandboxSelf.bootSteps` stay sandbox-only
-  (`sandbox-token.middleware.ts`).
+- The exceptions are the procedures that physically drive Vercel or record API provisioning:
+  `sandboxSelf.stop` and `sandboxSelf.bootSteps` stay sandbox-only (`sandbox-token.middleware.ts`).
+  `sandboxSelf.exposePort` is open to both, since previews run through a Cloudflare tunnel rather
+  than the provider (#1455).
 - A local pod's birth registers its `Thread` row, after its lease. Its checkpoints live in
   `LocalPodCheckpoint`, never in a `CloudSandbox` row, so nothing that manages Vercel sandboxes
   (`claimRow`, web send, `sandboxes.stop`/`park`, the GitHub subscription FK) can mistake a laptop

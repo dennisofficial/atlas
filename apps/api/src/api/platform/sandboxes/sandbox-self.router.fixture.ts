@@ -16,6 +16,7 @@ import {
 import { JSON_BODY_LIMIT } from '../../../_lib/body-limits'
 import { recordingSignals } from '../sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
+import { PreviewTunnelService } from './preview-tunnel.service'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesService } from './sandboxes.service'
@@ -28,13 +29,16 @@ export const SANDBOX_TOKEN = 'sandbox-token'
 export const POD_TOKEN = 'pod-token'
 
 export const vercel = {
-  exposePort: vi.fn(
-    async (_args: { threadId: string; name: string; port: number }) =>
-      'https://atlas-5173.vercel.run',
-  ),
   stopSession: vi.fn(
     async (_args: { threadId: string; name: string; sessionId?: string | undefined }) => undefined,
   ),
+}
+
+export const previews = {
+  expose: vi.fn(async (args: { threadId: string; userId: string; port: number }) => ({
+    url: `https://${args.port}-abc.byatlas.dev`,
+    tunnelToken: 'tunnel-token',
+  })),
 }
 
 export const as = (token: string): { authorization: string } => ({
@@ -61,6 +65,7 @@ export async function createSandboxSelfApp(): Promise<NestExpressApplication> {
       { provide: ThreadSignalsService, useValue: routerSignals.signals },
       SandboxTokenMiddleware,
       { provide: VercelSandboxClient, useValue: vercel },
+      { provide: PreviewTunnelService, useValue: previews },
       {
         provide: SandboxesService,
         useValue: {
@@ -74,7 +79,11 @@ export async function createSandboxSelfApp(): Promise<NestExpressApplication> {
               }
             }
             if (query.token === POD_TOKEN) {
-              return { kind: ETokenPrincipalKind.Pod, threadId: 'thr-1', userId: 'usr-1' }
+              return {
+                kind: ETokenPrincipalKind.Pod,
+                threadId: 'thr-1',
+                userId: 'usr-1',
+              }
             }
             throw new UnauthorizedException()
           },

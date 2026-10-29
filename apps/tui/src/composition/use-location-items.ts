@@ -11,6 +11,7 @@ import type { CloudConnection } from '@dltech/atlas-harness'
 import { bornPlacementChip } from './cloud/born-placement-chip'
 import type { AtlasApp } from './compose'
 import { useSessionOwner } from './use-session-owner'
+import { useThreadRunner } from './use-thread-runner'
 
 export function useLocationItems(args: {
   app: AtlasApp
@@ -18,6 +19,7 @@ export function useLocationItems(args: {
 }): readonly FooterItem[] {
   const { location, threadId } = useSessionOwner({ app: args.app })
   const connection = args.connection ?? null
+  const runner = useThreadRunner({ app: args.app, threadId, refreshKey: location })
   const chip = bornPlacementChip(args.app)
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const now = useShimmerClock({
@@ -36,7 +38,7 @@ export function useLocationItems(args: {
             provisioning: unplaced.provisioning,
             onFlip: args.app.pods && unplaced.preference === true ? chip.flip : undefined,
           }
-    const pill = locationPillOf({ location, placement })
+    const pill = locationPillOf({ location, placement, runner })
     return [icon, pill].filter((item): item is FooterItem => item !== null)
-  }, [location, threadId, connection, now, unplaced, chip])
+  }, [location, threadId, connection, now, unplaced, chip, runner])
 }

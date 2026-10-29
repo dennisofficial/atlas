@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ServeProcessPort } from '../serve-process'
 
 describe('ServeProcessPort', () => {
-  it('answers an exposure with the Vercel-routed url rather than a sandbox-local one', async () => {
+  it('answers an exposure with the published url rather than a sandbox-local one', async () => {
     const seen: { port: number }[] = []
     const port = new ServeProcessPort({
       exposePort: async (args) => {
@@ -25,7 +25,7 @@ describe('ServeProcessPort', () => {
     })
   })
 
-  it('reads a Vercel refusal as a reason, never as a localhost url', async () => {
+  it('reads a refusal as a reason, never as a localhost url', async () => {
     const port = new ServeProcessPort({
       exposePort: async () => {
         throw new Error('a sandbox exposes at most 15 ports and this one is at the limit')
@@ -40,14 +40,14 @@ describe('ServeProcessPort', () => {
     expect(outcome.reason).not.toContain('localhost')
   })
 
-  it('refuses with a teaching reason when the sandbox carries no Vercel credentials', async () => {
+  it('refuses with a teaching reason when the pod has no Atlas Cloud connection', async () => {
     const port = new ServeProcessPort(null)
 
     const outcome = await port.exposePort({ containerPort: 3001 })
 
     expect(outcome.ok).toBe(false)
     if (outcome.ok) return
-    expect(outcome.reason).toContain('no Vercel credentials')
+    expect(outcome.reason).toContain('no Atlas Cloud connection')
     expect(outcome.reason).not.toContain('localhost')
   })
 

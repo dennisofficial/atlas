@@ -82,14 +82,15 @@ The `projectId` is stored in the thread meta, and a wake passes the same one bac
 | Driver | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`) | `VercelDriver` over `@vercel/sandbox` (`packages/harness/src/cloud/vercel-driver.ts`) |
 | Image | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry |
 | Name | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`) |
-| Ports | serve and an in-pod ingress (`packages/harness/src/cloud/local-pod/ingress.ts`), both published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | provider-routed ports (`packages/wire/src/sandbox-sdk.ts`) |
+| Ports | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`) | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`) |
 | Resize | live, `POST /containers/<id>/update` | applies on restart |
 | Persistence | named volumes, kept across park and wake | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`) |
 
-`exposePort` in a local pod answers `http://<port>.sandbox.localhost:<ingressHostPort>`, which the
-pod's in-pod ingress routes to the in-pod port (`apps/serve/src/local-pod-port-exposer.ts`,
-`packages/core/src/execution/exposure.ts`). The URL shows on the TUI sidebar pill and the web
-preview list like any other exposure.
+`exposePort` works the same on both runners: serve asks the API (`sandboxSelf.exposePort`), which
+routes `https://<port>-<label>.byatlas.dev` through the thread's Cloudflare tunnel and hands back its
+token, and serve runs `cloudflared` in the pod (`apps/serve/src/api-port-exposer.ts`,
+`apps/api/src/api/platform/sandboxes/preview-tunnel.service.ts`). The URL shows on the TUI sidebar
+pill and the web preview list like any other exposure.
 
 Serve installs the same way on both. A release build downloads the serve binary matching the
 client's version and checks its SHA-256 (`packages/wire/src/sandbox-serve-install.ts`). A dev
@@ -110,14 +111,12 @@ The TUI creates the pod and stages a fresh boot (`packages/harness/src/cloud/loc
   thread row never exists without its lease. The API keeps only its hash
   (`LocalPodLease`). A Vercel pod is registered as a `CloudSandbox` row instead.
 - **Environment.** Identity and plumbing only: the serve token, thread id, Atlas Cloud URL and
-  `ATLAS_HOME=/atlas/home` (`packages/wire/src/serve-env.ts`); on a local pod the pod name, the
-  sandbox session id and `ATLAS_POD_INGRESS_HOST_PORT`, the host port of the pod's ingress, so serve
-  can answer `exposePort` with a reachable URL (`packages/harness/src/cloud/local-pod/pod-create.ts`);
-  and a telemetry id. An API-provisioned pod gets `ATLAS_API_PROVISIONED=1` and a telemetry id
+  `ATLAS_HOME=/atlas/home` (`packages/wire/src/serve-env.ts`); on a local pod the pod name and the
+  sandbox session id (`packages/harness/src/cloud/local-pod/pod-create.ts`); and a telemetry id. An API-provisioned pod gets `ATLAS_API_PROVISIONED=1` and a telemetry id
   derived from the owner's user id (an HMAC under the API's `ATLAS_TELEMETRY_PEPPER`, rendered as a
   UUID), so every pod a user starts reports as the same person. A Vercel pod the TUI launches gets
-  the Vercel token, team and project so serve can publish ports itself; the API never injects them
-  into an API-provisioned pod.
+  the Vercel token, team and project so serve can stop its own sandbox on park; the API never
+  injects them into an API-provisioned pod.
   **No settings travel as environment**: settings reach a pod only through the cloud scoped config
   serve writes at boot (step 6 below), because an env-var setting would silently outrank cloud
   values (`packages/core/src/settings/layers.ts`). An optional pinned model is the one exception,
@@ -247,8 +246,8 @@ threads of its own thread (`assertTokenSpawn` in `threads.router.ts`, 403 otherw
 teammates can spawn their own sub-agents inside the harness, so if those grandchildren are ever
 mirrored to the API under the pod's token, the one-level rule refuses them.
 
-The carve-outs are the procedures that physically drive Vercel: `sandboxSelf.stop`,
-`sandboxSelf.exposePort` and `sandboxSelf.bootSteps` stay sandbox-only
+The carve-outs are the procedures that physically drive Vercel or record API provisioning:
+`sandboxSelf.stop` and `sandboxSelf.bootSteps` stay sandbox-only
 (`apps/api/src/api/platform/sandboxes/sandbox-token.middleware.ts`). A local pod never has a
 `CloudSandbox` row. Its park checkpoints mirror through `sandboxCheckpoint.put` to a
 `LocalPodCheckpoint` row, one per thread, and the TUI reads them back through

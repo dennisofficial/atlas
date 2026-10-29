@@ -1,12 +1,10 @@
 import { afterAll, describe, expect, it } from 'bun:test'
 
 import { randomUUID } from 'node:crypto'
-import { request } from 'node:http'
 
 import { DockerEngine } from '../../../execution/docker/engine'
 import { DockerPodEngine } from '../../../execution/docker/pod-engine'
 import { dockerUnavailableReason } from '../../../execution/docker/__tests__/live-docker'
-import { ensurePodIngress, POD_INGRESS_CONTAINER_PORT } from '../ingress'
 import {
   DEFAULT_POD_IMAGE,
   dindVolumeNameFor,
@@ -16,7 +14,7 @@ import {
   podThreadLabel,
   workspaceVolumeNameFor,
 } from '../pod-create'
-import { podHostPortsFor } from '../ports'
+import { hostPortFor } from '../ports'
 import { SANDBOX_SERVE_PORT, SANDBOX_WORKSPACES_PATH } from '@dltech/atlas-wire'
 
 const SOCKET = '/var/run/docker.sock'
@@ -29,7 +27,6 @@ const threadId = `pod-live-${process.pid}-${randomUUID().slice(0, 8)}`
 const podName = podNameFor({ threadId })
 const workspaceVolume = workspaceVolumeNameFor({ threadId })
 const dindVolume = dindVolumeNameFor({ threadId })
-const LATE_PORT = 4567
 const EXEC_TIMEOUT_MS = 90_000
 
 const sweep = async (): Promise<void> => {
@@ -53,7 +50,10 @@ const sweep = async (): Promise<void> => {
 }
 
 const dockerCli = async (args: readonly string[]): Promise<string> => {
-  const child = Bun.spawn(['docker', ...args], { stdout: 'pipe', stderr: 'pipe' })
+  const child = Bun.spawn(['docker', ...args], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
@@ -70,7 +70,9 @@ type RawInspect = {
 }
 
 const inspectRaw = async (id: string): Promise<RawInspect> => {
-  const response = await fetch(`http://localhost/containers/${id}/json`, { unix: SOCKET })
+  const response = await fetch(`http://localhost/containers/${id}/json`, {
+    unix: SOCKET,
+  })
   return (await response.json()) as RawInspect
 }
 
@@ -99,35 +101,25 @@ const waitFor = async (args: {
   throw new Error(`timed out waiting for ${args.what}`)
 }
 
-const getWithHost = (args: { port: number; host: string }): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const call = request(
-      { host: '127.0.0.1', port: args.port, path: '/', headers: { Host: args.host } },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => chunks.push(chunk))
-        response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
-      },
-    )
-    call.on('error', reject)
-    call.setTimeout(5_000, () => call.destroy(new Error('request timed out')))
-    call.end()
-  })
-
 describeDocker('local pod create body against a live daemon', () => {
   afterAll(async () => {
     await sweep()
   }, 120_000)
 
-  it('boots a pod, serves late ports through the ingress, and stops on SIGTERM to PID 1', async () => {
-    const { serveHostPort, ingressHostPort } = podHostPortsFor({
+  it('boots a pod, and stops on SIGTERM to PID 1', async () => {
+    const serveHostPort = hostPortFor({
       session: threadId,
-      serveContainerPort: SANDBOX_SERVE_PORT,
-      ingressContainerPort: POD_INGRESS_CONTAINER_PORT,
+      containerPort: SANDBOX_SERVE_PORT,
     })
 
-    await pods.createVolume({ name: workspaceVolume, labels: { [podThreadLabel]: threadId } })
-    await pods.createVolume({ name: dindVolume, labels: { [podThreadLabel]: threadId } })
+    await pods.createVolume({
+      name: workspaceVolume,
+      labels: { [podThreadLabel]: threadId },
+    })
+    await pods.createVolume({
+      name: dindVolume,
+      labels: { [podThreadLabel]: threadId },
+    })
     const created = await engine.createContainer({
       name: podName,
       body: podCreateBody({
@@ -135,7 +127,6 @@ describeDocker('local pod create body against a live daemon', () => {
         home: '/tmp/atlas-pod-live-home',
         image: DEFAULT_POD_IMAGE,
         serveHostPort,
-        ingressHostPort,
         vcpus: 1,
         token: 'live-token',
         cloudUrl: 'http://127.0.0.1:1',
@@ -173,29 +164,6 @@ describeDocker('local pod create body against a live daemon', () => {
         timeoutMs: EXEC_TIMEOUT_MS,
       }),
     ).not.toBe('')
-
-    await ensurePodIngress({ engine: pods, id: created.id, ingressHostPort })
-
-    await sh({
-      id: created.id,
-      script: `setsid nohup bun -e 'Bun.serve({port:${LATE_PORT},fetch:()=>new Response("late-ok")})' >/tmp/late.log 2>&1 </dev/null &`,
-    })
-    await waitFor({
-      what: 'the late service',
-      timeoutMs: 30_000,
-      probe: async () =>
-        (
-          await pods.execSh({
-            id: created.id,
-            script: `curl -fsS http://127.0.0.1:${LATE_PORT}/`,
-            timeoutMs: 10_000,
-          })
-        ).exitCode === 0,
-    })
-
-    expect(
-      await getWithHost({ port: ingressHostPort, host: `${LATE_PORT}.sandbox.localhost` }),
-    ).toBe('late-ok')
 
     const killedAt = performance.now()
     await dockerCli(['exec', podName, 'sh', '-c', 'kill -TERM 1'])

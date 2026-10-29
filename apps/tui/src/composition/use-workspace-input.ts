@@ -5,14 +5,9 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { applyTranscriptCovered } from '../ui/covered-store'
 import { EKeyGroup, EKeyLayer, useKeyBindings, useKeyRegistry } from '../ui/keys'
 import { globalBindings } from './global-bindings'
-import { moveOverlayPresence } from './container-move-birth'
-import {
-  composerCovered,
-  covering,
-  keyOwners,
-  transcriptCovered,
-  type OverlayPresence,
-} from './overlay-presence'
+import type { BootBlockStore } from './boot-block-store'
+import { composerCovered, keyOwners, transcriptCovered } from './overlay-presence'
+import { useWorkspaceOverlays } from './use-workspace-overlays'
 import type { useAccounts } from './use-accounts'
 import type { useContextBrowser } from './use-context'
 import type { useAgentView } from './use-agent-view'
@@ -81,6 +76,7 @@ export type WorkspaceInputArgs = {
   exitGuard: Pick<ReturnType<typeof useExitGuard>, 'state' | 'handleKey'>
   containerGuard: Pick<ReturnType<typeof useContainerGuard>, 'state' | 'handleKey'>
   containerMove: Pick<ReturnType<typeof useContainerMove>, 'move' | 'handleKey'>
+  boot: Pick<BootBlockStore, 'handleEscape' | 'handleCancel'>
   containerResources: Pick<ReturnType<typeof useContainerResources>, 'state' | 'handleKey'>
   contextBrowser: Pick<ReturnType<typeof useContextBrowser>, 'viewer' | 'tree' | 'handleKey'>
 }
@@ -121,6 +117,7 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
     exitGuard,
     containerGuard,
     containerMove,
+    boot,
     containerResources,
     contextBrowser,
   } = args
@@ -142,7 +139,10 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       onShortcuts: handleShortcuts,
       onTakeBackPending: composer.handleTakeBackPending,
       onEnterFooterStrip: footerStrip.handleEnter,
-      onInterrupt: conversation.handleInterrupt,
+      onInterrupt: () => {
+        if (boot.handleEscape({ draftEmpty: composer.draftIsEmpty() })) return
+        conversation.handleInterrupt()
+      },
       onOpenSwitcher: () => switcher.handleOpen(),
       onNewConversation: handleNewConversation,
       onAttachImage: composer.handleAttachImage,
@@ -151,7 +151,10 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
       onToggleSidebar: wide ? null : handleToggleSidebar,
       onOpenSettings: settings.handleOpen,
       onOpenAccounts: handleOpenAccounts,
-      onQuit: handleQuit,
+      onQuit: () => {
+        if (boot.handleCancel()) return
+        handleQuit()
+      },
     }),
   )
 
@@ -174,77 +177,28 @@ export function useWorkspaceInput(args: WorkspaceInputArgs): WorkspaceInput {
   const { rewindConfirm } = conversation
   const compacting = conversation.compacting !== null
 
-  const overlays = useMemo(
-    (): readonly OverlayPresence[] => [
-      covering(whatsNew.view !== null, whatsNew.handleKey),
-      {
-        ...covering(
-          conversation.operatorInput.state !== null,
-          conversation.operatorInput.handleKey,
-        ),
-        porous: true,
-      },
-      covering(projectPrompt.state !== null, projectPrompt.handleKey),
-      covering(exitGuard.state !== null, exitGuard.handleKey),
-      covering(containerGuard.state !== null, containerGuard.handleKey),
-      covering(containerResources.state !== null, containerResources.handleKey),
-      covering(rewindConfirm.state !== null, rewindConfirm.handleKey),
-      covering(rewind.state !== null, rewind.handleKey),
-      { ...covering(switcher.state !== null, switcher.handleKey), porous: true },
-      covering(shells.state !== null, shells.handleKey),
-      covering(services.state !== null, services.handleKey),
-      covering(accounts.state !== null, accounts.handleKey),
-      { ...covering(threads.state !== null, threads.handleKey), porous: true },
-      { ...covering(onboarding.state !== null, onboarding.handleKey), porous: true },
-      { ...covering(settings.state !== null, settings.handleKey), porous: true },
-      {
-        open: contextBrowser.viewer !== null,
-        handleKey: contextBrowser.handleKey,
-        coversComposer: true,
-        coversTranscript: contextBrowser.viewer !== null,
-      },
-      { ...covering(footerStrip.state !== null, footerStrip.handleKey), coversTranscript: false },
-      { open: compacting, coversComposer: true, coversTranscript: true },
-      moveOverlayPresence({ move: containerMove.move, handleKey: containerMove.handleKey }),
-      { open: overlay, coversComposer: true, coversTranscript: false },
-    ],
-    [
-      accounts.handleKey,
-      accounts.state,
-      compacting,
-      contextBrowser.handleKey,
-      contextBrowser.viewer,
-      containerMove.handleKey,
-      containerMove.move,
-      conversation.operatorInput.handleKey,
-      conversation.operatorInput.state,
-      exitGuard.handleKey,
-      exitGuard.state,
-      footerStrip.handleKey,
-      footerStrip.state,
-      onboarding.handleKey,
-      onboarding.state,
-      projectPrompt.handleKey,
-      projectPrompt.state,
-      whatsNew.handleKey,
-      whatsNew.view,
-      overlay,
-      rewind.handleKey,
-      rewind.state,
-      rewindConfirm.handleKey,
-      rewindConfirm.state,
-      services.handleKey,
-      services.state,
-      settings.handleKey,
-      settings.state,
-      shells.handleKey,
-      shells.state,
-      switcher.handleKey,
-      switcher.state,
-      threads.handleKey,
-      threads.state,
-    ],
-  )
+  const overlays = useWorkspaceOverlays({
+    overlay,
+    compacting,
+    rewindConfirm,
+    operatorInput: conversation.operatorInput,
+    whatsNew,
+    projectPrompt,
+    exitGuard,
+    containerGuard,
+    containerResources,
+    rewind,
+    switcher,
+    shells,
+    services,
+    accounts,
+    threads,
+    onboarding,
+    settings,
+    contextBrowser,
+    footerStrip,
+    containerMove,
+  })
 
   const owners = useMemo(() => keyOwners(overlays), [overlays])
   const veil = useMemo(
