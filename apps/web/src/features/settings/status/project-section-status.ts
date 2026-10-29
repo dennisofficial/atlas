@@ -13,8 +13,7 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
     detail: "Size and setup script are saved; sandboxes don't apply them yet.",
   },
   [EProjectSettingsSection.Secrets]: {
-    status: EPageStatus.Stored,
-    detail: 'Saved to the project; sessions do not inject project secrets yet.',
+    status: EPageStatus.Live,
   },
   [EProjectSettingsSection.Mcp]: {
     status: EPageStatus.Partial,
