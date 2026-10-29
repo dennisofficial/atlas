@@ -5,7 +5,9 @@ import { metaOf } from '../../../_module/trpc/procedure-meta'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 
-export type SandboxTrpcCtx = ApiTrpcCtx & { sandbox: { threadId: string; userId: string } }
+export type SandboxTrpcCtx = ApiTrpcCtx & {
+  sandbox: { threadId: string; userId: string; kind: ETokenPrincipalKind }
+}
 
 @Injectable()
 export class SandboxTokenMiddleware implements TRPCMiddleware {
@@ -20,7 +22,10 @@ export class SandboxTokenMiddleware implements TRPCMiddleware {
       throw new UnauthorizedException('a sandbox session token is required')
     }
     return next({
-      ctx: { ...ctx, sandbox: { threadId: principal.threadId, userId: principal.userId } },
+      ctx: {
+        ...ctx,
+        sandbox: { threadId: principal.threadId, userId: principal.userId, kind: principal.kind },
+      },
     })
   }
 }

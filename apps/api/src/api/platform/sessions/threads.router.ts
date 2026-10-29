@@ -38,7 +38,6 @@ import { z } from 'zod'
 import { ThreadLauncher, type ThreadLaunchReply } from '../../../_core/ports/thread-launcher'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
-import { SandboxesService } from '../sandboxes/sandboxes.service'
 import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
@@ -52,26 +51,20 @@ const READ_THROTTLE = { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs: 60_000 }
 const readMeta = meta({ throttle: READ_THROTTLE })
 const spawnMeta = meta({ sandboxReachable: true, throttle: READ_THROTTLE })
 
-async function assertSandboxSpawn({
-  sandboxes,
+function assertTokenSpawn({
   ctx,
   agent,
 }: {
-  sandboxes: SandboxesService
   ctx: SessionOrSandboxTrpcCtx
   agent: SupervisedAgentInput | undefined
-}): Promise<void> {
+}): void {
   const principal = ctx.sandbox ?? ctx.pod
   if (principal === undefined) return
-  if (agent === undefined) {
+  if (agent?.spawnedBy !== principal.threadId) {
     throw new ForbiddenException(
-      'a pod or sandbox token creates only sub-agent threads of its own family',
+      'a pod or sandbox token creates only direct sub-agent threads of its own thread',
     )
   }
-  await sandboxes.assertThreadInFamily({
-    sandboxThreadId: principal.threadId,
-    threadId: agent.spawnedBy,
-  })
 }
 
 @Router({ alias: 'threads' })
@@ -80,7 +73,6 @@ export class ThreadsRouter {
   constructor(
     private readonly threads: ThreadsService,
     private readonly history: ThreadsHistoryService,
-    private readonly sandboxes: SandboxesService,
     private readonly launcher: ThreadLauncher,
     private readonly archival: ThreadArchiveService,
   ) {}
@@ -99,7 +91,7 @@ export class ThreadsRouter {
     if (viaToken && input.id !== undefined) {
       throw new ForbiddenException('a pod or sandbox token cannot choose a thread id')
     }
-    await assertSandboxSpawn({ sandboxes: this.sandboxes, ctx, agent: input.agent })
+    assertTokenSpawn({ ctx, agent: input.agent })
     const userId = ctx.auth.userId
     if (input.firstMessage === undefined) return this.threads.create({ userId, draft: input })
     return this.launcher.launch({ userId, draft: input, firstMessage: input.firstMessage })
@@ -110,9 +102,17 @@ export class ThreadsRouter {
     @Input() input: OpenThreadInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<{ thread: ThreadDto; events: EventDto[] }> {
-    await assertSandboxSpawn({ sandboxes: this.sandboxes, ctx, agent: input.agent })
+    const principal = ctx.sandbox ?? ctx.pod
+    if (principal !== undefined && input.executionLocation !== undefined) {
+      throw new ForbiddenException('a pod or sandbox token cannot set an execution location')
+    }
+    assertTokenSpawn({ ctx, agent: input.agent })
     const { id, ...rest } = input
-    return this.threads.open({ userId: ctx.auth.userId, draft: { ...rest, threadId: id } })
+    return this.threads.open({
+      userId: ctx.auth.userId,
+      ...(principal === undefined ? {} : { confinedTo: principal.threadId }),
+      draft: { ...rest, threadId: id },
+    })
   }
 
   @Query({ input: recentThreadInputSchema, output: wireThreadSchema.nullable(), meta: readMeta })

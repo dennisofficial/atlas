@@ -38,6 +38,10 @@ export const PERSONAL_PAGE_STATUS = {
       'The theme is applied to this page; density, font size and motion are saved but not applied yet.',
   },
   [ESettingsPage.Notifications]: { status: EPageStatus.Stored },
+  [ESettingsPage.Agent]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
+  },
   [ESettingsPage.Security]: {
     status: EPageStatus.Live,
     detail: 'Signed-in sessions come from your account and can be revoked.',

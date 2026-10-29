@@ -14,6 +14,7 @@ model User {
   deviceCodes              DeviceCode[]
   githubConnection         GithubConnection?
   localPodLeases           LocalPodLease[]
+  localPodCheckpoints      LocalPodCheckpoint[]
   mcpServers               UserMcpServer[]
   memories                 Memory[]
   oauthConnections         OauthConnection[]

@@ -1,11 +1,19 @@
 import {
   EClientRequest,
   EConnectionView,
+  requestRewindApply,
   type RemoteDeltaChannel,
 } from '@dltech/atlas-client/channel'
-import { takeBackPendingReplySchema } from '@dltech/atlas-wire/web'
+import { toThreadId } from '@dltech/atlas-core'
+import { rosterWireSchema, takeBackPendingReplySchema } from '@dltech/atlas-wire/web'
 
-import type { LiveChooseModel, LiveInterrupt, LiveTakeBackPending } from './live-thread-view'
+import type {
+  LiveApplyRewind,
+  LiveChooseModel,
+  LiveInterrupt,
+  LiveReadRoster,
+  LiveTakeBackPending,
+} from './live-thread-view'
 
 export function createLiveThreadActions(args: {
   threadId: string
@@ -15,6 +23,8 @@ export function createLiveThreadActions(args: {
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
+  applyRewind: LiveApplyRewind
+  readRoster: LiveReadRoster
 } {
   const connected = (): RemoteDeltaChannel | null => {
     const live = args.liveChannel()
@@ -51,5 +61,26 @@ export function createLiveThreadActions(args: {
     return true
   }
 
-  return { chooseModel, takeBackPending, interrupt }
+  const applyRewind: LiveApplyRewind = async ({ cuts, toSeq }) => {
+    const live = connected()
+    if (live === null) throw new Error('the sandbox is not connected')
+    await requestRewindApply({
+      channel: live,
+      params: { threadId: toThreadId(args.threadId), cuts: [...cuts], toSeq },
+    })
+  }
+
+  const readRoster: LiveReadRoster = async () => {
+    const live = connected()
+    if (live === null) return null
+    try {
+      return rosterWireSchema.parse(
+        await live.request({ op: EClientRequest.ListRoster, params: {} }),
+      )
+    } catch {
+      return null
+    }
+  }
+
+  return { chooseModel, takeBackPending, interrupt, applyRewind, readRoster }
 }
