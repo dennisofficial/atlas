@@ -234,35 +234,35 @@ reservation of 2 GiB per vCPU with no hard cap.
 principals. Each tRPC procedure opts a token kind in through its typed `meta({...})`
 (`apps/api/src/_module/trpc/procedure-meta.ts`).
 
-A local pod's lease token and a Vercel pod's sandbox token follow the same rule in
-`SessionOrSandboxMiddleware`. A procedure whose input names a `threadId` is answered when the
-thread is in the principal's own family, its thread or a direct sub-agent (`assertThreadInFamily`
-in `sandboxes.service.ts`). A threadless procedure needs `meta({ sandboxReachable: true })`, or
-`podReachable: true` on the few sandbox-token procedures a local pod may also call, such as
-`sandboxSelf.events` and `sandboxCheckpoint.put` (`sandbox-token.middleware.ts`, 401 otherwise). A
-token reaching a thread outside its family is refused 401; a
-threadless procedure without reach meta is refused 403. A token creates only direct sub-agent
-threads of its own thread (`assertTokenSpawn` in `threads.router.ts`, 403 otherwise). In-pod
-teammates can spawn their own sub-agents inside the harness, so if those grandchildren are ever
-mirrored to the API under the pod's token, the one-level rule refuses them.
+A Vercel pod's sandbox token and a local pod's lease token no longer share a rule. A sandbox token
+answers a procedure whose input names a `threadId` in its own family (its thread or a direct
+sub-agent, `assertThreadInFamily` in `sandboxes.service.ts`), and a threadless procedure marked
+`meta({ sandboxReachable: true })`. A local pod's lease token reaches only procedures marked
+`meta({ podReachable: true })`, an explicit allow-list of threadless, user-scoped capabilities:
+OAuth access tokens, the account lease, scoped config, settings, secrets, the project workspace,
+the signing key, the published bundle, cloud instructions (`userFiles.get`), memory, GitHub
+subscriptions and the PR stream, and `sandboxSelf.exposePort`. `sandboxReachable` alone does not
+admit a pod, and a pod has no thread-family reach: a procedure that takes a `threadId` is refused
+unless it is marked `podReachable`. A token reaching a thread outside its family is refused 401; a
+threadless procedure without the right reach meta is refused 403. A sandbox token creates only
+direct sub-agent threads of its own thread (`assertTokenSpawn` in `threads.router.ts`, 403
+otherwise).
 
-The carve-outs are the procedures that physically drive Vercel or record API provisioning:
 `sandboxSelf.stop` and `sandboxSelf.bootSteps` stay sandbox-only
-(`apps/api/src/api/platform/sandboxes/sandbox-token.middleware.ts`). A local pod never has a
-`CloudSandbox` row. Its park checkpoints mirror through `sandboxCheckpoint.put` to a
-`LocalPodCheckpoint` row, one per thread, and the TUI reads them back through
-`localPodCheckpoint.get`. Its birth registers the thread as an API `Thread` row with no boot
-steps, and a web send or Retry on that thread is refused with 409: the runner is a container on
-the operator's machine.
+(`apps/api/src/api/platform/sandboxes/sandbox-token.middleware.ts`) because they drive Vercel. A
+local pod never has a `CloudSandbox` row, an API `Thread` row or `Event` rows, and its park
+checkpoint is not mirrored: serve captures it to the pod's own disk and socket only. The TUI
+registers just the pod's lease. A web send or Retry on a leased thread ID is still refused with
+409: the runner is a container on the operator's machine
+([0015](decisions/0015-local-pod-threads-stay-local.md)).
 
-Beyond their own thread family, both kinds of pod can write memory, the user-files store
-(`userFiles.put`/`remove`), GitHub PR subscriptions, and direct sub-agent threads. Writes to
-settings, secrets, accounts, Projects, bundles and the signing key need a user session.
+Beyond what a pod needs for itself, writes to settings, secrets, accounts, Projects, bundles and
+the signing key need a user session.
 
 Pod parity is contract-tested: the middleware's per-procedure pod and sandbox allow/deny table
 lives in `session-or-sandbox.middleware.spec.ts` and `pod-lease-auth.spec.ts`, and the launch-env
 contract in the launcher specs listed under "Environment" above
-([0014](decisions/0014-local-pod-principal-is-sandbox-reach.md)).
+([0015](decisions/0015-local-pod-threads-stay-local.md)).
 
 **Ownership and the reaper** ([0007](decisions/0007-pod-home-label.md)). Each pod and its volumes
 carry the labels `atlas-pod.thread`, `atlas-pod.role=pod` and `atlas-pod.home`, the last being a
@@ -286,13 +286,14 @@ daemon.
   state.
 - **Wake.** Waking means the TUI calls the bridge's create again, which resumes the same pod by
   name (`apps/tui/src/composition/cloud/cloud-runner.ts`). Opening a parked thread whose
-  transcript is on disk renders it first; when the pod reports itself parked, the open does not
-  wake it, and the next send does (`apps/tui/src/composition/cloud/cloud-open.ts`,
-  `packages/harness/src/cloud/remote-turn-runner.ts`). A local pod mirrors its park checkpoint to
-  the API (`LocalPodCheckpoint`), and the bridge's `find` reads it back with a 1.5 s deadline
-  (`packages/harness/src/cloud/local-pod-bridge.ts`, `local-pod-registration.ts`), so opening a
-  parked local thread renders from the mirrored checkpoint without waking the pod. A thread with
-  no local transcript wakes before it opens. Serve boots again from step 1; a workspace that is
+  transcript is on disk renders it first. Today the open wakes the pod regardless of its state:
+  `cloud-open.ts` composes the eager wake, so a parked local pod resumes on open
+  (`apps/tui/src/composition/cloud/cloud-open.ts`,
+  `packages/harness/src/cloud/remote-turn-runner.ts`). A local pod's park checkpoint stays on its
+  own disk and is not mirrored to the API, so the bridge's `find` reports no checkpoint
+  (`packages/harness/src/cloud/local-pod-bridge.ts`). Opening a parked local pod without waking it
+  would need a stopped-container read and a consumer change, neither built. A thread with no local
+  transcript wakes before it opens. Serve boots again from step 1; a workspace that is
   already cloned is kept.
 - **Detached work.** A turn runs in serve whether or not a client is attached. Closing the TUI
   drops only the socket, and serve logs the execution as preserved

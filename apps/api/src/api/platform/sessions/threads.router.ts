@@ -58,11 +58,11 @@ function assertTokenSpawn({
   ctx: SessionOrSandboxTrpcCtx
   agent: SupervisedAgentInput | undefined
 }): void {
-  const principal = ctx.sandbox ?? ctx.pod
+  const principal = ctx.sandbox
   if (principal === undefined) return
   if (agent?.spawnedBy !== principal.threadId) {
     throw new ForbiddenException(
-      'a pod or sandbox token creates only direct sub-agent threads of its own thread',
+      'a sandbox token creates only direct sub-agent threads of its own thread',
     )
   }
 }

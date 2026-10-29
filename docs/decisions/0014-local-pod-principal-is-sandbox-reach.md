@@ -1,6 +1,6 @@
 # 0014. A local pod's token reaches what a Vercel pod's does, minus the Vercel-only controls
 
-Accepted 2026-10-28.
+Accepted 2026-10-28. Superseded by [0015](0015-local-pod-threads-stay-local.md).
 
 ## Context
 

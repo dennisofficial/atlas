@@ -237,16 +237,10 @@ describe('SandboxSelfRouter', () => {
       }
     })
 
-    it('lets a pod lease token write and truncate its own thread', async () => {
-      const written = await send('events', POD_TOKEN, {
-        events: [podEvent(1), podEvent(2)],
-      })
-      expect(written.status).toBe(200)
-      expect(written.body).toEqual({ result: { data: { head: 2 } } })
-
-      const truncated = await send('truncateEvents', POD_TOKEN, { toSeq: 1 })
-      expect(truncated.status).toBe(200)
-      expect(await eventsOf('thr-1')).toHaveLength(1)
+    it('answers 401 for a pod lease token on both routes', async () => {
+      expect((await send('events', POD_TOKEN, { events: [podEvent(1)] })).status).toBe(401)
+      expect((await send('truncateEvents', POD_TOKEN, { toSeq: 1 })).status).toBe(401)
+      expect(await eventsOf('thr-1')).toHaveLength(0)
     })
 
     it('answers 400 for a malformed batch', async () => {

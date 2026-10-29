@@ -168,10 +168,7 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
     hostname: '0.0.0.0',
     fetch: async (request) => {
       const url = new URL(request.url)
-      if (
-        url.pathname === '/v1/trpc/podLeases.register' ||
-        url.pathname === '/v1/trpc/threads.create'
-      ) {
+      if (url.pathname === '/v1/trpc/podLeases.register') {
         return Response.json({ result: { data: null } })
       }
       if (url.pathname === '/v1/trpc/accountLease.get') {

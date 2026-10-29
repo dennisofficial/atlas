@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   EExecutionLocation,
   ELogSeverity,
+  ERunner,
   LogPort,
   toRunId,
   toThreadId,
@@ -186,6 +187,45 @@ describe('uploadLocalMirrors', () => {
 
     expect(remote.batches).toEqual([])
     expect(existsSync(stampOf({ fixture, threadId }))).toBe(false)
+  })
+
+  it('never sends a cloud-placed thread whose runner is local', async () => {
+    const { fixture, threadId } = await localThread({
+      location: EExecutionLocation.Cloud,
+      texts: ['a', 'b'],
+    })
+    await fixture.threads.chooseRunner({ threadId, runner: ERunner.Local })
+    const heads: string[] = []
+    const remote = fakeRemote()
+
+    await uploadLocalMirrors({
+      home: fixture.home,
+      client: {
+        threadHead: async (args) => {
+          heads.push(args.threadId)
+          return 0
+        },
+        importEvents: remote.client.importEvents,
+      },
+      log: new RecordingLog(),
+    })
+
+    expect(heads).toEqual([])
+    expect(remote.batches).toEqual([])
+    expect(existsSync(stampOf({ fixture, threadId }))).toBe(false)
+  })
+
+  it('still sends a cloud-placed thread whose runner is vercel', async () => {
+    const { fixture, threadId } = await localThread({
+      location: EExecutionLocation.Cloud,
+      texts: ['a', 'b'],
+    })
+    await fixture.threads.chooseRunner({ threadId, runner: ERunner.Vercel })
+    const remote = fakeRemote()
+
+    await uploadLocalMirrors({ home: fixture.home, client: remote.client, log: new RecordingLog() })
+
+    expect(remote.batches).toEqual([[1, 2]])
   })
 
   it('logs and carries on when the control plane cannot be reached for a thread', async () => {
