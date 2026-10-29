@@ -1,8 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
-
 import { db, type Row } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
@@ -19,6 +17,7 @@ import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
+import { apiProvisionedEnvironment } from '../sandbox-provisioning/pod-telemetry-identity'
 
 export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
@@ -209,13 +208,19 @@ export class GithubSandboxWakeService {
   private async bootClaimed(args: { row: Row<'CloudSandbox'> }): Promise<void> {
     const { row } = args
     const freshToken = randomBytes(32).toString('hex')
-    const { ownerCredential, ...credentials } = await this.credentials.forThread({
+    const { ownerCredential, userId, ...credentials } = await this.credentials.forThread({
       threadId: row.threadId,
     })
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials,
       ...(ownerCredential
-        ? { injectVercelCredentials: false, environment: { [API_PROVISIONED_ENV]: '1' } }
+        ? {
+            injectVercelCredentials: false,
+            environment: apiProvisionedEnvironment({
+              userId,
+              pepper: this.env.get('ATLAS_TELEMETRY_PEPPER'),
+            }),
+          }
         : {}),
       name: row.name,
       threadId: row.threadId,

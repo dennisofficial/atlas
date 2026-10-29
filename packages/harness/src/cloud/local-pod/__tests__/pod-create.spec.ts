@@ -146,7 +146,7 @@ describe('podCreateBody', () => {
     expect(envOf({ ...baseArgs, pinnedModel: 'claude-opus' }).ATLAS_MODEL).toBe('claude-opus')
   })
 
-  it('merges the caller environment last and drops every VERCEL_ key', () => {
+  it('merges the caller environment under its own plumbing and drops every VERCEL_ key', () => {
     const env = envOf({
       ...baseArgs,
       environment: {
@@ -160,7 +160,7 @@ describe('podCreateBody', () => {
     })
 
     expect(env.EXTRA).toBe('value')
-    expect(env.ATLAS_HOME).toBe('/override')
+    expect(env.ATLAS_HOME).toBe(SANDBOX_HOME_PATH)
     expect(Object.keys(env).filter((key) => key.startsWith('VERCEL_'))).toEqual([])
   })
 })

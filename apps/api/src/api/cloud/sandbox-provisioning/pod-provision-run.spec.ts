@@ -112,7 +112,9 @@ describe('runPodProvision', () => {
     const { sandbox, writeFiles } = fakeSandbox()
     await calls[0]?.prepare?.(sandbox)
     const [files] = writeFiles.mock.calls[0] as unknown as [{ content: string }[]]
-    expect(JSON.parse(files[0]?.content ?? '')).toMatchObject({ projectId: null })
+    const spec = JSON.parse(files[0]?.content ?? '')
+    expect(spec).toMatchObject({ projectId: null })
+    expect(Object.keys(spec).sort()).toEqual(['githubToken', 'projectId', 'remoteUrl'])
   })
 
   it('writes boot-step rows through the reporter', async () => {

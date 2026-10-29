@@ -3,7 +3,6 @@ import { ThreadSignalsModule } from '../sessions/thread-signals.module'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxEndpointService } from './sandbox-endpoint'
-import { SandboxThreadTokenMiddleware } from './sandbox-thread-token.middleware'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
@@ -15,7 +14,6 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
     SandboxesService,
     SandboxEndpointService,
     SandboxTokenMiddleware,
-    SandboxThreadTokenMiddleware,
     SandboxSelfRouter,
     SandboxesRouter,
     SandboxCheckpointRouter,

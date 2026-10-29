@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import {
   EServeEnv,
+  FORBIDDEN_POD_ENV_KEYS,
   POD_INGRESS_HOST_PORT_ENV,
   SANDBOX_HOME_PATH,
   SANDBOX_SERVE_PORT,
@@ -77,11 +78,14 @@ export type PodCreateArgs = {
 
 const callerEnvironment = (environment: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
-    Object.entries(environment).filter(([key]) => !key.startsWith(VENDOR_ENV_PREFIX)),
+    Object.entries(environment).filter(
+      ([key]) => !key.startsWith(VENDOR_ENV_PREFIX) && !FORBIDDEN_POD_ENV_KEYS.includes(key),
+    ),
   )
 
 const podEnv = (args: PodCreateArgs): string[] =>
   Object.entries({
+    ...callerEnvironment(args.environment),
     [EServeEnv.Token]: args.token,
     [EServeEnv.Port]: String(SANDBOX_SERVE_PORT),
     [EServeEnv.ThreadId]: args.threadId,
@@ -91,7 +95,6 @@ const podEnv = (args: PodCreateArgs): string[] =>
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
     [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
-    ...callerEnvironment(args.environment),
   }).map(([key, value]) => `${key}=${value}`)
 
 const loopbackBinding = (hostPort: number) => [{ HostIp: '127.0.0.1', HostPort: String(hostPort) }]

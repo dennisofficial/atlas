@@ -19,6 +19,7 @@ import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
 import {
+  CLASSIFIER_OFF,
   dockerCli,
   MODEL_ID,
   OPENROUTER_KEY,
@@ -70,8 +71,9 @@ describeLive('a multi-turn session in a local pod', () => {
           if (path === '/v1/trpc/accountLease.get') {
             return Response.json({ result: { data: OPENROUTER_LEASE } })
           }
+          if (path === '/v1/trpc/sandboxConfig.get') return new Response(null, { status: 404 })
           if (path === '/v1/trpc/settings.list')
-            return Response.json({ result: { data: { settings: [] } } })
+            return Response.json({ result: { data: { settings: [CLASSIFIER_OFF] } } })
           if (path === '/v1/trpc/secrets.list')
             return Response.json({ result: { data: { secrets: [] } } })
           return new Response(null, { status: 204 })
@@ -88,7 +90,7 @@ describeLive('a multi-turn session in a local pod', () => {
       const bridge = createLocalPodBridge({
         ...options,
         pod: () => ({ ...options.pod(), cloudUrl: `http://host.docker.internal:${leaseApi.port}` }),
-        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url, ATLAS_CLASSIFIER_MODE: 'off' }),
+        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url }),
       })
       const engine = new DockerEngine({ socketPath: SOCKET })
       const podIds = async (): Promise<string[]> =>

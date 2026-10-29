@@ -262,9 +262,11 @@ export function runDepsWith(
     signals?: ThreadSignalsService
     sdk?: VercelSdk
     log?: (line: string) => void
+    telemetryPepper?: string
   } = {},
 ) {
   return {
+    telemetryPepper: args.telemetryPepper,
     cipher,
     sdk: args.sdk ?? fakeSdk().sdk,
     scoped: args.scoped ?? fakeScoped(),

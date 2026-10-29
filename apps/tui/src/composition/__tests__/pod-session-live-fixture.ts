@@ -1,6 +1,8 @@
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 export const OPENROUTER_KEY = 'sk-or-fake'
+export const CLASSIFIER_OFF = { key: 'classifier.mode', value: 'off' }
+
 export const OPENROUTER_LEASE = {
   accounts: [
     {

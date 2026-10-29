@@ -21,3 +21,4 @@ says what it supersedes. Tactical choices and decisions that were later reversed
 | [0011](0011-explicit-atlas-push.md) | Skills, instructions and MCP config reach pods by `atlas push` |
 | [0012](0012-cloud-state-starts-empty.md) | Pod mode starts empty: no import, no old threads |
 | [0013](0013-pods-behind-a-flag.md) | Pods sit behind `experimental.pods`; the TUI stays local, the web goes cloud-first |
+| [0014](0014-local-pod-principal-is-sandbox-reach.md) | A local pod's token reaches what a Vercel pod's does, minus the Vercel-only controls |

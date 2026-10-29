@@ -11,7 +11,9 @@ import {
   STORED_HASH,
   seedSubscription,
   serviceWith,
+  WAKE_PEPPER,
 } from '../../../../test/github-sandbox-wake-fixture'
+import { podTelemetryIdentity } from '../sandbox-provisioning/pod-telemetry-identity'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
@@ -64,7 +66,9 @@ describe('GithubSandboxWakeService resume', () => {
     await seedSubscription()
     const { boot, calls } = fakeBoot()
 
-    serviceWith({ boot, credentials: { ownerCredential: true } }).notifyEvent(PR_EVENT)
+    serviceWith({ boot, credentials: { ownerCredential: true, userId: 'usr-1' } }).notifyEvent(
+      PR_EVENT,
+    )
     await flushDebounce()
 
     expect(calls[0]?.credentials).toEqual({
@@ -73,6 +77,22 @@ describe('GithubSandboxWakeService resume', () => {
       projectId: 'proj-1',
     })
     expect(calls[0]?.injectVercelCredentials).toBe(false)
+    expect(calls[0]?.environment).toEqual({
+      ATLAS_API_PROVISIONED: '1',
+      ATLAS_TELEMETRY_IDENTITY: podTelemetryIdentity({ userId: 'usr-1', pepper: WAKE_PEPPER }),
+    })
+  })
+
+  it('omits the telemetry identity when the owner is not known', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot, credentials: { ownerCredential: true, userId: undefined } }).notifyEvent(
+      PR_EVENT,
+    )
+    await flushDebounce()
+
     expect(calls[0]?.environment).toEqual({ ATLAS_API_PROVISIONED: '1' })
   })
 

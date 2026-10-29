@@ -26,6 +26,7 @@ export function buildPodProvisionGraph(args: { env: EnvService }): PodProvisionG
     image: env.get('SANDBOX_IMAGE'),
     cloudUrl: env.get('ATLAS_CLOUD_URL') ?? DEFAULT_CLOUD_URL,
     log: (line) => logger.log(line),
+    telemetryPepper: env.get('ATLAS_TELEMETRY_PEPPER'),
   }
   return { deps, dispose }
 }

@@ -188,6 +188,8 @@ export class RecordingBackgroundWork extends BackgroundWork {
 
 let current: RecordingBackgroundWork = new RecordingBackgroundWork()
 
+export const WAKE_PEPPER = 'wake-pepper'
+
 export function serviceWith(args: {
   boot: SandboxWakeBoot
   background?: BackgroundWork
@@ -200,6 +202,7 @@ export function serviceWith(args: {
       teamId: 'team-1',
       projectId: 'proj-1',
       ownerCredential: false,
+      userId: undefined,
       ...args.credentials,
     }),
   }
@@ -208,6 +211,7 @@ export function serviceWith(args: {
       ({
         SANDBOX_IMAGE: 'atlas-sandbox:latest',
         ATLAS_CLOUD_URL: 'https://api.byatlas.io',
+        ATLAS_TELEMETRY_PEPPER: WAKE_PEPPER,
       })[key],
   } as unknown as EnvService
   const background = args.background ?? new RecordingBackgroundWork()

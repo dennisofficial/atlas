@@ -10,7 +10,6 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { cipher } from './sandboxes.fixture'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
-import { SandboxThreadTokenMiddleware } from './sandbox-thread-token.middleware'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
@@ -58,7 +57,6 @@ export function createSandboxRoutersApp(
       SandboxCheckpointRouter,
       { provide: ThreadSignalsService, useValue: inertSignals() },
       SessionMiddleware,
-      SandboxThreadTokenMiddleware,
       SandboxTokenMiddleware,
       { provide: SESSION_VERIFIER, useValue: verifier },
       { provide: SandboxesService, useValue: service },

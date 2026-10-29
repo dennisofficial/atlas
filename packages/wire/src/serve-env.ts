@@ -1,3 +1,5 @@
+import { API_PROVISIONED_ENV } from './boot-progress-wire.js'
+
 /**
  * Injected at `Sandbox.create` and never fetchable afterwards: the session token is minted by the
  * control plane, stored only as a hash, and handed to the client, so creation is the one moment
@@ -9,12 +11,45 @@ export enum EServeEnv {
   ThreadId = 'ATLAS_THREAD_ID',
   CloudUrl = 'ATLAS_CLOUD_URL',
   Model = 'ATLAS_MODEL',
-  DecisionsUrl = 'ATLAS_DECISIONS_URL',
-  DecisionsProvider = 'ATLAS_DECISIONS_PROVIDER',
-  DecisionsModel = 'ATLAS_DECISIONS_MODEL',
 }
 
 export const POD_INGRESS_HOST_PORT_ENV = 'ATLAS_POD_INGRESS_HOST_PORT'
+
+export const POD_TELEMETRY_IDENTITY_ENV = 'ATLAS_TELEMETRY_IDENTITY'
+
+/**
+ * Container env carries identity and plumbing only, never a setting value: the env settings layer
+ * outranks the cloud user and Project layers, so a launching client's snapshot would silently beat
+ * scoped config. Both launchers are contract-tested against these lists.
+ */
+export const POD_ENV_IDENTITY_KEYS: readonly string[] = [
+  EServeEnv.Token,
+  EServeEnv.Port,
+  EServeEnv.ThreadId,
+  EServeEnv.CloudUrl,
+  'ATLAS_HOME',
+  'ATLAS_POD_NAME',
+  'ATLAS_SANDBOX_SESSION_ID',
+  POD_INGRESS_HOST_PORT_ENV,
+  POD_TELEMETRY_IDENTITY_ENV,
+  EServeEnv.Model,
+]
+
+export const POD_ENV_API_PROVISIONED_KEYS: readonly string[] = [API_PROVISIONED_ENV]
+
+export const POD_ENV_VERCEL_CREDENTIAL_KEYS: readonly string[] = [
+  'VERCEL_TOKEN',
+  'VERCEL_TEAM_ID',
+  'VERCEL_PROJECT_ID',
+]
+
+export const FORBIDDEN_POD_ENV_KEYS: readonly string[] = [
+  'ATLAS_DECISIONS_URL',
+  'ATLAS_DECISIONS_PROVIDER',
+  'ATLAS_DECISIONS_MODEL',
+  'ATLAS_CLASSIFIER_MODE',
+  'ATLAS_SEARCH_BACKEND',
+]
 
 /**
  * Workspace and ATLAS_HOME live on the sandbox's own filesystem under /atlas, which

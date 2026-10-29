@@ -33,4 +33,15 @@ describe('bootstrapSpecOf', () => {
 
     expect(spec).not.toHaveProperty('effort')
   })
+
+  it('writes only the keys the serve workspace spec reads', () => {
+    const spec = JSON.parse(
+      bootstrapSpecOf({ projectId: 'proj-1', model: 'claude-x', effort: 'high' }),
+    )
+
+    expect(Object.keys(spec).sort()).toEqual(
+      ['effort', 'githubToken', 'model', 'projectId', 'remoteUrl'].sort(),
+    )
+    expect(spec).toMatchObject({ remoteUrl: null, githubToken: null })
+  })
 })

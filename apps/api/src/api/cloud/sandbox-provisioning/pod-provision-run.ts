@@ -1,5 +1,4 @@
 import {
-  API_PROVISIONED_ENV,
   createBootReporter,
   EBootStep,
   EBootStepState,
@@ -17,6 +16,7 @@ import {
   type PodProvisionOutput,
   type PodProvisionPayload,
 } from './pod-provision.contract'
+import { apiProvisionedEnvironment } from './pod-telemetry-identity'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
@@ -32,6 +32,7 @@ export type PodProvisionDeps = {
   image: string
   cloudUrl: string
   log: (line: string) => void
+  telemetryPepper?: string | undefined
 }
 
 export async function runPodProvision(args: {
@@ -74,7 +75,10 @@ export async function runPodProvision(args: {
       resumeToken: token,
       onFreshSandbox: () => Promise.resolve(),
       injectVercelCredentials: false,
-      environment: { [API_PROVISIONED_ENV]: '1' },
+      environment: apiProvisionedEnvironment({
+        userId: thread.userId,
+        pepper: deps.telemetryPepper,
+      }),
       reporter,
       prepare: workspaceSpecWriter({ projectId: thread.projectId, model: thread.modelRef }),
     })
