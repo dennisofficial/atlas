@@ -17,7 +17,7 @@ import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
 import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
 import { FailoverPullRequestPort } from './failover-pull-requests'
-import { GhPullRequestPort } from './gh-pull-requests'
+import { EGhPollRole, GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks, type PullRequestLinks } from './links'
 import { createPollDiffer } from './pr-event-diff'
@@ -89,12 +89,18 @@ export default class GithubPlugin extends NativePlugin {
           ...(onAppInstallRecommended === undefined ? {} : { onAppInstallRecommended }),
           ...log,
         }),
-        fallback: new GhPullRequestPort(),
+        fallback: new GhPullRequestPort({
+          role: EGhPollRole.FailoverFallback,
+          ...(this.args.log === null ? {} : { log: this.args.log }),
+        }),
         ...log,
       })
     }
 
-    return new GhPullRequestPort()
+    return new GhPullRequestPort({
+      role: EGhPollRole.SignedOut,
+      ...(this.args.log === null ? {} : { log: this.args.log }),
+    })
   }
 
   contribute(): PluginContribution {

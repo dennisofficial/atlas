@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
+import { EGithubCallSource } from './github-call-log'
 import { GithubUserReads } from './github-user-reads'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
-const target = { token: 't', owner: 'o', repo: 'r' }
+const target = { source: EGithubCallSource.Unattributed, token: 't', owner: 'o', repo: 'r' }
 
 describe('GithubUserReads outbound timeouts', () => {
   let reads: GithubUserReads

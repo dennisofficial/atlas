@@ -1,4 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EGithubCallSource } from './github-call-log'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   prStateRows,
@@ -56,6 +57,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     await advanceTimersByTimeAsync(1_100)
 
     expect(findOpenPrForBranch).toHaveBeenCalledWith({
+      source: EGithubCallSource.PollSweep,
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',
@@ -63,6 +65,7 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     })
     expect((await subscriptionRows())[0]?.prNumber).toBe(42)
     expect(readPullRequest).toHaveBeenCalledWith({
+      source: EGithubCallSource.PollSweep,
       token: 'ghu_1',
       owner: 'compai',
       repo: 'app',

@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common'
+import type { EGithubCallSource } from './github-call-log'
+import { githubFetch } from './github-fetch'
 import type { GithubRepoSummary } from '@dltech/atlas-wire'
 import { GithubUserReadFailed } from './github-user-reads'
 
@@ -23,8 +25,12 @@ interface RestBranch {
 export class GithubRepoReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
 
-  async listRepos(args: { token: string }): Promise<GithubRepoSummary[]> {
+  async listRepos(args: {
+    source: EGithubCallSource
+    token: string
+  }): Promise<GithubRepoSummary[]> {
     const repos = await this.get<RestRepo[]>({
+      source: args.source,
       token: args.token,
       path: `/user/repos?${REPOS_QUERY}`,
     })
@@ -36,22 +42,36 @@ export class GithubRepoReads {
     }))
   }
 
-  async listBranches(args: { token: string; owner: string; repo: string }): Promise<string[]> {
+  async listBranches(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+  }): Promise<string[]> {
     const branches = await this.get<RestBranch[]>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/branches?per_page=100`,
     })
     return branches.map((branch) => branch.name)
   }
 
-  private async get<T>(args: { token: string; path: string }): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${args.path}`, {
-      headers: {
-        authorization: `Bearer ${args.token}`,
-        accept: 'application/vnd.github+json',
-        'x-github-api-version': '2022-11-28',
+  private async get<T>(args: {
+    source: EGithubCallSource
+    token: string
+    path: string
+  }): Promise<T> {
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}${args.path}`,
+      init: {
+        headers: {
+          authorization: `Bearer ${args.token}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+        },
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
-      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
     })
     if (!response.ok) {
       const detail = (await response.text()).slice(0, DETAIL_CAP)
