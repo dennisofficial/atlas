@@ -26,6 +26,7 @@ import {
   EProfileStepState,
   type ApplyEnvironmentProfile,
 } from './environment-profile'
+import { applyCloudInstructions } from './cloud-instructions'
 import { applyCloudState } from './cloud-state'
 import { applyGitAccessEnv } from './git-access-env'
 import {
@@ -134,17 +135,19 @@ export async function bootServeFiles(args: {
     spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
   await reporter.track({
     step: EBootStep.Context,
-    work: () =>
-      applyPublishedBundle({
+    work: async () => {
+      const remote = {
         atlasHome,
-        projectDirectory: cwd,
         controlPlaneUrl: args.controlPlaneUrl,
         token: args.token,
         clientVersion: args.clientVersion,
         fetchFn: args.fetchFn,
         log,
         files: args.contextFiles,
-      }),
+      }
+      await applyPublishedBundle({ ...remote, projectDirectory: cwd })
+      await applyCloudInstructions(remote)
+    },
   })
 
   const sessionDir = sessionDirectory({ home: atlasHome, sessionId: threadId })
