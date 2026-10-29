@@ -81,7 +81,7 @@ const readShellOutput: Answer = async ({ frame, threadId, processes }) => {
   return answeredRequest({ replyTo: frame.id, data: { ok: true, text } })
 }
 
-const killShell: Answer = ({ frame, threadId, processes }) => {
+const killShell: Answer = async ({ frame, threadId, processes }) => {
   const parsed = killShellParamsSchema.safeParse(frame.params)
   if (!parsed.success) {
     return refusedRequest({
@@ -89,7 +89,7 @@ const killShell: Answer = ({ frame, threadId, processes }) => {
       message: 'kill-shell wants { threadId, shellId }',
     })
   }
-  const outcome = processes.shells.kill({
+  const outcome = await processes.shells.kill({
     shellId: parsed.data.shellId,
     threadId,
     by: EKilledBy.User,
@@ -98,7 +98,7 @@ const killShell: Answer = ({ frame, threadId, processes }) => {
   return answeredRequest({ replyTo: frame.id, data })
 }
 
-const stopService: Answer = ({ frame, processes }) => {
+const stopService: Answer = async ({ frame, processes }) => {
   const parsed = stopServiceParamsSchema.safeParse(frame.params)
   if (!parsed.success) {
     return refusedRequest({
@@ -106,7 +106,7 @@ const stopService: Answer = ({ frame, processes }) => {
       message: 'stop-service wants { serviceId }',
     })
   }
-  const outcome = processes.services.stop({
+  const outcome = await processes.services.stop({
     serviceId: parsed.data.serviceId,
     by: EKilledBy.User,
   })

@@ -33,26 +33,6 @@ export const AUTO_MODEL = 'auto'
 export type RoleSetting = { model: string; effort: EEffort }
 export type ModelsConfig = Record<EAgentRole, RoleSetting>
 
-export type ModelChoice = { id: string; label: string }
-export type ModelGroup = { provider: string; models: ModelChoice[] }
-
-export const MODEL_GROUPS: ModelGroup[] = [
-  {
-    provider: 'Anthropic',
-    models: [
-      { id: 'anthropic/claude-opus-5', label: 'Claude Opus 5' },
-      { id: 'anthropic/claude-sonnet-5', label: 'Claude Sonnet 5' },
-    ],
-  },
-  {
-    provider: 'OpenAI',
-    models: [
-      { id: 'openai/gpt-5', label: 'GPT-5' },
-      { id: 'openai/gpt-5-mini', label: 'GPT-5 mini' },
-    ],
-  },
-]
-
 export const ROLE_META: Record<
   EAgentRole,
   { title: string; description: string; autoLabel: string }

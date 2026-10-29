@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 
-import { EKilledBy, logTail, type ServiceSnapshot } from '@dltech/atlas-harness'
+import { EKilledBy, type ServiceSnapshot } from '@dltech/atlas-harness'
 
 import { foldServices } from '../store/service-fold'
 import type { SidebarCrewFold } from '../store/subagent-row'
@@ -88,24 +88,44 @@ export function useServices({ app }: { app: AtlasApp }): ServicesControl {
   const selected = state === null ? undefined : selectedService({ state, services })
 
   const [log, setLog] = useState('')
-  const openPath = selected?.logPath
+  const openId = selected?.serviceId
+  const growing = selected !== undefined && isServiceRunning(selected)
   const scroll = useOutputScroll({ resetKey: selected?.serviceId })
 
-  /**
-   * The log is a file that grows without announcing itself, so the open drawer re-reads its tail
-   * on the same cadence the roster polls on. A closed drawer holds no reader at all.
-   */
   useEffect(() => {
-    if (openPath === undefined) {
+    if (openId === undefined) {
       setLog('')
       return
     }
 
-    const peek = (): void => setLog(logTail({ path: openPath, characters: PEEKED_CHARACTERS }))
+    let active = true
+    let reading = false
+    const show = (next: string): void => {
+      if (active) setLog((current) => (current === next ? current : next))
+    }
+    const peek = (): void => {
+      if (reading) return
+      reading = true
+      void Promise.resolve(
+        app.services.logTail?.({ serviceId: openId, characters: PEEKED_CHARACTERS }) ?? '',
+      )
+        .then(show, () => show(''))
+        .finally(() => {
+          reading = false
+        })
+    }
     peek()
+    if (!growing) {
+      return () => {
+        active = false
+      }
+    }
     const timer = setInterval(peek, POLL_MS)
-    return () => clearInterval(timer)
-  }, [openPath])
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [app, growing, openId])
 
   const handleOpen = useCallback(
     (serviceId?: string) =>
@@ -122,7 +142,7 @@ export function useServices({ app }: { app: AtlasApp }): ServicesControl {
 
   const handleStop = useCallback(
     (serviceId: string) => {
-      app.services.stop({ serviceId, by: EKilledBy.User })
+      void app.services.stop({ serviceId, by: EKilledBy.User })
       setState((current) => (current === null ? null : { ...current }))
     },
     [app],

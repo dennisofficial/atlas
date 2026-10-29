@@ -7,11 +7,11 @@ import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 import { ESecretKind } from '../../fixtures/settings-library'
 import type { KeyEntry } from '../../parts/agent-key-row'
 import { EKeyNoun } from './agent-keys'
-import { fetchSecretDetails, putSecret } from './secrets-api'
+import { fetchSecretNames, putSecret } from './secrets-api'
 import { useSaveAction } from './use-save-action'
 
-const loadSecretNames = async (): Promise<ReadonlySet<string>> =>
-  new Set((await fetchSecretDetails()).map((secret) => secret.name))
+export const loadSecretNames = async (): Promise<ReadonlySet<string>> =>
+  new Set(await fetchSecretNames())
 
 export function useAgentKeys(): {
   savedNames: ReadonlySet<string> | null

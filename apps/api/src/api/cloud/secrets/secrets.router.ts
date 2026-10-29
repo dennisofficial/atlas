@@ -2,10 +2,12 @@ import {
   personalSecretDetailListSchema,
   personalSecretListSchema,
   personalSecretNameSchema,
+  personalSecretNamesSchema,
   personalSecretSetSchema,
   type PersonalSecretDetailList,
   type PersonalSecretList,
   type PersonalSecretName,
+  type PersonalSecretNames,
   type PersonalSecretSet,
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
@@ -35,6 +37,12 @@ export class SecretsRouter {
   @UseMiddlewares(SessionMiddleware)
   async details(@Ctx() ctx: SessionTrpcCtx): Promise<PersonalSecretDetailList> {
     return { secrets: await this.secrets.listDetails({ userId: ctx.auth.userId }) }
+  }
+
+  @Query({ output: personalSecretNamesSchema })
+  @UseMiddlewares(SessionMiddleware)
+  async names(@Ctx() ctx: SessionTrpcCtx): Promise<PersonalSecretNames> {
+    return { names: await this.secrets.listNames({ userId: ctx.auth.userId }) }
   }
 
   @Mutation({ input: personalSecretSetSchema, output: z.void() })

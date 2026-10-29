@@ -73,6 +73,103 @@ describe('livePodBridgeOptionsFor', () => {
     }
   })
 
+  it('registers the born thread through threads.create with the session bearer', async () => {
+    const seen: { path: string; auth: string | null; body: unknown }[] = []
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: async (request) => {
+        seen.push({
+          path: new URL(request.url).pathname,
+          auth: request.headers.get('authorization'),
+          body: await request.json(),
+        })
+        return Response.json({ result: { data: { id: 'brn_born' } } })
+      },
+    })
+    try {
+      const app = fakeApp({
+        model,
+        cloud: fakeCloud({
+          session: { url: `http://127.0.0.1:${server.port}`, token: 'sess', email: null },
+        }),
+      })
+
+      await livePodBridgeOptionsFor(app).registerThread?.({
+        threadId: toThreadId('brn_born'),
+        projectId: 'proj_1',
+        model: 'claude-x',
+        effort: 'high',
+      })
+
+      expect(seen).toEqual([
+        {
+          path: '/v1/trpc/threads.create',
+          auth: 'Bearer sess',
+          body: { id: 'brn_born', projectId: 'proj_1', model: 'claude-x', effort: 'high' },
+        },
+      ])
+    } finally {
+      await server.stop(true)
+    }
+  })
+
+  it('refuses to register a thread while signed out', () => {
+    const app = fakeApp({ model, cloud: fakeSignedOutCloud() })
+
+    expect(() =>
+      livePodBridgeOptionsFor(app).registerThread?.({
+        threadId: toThreadId('brn_born'),
+        projectId: null,
+      }),
+    ).toThrow('sign in to Atlas Cloud')
+  })
+
+  it('reads the mirrored checkpoint through localPodCheckpoint.get with the session bearer', async () => {
+    const seen: { path: string; auth: string | null }[] = []
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: (request) => {
+        seen.push({
+          path: new URL(request.url).pathname,
+          auth: request.headers.get('authorization'),
+        })
+        return Response.json(
+          {
+            error: { message: 'none', code: -32004, data: { code: 'NOT_FOUND', httpStatus: 404 } },
+          },
+          { status: 404 },
+        )
+      },
+    })
+    try {
+      const app = fakeApp({
+        model,
+        cloud: fakeCloud({
+          session: { url: `http://127.0.0.1:${server.port}`, token: 'sess', email: null },
+        }),
+      })
+
+      const answer = await livePodBridgeOptionsFor(app).readPodCheckpoint?.({
+        threadId: toThreadId('brn_born'),
+      })
+
+      expect(answer).toBeNull()
+      expect(seen).toEqual([{ path: '/v1/trpc/localPodCheckpoint.get', auth: 'Bearer sess' }])
+    } finally {
+      await server.stop(true)
+    }
+  })
+
+  it('reads no checkpoint while signed out, without throwing', async () => {
+    const app = fakeApp({ model, cloud: fakeSignedOutCloud() })
+
+    expect(
+      await livePodBridgeOptionsFor(app).readPodCheckpoint?.({ threadId: toThreadId('brn_born') }),
+    ).toBeNull()
+  })
+
   it('refuses to lease while signed out', () => {
     const app = fakeApp({ model, cloud: fakeSignedOutCloud() })
 

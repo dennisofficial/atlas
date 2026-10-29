@@ -122,7 +122,7 @@ describeDocker('createLocalPodBridge against a live daemon', () => {
       authorization: `Bearer ${OPERATOR_SESSION}`,
       body: { threadId, token: serveToken },
     }
-    expect(recordedPuts).toEqual([leasePut, leasePut])
+    expect(recordedPuts).toEqual([leasePut])
     const health = await fetch(`${sandbox.url}/v1/health`, {
       headers: { Authorization: `Bearer ${serveToken}` },
       signal: AbortSignal.timeout(10_000),
