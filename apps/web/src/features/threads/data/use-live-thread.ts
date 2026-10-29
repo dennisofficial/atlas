@@ -7,8 +7,10 @@ import { eventsFromWire } from './events-from-wire'
 import { createLiveChatSession, type LiveChatSession } from './live-chat-session'
 import {
   IDLE_LIVE_THREAD,
+  type LiveApplyRewind,
   type LiveChooseModel,
   type LiveInterrupt,
+  type LiveReadRoster,
   type LiveSend,
   type LiveTakeBackPending,
   type LiveThreadState,
@@ -23,6 +25,10 @@ const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
 const NOT_TAKEABLE: LiveTakeBackPending = async () => null
 const NOT_INTERRUPTIBLE: LiveInterrupt = () => false
+const NOT_REWINDING: LiveApplyRewind = async () => {
+  throw new Error('the sandbox is not connected')
+}
+const NOT_READING_ROSTER: LiveReadRoster = async () => null
 export const INTERRUPT_LOST =
   'The sandbox never acknowledged the stop, so the turn may still be running'
 
@@ -39,6 +45,8 @@ export function useLiveThread(args: {
   const chooseRef = useRef<LiveChooseModel>(NOT_CHOOSABLE)
   const takeBackRef = useRef<LiveTakeBackPending>(NOT_TAKEABLE)
   const interruptRef = useRef<LiveInterrupt>(NOT_INTERRUPTIBLE)
+  const rewindRef = useRef<LiveApplyRewind>(NOT_REWINDING)
+  const rosterRef = useRef<LiveReadRoster>(NOT_READING_ROSTER)
   const modelChangedRef = useRef(args.onModelChanged)
   useEffect(() => {
     modelChangedRef.current = args.onModelChanged
@@ -59,6 +67,8 @@ export function useLiveThread(args: {
     chooseRef.current = next.controller.chooseModel
     takeBackRef.current = next.controller.takeBackPending
     interruptRef.current = next.controller.interrupt
+    rewindRef.current = next.controller.applyRewind
+    rosterRef.current = next.controller.readRoster
     setSession(next)
     next.controller.start()
     return () => {
@@ -66,6 +76,8 @@ export function useLiveThread(args: {
       chooseRef.current = NOT_CHOOSABLE
       takeBackRef.current = NOT_TAKEABLE
       interruptRef.current = NOT_INTERRUPTIBLE
+      rewindRef.current = NOT_REWINDING
+      rosterRef.current = NOT_READING_ROSTER
       next.controller.stop()
       setSession(null)
       setState(IDLE_LIVE_THREAD)
@@ -84,5 +96,16 @@ export function useLiveThread(args: {
   const chooseModel = useMemo<LiveChooseModel>(() => (model) => chooseRef.current(model), [])
   const takeBackPending = useMemo<LiveTakeBackPending>(() => () => takeBackRef.current(), [])
   const interrupt = useMemo<LiveInterrupt>(() => () => interruptRef.current(), [])
-  return { ...state, steps, send, chooseModel, takeBackPending, interrupt }
+  const applyRewind = useMemo<LiveApplyRewind>(() => (picked) => rewindRef.current(picked), [])
+  const readRoster = useMemo<LiveReadRoster>(() => () => rosterRef.current(), [])
+  return {
+    ...state,
+    steps,
+    send,
+    chooseModel,
+    takeBackPending,
+    interrupt,
+    applyRewind,
+    readRoster,
+  }
 }

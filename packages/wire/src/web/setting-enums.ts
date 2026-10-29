@@ -38,6 +38,32 @@ export enum EDensity {
   Compact = 'compact',
 }
 
+export enum EClassifierModeWire {
+  Off = 'off',
+  Shadow = 'shadow',
+  Nudge = 'nudge',
+}
+
+export enum EDecisionsProviderWire {
+  Typesafe = 'typesafe',
+  Vercel = 'vercel',
+  OpenAi = 'openai',
+  Custom = 'custom',
+}
+
+export enum EWebSearchBackendWire {
+  DuckDuckGo = 'duckduckgo',
+  Jina = 'jina',
+  Tavily = 'tavily',
+  Exa = 'exa',
+  Brave = 'brave',
+  SearXNG = 'searxng',
+}
+
+export const DEFAULT_DECISIONS_PROVIDER_WIRE = EDecisionsProviderWire.Typesafe
+
+export const DEFAULT_DECISIONS_MODEL_WIRE = 'jev-latest'
+
 export const NOTIFY_EVENT_IDS = [
   'finished',
   'approval',
@@ -70,4 +96,12 @@ export const modelRefSettingSchema = z
   .string()
   .refine((value) => value === '' || isModelRef(value), {
     message: 'must be empty or a provider/model reference',
+  })
+
+const ABSOLUTE_HTTP_URL = /^https?:\/\/\S+$/
+
+export const decisionsUrlSchema = z
+  .string()
+  .refine((value) => value === '' || ABSOLUTE_HTTP_URL.test(value.trim()), {
+    message: 'must be empty or an absolute http(s) URL',
   })
