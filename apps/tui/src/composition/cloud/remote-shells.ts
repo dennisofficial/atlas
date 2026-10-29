@@ -28,12 +28,6 @@ const NO_PENDING_SHELL_NOTICES: readonly PendingShellNotice[] = Object.freeze([]
 const unknownShape = (action: string): { ok: false; reason: string } =>
   remoteActionRefused(`the sandbox answered the ${action} with a shape this build does not know`)
 
-/**
- * The shell registry as a cloud session's surfaces read it: the roster the sandbox's serve pushes
- * over the channel. The sandbox owns the processes, so start, peek and kill forward through the
- * channel to the sandbox's own registry. A cursor read stays refused: it advances the model's
- * read position, and only the model's own tool reads that way.
- */
 export class RemoteShellRegistry extends ShellRegistryPort {
   private heldEverywhere: readonly ShellSnapshot[] = []
   private readonly scoped = new Map<ThreadId, readonly ShellSnapshot[]>()

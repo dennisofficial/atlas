@@ -89,12 +89,9 @@ export function useServices({ app }: { app: AtlasApp }): ServicesControl {
 
   const [log, setLog] = useState('')
   const openId = selected?.serviceId
+  const growing = selected !== undefined && isServiceRunning(selected)
   const scroll = useOutputScroll({ resetKey: selected?.serviceId })
 
-  /**
-   * The log is a file that grows without announcing itself, so the open drawer re-reads its tail
-   * on the same cadence the roster polls on. A closed drawer holds no reader at all.
-   */
   useEffect(() => {
     if (openId === undefined) {
       setLog('')
@@ -102,21 +99,33 @@ export function useServices({ app }: { app: AtlasApp }): ServicesControl {
     }
 
     let active = true
+    let reading = false
     const show = (next: string): void => {
       if (active) setLog((current) => (current === next ? current : next))
     }
     const peek = (): void => {
+      if (reading) return
+      reading = true
       void Promise.resolve(
         app.services.logTail?.({ serviceId: openId, characters: PEEKED_CHARACTERS }) ?? '',
-      ).then(show, () => show(''))
+      )
+        .then(show, () => show(''))
+        .finally(() => {
+          reading = false
+        })
     }
     peek()
+    if (!growing) {
+      return () => {
+        active = false
+      }
+    }
     const timer = setInterval(peek, POLL_MS)
     return () => {
       active = false
       clearInterval(timer)
     }
-  }, [app, openId])
+  }, [app, growing, openId])
 
   const handleOpen = useCallback(
     (serviceId?: string) =>

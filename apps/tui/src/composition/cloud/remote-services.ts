@@ -12,12 +12,6 @@ import { heldIfSame, type SharedRoster } from './roster-reader'
 
 const NO_PENDING_SERVICES: readonly ServiceSnapshot[] = Object.freeze([])
 
-/**
- * The service registry as a cloud session's surfaces read it: the roster the sandbox's serve
- * pushes over the channel. Services are session-global infrastructure owned by the sandbox, so
- * stop and the log tail forward through the channel to the sandbox's own registry. Start stays
- * refused: only the model starts services, and its tool runs in the sandbox.
- */
 export class RemoteServiceRegistry extends ServiceRegistryPort {
   private held: readonly ServiceSnapshot[] = []
   private revision = 0

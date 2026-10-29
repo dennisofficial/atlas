@@ -39,7 +39,13 @@ const openRegistry = (): BunServiceRegistry => {
   return registry
 }
 
-const stopThroughTool = (registry: BunServiceRegistry, id: string): Promise<ToolOutcome> =>
+const stopThroughTool = ({
+  registry,
+  id,
+}: {
+  registry: BunServiceRegistry
+  id: string
+}): Promise<ToolOutcome> =>
   new ServiceStopTool(registry).invoke({
     input: { id },
     signal: new AbortController().signal,
@@ -63,7 +69,7 @@ describe('the in-process service registry behind the awaited stop', () => {
     const registry = openRegistry()
     await registry.start({ threadId: THREAD, command: 'sleep 30', description: 'dev server' })
 
-    const outcome = await stopThroughTool(registry, 'svc_1')
+    const outcome = await stopThroughTool({ registry, id: 'svc_1' })
 
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
@@ -75,7 +81,7 @@ describe('the in-process service registry behind the awaited stop', () => {
   it('refuses an unknown id through service_stop in the registry’s own words', async () => {
     const registry = openRegistry()
 
-    const outcome = await stopThroughTool(registry, 'svc_99')
+    const outcome = await stopThroughTool({ registry, id: 'svc_99' })
 
     expect(outcome.ok).toBe(false)
     if (!outcome.ok) expect(outcome.reason).toContain('svc_99')

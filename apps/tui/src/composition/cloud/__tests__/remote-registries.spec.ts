@@ -162,13 +162,13 @@ const registriesOf = (channel: ReturnType<typeof stubChannel>['channel']) => {
   }
 }
 
-const held = <T>(value: T | undefined, what: string): T => {
+const held = <T>({ value, what }: { value: T | undefined; what: string }): T => {
   if (value === undefined) throw new Error(`fixture holds no ${what}`)
   return value
 }
 
-const SHELL = held(LIVE.shells[0], 'shell')
-const SERVICE = held(LIVE.services[0], 'service')
+const SHELL = held({ value: LIVE.shells[0], what: 'shell' })
+const SERVICE = held({ value: LIVE.services[0], what: 'service' })
 
 const processRequests = (stub: ReturnType<typeof stubChannel>) =>
   stub.requests.filter((one) => PROCESS_OPS.includes(one.op))
