@@ -58,6 +58,20 @@ describe('createLocalPodBridge birth', () => {
     expect(spec?.name).toBe(podNameFor({ threadId }))
   })
 
+  it('writes the birth effort into the workspace spec on a fresh boot', async () => {
+    const { driver, writes } = fakePodDriver({ created: true })
+
+    await podBridgeWith({ driver }).sandboxes.create({
+      threadId,
+      projectId: null,
+      model: 'claude-x',
+      birth: { effort: 'low' },
+    })
+
+    const spec = writes.find((write) => write.path === WORKSPACE_SPEC_PATH)
+    expect(JSON.parse(String(spec?.content))).toMatchObject({ model: 'claude-x', effort: 'low' })
+  })
+
   it('always hands the driver the serve token and the pod name', async () => {
     const { driver, created } = fakePodDriver({ created: false })
 

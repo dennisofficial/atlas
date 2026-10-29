@@ -48,7 +48,9 @@ export async function composeBootApp(args: {
     args.model ??
     (await apiThreadModel(args)) ??
     storedThreadModel(args) ??
-    (spec?.model === undefined || spec.model === null ? undefined : { ref: spec.model })
+    (spec?.model === undefined || spec.model === null
+      ? undefined
+      : { ref: spec.model, ...(spec.effort == null ? {} : { effort: spec.effort }) })
 
   return (args.compose ?? composeServeApp)({
     threadId: args.threadId,

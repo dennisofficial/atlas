@@ -41,12 +41,14 @@ export type RegistrationSender = (args: {
 export const bootstrapSpecOf = (args: {
   projectId: string | null
   model?: string | undefined
+  effort?: string | undefined
 }): string =>
   JSON.stringify({
     remoteUrl: null,
     githubToken: null,
     projectId: args.projectId,
     ...(args.model === undefined ? {} : { model: args.model }),
+    ...(args.effort === undefined ? {} : { effort: args.effort }),
   })
 
 export const liveDriverWith = (args: {
