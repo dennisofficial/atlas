@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import {
   EServeEnv,
+  POD_INGRESS_HOST_PORT_ENV,
   SANDBOX_HOME_PATH,
   SANDBOX_SERVE_PORT,
   SANDBOX_WORKSPACES_PATH,
@@ -88,6 +89,7 @@ const podEnv = (args: PodCreateArgs): string[] =>
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
+    [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
     ...callerEnvironment(args.environment),
   }).map(([key, value]) => `${key}=${value}`)

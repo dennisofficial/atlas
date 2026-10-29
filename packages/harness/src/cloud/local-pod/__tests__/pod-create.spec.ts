@@ -133,7 +133,12 @@ describe('podCreateBody', () => {
       ATLAS_HOME: SANDBOX_HOME_PATH,
       ATLAS_POD_NAME: podNameFor({ threadId: 'thread-1' }),
       ATLAS_SANDBOX_SESSION_ID: podNameFor({ threadId: 'thread-1' }),
+      ATLAS_POD_INGRESS_HOST_PORT: '23457',
     })
+  })
+
+  it('publishes the ingress host port into the pod environment', () => {
+    expect(envOf(baseArgs).ATLAS_POD_INGRESS_HOST_PORT).toBe('23457')
   })
 
   it('sets ATLAS_MODEL only when a model is pinned', () => {
