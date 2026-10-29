@@ -81,14 +81,27 @@ type Run = Exclude<
   ItemOf<ETranscriptKind.User> | ItemOf<ETranscriptKind.Notice> | ReportItem
 >
 
+const latestOf = (stamps: ReadonlyArray<string | undefined>): string | undefined =>
+  stamps.reduce<string | undefined>((latest, stamp) => {
+    if (stamp === undefined) return latest
+    if (latest === undefined) return stamp
+    return Date.parse(stamp) < Date.parse(latest) ? latest : stamp
+  }, undefined)
+
+const finishedAtOf = (item: WorkItem): string | undefined =>
+  item.kind === ETranscriptKind.Tools
+    ? latestOf([item.at, ...item.calls.flatMap((call) => [call.at, call.settledAt])])
+    : item.at
+
 function workSegmentOf(args: {
   turnId: string
   after: string
   items: WorkItem[]
   startedAt: string | undefined
+  answeredAt?: string | undefined
 }): WorkSegment {
   const startedAt = args.startedAt ?? args.items[0]?.at
-  const endedAt = args.items.at(-1)?.at
+  const endedAt = latestOf([...args.items.map(finishedAtOf), args.answeredAt])
   return {
     kind: ESegmentKind.Work,
     id: `${args.turnId}:work:${args.after}`,
@@ -109,9 +122,11 @@ function segmentsOf(args: {
   let pending: WorkItem[] = []
   let after = TURN_START
   let startedAt = args.startedAt
-  const flush = () => {
+  const flush = (answeredAt?: string) => {
     if (pending.length > 0)
-      segments.push(workSegmentOf({ turnId: args.turnId, after, items: pending, startedAt }))
+      segments.push(
+        workSegmentOf({ turnId: args.turnId, after, items: pending, startedAt, answeredAt }),
+      )
     pending = []
   }
   args.items.forEach((item, index) => {
@@ -119,7 +134,7 @@ function segmentsOf(args: {
       pending.push(item)
       return
     }
-    flush()
+    flush(item.at)
     const final = index === args.items.length - 1
     segments.push({ kind: ESegmentKind.Message, id: item.id, item, final })
     after = item.id

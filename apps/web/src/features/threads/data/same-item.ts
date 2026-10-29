@@ -9,6 +9,7 @@ const isSameCall = (previous: ToolCallItem, next: ToolCallItem): boolean =>
   previous.family === next.family &&
   previous.path === next.path &&
   previous.at === next.at &&
+  previous.settledAt === next.settledAt &&
   previous.output === next.output &&
   previous.errorText === next.errorText &&
   previous.elapsed === next.elapsed

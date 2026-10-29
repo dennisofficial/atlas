@@ -75,7 +75,7 @@ describe('agent messages are never grouped into work', () => {
     ])
     const work = turn?.segments.filter((segment) => segment.kind === ESegmentKind.Work)
     expect(work).toMatchObject([
-      { startedAt: 't0', endedAt: 't1', stepCount: 2 },
+      { startedAt: 't0', endedAt: 't2', stepCount: 2 },
       { startedAt: 't2', endedAt: 't3', stepCount: 1 },
     ])
   })
@@ -101,7 +101,7 @@ describe('turnsOf', () => {
     expect(turn?.segments[0]).toMatchObject({
       stepCount: 3,
       startedAt: 't0',
-      endedAt: 't2',
+      endedAt: 't3',
       running: false,
     })
   })
@@ -197,6 +197,45 @@ const notice = (id: string, at?: string): TranscriptItem => ({
   body: '',
   tone: ENoticeTone.Quiet,
   ...(at === undefined ? {} : { at }),
+})
+
+describe('work duration', () => {
+  const callAt = (index: number, at: string, settledAt: string) => ({
+    id: `c${index}`,
+    kind: EToolKind.Shell,
+    state: EToolState.Done,
+    label: 'ls',
+    at,
+    settledAt,
+  })
+
+  it('ends a settled run at its last call settling, not at its first call starting', () => {
+    const [turn] = agentTurnsOf([
+      user('u1', '2026-10-29T06:21:23.000Z'),
+      {
+        kind: ETranscriptKind.Tools,
+        id: 'tl1',
+        at: '2026-10-29T06:21:57.000Z',
+        calls: [
+          callAt(0, '2026-10-29T06:21:57.000Z', '2026-10-29T06:21:57.200Z'),
+          callAt(1, '2026-10-29T06:23:30.000Z', '2026-10-29T06:23:31.000Z'),
+        ],
+      },
+    ])
+    expect(turn?.segments[0]).toMatchObject({
+      startedAt: '2026-10-29T06:21:23.000Z',
+      endedAt: '2026-10-29T06:23:31.000Z',
+    })
+  })
+
+  it('counts the time spent writing the message that follows the work', () => {
+    const [turn] = agentTurnsOf([
+      user('u1', '2026-10-29T06:00:00.000Z'),
+      tools('tl1', 1, '2026-10-29T06:00:10.000Z'),
+      agent('a1', '2026-10-29T06:01:00.000Z'),
+    ])
+    expect(turn?.segments[0]).toMatchObject({ endedAt: '2026-10-29T06:01:00.000Z' })
+  })
 })
 
 describe('harness notices', () => {
