@@ -18,8 +18,19 @@ describe('github scope implication', () => {
   })
 
   it('names every requested scope missing from a legacy grant', () => {
-    expect(missingScopesOf('repo,read:org,admin:repo_hook')).toEqual(['admin:ssh_signing_key'])
-    expect(missingScopesOf('repo read:org admin:repo_hook admin:ssh_signing_key')).toEqual([])
+    expect(missingScopesOf('repo,read:org,admin:repo_hook')).toEqual([
+      'admin:ssh_signing_key',
+      'workflow',
+    ])
+    expect(missingScopesOf('repo read:org admin:repo_hook admin:ssh_signing_key workflow')).toEqual(
+      [],
+    )
+  })
+
+  it('requires workflow so sandbox pushes can touch .github/workflows', () => {
+    expect(missingScopesOf('repo read:org admin:repo_hook admin:ssh_signing_key')).toEqual([
+      'workflow',
+    ])
   })
 
   it('detects the signing scope only when admin is held', () => {
