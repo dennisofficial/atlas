@@ -32,4 +32,21 @@ describe('UserMessage', () => {
 
     expect(rewound).toBe(1)
   })
+
+  it('shows pasted images, with no empty bubble when there is no text', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    await act(async () =>
+      root.render(
+        <UserMessage images={[{ id: 'i1', src: 'data:image/png;base64,aGk=', alt: 'shot.png' }]} />,
+      ),
+    )
+
+    expect(container.querySelector('img[alt="shot.png"]')?.getAttribute('src')).toBe(
+      'data:image/png;base64,aGk=',
+    )
+    expect(container.querySelector('[data-slot="bubble"]')).toBeNull()
+  })
 })

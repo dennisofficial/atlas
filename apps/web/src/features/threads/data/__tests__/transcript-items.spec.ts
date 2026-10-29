@@ -362,4 +362,17 @@ describe('tool titles', () => {
     if (item?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
     expect(item.calls[0]?.title).toBeUndefined()
   })
+
+  it('carries pasted images on the user item', () => {
+    const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: 'look', images: [shot] })] })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, images: [shot] })
+  })
+
+  it('keeps a message that is only a pasted image', () => {
+    const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', images: [shot] })] })
+    expect(view.items).toHaveLength(1)
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, text: '', images: [shot] })
+  })
 })

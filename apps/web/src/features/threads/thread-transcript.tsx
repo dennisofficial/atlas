@@ -18,6 +18,7 @@ import { useSessionUser } from '@/features/settings/session/use-session-identity
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import { clockTimeOf, spanMsOf } from './data/clock-time'
+import { messageImagesOf } from './data/message-images'
 import { isSameItem } from './data/same-item'
 import { rosterModelsOf } from './data/transcript-agents'
 import { ETranscriptKind, type TranscriptRow } from './data/transcript'
@@ -137,13 +138,16 @@ function TurnView({
         <UserMessage
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
+          images={messageImagesOf({ id: turn.item.id, images: turn.item.images })}
           onRewind={
             rewind === null || !rewind.points.has(turn.item.id)
               ? undefined
               : () => rewind.onRewind({ eventId: turn.item.id, text: turn.item.text })
           }
         >
-          <p className="whitespace-pre-wrap">{turn.item.text}</p>
+          {turn.item.text.trim().length === 0 ? undefined : (
+            <p className="whitespace-pre-wrap">{turn.item.text}</p>
+          )}
         </UserMessage>
       )
     case ETurnKind.Report:
