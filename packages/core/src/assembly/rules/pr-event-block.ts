@@ -27,6 +27,8 @@ const tipSuffix = (event: PrEvent): string =>
 
 const verdictSentence = (event: PrEvent): string => {
   if (event.verdict === EPrVerdict.Green) return `checks green${tipSuffix(event)}.`
+  if (event.verdict === EPrVerdict.Failed && event.settled === true)
+    return `CI finished, checks failed${tipSuffix(event)}. ${event.url}`
   if (event.verdict === EPrVerdict.Failed) return `checks failed${tipSuffix(event)}. ${event.url}`
   return `checks reported. ${event.url}`
 }

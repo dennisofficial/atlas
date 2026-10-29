@@ -146,7 +146,7 @@ describe('GithubDeliveryService transition events', () => {
     expect(stateEvents[0]).toMatchObject({ payload: { state: 'merged' } })
   })
 
-  it('records verdicts per subscriber verdict timing: fail-fast fires mid-run, settled waits', async () => {
+  it('records verdicts per subscriber verdict timing: fail-fast fires mid-run and again when the run finishes, settled waits', async () => {
     let running = true
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
@@ -182,9 +182,11 @@ describe('GithubDeliveryService transition events', () => {
     )
     expect(settled).toHaveLength(1)
     expect(settled[0]).toMatchObject({ payload: { verdict: 'failed' } })
-    expect(
-      (await prEventRows()).filter((row) => row.kind === 'verdict' && row.userId === 'usr-fast'),
-    ).toHaveLength(1)
+    const fast = (await prEventRows()).filter(
+      (row) => row.kind === 'verdict' && row.userId === 'usr-fast',
+    )
+    expect(fast).toHaveLength(2)
+    expect(fast[1]).toMatchObject({ payload: { verdict: 'failed', settled: true } })
   })
 
   it('suppresses the mid-run mergeability flip and bundles it with the settled verdict', async () => {

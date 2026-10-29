@@ -224,6 +224,7 @@ export function createPullRequestProvider(args: {
         kind: frame.kind,
         verdict: draft.verdict,
         headSha: draft.headSha,
+        settled: draft.settled,
         mergeable: draft.mergeable,
         state: draft.state,
       })
