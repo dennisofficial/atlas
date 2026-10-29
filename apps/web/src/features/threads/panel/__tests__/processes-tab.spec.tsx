@@ -16,6 +16,7 @@ import { EProcessKind, type ProcessRef } from '../../data/processes-model'
 import type { ProcessesData } from '../../data/use-processes'
 import { ProcessesList, ProcessesTab } from '../processes-tab'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../thread-panel-context'
+import { EMPTY_DETAILS } from '../details/details-input'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -75,6 +76,8 @@ const panel: ThreadPanelValue = {
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -124,7 +127,14 @@ describe('ProcessesTab', () => {
     const killed: string[] = []
     const container = await mount(
       dataOf({
-        shells: [shell(), shell({ shellId: 'shell_2', status: EShellStatus.Exited, exitCode: 0 })],
+        shells: [
+          shell(),
+          shell({
+            shellId: 'shell_2',
+            status: EShellStatus.Exited,
+            exitCode: 0,
+          }),
+        ],
         handleKill: async (shellId) => {
           killed.push(shellId)
         },

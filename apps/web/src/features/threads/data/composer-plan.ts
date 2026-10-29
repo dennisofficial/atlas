@@ -1,4 +1,4 @@
-import { EPlanStatus, planFromEvents, type Event } from '@dltech/atlas-core'
+import { EPlanStatus, planFromEvents, planTaskLabel, type Event } from '@dltech/atlas-core'
 import { EStepStatus, type PlanStep } from '@dltech/atlas-ui/ai/plan'
 
 const STEP_STATUS: Record<EPlanStatus, EStepStatus> = {
@@ -10,7 +10,7 @@ const STEP_STATUS: Record<EPlanStatus, EStepStatus> = {
 export function planStepsOf(events: readonly Event[]): PlanStep[] {
   return planFromEvents(events).map((task) => ({
     id: String(task.ordinal),
-    title: task.text,
+    title: planTaskLabel(task),
     status: STEP_STATUS[task.status],
   }))
 }

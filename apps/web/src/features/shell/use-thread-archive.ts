@@ -3,8 +3,6 @@ import { toast } from 'sonner'
 
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { setThreadArchived } from '@/features/threads/data/threads-api'
-
 import {
   applyArchiveOverrides,
   settleArchiveOverrides,
@@ -30,8 +28,9 @@ export function useThreadArchive(args: {
   entries: readonly ProjectThreads[] | undefined
   reload: () => void
   onArchived: (threadId: string) => void
+  archive: (args: { threadId: string; archived: boolean }) => Promise<unknown>
 }) {
-  const { entries, reload, onArchived } = args
+  const { entries, reload, onArchived, archive } = args
   const [overrides, setOverrides] = useState<ArchiveOverrides>(NO_OVERRIDES)
 
   const settled = entries === undefined ? overrides : settleArchiveOverrides({ entries, overrides })
@@ -52,7 +51,7 @@ export function useThreadArchive(args: {
       const archivedAt = archived ? new Date().toISOString() : null
       setOverrides((current) => withOverride({ overrides: current, threadId, archivedAt }))
       try {
-        await setThreadArchived({ threadId, archived })
+        await archive({ threadId, archived })
         if (archived) onArchived(threadId)
         reload()
       } catch {
@@ -60,7 +59,7 @@ export function useThreadArchive(args: {
         toast.error(archived ? "Couldn't archive the thread" : "Couldn't restore the thread")
       }
     },
-    [reload, onArchived],
+    [reload, onArchived, archive],
   )
 
   return { entries: shown, handleToggleArchive }

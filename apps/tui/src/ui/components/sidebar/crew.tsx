@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 
+import { foldCrew, type ECrewStanding } from '@dltech/atlas-core'
+
 import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
-import { foldCrew } from '../../../store/crew-fold'
-import type { ECrewStanding } from '../../../store/crew-retirement'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,

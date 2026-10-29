@@ -26,7 +26,9 @@ export const readTranscriptIdentityParamsSchema = z.object({
 })
 export type ReadTranscriptIdentityParams = z.infer<typeof readTranscriptIdentityParamsSchema>
 
-export const readThreadParamsSchema = z.object({ threadId: threadIdWireSchema })
+export const readThreadParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+})
 export type ReadThreadParams = z.infer<typeof readThreadParamsSchema>
 
 export const readTurnsParamsSchema = z.object({ threadId: threadIdWireSchema })
@@ -38,7 +40,9 @@ export const renameThreadParamsSchema = z.object({
 })
 export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
 
-export const takeBackPendingParamsSchema = z.object({ threadId: threadIdWireSchema })
+export const takeBackPendingParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+})
 export type TakeBackPendingParams = z.infer<typeof takeBackPendingParamsSchema>
 
 export const provideOperatorInputParamsSchema = z.strictObject({
@@ -93,7 +97,9 @@ export const killShellParamsSchema = z.object({
 })
 export type KillShellParams = z.infer<typeof killShellParamsSchema>
 
-export const stopServiceParamsSchema = z.object({ serviceId: z.string().min(1) })
+export const stopServiceParamsSchema = z.object({
+  serviceId: z.string().min(1),
+})
 export type StopServiceParams = z.infer<typeof stopServiceParamsSchema>
 
 export const readServiceLogParamsSchema = z.object({
@@ -129,7 +135,10 @@ export type StopServiceReply = z.infer<typeof stopServiceReplySchema>
 export const serviceLogReplySchema = z.object({ text: z.string() })
 export type ServiceLogReply = z.infer<typeof serviceLogReplySchema>
 
-export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
+export const threadModelWireSchema = z.object({
+  ref: z.string(),
+  effort: z.string(),
+})
 
 export const setThreadModelParamsSchema = z.object({
   threadId: threadIdWireSchema,
@@ -138,16 +147,25 @@ export const setThreadModelParamsSchema = z.object({
 })
 export type SetThreadModelParams = z.infer<typeof setThreadModelParamsSchema>
 
-export const listContextFilesParamsSchema = z.object({ directory: z.string().optional() })
+export const listContextFilesParamsSchema = z.object({
+  directory: z.string().optional(),
+})
 export type ListContextFilesParams = z.infer<typeof listContextFilesParamsSchema>
 
 export const readContextFileParamsSchema = z.object({ path: z.string() })
 export type ReadContextFileParams = z.infer<typeof readContextFileParamsSchema>
 
-const directoryEntryWireSchema = z.object({ name: z.string(), isDirectory: z.boolean() })
+const directoryEntryWireSchema = z.object({
+  name: z.string(),
+  isDirectory: z.boolean(),
+})
 
 export const contextFileContentWireSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text'), content: z.string(), truncated: z.boolean() }),
+  z.object({
+    type: z.literal('text'),
+    content: z.string(),
+    truncated: z.boolean(),
+  }),
   z.object({
     type: z.literal('image'),
     data: z.string(),
@@ -157,12 +175,22 @@ export const contextFileContentWireSchema = z.discriminatedUnion('type', [
 ])
 export type ContextFileContentWire = z.infer<typeof contextFileContentWireSchema>
 
-export const listContextFilesReplySchema = z.object({ entries: z.array(directoryEntryWireSchema) })
-export const readContextFileReplySchema = z.object({ file: contextFileContentWireSchema })
+export const listContextFilesReplySchema = z.object({
+  entries: z.array(directoryEntryWireSchema),
+})
+export const readContextFileReplySchema = z.object({
+  file: contextFileContentWireSchema,
+})
 
-export const readEventsReplySchema = z.object({ events: z.array(wireEventSchema) })
-export const readThreadReplySchema = z.object({ thread: wireThreadSchema.nullable() })
-export const readThreadsReplySchema = z.object({ threads: z.array(wireThreadSchema) })
+export const readEventsReplySchema = z.object({
+  events: z.array(wireEventSchema),
+})
+export const readThreadReplySchema = z.object({
+  thread: wireThreadSchema.nullable(),
+})
+export const readThreadsReplySchema = z.object({
+  threads: z.array(wireThreadSchema),
+})
 export const transcriptIdentityReplySchema = z.object({
   count: z.number().int().nonnegative(),
   digest: z.string(),
@@ -184,3 +212,11 @@ export const publishedWorkspaceWireSchema = z
   .nullable()
 
 export type PublishedWorkspaceWire = z.infer<typeof publishedWorkspaceWireSchema>
+
+export const revokeGrantParamsSchema = z
+  .object({ threadId: threadIdWireSchema, grantId: z.string().min(1) })
+  .strict()
+export type RevokeGrantParams = z.infer<typeof revokeGrantParamsSchema>
+
+export const revokeGrantReplySchema = z.object({ revoked: z.boolean() })
+export type RevokeGrantReply = z.infer<typeof revokeGrantReplySchema>

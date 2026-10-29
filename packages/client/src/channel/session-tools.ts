@@ -2,6 +2,7 @@ import {
   killShellReplySchema,
   pendingEditReplySchema,
   readGitChangesReplySchema,
+  revokeGrantReplySchema,
   serviceLogReplySchema,
   shellOutputReplySchema,
   startedShellReplySchema,
@@ -12,6 +13,7 @@ import {
   type KillShellReply,
   type PendingEditReply,
   type ReadGitChangesReply,
+  type RevokeGrantReply,
   type ShellOutputReply,
   type StartedShellReply,
   type StopServiceReply,
@@ -112,7 +114,11 @@ export const readShellOutput = (args: {
       shellOutputReplySchema.parse(
         await args.channel.request({
           op: EClientRequest.ReadShellOutput,
-          params: { threadId: args.threadId, shellId: args.shellId, characters: args.characters },
+          params: {
+            threadId: args.threadId,
+            shellId: args.shellId,
+            characters: args.characters,
+          },
         }),
       ),
     refused: refusal,
@@ -205,7 +211,11 @@ export const openTerminal = async (args: {
   return {
     terminalId,
     write: (data) =>
-      acknowledged({ channel, op: EClientRequest.TerminalWrite, params: { terminalId, data } }),
+      acknowledged({
+        channel,
+        op: EClientRequest.TerminalWrite,
+        params: { terminalId, data },
+      }),
     resize: ({ cols, rows }) =>
       acknowledged({
         channel,
@@ -213,9 +223,25 @@ export const openTerminal = async (args: {
         params: { terminalId, cols, rows },
       }),
     close: () =>
-      acknowledged({ channel, op: EClientRequest.TerminalClose, params: { terminalId } }),
+      acknowledged({
+        channel,
+        op: EClientRequest.TerminalClose,
+        params: { terminalId },
+      }),
     onOutput: (listener) =>
       channel.onTerminalOutput(mine((output: TerminalOutputWire) => listener(output.data))),
     onExit: (listener) => channel.onTerminalExit(mine(listener)),
   }
 }
+
+export const revokeGrant = async (args: {
+  channel: RequestChannel
+  threadId: string
+  grantId: string
+}): Promise<RevokeGrantReply> =>
+  revokeGrantReplySchema.parse(
+    await args.channel.request({
+      op: EClientRequest.RevokeGrant,
+      params: { threadId: args.threadId, grantId: args.grantId },
+    }),
+  )

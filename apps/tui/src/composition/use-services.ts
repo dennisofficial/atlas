@@ -1,9 +1,10 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useMemo, useState, useEffect } from 'react'
 
+import { foldServices } from '@dltech/atlas-core'
+
 import { EKilledBy, type ServiceSnapshot } from '@dltech/atlas-harness'
 
-import { foldServices } from '../store/service-fold'
 import type { SidebarCrewFold } from '../store/subagent-row'
 import { useOutputScroll, type OutputScroll } from '../ui/hooks/use-output-scroll'
 import {

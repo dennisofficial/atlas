@@ -10,6 +10,7 @@ import { durableTranscriptOf, transcriptViewOf } from '../data/transcript-items'
 
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
+import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
 
 beforeAll(() => {
@@ -34,6 +35,8 @@ const panel: ThreadPanelValue = {
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -74,7 +77,10 @@ const rewindButton = () => document.body.querySelector('button[aria-label="Rewin
 describe('ThreadTranscript rewind', () => {
   it('renders the rewind action on a user turn and reports the event id', async () => {
     const picked: { eventId: string; text: string }[] = []
-    await mount({ points: new Set(['evt_2']), onRewind: (pick) => picked.push(pick) })
+    await mount({
+      points: new Set(['evt_2']),
+      onRewind: (pick) => picked.push(pick),
+    })
 
     await act(async () => {
       rewindButton()?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
@@ -107,7 +113,12 @@ describe('ThreadTranscript work groups', () => {
     })
     await mount(null, [
       { kind: ETranscriptKind.User, id: 'u1', text: 'raise it', at: at(0) },
-      { kind: ETranscriptKind.Tools, id: 'tl1', calls: [call('c1')], at: at(1) },
+      {
+        kind: ETranscriptKind.Tools,
+        id: 'tl1',
+        calls: [call('c1')],
+        at: at(1),
+      },
       {
         kind: ETranscriptKind.Agent,
         id: 'a1',
@@ -115,8 +126,19 @@ describe('ThreadTranscript work groups', () => {
         streaming: false,
         at: at(2),
       },
-      { kind: ETranscriptKind.Tools, id: 'tl2', calls: [call('c2')], at: at(3) },
-      { kind: ETranscriptKind.Agent, id: 'a2', text: 'Final answer', streaming: false, at: at(4) },
+      {
+        kind: ETranscriptKind.Tools,
+        id: 'tl2',
+        calls: [call('c2')],
+        at: at(3),
+      },
+      {
+        kind: ETranscriptKind.Agent,
+        id: 'a2',
+        text: 'Final answer',
+        streaming: false,
+        at: at(4),
+      },
     ])
 
     const text = document.body.textContent ?? ''
@@ -150,7 +172,10 @@ describe('ThreadTranscript harness notices', () => {
       null,
       rowsOfWire([
         wire(1, { type: 'user-said', text: 'merge it' }),
-        wire(2, { type: 'assistant-said', parts: [{ type: 'text', text: 'Waiting on CI' }] }),
+        wire(2, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'Waiting on CI' }],
+        }),
         wire(3, {
           type: 'pr-event',
           repo: 'dltech/atlas',
@@ -159,7 +184,10 @@ describe('ThreadTranscript harness notices', () => {
           url: 'https://github.com/dltech/atlas/pull/12',
           state: 'merged',
         }),
-        wire(4, { type: 'assistant-said', parts: [{ type: 'text', text: 'It merged' }] }),
+        wire(4, {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'It merged' }],
+        }),
         wire(5, { type: 'nudge', text: 'check the build', lifetimeSteps: 3 }),
       ]),
     )

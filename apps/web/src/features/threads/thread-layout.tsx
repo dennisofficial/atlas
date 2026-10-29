@@ -41,7 +41,7 @@ export function ThreadLayout(props: ThreadLayoutProps) {
               <SheetHeader>
                 <SheetTitle>Thread panel</SheetTitle>
                 <SheetDescription>
-                  Agents, changes, files, terminal and preview for this thread.
+                  Details, changes, files, terminal and preview for this thread.
                 </SheetDescription>
               </SheetHeader>
             </div>

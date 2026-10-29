@@ -11,14 +11,16 @@ import {
   ETurnStatus,
   killShellReplySchema,
   readShellOutputParamsSchema,
+  revokeGrantParamsSchema,
+  revokeGrantReplySchema,
   setThreadModelParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
 
 describe('the protocol stamp', () => {
-  it('speaks the version carrying the process-control ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(29)
+  it('speaks the version carrying the revoke-grant op', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(30)
   })
 })
 
@@ -39,7 +41,10 @@ describe('the settings frame', () => {
   })
 
   it('drops a settings frame whose content is not a string', () => {
-    const raw = JSON.stringify({ kind: EClientFrame.Settings, content: { 'sidebar.width': 70 } })
+    const raw = JSON.stringify({
+      kind: EClientFrame.Settings,
+      content: { 'sidebar.width': 70 },
+    })
 
     expect(decodeClientFrame(raw)).toBeNull()
   })
@@ -49,7 +54,9 @@ describe('the run frame', () => {
   it('round-trips a bare run unchanged', () => {
     const frame: ClientFrame = { kind: EClientFrame.Run }
 
-    expect(decodeClientFrame(encodeFrame(frame))).toEqual({ kind: EClientFrame.Run })
+    expect(decodeClientFrame(encodeFrame(frame))).toEqual({
+      kind: EClientFrame.Run,
+    })
     expect(encodeFrame(frame)).toBe('{"kind":"run"}')
   })
 
@@ -93,7 +100,10 @@ describe('the thread rename and model ops', () => {
       kind: EClientFrame.Request,
       id: 'mod-1',
       op: EClientRequest.SetThreadModel,
-      params: { threadId: 'thread-1', model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
+      params: {
+        threadId: 'thread-1',
+        model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
+      },
     }
     const pushed: ServeFrame = {
       kind: EServeFrame.ThreadModelChanged,
@@ -158,7 +168,10 @@ describe('the pause frames', () => {
   it('round-trips a turn ended by a relocation pause', () => {
     const frame: ServeFrame = {
       kind: EServeFrame.TurnEnded,
-      outcome: { status: ETurnStatus.RelocationPaused, runId: 'run-1' as never },
+      outcome: {
+        status: ETurnStatus.RelocationPaused,
+        runId: 'run-1' as never,
+      },
     }
 
     expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
@@ -188,13 +201,24 @@ describe('the process-control ops', () => {
         op: EClientRequest.ReadShellOutput,
         params: { threadId: 'thread-1', shellId: 'shell-1', characters: 4000 },
       },
-      { op: EClientRequest.KillShell, params: { threadId: 'thread-1', shellId: 'shell-1' } },
+      {
+        op: EClientRequest.KillShell,
+        params: { threadId: 'thread-1', shellId: 'shell-1' },
+      },
       { op: EClientRequest.StopService, params: { serviceId: 'svc-1' } },
-      { op: EClientRequest.ReadServiceLog, params: { serviceId: 'svc-1', characters: 4000 } },
+      {
+        op: EClientRequest.ReadServiceLog,
+        params: { serviceId: 'svc-1', characters: 4000 },
+      },
     ]
 
     for (const [index, { op, params }] of requests.entries()) {
-      const frame: ClientFrame = { kind: EClientFrame.Request, id: `proc-${index}`, op, params }
+      const frame: ClientFrame = {
+        kind: EClientFrame.Request,
+        id: `proc-${index}`,
+        op,
+        params,
+      }
       expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
     }
   })
@@ -210,5 +234,24 @@ describe('the process-control ops', () => {
     expect(killShellReplySchema.safeParse({ ok: true, snapshot: shell }).success).toBe(true)
     expect(killShellReplySchema.safeParse({ ok: false, reason: 'gone' }).success).toBe(true)
     expect(killShellReplySchema.safeParse({ ok: true }).success).toBe(false)
+  })
+})
+
+describe('the revoke-grant schemas', () => {
+  it('names the op', () => {
+    expect(String(EClientRequest.RevokeGrant)).toBe('revoke-grant')
+  })
+
+  it('wants exactly a thread and a grant', () => {
+    expect(revokeGrantParamsSchema.safeParse({ threadId: 't', grantId: 'g' }).success).toBe(true)
+    expect(revokeGrantParamsSchema.safeParse({ threadId: 't' }).success).toBe(false)
+    expect(revokeGrantParamsSchema.safeParse({ threadId: 't', grantId: 'g', x: 1 }).success).toBe(
+      false,
+    )
+  })
+
+  it('replies with a boolean', () => {
+    expect(revokeGrantReplySchema.safeParse({ revoked: false }).success).toBe(true)
+    expect(revokeGrantReplySchema.safeParse({}).success).toBe(false)
   })
 })

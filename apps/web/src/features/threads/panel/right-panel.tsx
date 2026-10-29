@@ -8,13 +8,12 @@ import { livePreviewCount } from '../data/preview-ports'
 import { useAgents } from '../data/use-agents'
 import { usePreviews } from '../data/use-previews'
 import { useSubscriptions } from '../data/use-subscriptions'
-import { AgentsTab } from './agents-tab'
+import { DetailsTab } from './details/details-tab'
 import { ChangesTab } from './changes-tab'
 import { FilesTab } from './files-tab'
 import { PreviewTab } from './preview-tab'
 import { ProcessesTab } from './processes-tab'
 import { ERightTab, isRightTab, TAB_LABEL } from './right-tab'
-import { SubscriptionsTab } from './subscriptions-tab'
 import { TerminalTab } from './terminal-tab'
 import { useThreadPanel } from './thread-panel-context'
 
@@ -25,7 +24,7 @@ export type RightPanelProps = {
 }
 
 const TAB_BODY: Record<
-  Exclude<ERightTab, ERightTab.Agents | ERightTab.Subscriptions | ERightTab.Preview>,
+  Exclude<ERightTab, ERightTab.Details | ERightTab.Preview>,
   () => React.JSX.Element
 > = {
   [ERightTab.Changes]: ChangesTab,
@@ -44,9 +43,17 @@ function TabBody(props: {
   agents: ReturnType<typeof useAgents>
   subscriptions: ReturnType<typeof useSubscriptions>
   previews: ReturnType<typeof usePreviews>
+  onOpenTab: (tab: ERightTab) => void
 }) {
-  if (props.tab === ERightTab.Agents) return <AgentsTab data={props.agents} />
-  if (props.tab === ERightTab.Subscriptions) return <SubscriptionsTab data={props.subscriptions} />
+  if (props.tab === ERightTab.Details) {
+    return (
+      <DetailsTab
+        agents={props.agents}
+        subscriptions={props.subscriptions}
+        onOpenTab={props.onOpenTab}
+      />
+    )
+  }
   if (props.tab === ERightTab.Preview) return <PreviewTab data={props.previews} />
   return bodyOf(props.tab)
 }
@@ -56,7 +63,6 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
   const agents = useAgents({ threadId, channel, working })
   const running = activeAgentCount(agents.agents)
   const subscriptions = useSubscriptions({ threadId, channel })
-  const watching = subscriptions.subscriptions.length
   const previews = usePreviews(channel)
   const serving = livePreviewCount(previews.ports)
   const handleTabChange = (value: unknown) => {
@@ -76,11 +82,8 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
             {Object.values(ERightTab).map((value) => (
               <TabsTrigger key={value} value={value} className="flex-none">
                 {TAB_LABEL[value]}
-                {value === ERightTab.Agents && running > 0 ? (
+                {value === ERightTab.Details && running > 0 ? (
                   <span className="font-mono text-xs tabular-nums">{running}</span>
-                ) : null}
-                {value === ERightTab.Subscriptions && watching > 0 ? (
-                  <span className="font-mono text-xs tabular-nums">{watching}</span>
                 ) : null}
                 {value === ERightTab.Preview && serving > 0 ? (
                   <span className="font-mono text-xs tabular-nums">{serving}</span>
@@ -96,6 +99,7 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
               agents={agents}
               subscriptions={subscriptions}
               previews={previews}
+              onOpenTab={onTabChange}
             />
           </TabsContent>
         ))}

@@ -6,6 +6,7 @@ import { EPodState, type PodStatus } from '@dltech/atlas-wire/web'
 import { PreviewTab } from '../preview-tab'
 import { TerminalTab } from '../terminal-tab'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../thread-panel-context'
+import { EMPTY_DETAILS } from '../details/details-input'
 
 const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   threadId: 'thr_1',
@@ -16,6 +17,8 @@ const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -28,18 +31,27 @@ const render = (args: { pod: PodStatus | null; body: React.ReactNode }): string 
 
 describe('TerminalTab', () => {
   it('shows the paused notice for a parked pod', () => {
-    const html = render({ pod: { state: EPodState.Parked, steps: [] }, body: <TerminalTab /> })
+    const html = render({
+      pod: { state: EPodState.Parked, steps: [] },
+      body: <TerminalTab />,
+    })
     expect(html).toContain('Pod paused')
     expect(html).toContain('Resume pod')
   })
 
   it('shows the connecting notice while the pod has no channel yet', () => {
-    const html = render({ pod: { state: EPodState.Booting, steps: [] }, body: <TerminalTab /> })
+    const html = render({
+      pod: { state: EPodState.Booting, steps: [] },
+      body: <TerminalTab />,
+    })
     expect(html).toContain('Opening a shell')
   })
 
   it('shows the disconnected bar for a failed pod', () => {
-    const html = render({ pod: { state: EPodState.Failed, steps: [] }, body: <TerminalTab /> })
+    const html = render({
+      pod: { state: EPodState.Failed, steps: [] },
+      body: <TerminalTab />,
+    })
     expect(html).toContain('Reconnect')
   })
 })

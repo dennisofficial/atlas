@@ -1,4 +1,3 @@
-import { FolderGit2Icon, FolderXIcon } from 'lucide-react'
 import { useMemo } from 'react'
 
 import { Kbd } from '@dltech/atlas-ui/components/kbd'
@@ -7,15 +6,9 @@ import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
 import { useRegisterPendingThread } from '../shell/pending-thread'
 import { Composer } from './composer'
 import { SessionView } from './session-view'
-import {
-  DEFAULT_PROJECT_ID,
-  MODEL_LABEL,
-  pendingThreadOf,
-  projectLabelOf,
-  titleOf,
-} from './new-thread-data'
+import { DEFAULT_PROJECT_ID, MODEL_LABEL, pendingThreadOf, titleOf } from './new-thread-data'
 import { useNewThreadFlow, type NewThreadFlow } from './new-thread-flow'
-import { podChipOf, podStateOf } from './new-thread-pod'
+import { podStateOf } from './new-thread-pod'
 import { NewThreadTranscript } from './new-thread-transcript'
 import {
   EFirstMessage,
@@ -116,13 +109,8 @@ export function NewThreadView({
     <SessionView
       header={{
         title: titleOf(flow.prompt),
-        subtitle: {
-          label: projectLabelOf(flow.projectId),
-          icon: flow.projectId === null ? FolderXIcon : FolderGit2Icon,
-        },
         detail: MODEL_LABEL,
         badgeLabel: badgeLabelOf({ pod, message }),
-        podStatus: podChipOf(pod),
       }}
       pod={podStateOf({
         pod,

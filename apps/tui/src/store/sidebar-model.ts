@@ -2,6 +2,7 @@ import {
   EExecutionLocation,
   EPlanStatus,
   EServiceStatus,
+  type ECrewStanding,
   type Event,
   type Grant,
 } from '@dltech/atlas-core'
@@ -27,7 +28,6 @@ import {
   type SidebarSpend,
 } from './sidebar-spend'
 import { oneLineOf } from './sidebar-text'
-import type { ECrewStanding } from './crew-retirement'
 import type { SidebarSubagent } from './subagent-row'
 
 export enum ESidebarTaskState {

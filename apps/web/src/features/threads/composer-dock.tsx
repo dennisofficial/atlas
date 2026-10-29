@@ -2,17 +2,18 @@
 
 import { Context } from '@dltech/atlas-ui/ai/context'
 import { QueuedMessages } from '@dltech/atlas-ui/ai/queued-messages'
-import { TaskDock } from '@dltech/atlas-ui/ai/task-dock'
+import { PlanSummary } from '@dltech/atlas-ui/ai/plan-summary'
 
 import type { ContextUsage } from './data/context-usage'
 import type { useComposerDock } from './data/use-composer-dock'
 
 export type ComposerDockState = ReturnType<typeof useComposerDock>
 
-export function ComposerDock({ dock }: { dock: ComposerDockState }) {
+export function ComposerDock(props: { dock: ComposerDockState; onOpenDetails: () => void }) {
+  const { dock, onOpenDetails } = props
   return (
     <>
-      <TaskDock steps={dock.steps} />
+      <PlanSummary steps={dock.steps} onOpen={onOpenDetails} />
       <QueuedMessages
         messages={dock.queued}
         onSave={(save) => void dock.handleSaveQueued(save)}
