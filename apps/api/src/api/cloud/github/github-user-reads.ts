@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { githubFetch } from './github-fetch'
 import type {
   PullRequestCacheFields,
   RestCheckRun,
@@ -91,7 +92,7 @@ export class GithubUserReads {
     repo: string
     config: HookConfig
   }): Promise<CreateHookResult> {
-    const response = await fetch(`${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`, {
+    const response = await githubFetch(`${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`, {
       method: 'POST',
       headers: this.headers({ token: args.token }),
       signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
@@ -126,7 +127,7 @@ export class GithubUserReads {
     repo: string
     hookId: number
   }): Promise<'found' | 'missing' | 'unauthorized'> {
-    const response = await fetch(
+    const response = await githubFetch(
       `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       {
         headers: this.headers({ token: args.token }),
@@ -163,7 +164,7 @@ export class GithubUserReads {
     hookId: number
     events: string[]
   }): Promise<void> {
-    const response = await fetch(
+    const response = await githubFetch(
       `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       {
         method: 'PATCH',
@@ -187,7 +188,7 @@ export class GithubUserReads {
     repo: string
     hookId: number
   }): Promise<'deleted' | 'unauthorized'> {
-    const response = await fetch(
+    const response = await githubFetch(
       `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       {
         method: 'DELETE',
@@ -218,7 +219,7 @@ export class GithubUserReads {
   }
 
   private async get<T>(args: { token: string; path: string }): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${args.path}`, {
+    const response = await githubFetch(`${this.baseUrl}${args.path}`, {
       headers: this.headers({ token: args.token }),
       signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
     })

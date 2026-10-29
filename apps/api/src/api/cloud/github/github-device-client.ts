@@ -1,4 +1,6 @@
 import { BadGatewayException } from '@nestjs/common'
+import { EGithubCallSource, withGithubCallSource } from './github-call-log'
+import { githubFetch } from './github-fetch'
 import type { GithubDeviceCodesDto } from './github.types'
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code'
@@ -36,7 +38,7 @@ function asHttpResponse(value: unknown): GithubHttpResponse {
 }
 
 export const defaultGithubFetch: FetchFn = async (url, request) =>
-  asHttpResponse(await fetch(url, request))
+  asHttpResponse(await githubFetch(url, request))
 
 export type GithubPollOutcome =
   | { kind: 'granted'; accessToken: string; scope: string }
@@ -87,8 +89,15 @@ export class GithubDeviceClient {
     this.fetchFn = args.fetchFn ?? defaultGithubFetch
   }
 
+  private send(url: string, request: GithubHttpRequest): Promise<GithubHttpResponse> {
+    return withGithubCallSource({
+      source: EGithubCallSource.DeviceFlow,
+      run: () => this.fetchFn(url, request),
+    })
+  }
+
   async beginDeviceFlow(args: { clientId: string }): Promise<GithubDeviceCodesDto> {
-    const response = await this.fetchFn(DEVICE_CODE_URL, {
+    const response = await this.send(DEVICE_CODE_URL, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: args.clientId, scope: REQUESTED_SCOPES }),
@@ -108,7 +117,7 @@ export class GithubDeviceClient {
     clientId: string
     deviceCode: string
   }): Promise<GithubPollOutcome> {
-    const response = await this.fetchFn(ACCESS_TOKEN_URL, {
+    const response = await this.send(ACCESS_TOKEN_URL, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -136,7 +145,7 @@ export class GithubDeviceClient {
   }
 
   async verifyToken(args: { accessToken: string }): Promise<{ login: string }> {
-    const response = await this.fetchFn(USER_URL, {
+    const response = await this.send(USER_URL, {
       method: 'GET',
       headers: {
         Accept: 'application/json',

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { githubFetch } from './github-fetch'
 import type { GithubRepoSummary } from '@dltech/atlas-wire'
 import { GithubUserReadFailed } from './github-user-reads'
 
@@ -45,7 +46,7 @@ export class GithubRepoReads {
   }
 
   private async get<T>(args: { token: string; path: string }): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${args.path}`, {
+    const response = await githubFetch(`${this.baseUrl}${args.path}`, {
       headers: {
         authorization: `Bearer ${args.token}`,
         accept: 'application/vnd.github+json',

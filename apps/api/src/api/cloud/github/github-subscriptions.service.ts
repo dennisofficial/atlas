@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { EGithubCallSource, withGithubCallSource } from './github-call-log'
 import { db } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
 import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
@@ -190,14 +191,14 @@ export class GithubSubscriptionsService {
     branch?: string
   }): Promise<number | null> {
     if (args.prNumber !== undefined) return args.prNumber
-    if (args.branch === undefined) return null
+    const branch = args.branch
+    if (branch === undefined) return null
 
     const token = await this.requireToken({ userId: args.userId })
-    const found = await this.reads.findOpenPrForBranch({
-      token,
-      owner: args.owner,
-      repo: args.repo,
-      branch: args.branch,
+    const found = await withGithubCallSource({
+      source: EGithubCallSource.SubscriptionResolve,
+      run: () =>
+        this.reads.findOpenPrForBranch({ token, owner: args.owner, repo: args.repo, branch }),
     })
     if (found !== null) return found.number
 

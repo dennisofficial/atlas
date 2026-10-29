@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EGithubCallSource, withGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
@@ -37,7 +38,14 @@ export class GithubPollSweeperService {
     private readonly signals: ThreadSignalsService,
   ) {}
 
-  async handlePoll(): Promise<void> {
+  handlePoll(): Promise<void> {
+    return withGithubCallSource({
+      source: EGithubCallSource.PollSweep,
+      run: () => this.runPoll(),
+    })
+  }
+
+  private async runPoll(): Promise<void> {
     const now = new Date()
 
     await this.refreshLiveUntil({ now })

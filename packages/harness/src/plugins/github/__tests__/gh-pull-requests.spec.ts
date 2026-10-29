@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
+import { LogPort, type LogEntry } from '@dltech/atlas-core'
+
 import { EForge, EPullRequestLookup, EPullRequestState } from '../pure'
 
-import { GH_TIMEOUT_MS, GhPullRequestPort } from '../gh-pull-requests'
+import { EGhPollRole, GH_TIMEOUT_MS, GhPullRequestPort } from '../gh-pull-requests'
 import { ESpawnFailure } from '../run-command'
 import { aCheckout, ghAnswering, ghSpawnFailure } from '../testing'
 
@@ -235,5 +237,82 @@ describe('GhPullRequestPort.readLinked', () => {
 
     expect(after).toEqual({ lookup: EPullRequestLookup.Unavailable, retryable: false })
     expect(run.calls).toHaveLength(1)
+  })
+})
+
+class RecordingLog extends LogPort {
+  readonly entries: LogEntry[] = []
+
+  record(entry: LogEntry): void {
+    this.entries.push(entry)
+  }
+}
+
+describe('GhPullRequestPort call log', () => {
+  it('logs one entry per checkout spawn with role, kind, target and outcome', async () => {
+    const log = new RecordingLog()
+    const port = new GhPullRequestPort({
+      run: ghAnswering({ stdout: PAYLOAD }),
+      log,
+      role: EGhPollRole.FailoverFallback,
+    })
+
+    await port.read({ checkout: aCheckout({ directory: '/work/atlas/thing' }) })
+
+    expect(log.entries).toHaveLength(1)
+    expect(log.entries[0]?.source).toBe('github.gh-call')
+    expect(log.entries[0]?.message).toBe('gh pr view')
+    expect(log.entries[0]?.data).toMatchObject({
+      role: 'failover-fallback',
+      kind: 'checkout',
+      target: 'thing',
+      exitCode: 0,
+      failure: null,
+      outcome: 'found',
+    })
+    expect(typeof log.entries[0]?.data?.durationMs).toBe('number')
+    expect(JSON.stringify(log.entries[0])).not.toContain('a change')
+  })
+
+  it('defaults to signed-out and logs linked targets as repo#number', async () => {
+    const log = new RecordingLog()
+    const port = new GhPullRequestPort({
+      run: ghAnswering({ code: 1, stderr: 'no pull requests found' }),
+      log,
+    })
+
+    await port.readLinked({ repo: 'github.com/dennisofficial/atlas', number: 7 })
+
+    expect(log.entries[0]?.data).toMatchObject({
+      role: 'signed-out',
+      kind: 'linked',
+      target: 'github.com/dennisofficial/atlas#7',
+      exitCode: 1,
+      outcome: 'absent',
+    })
+  })
+
+  it('logs unavailable with the spawn failure, then nothing once gh is known missing', async () => {
+    const log = new RecordingLog()
+    const run = ghAnswering(ghSpawnFailure({ failure: ESpawnFailure.BinaryMissing }))
+    const port = new GhPullRequestPort({ run, log })
+
+    await port.read({ checkout: aCheckout() })
+    await port.read({ checkout: aCheckout() })
+
+    expect(log.entries).toHaveLength(1)
+    expect(log.entries[0]?.data).toMatchObject({
+      failure: ESpawnFailure.BinaryMissing,
+      outcome: 'unavailable',
+    })
+  })
+
+  it('does not log for a non-GitHub forge', async () => {
+    const log = new RecordingLog()
+    const port = new GhPullRequestPort({ run: ghAnswering(), log })
+
+    await port.read({ checkout: aCheckout({ forge: EForge.Other }) })
+
+    expect(log.entries).toHaveLength(0)
   })
 })

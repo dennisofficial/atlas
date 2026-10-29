@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { EGithubCallSource, withGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
@@ -182,11 +183,15 @@ export class GithubDeliveryService {
     prNumber: number
   }): Promise<GithubPrStateRecord | null> {
     try {
-      const fields = await this.reads.readPullRequest({
-        token: args.token,
-        owner: args.owner,
-        repo: args.repo,
-        number: args.prNumber,
+      const fields = await withGithubCallSource({
+        source: EGithubCallSource.DeliveryFill,
+        run: () =>
+          this.reads.readPullRequest({
+            token: args.token,
+            owner: args.owner,
+            repo: args.repo,
+            number: args.prNumber,
+          }),
       })
       return { ...fields, updatedAt: new Date() }
     } catch (failure) {

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { EGithubCallSource, withGithubCallSource } from './github-call-log'
 import { Injectable, Logger } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -31,7 +32,17 @@ export class GithubHookLifecycleService {
     private readonly installations: GithubAppInstallationsService,
   ) {}
 
-  async ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
+  ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
+    return withGithubCallSource({
+      source: EGithubCallSource.HookLifecycle,
+      run: () => this.runEnsureHook(args),
+    })
+  }
+
+  private async runEnsureHook(args: {
+    userId: string
+    repoFullName: string
+  }): Promise<EnsureHookResult> {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }
@@ -58,7 +69,14 @@ export class GithubHookLifecycleService {
     }).updateAndCount({ idleSince: new Date() })
   }
 
-  async handleSweep(): Promise<void> {
+  handleSweep(): Promise<void> {
+    return withGithubCallSource({
+      source: EGithubCallSource.HookSweep,
+      run: () => this.runSweep(),
+    })
+  }
+
+  private async runSweep(): Promise<void> {
     const now = new Date()
     const idleCutoff = new Date(now.getTime() - IDLE_DELETE_AFTER_MS)
     const candidates = await db.orm.public.GithubRepoHook.where((hook) =>
