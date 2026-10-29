@@ -18,5 +18,5 @@ model Event {
   @@unique([threadId, seq], map: "Event_threadId_seq_key")
   @@unique([threadId, contextSlot, contextKey, contextDigest], map: "Event_threadId_contextSlot_contextKey_contextDigest_key")
   @@index([threadId, type], map: "Event_threadId_type_idx")
-  @@index([userId], map: "Event_userId_idx")
+  @@index([userId, type, at], map: "Event_userId_type_at_idx")
 }

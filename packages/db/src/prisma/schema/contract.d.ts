@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a7d41c08974879da5ec02d956fc526de4d5f955818d32119a17019e198d0a159'>;
+  StorageHashBase<'a81a3193f0178f2224163adb9fff0d54f35cc4c56dfe45ff7afe1c194562efd7'>;
 export type ExecutionHash =
   ExecutionHashBase<'0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d'>;
 export type ProfileHash =
@@ -1787,8 +1787,8 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'Event_userId_idx';
-                  readonly columns: readonly ['userId'];
+                  readonly name: 'Event_userId_type_at_idx';
+                  readonly columns: readonly ['userId', 'type', 'at'];
                   readonly unique: false;
                 },
               ];
@@ -2085,15 +2085,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['eventId', 'threadId'] };
+              primaryKey: {
+                readonly columns: readonly ['eventId', 'threadId'];
+                readonly name: 'GithubPrEventDelivery_pkey';
+              };
               uniques: readonly [];
               indexes: readonly [
-                {
-                  readonly name: 'GithubPrEventDelivery_eventId_idx_6a266d47';
-                  readonly prefix: 'GithubPrEventDelivery_eventId_idx';
-                  readonly columns: readonly ['eventId'];
-                  readonly unique: false;
-                },
                 {
                   readonly name: 'GithubPrEventDelivery_threadId_idx';
                   readonly columns: readonly ['threadId'];
@@ -3656,12 +3653,6 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'Session_userId_idx_a489d58a';
-                  readonly prefix: 'Session_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'Session_userId_repo_updatedAt_idx';
                   readonly columns: readonly ['userId', 'repo', 'updatedAt'];
                   readonly unique: false;
@@ -4040,18 +4031,15 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['userId', 'threadId'] };
+              primaryKey: {
+                readonly columns: readonly ['userId', 'threadId'];
+                readonly name: 'ThreadRead_pkey';
+              };
               uniques: readonly [];
               indexes: readonly [
                 {
                   readonly name: 'ThreadRead_threadId_idx';
                   readonly columns: readonly ['threadId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'ThreadRead_userId_idx_a489d58a';
-                  readonly prefix: 'ThreadRead_userId_idx';
-                  readonly columns: readonly ['userId'];
                   readonly unique: false;
                 },
               ];
