@@ -60,6 +60,10 @@
       "model": "GithubSubscription",
       "namespace": "public"
     },
+    "LocalPodCheckpoint": {
+      "model": "LocalPodCheckpoint",
+      "namespace": "public"
+    },
     "LocalPodLease": {
       "model": "LocalPodLease",
       "namespace": "public"
@@ -2038,6 +2042,126 @@
               "table": "GithubSubscription"
             }
           },
+          "LocalPodCheckpoint": {
+            "fields": {
+              "checkpoint": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "revision": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "thread": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "checkpoint": {
+                  "column": "checkpoint"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "revision": {
+                  "column": "revision"
+                },
+                "threadId": {
+                  "column": "threadId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "LocalPodCheckpoint"
+            }
+          },
           "LocalPodLease": {
             "fields": {
               "createdAt": {
@@ -3940,6 +4064,21 @@
                   "namespace": "public"
                 }
               },
+              "localPodCheckpoints": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
+                },
+                "to": {
+                  "model": "LocalPodCheckpoint",
+                  "namespace": "public"
+                }
+              },
               "parent": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -4495,6 +4634,21 @@
                 },
                 "to": {
                   "model": "GithubSubscription",
+                  "namespace": "public"
+                }
+              },
+              "localPodCheckpoints": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "LocalPodCheckpoint",
                   "namespace": "public"
                 }
               },
@@ -6947,6 +7101,123 @@
                 }
               ]
             },
+            "LocalPodCheckpoint": {
+              "columns": {
+                "checkpoint": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "revision": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "LocalPodCheckpoint_userId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "LocalPodCheckpoint"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "threadId"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "threadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "LocalPodCheckpoint"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "LocalPodCheckpoint_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "LocalPodCheckpoint_threadId_key"
+                }
+              ]
+            },
             "LocalPodLease": {
               "columns": {
                 "createdAt": {
@@ -9269,10 +9540,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b4d2e89e8a65765912a017f22242339633a03efa5531d3746c5d99550a240aab"
+    "storageHash": "7e0c420de4f0a5096eabb3d87bb07f1563da8304e1ea5976887359ebacb62e49"
   },
   "execution": {
-    "executionHash": "c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4",
+    "executionHash": "d6b94731c80a9019d5c23190cdd14036da73cd0853748206ea1bba7733cdaf38",
     "mutations": {
       "defaults": [
         {
@@ -9399,6 +9670,32 @@
           "ref": {
             "entry": "GithubSubscription",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "LocalPodCheckpoint",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "LocalPodCheckpoint",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

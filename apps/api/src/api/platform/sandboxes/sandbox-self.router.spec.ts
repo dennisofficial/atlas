@@ -81,6 +81,7 @@ describe('SandboxSelfRouter', () => {
     expect(previews.expose).toHaveBeenCalledWith({
       threadId: 'thr-1',
       userId: 'usr-1',
+      kind: 'sandbox',
       port: 5173,
     })
   })
@@ -92,6 +93,7 @@ describe('SandboxSelfRouter', () => {
     expect(previews.expose).toHaveBeenCalledWith({
       threadId: 'thr-1',
       userId: 'usr-1',
+      kind: 'pod',
       port: 3000,
     })
   })

@@ -10,6 +10,7 @@ import {
   seedSandboxRow,
   seedThread,
 } from './sandbox-provisioning.fixture'
+import { LOCAL_POD_MESSAGE } from './sandbox-provisioning-rows'
 
 const ARGS = { userId: 'usr-1', threadId: 'thr-1', sendId: 'snd-1', text: 'hello' } as const
 const ENDPOINT = { token: 'tok', url: 'https://serve.example.test' }
@@ -167,6 +168,25 @@ describe('ThreadMessagesService.send once the agent has started', () => {
       expect(await eventsOf()).toHaveLength(0)
     },
   )
+
+  it('refuses a web send to a thread leased to a local pod', async () => {
+    await db.orm.public.LocalPodLease.create({
+      userId: 'usr-1',
+      threadId: 'thr-1',
+      tokenHash: 'pod-hash',
+    })
+    const { service, serve, dispatch } = messagesWith()
+
+    await expect(service.send(ARGS)).rejects.toMatchObject({
+      status: 409,
+      message: LOCAL_POD_MESSAGE,
+    })
+
+    expect(await eventsOf()).toHaveLength(0)
+    expect(serve).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(await sandboxRows()).toHaveLength(0)
+  })
 
   it('delivers live to a TUI-provisioned row with no boot steps', async () => {
     await seedSandboxRow({ state: 'running', serveUrl: ENDPOINT.url })

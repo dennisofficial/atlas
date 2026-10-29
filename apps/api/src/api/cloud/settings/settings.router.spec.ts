@@ -89,6 +89,41 @@ describe('SettingsRouter', () => {
     await mutate('settings.patch', undefined, { values: { 'legacy.key': 'x' } }).expect(401)
   })
 
+  describe('pod-delivered settings', () => {
+    const podDelivered = {
+      'decisions.provider': 'custom',
+      'decisions.url': 'https://jev.internal',
+      'decisions.model': 'jev-luna',
+      'classifier.mode': 'nudge',
+      'web.searchBackend': 'exa',
+    }
+
+    it('stores and lists the five settings for the personal scope', async () => {
+      const values = Object.fromEntries(
+        Object.entries(podDelivered).map(([key, value]) => [key, encodeSettingValue(value)]),
+      )
+      await mutate('settings.patch', 'session-a', { values }).expect(200)
+
+      const listed = (await list('session-a').expect(200)).body.result.data.settings
+      const keys = listed.map((setting: { key: string }) => setting.key).sort()
+      expect(keys).toEqual(Object.keys(podDelivered).sort())
+    })
+
+    it('rejects an invalid classifier mode', async () => {
+      await mutate('settings.patch', 'session-a', {
+        values: { 'classifier.mode': encodeSettingValue('interrupt') },
+      }).expect(400)
+      expect(await settings()).toHaveLength(0)
+    })
+
+    it('rejects a decisions endpoint that is not an absolute http(s) URL', async () => {
+      await mutate('settings.patch', 'session-a', {
+        values: { 'decisions.url': encodeSettingValue('jev.internal') },
+      }).expect(400)
+      expect(await settings()).toHaveLength(0)
+    })
+  })
+
   describe('pod reach', () => {
     beforeEach(async () => {
       const stamp = new Date('2026-10-03T00:00:00.000Z')

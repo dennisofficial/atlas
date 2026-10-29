@@ -9,6 +9,7 @@ import { newThreadMeta, sessionDirectory, threadMetaFile, writeMeta } from '@dlt
 import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
 import { composeBootApp } from '../serve-compose-boot'
+import { wireWorkspaceSpecSchema, type WorkspaceSpec } from '../workspace-spec'
 
 import { fakeServeApp } from './fakes'
 import { trpcFailure, trpcOk, trpcQueryUrl } from './trpc-fake'
@@ -40,6 +41,7 @@ const composedModel = async (args: {
   reply: () => Response
   stored?: { ref: string; effort: string }
   explicit?: { ref: string; effort?: string }
+  spec?: WorkspaceSpec
 }) => {
   const atlasHome = mkdtempSync(join(tmpdir(), 'atlas-serve-model-boot-'))
   homes.push(atlasHome)
@@ -64,7 +66,7 @@ const composedModel = async (args: {
       return fakeServeApp({ threadId, root: '/workspace' })
     },
     model: args.explicit,
-    spec: null,
+    spec: args.spec ?? null,
     identity: null,
     threadId,
     cwd: '/workspace',
@@ -132,5 +134,34 @@ describe('composeBootApp thread model', () => {
       reply: () => trpcOk(wireThread({ ref: 'b/new', effort: 'high' })),
     })
     expect(run.composedWith).toEqual({ ref: 'c/explicit' })
+  })
+
+  it('takes effort from the workspace spec when nothing else names a model', async () => {
+    const run = await composedModel({
+      env: {},
+      spec: { remoteUrl: null, githubToken: null, model: 'a/spec', effort: 'low' },
+      reply: () => trpcOk(wireThread()),
+    })
+    expect(run.composedWith).toEqual({ ref: 'a/spec', effort: 'low' })
+  })
+
+  it('keeps a spec model without effort as ref-only', async () => {
+    const run = await composedModel({
+      env: {},
+      spec: { remoteUrl: null, githubToken: null, model: 'a/spec' },
+      reply: () => trpcOk(wireThread()),
+    })
+    expect(run.composedWith).toEqual({ ref: 'a/spec' })
+  })
+})
+
+describe('wireWorkspaceSpecSchema', () => {
+  it('keeps the birth effort a local pod writes into the spec', () => {
+    const parsed = wireWorkspaceSpecSchema.parse(
+      JSON.parse(
+        JSON.stringify({ remoteUrl: null, githubToken: null, model: 'a/spec', effort: 'high' }),
+      ),
+    )
+    expect(parsed).toMatchObject({ model: 'a/spec', effort: 'high' })
   })
 })

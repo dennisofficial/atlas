@@ -60,9 +60,9 @@ export const cloudRuntimeParts = (args: {
   if (!(held instanceof RemoteSubscriptionRegistry) || held.channel !== args.channel) {
     publishSubscriptionRegistry(new RemoteSubscriptionRegistry(args.channel))
   }
-  const shells = new RemoteShellRegistry(roster)
+  const shells = new RemoteShellRegistry(roster, args.channel)
   const agents = new RemoteAgentRegistry(roster, args.channel)
-  const services = new RemoteServiceRegistry(roster)
+  const services = new RemoteServiceRegistry(roster, args.channel)
   const pricing = new LocalRewindMachinery({ agents, shells, services })
 
   return {

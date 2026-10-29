@@ -1,19 +1,14 @@
 'use client'
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@dltech/atlas-ui/components/select'
+import { useRouter } from 'next/navigation'
 
+import { ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
+
+import type { ModelPicker } from '@/features/threads/data/use-model-picker'
+
+import { roleModelOptions } from '../data/personal/role-model-options'
 import {
-  AUTO_MODEL,
   EFFORT_STEPS,
-  MODEL_GROUPS,
   ROLE_META,
   type EAgentRole,
   type EEffort,
@@ -22,31 +17,31 @@ import {
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
 import { EffortSlider } from './agent-effort-slider'
 
-function buildModelItems(autoLabel: string) {
-  const items = [{ value: AUTO_MODEL, label: autoLabel }]
-  for (const group of MODEL_GROUPS) {
-    for (const model of group.models) items.push({ value: model.id, label: model.label })
-  }
-  return items
-}
+const PROVIDERS_HREF = '/settings/providers'
 
 export function RoleCard({
   role,
   setting,
+  picker,
   onChange,
 }: {
   role: EAgentRole
   setting: RoleSetting
+  picker: ModelPicker
   onChange: (next: RoleSetting) => void
 }) {
+  const router = useRouter()
   const meta = ROLE_META[role]
-  const items = buildModelItems(meta.autoLabel)
+  const models = roleModelOptions({
+    offered: picker.options.models,
+    autoLabel: meta.autoLabel,
+    currentId: setting.model,
+  })
   const effortLabel = EFFORT_STEPS.find((step) => step.effort === setting.effort)?.label
 
-  const handleModelChange = (model: string | null) => {
-    if (model) onChange({ ...setting, model })
-  }
+  const handleModelChange = (model: string) => onChange({ ...setting, model })
   const handleEffortChange = (effort: EEffort) => onChange({ ...setting, effort })
+  const handleManageProviders = () => router.push(PROVIDERS_HREF)
 
   return (
     <SettingsSection title={meta.title} description={meta.description}>
@@ -55,24 +50,18 @@ export function RoleCard({
           title="Model"
           description="Auto picks the best available model for your connected providers."
           control={
-            <Select items={items} value={setting.model} onValueChange={handleModelChange}>
-              <SelectTrigger size="sm" className="w-48" aria-label={`${meta.title} model`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} align="end">
-                <SelectItem value={AUTO_MODEL}>{meta.autoLabel}</SelectItem>
-                {MODEL_GROUPS.map((group) => (
-                  <SelectGroup key={group.provider}>
-                    <SelectLabel>{group.provider}</SelectLabel>
-                    {group.models.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            <ModelSelector
+              models={models}
+              value={setting.model}
+              placeholder={meta.autoLabel}
+              onValueChange={handleModelChange}
+              pinned={picker.pinned}
+              onPinnedChange={picker.onPinnedChange}
+              reconnectProviders={picker.options.reconnectProviders}
+              onReconnect={handleManageProviders}
+              onManageProviders={handleManageProviders}
+              className="max-w-64"
+            />
           }
         />
         <SettingsRow

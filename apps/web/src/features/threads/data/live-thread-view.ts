@@ -4,6 +4,8 @@ import type { CallId, ModelUsage } from '@dltech/atlas-core'
 import type {
   OperatorInputRequestWire,
   PendingEntryWire,
+  RewindCutWire,
+  RosterWire,
   SaidImageWire,
   WireEvent,
 } from '@dltech/atlas-wire/web'
@@ -33,11 +35,23 @@ export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
 
 export type LiveTakeBackPending = () => Promise<string | null>
 
+export type LiveInterrupt = () => boolean
+
+export type LiveApplyRewind = (args: {
+  cuts: readonly RewindCutWire[]
+  toSeq: number
+}) => Promise<void>
+
+export type LiveReadRoster = () => Promise<RosterWire | null>
+
 export type LiveThreadView = LiveThreadState & {
   steps: InFlightStep[]
   send: LiveSend
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
+  interrupt: LiveInterrupt
+  applyRewind: LiveApplyRewind
+  readRoster: LiveReadRoster
 }
 
 export const IDLE_LIVE_THREAD: LiveThreadState = {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EServiceStatus, EShellStatus, toThreadId } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EKilledBy,
+  EServiceStatus,
+  EShellStatus,
+  toThreadId,
+} from '@dltech/atlas-core'
 import { type RosterWire } from '@dltech/atlas-wire'
 import { EClientRequest, RemoteRequestFailed } from '@dltech/atlas-harness'
 
@@ -64,7 +70,21 @@ const LIVE: RosterWire = {
   ],
 }
 
-const stubChannel = (args: { answer?: unknown; steerAnswer?: unknown; refuse?: boolean }) => {
+const PROCESS_OPS: readonly EClientRequest[] = [
+  EClientRequest.StartShell,
+  EClientRequest.ReadShellOutput,
+  EClientRequest.KillShell,
+  EClientRequest.StopService,
+  EClientRequest.ReadServiceLog,
+]
+
+const stubChannel = (args: {
+  answer?: unknown
+  steerAnswer?: unknown
+  processAnswers?: Partial<Record<EClientRequest, unknown>>
+  refuse?: boolean
+  refuseProcesses?: boolean
+}) => {
   const rosterListeners = new Set<(roster: RosterWire) => void>()
   const reloadListeners = new Set<() => void>()
   const requests: { op: EClientRequest; params: unknown }[] = []
@@ -79,6 +99,15 @@ const stubChannel = (args: { answer?: unknown; steerAnswer?: unknown; refuse?: b
         requests.push(request)
         if (args.refuse === true) {
           throw new RemoteRequestFailed({ op: request.op, data: { message: 'unknown op' } })
+        }
+        if (PROCESS_OPS.includes(request.op)) {
+          if (args.refuseProcesses === true) {
+            throw new RemoteRequestFailed({
+              op: request.op,
+              data: { message: 'unknown request op' },
+            })
+          }
+          return args.processAnswers?.[request.op]
         }
         if (
           request.op === EClientRequest.SayToAgent ||
@@ -127,11 +156,22 @@ const registriesOf = (channel: ReturnType<typeof stubChannel>['channel']) => {
 
   return {
     roster,
-    shells: new RemoteShellRegistry(roster),
+    shells: new RemoteShellRegistry(roster, channel),
     agents: new RemoteAgentRegistry(roster, channel),
-    services: new RemoteServiceRegistry(roster),
+    services: new RemoteServiceRegistry(roster, channel),
   }
 }
+
+const held = <T>({ value, what }: { value: T | undefined; what: string }): T => {
+  if (value === undefined) throw new Error(`fixture holds no ${what}`)
+  return value
+}
+
+const SHELL = held({ value: LIVE.shells[0], what: 'shell' })
+const SERVICE = held({ value: LIVE.services[0], what: 'service' })
+
+const processRequests = (stub: ReturnType<typeof stubChannel>) =>
+  stub.requests.filter((one) => PROCESS_OPS.includes(one.op))
 
 const settle = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0))
@@ -224,17 +264,154 @@ describe('the remote registries a cloud session reads', () => {
     expect(services.list()).toHaveLength(0)
   })
 
-  it('refuses process actions rather than touching local shells', async () => {
+  it('forwards a kill and a stop through the channel to the sandbox’s registries', async () => {
+    const stub = stubChannel({
+      answer: LIVE,
+      processAnswers: {
+        [EClientRequest.KillShell]: { ok: true, snapshot: SHELL },
+        [EClientRequest.StopService]: { ok: true, snapshot: SERVICE },
+      },
+    })
+    const { shells, services } = registriesOf(stub.channel)
+    await settle()
+
+    const killed = await shells.kill({ shellId: 'bash_1', by: EKilledBy.User, threadId: THREAD })
+    const stopped = await services.stop({ serviceId: 'svc_1', by: EKilledBy.User })
+
+    expect(killed.ok && killed.snapshot.shellId).toBe(SHELL.shellId)
+    expect(stopped.ok && stopped.snapshot.serviceId).toBe('svc_1')
+    expect(processRequests(stub)).toEqual([
+      { op: EClientRequest.KillShell, params: { threadId: 'thread-cloud', shellId: 'bash_1' } },
+      { op: EClientRequest.StopService, params: { serviceId: 'svc_1' } },
+    ])
+  })
+
+  it('starts a shell through the channel', async () => {
+    const stub = stubChannel({
+      answer: LIVE,
+      processAnswers: { [EClientRequest.StartShell]: { ok: true, snapshot: SHELL } },
+    })
+    const { shells } = registriesOf(stub.channel)
+    await settle()
+
+    const started = await shells.start({
+      threadId: THREAD,
+      command: 'bun run dev',
+      description: 'dev server',
+    })
+
+    expect(started).toEqual({ ok: true, snapshot: SHELL })
+    expect(processRequests(stub)).toEqual([
+      {
+        op: EClientRequest.StartShell,
+        params: { threadId: 'thread-cloud', command: 'bun run dev', description: 'dev server' },
+      },
+    ])
+  })
+
+  it('peeks shell output and tails a service log through the channel', async () => {
+    const stub = stubChannel({
+      answer: LIVE,
+      processAnswers: {
+        [EClientRequest.ReadShellOutput]: { ok: true, text: 'tail' },
+        [EClientRequest.ReadServiceLog]: { text: 'tail' },
+      },
+    })
+    const { shells, services } = registriesOf(stub.channel)
+    await settle()
+
+    expect(await shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD })).toBe('tail')
+    expect(await services.logTail({ serviceId: 'svc_1', characters: 100 })).toBe('tail')
+    expect(processRequests(stub)).toEqual([
+      {
+        op: EClientRequest.ReadShellOutput,
+        params: { threadId: 'thread-cloud', shellId: 'bash_1', characters: 100 },
+      },
+      { op: EClientRequest.ReadServiceLog, params: { serviceId: 'svc_1', characters: 100 } },
+    ])
+  })
+
+  it('reads a refusal from the sandbox as a refused outcome — and an empty read', async () => {
+    const stub = stubChannel({ answer: LIVE, refuseProcesses: true })
+    const { shells, services } = registriesOf(stub.channel)
+    await settle()
+
+    const started = await shells.start({ threadId: THREAD, command: 'ls', description: 'list' })
+    const killed = await shells.kill({ shellId: 'bash_1', by: EKilledBy.User, threadId: THREAD })
+    const stopped = await services.stop({ serviceId: 'svc_1', by: EKilledBy.User })
+
+    for (const outcome of [started, killed, stopped]) {
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.reason).toContain('unknown request op')
+    }
+    expect(
+      await shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD }),
+    ).toBeUndefined()
+    expect(await services.logTail({ serviceId: 'svc_1', characters: 100 })).toBe('')
+  })
+
+  it('hands a kill refusal from the sandbox back verbatim, and reads an unknown shell as empty', async () => {
+    const reason = 'no background shell is registered as "bash_9" for this conversation'
+    const stub = stubChannel({
+      answer: LIVE,
+      processAnswers: {
+        [EClientRequest.KillShell]: { ok: false, reason },
+        [EClientRequest.ReadShellOutput]: { ok: false, reason },
+      },
+    })
+    const { shells } = registriesOf(stub.channel)
+    await settle()
+
+    expect(await shells.kill({ shellId: 'bash_9', by: EKilledBy.User, threadId: THREAD })).toEqual({
+      ok: false,
+      reason,
+    })
+    expect(
+      await shells.peek({ shellId: 'bash_9', characters: 100, threadId: THREAD }),
+    ).toBeUndefined()
+  })
+
+  it('refuses legibly when the sandbox answers a process action with a shape this build does not know', async () => {
+    const puzzling = { puzzling: true }
+    const stub = stubChannel({
+      answer: LIVE,
+      processAnswers: {
+        [EClientRequest.StartShell]: puzzling,
+        [EClientRequest.KillShell]: puzzling,
+        [EClientRequest.StopService]: puzzling,
+        [EClientRequest.ReadShellOutput]: puzzling,
+      },
+    })
+    const { shells, services } = registriesOf(stub.channel)
+    await settle()
+
+    const started = await shells.start({ threadId: THREAD, command: 'ls', description: 'list' })
+    const killed = await shells.kill({ shellId: 'bash_1', by: EKilledBy.User, threadId: THREAD })
+    const stopped = await services.stop({ serviceId: 'svc_1', by: EKilledBy.User })
+
+    for (const outcome of [started, killed, stopped]) {
+      expect(outcome.ok).toBe(false)
+      if (!outcome.ok) expect(outcome.reason).toContain('a shape this build does not know')
+    }
+    expect(
+      await shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD }),
+    ).toBeUndefined()
+  })
+
+  it('keeps refusing what has no operator path over the channel: shell reads, service starts, spawns', async () => {
     const stub = stubChannel({ answer: LIVE })
     const { shells, agents, services } = registriesOf(stub.channel)
     await settle()
 
-    expect(shells.kill({ shellId: 'bash_1', by: 'user' as never, threadId: THREAD }).ok).toBe(false)
-    expect(shells.peek({ shellId: 'bash_1', characters: 100, threadId: THREAD })).toBeUndefined()
+    expect((await shells.read({ shellId: 'bash_1', threadId: THREAD })).ok).toBe(false)
+    expect(
+      (await services.start({ threadId: THREAD, command: 'redis-server', description: 'cache' }))
+        .ok,
+    ).toBe(false)
     expect(
       (await agents.spawn({ threadId: THREAD, agentType: 'explore', brief: 'x', intent: 'x' })).ok,
     ).toBe(false)
-    expect(services.stop({ serviceId: 'svc_1', by: 'user' as never }).ok).toBe(false)
+    expect(processRequests(stub)).toEqual([])
   })
 
   it('steers agents through the channel: say, resume and stop ride their own ops', async () => {

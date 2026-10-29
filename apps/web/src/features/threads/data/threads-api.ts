@@ -38,6 +38,9 @@ export const patchThreadModel = (args: {
   model: { ref: string; effort: string }
 }) => cloudCall(api.threads.chooseModel.mutate({ threadId: args.threadId, ...args.model }))
 
+export const rewindThread = (args: { threadId: string; toSeq: number; cutAgents: string[] }) =>
+  cloudCall(api.threads.rewind.mutate(args))
+
 export const setThreadArchived = (args: { threadId: string; archived: boolean }) =>
   cloudCall(api.threads.archive.mutate(args))
 

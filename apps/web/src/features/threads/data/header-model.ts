@@ -1,4 +1,4 @@
-import type { WireThread } from '@dltech/atlas-wire/web'
+import { EPullRequestStateWire, type PrStateWire, type WireThread } from '@dltech/atlas-wire/web'
 
 import { linkedPullRequestOf } from '@/features/shell/thread-status'
 
@@ -13,6 +13,8 @@ export type PullRequestBadge = {
   label: string
   stateLabel: string | undefined
   url: string
+  checksLabel?: string | undefined
+  mergeable?: boolean | undefined
 }
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
@@ -59,5 +61,41 @@ export function pullRequestBadgeOf(thread: WireThread | undefined): PullRequestB
     label: `#${pullRequest.number}`,
     stateLabel: pullRequest.state === undefined ? undefined : capitalized(pullRequest.state),
     url: pullRequest.url,
+  }
+}
+
+export const hasConflicts = (badge: PullRequestBadge): boolean =>
+  badge.mergeable === false && badge.stateLabel === capitalized(EPullRequestStateWire.Open)
+
+const SETTLED_STATES: ReadonlySet<EPullRequestStateWire> = new Set([
+  EPullRequestStateWire.Merged,
+  EPullRequestStateWire.Closed,
+])
+
+function checksLabelOf(state: PrStateWire): string | undefined {
+  if (SETTLED_STATES.has(state.state)) return undefined
+  if (state.checksFailed > 0) return `✕ ${state.checksFailed} failing`
+  if (state.checksRunning > 0) return `${state.checksRunning} running`
+  if (state.checksPassed > 0) return `✓ ${state.checksPassed} passing`
+  return undefined
+}
+
+export function livePullRequestBadgeOf(args: {
+  states: readonly PrStateWire[]
+  thread: WireThread | undefined
+}): PullRequestBadge | undefined {
+  if (args.thread === undefined) return undefined
+  const linked = linkedPullRequestOf(args.thread)
+  if (linked === undefined) return undefined
+  const state = args.states.find(
+    (candidate) => candidate.repo === linked.repo && candidate.number === linked.number,
+  )
+  if (state === undefined) return undefined
+  return {
+    label: `#${state.number}`,
+    stateLabel: capitalized(state.state),
+    url: state.url,
+    checksLabel: checksLabelOf(state),
+    ...(state.mergeable === null ? {} : { mergeable: state.mergeable }),
   }
 }

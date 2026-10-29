@@ -50,6 +50,27 @@ describe('SecretsRouter', () => {
     )
   })
 
+  it('lists secret names without any value or ciphertext', async () => {
+    await set('session-a', { name: 'search.tavily', value: 'tvly-plaintext' }).expect(200)
+    await set('session-a', { name: 'decisions.token.typesafe', value: 'jev-plaintext' }).expect(200)
+    await set('session-b', { name: 'search.exa', value: 'exa-plaintext' }).expect(200)
+    const sealed = (await secrets()).map((row) => row.sealedValue)
+
+    const reply = await query('secrets.names', 'session-a').expect(200)
+    expect(reply.body.result.data).toEqual({
+      names: ['decisions.token.typesafe', 'search.tavily'],
+    })
+    for (const leaked of ['tvly-plaintext', 'jev-plaintext', 'exa-plaintext', ...sealed]) {
+      expect(reply.text).not.toContain(leaked)
+    }
+  })
+
+  it('answers secrets.names to a session only', async () => {
+    await query('secrets.names').expect(401)
+    await query('secrets.names', 'pod-token-a').expect(401)
+    await query('secrets.names', 'sandbox-token-a').expect(401)
+  })
+
   it('rejects an unknown secret kind and scopes details to the caller', async () => {
     await set('session-a', { name: 'X', value: 'v', kind: 'weird' }).expect(400)
     await set('session-a', { name: 'X', value: 'v' }).expect(200)
