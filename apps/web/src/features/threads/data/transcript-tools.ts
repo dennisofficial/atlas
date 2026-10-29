@@ -9,6 +9,8 @@ import {
 } from '@dltech/atlas-client/transcript'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
+import { editBodyOf, type EditBody } from './transcript-edit-body'
+
 const OUTPUT_LIMIT = 4_000
 export const FAILED_FALLBACK = 'The run failed.'
 
@@ -26,6 +28,7 @@ export type ToolCallItem = {
   title?: string
   family?: EToolFamily
   path?: string
+  change?: EditBody
   at?: string
   output?: string
   errorText?: string
@@ -88,6 +91,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
   const elapsed = elapsedOf(call)
   const kind = KIND_OF_TOOL[call.name]
   const path = editPathOf(call)
+  const change = kind === EToolKind.Edit ? editBodyOf({ call, state }) : undefined
   return {
     id: call.callId,
     kind: kind ?? EToolKind.Shell,
@@ -98,6 +102,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
       : {}),
     label: targetOf({ call, cwd: '' }) ?? str(inputOf(call).url) ?? call.name,
     ...(path === undefined ? {} : { path }),
+    ...(change === undefined ? {} : { change }),
     ...(state === EToolState.Done && clipped(call.modelText) !== undefined
       ? { output: clipped(call.modelText) }
       : {}),

@@ -4,9 +4,11 @@ import type { ReactNode } from 'react'
 import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
+import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
+import { CodeBlock, CodeBlockContent } from '@dltech/atlas-ui/components/code-block'
 import { Trace } from '@dltech/atlas-ui/components/trace'
 
-import { EToolFamily, type ToolCallItem } from '../data/transcript-items'
+import { EEditBody, EToolFamily, type EditBody, type ToolCallItem } from '../data/transcript-items'
 import { useThreadPanel } from '../panel/thread-panel-context'
 
 const ICON_OF_FAMILY: Record<EToolFamily, ReactNode> = {
@@ -19,6 +21,19 @@ const OPENABLE_STATES: readonly EToolState[] = [EToolState.Running, EToolState.D
 
 const isOpenableEdit = (call: ToolCallItem): call is ToolCallItem & { path: string } =>
   call.kind === EToolKind.Edit && call.path !== undefined && OPENABLE_STATES.includes(call.state)
+
+function EditBodyView({ body, label }: { body: EditBody; label: string }) {
+  if (body.kind === EEditBody.Diff) {
+    return <DiffViewer path={label} lines={body.lines} added={body.added} removed={body.removed} />
+  }
+  return (
+    <CodeBlock size="sm">
+      <CodeBlockContent lineNumbers startLine={body.firstLine} className="max-h-64">
+        {body.text}
+      </CodeBlockContent>
+    </CodeBlock>
+  )
+}
 
 function EditToolRow({ call }: { call: ToolCallItem & { path: string } }) {
   const { openChanges } = useThreadPanel()
@@ -33,6 +48,7 @@ function EditToolRow({ call }: { call: ToolCallItem & { path: string } }) {
       >
         <ToolLine kind={call.kind} state={call.state} label={call.label} elapsed={call.elapsed} />
       </button>
+      {call.change === undefined ? null : <EditBodyView body={call.change} label={call.label} />}
     </Trace>
   )
 }
