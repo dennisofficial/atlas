@@ -19,6 +19,10 @@ import { fakeSdk } from './pod-provision.sdk.fixture'
 import { PodLaunchService } from './pod-launch.service'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
 import type { ServeSendArgs } from './serve-send'
+import type {
+  ThreadTitlingService,
+  TitleFirstMessage,
+} from '../thread-titling/thread-titling.service'
 import { ThreadLaunchService } from './thread-launch.service'
 import { ThreadMessagesService } from './thread-messages.service'
 
@@ -137,9 +141,18 @@ export function launchWith(
   args: { scoped?: ScopedConfigService; dispatcher?: ReturnType<typeof fakeDispatcher> } = {},
 ) {
   const launched = podLaunchWith(args)
+  const titleFirstMessage = vi.fn(async (_titling: TitleFirstMessage) => undefined)
+  const keepAlive = vi.fn((_work: Promise<unknown>) => undefined)
   return {
-    service: new ThreadLaunchService(new ThreadsService(inertSignals()), launched.pod),
+    service: new ThreadLaunchService(
+      new ThreadsService(inertSignals()),
+      launched.pod,
+      { keepAlive },
+      { titleFirstMessage } as unknown as ThreadTitlingService,
+    ),
     dispatch: launched.dispatch,
+    titleFirstMessage,
+    keepAlive,
   }
 }
 
