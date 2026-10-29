@@ -9,6 +9,7 @@ import React, {
 
 import { projectOf, type ThreadId } from '@dltech/atlas-core'
 
+import { cachedTranscripts } from './cached-transcript-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
 
@@ -56,6 +57,10 @@ export function App(props: {
   const registry = useMemo(() => createKeyRegistry(), [])
   const owner = props.app.sessionOwner
   const snapshot = useSyncExternalStore(owner.subscribe, owner.snapshot)
+  const cached = useSyncExternalStore(
+    cachedTranscripts(props.app).subscribe,
+    cachedTranscripts(props.app).snapshot,
+  )
   const [reopened, setReopened] = useState<OpenedConversation | null>(null)
   const [reloaded, setReloaded] = useState<ReloadedSession | null>(null)
 
@@ -185,7 +190,9 @@ export function App(props: {
     attachment?.kind === 'local' && attachment.opened.threadId === reopened?.threadId
       ? attachment.opened
       : undefined
-  const openedFor = reloadedHere?.opened ?? cloudOpened ?? localOpened ?? reopened ?? props.opened
+  const cachedHere = cloud === undefined && cached?.threadId === snapshot.threadId ? cached : null
+  const openedFor =
+    reloadedHere?.opened ?? cloudOpened ?? cachedHere ?? localOpened ?? reopened ?? props.opened
   const carried = draftReader.current?.()
   const draftText =
     carried !== undefined && carried.threadId === openedFor.threadId ? carried.text : ''
@@ -195,7 +202,9 @@ export function App(props: {
       <Workspace
         key={
           cloud === undefined
-            ? `local:${reopened?.threadId ?? props.opened.threadId}`
+            ? cachedHere !== null
+              ? `cached:${cachedHere.threadId}`
+              : `local:${reopened?.threadId ?? props.opened.threadId}`
             : `cloud:${cloud.opened.threadId}:${keyOf(snapshot.binding)}:${reloadedHere?.reloads ?? 0}`
         }
         app={app}

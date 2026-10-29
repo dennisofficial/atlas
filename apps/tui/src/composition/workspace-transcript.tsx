@@ -39,6 +39,7 @@ export function WorkspaceTranscript(props: {
   conversation: Pick<
     Conversation,
     | 'threadId'
+    | 'sessionName'
     | 'model'
     | 'now'
     | 'projectDirectory'
@@ -88,7 +89,7 @@ export function WorkspaceTranscript(props: {
   )
   const updating = connection === EConnectionView.Updating
   const loadingTranscript = transcriptLoading({
-    welcome,
+    empty: conversation.model.isEmpty,
     bootingCloudThread: props.bootingCloudThread,
     attachFailed: attachFailed !== null,
     firstReadLanded: (cloudHealth?.lastSeenAt ?? null) !== null,
@@ -101,7 +102,7 @@ export function WorkspaceTranscript(props: {
       )}
       <box flexGrow={welcome ? 1 : 0} flexShrink={1} />
       {loadingTranscript ? (
-        <TranscriptLoading />
+        <TranscriptLoading name={conversation.sessionName} />
       ) : welcome && !attachClosed ? (
         <WelcomeScreen
           cwd={app.config.cwd}

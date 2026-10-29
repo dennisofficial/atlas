@@ -84,7 +84,7 @@ export function Workspace(props: WorkspaceProps): React.ReactNode {
     frame,
     conversation,
     addressing: agentView.addressing,
-    booting: inlineBoot.active,
+    booting: inlineBoot.active || props.opened.bootCloudThreadId !== undefined,
   })
   const sidebarNaming = useWorkspaceNaming({ conversation })
 

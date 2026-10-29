@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toEventId, toRunId, toThreadId, type Event, type ThreadId } from '@dltech/atlas-core'
 import { transcriptIdentityDigest } from '@dltech/atlas-harness'
 
-import { readThreadSnapshot, THREAD_WINDOW_EVENTS } from '../thread-reads'
+import { readThreadSnapshot, snapshotOf, THREAD_WINDOW_EVENTS } from '../thread-reads'
 import { EThreadRows } from '../use-thread-view'
 import { fakeEventLog, SPEC_SHARD } from './fake-backend'
 
@@ -116,5 +116,25 @@ describe('readThreadSnapshot', () => {
     expect(second.identity.head).toBe(first.identity.head)
     expect(second.identity.count).toBe(first.identity.count)
     expect(second.identity.digest).not.toBe(first.identity.digest)
+  })
+})
+
+describe('snapshotOf', () => {
+  it('matches readThreadSnapshot over the same events', async () => {
+    const events = Array.from({ length: THREAD_WINDOW_EVENTS + 20 }, (_, i) =>
+      said(`s ${i}`, i + 1),
+    )
+    const read = await readThreadSnapshot({
+      log: fakeEventLog(events),
+      threadId: THREAD,
+      rows: EThreadRows.Composed,
+      effects,
+      digest: transcriptIdentityDigest,
+    })
+    const direct = snapshotOf({ events: read.all, effects, digest: transcriptIdentityDigest })
+
+    expect(direct.identity).toEqual(read.identity)
+    expect(direct.events).toEqual(read.events)
+    expect(direct.fromSeq).toBe(read.fromSeq)
   })
 })
