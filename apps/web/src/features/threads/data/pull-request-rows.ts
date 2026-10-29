@@ -16,6 +16,7 @@ export type PullRequestRow = {
   state: string | undefined
   checks: ChecksTally | undefined
   conflicts: boolean
+  via: string | undefined
 }
 
 export type PullRequestList = {
@@ -33,6 +34,7 @@ export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
     state: entry.state,
     checks: checksTallyOf(entry),
     conflicts: entryHasConflicts(entry),
+    via: entry.via === undefined ? undefined : `via ${entry.via.title ?? 'teammate'}`,
   }
 }
 

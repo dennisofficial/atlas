@@ -23,6 +23,7 @@ export const wireThreadSchema = z.object({
         repo: z.string(),
         branch: z.string(),
         state: z.string().optional(),
+        via: z.object({ threadId: z.string(), title: z.string().nullable() }).optional(),
       }),
     )
     .optional(),

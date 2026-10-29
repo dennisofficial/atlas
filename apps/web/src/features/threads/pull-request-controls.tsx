@@ -107,6 +107,9 @@ function PullRequestRowItem(props: {
       >
         <span className="font-medium tabular-nums">{row.label}</span>
         <span className="truncate font-mono text-xs text-muted-foreground">{row.branch}</span>
+        {row.via === undefined ? null : (
+          <span className="truncate text-xs text-muted-foreground">{row.via}</span>
+        )}
       </a>
       <span className="flex shrink-0 flex-col items-end text-xs">
         {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}

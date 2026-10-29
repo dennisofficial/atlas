@@ -1,5 +1,6 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { threadPullRequests, threadWorktree } from './places'
+import { spawnedPullRequests } from './spawned-pull-requests'
 import { withPullRequestStates } from './pull-request-state'
 import { toThreadDto } from './rows'
 import type { ThreadDto } from './sessions.types'
@@ -13,10 +14,16 @@ export async function enrichThreads(args: {
   const { rows } = args
   const places = await Promise.all(
     rows.map(async (row) => {
-      const [worktree, pullRequests] = await Promise.all([
+      const [worktree, own, spawned] = await Promise.all([
         threadWorktree({ reader: db, threadId: row.id }),
         threadPullRequests({ reader: db, threadId: row.id }),
+        spawnedPullRequests({ reader: db, threadId: row.id }),
       ])
+      const ownKeys = new Set(own.map((pr) => `${pr.repo}#${pr.number}`))
+      const pullRequests = [
+        ...own,
+        ...spawned.filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
+      ]
       return { row, worktree, pullRequests }
     }),
   )

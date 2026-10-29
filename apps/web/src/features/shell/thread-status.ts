@@ -15,7 +15,9 @@ const MERGED = 'merged'
 const CLOSED = 'closed'
 
 function pullRequestStatusOf(thread: WireThread): EThreadStatus {
-  const pullRequests = thread.pullRequests ?? []
+  const pullRequests = (thread.pullRequests ?? []).filter(
+    (pullRequest) => pullRequest.via === undefined,
+  )
   if (
     pullRequests.some((pullRequest) => pullRequest.state !== CLOSED && pullRequest.state !== MERGED)
   ) {
