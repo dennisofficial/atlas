@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { threadActivityAt } from './github-thread-activity'
 import { dtoOf, liveUntilOf, subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
@@ -260,12 +261,10 @@ export class GithubSubscriptionsService {
 
   private async liveCeiling(args: { threadId: string | null; expiresAt: Date }): Promise<Date> {
     if (args.threadId === null) return args.expiresAt
-    const sandbox = await db.orm.public.CloudSandbox.select('lastActivityAt').first({
-      threadId: args.threadId,
-    })
+    const activity = await threadActivityAt({ threadIds: [args.threadId] })
     return liveUntilOf({
       expiresAt: args.expiresAt,
-      sandboxLastActivityAt: sandbox === null ? null : sandbox.lastActivityAt,
+      sandboxLastActivityAt: activity.get(args.threadId) ?? null,
     })
   }
 

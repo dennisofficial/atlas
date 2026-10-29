@@ -6,6 +6,7 @@ export const PR_FRAME_CHANNEL = 'atlas:github-pr'
 export enum EPrFrameKind {
   State = 'state',
   Event = 'event',
+  Wake = 'wake',
 }
 
 export type PrFrame =
@@ -16,6 +17,7 @@ export type PrFrame =
       payload: GithubPrEventDto
       ackId?: string
     }
+  | { kind: EPrFrameKind.Wake; userIds: readonly string[]; payload: { threadId: string } }
 
 const stateSchema = z.object({
   repoFullName: z.string(),
@@ -61,6 +63,11 @@ const prFrameSchema: z.ZodType<PrFrame> = z.discriminatedUnion('kind', [
     userIds: z.array(z.string()),
     payload: eventSchema,
     ackId: z.string().exactOptional(),
+  }),
+  z.object({
+    kind: z.literal(EPrFrameKind.Wake),
+    userIds: z.array(z.string()),
+    payload: z.object({ threadId: z.string() }),
   }),
 ])
 

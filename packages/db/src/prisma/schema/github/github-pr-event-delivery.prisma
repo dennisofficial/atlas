@@ -1,0 +1,10 @@
+// use prisma-8
+model GithubPrEventDelivery {
+  eventId     String
+  threadId    String
+  deliveredAt TimestamptzJsDate(3) @default(now())
+  event       GithubPrEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([eventId, threadId])
+  @@index([threadId], map: "GithubPrEventDelivery_threadId_idx")
+}
