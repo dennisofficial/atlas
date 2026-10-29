@@ -36,7 +36,7 @@ export function ThreadLayout(props: ThreadLayoutProps) {
       <>
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
-          <SheetContent side="right">
+          <SheetContent side="right" className="gap-0 bg-card p-0">
             <div className="sr-only">
               <SheetHeader>
                 <SheetTitle>Thread panel</SheetTitle>
@@ -45,9 +45,7 @@ export function ThreadLayout(props: ThreadLayoutProps) {
                 </SheetDescription>
               </SheetHeader>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg">
-              <RightPanel tab={tab} onTabChange={onTabChange} />
-            </div>
+            <RightPanel tab={tab} onTabChange={onTabChange} tabBarClassName="pr-12" />
           </SheetContent>
         </Sheet>
       </>
