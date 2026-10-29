@@ -5,6 +5,8 @@ import { CloudError } from './cloud-transport'
 
 const CONFLICT = 409
 
+export const LOCAL_POD_CHECKPOINT_READ_DEADLINE_MS = 1_500
+
 type OwnerSessionCall = {
   url: string
   sessionToken: string
@@ -47,7 +49,10 @@ export const readLocalPodCheckpoint = async (
   args: OwnerSessionCall,
 ): Promise<RuntimeCheckpoint | null> => {
   const body = await cloudCall(
-    ownerApi(args).localPodCheckpoint.get.query({ threadId: args.threadId }),
+    ownerApi(args).localPodCheckpoint.get.query(
+      { threadId: args.threadId },
+      { signal: AbortSignal.timeout(LOCAL_POD_CHECKPOINT_READ_DEADLINE_MS) },
+    ),
     { allowMissing: true },
   )
   if (body === undefined || body === null) return null

@@ -3,7 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import { ERuntimePhase, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
 import { CloudError } from '../cloud-transport'
-import { readLocalPodCheckpoint, registerLocalPodThread } from '../local-pod-registration'
+import {
+  LOCAL_POD_CHECKPOINT_READ_DEADLINE_MS,
+  readLocalPodCheckpoint,
+  registerLocalPodThread,
+} from '../local-pod-registration'
 
 type Seen = { url: string; method: string | undefined; auth: string | null; body: unknown }
 
@@ -125,6 +129,23 @@ describe('readLocalPodCheckpoint', () => {
     const { fetchFn } = recording(() => failure({ status: 404, code: 'NOT_FOUND' }))
 
     expect(await read(fetchFn)).toBeNull()
+  })
+
+  it('gives up on an unanswering control plane within its deadline instead of retrying', async () => {
+    let attempts = 0
+    const hanging = ((_input: unknown, init?: RequestInit) => {
+      attempts += 1
+      return new Promise<Response>((_resolve, reject) => {
+        if (init?.signal?.aborted === true) reject(init.signal.reason)
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+      })
+    }) as typeof fetch
+    const started = Date.now()
+
+    await expect(read(hanging)).rejects.toBeDefined()
+
+    expect(Date.now() - started).toBeLessThan(LOCAL_POD_CHECKPOINT_READ_DEADLINE_MS + 3_000)
+    expect(attempts).toBeLessThanOrEqual(2)
   })
 
   it('answers null on a malformed reply', async () => {

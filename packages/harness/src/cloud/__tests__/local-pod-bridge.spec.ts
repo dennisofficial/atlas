@@ -215,6 +215,26 @@ describe('createLocalPodBridge birth', () => {
     expect(logged).toEqual(['thread registration failed: signed out'])
   })
 
+  it('still boots the pod when the registrar throws before returning a promise', async () => {
+    const { driver, created } = fakePodDriver({ created: true })
+    const logged: string[] = []
+
+    await podBridgeWith({
+      driver,
+      overrides: {
+        registerThread: () => {
+          throw new Error('sign in to Atlas Cloud to start a session')
+        },
+        onDriverLog: (line) => logged.push(line),
+      },
+    }).sandboxes.create({ threadId, projectId: null, birth: { effort: 'low' } })
+
+    expect(created).toHaveLength(1)
+    expect(logged).toEqual([
+      'thread registration failed: sign in to Atlas Cloud to start a session',
+    ])
+  })
+
   it('offers no sandbox registration, authorization, omission or checkpoint hooks', () => {
     const { driver } = fakePodDriver({ created: true })
     const bridge = podBridgeWith({ driver })
