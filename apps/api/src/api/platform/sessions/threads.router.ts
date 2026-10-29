@@ -7,6 +7,7 @@ import {
   createThreadOutputSchema,
   forkThreadInputSchema,
   listThreadsInputSchema,
+  markThreadReadInputSchema,
   openThreadInputSchema,
   openThreadReplySchema,
   recentThreadInputSchema,
@@ -23,6 +24,7 @@ import {
   type CreateThreadInput,
   type ForkThreadInput,
   type ListThreadsInput,
+  type MarkThreadReadInput,
   type OpenThreadInput,
   type RecentThreadInput,
   type RenameThreadInput,
@@ -44,6 +46,7 @@ import {
 } from './session-or-sandbox.middleware'
 import type { EventDto, ThreadDto } from './sessions.types'
 import { ThreadArchiveService } from './thread-archive.service'
+import { ThreadReadService } from './thread-read.service'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
 
@@ -75,6 +78,7 @@ export class ThreadsRouter {
     private readonly history: ThreadsHistoryService,
     private readonly launcher: ThreadLauncher,
     private readonly archival: ThreadArchiveService,
+    private readonly reads: ThreadReadService,
   ) {}
 
   @Mutation({ input: createThreadInputSchema, output: createThreadOutputSchema, meta: spawnMeta })
@@ -161,6 +165,21 @@ export class ThreadsRouter {
       userId: ctx.auth.userId,
       threadId: input.threadId,
       archived: input.archived,
+    })
+  }
+
+  @Mutation({ input: markThreadReadInputSchema, output: z.void(), meta: readMeta })
+  async markRead(
+    @Input() input: MarkThreadReadInput,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<void> {
+    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
+      throw new ForbiddenException('only the thread owner can mark a thread read')
+    }
+    await this.reads.markRead({
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      seq: input.seq,
     })
   }
 

@@ -18,6 +18,7 @@ import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadSignalsService } from './thread-signals.service'
 import { ThreadArchiveService } from './thread-archive.service'
+import { ThreadReadService } from './thread-read.service'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadTurnsRouter } from './thread-turns.router'
 import { ThreadsHistoryService } from './threads-history.service'
@@ -74,6 +75,7 @@ export type RouterFakes = {
   threads?: object
   history?: object
   archive?: object
+  reads?: object
   launcher?: object
   events?: object
   turns?: object
@@ -96,6 +98,7 @@ export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestEx
       { provide: ThreadsService, useValue: fakes.threads ?? {} },
       { provide: ThreadsHistoryService, useValue: fakes.history ?? {} },
       { provide: ThreadArchiveService, useValue: fakes.archive ?? {} },
+      { provide: ThreadReadService, useValue: fakes.reads ?? {} },
       { provide: ThreadLauncher, useValue: fakes.launcher ?? {} },
       { provide: EventsService, useValue: fakes.events ?? {} },
       { provide: TurnsService, useValue: fakes.turns ?? {} },

@@ -212,7 +212,10 @@ export class ThreadsService {
   }
 
   async find(args: { userId: string; threadId: string }): Promise<ThreadDto> {
-    const [thread] = await enrichThreads([await this.ownedThread(args)])
+    const [thread] = await enrichThreads({
+      rows: [await this.ownedThread(args)],
+      viewerId: args.userId,
+    })
     if (thread === undefined) throw new NotFoundException('thread not found')
     return thread
   }
@@ -254,7 +257,7 @@ export class ThreadsService {
       .orderBy((thread) => thread.updatedAt.desc())
       .limit(args.limit ?? THREAD_LISTING_LIMIT)
       .all()
-    return enrichThreads(rows)
+    return enrichThreads({ rows, viewerId: args.userId })
   }
 
   async rename(args: {

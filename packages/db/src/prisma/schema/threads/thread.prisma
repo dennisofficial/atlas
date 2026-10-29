@@ -19,10 +19,16 @@ model Thread {
   userId            String
   pinnedAt          TimestamptzJsDate(3)?
   archivedAt        TimestamptzJsDate(3)?
+  working           Boolean              @default(false)
+  awaiting          String?
+  lastOutcome       String?
+  activityAt        TimestamptzJsDate(3)?
+  lastAssistantSeq  Int                  @default(0)
   cloudSandbox      CloudSandbox?
   bootSteps         SandboxBootStep[]
   events            Event[]
   turns             Turn[]
+  reads             ThreadRead[]
   user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Thread_userId_updatedAt_idx")
   parent            Thread?              @relation(name: "Thread_parent", fields: [parentThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   spawner           Thread?              @relation(name: "Thread_spawner", fields: [spawnerThreadId], references: [id], onDelete: SetNull, onUpdate: NoAction)

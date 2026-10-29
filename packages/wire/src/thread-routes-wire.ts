@@ -85,6 +85,12 @@ export type RenameThreadInput = z.infer<typeof renameThreadInputSchema>
 export const archiveThreadInputSchema = threadIdInputSchema.extend({ archived: z.boolean() })
 export type ArchiveThreadInput = z.infer<typeof archiveThreadInputSchema>
 
+export const markThreadReadInputSchema = z.strictObject({
+  threadId: z.string().min(1),
+  seq: z.number().int().min(0),
+})
+export type MarkThreadReadInput = z.infer<typeof markThreadReadInputSchema>
+
 export const chooseThreadModelInputSchema = threadIdInputSchema.extend({
   ref: z.string().min(1),
   effort: z.string().min(1),

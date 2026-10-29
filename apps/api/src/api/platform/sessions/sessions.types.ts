@@ -40,6 +40,8 @@ export type ThreadDraft = {
 
 export type ThreadSubscriptionDto = NonNullable<WireThread['subscriptions']>[number]
 
+export type ThreadStatusDto = NonNullable<WireThread['status']>
+
 export type ThreadDto = {
   id: string
   title?: string | undefined
@@ -59,6 +61,7 @@ export type ThreadDto = {
   projectId?: string | null | undefined
   pinnedAt?: string | null | undefined
   archivedAt?: string | null | undefined
+  status?: ThreadStatusDto | undefined
 }
 
 export type EventDto = {

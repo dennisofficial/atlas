@@ -5,6 +5,8 @@ import { nextEventId } from '../sessions/append'
 import { lockThread } from '../sessions/thread-head'
 import type { ThreadSignalPublisher } from '../sessions/thread-signals.service'
 
+const ASSISTANT_SAID = 'assistant-said'
+
 const conflictAt = (seq: number): ConflictException =>
   new ConflictException({
     code: POD_EVENT_CONFLICT_CODE,
@@ -26,9 +28,9 @@ export async function applyPodEvents(args: {
   threadId: string
   events: readonly PodEvent[]
   signals: ThreadSignalPublisher
-}): Promise<PodEventsReply> {
+}): Promise<PodEventsReply & { assistantMoved: boolean }> {
   const { threadId, events } = args
-  const { head, moved } = await db.transaction(async (tx) => {
+  const { head, moved, assistantMoved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const seqs = events.map((event) => event.seq)
@@ -51,7 +53,7 @@ export async function applyPodEvents(args: {
       fresh.push(event)
     }
 
-    if (fresh.length === 0) return { head: thread.head, moved: false }
+    if (fresh.length === 0) return { head: thread.head, moved: false, assistantMoved: false }
     await tx.orm.public.Event.createAndCount(
       fresh.map((event) => ({
         id: nextEventId(),
@@ -70,30 +72,50 @@ export async function applyPodEvents(args: {
       })),
     )
     const head = Math.max(thread.head, previous)
-    await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
-    return { head, moved: true }
+    const lastAssistantSeq = fresh
+      .filter((event) => event.type === ASSISTANT_SAID)
+      .reduce((max, event) => Math.max(max, event.seq), thread.lastAssistantSeq)
+    await tx.orm.public.Thread.where({ id: threadId }).update({
+      head,
+      lastAssistantSeq,
+      updatedAt: new Date(),
+    })
+    return {
+      head,
+      moved: true,
+      assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
+    }
   })
   if (moved) await args.signals.headMoved({ threadId, head })
-  return { head }
+  return { head, assistantMoved }
 }
 
 export async function truncatePodEvents(args: {
   threadId: string
   toSeq: number
   signals: ThreadSignalPublisher
-}): Promise<PodEventsReply> {
+}): Promise<PodEventsReply & { assistantMoved: boolean }> {
   const { threadId, toSeq } = args
-  const { head, moved } = await db.transaction(async (tx) => {
+  const { head, moved, assistantMoved } = await db.transaction(async (tx) => {
     await lockThread({ tx, threadId })
     const thread = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     await tx.orm.public.Event.where({ threadId })
       .where((row) => row.seq.gt(toSeq))
       .deleteAndCount()
     const head = Math.min(thread.head, toSeq)
-    if (head === thread.head) return { head, moved: false }
-    await tx.orm.public.Thread.where({ id: threadId }).update({ head, updatedAt: new Date() })
-    return { head, moved: true }
+    if (head === thread.head) return { head, moved: false, assistantMoved: false }
+    const lastAssistantSeq = Math.min(thread.lastAssistantSeq, head)
+    await tx.orm.public.Thread.where({ id: threadId }).update({
+      head,
+      lastAssistantSeq,
+      updatedAt: new Date(),
+    })
+    return {
+      head,
+      moved: true,
+      assistantMoved: lastAssistantSeq !== thread.lastAssistantSeq,
+    }
   })
   if (moved) await args.signals.headMoved({ threadId, head })
-  return { head }
+  return { head, assistantMoved }
 }

@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
 import { db, violatedConstraint, type Row, type Tx } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { parkedOf, wakeableOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
+import { wakeableOf } from '../../platform/sandboxes/sandbox-lifecycle'
+import { failedAfterClaim, standingStateOf } from '../../platform/sandboxes/pod-state'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { mintSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
@@ -15,31 +16,17 @@ export const SANDBOX_BUSY_MESSAGE = 'The sandbox is busy. Try again in a moment.
 export const LOCAL_POD_MESSAGE =
   'This thread runs in a local pod on your machine — open it from the Atlas TUI there.'
 
+export { failedAfterClaim, standingStateOf }
+
 export type RowWriter = Pick<Tx, 'orm'>
 
 export type RowClaim = { token: string; wakeClaim: Date; name: string; sandboxId: string }
-
-export const failedAfterClaim = (row: Row<'CloudSandbox'>): boolean =>
-  row.wakeFailedAt !== null &&
-  (row.wakeClaim === null || row.wakeFailedAt.getTime() >= row.wakeClaim.getTime())
 
 export const relaunchableOf = (row: Row<'CloudSandbox'> | null): boolean =>
   row === null || wakeableOf(row) || failedAfterClaim(row)
 
 export const appendableOf = (row: Row<'CloudSandbox'> | null): boolean =>
   relaunchableOf(row) || (row !== null && standingStateOf(row) === ESandboxProvisionState.Booting)
-
-export function standingStateOf(row: Row<'CloudSandbox'>): ESandboxProvisionState | undefined {
-  if (row.state === ESandboxState.Running && row.serveUrl && !parkedOf(row)) {
-    return ESandboxProvisionState.Running
-  }
-  const failedAfterClaim =
-    row.wakeFailedAt !== null &&
-    row.wakeClaim !== null &&
-    row.wakeFailedAt.getTime() > row.wakeClaim.getTime()
-  if (wakeClaimActive(row) && !failedAfterClaim) return ESandboxProvisionState.Booting
-  return undefined
-}
 
 function tokenOfExisting(args: { existing: Row<'CloudSandbox'>; cipher: SecretCipherService }): {
   token: string
