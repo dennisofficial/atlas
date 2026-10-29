@@ -6766,9 +6766,11 @@
                 },
                 {
                   "columns": [
-                    "userId"
+                    "userId",
+                    "type",
+                    "at"
                   ],
-                  "name": "Event_userId_idx",
+                  "name": "Event_userId_type_at_idx",
                   "unique": false
                 }
               ],
@@ -7138,7 +7140,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "GithubPrEventDelivery_eventId_idx_6a266d47"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -7161,14 +7163,6 @@
               "indexes": [
                 {
                   "columns": [
-                    "eventId"
-                  ],
-                  "name": "GithubPrEventDelivery_eventId_idx_6a266d47",
-                  "prefix": "GithubPrEventDelivery_eventId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
                     "threadId"
                   ],
                   "name": "GithubPrEventDelivery_threadId_idx",
@@ -7179,7 +7173,8 @@
                 "columns": [
                   "eventId",
                   "threadId"
-                ]
+                ],
+                "name": "GithubPrEventDelivery_pkey"
               },
               "uniques": []
             },
@@ -9011,7 +9006,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Session_userId_idx_a489d58a"
+                    "name": "Session_userId_updatedAt_idx"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9107,14 +9102,6 @@
                     "projectId"
                   ],
                   "name": "Session_projectId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "userId"
-                  ],
-                  "name": "Session_userId_idx_a489d58a",
-                  "prefix": "Session_userId_idx",
                   "unique": false
                 },
                 {
@@ -9521,7 +9508,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "ThreadRead_userId_idx_a489d58a"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9569,21 +9556,14 @@
                   ],
                   "name": "ThreadRead_threadId_idx",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "userId"
-                  ],
-                  "name": "ThreadRead_userId_idx_a489d58a",
-                  "prefix": "ThreadRead_userId_idx",
-                  "unique": false
                 }
               ],
               "primaryKey": {
                 "columns": [
                   "userId",
                   "threadId"
-                ]
+                ],
+                "name": "ThreadRead_pkey"
               },
               "uniques": []
             },
@@ -10045,7 +10025,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a7d41c08974879da5ec02d956fc526de4d5f955818d32119a17019e198d0a159"
+    "storageHash": "a81a3193f0178f2224163adb9fff0d54f35cc4c56dfe45ff7afe1c194562efd7"
   },
   "execution": {
     "executionHash": "0f1ea8c488602161383a2653ee08481911f3cb5f2aa8cce158610734a6a5c80d",
