@@ -73,6 +73,7 @@ export class ThreadLaunchService extends ThreadLauncher {
 
     const row = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
     const thread = toThreadDto(row)
+    if (!existing) await this.threads.announceCreated({ userId, threadId })
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
     const dispatched = claim === null || (await this.pod.dispatch({ threadId, claim }))

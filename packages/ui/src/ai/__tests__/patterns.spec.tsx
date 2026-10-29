@@ -127,6 +127,14 @@ describe('Sources', () => {
     expect(html).toContain('a.dev')
     expect(html).toContain('(opens in a new tab)')
   })
+
+  it('draws a single source as its own link, not a group of one', () => {
+    const html = renderToStaticMarkup(<Sources sources={[{ url: 'https://a.dev/x' }]} />)
+
+    expect(html).not.toContain('Used 1 source')
+    expect(html).not.toContain('trace-collapsible-trigger')
+    expect(html).toContain('href="https://a.dev/x"')
+  })
 })
 
 describe('StackTrace', () => {

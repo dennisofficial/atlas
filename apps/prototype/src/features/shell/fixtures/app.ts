@@ -6,6 +6,9 @@ export enum EThreadStatus {
   AwaitingApproval = 'awaiting-approval',
   PrOpen = 'pr-open',
   PrMerged = 'pr-merged',
+  Starting = 'starting',
+  Failed = 'failed',
+  PrClosed = 'pr-closed',
 }
 
 export enum ECiStatus {
@@ -37,6 +40,7 @@ export interface AppThread {
   changed: number
   model: string
   archived?: boolean
+  unread?: boolean
   href?: string
 }
 
@@ -91,6 +95,7 @@ export const THREADS: AppThread[] = [
     projectId: 'atlas',
     title: 'Wire sandbox snapshots into project settings',
     status: EThreadStatus.PrOpen,
+    unread: true,
     created: '8h ago',
     updated: '2h ago',
     added: 2200,
@@ -103,6 +108,7 @@ export const THREADS: AppThread[] = [
     projectId: 'atlas',
     title: 'Migrate wire schemas to zod 4',
     status: EThreadStatus.AwaitingApproval,
+    unread: true,
     created: '5h ago',
     updated: '12m ago',
     added: 412,
@@ -126,7 +132,8 @@ export const THREADS: AppThread[] = [
     id: 'thr-tui-perf',
     projectId: 'atlas',
     title: 'Trim OpenTUI repaint cost',
-    status: EThreadStatus.Idle,
+    status: EThreadStatus.Failed,
+    unread: true,
     created: '3d ago',
     updated: '3d ago',
     added: 96,
@@ -138,7 +145,7 @@ export const THREADS: AppThread[] = [
     id: 'thr-ticket-pdf',
     projectId: 'rs-crm',
     title: 'Service ticket PDF export',
-    status: EThreadStatus.Idle,
+    status: EThreadStatus.PrClosed,
     created: '1d ago',
     updated: '20h ago',
     added: 540,
@@ -150,7 +157,7 @@ export const THREADS: AppThread[] = [
     id: 'thr-qbo-sync',
     projectId: 'rs-crm',
     title: 'QuickBooks invoice sync',
-    status: EThreadStatus.PrOpen,
+    status: EThreadStatus.Starting,
     created: '6h ago',
     updated: '1h ago',
     added: 1300,
@@ -175,6 +182,7 @@ export const THREADS: AppThread[] = [
     projectId: 'comp-v2',
     title: 'Pin the ProseMirror family together',
     status: EThreadStatus.PrMerged,
+    unread: true,
     created: '4d ago',
     updated: '3d ago',
     added: 24,

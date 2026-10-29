@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { announceSubscriberThreads } from './github-list-signals'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
@@ -52,6 +54,7 @@ export class GithubDeliveryService {
     private readonly cipher: SecretCipherService,
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async handle(args: { event: string; payload: unknown }): Promise<{ handled: boolean }> {
@@ -237,6 +240,7 @@ export class GithubDeliveryService {
     const state = dtoOf(row)
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     this.fanout.push({ userIds, state })
+    await announceSubscriberThreads({ signals: this.signals, subscribers })
 
     await pushPrTransitions({ mailbox: this.mailbox, prior, row, userIds })
   }

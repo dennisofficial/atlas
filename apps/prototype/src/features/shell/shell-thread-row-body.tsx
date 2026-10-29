@@ -20,7 +20,20 @@ export interface ThreadRowBodyProps {
 }
 
 function hasPullRequest(thread: AppThread): boolean {
-  return thread.status === EThreadStatus.PrOpen || thread.status === EThreadStatus.PrMerged
+  return (
+    thread.status === EThreadStatus.PrOpen ||
+    thread.status === EThreadStatus.PrMerged ||
+    thread.status === EThreadStatus.PrClosed
+  )
+}
+
+function UnreadDot({ thread }: { thread: AppThread }) {
+  if (thread.unread !== true) return null
+  return (
+    <span className="flex shrink-0 items-center pr-2.5 group-hover/thread:hidden">
+      <span role="img" aria-label="Unread" className="size-1.5 rounded-full bg-primary" />
+    </span>
+  )
 }
 
 export function ThreadRowBody({ thread, active, defaultCardOpen, trailing }: ThreadRowBodyProps) {
@@ -46,6 +59,7 @@ export function ThreadRowBody({ thread, active, defaultCardOpen, trailing }: Thr
         <ThreadStatusIcon status={thread.status} />
         <span>{thread.title}</span>
       </SidebarMenuButton>
+      <UnreadDot thread={thread} />
       <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
         <RowAction label="Pin thread">
           <Pin />

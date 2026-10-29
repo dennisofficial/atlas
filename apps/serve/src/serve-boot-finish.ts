@@ -24,6 +24,7 @@ import { providerStopFor } from './sandbox-park'
 import type { ServeArgs, ServeHandle } from './serve-args'
 import { announceBoot } from './serve-announce'
 import { bootServeApp } from './serve-boot-app'
+import { bindServeActivity } from './serve-activity-binding'
 import { bindServeIdleStop } from './serve-idle-binding'
 import type { BootListener } from './serve-boot-listener'
 import { bindServeDrain } from './serve-drain-binding'
@@ -112,7 +113,10 @@ export async function finishServeBoot(args: {
     captureRunning()
   }
 
+  const remote = { controlPlaneUrl, token, clientVersion, fetchFn }
+  const activity = bindServeActivity({ env, app, threadId, remote, log })
   const driver = createServeDriver({
+    activity: activity.tracker,
     app,
     threadId,
     workspace,
@@ -263,11 +267,13 @@ export async function finishServeBoot(args: {
       unsubscribeWake?.()
       detachSubscriptions()
       writeBehind?.detach()
+      activity.detach()
     },
     stopSandbox:
       serveArgs.stopSandbox ??
       providerStopFor({ threadId, controlPlaneUrl, env, token, clientVersion, fetchFn }),
     flushEvents: writeBehind?.flush,
+    reportParked: activity.reportParked,
     exit,
   })
 

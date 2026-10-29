@@ -34,6 +34,16 @@ export const wireThreadSchema = z.object({
   projectId: z.string().nullable().optional(),
   pinnedAt: z.string().nullable().optional(),
   archivedAt: z.string().nullable().optional(),
+  status: z
+    .object({
+      working: z.boolean(),
+      awaiting: z.enum(['approval', 'input']).nullable(),
+      lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable(),
+      podState: z.enum(['none', 'booting', 'running', 'parked', 'failed']),
+      lastAssistantSeq: z.number().int(),
+      readSeq: z.number().int().nullable(),
+    })
+    .optional(),
 })
 
 export type WireThread = z.infer<typeof wireThreadSchema>
