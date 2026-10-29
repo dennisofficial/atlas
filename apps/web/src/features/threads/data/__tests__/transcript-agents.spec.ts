@@ -12,7 +12,7 @@ import {
   transcriptViewOf,
   type TranscriptRow,
 } from '../transcript-items'
-import { ETurnKind, turnsOf } from '../transcript-turns'
+import { ESegmentKind, ETurnKind, turnsOf } from '../transcript-turns'
 
 const AGENT = 'thr_child'
 
@@ -265,7 +265,7 @@ describe('agent report items', () => {
     const first = turns[1]
     if (first?.kind !== ETurnKind.Agent) throw new Error('expected an agent turn')
     expect(first.spawns).toHaveLength(1)
-    expect(first.stepCount).toBe(0)
+    expect(first.segments.filter((segment) => segment.kind === ESegmentKind.Work)).toEqual([])
   })
 })
 
