@@ -37,8 +37,9 @@ describe('liveSkillRegistry with an unusable bundled-skill cache', () => {
     expect(names).toEqual(expect.arrayContaining(['commit', 'resolving-merge-conflicts']))
     expect(names).not.toContain('ui-design')
     expect(names).not.toContain('video')
-    expect(notices.posts).toHaveLength(2)
-    for (const bundled of ['ui-design', 'video']) {
+    expect(names).not.toContain('atlas')
+    expect(notices.posts).toHaveLength(3)
+    for (const bundled of ['atlas', 'ui-design', 'video']) {
       const post = notices.posts.find((entry) => entry.key === `bundled-skill:${bundled}`)
       expect(post).toMatchObject({ tone: ENoticeTone.Warn, ttlMs: NOTICE_WARN_MS })
       expect(post?.text).toContain(bundled)
