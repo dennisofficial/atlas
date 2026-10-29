@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import { EThreadStatus, isUnread, threadStatusOf } from '../thread-status'
+import { EThreadStatus, isUnread, isWorking, threadStatusOf } from '../thread-status'
 import { threadOf } from './fixtures'
 
 const pr = (number: number, state?: string) => ({
@@ -21,7 +21,10 @@ describe('threadStatusOf', () => {
     )
     expect(
       threadStatusOf(
-        threadOf({ id: 'a', pullRequests: [pr(1, 'merged'), { ...pr(2, 'open'), via }] }),
+        threadOf({
+          id: 'a',
+          pullRequests: [pr(1, 'merged'), { ...pr(2, 'open'), via }],
+        }),
       ),
     ).toBe(EThreadStatus.PrMerged)
   })
@@ -120,16 +123,47 @@ describe('isUnread', () => {
     ['equal is read', false, { lastAssistantSeq: 5, readSeq: 5 }, false],
     ['marker ahead is read', false, { lastAssistantSeq: 5, readSeq: 8 }, false],
     ['no output is never unread', false, { lastAssistantSeq: 0, readSeq: null }, false],
+    [
+      'mid-turn output waits for the turn to end',
+      false,
+      { working: true, lastAssistantSeq: 5, readSeq: 2 },
+      false,
+    ],
+    [
+      'a paused turn awaiting you is unread',
+      false,
+      { awaiting: 'input', lastAssistantSeq: 5, readSeq: 2 },
+      true,
+    ],
   ]
   for (const [name, active, status, expected] of table) {
     it(name, () => {
-      expect(isUnread({ thread: threadOf({ id: 'a', status: factsOf(status) }), active })).toBe(
-        expected,
-      )
+      expect(
+        isUnread({
+          thread: threadOf({ id: 'a', status: factsOf(status) }),
+          active,
+        }),
+      ).toBe(expected)
     })
   }
 
   it('is read without status', () => {
     expect(isUnread({ thread: threadOf({ id: 'a' }), active: false })).toBe(false)
+  })
+})
+
+describe('isWorking', () => {
+  it('is working while a turn runs, even with an open pull request', () => {
+    const thread = threadOf({
+      id: 'a',
+      pullRequests: [pr(1, 'open')],
+      status: factsOf({ working: true }),
+    })
+    expect(isWorking(thread)).toBe(true)
+  })
+
+  it('is not working between turns or without status', () => {
+    expect(isWorking(threadOf({ id: 'a', status: factsOf() }))).toBe(false)
+    expect(isWorking(threadOf({ id: 'a' }))).toBe(false)
   })
 })

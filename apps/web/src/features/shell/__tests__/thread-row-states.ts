@@ -74,8 +74,7 @@ export const THREAD_ROW_STATES: ThreadRowState[] = [
     id: 'running-unread',
     title: 'Working with fresh output',
     expected: EThreadStatus.Running,
-    unread: true,
-    status: { working: true },
+    status: { working: true, lastAssistantSeq: 5, readSeq: 2 },
   }),
   row({
     id: 'starting',
