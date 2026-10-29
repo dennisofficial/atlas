@@ -9,14 +9,16 @@ import {
   encodeFrame,
   EServeFrame,
   ETurnStatus,
+  killShellReplySchema,
+  readShellOutputParamsSchema,
   setThreadModelParamsSchema,
   type ClientFrame,
   type ServeFrame,
 } from '../index'
 
 describe('the protocol stamp', () => {
-  it('speaks the version carrying the session-mirror read ops', () => {
-    expect(CHANNEL_PROTOCOL_VERSION).toBe(27)
+  it('speaks the version carrying the process-control ops', () => {
+    expect(CHANNEL_PROTOCOL_VERSION).toBe(28)
   })
 })
 
@@ -160,5 +162,53 @@ describe('the pause frames', () => {
     }
 
     expect(decodeServeFrame(encodeFrame(frame))).toEqual(frame)
+  })
+})
+
+describe('the process-control ops', () => {
+  const shell = {
+    shellId: 'shell-1',
+    threadId: 'thread-1',
+    command: 'bun run dev',
+    description: 'dev server',
+    status: 'running',
+    startedAt: '2026-10-28T10:00:00.000Z',
+    lastOutputAt: '2026-10-28T10:00:01.000Z',
+    totalCharacters: 12,
+    awaitingInput: false,
+  }
+
+  it('round-trips a request frame for each of the five ops', () => {
+    const requests = [
+      {
+        op: EClientRequest.StartShell,
+        params: { threadId: 'thread-1', command: 'ls', description: 'list' },
+      },
+      {
+        op: EClientRequest.ReadShellOutput,
+        params: { threadId: 'thread-1', shellId: 'shell-1', characters: 4000 },
+      },
+      { op: EClientRequest.KillShell, params: { threadId: 'thread-1', shellId: 'shell-1' } },
+      { op: EClientRequest.StopService, params: { serviceId: 'svc-1' } },
+      { op: EClientRequest.ReadServiceLog, params: { serviceId: 'svc-1', characters: 4000 } },
+    ]
+
+    for (const [index, { op, params }] of requests.entries()) {
+      const frame: ClientFrame = { kind: EClientFrame.Request, id: `proc-${index}`, op, params }
+      expect(decodeClientFrame(encodeFrame(frame))).toEqual(frame)
+    }
+  })
+
+  it('rejects a shell-output read whose character budget is not positive', () => {
+    const params = { threadId: 'thread-1', shellId: 'shell-1' }
+
+    expect(readShellOutputParamsSchema.safeParse({ ...params, characters: 0 }).success).toBe(false)
+    expect(readShellOutputParamsSchema.safeParse({ ...params, characters: 1 }).success).toBe(true)
+  })
+
+  it('accepts both arms of a kill reply and refuses an ok arm without a snapshot', () => {
+    expect(killShellReplySchema.safeParse({ ok: true, snapshot: shell }).success).toBe(true)
+    expect(killShellReplySchema.safeParse({ ok: false, reason: 'gone' }).success).toBe(true)
+    expect(killShellReplySchema.safeParse({ ok: true }).success).toBe(false)
   })
 })

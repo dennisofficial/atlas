@@ -1,20 +1,30 @@
 import {
+  killShellReplySchema,
   pendingEditReplySchema,
   readGitChangesReplySchema,
+  serviceLogReplySchema,
+  shellOutputReplySchema,
+  startedShellReplySchema,
+  stopServiceReplySchema,
   terminalAckReplySchema,
   terminalOpenReplySchema,
   type EChangeScope,
+  type KillShellReply,
   type PendingEditReply,
   type ReadGitChangesReply,
+  type ShellOutputReply,
+  type StartedShellReply,
+  type StopServiceReply,
   type TerminalExitWire,
   type TerminalOutputWire,
 } from '@dltech/atlas-wire/web'
 
 import { EClientRequest } from './channel-wire'
 import type { Unsubscribe } from './delta-channel-types'
+import { RemoteRequestFailed } from './remote-channel-upstream'
 import type { RemoteDeltaChannel, TerminalFrameChannel } from './remote-delta-channel-types'
 
-type RequestChannel = Pick<RemoteDeltaChannel, 'request'>
+export type RequestChannel = Pick<RemoteDeltaChannel, 'request'>
 
 export const readGitChanges = async (args: {
   channel: RequestChannel
@@ -51,6 +61,107 @@ export const removePendingEntry = async (args: {
       params: { threadId: args.threadId, id: args.id },
     }),
   )
+
+const refusedOr = async <T>(args: {
+  request: () => Promise<T>
+  refused: (reason: string) => T
+}): Promise<T> => {
+  try {
+    return await args.request()
+  } catch (error) {
+    if (error instanceof RemoteRequestFailed) return args.refused(error.message)
+    throw error
+  }
+}
+
+const refusal = (reason: string) => ({ ok: false as const, reason })
+
+export const startShell = (args: {
+  channel: RequestChannel
+  threadId: string
+  command: string
+  description: string
+  cwd?: string | undefined
+}): Promise<StartedShellReply> =>
+  refusedOr({
+    request: async () =>
+      startedShellReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.StartShell,
+          params: {
+            threadId: args.threadId,
+            command: args.command,
+            description: args.description,
+            ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
+          },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const readShellOutput = (args: {
+  channel: RequestChannel
+  threadId: string
+  shellId: string
+  characters: number
+}): Promise<ShellOutputReply> =>
+  refusedOr({
+    request: async () =>
+      shellOutputReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.ReadShellOutput,
+          params: { threadId: args.threadId, shellId: args.shellId, characters: args.characters },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const killShell = (args: {
+  channel: RequestChannel
+  threadId: string
+  shellId: string
+}): Promise<KillShellReply> =>
+  refusedOr({
+    request: async () =>
+      killShellReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.KillShell,
+          params: { threadId: args.threadId, shellId: args.shellId },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const stopService = (args: {
+  channel: RequestChannel
+  serviceId: string
+}): Promise<StopServiceReply> =>
+  refusedOr({
+    request: async () =>
+      stopServiceReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.StopService,
+          params: { serviceId: args.serviceId },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const readServiceLog = (args: {
+  channel: RequestChannel
+  serviceId: string
+  characters: number
+}): Promise<string> =>
+  refusedOr({
+    request: async () =>
+      serviceLogReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.ReadServiceLog,
+          params: { serviceId: args.serviceId, characters: args.characters },
+        }),
+      ).text,
+    refused: () => '',
+  })
 
 export type TerminalSession = {
   readonly terminalId: string

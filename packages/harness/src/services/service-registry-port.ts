@@ -49,6 +49,7 @@ export abstract class ServiceRegistryPort {
    */
   abstract removeServices(args: { serviceIds: readonly string[]; by: EKilledBy }): void
   abstract list(): readonly ServiceSnapshot[]
+  logTail?(args: { serviceId: string; characters: number }): Promise<string> | string
   hasRunningFor?(args: { threadId: ThreadId }): boolean
   runningFor?(args: { threadId: ThreadId }): readonly ServiceSnapshot[]
   abstract version(): number

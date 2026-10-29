@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-import { agentSnapshotWireSchema } from './roster-wire'
+import {
+  agentSnapshotWireSchema,
+  serviceSnapshotWireSchema,
+  shellIdWireSchema,
+  shellSnapshotWireSchema,
+} from './roster-wire'
 import { wireEventSchema, wireThreadSchema, wireTurnSchema } from './session-wire'
 
 export const threadIdWireSchema = z.string().min(1).brand<'ThreadId'>()
@@ -66,6 +71,63 @@ export const agentOutcomeWireSchema = z.discriminatedUnion('ok', [
   z.object({ ok: z.literal(false), reason: z.string() }),
 ])
 export type AgentOutcomeWire = z.infer<typeof agentOutcomeWireSchema>
+
+export const startShellParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  command: z.string().min(1),
+  description: z.string().min(1),
+  cwd: z.string().min(1).optional(),
+})
+export type StartShellParams = z.infer<typeof startShellParamsSchema>
+
+export const readShellOutputParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  shellId: shellIdWireSchema,
+  characters: z.number().int().positive(),
+})
+export type ReadShellOutputParams = z.infer<typeof readShellOutputParamsSchema>
+
+export const killShellParamsSchema = z.object({
+  threadId: threadIdWireSchema,
+  shellId: shellIdWireSchema,
+})
+export type KillShellParams = z.infer<typeof killShellParamsSchema>
+
+export const stopServiceParamsSchema = z.object({ serviceId: z.string().min(1) })
+export type StopServiceParams = z.infer<typeof stopServiceParamsSchema>
+
+export const readServiceLogParamsSchema = z.object({
+  serviceId: z.string().min(1),
+  characters: z.number().int().positive(),
+})
+export type ReadServiceLogParams = z.infer<typeof readServiceLogParamsSchema>
+
+export const startedShellReplySchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), snapshot: shellSnapshotWireSchema }),
+  z.object({ ok: z.literal(false), reason: z.string() }),
+])
+export type StartedShellReply = z.infer<typeof startedShellReplySchema>
+
+export const shellOutputReplySchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), text: z.string() }),
+  z.object({ ok: z.literal(false), reason: z.string() }),
+])
+export type ShellOutputReply = z.infer<typeof shellOutputReplySchema>
+
+export const killShellReplySchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), snapshot: shellSnapshotWireSchema }),
+  z.object({ ok: z.literal(false), reason: z.string() }),
+])
+export type KillShellReply = z.infer<typeof killShellReplySchema>
+
+export const stopServiceReplySchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), snapshot: serviceSnapshotWireSchema }),
+  z.object({ ok: z.literal(false), reason: z.string() }),
+])
+export type StopServiceReply = z.infer<typeof stopServiceReplySchema>
+
+export const serviceLogReplySchema = z.object({ text: z.string() })
+export type ServiceLogReply = z.infer<typeof serviceLogReplySchema>
 
 export const threadModelWireSchema = z.object({ ref: z.string(), effort: z.string() })
 
