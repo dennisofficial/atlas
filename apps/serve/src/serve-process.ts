@@ -7,14 +7,6 @@ import type { PortExposer } from './api-port-exposer'
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
-/**
- * Inside a cloud sandbox "local" is the sandbox itself, so the inherited localhost answer would
- * name a machine the operator cannot reach. Exposures go straight to Vercel with the token the
- * sandbox was created with (VERCEL_TOKEN in its environment), or through the API for a sandbox
- * the API provisioned, growing the sandbox's routed port list and answering with the public
- * (unguessable-subdomain) URL. A local Docker pod answers through its in-pod ingress, whose
- * laptop-side port the launcher wrote into ATLAS_POD_INGRESS_HOST_PORT at container create.
- */
 export class ServeProcessPort extends LocalProcessPort {
   constructor(private readonly exposure: PortExposer | null) {
     super()
@@ -24,8 +16,7 @@ export class ServeProcessPort extends LocalProcessPort {
     if (this.exposure === null) {
       return {
         ok: false,
-        reason:
-          'this sandbox carries no Vercel credentials, so no port on it can be published — move the conversation home and back to the cloud to recreate it with them',
+        reason: 'this pod has no Atlas Cloud connection, so its ports cannot be published',
       }
     }
 

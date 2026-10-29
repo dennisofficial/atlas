@@ -19,6 +19,9 @@ function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
     GOOGLE_CLIENT_ID: 'test-google-client-id.apps.googleusercontent.com',
     GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     RESEND_API_KEY: 're_test_fixture_not_a_real_key',
+    CLOUDFLARE_API_TOKEN: 'cf-test-token',
+    CLOUDFLARE_ACCOUNT_ID: 'cf-test-account',
+    CLOUDFLARE_ZONE_ID: 'cf-test-zone',
     NODE_ENV: 'development',
     DOTENV_PRIVATE_KEY_API_LOCAL: undefined,
   }

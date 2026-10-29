@@ -59,7 +59,6 @@ mock.module('@vercel/sandbox', () => {
 })
 
 import { APIError } from '@vercel/sandbox'
-import { SANDBOX_MAX_PORTS } from '@dltech/atlas-wire'
 import { SANDBOX_SERVE_PORT, VercelSandboxClient } from './vercel-sandbox.client'
 import { ESandboxState } from './sandboxes.types'
 
@@ -152,37 +151,6 @@ describe('VercelSandboxClient', () => {
       teamId: 'team_1',
       projectId: 'prj_1',
     })
-  })
-
-  it('exposes a new port alongside the routed ones and answers its domain', async () => {
-    const url = await clientWith().exposePort({
-      threadId: THREAD,
-      name: 'atlas-thread-abc',
-      port: 5173,
-    })
-
-    expect(url).toBe('https://atlas-5173.vercel.run')
-    expect(sdk.updates).toEqual([{ ports: [3000, 5173] }])
-  })
-
-  it('does not update a port that is already routed', async () => {
-    const url = await clientWith().exposePort({
-      threadId: THREAD,
-      name: 'atlas-thread-abc',
-      port: 3000,
-    })
-
-    expect(url).toBe('https://atlas-3000.vercel.run')
-    expect(sdk.updates).toHaveLength(0)
-  })
-
-  it('refuses a new port once the sandbox is at the port limit', async () => {
-    sdk.routes = Array.from({ length: SANDBOX_MAX_PORTS }, (_, index) => ({ port: 3000 + index }))
-
-    await expect(
-      clientWith().exposePort({ threadId: THREAD, name: 'atlas-thread-abc', port: 9999 }),
-    ).rejects.toThrow(/at most/)
-    expect(sdk.updates).toHaveLength(0)
   })
 
   it('stops a session without resuming the sandbox, refusing a session that is not live', async () => {

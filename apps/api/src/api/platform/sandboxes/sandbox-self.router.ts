@@ -24,12 +24,15 @@ import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
+import { PreviewTunnelService } from './preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 type SandboxIdentity = { threadId: string; name: string }
 
 async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
-  const row = await db.orm.public.CloudSandbox.where({ threadId: ctx.sandbox.threadId })
+  const row = await db.orm.public.CloudSandbox.where({
+    threadId: ctx.sandbox.threadId,
+  })
     .select('threadId', 'name')
     .first()
   if (row === null) throw new NotFoundException('sandbox not found')
@@ -41,17 +44,20 @@ async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
 export class SandboxSelfRouter {
   constructor(
     private readonly vercel: VercelSandboxClient,
+    private readonly previews: PreviewTunnelService,
     private readonly signals: ThreadSignalsService,
   ) {}
 
-  @Mutation({ input: sandboxExposePortRequestSchema, output: sandboxExposePortReplySchema })
+  @Mutation({
+    input: sandboxExposePortRequestSchema,
+    output: sandboxExposePortReplySchema,
+    meta: meta({ podReachable: true }),
+  })
   async exposePort(
     @Input() input: SandboxExposePortRequest,
     @Ctx() ctx: SandboxTrpcCtx,
   ): Promise<SandboxExposePortReply> {
-    const sandbox = await identityOf(ctx)
-    const url = await this.vercel.exposePort({ ...sandbox, port: input.port })
-    return { url }
+    return this.previews.expose({ ...ctx.sandbox, port: input.port })
   }
 
   @Mutation({ input: sandboxSelfStopRequestSchema, output: z.void() })

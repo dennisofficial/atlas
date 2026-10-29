@@ -14,8 +14,6 @@ export enum EServeEnv {
   DecisionsModel = 'ATLAS_DECISIONS_MODEL',
 }
 
-export const POD_INGRESS_HOST_PORT_ENV = 'ATLAS_POD_INGRESS_HOST_PORT'
-
 /**
  * Workspace and ATLAS_HOME live on the sandbox's own filesystem under /atlas, which
  * `persistent: true` snapshots carry between stops — there is no drive and no mount.

@@ -1,5 +1,7 @@
+import { Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import type { SandboxesService } from '../sandboxes/sandboxes.service'
+import type { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
 import { parkedOf } from '../sandboxes/sandbox-lifecycle'
 import {
   EThreadArchiveCleanupOutcome,
@@ -7,10 +9,13 @@ import {
   type ThreadArchiveCleanupPayload,
 } from './thread-archive-cleanup.contract'
 
+const logger = new Logger('ThreadArchiveCleanup')
+
 export const ARCHIVE_PARK_REASON = 'the thread was archived'
 
 export type ThreadArchiveCleanupDeps = {
   park: SandboxesService['park']
+  teardownPreviews: PreviewTunnelService['teardown']
 }
 
 export async function runThreadArchiveCleanup(args: {
@@ -24,9 +29,27 @@ export async function runThreadArchiveCleanup(args: {
   if (thread === null || thread.archivedAt?.toISOString() !== payload.archivedAt) {
     return { outcome: EThreadArchiveCleanupOutcome.Superseded }
   }
-  const row = await db.orm.public.CloudSandbox.first({ threadId: payload.threadId })
+  const teardownFailure = await deps
+    .teardownPreviews({ threadId: payload.threadId })
+    .then(() => undefined)
+    .catch((failure: unknown) => {
+      logger.error(`preview teardown failed for thread ${payload.threadId}`, failure)
+      return { failure }
+    })
+  const output = await parkSandbox({ threadId: payload.threadId, deps })
+  if (teardownFailure !== undefined) throw teardownFailure.failure
+  return output
+}
+
+async function parkSandbox(args: {
+  threadId: string
+  deps: ThreadArchiveCleanupDeps
+}): Promise<ThreadArchiveCleanupOutput> {
+  const row = await db.orm.public.CloudSandbox.first({
+    threadId: args.threadId,
+  })
   if (row === null) return { outcome: EThreadArchiveCleanupOutcome.NoSandbox }
   if (parkedOf(row)) return { outcome: EThreadArchiveCleanupOutcome.AlreadyParked }
-  await deps.park({ row, reason: ARCHIVE_PARK_REASON })
+  await args.deps.park({ row, reason: ARCHIVE_PARK_REASON })
   return { outcome: EThreadArchiveCleanupOutcome.Parked }
 }

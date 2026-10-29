@@ -36,20 +36,3 @@ export function hostPortFor(args: { session: string; containerPort: number }): n
   const derived = derivedHostPort(args)
   return hostPortFree(derived) ? derived : ephemeralHostPort()
 }
-
-export function podHostPortsFor(args: {
-  session: string
-  serveContainerPort: number
-  ingressContainerPort: number
-}): { serveHostPort: number; ingressHostPort: number } {
-  const serveHostPort = hostPortFor({
-    session: args.session,
-    containerPort: args.serveContainerPort,
-  })
-  const ingress = hostPortFor({ session: args.session, containerPort: args.ingressContainerPort })
-  if (ingress !== serveHostPort) return { serveHostPort, ingressHostPort: ingress }
-
-  let ingressHostPort = ephemeralHostPort()
-  while (ingressHostPort === serveHostPort) ingressHostPort = ephemeralHostPort()
-  return { serveHostPort, ingressHostPort }
-}
