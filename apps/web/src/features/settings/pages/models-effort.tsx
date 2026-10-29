@@ -2,6 +2,7 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
+import { useModelPicker } from '@/features/threads/data/use-model-picker'
 import type { SettingValues } from '@/lib/cloud-settings'
 
 import { activePresetOf, modelsChanges, modelsConfigFrom } from '../data/personal/models-settings'
@@ -49,6 +50,7 @@ function ModelsEditor({
     toChanges: modelsChanges,
     save,
   })
+  const picker = useModelPicker()
   const { value, setValue } = draft
   const activePreset = activePresetOf(value)
 
@@ -89,6 +91,7 @@ function ModelsEditor({
           key={role}
           role={role}
           setting={value[role]}
+          picker={picker}
           onChange={(setting) => handleRoleChange({ role, setting })}
         />
       ))}
