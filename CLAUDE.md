@@ -223,17 +223,7 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
 - **Branch from `origin/main`, ship as a PR.** Branch as `<you>/<slug>` (e.g.
   `dennis/add-the-thing`), push, `gh pr create`, and merge with `gh pr merge --squash` once CI is
   green. Keep PRs small enough to review in one sitting.
-- **Daily driving is the prod `atlas` binary; `atlas-dev` is for developing.** The binary
-  updates itself from GitHub releases, which are cut on every release-worthy merge to main.
-  `atlas-dev` runs from source and takes `--worktree <slug>` to run a worktree's code instead of
-  the main checkout's. The main checkout stays read-only: `atlas-dev` flags every running
-  terminal as stale the moment the tree moves, so direct edits there turn that notice into
-  noise. Cut a worktree under `.atlas/worktrees/<slug>`, do the work there, and after the merge
-  remove the worktree, delete the local branch, and `git pull --ff-only` in the main checkout.
-  Merge from inside a worktree with plain `gh pr merge --squash`, never `--delete-branch`, which
-  fails on the local `main` checkout after the merge has already landed.
 - Never force-push, never `--no-verify`.
-- **Never use `git stash`** unless explicitly asked.
 - Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase. The merged PR
   title is the release decision: `feat` cuts a minor, `fix` a patch, anything else no release.
   Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
@@ -242,7 +232,6 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
   every merge, but sandboxes download the latest *release* of serve. A `refactor` that moves or
   removes a route serve calls leaves every new sandbox hanging on "Start Atlas" until the next
   release (#1400 did exactly that). Title such a PR `fix` or `feat`.
-- No `Co-Authored-By` or "Generated with Claude" trailers.
 
 ## Workspace mechanics
 
@@ -283,18 +272,6 @@ turbo: turbo's package-level replay would stop the incremental cache from ever b
 typecheck cannot: runtime assets loaded by path, and optional peer dependencies that need `--external`.
 Nest was the original reason for that warning and now lives only under `deprecated/`, but the class of
 failure is not specific to it — the tree-sitter grammars are the live example.
-
-## Cloud terminal previews
-
-A session running in the cloud has no operator terminal, so "run `atlas-dev` and look at it"
-is uncheckable there — a dev-server preview only covers things with an HTTP surface. For any
-task that ends with the operator eyeballing something interactive in a terminal, boot the web
-terminal as the preview instead: `cd apps/webterm && bun run dev`, started as a service with
-its port exposed. Hand the operator the full URL (token included) and what to look at. The
-wrapper seeds a scratch `ATLAS_HOME` from the session's real credentials, starts in the
-checkout it was booted from, and drops the operator straight into `atlas-dev` — details live
-in `apps/webterm/README.md`. This augments, not replaces, the completion-preview rule in the
-operator's global instructions: the rule stays "produce a preview", this is the terminal kind.
 
 ## Sandbox image
 
