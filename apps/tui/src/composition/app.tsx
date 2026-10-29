@@ -12,6 +12,9 @@ import { projectOf, type ThreadId } from '@dltech/atlas-core'
 import { cachedTranscripts } from './cached-transcript-store'
 import { cloudListing } from './cloud/cloud-listing'
 import { createPrEventForwarder } from './cloud/pr-event-forwarder'
+import { createOpenThreadWaker } from './cloud/open-thread-waker'
+import { watchThreadWakes } from '@dltech/atlas-harness'
+import { clientVersionHeader } from '../build/info'
 
 import { readClipboardImage, type ClipboardImageReader } from '../ui/clipboard-image'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
@@ -95,6 +98,24 @@ export function App(props: {
     sink.set((frame) => void current.onPrEvent(frame))
     return () => sink.set(null)
   }, [props.app, createBridge, owner])
+
+  useEffect(() => {
+    const session = props.app.cloud.session()
+    if (session === null) return
+    const waker = createOpenThreadWaker({
+      openThreadId: () => owner.snapshot().threadId,
+      runnerOf: async (threadId) => (await props.app.threads.find({ threadId }))?.runner,
+      wakeOpen: () => cloudAttachmentOf(owner.snapshot().binding)?.session.wake(),
+    })
+    const controller = new AbortController()
+    void watchThreadWakes({
+      session,
+      clientVersion: clientVersionHeader(),
+      signal: controller.signal,
+      onWake: (wake) => void waker.onWake(wake),
+    })
+    return () => controller.abort()
+  }, [props.app, owner])
 
   const reloading = useRef(false)
   const reloadPending = useRef(false)
