@@ -5,6 +5,7 @@ import {
   seedPrState as seedPrStateRow,
   seedSubscription as seedSubscriptionRow,
 } from '../../../../test/github-seed'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -47,7 +48,10 @@ export function serviceWith(args: {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
-  return { service: new GithubPollSweeperService(github, reads, fanout, mailbox), fanout }
+  return {
+    service: new GithubPollSweeperService(github, reads, fanout, mailbox, inertSignals()),
+    fanout,
+  }
 }
 
 export const seedSubscription = (overrides: Partial<Row<'GithubSubscription'>> = {}) =>

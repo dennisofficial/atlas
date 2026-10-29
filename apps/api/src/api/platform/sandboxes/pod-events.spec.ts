@@ -1,10 +1,11 @@
+import { EThreadListFrame } from '@dltech/atlas-wire'
 import { POD_EVENT_CONFLICT_CODE, type PodEvent } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { eventsOf, seedEventRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
-import { inertSignals } from '../sessions/thread-signals.fixture'
+import { inertSignals, recordingSignals } from '../sessions/thread-signals.fixture'
 
 const AT = '2026-10-22T10:00:00.000Z'
 const eventAt = (seq: number, extra: Partial<PodEvent> = {}): PodEvent => ({
@@ -52,7 +53,7 @@ describe('applyPodEvents', () => {
       ],
     })
 
-    expect(reply).toEqual({ head: 3 })
+    expect(reply).toMatchObject({ head: 3 })
     expect(await head()).toBe(3)
     const rows = await eventsOf('thr-1')
     expect(rows.map((row) => row.seq)).toEqual([1, 2, 3])
@@ -78,7 +79,7 @@ describe('applyPodEvents', () => {
       events: [eventAt(2), eventAt(3)],
     })
 
-    expect(reply).toEqual({ head: 3 })
+    expect(reply).toMatchObject({ head: 3 })
     expect(await eventsOf('thr-1')).toHaveLength(3)
   })
 
@@ -104,7 +105,7 @@ describe('applyPodEvents', () => {
       events: [eventAt(2), eventAt(4), eventAt(9)],
     })
 
-    expect(reply).toEqual({ head: 9 })
+    expect(reply).toMatchObject({ head: 9 })
     expect(await head()).toBe(9)
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 4, 9])
   })
@@ -119,7 +120,7 @@ describe('applyPodEvents', () => {
       events: [eventAt(5), eventAt(6)],
     })
 
-    expect(reply).toEqual({ head: 6 })
+    expect(reply).toMatchObject({ head: 6 })
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 5, 6])
   })
 
@@ -174,14 +175,14 @@ describe('applyPodEvents', () => {
 
     expect(
       await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 3 }),
-    ).toEqual({ head: 3 })
+    ).toMatchObject({ head: 3 })
     const reply = await applyPodEvents({
       signals: inertSignals(),
       threadId: 'thr-1',
       events: [eventAt(5), eventAt(7)],
     })
 
-    expect(reply).toEqual({ head: 7 })
+    expect(reply).toMatchObject({ head: 7 })
     expect(await head()).toBe(7)
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 3, 5, 7])
   })
@@ -197,7 +198,7 @@ describe('applyPodEvents', () => {
       ],
     })
 
-    expect(reply).toEqual({ head: 5 })
+    expect(reply).toMatchObject({ head: 5 })
   })
 })
 
@@ -213,7 +214,7 @@ describe('truncatePodEvents', () => {
   it('deletes events past toSeq and sets the head to it', async () => {
     expect(
       await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 1 }),
-    ).toEqual({ head: 1 })
+    ).toMatchObject({ head: 1 })
 
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1])
     expect(await head()).toBe(1)
@@ -222,9 +223,76 @@ describe('truncatePodEvents', () => {
   it('never raises the head', async () => {
     expect(
       await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 9 }),
-    ).toEqual({ head: 3 })
+    ).toMatchObject({ head: 3 })
 
     expect(await eventsOf('thr-1')).toHaveLength(3)
     expect(await head()).toBe(3)
+  })
+})
+
+describe('lastAssistantSeq', () => {
+  useTestDatabase()
+
+  const lastAssistant = async () =>
+    (await db.orm.public.Thread.first({ id: 'thr-1' }))?.lastAssistantSeq
+
+  beforeEach(async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 0 })
+  })
+
+  it('advances only on assistant-said events', async () => {
+    const first = await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(1, { type: 'user-said' }), eventAt(2), eventAt(3, { type: 'tool-called' })],
+    })
+    expect(first.assistantMoved).toBe(true)
+    expect(await lastAssistant()).toBe(2)
+
+    const second = await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(4, { type: 'user-said' })],
+    })
+    expect(second.assistantMoved).toBe(false)
+    expect(await lastAssistant()).toBe(2)
+  })
+
+  it('clamps to the new head on truncate', async () => {
+    await applyPodEvents({
+      signals: inertSignals(),
+      threadId: 'thr-1',
+      events: [eventAt(1), eventAt(2), eventAt(3)],
+    })
+    const kept = await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 5 })
+    expect(kept.assistantMoved).toBe(false)
+    const cut = await truncatePodEvents({ signals: inertSignals(), threadId: 'thr-1', toSeq: 1 })
+    expect(cut.assistantMoved).toBe(true)
+    expect(await lastAssistant()).toBe(1)
+  })
+})
+
+describe('applyPodEvents list signals', () => {
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-1', userId: 'user-a', head: 0 })
+  })
+
+  it('signals the owner list only when the assistant moved', async () => {
+    const recorder = recordingSignals()
+    const frames = recorder.listFramesOf('user-a')
+
+    await applyPodEvents({
+      threadId: 'thr-1',
+      events: [eventAt(1, { type: 'user-said' })],
+      signals: recorder.signals,
+    })
+    expect(frames).toEqual([])
+
+    await applyPodEvents({ threadId: 'thr-1', events: [eventAt(2)], signals: recorder.signals })
+    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
   })
 })

@@ -1,12 +1,15 @@
 import type { ThreadStreamFrame } from '@dltech/atlas-wire'
 
-export type ThreadFrameSink = { push: (frame: ThreadStreamFrame) => void; close: () => void }
+export type ThreadFrameSink<TFrame = ThreadStreamFrame> = {
+  push: (frame: TFrame) => void
+  close: () => void
+}
 
-export async function* threadStreamFrames(args: {
+export async function* threadStreamFrames<TFrame = ThreadStreamFrame>(args: {
   signal: AbortSignal | undefined
-  attach: (sink: ThreadFrameSink) => () => void
-}): AsyncGenerator<ThreadStreamFrame> {
-  const queue: ThreadStreamFrame[] = []
+  attach: (sink: ThreadFrameSink<TFrame>) => () => void
+}): AsyncGenerator<TFrame> {
+  const queue: TFrame[] = []
   let closed = false
   let wake: (() => void) | null = null
   const notify = (): void => {

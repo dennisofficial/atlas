@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
 import { ownedThread } from './ownership'
+import { ThreadSignalsService } from './thread-signals.service'
 import {
   threadArchiveCleanupIdempotencyKey,
   threadArchiveCleanupTaskContract,
@@ -15,13 +16,17 @@ const failureText = (failure: unknown): string =>
 export class ThreadArchiveService {
   private readonly logger = new Logger(ThreadArchiveService.name)
 
-  constructor(@Inject(JobDispatcher) private readonly dispatcher: JobDispatcher) {}
+  constructor(
+    @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
+    private readonly signals: ThreadSignalsService,
+  ) {}
 
   async setArchived(args: { userId: string; threadId: string; archived: boolean }): Promise<void> {
     const { userId, threadId, archived } = args
     await ownedThread({ reader: db, userId, threadId })
     const archivedAt = archived ? new Date() : null
     await db.orm.public.Thread.where({ id: threadId }).update({ archivedAt })
+    await this.signals.listChanged({ userId, threadId })
     if (archivedAt === null) return
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
   }

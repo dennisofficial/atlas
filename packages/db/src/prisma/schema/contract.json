@@ -132,6 +132,10 @@
       "model": "Thread",
       "namespace": "public"
     },
+    "ThreadRead": {
+      "model": "ThreadRead",
+      "namespace": "public"
+    },
     "Turn": {
       "model": "Turn",
       "namespace": "public"
@@ -3791,6 +3795,16 @@
           },
           "Thread": {
             "fields": {
+              "activityAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "agentType": {
                 "nullable": true,
                 "type": {
@@ -3806,6 +3820,13 @@
                   "typeParams": {
                     "precision": 3
                   }
+                }
+              },
+              "awaiting": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
                 }
               },
               "createdAt": {
@@ -3848,6 +3869,20 @@
               },
               "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastAssistantSeq": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastOutcome": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -3926,6 +3961,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "working": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -4031,6 +4073,21 @@
                   "namespace": "public"
                 }
               },
+              "reads": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "threadId"
+                  ]
+                },
+                "to": {
+                  "model": "ThreadRead",
+                  "namespace": "public"
+                }
+              },
               "spawned": {
                 "cardinality": "1:N",
                 "on": {
@@ -4096,11 +4153,17 @@
             },
             "storage": {
               "fields": {
+                "activityAt": {
+                  "column": "activityAt"
+                },
                 "agentType": {
                   "column": "agentType"
                 },
                 "archivedAt": {
                   "column": "archivedAt"
+                },
+                "awaiting": {
+                  "column": "awaiting"
                 },
                 "createdAt": {
                   "column": "createdAt"
@@ -4119,6 +4182,12 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "lastAssistantSeq": {
+                  "column": "lastAssistantSeq"
+                },
+                "lastOutcome": {
+                  "column": "lastOutcome"
                 },
                 "modelEffort": {
                   "column": "modelEffort"
@@ -4150,12 +4219,102 @@
                 "userId": {
                   "column": "userId"
                 },
+                "working": {
+                  "column": "working"
+                },
                 "workspace": {
                   "column": "workspace"
                 }
               },
               "namespaceId": "public",
               "table": "Thread"
+            }
+          },
+          "ThreadRead": {
+            "fields": {
+              "seq": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "thread": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "seq": {
+                  "column": "seq"
+                },
+                "threadId": {
+                  "column": "threadId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ThreadRead"
             }
           },
           "Turn": {
@@ -4720,6 +4879,21 @@
                 },
                 "to": {
                   "model": "SshSigningKey",
+                  "namespace": "public"
+                }
+              },
+              "threadReads": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "ThreadRead",
                   "namespace": "public"
                 }
               },
@@ -8675,6 +8849,14 @@
             },
             "Thread": {
               "columns": {
+                "activityAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "agentType": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -8687,6 +8869,11 @@
                   "typeParams": {
                     "precision": 3
                   }
+                },
+                "awaiting": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -8724,6 +8911,20 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "lastAssistantSeq": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "lastOutcome": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "modelEffort": {
                   "codecId": "pg/text@1",
@@ -8779,6 +8980,15 @@
                 "userId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": false
+                },
+                "working": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
                   "nullable": false
                 },
                 "workspace": {
@@ -8923,6 +9133,101 @@
               "primaryKey": {
                 "columns": [
                   "id"
+                ]
+              },
+              "uniques": []
+            },
+            "ThreadRead": {
+              "columns": {
+                "seq": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "ThreadRead_userId_idx_a489d58a"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ThreadRead"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "ThreadRead_threadId_idx"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "threadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ThreadRead"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "ThreadRead_threadId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "ThreadRead_userId_idx_a489d58a",
+                  "prefix": "ThreadRead_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "userId",
+                  "threadId"
                 ]
               },
               "uniques": []
@@ -9385,7 +9690,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "59978259fa36ad6e18bf185c0a2e0e301f7ba9360c039132c9ff29c46426245b"
+    "storageHash": "0f9e1beccbc9d90f3600620a6ab23c0d7b2978b57813c9531f56acd2d57d9ad7"
   },
   "execution": {
     "executionHash": "c54d794d5e2e19e0653e960b99bd93a95632f0fe6094e48cec4fa594d924acc4",

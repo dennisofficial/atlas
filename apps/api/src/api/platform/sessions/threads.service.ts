@@ -13,6 +13,7 @@ import type {
   RenameThreadInput,
 } from '@dltech/atlas-wire'
 import { appendWithin, nextThreadId } from './append'
+import { createColumnsOf } from './thread-create-columns'
 import { ownedThread as requireOwnedThread } from './ownership'
 import { toEventDto, toThreadDto } from './rows'
 import { enrichThreads } from './thread-enrichment'
@@ -33,29 +34,6 @@ const withinFamily = ({
 }): boolean =>
   confinedTo === undefined || row.id === confinedTo || row.spawnerThreadId === confinedTo
 
-const createColumnsOf = (args: {
-  userId: string
-  draft: ThreadDraft
-  project: ThreadProjectColumns
-}) => {
-  const { draft } = args
-  return {
-    id: draft.id ?? nextThreadId(),
-    userId: args.userId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...(draft.title === undefined ? {} : { title: draft.title }),
-    ...(draft.workspace === undefined ? {} : { workspace: draft.workspace }),
-    ...(draft.repo === undefined ? {} : { repo: draft.repo }),
-    ...(draft.model === undefined ? {} : { modelRef: draft.model }),
-    ...(draft.effort === undefined ? {} : { modelEffort: draft.effort }),
-    ...args.project,
-    ...(draft.agent === undefined
-      ? {}
-      : { spawnerThreadId: draft.agent.spawnedBy, agentType: draft.agent.type }),
-  }
-}
-
 @Injectable()
 export class ThreadsService {
   constructor(private readonly signals: ThreadSignalsService) {}
@@ -71,7 +49,12 @@ export class ThreadsService {
       if (taken !== null) throw new ConflictException('thread id is already in use')
       return tx.orm.public.Thread.create(columns)
     })
+    await this.signals.listChanged({ userId: args.userId, threadId: row.id })
     return toThreadDto(row)
+  }
+
+  async announceCreated(args: { userId: string; threadId: string }): Promise<void> {
+    await this.signals.listChanged(args)
   }
 
   async createWithin(args: {
@@ -106,7 +89,7 @@ export class ThreadsService {
       return { thread: reopened.thread, events: reopened.events }
     }
 
-    return db.transaction(async (tx) => {
+    const opened = await db.transaction(async (tx) => {
       const at = new Date()
       await tx.orm.public.Thread.create({
         id: threadId,
@@ -134,6 +117,8 @@ export class ThreadsService {
       const row = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
       return { thread: toThreadDto(row), events }
     })
+    await this.signals.listChanged({ userId: args.userId, threadId })
+    return opened
   }
 
   /**
@@ -212,7 +197,10 @@ export class ThreadsService {
   }
 
   async find(args: { userId: string; threadId: string }): Promise<ThreadDto> {
-    const [thread] = await enrichThreads([await this.ownedThread(args)])
+    const [thread] = await enrichThreads({
+      rows: [await this.ownedThread(args)],
+      viewerId: args.userId,
+    })
     if (thread === undefined) throw new NotFoundException('thread not found')
     return thread
   }
@@ -254,7 +242,7 @@ export class ThreadsService {
       .orderBy((thread) => thread.updatedAt.desc())
       .limit(args.limit ?? THREAD_LISTING_LIMIT)
       .all()
-    return enrichThreads(rows)
+    return enrichThreads({ rows, viewerId: args.userId })
   }
 
   async rename(args: {
@@ -264,6 +252,7 @@ export class ThreadsService {
   }): Promise<void> {
     await this.ownedThread(args)
     await db.orm.public.Thread.where({ id: args.threadId }).update({ title: args.draft.title })
+    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
   }
 
   async chooseModel(args: {

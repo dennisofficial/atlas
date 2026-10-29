@@ -1,4 +1,12 @@
-import { Circle, CircleAlert, GitMerge, GitPullRequest, LoaderCircle } from 'lucide-react'
+import {
+  Circle,
+  CircleAlert,
+  CircleX,
+  GitMerge,
+  GitPullRequest,
+  GitPullRequestClosed,
+  LoaderCircle,
+} from 'lucide-react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
@@ -10,7 +18,7 @@ interface StatusPresentation {
   Icon: typeof Circle
 }
 
-const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
+export const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
   [EThreadStatus.Running]: {
     label: 'Running',
     className: 'animate-spin text-foreground',
@@ -22,7 +30,7 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
     Icon: Circle,
   },
   [EThreadStatus.AwaitingApproval]: {
-    label: 'Awaiting approval',
+    label: 'Waiting for you',
     className: 'text-warning',
     Icon: CircleAlert,
   },
@@ -35,6 +43,21 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
     label: 'Pull request merged',
     className: 'text-chart-5',
     Icon: GitMerge,
+  },
+  [EThreadStatus.Starting]: {
+    label: 'Starting pod',
+    className: 'animate-spin text-muted-foreground',
+    Icon: LoaderCircle,
+  },
+  [EThreadStatus.Failed]: {
+    label: 'Failed',
+    className: 'text-destructive',
+    Icon: CircleX,
+  },
+  [EThreadStatus.PrClosed]: {
+    label: 'Pull request closed',
+    className: 'text-muted-foreground',
+    Icon: GitPullRequestClosed,
   },
 }
 

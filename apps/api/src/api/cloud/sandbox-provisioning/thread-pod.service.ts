@@ -1,6 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
-  EBootStepState,
   ESandboxProvisionState,
   EPodResizeApplies,
   EPodState,
@@ -18,7 +17,6 @@ import {
   SandboxMissingError,
   VercelSandboxClient,
 } from '../../platform/sandboxes/vercel-sandbox.client'
-import { parkedOf } from '../../platform/sandboxes/sandbox-lifecycle'
 import {
   hasBootSteps,
   latestAttemptOf,
@@ -27,22 +25,8 @@ import {
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
-import {
-  failedAfterClaim,
-  SANDBOX_BUSY_MESSAGE,
-  standingStateOf,
-} from './sandbox-provisioning-rows'
-
-function stateOf(args: { row: Row<'CloudSandbox'> | null; steps: RecordedBootStep[] }): EPodState {
-  const { row, steps } = args
-  const standing = row === null ? undefined : standingStateOf(row)
-  if (standing === ESandboxProvisionState.Running) return EPodState.Running
-  if (standing === ESandboxProvisionState.Booting) return EPodState.Booting
-  if (steps.at(-1)?.state === EBootStepState.Error) return EPodState.Failed
-  if (row !== null && failedAfterClaim(row)) return EPodState.Failed
-  if (row !== null && parkedOf(row)) return EPodState.Parked
-  return EPodState.None
-}
+import { podStateOf, standingStateOf } from '../../platform/sandboxes/pod-state'
+import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
 
 const TICKET_TTL_SECONDS = 60
 const RESIZE_PARK_REASON = 'the sandbox is restarting to apply a new size'
@@ -68,7 +52,7 @@ export class ThreadPodService {
     const row = await db.orm.public.CloudSandbox.first({ threadId })
     const steps = await readBootSteps({ threadId })
     return {
-      state: stateOf({ row, steps }),
+      state: podStateOf({ row, lastBootStepState: steps.at(-1)?.state }),
       ...(row === null ? {} : { resources: await this.resourcesOf(row) }),
       steps: latestAttemptOf(steps),
       history: steps,

@@ -1,0 +1,12 @@
+// use prisma-8
+model ThreadRead {
+  userId    String
+  threadId  String
+  seq       Int
+  updatedAt TimestamptzJsDate(3)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  thread    Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ThreadRead_threadId_idx")
+
+  @@id([userId, threadId])
+  @@index([threadId], map: "ThreadRead_threadId_idx")
+}

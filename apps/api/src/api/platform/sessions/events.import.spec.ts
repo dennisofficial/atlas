@@ -52,7 +52,7 @@ describe('importing a local mirror into a thread', () => {
       events: [1, 2, 3, 4, 5, 6].map((seq) => eventAt(seq)),
     })
 
-    expect(reply).toEqual({ head: 6 })
+    expect(reply).toMatchObject({ head: 6 })
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 3, 4, 5, 6])
     expect((await threadById('thr-1'))?.head).toBe(6)
   })
@@ -85,7 +85,7 @@ describe('importing a local mirror into a thread', () => {
       events: [eventAt(7), eventAt(9)],
     })
 
-    expect(reply).toEqual({ head: 9 })
+    expect(reply).toMatchObject({ head: 9 })
     expect((await eventsOf('thr-1')).map((row) => row.seq)).toEqual([1, 2, 3, 7, 9])
   })
 

@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { announceSubscriberThreads } from './github-list-signals'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
 import {
@@ -32,6 +34,7 @@ export class GithubPollSweeperService {
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
     private readonly mailbox: GithubPrEventMailboxService,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async handlePoll(): Promise<void> {
@@ -165,12 +168,7 @@ export class GithubPollSweeperService {
       prior: PrTransitionSnapshot | null
     }
     try {
-      const fields = await this.reads.readPullRequest({
-        token,
-        owner,
-        repo,
-        number: args.prNumber,
-      })
+      const fields = await this.reads.readPullRequest({ token, owner, repo, number: args.prNumber })
       const prior = snapshotOf(
         await db.orm.public.GithubPrState.first({
           repoFullName: args.repoFullName,
@@ -212,6 +210,7 @@ export class GithubPollSweeperService {
 
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     this.fanout.push({ userIds, state: pushed.state })
+    await announceSubscriberThreads({ signals: this.signals, subscribers })
     await pushPrTransitions({
       mailbox: this.mailbox,
       prior: pushed.prior,

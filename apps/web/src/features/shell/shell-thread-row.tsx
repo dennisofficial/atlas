@@ -15,7 +15,8 @@ import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
-import { threadStatusOf } from './thread-status'
+import { isUnread, threadStatusOf } from './thread-status'
+import { UnreadDot } from './unread-dot'
 
 export interface ThreadRowProps {
   thread: WireThread
@@ -48,6 +49,7 @@ export function ThreadRow({ thread, projectName, active }: ThreadRowProps) {
           <ThreadStatusIcon status={threadStatusOf(thread)} />
           <span>{thread.title ?? UNTITLED}</span>
         </SidebarMenuButton>
+        {isUnread({ thread, active }) ? <UnreadDot /> : null}
         {pinned ? (
           <Pin
             role="img"
