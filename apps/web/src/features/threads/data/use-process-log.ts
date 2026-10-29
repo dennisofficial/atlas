@@ -8,6 +8,7 @@ import type { ServiceSnapshotWire, ShellSnapshotWire } from '@dltech/atlas-wire/
 import { createCoalescedRunner } from './coalesced-runner'
 import {
   EProcessKind,
+  isServiceRunning,
   PEEKED_CHARACTERS,
   SERVICE_LOG_POLL_MS,
   SHELL_READ_GAP_MS,
@@ -35,11 +36,12 @@ export function useProcessLog(args: {
       : undefined
   const shellId = shell?.shellId
   const printed = shell?.totalCharacters
-  const serviceId =
-    selected?.kind === EProcessKind.Service &&
-    services.some((service) => service.serviceId === selected.id)
-      ? selected.id
+  const service =
+    selected?.kind === EProcessKind.Service
+      ? services.find((candidate) => candidate.serviceId === selected.id)
       : undefined
+  const serviceId = service?.serviceId
+  const serviceRunning = service !== undefined && isServiceRunning(service)
   const printedRef = useRef(printed)
   const lastRead = useRef<number | undefined>(undefined)
   const shellReads = useRef<{ trigger: () => void } | null>(null)
@@ -79,24 +81,30 @@ export function useProcessLog(args: {
     if (channel === null || serviceId === undefined) return undefined
     const key = keyOf({ kind: EProcessKind.Service, id: serviceId })
     let active = true
-    const runner = createCoalescedRunner({
-      run: async () => {
-        const text = await readServiceLog({
-          channel,
-          serviceId,
-          characters: PEEKED_CHARACTERS,
-        }).catch(() => '')
-        if (active) setHeld({ key, text })
-      },
-    })
-    runner.trigger()
-    const interval = setInterval(runner.trigger, SERVICE_LOG_POLL_MS)
+    let reading = false
+    const read = async () => {
+      if (reading) return
+      reading = true
+      const text = await readServiceLog({
+        channel,
+        serviceId,
+        characters: PEEKED_CHARACTERS,
+      }).catch(() => '')
+      reading = false
+      if (active) setHeld({ key, text })
+    }
+    void read()
+    if (!serviceRunning) {
+      return () => {
+        active = false
+      }
+    }
+    const interval = setInterval(() => void read(), SERVICE_LOG_POLL_MS)
     return () => {
       active = false
-      runner.stop()
       clearInterval(interval)
     }
-  }, [channel, serviceId])
+  }, [channel, serviceId, serviceRunning])
 
   return selected !== null && held?.key === keyOf(selected) ? held.text : null
 }

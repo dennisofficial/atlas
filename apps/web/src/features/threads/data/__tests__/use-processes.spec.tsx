@@ -2,7 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import { act } from 'react'
 
-import { EClientRequest } from '@dltech/atlas-client/channel'
+import { EClientRequest, RemoteRequestLost } from '@dltech/atlas-client/channel'
 import {
   EServiceStatus,
   EShellStatus,
@@ -280,6 +280,88 @@ describe('useProcesses', () => {
     } finally {
       started.mockRestore()
       cleared.mockRestore()
+    }
+  })
+
+  it('reads an ended service log once and never polls it', async () => {
+    const started = spyOn(globalThis, 'setInterval')
+    try {
+      const fake = fakeChannel(() => ({ text: 'bye' }))
+      const data = await mount(fake.channel)
+      const ended = service({ status: EServiceStatus.Exited, exitCode: 0 })
+      await fake.push(rosterOf({ services: [ended] }))
+      await act(async () => data().handleSelect({ kind: EProcessKind.Service, id: 'svc_1' }))
+      await settle()
+      expect(fake.callsOf(EClientRequest.ReadServiceLog)).toHaveLength(1)
+      expect(started.mock.calls.filter(([, ms]) => ms === 5_000)).toHaveLength(0)
+      expect(data().log).toBe('bye')
+    } finally {
+      started.mockRestore()
+    }
+  })
+
+  it('stops polling once a pushed roster shows the service ended', async () => {
+    const cleared = spyOn(globalThis, 'clearInterval')
+    try {
+      const fake = fakeChannel(() => ({ text: 'up' }))
+      const data = await mount(fake.channel)
+      await fake.push(rosterOf({ services: [service()] }))
+      await act(async () => data().handleSelect({ kind: EProcessKind.Service, id: 'svc_1' }))
+      const before = cleared.mock.calls.length
+      await fake.push(rosterOf({ services: [service({ status: EServiceStatus.Killed })] }))
+      expect(cleared.mock.calls.length).toBeGreaterThan(before)
+    } finally {
+      cleared.mockRestore()
+    }
+  })
+
+  it('skips a poll tick while the previous service read is unanswered', async () => {
+    const started = spyOn(globalThis, 'setInterval')
+    try {
+      const reads = gate()
+      const fake = fakeChannel(reads.hold)
+      const data = await mount(fake.channel)
+      await fake.push(rosterOf({ services: [service()] }))
+      await act(async () => data().handleSelect({ kind: EProcessKind.Service, id: 'svc_1' }))
+      const poll = started.mock.calls.find(([, ms]) => ms === 5_000)?.[0]
+      if (typeof poll !== 'function') throw new Error('expected a 5 s poll')
+      await act(async () => poll())
+      await act(async () => poll())
+      expect(fake.callsOf(EClientRequest.ReadServiceLog)).toHaveLength(1)
+      await reads.release({ text: 'first' })
+      expect(data().log).toBe('first')
+      await act(async () => poll())
+      expect(fake.callsOf(EClientRequest.ReadServiceLog)).toHaveLength(2)
+    } finally {
+      started.mockRestore()
+    }
+  })
+
+  it('shows a refused stop as the notice', async () => {
+    const fake = fakeChannel(() => ({ ok: false, reason: 'service already stopped' }))
+    const data = await mount(fake.channel)
+    await fake.push(rosterOf({ services: [service()] }))
+    await act(async () => data().handleStop('svc_1'))
+    expect(data().notice).toBe('service already stopped')
+    expect(data().busyId).toBeNull()
+  })
+
+  it('shows a lost request as the notice for kill, stop and start', async () => {
+    const fake = fakeChannel((call) => {
+      throw new RemoteRequestLost({ op: call.op, reason: 'the socket closed' })
+    })
+    const data = await mount(fake.channel)
+    await fake.push(rosterOf({ shells: [shell()], services: [service()] }))
+    for (const action of [
+      () => data().handleKill('shell_1'),
+      () => data().handleStop('svc_1'),
+      () => data().handleStart('ls'),
+    ]) {
+      await act(async () => {
+        await action()
+      })
+      expect(data().notice).toContain('the socket closed')
+      expect(data().busyId).toBeNull()
     }
   })
 })
