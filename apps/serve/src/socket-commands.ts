@@ -3,7 +3,7 @@ import { EClientFrame, EServeFrame, type ClientFrame, type ServeFrame } from '@d
 
 import type { FrameBuffer } from './frame-buffer'
 import { EServeEvent, type ServeLog } from './serve-log'
-import { messageOf } from './socket-requests'
+import { messageOf } from './message-of'
 import type { SessionSocket } from './socket-session'
 import type { ServeTurnDriver } from './turn-driver'
 

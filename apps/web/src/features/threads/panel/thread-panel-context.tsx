@@ -4,17 +4,20 @@ import { createContext, useContext } from 'react'
 
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
+import type { DetailsInput } from './details/details-input'
 import type { ServeChannel } from '../data/live-thread-view'
 
 export type ThreadPanelValue = {
   threadId: string
   channel: ServeChannel | null
   pod: PodStatus | null
+  details: DetailsInput
   working: boolean
   changesPath: string | undefined
   agentId: string | undefined
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
+  openDetails: () => void
   clearAgent: () => void
   closePanel: () => void
   refreshPod: () => void

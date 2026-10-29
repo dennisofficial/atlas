@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EKilledBy, EServiceStatus } from '@dltech/atlas-core'
-import type { ServiceSnapshot } from '@dltech/atlas-harness'
+import { EKilledBy } from '../../shells/status'
+import { EServiceStatus } from '../status'
 
-import { foldServices } from '../service-fold'
+import { foldServices, type FoldableService } from '../fold'
+
+type ServiceSnapshot = FoldableService & {
+  command: string
+  pid: number
+  startedAt: string
+  endedAt?: string
+}
 
 const service = (over: Partial<ServiceSnapshot> = {}): ServiceSnapshot => ({
   serviceId: 'svc_1',
   command: 'bun run dev',
-  description: 'web dev server',
   status: EServiceStatus.Running,
   pid: 4_242,
-  logPath: '/tmp/atlas/services/svc_1.log',
   startedAt: '2026-08-27T12:00:00.000Z',
   ...over,
 })

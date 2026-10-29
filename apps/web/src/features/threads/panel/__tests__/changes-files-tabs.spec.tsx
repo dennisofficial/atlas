@@ -6,6 +6,7 @@ import { EPodState } from '@dltech/atlas-wire/web'
 import { ChangesTab } from '../changes-tab'
 import { FilesTab } from '../files-tab'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../thread-panel-context'
+import { EMPTY_DETAILS } from '../details/details-input'
 
 const base: ThreadPanelValue = {
   threadId: 'thr_1',
@@ -16,6 +17,8 @@ const base: ThreadPanelValue = {
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -28,7 +31,9 @@ const render = (node: React.ReactNode, value: Partial<ThreadPanelValue> = {}): s
 
 describe('ChangesTab', () => {
   it('tells a parked pod owner the sandbox is asleep', () => {
-    const html = render(<ChangesTab />, { pod: { state: EPodState.Parked, steps: [] } })
+    const html = render(<ChangesTab />, {
+      pod: { state: EPodState.Parked, steps: [] },
+    })
     expect(html).toContain('Sandbox is asleep')
   })
 
@@ -39,7 +44,9 @@ describe('ChangesTab', () => {
 
 describe('FilesTab', () => {
   it('tells a parked pod owner the sandbox is asleep', () => {
-    const html = render(<FilesTab />, { pod: { state: EPodState.Parked, steps: [] } })
+    const html = render(<FilesTab />, {
+      pod: { state: EPodState.Parked, steps: [] },
+    })
     expect(html).toContain('Sandbox is asleep')
     expect(html).toContain('Files appear')
   })

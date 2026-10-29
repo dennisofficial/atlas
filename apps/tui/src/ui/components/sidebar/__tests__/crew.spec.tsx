@@ -1,10 +1,9 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus, ECrewStanding } from '@dltech/atlas-core'
 import { EChecksState, EPullRequestState } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { ECrewStanding } from '../../../../store/crew-retirement'
 import type { SidebarSubagent } from '../../../../store/subagent-row'
 import { teardown } from '../../../markdown/__tests__/harness'
 import { SubagentsSection } from '../crew'

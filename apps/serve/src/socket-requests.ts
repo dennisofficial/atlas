@@ -3,33 +3,28 @@ import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
 import type { RotationStateWire } from '@dltech/atlas-wire'
 
-import { answerSessionTool, isSessionToolOp, type SessionTools } from './session-tool-requests'
-import { answerAgentSteer, isAgentSteerOp } from './agent-steer'
+import { isAgentSteerOp } from './agent-steer'
+import { routeAgentSteerRequest } from './agent-steer-routing'
+import { createCompactionRequests, isCompactionOp } from './compaction-requests'
+import { routeContextRead } from './context-routing'
+import type { ContextReaders } from './context-requests'
+import { routeFileRequest } from './file-routing'
+import { routeGrantRequest, type ServeGrants } from './grant-requests'
+import { createHistoryMutations } from './history-mutations'
+import { routeMentionRead, type MentionRouting } from './mention-requests'
 import { routeOperatorInput } from './operator-input'
 import { routeProcessRequest, type ServeProcesses } from './process-requests'
-import { answerContextRead, isContextOp, type ContextReaders } from './context-requests'
-import { routeMentionRead, type MentionRouting } from './mention-requests'
-import {
-  answerRequest,
-  answerTranscriptRead,
-  answerTranscriptWrite,
-  isTranscriptReadOp,
-  isTranscriptWriteOp,
-  refusedRequest,
-  type RequestFrame,
-  type TranscriptReaders,
-} from './requests'
+import { refusedRequest, type RequestFrame, type TranscriptReaders } from './requests'
 import { answerRewindRequest } from './rewind-request'
-import { createHistoryMutations } from './history-mutations'
-import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
 import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
+import { routeSessionToolRequest } from './session-tool-routing'
+import type { SessionTools } from './session-tool-requests'
 import type { SessionSocket } from './socket-session'
+import { routeTranscriptRead, routeTranscriptWrite } from './transcript-routing'
 import type { ServeTurnDriver } from './turn-driver'
-export const messageOf = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback
 
 export function createRequestRouter(args: {
   threadId: ThreadId
@@ -53,6 +48,7 @@ export function createRequestRouter(args: {
   persistModel?: ThreadModelPersister | undefined
   tools?: SessionTools | undefined
   processes?: ServeProcesses | undefined
+  grants?: ServeGrants | undefined
 }) {
   const { threadId, driver, files, log, snapshot, send, rewind, agents, transcript, selectModel } =
     args
@@ -99,7 +95,12 @@ export function createRequestRouter(args: {
     if (frame.op === EClientRequest.ListRoster) {
       send({
         socket,
-        frame: { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: snapshot() },
+        frame: {
+          kind: EServeFrame.Reply,
+          replyTo: frame.id,
+          ok: true,
+          data: snapshot(),
+        },
       })
       return
     }
@@ -139,10 +140,18 @@ export function createRequestRouter(args: {
     }
     if (frame.op === EClientRequest.Rewind) {
       if (rewind === undefined)
-        log({ event: EServeEvent.ClientRefused, reason: 'rewind-without-registries' })
+        log({
+          event: EServeEvent.ClientRefused,
+          reason: 'rewind-without-registries',
+        })
       void edits
         .run(async () => {
-          const reply = await answerRewindRequest({ frame, threadId, driver, rewind })
+          const reply = await answerRewindRequest({
+            frame,
+            threadId,
+            driver,
+            rewind,
+          })
           if (reply.ok) args.historyChanged?.()
           return reply
         })
@@ -150,33 +159,15 @@ export function createRequestRouter(args: {
       return
     }
 
-    if (isAgentSteerOp(frame.op)) {
-      if (agents === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({
-            replyTo: frame.id,
-            message: 'this serve holds no agents to steer',
-          }),
-        })
-        return
-      }
-      void edits
-        .run(() => answerAgentSteer({ frame, agents }))
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the agent steer failed') },
-            },
-          }),
-        )
+    if (
+      routeAgentSteerRequest({
+        frame,
+        agents,
+        run: edits.run,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
       return
-    }
 
     if (
       routeOperatorInput({
@@ -198,47 +189,35 @@ export function createRequestRouter(args: {
     )
       return
 
-    if (isSessionToolOp(frame.op)) {
-      void answerSessionTool({ frame, tools: args.tools ?? {} })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: refusedRequest({
-              replyTo: frame.id,
-              message: messageOf(error, 'the session tool failed'),
-            }),
-          }),
-        )
+    if (
+      routeGrantRequest({
+        frame,
+        threadId,
+        grants: args.grants,
+        run: edits.run,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
       return
-    }
 
-    if (isTranscriptReadOp(frame.op)) {
-      if (transcript === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({
-            replyTo: frame.id,
-            message: 'this serve has no transcript to read',
-          }),
-        })
-        return
-      }
-      void answerTranscriptRead({ frame, transcript: transcript, threadId })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript read failed') },
-            },
-          }),
-        )
+    if (
+      routeSessionToolRequest({
+        frame,
+        tools: args.tools,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
       return
-    }
+
+    if (
+      routeTranscriptRead({
+        frame,
+        transcript,
+        threadId,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
+      return
 
     if (
       routeMentionRead({
@@ -250,80 +229,33 @@ export function createRequestRouter(args: {
     )
       return
 
-    if (isContextOp(frame.op)) {
-      if (context === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({
-            replyTo: frame.id,
-            message: 'this serve has no context folder to read',
-          }),
-        })
-        return
-      }
-      void answerContextRead({ frame, context })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the context read failed') },
-            },
-          }),
-        )
+    if (
+      routeContextRead({
+        frame,
+        context,
+        reply: (reply) => send({ socket, frame: reply }),
+      })
+    )
       return
-    }
 
-    if (isTranscriptWriteOp(frame.op)) {
-      if (transcript === undefined) {
-        send({
-          socket,
-          frame: refusedRequest({
-            replyTo: frame.id,
-            message: 'this serve has no transcript to write',
-          }),
-        })
-        return
-      }
-      void answerTranscriptWrite({
+    if (
+      routeTranscriptWrite({
         frame,
         transcript,
         threadId,
         log,
-        ...(selectModel === undefined ? {} : { select: selectModel }),
-        ...(args.persistModel === undefined ? {} : { persist: args.persistModel }),
+        selectModel,
+        persistModel: args.persistModel,
+        reply: (reply) => send({ socket, frame: reply }),
       })
-        .then((reply) => send({ socket, frame: reply }))
-        .catch((error: unknown) =>
-          send({
-            socket,
-            frame: {
-              kind: EServeFrame.Reply,
-              replyTo: frame.id,
-              ok: false,
-              data: { message: messageOf(error, 'the transcript write failed') },
-            },
-          }),
-        )
+    )
       return
-    }
 
-    void answerRequest({ frame, files })
-      .then((reply) => send({ socket, frame: reply }))
-      .catch((error: unknown) =>
-        send({
-          socket,
-          frame: {
-            kind: EServeFrame.Reply,
-            replyTo: frame.id,
-            ok: false,
-            data: { message: messageOf(error, 'the request failed') },
-          },
-        }),
-      )
+    routeFileRequest({
+      frame,
+      files,
+      reply: (reply) => send({ socket, frame: reply }),
+    })
   }
 
   return { route, compaction: compact, rotation: rotate }

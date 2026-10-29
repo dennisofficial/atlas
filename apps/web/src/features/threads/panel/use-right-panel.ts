@@ -11,11 +11,12 @@ export type RightPanelState = {
   setSheetOpen: (open: boolean) => void
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
+  openDetails: () => void
   clearAgent: () => void
 }
 
 export function useRightPanel(): RightPanelState {
-  const [tab, setTab] = useState(ERightTab.Agents)
+  const [tab, setTab] = useState(ERightTab.Details)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [changesPath, setChangesPath] = useState<string | undefined>(undefined)
   const [agentId, setAgentId] = useState<string | undefined>(undefined)
@@ -28,7 +29,12 @@ export function useRightPanel(): RightPanelState {
 
   const openAgent = useCallback((id: string) => {
     setAgentId(id)
-    setTab(ERightTab.Agents)
+    setTab(ERightTab.Details)
+    setSheetOpen(true)
+  }, [])
+
+  const openDetails = useCallback(() => {
+    setTab(ERightTab.Details)
     setSheetOpen(true)
   }, [])
 
@@ -43,6 +49,7 @@ export function useRightPanel(): RightPanelState {
     setSheetOpen,
     openChanges,
     openAgent,
+    openDetails,
     clearAgent,
   }
 }

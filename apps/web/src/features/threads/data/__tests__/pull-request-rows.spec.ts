@@ -25,14 +25,12 @@ describe('pullRequestListOf', () => {
     expect(pullRequestListOf({ thread: undefined, states: [] })).toEqual({
       entries: [],
       rows: [],
-      pinnedKey: undefined,
     })
   })
 
   it('lists every entry oldest first and pins the current branch', () => {
     const list = pullRequestListOf({ thread, states: [] })
     expect(list.rows.map((row) => row.label)).toEqual(['#1', '#2'])
-    expect(list.pinnedKey).toBe('o/r#2')
     expect(list.rows[0]?.branch).toBe('b1')
   })
 
@@ -72,6 +70,5 @@ describe('pullRequestListOf', () => {
       states: [],
     })
     expect(list.rows.map((row) => row.via)).toEqual([undefined, 'via fix it', 'via teammate'])
-    expect(list.pinnedKey).toBe('o/r#1')
   })
 })

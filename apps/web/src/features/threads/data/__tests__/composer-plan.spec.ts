@@ -28,7 +28,10 @@ const planEvents = (tasks: unknown[]): WireEvent[] => [
       ordinal: 0,
     },
   }),
-  said({ seq: 2, body: { type: 'tool-result', callId: 'call_1', name: 'task_write' } }),
+  said({
+    seq: 2,
+    body: { type: 'tool-result', callId: 'call_1', name: 'task_write' },
+  }),
 ]
 
 describe('planStepsOf', () => {
@@ -36,13 +39,17 @@ describe('planStepsOf', () => {
     const events = eventsFromWire(
       planEvents([
         { text: 'Read the spec', status: 'completed' },
-        { text: 'Write the code', status: 'in_progress' },
+        {
+          text: 'Write the code',
+          activeForm: 'Writing the code',
+          status: 'in_progress',
+        },
         { text: 'Ship it' },
       ]),
     )
     expect(planStepsOf(events)).toEqual([
       { id: '1', title: 'Read the spec', status: EStepStatus.Done },
-      { id: '2', title: 'Write the code', status: EStepStatus.Running },
+      { id: '2', title: 'Writing the code', status: EStepStatus.Running },
       { id: '3', title: 'Ship it', status: EStepStatus.Pending },
     ])
   })

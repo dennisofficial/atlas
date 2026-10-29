@@ -1,8 +1,8 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus } from '../status'
 import { describe, expect, it } from 'bun:test'
 
 import { foldCrew } from '../crew-fold'
-import { ECrewStanding } from '../crew-retirement'
+import { ECrewStanding } from '../crew-standing'
 
 type Row = { id: string; status: EAgentStatus }
 

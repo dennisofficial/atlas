@@ -9,7 +9,7 @@ import { liveSteps } from '@dltech/atlas-client/transcript'
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { branchOf, headerStateOf, sandboxSettingsHrefOf, spawnerIdOf } from './data/header-model'
+import { headerStateOf, spawnerIdOf } from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
@@ -26,6 +26,7 @@ import { fetchThread } from './data/threads-api'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
+import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerImages } from './data/use-composer-images'
 import { useComposerHandoff } from './data/use-composer-handoff'
@@ -56,7 +57,6 @@ import { ThreadComposer } from './thread-composer'
 import { ThreadHeader } from './thread-header'
 import { ThreadLayout } from './thread-layout'
 import { ThreadMissing } from './thread-missing'
-import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
 import { RewindDialog } from './transcript/rewind-dialog'
 
@@ -139,7 +139,21 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const boot = useMemo(() => bootViewOf({ pod, now }), [pod, now])
   const notConfigured = useMemo(() => notConfiguredOf(pod), [pod])
   const handleResize = usePodResize({ threadId, refresh })
-  const panel = useThreadPanelValue({ threadId, channel, pod, working, rightPanel, refresh })
+  const details = useDetailsInput({
+    thread: thread.data,
+    events: parsed,
+    pullRequests,
+    onResize: handleResize,
+  })
+  const panel = useThreadPanelValue({
+    threadId,
+    channel,
+    pod,
+    details,
+    working,
+    rightPanel,
+    refresh,
+  })
 
   const handleSubmit = async (text: string) => {
     if (!images.checkBudget()) return
@@ -174,7 +188,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
       toast.error(messageOf(failure))
     }
   }
-
   const handleStop = () => {
     if (source.interrupt()) return
     toast.error('Could not reach the sandbox to stop the turn')
@@ -206,16 +219,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
         waitingOnOperator: source.waitingOnOperator,
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
-      branch={branchOf(thread.data)}
-      pullRequests={pullRequests}
-      podChip={
-        <ThreadPodChip
-          pod={pod}
-          working={working}
-          onResize={handleResize}
-          settingsHref={sandboxSettingsHrefOf(thread.data)}
-        />
-      }
       onOpenPanel={() => rightPanel.setSheetOpen(true)}
     />
   )
@@ -270,7 +273,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
               onCancel={rewind.handleCancel}
               onConfirm={() => void rewind.handleConfirm()}
             />
-            <ComposerDock dock={dock} />
+            <ComposerDock dock={dock} onOpenDetails={rightPanel.openDetails} />
             <ThreadComposer
               value={draft}
               onValueChange={setDraft}

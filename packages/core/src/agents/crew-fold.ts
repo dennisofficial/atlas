@@ -1,4 +1,4 @@
-import { ECrewStanding } from './crew-retirement'
+import { ECrewStanding } from './crew-standing'
 
 export const CREW_SETTLED_TAIL = 2
 

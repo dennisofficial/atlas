@@ -1,4 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import { revokeGrant } from '@dltech/atlas-harness'
 import { useCallback } from 'react'
 
 import { ENoticeTone, notify } from '../ui/notice-store'
@@ -15,11 +16,7 @@ export function useRevokeGrant(args: {
   return useCallback(
     (grantId: string) => {
       void (async () => {
-        await app.log.append({
-          threadId,
-          runId: app.ids.nextRunId(),
-          drafts: [{ type: 'permission-revoked', grantId }],
-        })
+        await revokeGrant({ log: app.log, ids: app.ids, threadId, grantId })
         await refresh()
       })().catch((error: unknown) => {
         notify({

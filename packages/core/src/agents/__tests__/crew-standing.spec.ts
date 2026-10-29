@@ -1,7 +1,7 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus } from '../status'
 import { describe, expect, it } from 'bun:test'
 
-import { ECrewStanding, crewStanding, standingsOfCrew, type CrewMember } from '../crew-retirement'
+import { ECrewStanding, crewStanding, standingsOfCrew, type CrewMember } from '../crew-standing'
 
 const ROOT = 'thr_root'
 

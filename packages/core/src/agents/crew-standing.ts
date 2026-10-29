@@ -1,4 +1,4 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus } from './status'
 
 export type CrewMember = {
   agentId: string

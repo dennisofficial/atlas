@@ -9,6 +9,7 @@ import { EPodState, type PodStatus } from '@dltech/atlas-wire/web'
 import { RightPanel } from '../right-panel'
 import { ERightTab, isRightTab, TAB_LABEL } from '../right-tab'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../thread-panel-context'
+import { EMPTY_DETAILS } from '../details/details-input'
 
 const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   threadId: 'thr_1',
@@ -19,6 +20,8 @@ const panel = (pod: PodStatus | null): ThreadPanelValue => ({
   agentId: undefined,
   openChanges: () => undefined,
   openAgent: () => undefined,
+  openDetails: () => undefined,
+  details: EMPTY_DETAILS,
   clearAgent: () => undefined,
   closePanel: () => undefined,
   refreshPod: () => undefined,
@@ -37,18 +40,18 @@ const render = (args: { tab: ERightTab; pod?: PodStatus | null }): string =>
 
 describe('RightPanel', () => {
   it('lists the six tabs in prototype order', () => {
-    const html = render({ tab: ERightTab.Agents })
+    const html = render({ tab: ERightTab.Details })
     const positions = Object.values(TAB_LABEL).map((label) => html.indexOf(`>${label}`))
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
   })
 
   it('shows no running count while nothing is running', () => {
-    expect(render({ tab: ERightTab.Agents })).not.toContain('tabular-nums')
+    expect(render({ tab: ERightTab.Details })).not.toContain('font-mono text-xs tabular-nums')
   })
 
-  it('loads the Agents tab before the thread events arrive', () => {
-    expect(render({ tab: ERightTab.Agents })).toContain('data-slot="spinner"')
+  it('loads the Details tab before the thread events arrive', () => {
+    expect(render({ tab: ERightTab.Details })).toContain('data-slot="spinner"')
   })
 
   it('tells the Changes tab owner the pod is connecting when there is no channel', () => {
@@ -56,12 +59,18 @@ describe('RightPanel', () => {
   })
 
   it('tells the Files tab owner the sandbox is asleep for a parked pod', () => {
-    const html = render({ tab: ERightTab.Files, pod: { state: EPodState.Parked, steps: [] } })
+    const html = render({
+      tab: ERightTab.Files,
+      pod: { state: EPodState.Parked, steps: [] },
+    })
     expect(html).toContain('Sandbox is asleep')
   })
 
   it('offers to resume a parked pod from the Terminal tab', () => {
-    const html = render({ tab: ERightTab.Terminal, pod: { state: EPodState.Parked, steps: [] } })
+    const html = render({
+      tab: ERightTab.Terminal,
+      pod: { state: EPodState.Parked, steps: [] },
+    })
     expect(html).toContain('Resume pod')
   })
 

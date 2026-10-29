@@ -2,7 +2,6 @@ import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 
 import { checksTallyOf, entryHasConflicts, type ChecksTally } from './header-model'
 import {
-  pinnedPullRequestOf,
   pullRequestEntriesOf,
   pullRequestKeyOf,
   type PullRequestEntry,
@@ -22,7 +21,6 @@ export type PullRequestRow = {
 export type PullRequestList = {
   entries: PullRequestEntry[]
   rows: PullRequestRow[]
-  pinnedKey: string | undefined
 }
 
 export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
@@ -42,12 +40,7 @@ export function pullRequestListOf(args: {
   thread: WireThread | undefined
   states: readonly PrStateWire[]
 }): PullRequestList {
-  if (args.thread === undefined) return { entries: [], rows: [], pinnedKey: undefined }
+  if (args.thread === undefined) return { entries: [], rows: [] }
   const entries = pullRequestEntriesOf({ thread: args.thread, states: args.states })
-  const pinned = pinnedPullRequestOf(entries)
-  return {
-    entries,
-    rows: entries.map(pullRequestRowOf),
-    pinnedKey: pinned === undefined ? undefined : pullRequestKeyOf(pinned),
-  }
+  return { entries, rows: entries.map(pullRequestRowOf) }
 }

@@ -1,4 +1,4 @@
-import { estimateCostUsd, type ModelCost, type ModelRef } from '@dltech/atlas-core'
+import { formatUsd, tallySpend, type ModelCost, type ModelRef } from '@dltech/atlas-core'
 import { NOTHING_SPENT, totalSpend, type SpendTotals, type TurnSpend } from '@dltech/atlas-harness'
 
 import { formatTokens, theme } from '../ui/theme'
@@ -24,25 +24,6 @@ export const NOTHING_TALLIED: SidebarSpend = {
   costUsd: null,
 }
 
-function costOfTurns(args: {
-  turns: readonly TurnSpend[]
-  priceOf: ModelPriceLookup
-}): number | null {
-  let dollars: number | null = null
-
-  for (const turn of args.turns) {
-    const cost = args.priceOf({
-      providerId: turn.providerId,
-      modelId: turn.modelId,
-    })
-    if (cost === undefined) continue
-
-    dollars = (dollars ?? 0) + estimateCostUsd({ spend: turn, cost })
-  }
-
-  return dollars
-}
-
 export function sidebarSpendOf(args: {
   turns: readonly TurnSpend[]
   liveOutputTokens: number
@@ -61,7 +42,10 @@ export function sidebarSpendOf(args: {
 
   return {
     totals,
-    costUsd: args.priceOf === undefined ? null : costOfTurns({ ...args, priceOf: args.priceOf }),
+    costUsd:
+      args.priceOf === undefined
+        ? null
+        : tallySpend({ rows: args.turns, priceOf: args.priceOf }).costUsd,
   }
 }
 
@@ -74,11 +58,6 @@ export function costTone(costUsd: number): string {
   if (costUsd >= COST_WARN_USD) return theme.warn
   return theme.hint
 }
-
-const CENT = 0.01
-
-export const formatUsd = (dollars: number): string =>
-  dollars > 0 && dollars < CENT ? `<$${CENT.toFixed(2)}` : `$${dollars.toFixed(2)}`
 
 const FIGURE_SEPARATOR = '  '
 

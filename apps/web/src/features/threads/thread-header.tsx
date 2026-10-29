@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
-import { ChevronRightIcon, GitBranchIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
+import { ChevronRightIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -11,8 +10,6 @@ import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { EHeaderState, STATE_LABEL } from './data/header-model'
-import type { PullRequestsView } from './data/use-pull-requests'
-import { PullRequestControls } from './pull-request-controls'
 
 export type HeaderParent = {
   id: string
@@ -24,9 +21,6 @@ export type ThreadHeaderProps = {
   naming?: boolean | undefined
   state: EHeaderState
   parent?: HeaderParent | undefined
-  branch?: string | undefined
-  pullRequests?: PullRequestsView | undefined
-  podChip?: ReactNode
   onOpenPanel: () => void
 }
 
@@ -59,7 +53,7 @@ function ParentCrumb({ parent }: { parent: HeaderParent }) {
 }
 
 export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, naming = false, state, parent, branch, pullRequests, podChip, onOpenPanel } = props
+  const { title, naming = false, state, parent, onOpenPanel } = props
   return (
     <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -72,25 +66,9 @@ export function ThreadHeader(props: ThreadHeaderProps) {
             <NamingTitle title={title} naming={naming} />
           </h1>
         )}
-        {branch ? (
-          <span className="hidden min-w-0 items-center gap-1 font-mono text-xs text-muted-foreground sm:flex">
-            <GitBranchIcon className="size-3.5 shrink-0" />
-            <span className="truncate">{branch}</span>
-          </span>
-        ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {pullRequests?.badge ? (
-          <PullRequestControls
-            pullRequest={pullRequests.badge}
-            rows={pullRequests.rows}
-            bells={pullRequests.bells}
-            pinnedKey={pullRequests.pinnedKey}
-            onToggleBell={pullRequests.handleToggle}
-          />
-        ) : null}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
-        {podChip}
         <Button
           variant="ghost"
           size="icon-lg"
