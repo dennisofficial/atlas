@@ -15,22 +15,54 @@ describe('ThreadsService open confined to a token family', () => {
   })
 
   it('re-opening confined to a token family refuses a thread spawned elsewhere and writes nothing', async () => {
+    const first = { type: 'user-said', body: '{}' }
     await service.open({
       userId: USER_A,
-      draft: { threadId: 'brn_foreign', runId: 'run_1', drafts: [], title: 'kept' },
+      draft: { threadId: 'brn_foreign', runId: 'run_1', drafts: [first], title: 'kept' },
     })
 
     await expect(
       service.open({
         userId: USER_A,
         confinedTo: 'brn_root',
-        draft: { threadId: 'brn_foreign', runId: 'run_2', drafts: [], title: 'stolen' },
+        draft: {
+          threadId: 'brn_foreign',
+          runId: 'run_2',
+          drafts: [first, { type: 'user-said', body: '{"text":"injected"}' }],
+          title: 'stolen',
+        },
       }),
     ).rejects.toBeInstanceOf(ForbiddenException)
-    expect((await service.find({ userId: USER_A, threadId: 'brn_foreign' })).title).toBe('kept')
+    const stored = await service.find({ userId: USER_A, threadId: 'brn_foreign' })
+    expect(stored.title).toBe('kept')
+    expect(stored.head).toBe(1)
   })
 
-  it('re-opening confined to a token family reaches the token own thread', async () => {
+  it('re-opening confined to a token family refuses a sub-agent of another root', async () => {
+    await service.open({
+      userId: USER_A,
+      draft: { threadId: 'brn_other', runId: 'run_0', drafts: [] },
+    })
+    await service.open({
+      userId: USER_A,
+      draft: {
+        threadId: 'brn_cousin',
+        runId: 'run_1',
+        drafts: [],
+        agent: { spawnedBy: 'brn_other', type: 'explore' },
+      },
+    })
+
+    await expect(
+      service.open({
+        userId: USER_A,
+        confinedTo: 'brn_root',
+        draft: { threadId: 'brn_cousin', runId: 'run_2', drafts: [], title: 'stolen' },
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
+  it("re-opening confined to a token family reaches the token's own thread", async () => {
     await service.open({
       userId: USER_A,
       draft: { threadId: 'brn_root', runId: 'run_1', drafts: [] },
