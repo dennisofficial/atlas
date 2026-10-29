@@ -24,6 +24,15 @@ rows; a TUI BYO row (none) is never taken over by a web send or Retry. A TUI loc
 `LocalPodLease`: it never gets a `Thread` row, `Event` rows or a checkpoint row, and the send and
 Retry paths refuse a leased thread with 409.
 
+**The sidebar lists sessions, not threads.** A `Session` owns its main thread, the sub-agent
+threads spawned in it, its pod (`CloudSandbox` and `SandboxBootStep` are keyed by `sessionId`) and
+the per-conversation fields (project, repo, workspace, execution location, title, pin, archive).
+Procedures still take a `threadId` and resolve its session (`sessionOfThread`, and `podSessionOf`,
+which walks a teammate's `managedBySessionId` to the session that owns the pod). Create a session
+and its main thread with `createSessionWithMainThread`: `Session.mainThreadId` is nullable because
+the two rows point at each other. `sessions.list` returns top-level sessions with teammates nested;
+`threads.list` returns session main threads only. better-auth's table is `AuthSession`.
+
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
 resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A
 missing piece still creates the thread and message and answers `not-configured` with the gap. The
