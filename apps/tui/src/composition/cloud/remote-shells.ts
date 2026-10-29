@@ -9,6 +9,13 @@ import {
   type StartShellArgs,
 } from '@dltech/atlas-harness'
 
+import {
+  killShell,
+  readShellOutput,
+  startShell,
+  type RequestChannel,
+} from '@dltech/atlas-client/channel'
+
 import { heldIfSame, shellsFor, type SharedRoster } from './roster-reader'
 
 const remoteActionRefused = (reason: string): { ok: false; reason: string } => ({
@@ -18,19 +25,24 @@ const remoteActionRefused = (reason: string): { ok: false; reason: string } => (
 
 const NO_PENDING_SHELL_NOTICES: readonly PendingShellNotice[] = Object.freeze([])
 
+const unknownShape = (action: string): { ok: false; reason: string } =>
+  remoteActionRefused(`the sandbox answered the ${action} with a shape this build does not know`)
+
 /**
  * The shell registry as a cloud session's surfaces read it: the roster the sandbox's serve pushes
- * over the channel. The sandbox owns the processes, so anything that would touch one — start,
- * kill, a cursor read — refuses in words rather than pretending to work locally. Peek has nothing
- * to tail from: output never rides the roster frames, so the drawer stays empty rather than
- * showing a stale local fragment.
+ * over the channel. The sandbox owns the processes, so start, peek and kill forward through the
+ * channel to the sandbox's own registry. A cursor read stays refused: it advances the model's
+ * read position, and only the model's own tool reads that way.
  */
 export class RemoteShellRegistry extends ShellRegistryPort {
   private heldEverywhere: readonly ShellSnapshot[] = []
   private readonly scoped = new Map<ThreadId, readonly ShellSnapshot[]>()
   private revision = 0
 
-  constructor(private readonly roster: SharedRoster) {
+  constructor(
+    private readonly roster: SharedRoster,
+    private readonly channel: RequestChannel,
+  ) {
     super()
     roster.subscribe(() => this.sync())
     this.sync()
@@ -50,8 +62,18 @@ export class RemoteShellRegistry extends ShellRegistryPort {
     return this.heldEverywhere
   }
 
-  start(_args: StartShellArgs): StartedShellOutcome {
-    return remoteActionRefused('a cloud session starts shells in its sandbox, not on this machine')
+  async start(args: StartShellArgs): Promise<StartedShellOutcome> {
+    try {
+      return await startShell({
+        channel: this.channel,
+        threadId: args.threadId,
+        command: args.command,
+        description: args.description,
+        cwd: args.cwd,
+      })
+    } catch {
+      return unknownShape('start')
+    }
   }
 
   read(_args: { shellId: string; threadId: ThreadId }): ShellReadOutcome {
@@ -60,12 +82,33 @@ export class RemoteShellRegistry extends ShellRegistryPort {
     )
   }
 
-  peek(_args: { shellId: string; characters: number; threadId: ThreadId }): string | undefined {
-    return undefined
+  async peek(args: {
+    shellId: string
+    characters: number
+    threadId: ThreadId
+  }): Promise<string | undefined> {
+    try {
+      const reply = await readShellOutput({ channel: this.channel, ...args })
+      return reply.ok ? reply.text : undefined
+    } catch {
+      return undefined
+    }
   }
 
-  kill(_args: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome {
-    return remoteActionRefused('a cloud session kills shells in its sandbox, not on this machine')
+  async kill(args: {
+    shellId: string
+    by: EKilledBy
+    threadId: ThreadId
+  }): Promise<ShellKillOutcome> {
+    try {
+      return await killShell({
+        channel: this.channel,
+        threadId: args.threadId,
+        shellId: args.shellId,
+      })
+    } catch {
+      return unknownShape('kill')
+    }
   }
 
   async awaitEndings(_args: { threadId: ThreadId; ms: number }): Promise<number> {

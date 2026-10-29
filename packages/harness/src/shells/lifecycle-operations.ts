@@ -20,7 +20,11 @@ export async function stopShellOwners(args: {
     shells.list({ threadId }).filter((shell) => shell.status === EShellStatus.Running),
   )
   for (const shell of running) {
-    const killed = shells.kill({ threadId: shell.threadId, shellId: shell.shellId, by: owners.by })
+    const killed = await shells.kill({
+      threadId: shell.threadId,
+      shellId: shell.shellId,
+      by: owners.by,
+    })
     if (!killed.ok) throw new Error(killed.reason)
   }
   const stragglers = await Promise.all(

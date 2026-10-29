@@ -148,7 +148,7 @@ export function useShells({ app, threadId }: { app: AtlasApp; threadId: ThreadId
 
   const handleKill = useCallback(
     (shellId: string) => {
-      app.shells.kill({ shellId, by: EKilledBy.User, threadId })
+      void app.shells.kill({ shellId, by: EKilledBy.User, threadId })
       setState((current) => (current === null ? null : { ...current }))
     },
     [app, threadId],

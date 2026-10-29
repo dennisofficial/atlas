@@ -1,5 +1,6 @@
 import { EStopAction, toThreadId, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import {
+  logTail,
   ServiceRegistryPort,
   type EKilledBy,
   type ServiceSnapshot,
@@ -92,6 +93,11 @@ export function fakeServiceRegistry(): FakeServices {
       if (snapshot === undefined) return { ok: false, reason: `no service ${serviceId}` }
       stopped.push({ serviceId, by })
       return { ok: true, snapshot, action: EStopAction.Term }
+    },
+
+    logTail: ({ serviceId, characters }) => {
+      const snapshot = find(serviceId)
+      return snapshot === undefined ? '' : logTail({ path: snapshot.logPath, characters })
     },
 
     awaitEndings: () => Promise.resolve(0),
