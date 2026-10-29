@@ -3,6 +3,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
+import type { WireEvent } from '@dltech/atlas-wire/web'
+
+import { eventsFromWire } from '../data/events-from-wire'
+import { durableTranscriptOf, transcriptViewOf } from '../data/transcript-items'
 
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
@@ -121,5 +125,49 @@ describe('ThreadTranscript work groups', () => {
     expect(text).toContain('Final answer')
     expect(text).not.toContain('ran c1')
     expect(text.match(/Worked for/g)).toHaveLength(2)
+  })
+})
+
+const wire = (seq: number, body: Record<string, unknown>): WireEvent => ({
+  id: `evt_${seq}`,
+  threadId: 'thr_1',
+  seq,
+  runId: 'run_1',
+  depth: 0,
+  at: `2026-10-28T10:00:${String(seq).padStart(2, '0')}.000Z`,
+  type: String(body.type),
+  body: JSON.stringify(body),
+})
+
+const rowsOfWire = (events: WireEvent[]): TranscriptRow[] =>
+  transcriptViewOf({
+    durable: durableTranscriptOf({ events: eventsFromWire(events) }),
+    live: [],
+  }).items
+
+describe('ThreadTranscript harness notices', () => {
+  it('renders the pr-event and nudge entries that woke the agent', async () => {
+    await mount(
+      null,
+      rowsOfWire([
+        wire(1, { type: 'user-said', text: 'merge it' }),
+        wire(2, { type: 'assistant-said', parts: [{ type: 'text', text: 'Waiting on CI' }] }),
+        wire(3, {
+          type: 'pr-event',
+          repo: 'dltech/atlas',
+          prNumber: 12,
+          kind: 'state',
+          url: 'https://github.com/dltech/atlas/pull/12',
+          state: 'merged',
+        }),
+        wire(4, { type: 'assistant-said', parts: [{ type: 'text', text: 'It merged' }] }),
+        wire(5, { type: 'nudge', text: 'check the build', lifetimeSteps: 3 }),
+      ]),
+    )
+
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('PR #12: merged')
+    expect(text).toContain('Atlas noticed — nudge')
+    expect(text).toContain('It merged')
   })
 })

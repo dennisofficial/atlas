@@ -1,12 +1,24 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
 import { DrainStateService } from '../../platform/health/drain-state.service'
+import {
+  deliverEvent,
+  deliverState,
+  deliverWake,
+  type OpenStream,
+  type PrEventHandler,
+  type PrStateHandler,
+  type WakeHandler,
+} from './github-pr-fanout.delivery'
 import { EPrFrameKind, type PrFrame, parsePrFrame } from './github-pr-fanout.frame'
 import { LocalPrFrameBus, PrFrameBus } from './github-pr-fanout.transport'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
-type PrStateHandler = (state: GithubPrStateDto) => void
-type PrEventHandler = (event: GithubPrEventDto) => void
-type EventDeliveredHandler = (args: { ackId: string; userId: string }) => void
+type EventDeliveredHandler = (args: {
+  ackId: string
+  userId: string
+  userStream: boolean
+  threadIds: readonly string[]
+}) => void
 
 const COALESCE_WINDOW_MS = 1_000
 
@@ -16,12 +28,6 @@ type PendingEventPush = {
   userIds: readonly string[]
   dirty: boolean
   ackId?: string | undefined
-}
-
-type OpenStream = {
-  handler: PrStateHandler
-  eventHandler: PrEventHandler | undefined
-  onClosed: (() => void) | undefined
 }
 
 /**
@@ -61,13 +67,17 @@ export class GithubPrFanoutService implements OnModuleDestroy {
 
   openStream(args: {
     userId: string
+    threadId?: string
     handler: PrStateHandler
     eventHandler?: PrEventHandler
+    wakeHandler?: WakeHandler
     onClosed?: () => void
   }): () => void {
     const entry: OpenStream = {
+      threadId: args.threadId,
       handler: args.handler,
       eventHandler: args.eventHandler,
+      wakeHandler: args.wakeHandler,
       onClosed: args.onClosed,
     }
     let handlers = this.streams.get(args.userId)
@@ -154,6 +164,16 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     })
   }
 
+  pushWake(args: { userIds: readonly string[]; threadId: string }): void {
+    this.dispatch({
+      frame: {
+        kind: EPrFrameKind.Wake,
+        userIds: args.userIds,
+        payload: { threadId: args.threadId },
+      },
+    })
+  }
+
   private openEventWindow(args: { key: string }): void {
     const prior = this.eventTimers.get(args.key)
     if (prior !== undefined) clearTimeout(prior)
@@ -229,49 +249,31 @@ export class GithubPrFanoutService implements OnModuleDestroy {
       const handlers = this.streams.get(userId)
       if (handlers === undefined) continue
       if (args.frame.kind === EPrFrameKind.State) {
-        this.deliverState({ userId, handlers, state: args.frame.payload })
+        deliverState({ logger: this.logger, userId, handlers, state: args.frame.payload })
         continue
       }
-      const delivered = this.deliverEvent({ userId, handlers, event: args.frame.payload })
-      if (delivered && args.frame.ackId !== undefined) {
-        this.acknowledge({ ackId: args.frame.ackId, userId })
+      if (args.frame.kind === EPrFrameKind.Wake) {
+        deliverWake({
+          logger: this.logger,
+          userId,
+          handlers,
+          threadId: args.frame.payload.threadId,
+        })
+        continue
       }
+      const delivered = deliverEvent({
+        logger: this.logger,
+        userId,
+        handlers,
+        event: args.frame.payload,
+      })
+      if (args.frame.ackId === undefined) continue
+      if (!delivered.userStream && delivered.threadIds.length === 0) continue
+      this.acknowledge({ ackId: args.frame.ackId, userId, ...delivered })
     }
   }
 
-  private deliverState(args: {
-    userId: string
-    handlers: Set<OpenStream>
-    state: GithubPrStateDto
-  }): void {
-    for (const entry of args.handlers) {
-      try {
-        entry.handler(args.state)
-      } catch (failure) {
-        this.logger.warn(`a stream handler failed for ${args.userId}: ${String(failure)}`)
-      }
-    }
-  }
-
-  private deliverEvent(args: {
-    userId: string
-    handlers: Set<OpenStream>
-    event: GithubPrEventDto
-  }): boolean {
-    let delivered = false
-    for (const entry of args.handlers) {
-      if (entry.eventHandler === undefined) continue
-      try {
-        entry.eventHandler(args.event)
-        delivered = true
-      } catch (failure) {
-        this.logger.warn(`an event handler failed for ${args.userId}: ${String(failure)}`)
-      }
-    }
-    return delivered
-  }
-
-  private acknowledge(args: { ackId: string; userId: string }): void {
+  private acknowledge(args: Parameters<EventDeliveredHandler>[0]): void {
     for (const handler of this.deliveredHandlers) {
       try {
         handler(args)

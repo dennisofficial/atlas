@@ -1,15 +1,15 @@
 import type { GithubPrStreamFrame } from '@dltech/atlas-wire'
 
-export type PrFrameSink = {
-  push: (frame: GithubPrStreamFrame) => void
+export type PrFrameSink<Frame = GithubPrStreamFrame> = {
+  push: (frame: Frame) => void
   close: () => void
 }
 
-export async function* prStreamFrames(args: {
+export async function* prStreamFrames<Frame = GithubPrStreamFrame>(args: {
   signal: AbortSignal | undefined
-  attach: (sink: PrFrameSink) => () => void
-}): AsyncGenerator<GithubPrStreamFrame> {
-  const queue: GithubPrStreamFrame[] = []
+  attach: (sink: PrFrameSink<Frame>) => () => void
+}): AsyncGenerator<Frame> {
+  const queue: Frame[] = []
   let closed = false
   let wake: (() => void) | null = null
   const notify = (): void => {

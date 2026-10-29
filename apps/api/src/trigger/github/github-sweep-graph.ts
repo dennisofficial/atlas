@@ -56,6 +56,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,
     workerSignals.signals,
+    fanout,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
 
