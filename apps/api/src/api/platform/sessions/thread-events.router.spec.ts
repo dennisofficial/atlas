@@ -80,8 +80,8 @@ describe('ThreadEventsRouter', () => {
         expect(other.status).toBe(401)
       })
 
-      it('refuses a pod token and an anonymous caller', async () => {
-        expect((await mutate({ app, procedure, headers: pod, body })).status).toBe(403)
+      it('serves a pod token for its own thread and refuses an anonymous caller', async () => {
+        expect((await mutate({ app, procedure, headers: pod, body })).status).toBe(200)
         expect((await mutate({ app, procedure, body })).status).toBe(401)
       })
 
@@ -164,12 +164,12 @@ describe('ThreadEventsRouter', () => {
       expect(other.status).toBe(401)
     })
 
-    it('refuses a pod token and an anonymous caller', async () => {
+    it('serves a pod token for its own thread and refuses an anonymous caller', async () => {
       const input = { threadId: SANDBOX_THREAD }
 
       expect(
         (await query({ app, procedure: 'threadEvents.read', headers: pod, input })).status,
-      ).toBe(403)
+      ).toBe(200)
       expect((await query({ app, procedure: 'threadEvents.read', input })).status).toBe(401)
     })
 
@@ -265,12 +265,12 @@ describe('ThreadEventsRouter', () => {
       expect(other.status).toBe(401)
     })
 
-    it('refuses a pod token and an anonymous caller', async () => {
+    it('serves a pod token for its own thread and refuses an anonymous caller', async () => {
       const input = { threadId: SANDBOX_THREAD }
 
       expect(
         (await query({ app, procedure: 'threadEvents.head', headers: pod, input })).status,
-      ).toBe(403)
+      ).toBe(200)
       expect((await query({ app, procedure: 'threadEvents.head', input })).status).toBe(401)
     })
   })

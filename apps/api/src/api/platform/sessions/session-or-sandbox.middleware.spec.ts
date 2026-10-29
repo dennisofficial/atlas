@@ -157,10 +157,49 @@ describe('SessionOrSandboxMiddleware', () => {
     expect((await post({ procedure: 'threadless', headers: as('nope') })).status).toBe(401)
   })
 
-  it('answers 403 for a pod token on a route that is not podReachable', async () => {
+  it('authenticates a pod token on a sandboxReachable threadless route', async () => {
     const reply = await post({ procedure: 'sandboxOpen', headers: as(POD_TOKEN) })
 
+    expect(reply.status).toBe(200)
+    expect(reply.body.result.data).toEqual({ sessionId: 'pod:thr-1', sandbox: null, pod: 'thr-1' })
+  })
+
+  it('answers 403 for a pod token on a threadless route with no reach meta', async () => {
+    const reply = await post({ procedure: 'threadless', headers: as(POD_TOKEN) })
+
     expect(reply.status).toBe(403)
+  })
+
+  it('lets a pod token reach its own thread and a child thread', async () => {
+    assertThreadInFamily.mockClear()
+
+    for (const threadId of ['thr-1', 'thr-child']) {
+      const reply = await post({
+        procedure: 'forThread',
+        headers: as(POD_TOKEN),
+        body: { threadId },
+      })
+      expect(reply.status).toBe(200)
+      expect(reply.body.result.data).toEqual({
+        sessionId: 'pod:thr-1',
+        sandbox: null,
+        pod: 'thr-1',
+      })
+    }
+    expect(assertThreadInFamily).toHaveBeenCalledWith({
+      sandboxThreadId: 'thr-1',
+      threadId: 'thr-child',
+    })
+  })
+
+  it('refuses a pod token naming a thread outside its family', async () => {
+    const reply = await post({
+      procedure: 'forThread',
+      headers: as(POD_TOKEN),
+      body: { threadId: 'thr-other' },
+    })
+
+    expect(reply.status).toBe(401)
   })
 
   it('authenticates a pod token on a podReachable route', async () => {

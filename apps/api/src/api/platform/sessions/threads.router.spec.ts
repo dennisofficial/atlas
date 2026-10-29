@@ -18,6 +18,7 @@ const AGENT = { spawnedBy: SANDBOX_THREAD, type: 'explore' }
 
 const create = vi.fn(async () => WIRE_THREAD)
 const open = vi.fn(async () => ({ thread: WIRE_THREAD, events: [] }))
+const chooseModel = vi.fn(async () => undefined)
 const launch = vi.fn(async () => ({ thread: WIRE_THREAD, provision: { state: 'booting' } }))
 
 describe('ThreadsRouter', () => {
@@ -26,7 +27,7 @@ describe('ThreadsRouter', () => {
 
   beforeAll(async () => {
     app = await createSessionsRouterApp({
-      threads: { create, open },
+      threads: { create, open, chooseModel },
       launcher: { launch },
     })
   })
@@ -36,7 +37,7 @@ describe('ThreadsRouter', () => {
   })
 
   beforeEach(() => {
-    for (const fake of [create, open, launch, assertThreadInFamily]) {
+    for (const fake of [create, open, chooseModel, launch, assertThreadInFamily]) {
       fake.mockClear()
     }
   })
@@ -205,13 +206,56 @@ describe('ThreadsRouter', () => {
       expect(create).not.toHaveBeenCalled()
     })
 
-    it('refuses a pod token and an anonymous caller', async () => {
+    it('refuses a pod token that names no agent, and an anonymous caller', async () => {
       const body = { title: 'x' }
 
       expect(
         (await mutate({ app, procedure: 'threads.create', headers: as.pod, body })).status,
       ).toBe(403)
       expect((await mutate({ app, procedure: 'threads.create', body })).status).toBe(401)
+      expect(create).not.toHaveBeenCalled()
+      expect(launch).not.toHaveBeenCalled()
+    })
+
+    it('lets a pod token create a sub-agent thread inside its family', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.pod,
+        body: { agent: AGENT },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(create).toHaveBeenCalledTimes(1)
+      expect(assertThreadInFamily).toHaveBeenCalledWith({
+        sandboxThreadId: SANDBOX_THREAD,
+        threadId: SANDBOX_THREAD,
+      })
+    })
+
+    it('refuses a pod token spawning outside its family', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.pod,
+        body: { agent: { spawnedBy: 'thr-other', type: 'explore' } },
+      })
+
+      expect(reply.status).toBe(401)
+      expect(create).not.toHaveBeenCalled()
+    })
+
+    it('refuses a firstMessage or a client-chosen id from a pod token', async () => {
+      for (const body of [
+        { firstMessage: FIRST, agent: AGENT },
+        { id: 'brn_fixed', agent: AGENT },
+      ]) {
+        const reply = await mutate({ app, procedure: 'threads.create', headers: as.pod, body })
+        expect(reply.status).toBe(403)
+      }
+      expect(assertThreadInFamily).not.toHaveBeenCalled()
+      expect(create).not.toHaveBeenCalled()
+      expect(launch).not.toHaveBeenCalled()
     })
 
     it('rejects an invalid firstMessage', async () => {
@@ -257,7 +301,19 @@ describe('ThreadsRouter', () => {
       expect(open).toHaveBeenCalledTimes(1)
     })
 
-    it('refuses a sandbox token with no agent, and a pod token', async () => {
+    it('lets a pod token open a sub-agent thread inside its family', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.open',
+        headers: as.pod,
+        body: { ...body, id: 'brn_new', agent: AGENT },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(open).toHaveBeenCalledTimes(1)
+    })
+
+    it('refuses a sandbox or pod token with no agent', async () => {
       expect(
         (await mutate({ app, procedure: 'threads.open', headers: as.sandbox, body })).status,
       ).toBe(403)
@@ -276,6 +332,24 @@ describe('ThreadsRouter', () => {
       })
 
       expect(reply.status).toBe(400)
+    })
+  })
+
+  describe('chooseModel', () => {
+    it('lets a pod token choose the model of its own thread', async () => {
+      const reply = await mutate({
+        app,
+        procedure: 'threads.chooseModel',
+        headers: as.pod,
+        body: { threadId: SANDBOX_THREAD, ref: 'anthropic/claude', effort: 'high' },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(chooseModel).toHaveBeenCalledWith({
+        userId: USER_ID,
+        threadId: SANDBOX_THREAD,
+        draft: { threadId: SANDBOX_THREAD, ref: 'anthropic/claude', effort: 'high' },
+      })
     })
   })
 })

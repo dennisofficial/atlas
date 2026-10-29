@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import request from 'supertest'
@@ -20,6 +21,20 @@ import { PodLeasesService } from './pod-leases.service'
 
 const POD_PRINCIPALS = {
   'pod-token-a': { kind: ETokenPrincipalKind.Pod, threadId: 'thread-pod-a', userId: 'user-a' },
+}
+
+const POD_CHILD_THREAD = 'thread-pod-a-child'
+
+const assertThreadInFamily = async ({
+  sandboxThreadId,
+  threadId,
+}: {
+  sandboxThreadId: string
+  threadId: string
+}): Promise<void> => {
+  if (threadId !== sandboxThreadId && threadId !== POD_CHILD_THREAD) {
+    throw new UnauthorizedException()
+  }
 }
 
 const ok = z.object({ ok: z.literal(true) })
@@ -71,12 +86,7 @@ describe('pod lease bearer on the tRPC surface', () => {
     app = await createOauthApp(
       oauthProviders({
         store,
-        sandboxes: principalSandboxes({
-          principals: POD_PRINCIPALS,
-          assertThreadInFamily: async () => {
-            throw new Error('a pod principal must never reach the thread-family check')
-          },
-        }),
+        sandboxes: principalSandboxes({ principals: POD_PRINCIPALS, assertThreadInFamily }),
         extra: [ProbeRouter, PodLeasesRouter, { provide: PodLeasesService, useValue: leases }],
       }),
     )
@@ -103,7 +113,7 @@ describe('pod lease bearer on the tRPC surface', () => {
     expect((await mint('pod-token-a')).status).toBe(404)
   })
 
-  it('is refused on a procedure that is not podReachable, threadless or not', async () => {
+  it('reaches its thread family and podReachable routes, and nothing else', async () => {
     const get = (procedure: string, input?: object) => {
       const call = request(app.getHttpServer()).get(`/v1/trpc/probe.${procedure}`)
       const withInput = input === undefined ? call : call.query({ input: JSON.stringify(input) })
@@ -111,7 +121,9 @@ describe('pod lease bearer on the tRPC surface', () => {
     }
 
     expect((await get('plain')).status).toBe(403)
-    expect((await get('plainThread', { threadId: 'thread-pod-a' })).status).toBe(403)
+    expect((await get('plainThread', { threadId: 'thread-pod-a' })).status).toBe(200)
+    expect((await get('plainThread', { threadId: POD_CHILD_THREAD })).status).toBe(200)
+    expect((await get('plainThread', { threadId: 'thread-other' })).status).toBe(401)
     expect((await get('pod')).status).toBe(200)
   })
 
