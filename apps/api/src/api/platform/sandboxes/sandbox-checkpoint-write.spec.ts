@@ -17,10 +17,11 @@ import {
 import { createSandboxRoutersApp, putCheckpoint } from './sandbox-routers.fixture'
 import { mintSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
+import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
 
 const verifiesEveryToken = {
-  async verifySessionToken(): Promise<{ userId: string }> {
-    return { userId: USER_A }
+  async verifyTokenPrincipal(): Promise<TokenPrincipal> {
+    return { kind: ETokenPrincipalKind.Sandbox, id: 'sbx', threadId: THREAD, userId: USER_A }
   },
 } as unknown as SandboxesService
 
@@ -87,7 +88,7 @@ describe('SandboxCheckpointRouter.put', () => {
 
     const reply = await report({ phase: 'running' })
 
-    expect(reply.status).toBe(401)
+    expect(reply.status).toBe(400)
     expect(await storedInRow()).toBeNull()
   })
 
@@ -253,7 +254,7 @@ describe('SandboxCheckpointRouter.put thread token', () => {
       body: checkpoint({ threadId: 'brn_other' }),
     })
 
-    expect(reply.status).toBe(401)
+    expect(reply.status).toBe(403)
     expect(await storedInRow()).toBeNull()
   })
 
@@ -283,6 +284,7 @@ describe('SandboxCheckpointRouter.put thread token', () => {
       body: { ...checkpoint(), threadId: 7 },
     })
 
-    expect(reply.status).toBe(401)
+    expect(reply.status).toBe(400)
+    expect(await storedInRow()).toBeNull()
   })
 })
