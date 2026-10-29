@@ -37,7 +37,7 @@ describe('sandboxConfig router', () => {
 
   afterEach(() => app.close())
 
-  it('lets the project beat user and workspace for one key, and never carries vercel values', async () => {
+  it('lets the project beat user for one key, and never carries vercel values', async () => {
     await seedAllScopes(testCipher())
     const response = await getConfig().expect(200)
     const data = dataOf(response.body) as {

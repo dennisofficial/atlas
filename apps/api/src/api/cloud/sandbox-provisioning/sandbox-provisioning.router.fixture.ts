@@ -16,7 +16,7 @@ export const fakeSessionVerifier = {
     const token = (req.headers.authorization ?? '').replace('Bearer ', '')
     const userId = USERS[token]
     if (userId === undefined) return null
-    return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
+    return { userId, sessionId: 'ses', email: '' }
   },
 }
 

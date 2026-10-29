@@ -95,7 +95,7 @@ describe('threadEvents.stream over a real http server', () => {
             verify: async (req: { headers: { cookie?: string; authorization?: string } }) =>
               req.headers.cookie === 'ok' ||
               req.headers.authorization === as(OWNER_BEARER).authorization
-                ? { userId: 'usr_1', sessionId: 'ses', email: '', activeOrganizationId: null }
+                ? { userId: 'usr_1', sessionId: 'ses', email: '' }
                 : null,
           },
         },

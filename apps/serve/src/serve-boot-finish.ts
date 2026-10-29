@@ -148,6 +148,7 @@ export async function finishServeBoot(args: {
     rewind: app.rewind,
     compaction: app.compaction,
     agents: app.agents,
+    processes: app.processes,
     operatorInput: app.operatorInput,
     pending: app.pending,
     tools: { changes: app.changes, terminal: app.terminal },

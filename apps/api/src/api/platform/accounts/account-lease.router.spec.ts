@@ -53,7 +53,7 @@ describe('AccountLeaseRouter', () => {
           useValue: {
             async verify(req: { headers: { authorization?: string } }) {
               if (req.headers.authorization !== 'Bearer session') return null
-              return { userId: 'user-s', sessionId: 's', email: '', activeOrganizationId: null }
+              return { userId: 'user-s', sessionId: 's', email: '' }
             },
           },
         },

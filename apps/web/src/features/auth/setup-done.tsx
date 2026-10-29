@@ -60,7 +60,7 @@ export function SetupDone() {
     <div className="flex flex-col gap-6">
       <AuthHeading
         title="You're set"
-        description="Your workspace is ready. Pick up where you like."
+        description="Your account is ready. Pick up where you like."
       />
       <div className="flex flex-col gap-3">
         <Item variant="outline" className="flex-nowrap">

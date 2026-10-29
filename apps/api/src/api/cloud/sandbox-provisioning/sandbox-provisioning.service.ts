@@ -4,7 +4,11 @@ import { db } from '@dltech/atlas-db'
 import { hasBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
-import { NOT_RUNNING_MESSAGE, standingStateOf } from './sandbox-provisioning-rows'
+import {
+  LOCAL_POD_MESSAGE,
+  NOT_RUNNING_MESSAGE,
+  standingStateOf,
+} from './sandbox-provisioning-rows'
 
 @Injectable()
 export class SandboxProvisioningService {
@@ -12,6 +16,10 @@ export class SandboxProvisioningService {
 
   async provision(args: { userId: string; threadId: string }): Promise<SandboxProvisionReply> {
     const thread = await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    const podLease = await db.orm.public.LocalPodLease.where({ threadId: thread.id })
+      .select('id')
+      .first()
+    if (podLease !== null) throw new ConflictException(LOCAL_POD_MESSAGE)
     const existing = await db.orm.public.CloudSandbox.first({ threadId: thread.id })
     const standing = existing === null ? undefined : standingStateOf(existing)
     if (standing !== undefined) return { state: standing }

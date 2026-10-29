@@ -12,11 +12,10 @@ import { useSignInMethodActions } from '../data/personal/use-sign-in-method-acti
 import { AccountLinkReturn } from '../parts/account-link-return'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
-import { AccountWorkspacesCard } from '../parts/account-workspaces-card'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Account'
-const DESCRIPTION = 'Your profile and the workspaces you belong to.'
+const DESCRIPTION = 'Your profile and how you sign in.'
 
 export function AccountPage() {
   const query = useCloudQuery({ key: 'personal-account', load: fetchAccountData })
@@ -58,9 +57,6 @@ function AccountContent({ data, reload }: { data: AccountData; reload: () => voi
       </SettingsSection>
       <SettingsSection title="Sign-in methods" description="How you can sign in to Atlas.">
         <AccountSignInMethodsCard methods={data.signInMethods} handlers={signInActions} />
-      </SettingsSection>
-      <SettingsSection title="Workspaces" description="Workspaces you are a member of.">
-        <AccountWorkspacesCard workspaces={data.workspaces} />
       </SettingsSection>
     </SettingsPage>
   )

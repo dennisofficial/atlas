@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import {
   EServeEnv,
+  POD_INGRESS_HOST_PORT_ENV,
   SANDBOX_HOME_PATH,
   SANDBOX_SERVE_PORT,
   SANDBOX_WORKSPACES_PATH,
@@ -30,8 +31,6 @@ export const memoryReservationBytesFor = (args: { vcpus: number }): number =>
   args.vcpus * MEMORY_MB_PER_VCPU * MIB
 
 export const POD_NAME_ENV = 'ATLAS_POD_NAME'
-
-export const POD_INGRESS_HOST_PORT_ENV = 'ATLAS_POD_INGRESS_HOST_PORT'
 
 export const SANDBOX_SESSION_ID_ENV = 'ATLAS_SANDBOX_SESSION_ID'
 
@@ -89,8 +88,8 @@ const podEnv = (args: PodCreateArgs): string[] =>
     [EServeEnv.CloudUrl]: args.cloudUrl,
     ATLAS_HOME: SANDBOX_HOME_PATH,
     [POD_NAME_ENV]: podNameFor(args),
-    [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     [SANDBOX_SESSION_ID_ENV]: podNameFor(args),
+    [POD_INGRESS_HOST_PORT_ENV]: String(args.ingressHostPort),
     ...(args.pinnedModel === undefined ? {} : { [EServeEnv.Model]: args.pinnedModel }),
     ...callerEnvironment(args.environment),
   }).map(([key, value]) => `${key}=${value}`)

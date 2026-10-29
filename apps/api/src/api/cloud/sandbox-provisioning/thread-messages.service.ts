@@ -22,6 +22,7 @@ import { findUserSaid } from './first-message'
 import { DISPATCH_FAILED_MESSAGE, PodLaunchService } from './pod-launch.service'
 import {
   appendableOf,
+  LOCAL_POD_MESSAGE,
   NOT_RUNNING_MESSAGE,
   relaunchableOf,
   SANDBOX_BUSY_MESSAGE,
@@ -142,6 +143,8 @@ export class ThreadMessagesService {
     const { userId, threadId, sendId, text, images } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
+      const podLease = await tx.orm.public.LocalPodLease.where({ threadId }).select('id').first()
+      if (podLease !== null) throw new ConflictException(LOCAL_POD_MESSAGE)
       const existing = await tx.orm.public.CloudSandbox.first({ threadId })
       if (existing !== null && !(await hasBootSteps({ reader: tx, threadId }))) {
         throw new ConflictException(NOT_RUNNING_MESSAGE)

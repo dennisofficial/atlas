@@ -6,7 +6,6 @@ export enum ESecretKind {
 export enum ESecretsScope {
   Personal = 'personal',
   Project = 'project',
-  Workspace = 'workspace',
 }
 
 export type LibrarySecret = {

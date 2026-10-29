@@ -42,9 +42,6 @@ describe('better-auth schema against the @dltech/atlas-db contract', () => {
     expect([...modelNameOf.values()].sort()).toEqual([
       'Account',
       'DeviceCode',
-      'Invitation',
-      'Member',
-      'Organization',
       'Session',
       'User',
       'Verification',

@@ -8,9 +8,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@dltech/atlas-ui/c
 import { Sidebar } from '@dltech/atlas-ui/components/sidebar'
 
 import { SettingsNavBody } from './settings-nav-body'
-import { ESettingsPage, ESettingsScope, labelOfPage } from './settings-nav'
+import { ESettingsPage, labelOfPage } from './settings-nav'
 
-export function SettingsMobileNav({ scope, page }: { scope: ESettingsScope; page: ESettingsPage }) {
+export function SettingsMobileNav({ page }: { page: ESettingsPage }) {
   const [openOnPage, setOpenOnPage] = useState<ESettingsPage | null>(null)
   const open = openOnPage === page
   const handleOpenChange = (next: boolean) => setOpenOnPage(next ? page : null)
@@ -34,7 +34,7 @@ export function SettingsMobileNav({ scope, page }: { scope: ESettingsScope; page
             <SheetTitle>Settings</SheetTitle>
           </SheetHeader>
           <Sidebar collapsible="none" className="min-h-0 w-full flex-1">
-            <SettingsNavBody scope={scope} page={page} onNavigate={handleClose} />
+            <SettingsNavBody page={page} onNavigate={handleClose} />
           </Sidebar>
         </SheetContent>
       </Sheet>

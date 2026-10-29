@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESignInContext, safeNextPath, signInContextOf, withNext } from '../auth-redirect'
-import { workspaceSlug } from '../workspace-slug'
 
 describe('safeNextPath', () => {
   it('keeps same-origin paths', () => {
@@ -17,9 +16,8 @@ describe('safeNextPath', () => {
 })
 
 describe('signInContextOf', () => {
-  it('reads the device and invite contexts off next', () => {
+  it('reads the device context off next', () => {
     expect(signInContextOf('/device?user_code=X')).toBe(ESignInContext.Device)
-    expect(signInContextOf('/invite/abc')).toBe(ESignInContext.Invite)
     expect(signInContextOf('/threads/new')).toBe(ESignInContext.Default)
     expect(signInContextOf(null)).toBe(ESignInContext.Default)
   })
@@ -28,13 +26,8 @@ describe('signInContextOf', () => {
 describe('withNext', () => {
   it('appends an encoded next only when present', () => {
     expect(withNext({ path: '/sign-up', next: null })).toBe('/sign-up')
-    expect(withNext({ path: '/sign-up', next: '/invite/a' })).toBe('/sign-up?next=%2Finvite%2Fa')
-  })
-})
-
-describe('workspaceSlug', () => {
-  it('derives a lowercase hyphenated slug', () => {
-    expect(workspaceSlug('  Analytical Engines! ')).toBe('analytical-engines')
-    expect(workspaceSlug('---')).toBe('')
+    expect(withNext({ path: '/sign-up', next: '/device?user_code=A' })).toBe(
+      '/sign-up?next=%2Fdevice%3Fuser_code%3DA',
+    )
   })
 })

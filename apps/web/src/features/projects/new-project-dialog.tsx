@@ -36,14 +36,11 @@ import {
   type EProjectSource,
   type ProjectDraft,
 } from './new-project-types'
-import type { OwnerOption } from './project-owner'
 
 export interface NewProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projects: readonly Project[]
-  owners: readonly OwnerOption[]
-  defaultOwnerId: string | null
 }
 
 const STEP_COPY: Record<ENewProjectStep, { title: string; description: string }> = {
@@ -66,20 +63,18 @@ const messageOf = (failure: unknown): string =>
 
 function NewProjectBody({
   projects,
-  owners,
-  defaultOwnerId,
   onClose,
 }: Omit<NewProjectDialogProps, 'open' | 'onOpenChange'> & { onClose: () => void }) {
   const router = useRouter()
   const [step, setStep] = useState(ENewProjectStep.Source)
-  const [draft, setDraft] = useState<ProjectDraft>(() => emptyDraft(defaultOwnerId))
+  const [draft, setDraft] = useState<ProjectDraft>(() => emptyDraft())
   const [submitting, setSubmitting] = useState(false)
   const patch: DraftPatch = (changes) => setDraft((current) => ({ ...current, ...changes }))
 
   const copy = STEP_COPY[step]
   const position = stepPosition({ step, source: draft.source })
   const name = draft.nameTouched ? draft.name : suggestedName(draft) || draft.name
-  const nameError = nameErrorOf({ name, ownerId: draft.ownerId, projects })
+  const nameError = nameErrorOf({ name, projects })
 
   const handleSelectSource = (source: EProjectSource) => {
     patch({ source })
@@ -115,7 +110,6 @@ function NewProjectBody({
           <DetailsStep
             draft={{ ...draft, name }}
             patch={patch}
-            owners={owners}
             nameError={visibleNameError({ error: nameError, touched: draft.nameTouched })}
           />
         ) : null}

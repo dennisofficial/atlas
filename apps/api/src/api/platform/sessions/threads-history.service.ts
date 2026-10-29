@@ -128,7 +128,6 @@ export class ThreadsHistoryService {
         modelEffort: source.modelEffort,
         executionLocation: source.executionLocation,
         projectId: source.projectId,
-        organizationId: source.organizationId,
         ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
       })
 

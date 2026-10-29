@@ -81,24 +81,3 @@ export function renderPasswordResetEmail({ url }: { url: string }): IRenderedEma
     url,
   })
 }
-
-export function renderInvitationEmail({
-  url,
-  workspaceName,
-  inviterName,
-  inviterEmail,
-}: {
-  url: string
-  workspaceName: string
-  inviterName: string
-  inviterEmail: string
-}): IRenderedEmail {
-  const inviter = inviterName.trim() === '' ? inviterEmail : `${inviterName} (${inviterEmail})`
-  return renderActionEmail({
-    subject: `Join ${workspaceName} on Atlas`,
-    heading: `Join ${workspaceName} on Atlas`,
-    intro: `${inviter} invited you to ${workspaceName}.`,
-    action: 'Accept invitation',
-    url,
-  })
-}

@@ -1,0 +1,227 @@
+[
+  {
+    "id": "table.LocalPodCheckpoint",
+    "label": "Create table \"LocalPodCheckpoint\"",
+    "summary": "Creates table \"LocalPodCheckpoint\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"LocalPodCheckpoint\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"LocalPodCheckpoint\"",
+        "sql": "CREATE TABLE \"public\".\"LocalPodCheckpoint\" (\n  \"checkpoint\" jsonb,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"revision\" int4,\n  \"threadId\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"LocalPodCheckpoint\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.LocalPodCheckpoint.LocalPodCheckpoint_threadId_key",
+    "label": "Add unique constraint on \"LocalPodCheckpoint\" (threadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "LocalPodCheckpoint_threadId_key",
+        "table": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"LocalPodCheckpoint_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_threadId_key",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"LocalPodCheckpoint_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"LocalPodCheckpoint\" ADD CONSTRAINT \"LocalPodCheckpoint_threadId_key\" UNIQUE (\"threadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"LocalPodCheckpoint_threadId_key\" exists on (threadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_threadId_key",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\"",
+          "u",
+          "[\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.LocalPodCheckpoint.LocalPodCheckpoint_userId_idx",
+    "label": "Create index \"LocalPodCheckpoint_userId_idx\" on \"LocalPodCheckpoint\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "LocalPodCheckpoint_userId_idx",
+        "table": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"LocalPodCheckpoint_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"LocalPodCheckpoint_userId_idx\"",
+        "sql": "CREATE INDEX \"LocalPodCheckpoint_userId_idx\" ON \"public\".\"LocalPodCheckpoint\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"LocalPodCheckpoint_userId_idx\" exists on \"LocalPodCheckpoint\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint_userId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"LocalPodCheckpoint\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.LocalPodCheckpoint.LocalPodCheckpoint_userId_fkey",
+    "label": "Add foreign key \"LocalPodCheckpoint_userId_fkey\" on \"LocalPodCheckpoint\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "LocalPodCheckpoint_userId_fkey",
+        "table": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"LocalPodCheckpoint_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_userId_fkey",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"LocalPodCheckpoint_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"LocalPodCheckpoint\"\nADD CONSTRAINT \"LocalPodCheckpoint_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"LocalPodCheckpoint_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_userId_fkey",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.LocalPodCheckpoint.LocalPodCheckpoint_threadId_fkey",
+    "label": "Add foreign key \"LocalPodCheckpoint_threadId_fkey\" on \"LocalPodCheckpoint\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "LocalPodCheckpoint_threadId_fkey",
+        "table": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"LocalPodCheckpoint_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_threadId_fkey",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"LocalPodCheckpoint_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"LocalPodCheckpoint\"\nADD CONSTRAINT \"LocalPodCheckpoint_threadId_fkey\"\nFOREIGN KEY (\"threadId\")\nREFERENCES \"public\".\"Thread\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"LocalPodCheckpoint_threadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "LocalPodCheckpoint_threadId_fkey",
+          "public",
+          "\"public\".\"LocalPodCheckpoint\"",
+          "f",
+          "[\"threadId\"]",
+          "\"public\".\"Thread\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

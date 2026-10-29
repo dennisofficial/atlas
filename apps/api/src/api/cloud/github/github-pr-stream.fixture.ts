@@ -49,7 +49,7 @@ export const ctxFor = (userId: string): SessionOrSandboxTrpcCtx => ({
   req: request,
   bearerToken: undefined,
   clientVersion: undefined,
-  auth: { userId, sessionId: 'ses', email: '', activeOrganizationId: null },
+  auth: { userId, sessionId: 'ses', email: '' },
 })
 
 export const optionsFor = (signal?: AbortSignal) => ({
@@ -61,10 +61,7 @@ export const optionsFor = (signal?: AbortSignal) => ({
   signal,
 })
 
-type StreamFakes = {
-  states?: GithubPrStateDto[] | Error
-  undelivered?: GithubPrEventDto[] | Error
-}
+type StreamFakes = { states?: GithubPrStateDto[] | Error; undelivered?: GithubPrEventDto[] | Error }
 
 export const fakeSubscriptions = (states: StreamFakes['states'] = []) => ({
   currentStates: async (): Promise<GithubPrStateDto[]> => {

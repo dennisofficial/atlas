@@ -11,17 +11,16 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { QueryPage } from '../data/personal/query-boundary'
 import { fetchSecretDetails } from '../data/personal/secrets-api'
 import { useSecretsStore } from '../data/personal/use-secrets-store'
-import { ELibraryScope, type LibraryMember } from '../fixtures/settings-library'
+import type { LibraryMember } from '../fixtures/settings-library'
 import { SecretsView } from '../parts/library-secrets-view'
-import { Mono, SettingsSection } from '../settings-layout'
-import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
+import { Mono } from '../settings-layout'
 
 const TITLE = 'Secrets & Env Vars'
 
 const DESCRIPTION = (
   <>
-    Delivered to your sandboxes as harness secrets. Workspace values apply first, your personal
-    values override them, and project values override both. Manage them from the terminal with{' '}
+    Delivered to your sandboxes as harness secrets. Project values override your personal values.
+    Manage them from the terminal with{' '}
     <Mono className="rounded bg-muted px-1.5 py-0.5">atlas secrets</Mono>.
   </>
 )
@@ -44,17 +43,8 @@ function SecretsContent({ details, reload }: { details: SecretDetail[]; reload: 
   const store = useSecretsStore({ details, currentMember, reload })
   return (
     <SecretsView
-      scope={ELibraryScope.Personal}
       description={DESCRIPTION}
       sectionDescription="Only visible to you."
-      lead={
-        <SettingsSection
-          title="Sandbox credential"
-          description="Lets Atlas Cloud create sandboxes for your personal projects and for threads without a project."
-        >
-          <UserVercelCardSlot />
-        </SettingsSection>
-      }
       store={store}
     />
   )

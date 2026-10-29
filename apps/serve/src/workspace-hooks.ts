@@ -71,7 +71,7 @@ export function stopWorkspaceProcessesFor(args: {
     })
     for (const service of services.list()) {
       if (service.status === EServiceStatus.Running) {
-        const stopped = services.stop({ serviceId: service.serviceId, by: killedBy })
+        const stopped = await services.stop({ serviceId: service.serviceId, by: killedBy })
         if (!stopped.ok) throw new Error(stopped.reason)
       }
     }

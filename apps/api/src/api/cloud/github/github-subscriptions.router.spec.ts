@@ -49,7 +49,7 @@ const sandboxes = {
 const verifier = {
   async verify(req: { headers: { authorization?: string } }) {
     if (req.headers.authorization !== `Bearer ${SESSION_TOKEN}`) return null
-    return { userId: 'usr_1', sessionId: 'ses_1', email: '', activeOrganizationId: null }
+    return { userId: 'usr_1', sessionId: 'ses_1', email: '' }
   },
 }
 
@@ -202,11 +202,21 @@ describe('GithubSubscriptionsRouter', () => {
     ['unsubscribe', { id: 'sub_1' }],
     ['dismissAppInstallNotice', { repoFullName: 'compai/app' }],
     ['heartbeat', { id: 'sub_1' }],
-  ])('refuses a pod token on %s with 403', async (procedure, body) => {
+  ])('lets a pod token reach %s', async (procedure, body) => {
     const reply = await call({ procedure, token: POD_TOKEN, body })
 
-    expect(reply.status).toBe(403)
-    for (const fake of Object.values(subscriptions)) expect(fake).not.toHaveBeenCalled()
+    expect(reply.status).toBe(200)
+  })
+
+  it('a pod subscribe carries no sandbox link', async () => {
+    const reply = await call({ procedure: 'subscribe', token: POD_TOKEN, body: SUBSCRIBE })
+
+    expect(reply.status).toBe(200)
+    expect(subscriptions.subscribe).toHaveBeenCalledWith({
+      userId: 'usr_1',
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
   })
 
   it('answers 401 without a token or session', async () => {

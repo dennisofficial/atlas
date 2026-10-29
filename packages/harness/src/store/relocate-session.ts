@@ -47,13 +47,15 @@ export async function relocateSession({
     ],
   })
 
-  const stoppedServices = services
-    .list()
-    .filter((service) => service.status === EServiceStatus.Running)
-    .flatMap((service) => {
-      const stopped = services.stop({ serviceId: service.serviceId, by: EKilledBy.ContainerSwitch })
-      return stopped.ok ? [stopped.snapshot] : []
+  const stoppedServices: ServiceSnapshot[] = []
+  for (const service of services.list()) {
+    if (service.status !== EServiceStatus.Running) continue
+    const stopped = await services.stop({
+      serviceId: service.serviceId,
+      by: EKilledBy.ContainerSwitch,
     })
+    if (stopped.ok) stoppedServices.push(stopped.snapshot)
+  }
 
   const endingsSettled = services.awaitEndings({ ms: STOP_SETTLE_MS })
   const relocatedAgents = await agents.relocateChildren({ threadId, location, caller })

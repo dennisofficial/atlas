@@ -16,7 +16,6 @@ export interface ProjectDraft {
   branch: string | null
   name: string
   nameTouched: boolean
-  ownerId: string
   description: string
 }
 

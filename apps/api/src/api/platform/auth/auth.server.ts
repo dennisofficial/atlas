@@ -2,7 +2,7 @@ import { sharedPool } from '@dltech/atlas-db'
 import { createEmailSender } from '../../../_lib/email/email-sender'
 import { createAuthEmailHooks } from './auth-email-hooks'
 import { betterAuth } from 'better-auth'
-import { bearer, deviceAuthorization, organization } from 'better-auth/plugins'
+import { bearer, deviceAuthorization } from 'better-auth/plugins'
 
 const secret = process.env.SECRET_KEY
 if (!secret || secret.length < 32) {
@@ -36,7 +36,6 @@ const emailHooks = createAuthEmailHooks({
     apiKey: resendApiKey,
     from: process.env.EMAIL_FROM ?? 'Atlas <noreply@mail.byatlas.io>',
   }),
-  webOrigin,
 })
 
 // better-auth defaults the callback to BETTER_AUTH_URL (api.byatlas.io), but browsers reach auth only
@@ -66,20 +65,10 @@ export const auth = betterAuth({
   },
   trustedOrigins,
   plugins: [
-    organization({
-      sendInvitationEmail: emailHooks.sendInvitationEmail,
-      schema: {
-        organization: { modelName: 'Organization' },
-        member: { modelName: 'Member' },
-        invitation: { modelName: 'Invitation' },
-      },
-    }),
     bearer(),
     deviceAuthorization({
       verificationUri: `${webOrigin}/device`,
-      schema: {
-        deviceCode: { modelName: 'DeviceCode' },
-      },
+      schema: { deviceCode: { modelName: 'DeviceCode' } },
     }),
   ],
 })

@@ -46,9 +46,11 @@ export function rig(options?: {
   seed?: WireEvent[]
   onModelChanged?: (model: { ref: string; effort: string }) => void
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
+  onInterruptLost?: () => void
 }) {
   const sockets: FakeSocket[] = []
   const retries: { delayMs: number; run: () => void }[] = []
+  const timeouts: { delayMs: number; run: () => void }[] = []
   const mints = [...(options?.mints ?? [ticketOf('tkt1'), ticketOf('tkt2')])]
   let mintCount = 0
   let state: LiveThreadState = IDLE_LIVE_THREAD
@@ -65,6 +67,7 @@ export function rig(options?: {
     readSeed: async () => options?.seed ?? [event(1), event(2)],
     ...(options?.onModelChanged === undefined ? {} : { onModelChanged: options.onModelChanged }),
     ...(options?.readStoredModel === undefined ? {} : { readStoredModel: options.readStoredModel }),
+    ...(options?.onInterruptLost === undefined ? {} : { onInterruptLost: options.onInterruptLost }),
     onChange: (next) => {
       state = next
       history.push(next)
@@ -72,7 +75,7 @@ export function rig(options?: {
     scheduleReconnect: (task) => queueMicrotask(task.run),
     channelOptions: {
       scheduleRetry: (retry) => void retries.push(retry),
-      scheduleTimeout: () => undefined,
+      scheduleTimeout: (timeout) => void timeouts.push(timeout),
       scheduleKeepalive: () => () => undefined,
       socketFactory: ({ url, protocols, handlers }) => {
         const fake: FakeSocket = { url, protocols, handlers, sent: [], closed: false }
@@ -126,6 +129,7 @@ export function rig(options?: {
     pruneTo: session.pruneTo,
     sockets,
     retries,
+    timeouts,
     socket,
     receive,
     ready,

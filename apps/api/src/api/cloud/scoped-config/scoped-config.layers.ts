@@ -63,19 +63,6 @@ export const loadUserLayer = async (args: {
   return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
 }
 
-export const loadWorkspaceLayer = async (args: {
-  cipher: SecretCipherService
-  organizationId: string
-}): Promise<ScopeLayer> => {
-  const where = { organizationId: args.organizationId }
-  const [settings, secrets, mcpServers] = await Promise.all([
-    db.orm.public.WorkspaceSetting.where(where).all(),
-    db.orm.public.WorkspaceSecret.where(where).all(),
-    db.orm.public.WorkspaceMcpServer.where(where).all(),
-  ])
-  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
-}
-
 export const loadProjectLayer = async (args: {
   cipher: SecretCipherService
   projectId: string

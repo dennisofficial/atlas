@@ -11,8 +11,6 @@ import {
   InputGroupText,
 } from '@dltech/atlas-ui/components/input-group'
 
-import { CLOUD_CAPABILITIES } from '@/lib/cloud-capabilities'
-
 import { useProjectContext } from './data/project-context'
 import {
   draftsEqual,
@@ -31,7 +29,6 @@ import {
   UnsavedHint,
 } from './settings-layout'
 import { ShipRow } from './ship-row'
-import { WorkspaceRow } from './workspace-row'
 
 export function OverviewPage() {
   const { project, identity, save } = useProjectContext()
@@ -47,9 +44,7 @@ export function OverviewPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await save(
-        saveBodyOf({ project, draft, includeWorkspace: CLOUD_CAPABILITIES.projectWorkspace }),
-      )
+      await save(saveBodyOf({ project, draft }))
       toast.success('Project saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save the project')
@@ -102,12 +97,6 @@ export function OverviewPage() {
               />
             </InputGroup>
           </SettingsRow>
-          {CLOUD_CAPABILITIES.projectWorkspace ? (
-            <WorkspaceRow
-              organizationId={draft.organizationId}
-              onChange={(organizationId) => update({ organizationId })}
-            />
-          ) : null}
           <SettingsRow title="Project icon" description="Icons aren't supported yet.">
             <MonogramTile label={draft.name || identity.name} />
             <Button variant="outline" size="sm" disabled>

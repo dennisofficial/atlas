@@ -30,13 +30,13 @@ export const sessionVerifier = (sessions: Record<string, string>) => ({
   async verify(req: { headers: { authorization?: string } }) {
     const userId = sessions[bearerOf(req)]
     if (userId === undefined) return null
-    return { userId, sessionId: 'ses', email: '', activeOrganizationId: null }
+    return { userId, sessionId: 'ses', email: '' }
   },
 })
 
 export const principalSandboxes = (args: {
   principals: Record<string, unknown>
-  assertThreadInFamily?: () => Promise<void>
+  assertThreadInFamily?: (query: { sandboxThreadId: string; threadId: string }) => Promise<void>
 }) => ({
   async verifyTokenPrincipal(query: { token: string }) {
     const row = args.principals[query.token]

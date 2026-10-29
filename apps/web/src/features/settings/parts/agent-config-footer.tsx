@@ -6,10 +6,12 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 export function ConfigFooter({
   dirty,
+  canSave = dirty,
   onDiscard,
   onSave,
 }: {
   dirty: boolean
+  canSave?: boolean
   onDiscard: () => void
   onSave: () => void
 }) {
@@ -32,7 +34,7 @@ export function ConfigFooter({
           <Button variant="ghost" size="sm" disabled={!dirty} onClick={onDiscard}>
             Discard
           </Button>
-          <Button size="sm" disabled={!dirty} onClick={onSave}>
+          <Button size="sm" disabled={!canSave} onClick={onSave}>
             Save
           </Button>
         </div>

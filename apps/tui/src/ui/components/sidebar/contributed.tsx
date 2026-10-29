@@ -16,18 +16,21 @@ import { Row, Section } from './row'
 
 const ACTION_CELLS = 2
 
+const ACTION_GAP = 1
+
 function RowAction(props: { action: SidebarRowAction }): React.ReactNode {
   const region = useClickRegion(props.action.onActivate)
 
   return (
     <box
       flexShrink={0}
-      width={ACTION_CELLS}
+      width={ACTION_CELLS - ACTION_GAP}
+      marginLeft={ACTION_GAP}
       {...region.handlers}
       {...(region.wash.bg === undefined ? {} : { backgroundColor: region.wash.bg })}
     >
       <text>
-        <Spans spans={[{ text: ` ${props.action.glyph}`, fg: props.action.fg ?? theme.meta }]} />
+        <Spans spans={[{ text: props.action.glyph, fg: props.action.fg ?? theme.meta }]} />
       </text>
     </box>
   )

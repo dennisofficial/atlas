@@ -15,31 +15,21 @@ import {
 } from '@dltech/atlas-ui/components/empty'
 import type { Project } from '@dltech/atlas-wire/web'
 
-import { useOrganizations } from '@/features/project-settings/data/use-organizations'
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { fetchProjects } from '@/features/threads/data/threads-api'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { NewProjectHost } from './new-project-host'
-import { ownerNameOf } from './project-owner'
 import { ProjectRow } from './project-row'
 
 export const PROJECTS_PATH = '/projects'
 export const NEW_PROJECT_PARAM = 'new'
 
 function ProjectList({ projects }: { projects: readonly Project[] }) {
-  const organizations = useOrganizations()
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
       {projects.map((project) => (
-        <ProjectRow
-          key={project.id}
-          project={project}
-          ownerName={ownerNameOf({
-            organizationId: project.organizationId,
-            organizations: organizations.data ?? [],
-          })}
-        />
+        <ProjectRow key={project.id} project={project} />
       ))}
     </ul>
   )

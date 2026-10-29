@@ -142,6 +142,37 @@ describe('relocating a session to another execution location', () => {
     } satisfies RelocatedSession)
   })
 
+  it('stops every running service in listed order, keeping only the stops that landed', async () => {
+    const fixture = await open()
+    const parent = (await fixture.threads.create({})).id
+    const first = service('svc_1', EServiceStatus.Running)
+    const refused = service('svc_2', EServiceStatus.Running)
+    const third = service('svc_3', EServiceStatus.Running)
+    const services = new (class extends FakeServices {
+      override stop(args: { serviceId: string; by: EKilledBy }): ServiceStopOutcome {
+        if (args.serviceId === 'svc_2') {
+          this.stops.push(args)
+          return { ok: false, reason: 'already stopping' }
+        }
+        return super.stop(args)
+      }
+    })([first, service('svc_0', EServiceStatus.Exited), refused, third])
+
+    const result = await relocateSession({
+      threadId: parent,
+      from: EExecutionLocation.Host,
+      location: EExecutionLocation.Docker,
+      log: fixture.log,
+      ids: new CountingIds('relocate'),
+      services,
+      agents: new FakeAgents([]),
+    })
+
+    expect(services.stops.map((one) => one.serviceId)).toEqual(['svc_1', 'svc_2', 'svc_3'])
+    expect(result.stoppedServices).toEqual([first, third])
+    expect(services.endingsAwaited).toHaveLength(1)
+  })
+
   it('records the origin it was handed, leaving the row to the caller', async () => {
     const fixture = await open()
     const parent = (await fixture.threads.create({})).id

@@ -1,6 +1,6 @@
 'use client'
 
-import { Mail, TerminalSquare } from 'lucide-react'
+import { TerminalSquare } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 
@@ -25,9 +25,6 @@ import { useGoogleSignIn } from './use-google-sign-in'
 function ContextBanner({ context }: { context: ESignInContext }) {
   if (context === ESignInContext.Device) {
     return <AuthBanner icon={TerminalSquare}>Sign in to authorize your terminal</AuthBanner>
-  }
-  if (context === ESignInContext.Invite) {
-    return <AuthBanner icon={Mail}>Sign in to accept your invitation</AuthBanner>
   }
   return null
 }

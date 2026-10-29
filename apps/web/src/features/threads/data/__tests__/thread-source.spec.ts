@@ -19,10 +19,19 @@ const event = (seq: number): WireEvent => ({
 const polled = { events: [event(1)], loaded: true, error: null, poke: () => undefined }
 const send = () => false
 const chooseModel = async () => false
+const takeBackPending = async () => null
+const interrupt = () => false
+const applyRewind = async () => undefined
+const readRoster = async () => null
 const liveView = (change: Partial<LiveThreadView>): LiveThreadView => ({
   ...IDLE_LIVE_THREAD,
+  steps: [],
   send,
   chooseModel,
+  takeBackPending,
+  interrupt,
+  applyRewind,
+  readRoster,
   ...change,
 })
 
@@ -56,6 +65,33 @@ describe('threadSourceOf channel', () => {
   it('has no channel while polling', () => {
     const source = threadSourceOf({ live: liveView({ channel }), polled })
     expect(source.channel).toBeNull()
+  })
+})
+
+describe('threadSourceOf interrupt', () => {
+  it('exposes interrupt from the live source', () => {
+    const source = threadSourceOf({ live: liveView({ live: true }), polled })
+    expect(source.interrupt).toBe(interrupt)
+  })
+
+  it('exposes interrupt in the polled branch', () => {
+    const source = threadSourceOf({ live: liveView({}), polled })
+    expect(source.interrupt).toBe(interrupt)
+    expect(source.interrupt()).toBe(false)
+  })
+})
+
+describe('threadSourceOf rewind', () => {
+  it('passes the rewind actions through while live', () => {
+    const source = threadSourceOf({ live: liveView({ live: true }), polled })
+    expect(source.applyRewind).toBe(applyRewind)
+    expect(source.readRoster).toBe(readRoster)
+  })
+
+  it('passes the rewind actions through while polling', () => {
+    const source = threadSourceOf({ live: liveView({}), polled })
+    expect(source.applyRewind).toBe(applyRewind)
+    expect(source.readRoster).toBe(readRoster)
   })
 })
 

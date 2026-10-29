@@ -19,17 +19,10 @@ export const SHIP_BEHAVIORS: readonly {
   },
 ]
 
-export enum ESecretScope {
-  Project = 'project',
-  Workspace = 'workspace',
-}
-
 export interface SecretRow {
   name: string
   value: string
-  scope: ESecretScope
   updated: string
-  overridesWorkspace?: boolean
 }
 
 export enum EMcpTransport {

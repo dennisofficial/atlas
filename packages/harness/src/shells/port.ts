@@ -88,7 +88,11 @@ export abstract class ShellRegistryPort {
     characters: number
     threadId: ThreadId
   }): Promise<string | undefined> | string | undefined
-  abstract kill(args: { shellId: string; by: EKilledBy; threadId: ThreadId }): ShellKillOutcome
+  abstract kill(args: {
+    shellId: string
+    by: EKilledBy
+    threadId: ThreadId
+  }): Promise<ShellKillOutcome> | ShellKillOutcome
   abstract awaitEndings(args: { threadId: ThreadId; ms: number }): Promise<number>
   abstract removeShells(args: {
     threadId: ThreadId

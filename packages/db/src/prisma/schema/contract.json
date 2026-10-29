@@ -60,8 +60,8 @@
       "model": "GithubSubscription",
       "namespace": "public"
     },
-    "Invitation": {
-      "model": "Invitation",
+    "LocalPodCheckpoint": {
+      "model": "LocalPodCheckpoint",
       "namespace": "public"
     },
     "LocalPodLease": {
@@ -70,10 +70,6 @@
     },
     "McpServerConfig": {
       "model": "UserMcpServer",
-      "namespace": "public"
-    },
-    "Member": {
-      "model": "Member",
       "namespace": "public"
     },
     "Memory": {
@@ -86,10 +82,6 @@
     },
     "OauthConnectionSandbox": {
       "model": "OauthConnectionSandbox",
-      "namespace": "public"
-    },
-    "Organization": {
-      "model": "Organization",
       "namespace": "public"
     },
     "Project": {
@@ -150,22 +142,6 @@
     },
     "Verification": {
       "model": "Verification",
-      "namespace": "public"
-    },
-    "WorkspaceMcpServer": {
-      "model": "WorkspaceMcpServer",
-      "namespace": "public"
-    },
-    "WorkspaceSecret": {
-      "model": "WorkspaceSecret",
-      "namespace": "public"
-    },
-    "WorkspaceSetting": {
-      "model": "WorkspaceSetting",
-      "namespace": "public"
-    },
-    "WorkspaceVercelCredential": {
-      "model": "WorkspaceVercelCredential",
       "namespace": "public"
     }
   },
@@ -2058,26 +2034,16 @@
               "table": "GithubSubscription"
             }
           },
-          "Invitation": {
+          "LocalPodCheckpoint": {
             "fields": {
-              "createdAt": {
-                "nullable": false,
+              "checkpoint": {
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "email": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
-              "expiresAt": {
+              "createdAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-date@1",
@@ -2094,28 +2060,31 @@
                   "kind": "scalar"
                 }
               },
-              "inviterId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "role": {
+              "revision": {
                 "nullable": true,
                 "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "status": {
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -2124,12 +2093,28 @@
               }
             },
             "relations": {
-              "inviter": {
+              "thread": {
                 "cardinality": "N:1",
                 "nullable": false,
                 "on": {
                   "localFields": [
-                    "inviterId"
+                    "threadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Thread",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
                   ],
                   "targetFields": [
                     "id"
@@ -2139,53 +2124,34 @@
                   "model": "User",
                   "namespace": "public"
                 }
-              },
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
               }
             },
             "storage": {
               "fields": {
+                "checkpoint": {
+                  "column": "checkpoint"
+                },
                 "createdAt": {
                   "column": "createdAt"
-                },
-                "email": {
-                  "column": "email"
-                },
-                "expiresAt": {
-                  "column": "expiresAt"
                 },
                 "id": {
                   "column": "id"
                 },
-                "inviterId": {
-                  "column": "inviterId"
+                "revision": {
+                  "column": "revision"
                 },
-                "organizationId": {
-                  "column": "organizationId"
+                "threadId": {
+                  "column": "threadId"
                 },
-                "role": {
-                  "column": "role"
+                "updatedAt": {
+                  "column": "updatedAt"
                 },
-                "status": {
-                  "column": "status"
+                "userId": {
+                  "column": "userId"
                 }
               },
               "namespaceId": "public",
-              "table": "Invitation"
+              "table": "LocalPodCheckpoint"
             }
           },
           "LocalPodLease": {
@@ -2280,103 +2246,6 @@
               },
               "namespaceId": "public",
               "table": "LocalPodLease"
-            }
-          },
-          "Member": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "role": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "userId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              },
-              "user": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "userId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "organizationId": {
-                  "column": "organizationId"
-                },
-                "role": {
-                  "column": "role"
-                },
-                "userId": {
-                  "column": "userId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "Member"
             }
           },
           "Memory": {
@@ -2762,202 +2631,6 @@
               "table": "OauthConnectionSandbox"
             }
           },
-          "Organization": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "logo": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "metadata": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "slug": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "invitations": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "Invitation",
-                  "namespace": "public"
-                }
-              },
-              "mcpServers": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceMcpServer",
-                  "namespace": "public"
-                }
-              },
-              "members": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "Member",
-                  "namespace": "public"
-                }
-              },
-              "projects": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "Project",
-                  "namespace": "public"
-                }
-              },
-              "secrets": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceSecret",
-                  "namespace": "public"
-                }
-              },
-              "settings": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceSetting",
-                  "namespace": "public"
-                }
-              },
-              "threads": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "Thread",
-                  "namespace": "public"
-                }
-              },
-              "vercelCredential": {
-                "cardinality": "1:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "organizationId"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceVercelCredential",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "logo": {
-                  "column": "logo"
-                },
-                "metadata": {
-                  "column": "metadata"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "slug": {
-                  "column": "slug"
-                }
-              },
-              "namespaceId": "public",
-              "table": "Organization"
-            }
-          },
           "Project": {
             "fields": {
               "additionalRepos": {
@@ -3012,15 +2685,8 @@
                   "kind": "scalar"
                 }
               },
-              "organizationId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "ownerUserId": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -3097,25 +2763,9 @@
                   "namespace": "public"
                 }
               },
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              },
               "owner": {
                 "cardinality": "N:1",
-                "nullable": true,
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "ownerUserId"
@@ -3197,9 +2847,6 @@
                 },
                 "name": {
                   "column": "name"
-                },
-                "organizationId": {
-                  "column": "organizationId"
                 },
                 "ownerUserId": {
                   "column": "ownerUserId"
@@ -3740,13 +3387,6 @@
           },
           "Session": {
             "fields": {
-              "activeOrganizationId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -3833,9 +3473,6 @@
             },
             "storage": {
               "fields": {
-                "activeOrganizationId": {
-                  "column": "activeOrganizationId"
-                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -4067,13 +3704,6 @@
                   "kind": "scalar"
                 }
               },
-              "organizationId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "parentThreadId": {
                 "nullable": true,
                 "type": {
@@ -4206,19 +3836,18 @@
                   "namespace": "public"
                 }
               },
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": true,
+              "localPodCheckpoints": {
+                "cardinality": "1:N",
                 "on": {
                   "localFields": [
-                    "organizationId"
+                    "id"
                   ],
                   "targetFields": [
-                    "id"
+                    "threadId"
                   ]
                 },
                 "to": {
-                  "model": "Organization",
+                  "model": "LocalPodCheckpoint",
                   "namespace": "public"
                 }
               },
@@ -4348,9 +3977,6 @@
                 },
                 "modelRef": {
                   "column": "modelRef"
-                },
-                "organizationId": {
-                  "column": "organizationId"
                 },
                 "parentThreadId": {
                   "column": "parentThreadId"
@@ -4783,18 +4409,18 @@
                   "namespace": "public"
                 }
               },
-              "invitations": {
+              "localPodCheckpoints": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "inviterId"
+                    "userId"
                   ]
                 },
                 "to": {
-                  "model": "Invitation",
+                  "model": "LocalPodCheckpoint",
                   "namespace": "public"
                 }
               },
@@ -4825,21 +4451,6 @@
                 },
                 "to": {
                   "model": "UserMcpServer",
-                  "namespace": "public"
-                }
-              },
-              "members": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "userId"
-                  ]
-                },
-                "to": {
-                  "model": "Member",
                   "namespace": "public"
                 }
               },
@@ -4976,36 +4587,6 @@
                 },
                 "to": {
                   "model": "Thread",
-                  "namespace": "public"
-                }
-              },
-              "updatedVercelCredentials": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "updatedById"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceVercelCredential",
-                  "namespace": "public"
-                }
-              },
-              "updatedWorkspaceSecrets": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "updatedById"
-                  ]
-                },
-                "to": {
-                  "model": "WorkspaceSecret",
                   "namespace": "public"
                 }
               },
@@ -5670,444 +5251,6 @@
               },
               "namespaceId": "public",
               "table": "Verification"
-            }
-          },
-          "WorkspaceMcpServer": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedSpec": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              }
-            },
-            "relations": {
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "organizationId": {
-                  "column": "organizationId"
-                },
-                "sealedSpec": {
-                  "column": "sealedSpec"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                }
-              },
-              "namespaceId": "public",
-              "table": "WorkspaceMcpServer"
-            }
-          },
-          "WorkspaceSecret": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "kind": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "name": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedValue": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "updatedById": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              },
-              "updatedBy": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "updatedById"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "kind": {
-                  "column": "kind"
-                },
-                "name": {
-                  "column": "name"
-                },
-                "organizationId": {
-                  "column": "organizationId"
-                },
-                "sealedValue": {
-                  "column": "sealedValue"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "updatedById": {
-                  "column": "updatedById"
-                }
-              },
-              "namespaceId": "public",
-              "table": "WorkspaceSecret"
-            }
-          },
-          "WorkspaceSetting": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "key": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "value": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "key": {
-                  "column": "key"
-                },
-                "organizationId": {
-                  "column": "organizationId"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "value": {
-                  "column": "value"
-                }
-              },
-              "namespaceId": "public",
-              "table": "WorkspaceSetting"
-            }
-          },
-          "WorkspaceVercelCredential": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "organizationId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "sealedToken": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "teamId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "updatedById": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "vercelProjectId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {
-              "organization": {
-                "cardinality": "N:1",
-                "nullable": false,
-                "on": {
-                  "localFields": [
-                    "organizationId"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "Organization",
-                  "namespace": "public"
-                }
-              },
-              "updatedBy": {
-                "cardinality": "N:1",
-                "nullable": true,
-                "on": {
-                  "localFields": [
-                    "updatedById"
-                  ],
-                  "targetFields": [
-                    "id"
-                  ]
-                },
-                "to": {
-                  "model": "User",
-                  "namespace": "public"
-                }
-              }
-            },
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "organizationId": {
-                  "column": "organizationId"
-                },
-                "sealedToken": {
-                  "column": "sealedToken"
-                },
-                "teamId": {
-                  "column": "teamId"
-                },
-                "updatedAt": {
-                  "column": "updatedAt"
-                },
-                "updatedById": {
-                  "column": "updatedById"
-                },
-                "vercelProjectId": {
-                  "column": "vercelProjectId"
-                }
-              },
-              "namespaceId": "public",
-              "table": "WorkspaceVercelCredential"
             }
           }
         }
@@ -7715,8 +6858,13 @@
                 }
               ]
             },
-            "Invitation": {
+            "LocalPodCheckpoint": {
               "columns": {
+                "checkpoint": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -7729,12 +6877,22 @@
                     "precision": 3
                   }
                 },
-                "email": {
+                "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "expiresAt": {
+                "revision": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
                   "nullable": false,
@@ -7742,27 +6900,7 @@
                     "precision": 3
                   }
                 },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "inviterId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "role": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "status": {
+                "userId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
@@ -7771,37 +6909,16 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Invitation_organizationId_idx_2e17ef41"
+                    "name": "LocalPodCheckpoint_userId_idx"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
-                      "organizationId"
+                      "userId"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Invitation"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                },
-                {
-                  "index": {
-                    "name": "Invitation_inviterId_idx_c2d8c6d6"
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "inviterId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Invitation"
+                    "tableName": "LocalPodCheckpoint"
                   },
                   "target": {
                     "columns": [
@@ -7810,23 +6927,37 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "threadId"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "threadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "LocalPodCheckpoint"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Thread"
+                  }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "inviterId"
+                    "userId"
                   ],
-                  "name": "Invitation_inviterId_idx_c2d8c6d6",
-                  "prefix": "Invitation_inviterId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "organizationId"
-                  ],
-                  "name": "Invitation_organizationId_idx_2e17ef41",
-                  "prefix": "Invitation_organizationId_idx",
+                  "name": "LocalPodCheckpoint_userId_idx",
                   "unique": false
                 }
               ],
@@ -7835,7 +6966,14 @@
                   "id"
                 ]
               },
-              "uniques": []
+              "uniques": [
+                {
+                  "columns": [
+                    "threadId"
+                  ],
+                  "name": "LocalPodCheckpoint_threadId_key"
+                }
+              ]
             },
             "LocalPodLease": {
               "columns": {
@@ -8015,113 +7153,6 @@
                     "name"
                   ],
                   "name": "McpServerConfig_userId_name_key"
-                }
-              ]
-            },
-            "Member": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "role": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "userId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "unique": [
-                      "organizationId",
-                      "userId"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Member"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                },
-                {
-                  "index": {
-                    "name": "Member_userId_idx_a489d58a"
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "userId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Member"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "User"
-                  }
-                }
-              ],
-              "indexes": [
-                {
-                  "columns": [
-                    "userId"
-                  ],
-                  "name": "Member_userId_idx_a489d58a",
-                  "prefix": "Member_userId_idx",
-                  "unique": false
-                }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "userId"
-                  ],
-                  "name": "Member_organizationId_userId_key"
                 }
               ]
             },
@@ -8457,70 +7488,7 @@
               },
               "uniques": []
             },
-            "Organization": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "logo": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "metadata": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "name": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "slug": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "slug"
-                  ],
-                  "name": "Organization_slug_key"
-                }
-              ]
-            },
             "Project": {
-              "checks": [
-                {
-                  "expression": "((\"ownerUserId\" IS NULL) <> (\"organizationId\" IS NULL))",
-                  "name": "Project_exactly_one_owner_ad5ba0b8",
-                  "prefix": "Project_exactly_one_owner"
-                }
-              ],
               "columns": {
                 "additionalRepos": {
                   "codecId": "pg/jsonb@1",
@@ -8572,15 +7540,10 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "ownerUserId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "repo": {
                   "codecId": "pg/text@1",
@@ -8661,27 +7624,6 @@
                     "namespaceId": "public",
                     "tableName": "User"
                   }
-                },
-                {
-                  "index": {
-                    "name": "Project_organizationId_idx"
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Project"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
                 }
               ],
               "indexes": [
@@ -8691,13 +7633,6 @@
                   ],
                   "name": "Project_createdById_idx_8bf640ed",
                   "prefix": "Project_createdById_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "organizationId"
-                  ],
-                  "name": "Project_organizationId_idx",
                   "unique": false
                 },
                 {
@@ -9264,11 +8199,6 @@
             },
             "Session": {
               "columns": {
-                "activeOrganizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -9530,11 +8460,6 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
                 "parentThreadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -9669,37 +8594,9 @@
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
-                },
-                {
-                  "index": {
-                    "name": "Thread_organizationId_idx"
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Thread"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
                 }
               ],
               "indexes": [
-                {
-                  "columns": [
-                    "organizationId"
-                  ],
-                  "name": "Thread_organizationId_idx",
-                  "unique": false
-                },
                 {
                   "columns": [
                     "parentThreadId"
@@ -10206,414 +9103,6 @@
                 ]
               },
               "uniques": []
-            },
-            "WorkspaceMcpServer": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "name": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "sealedSpec": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "unique": [
-                      "organizationId",
-                      "name"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceMcpServer"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                }
-              ],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "name"
-                  ],
-                  "name": "WorkspaceMcpServer_organizationId_name_key"
-                }
-              ]
-            },
-            "WorkspaceSecret": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "kind": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": "secret"
-                  },
-                  "nullable": false
-                },
-                "name": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "sealedValue": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "updatedById": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "name": "WorkspaceSecret_updatedById_idx_d0517c24"
-                  },
-                  "onDelete": "setNull",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "updatedById"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceSecret"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "User"
-                  }
-                },
-                {
-                  "index": {
-                    "unique": [
-                      "organizationId",
-                      "name"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceSecret"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                }
-              ],
-              "indexes": [
-                {
-                  "columns": [
-                    "updatedById"
-                  ],
-                  "name": "WorkspaceSecret_updatedById_idx_d0517c24",
-                  "prefix": "WorkspaceSecret_updatedById_idx",
-                  "unique": false
-                }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "name"
-                  ],
-                  "name": "WorkspaceSecret_organizationId_name_key"
-                }
-              ]
-            },
-            "WorkspaceSetting": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "key": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "value": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "unique": [
-                      "organizationId",
-                      "key"
-                    ]
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceSetting"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                }
-              ],
-              "indexes": [],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": [
-                {
-                  "columns": [
-                    "organizationId",
-                    "key"
-                  ],
-                  "name": "WorkspaceSetting_organizationId_key_key"
-                }
-              ]
-            },
-            "WorkspaceVercelCredential": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "organizationId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "sealedToken": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "teamId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "updatedById": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "vercelProjectId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                }
-              },
-              "foreignKeys": [
-                {
-                  "index": {
-                    "name": "WorkspaceVercelCredential_updatedById_idx_d0517c24"
-                  },
-                  "onDelete": "setNull",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "updatedById"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceVercelCredential"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "User"
-                  }
-                },
-                {
-                  "index": {
-                    "primaryKey": true
-                  },
-                  "onDelete": "cascade",
-                  "onUpdate": "cascade",
-                  "source": {
-                    "columns": [
-                      "organizationId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "WorkspaceVercelCredential"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Organization"
-                  }
-                }
-              ],
-              "indexes": [
-                {
-                  "columns": [
-                    "updatedById"
-                  ],
-                  "name": "WorkspaceVercelCredential_updatedById_idx_d0517c24",
-                  "prefix": "WorkspaceVercelCredential_updatedById_idx",
-                  "unique": false
-                }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "organizationId"
-                ]
-              },
-              "uniques": []
             }
           }
         },
@@ -10621,10 +9110,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3a633b04798a32f8f70949fd0f91021d862a3b94fd983ac5209ac650b3c96178"
+    "storageHash": "7f695b93d1d4a2c772f2e879418d577eae8e81db8c2850b3a458bdc61f770d9b"
   },
   "execution": {
-    "executionHash": "df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec",
+    "executionHash": "ce9506e65a67e0ad51bebd606a7cd5a0d3a5e691b7750b5a5c6228bc6ee03ac8",
     "mutations": {
       "defaults": [
         {
@@ -10751,6 +9240,32 @@
           "ref": {
             "entry": "GithubSubscription",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "LocalPodCheckpoint",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "LocalPodCheckpoint",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },
@@ -11052,66 +9567,6 @@
           },
           "ref": {
             "entry": "Verification",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "WorkspaceMcpServer",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "WorkspaceSecret",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "WorkspaceSetting",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestampNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "WorkspaceVercelCredential",
             "field": "updatedAt",
             "namespace": "public"
           }

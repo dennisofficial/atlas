@@ -39,14 +39,10 @@ import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
-import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
 
 @Module({
   imports: [
-    EnvModule.forRoot({
-      envService: EnvService,
-      validationSchema: envConfigValidation,
-    }),
+    EnvModule.forRoot({ envService: EnvService, validationSchema: envConfigValidation }),
     ThrottlerModule.forRootAsync({
       inject: [EnvService],
       useFactory: (env: EnvService) => [{ ttl: 60_000, limit: env.get('RATE_LIMIT_PER_MINUTE') }],
@@ -81,7 +77,6 @@ import { WorkspacesModule } from './cloud/workspaces/workspaces.module'
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,
-    WorkspacesModule,
     ScopedConfigModule,
     SandboxCredentialsModule,
     SandboxProvisioningModule,

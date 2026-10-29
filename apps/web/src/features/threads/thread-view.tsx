@@ -9,13 +9,7 @@ import { liveSteps } from '@dltech/atlas-client/transcript'
 import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import {
-  branchOf,
-  headerStateOf,
-  pullRequestBadgeOf,
-  sandboxSettingsHrefOf,
-  spawnerIdOf,
-} from './data/header-model'
+import { branchOf, headerStateOf, sandboxSettingsHrefOf, spawnerIdOf } from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { TOO_LATE_NOTICE } from './data/composer-queue'
@@ -41,7 +35,10 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { usePullRequestBadge } from './data/use-pull-request-badge'
 import { usePullRequestBell } from './data/use-pull-request-bell'
+import { userRewindPoints } from './data/rewind'
+import { useRewind } from './data/use-rewind'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
@@ -60,6 +57,7 @@ import { ThreadLayout } from './thread-layout'
 import { ThreadMissing } from './thread-missing'
 import { ThreadPodChip } from './thread-pod-chip'
 import { ThreadTranscript } from './thread-transcript'
+import { RewindDialog } from './transcript/rewind-dialog'
 
 const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
@@ -86,6 +84,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     channel,
     thread: thread.data,
   })
+  const pullRequest = usePullRequestBadge({ channel, thread: thread.data })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
@@ -119,6 +118,18 @@ export function ThreadView({ threadId }: { threadId: string }) {
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
   const { pod, refresh } = usePodStatus({ threadId, signals })
+  const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
+  const rewind = useRewind({
+    situation: () => ({
+      threadId,
+      events: parsed,
+      live: source.live,
+      working,
+      podState: pod?.state ?? null,
+    }),
+    source,
+    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+  })
   const eligibleNow = isPodLiveEligible(pod)
   if (eligibleNow !== liveEligible) setLiveEligible(eligibleNow)
   const probe = bootViewOf({ pod, now: 0 })
@@ -162,6 +173,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
     }
   }
 
+  const handleStop = () => {
+    if (source.interrupt()) return
+    toast.error('Could not reach the sandbox to stop the turn')
+  }
+
   if (thread.state === EQueryState.Failed && thread.error.status === NOT_FOUND) {
     return <ThreadMissing />
   }
@@ -180,7 +196,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
-      pullRequest={pullRequestBadgeOf(thread.data)}
+      pullRequest={pullRequest}
       bell={bell}
       onToggleBell={handleToggleBell}
       podChip={
@@ -223,12 +239,14 @@ export function ThreadView({ threadId }: { threadId: string }) {
               bootNow={now}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}
+              rewind={{
+                points: rewindPoints,
+                onRewind: (picked) => void rewind.handlePick(picked),
+              }}
             />
           </div>
           <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-            {notConfigured === null ? null : (
-              <NotConfiguredAlert error={notConfigured.error} gap={notConfigured.gap} />
-            )}
+            {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
             {operator.request === null ? null : (
               <OperatorInputCard
                 key={operator.request.requestId}
@@ -237,6 +255,12 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 onSubmit={(value) => void operator.handleSubmit(value)}
               />
             )}
+            <RewindDialog
+              pick={rewind.pick}
+              applying={rewind.applying}
+              onCancel={rewind.handleCancel}
+              onConfirm={() => void rewind.handleConfirm()}
+            />
             <ComposerDock dock={dock} />
             <ThreadComposer
               value={draft}
@@ -244,6 +268,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
               onSubmit={handleSubmit}
               onEscape={() => void handleEscape()}
               sending={sending || handoff.waiting || images.encoding}
+              working={working}
+              onStop={handleStop}
               {...images.composerProps}
               placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
             >

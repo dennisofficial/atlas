@@ -19,10 +19,7 @@ export class PodBootError extends Error {
 export class PodNotConfiguredError extends Error {
   readonly gap?: EVercelCredentialGap
 
-  constructor(args: {
-    message: string
-    gap?: EVercelCredentialGap | undefined
-  }) {
+  constructor(args: { message: string; gap?: EVercelCredentialGap | undefined }) {
     super(args.message)
     this.name = 'PodNotConfiguredError'
     if (args.gap !== undefined) this.gap = args.gap
@@ -32,10 +29,6 @@ export class PodNotConfiguredError extends Error {
 const GAP_HINTS: Readonly<Record<EVercelCredentialGap, string>> = {
   [EVercelCredentialGap.UserCredential]:
     'Add your Vercel credentials in your Atlas Cloud settings, then try again.',
-  [EVercelCredentialGap.WorkspaceCredential]:
-    'Add the Vercel credentials in your Atlas Cloud workspace settings, then try again.',
-  [EVercelCredentialGap.CredentialProjectId]:
-    'The saved Vercel credentials name no project. Fix them in your Atlas Cloud workspace settings, then try again.',
 }
 
 const DEFAULT_NOT_CONFIGURED = 'Atlas Cloud cannot start a sandbox for this account yet.'

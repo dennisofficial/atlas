@@ -1,12 +1,8 @@
 import { ESettingsPage } from '../settings-nav'
 import type { PageStatusInfo } from './page-status-kind'
 import { PERSONAL_PAGE_STATUS } from './personal-page-status'
-import { WORKSPACE_PAGE_STATUS } from './workspace-page-status'
 
 export { EPageStatus, type PageStatusInfo } from './page-status-kind'
-export { PROJECT_SECTION_STATUS } from './workspace-page-status'
+export { PROJECT_SECTION_STATUS } from './project-section-status'
 
-export const SETTINGS_PAGE_STATUS: Record<ESettingsPage, PageStatusInfo> = {
-  ...PERSONAL_PAGE_STATUS,
-  ...WORKSPACE_PAGE_STATUS,
-}
+export const SETTINGS_PAGE_STATUS: Record<ESettingsPage, PageStatusInfo> = PERSONAL_PAGE_STATUS

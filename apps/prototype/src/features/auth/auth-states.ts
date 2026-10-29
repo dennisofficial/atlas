@@ -10,7 +10,6 @@ export enum ESignInState {
 export enum ESignInContext {
   Default = 'default',
   Device = 'device',
-  Invite = 'invite',
 }
 
 export enum ESignUpState {
@@ -39,17 +38,6 @@ export enum EDeviceStep {
   Denied = 'denied',
   ExpiredCode = 'expired-code',
   SignedOut = 'signed-out',
-}
-
-export enum ESetupState {
-  CreateWorkspace = 'create-workspace',
-  Done = 'done',
-}
-
-export enum EInviteState {
-  SignedIn = 'signed-in',
-  SignedOut = 'signed-out',
-  Expired = 'expired',
 }
 
 type SelectControl = Extract<Control, { type: 'select' }>

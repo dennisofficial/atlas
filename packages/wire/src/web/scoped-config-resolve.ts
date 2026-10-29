@@ -17,7 +17,6 @@ export const EMPTY_SCOPE_LAYER: ScopeLayer = { settings: {}, secrets: [], mcpSer
 
 export type ScopedConfigLayers = {
   defaults: ScopeLayer
-  workspace: ScopeLayer | null
   user: ScopeLayer
   project: ScopeLayer | null
 }
@@ -26,8 +25,6 @@ const layerAt = (args: { layers: ScopedConfigLayers; scope: EConfigScope }): Sco
   switch (args.scope) {
     case EConfigScope.Default:
       return args.layers.defaults
-    case EConfigScope.Workspace:
-      return args.layers.workspace
     case EConfigScope.User:
       return args.layers.user
     case EConfigScope.Project:

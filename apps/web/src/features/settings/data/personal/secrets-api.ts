@@ -8,7 +8,7 @@ import {
   type LibrarySecret,
 } from '../../fixtures/settings-library'
 import type { SecretEntry } from '../../parts/library-secret-dialogs'
-import { wireKindOf } from '../workspace/secrets-mapping'
+import { wireKindOf } from '../shared/secrets-mapping'
 import { relativeTime } from './relative-time'
 
 export function toLibrarySecret(args: {
@@ -33,6 +33,11 @@ export function toLibrarySecret(args: {
 export async function fetchSecretDetails(): Promise<SecretDetail[]> {
   const body = await cloudCall(api.secrets.details.query())
   return body.secrets
+}
+
+export async function fetchSecretNames(): Promise<string[]> {
+  const body = await cloudCall(api.secrets.names.query())
+  return body.names
 }
 
 export function putSecret(args: { name: string; value: string; kind: ESecretKind }): Promise<void> {

@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
-import { QueryGate } from '@/features/settings/data/workspace/query-gate'
+import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { createThreadBodyOf } from './data/create-thread'

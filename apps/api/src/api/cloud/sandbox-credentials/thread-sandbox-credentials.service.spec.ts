@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
-import { seedProject, seedSessionUsers, seedWorkspace } from '../web-settings.fake-db'
+import { seedProject, seedSessionUsers } from '../web-settings.fake-db'
 import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.service'
 
 const envWith = (values: Record<string, string>): EnvService =>
@@ -28,7 +28,7 @@ const scopedReturning = (
 
 const seedThreadWithProject = async (
   projectId: string | null,
-  extra: { organizationId?: string; apiProvisioned?: boolean } = {},
+  extra: { apiProvisioned?: boolean } = {},
 ): Promise<void> => {
   if (projectId !== null) await seedProject({ id: projectId, ownerUserId: 'user-a' })
   await seedThread({
@@ -37,11 +37,6 @@ const seedThreadWithProject = async (
     userId: 'user-a',
     ...(projectId === null ? {} : { projectId }),
   })
-  if (extra.organizationId !== undefined) {
-    await db.orm.public.Thread.where({ id: 'thr-1' }).update({
-      organizationId: extra.organizationId,
-    })
-  }
   if (extra.apiProvisioned === true) {
     await db.orm.public.SandboxBootStep.create({
       threadId: 'thr-1',
@@ -58,33 +53,6 @@ describe('ThreadSandboxCredentialsService', () => {
     await seedSessionUsers()
   })
 
-  it('resolves a workspace-project thread through its stored owner organization', async () => {
-    await seedWorkspace({ id: 'org-1', members: [{ userId: 'user-a', role: 'owner' }] })
-    await seedThreadWithProject('proj-1', { organizationId: 'org-1' })
-    const { scoped, vercelCredentials } = scopedReturning(async () => ({
-      token: 'ws-token',
-      teamId: 'ws-team',
-      projectId: 'ws-prj',
-    }))
-
-    const credentials = await new ThreadSandboxCredentialsService(
-      scoped,
-      envWith(LEGACY_ENV),
-    ).forThread({
-      threadId: 'thr-1',
-    })
-
-    expect(credentials).toEqual({
-      token: 'ws-token',
-      teamId: 'ws-team',
-      projectId: 'ws-prj',
-      ownerCredential: true,
-    })
-    expect(vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'user-a', organizationId: 'org-1' },
-    })
-  })
-
   it('resolves a personal-project thread through its creator', async () => {
     await seedThreadWithProject('proj-1')
     const { scoped, vercelCredentials } = scopedReturning(async () => ({
@@ -99,9 +67,7 @@ describe('ThreadSandboxCredentialsService', () => {
     ).forThread({ threadId: 'thr-1' })
 
     expect(credentials).toMatchObject({ token: 'user-token', ownerCredential: true })
-    expect(vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'user-a', organizationId: null },
-    })
+    expect(vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'user-a' } })
   })
 
   it('sends an API-provisioned no-project thread to the owner resolver, never the env account', async () => {
@@ -118,9 +84,7 @@ describe('ThreadSandboxCredentialsService', () => {
     ).forThread({ threadId: 'thr-1' })
 
     expect(credentials).toMatchObject({ token: 'user-token', ownerCredential: true })
-    expect(vercelCredentials).toHaveBeenCalledWith({
-      thread: { userId: 'user-a', organizationId: null },
-    })
+    expect(vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'user-a' } })
   })
 
   it('lets a missing owner credential on an API-provisioned no-project thread propagate', async () => {
@@ -136,10 +100,10 @@ describe('ThreadSandboxCredentialsService', () => {
     ).rejects.toMatchObject({ gap: EVercelCredentialGap.UserCredential })
   })
 
-  it('lets a missing workspace credential propagate instead of falling back to the env account', async () => {
+  it('lets a missing owner credential propagate instead of falling back to the env account', async () => {
     await seedThreadWithProject('proj-1')
     const { scoped } = scopedReturning(async () => {
-      throw new VercelNotConfiguredError(EVercelCredentialGap.WorkspaceCredential)
+      throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
     })
 
     await expect(
@@ -158,9 +122,7 @@ describe('ThreadSandboxCredentialsService', () => {
     const credentials = await new ThreadSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
-    ).forThread({
-      threadId: 'thr-1',
-    })
+    ).forThread({ threadId: 'thr-1' })
 
     expect(credentials).toEqual({
       token: 'env-token',
@@ -179,9 +141,7 @@ describe('ThreadSandboxCredentialsService', () => {
     const credentials = await new ThreadSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
-    ).forThread({
-      threadId: 'missing',
-    })
+    ).forThread({ threadId: 'missing' })
 
     expect(credentials.ownerCredential).toBe(false)
   })

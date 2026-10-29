@@ -16,16 +16,11 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
-import { ELibraryScope, ESecretKind } from '../fixtures/settings-library'
+import { ESecretKind } from '../fixtures/settings-library'
 
 export type SecretEntry = { key: string; value: string; kind: ESecretKind }
 
-const SCOPE_NOTES: Record<ELibraryScope, string> = {
-  [ELibraryScope.Personal]:
-    'Only you can see this. It overrides workspace values with the same key; project values override it.',
-  [ELibraryScope.Workspace]:
-    "Available to every member's threads. Personal values override it; project values override both.",
-}
+const FORM_NOTE = 'Only you can see this. Project values override it.'
 
 export function parseBulkLines(text: string): SecretEntry[] {
   return text
@@ -44,12 +39,10 @@ export function parseBulkLines(text: string): SecretEntry[] {
 }
 
 function SecretForm({
-  scope,
   initial,
   onCancel,
   onSubmit,
 }: {
-  scope: ELibraryScope
   initial: SecretEntry | null
   onCancel: () => void
   onSubmit: (entry: SecretEntry) => void
@@ -70,7 +63,7 @@ function SecretForm({
     <>
       <DialogHeader>
         <DialogTitle>{editing ? 'Edit value' : 'Add a value'}</DialogTitle>
-        <DialogDescription>{SCOPE_NOTES[scope]}</DialogDescription>
+        <DialogDescription>{FORM_NOTE}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
@@ -129,13 +122,11 @@ function SecretForm({
 export function SecretDialog({
   open,
   onOpenChange,
-  scope,
   initial,
   onSubmit,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  scope: ELibraryScope
   initial: SecretEntry | null
   onSubmit: (entry: SecretEntry) => void
 }) {
@@ -143,7 +134,6 @@ export function SecretDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <SecretForm
-          scope={scope}
           initial={initial}
           onCancel={() => onOpenChange(false)}
           onSubmit={(entry) => {

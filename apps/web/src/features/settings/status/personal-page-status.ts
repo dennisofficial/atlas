@@ -4,7 +4,7 @@ import { EPageStatus, type PageStatusInfo } from './page-status-kind'
 export const PERSONAL_PAGE_STATUS = {
   [ESettingsPage.Account]: {
     status: EPageStatus.Partial,
-    detail: 'Name, email, GitHub login and workspaces are real. Thread count is not reported yet.',
+    detail: 'Name, email and GitHub login are real. Thread count is not reported yet.',
   },
   [ESettingsPage.Integrations]: {
     status: EPageStatus.Partial,
@@ -38,6 +38,10 @@ export const PERSONAL_PAGE_STATUS = {
       'The theme is applied to this page; density, font size and motion are saved but not applied yet.',
   },
   [ESettingsPage.Notifications]: { status: EPageStatus.Stored },
+  [ESettingsPage.Agent]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and delivered to every sandbox when it starts.',
+  },
   [ESettingsPage.Security]: {
     status: EPageStatus.Live,
     detail: 'Signed-in sessions come from your account and can be revoked.',

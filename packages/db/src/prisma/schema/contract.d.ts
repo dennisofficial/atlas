@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'3a633b04798a32f8f70949fd0f91021d862a3b94fd983ac5209ac650b3c96178'>;
+  StorageHashBase<'7f695b93d1d4a2c772f2e879418d577eae8e81db8c2850b3a458bdc61f770d9b'>;
 export type ExecutionHash =
-  ExecutionHashBase<'df6fd8314728bbc231a9f7d3446dddde140d8842eb7ab6b22bb0220a460991ec'>;
+  ExecutionHashBase<'ce9506e65a67e0ad51bebd606a7cd5a0d3a5e691b7750b5a5c6228bc6ee03ac8'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -462,18 +462,17 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'sandbox' | 'user';
   };
-  export type public_Invitation = {
-    createdAt: FieldOutputTypes['public']['Invitation']['createdAt'];
-    email: FieldOutputTypes['public']['Invitation']['email'];
-    expiresAt: FieldOutputTypes['public']['Invitation']['expiresAt'];
-    id: FieldOutputTypes['public']['Invitation']['id'];
-    inviterId: FieldOutputTypes['public']['Invitation']['inviterId'];
-    organizationId: FieldOutputTypes['public']['Invitation']['organizationId'];
-    role: FieldOutputTypes['public']['Invitation']['role'];
-    status: FieldOutputTypes['public']['Invitation']['status'];
-    inviter: public_User;
-    organization: public_Organization;
-    readonly [RelationKeys]?: 'inviter' | 'organization';
+  export type public_LocalPodCheckpoint = {
+    checkpoint: FieldOutputTypes['public']['LocalPodCheckpoint']['checkpoint'];
+    createdAt: FieldOutputTypes['public']['LocalPodCheckpoint']['createdAt'];
+    id: FieldOutputTypes['public']['LocalPodCheckpoint']['id'];
+    revision: FieldOutputTypes['public']['LocalPodCheckpoint']['revision'];
+    threadId: FieldOutputTypes['public']['LocalPodCheckpoint']['threadId'];
+    updatedAt: FieldOutputTypes['public']['LocalPodCheckpoint']['updatedAt'];
+    userId: FieldOutputTypes['public']['LocalPodCheckpoint']['userId'];
+    thread: public_Thread;
+    user: public_User;
+    readonly [RelationKeys]?: 'thread' | 'user';
   };
   export type public_LocalPodLease = {
     createdAt: FieldOutputTypes['public']['LocalPodLease']['createdAt'];
@@ -484,16 +483,6 @@ export namespace Models {
     userId: FieldOutputTypes['public']['LocalPodLease']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
-  };
-  export type public_Member = {
-    createdAt: FieldOutputTypes['public']['Member']['createdAt'];
-    id: FieldOutputTypes['public']['Member']['id'];
-    organizationId: FieldOutputTypes['public']['Member']['organizationId'];
-    role: FieldOutputTypes['public']['Member']['role'];
-    userId: FieldOutputTypes['public']['Member']['userId'];
-    organization: public_Organization;
-    user: public_User;
-    readonly [RelationKeys]?: 'organization' | 'user';
   };
   export type public_Memory = {
     body: FieldOutputTypes['public']['Memory']['body'];
@@ -534,31 +523,6 @@ export namespace Models {
     sandbox: public_CloudSandbox;
     readonly [RelationKeys]?: 'connection' | 'sandbox';
   };
-  export type public_Organization = {
-    createdAt: FieldOutputTypes['public']['Organization']['createdAt'];
-    id: FieldOutputTypes['public']['Organization']['id'];
-    logo: FieldOutputTypes['public']['Organization']['logo'];
-    metadata: FieldOutputTypes['public']['Organization']['metadata'];
-    name: FieldOutputTypes['public']['Organization']['name'];
-    slug: FieldOutputTypes['public']['Organization']['slug'];
-    invitations: public_Invitation[];
-    mcpServers: public_WorkspaceMcpServer[];
-    members: public_Member[];
-    projects: public_Project[];
-    secrets: public_WorkspaceSecret[];
-    settings: public_WorkspaceSetting[];
-    threads: public_Thread[];
-    vercelCredential: public_WorkspaceVercelCredential | null;
-    readonly [RelationKeys]?:
-      | 'invitations'
-      | 'mcpServers'
-      | 'members'
-      | 'projects'
-      | 'secrets'
-      | 'settings'
-      | 'threads'
-      | 'vercelCredential';
-  };
   export type public_Project = {
     additionalRepos: FieldOutputTypes['public']['Project']['additionalRepos'];
     baseBranch: FieldOutputTypes['public']['Project']['baseBranch'];
@@ -567,7 +531,6 @@ export namespace Models {
     description: FieldOutputTypes['public']['Project']['description'];
     id: FieldOutputTypes['public']['Project']['id'];
     name: FieldOutputTypes['public']['Project']['name'];
-    organizationId: FieldOutputTypes['public']['Project']['organizationId'];
     ownerUserId: FieldOutputTypes['public']['Project']['ownerUserId'];
     repo: FieldOutputTypes['public']['Project']['repo'];
     sandboxVcpus: FieldOutputTypes['public']['Project']['sandboxVcpus'];
@@ -576,13 +539,12 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['Project']['updatedAt'];
     createdBy: public_User | null;
     mcpServers: public_ProjectMcpServer[];
-    organization: public_Organization | null;
-    owner: public_User | null;
+    owner: public_User;
     secrets: public_ProjectSecret[];
     settings: public_ProjectSetting[];
     threads: public_Thread[];
     readonly [RelationKeys]?:
-      'createdBy' | 'mcpServers' | 'organization' | 'owner' | 'secrets' | 'settings' | 'threads';
+      'createdBy' | 'mcpServers' | 'owner' | 'secrets' | 'settings' | 'threads';
   };
   export type public_ProjectMcpServer = {
     createdAt: FieldOutputTypes['public']['ProjectMcpServer']['createdAt'];
@@ -640,7 +602,6 @@ export namespace Models {
     readonly [RelationKeys]?: 'thread';
   };
   export type public_Session = {
-    activeOrganizationId: FieldOutputTypes['public']['Session']['activeOrganizationId'];
     createdAt: FieldOutputTypes['public']['Session']['createdAt'];
     expiresAt: FieldOutputTypes['public']['Session']['expiresAt'];
     id: FieldOutputTypes['public']['Session']['id'];
@@ -676,7 +637,6 @@ export namespace Models {
     id: FieldOutputTypes['public']['Thread']['id'];
     modelEffort: FieldOutputTypes['public']['Thread']['modelEffort'];
     modelRef: FieldOutputTypes['public']['Thread']['modelRef'];
-    organizationId: FieldOutputTypes['public']['Thread']['organizationId'];
     parentThreadId: FieldOutputTypes['public']['Thread']['parentThreadId'];
     pinnedAt: FieldOutputTypes['public']['Thread']['pinnedAt'];
     projectId: FieldOutputTypes['public']['Thread']['projectId'];
@@ -690,7 +650,7 @@ export namespace Models {
     cloudSandbox: public_CloudSandbox | null;
     events: public_Event[];
     forks: public_Thread[];
-    organization: public_Organization | null;
+    localPodCheckpoints: public_LocalPodCheckpoint[];
     parent: public_Thread | null;
     project: public_Project | null;
     spawned: public_Thread[];
@@ -702,7 +662,7 @@ export namespace Models {
       | 'cloudSandbox'
       | 'events'
       | 'forks'
-      | 'organization'
+      | 'localPodCheckpoints'
       | 'parent'
       | 'project'
       | 'spawned'
@@ -747,10 +707,9 @@ export namespace Models {
     githubPrEvents: public_GithubPrEvent[];
     githubRepoHooks: public_GithubRepoHook[];
     githubSubscriptions: public_GithubSubscription[];
-    invitations: public_Invitation[];
+    localPodCheckpoints: public_LocalPodCheckpoint[];
     localPodLeases: public_LocalPodLease[];
     mcpServers: public_UserMcpServer[];
-    members: public_Member[];
     memories: public_Memory[];
     oauthConnections: public_OauthConnection[];
     ownedProjects: public_Project[];
@@ -760,8 +719,6 @@ export namespace Models {
     settings: public_UserSetting[];
     sshSigningKey: public_SshSigningKey | null;
     threads: public_Thread[];
-    updatedVercelCredentials: public_WorkspaceVercelCredential[];
-    updatedWorkspaceSecrets: public_WorkspaceSecret[];
     userFiles: public_UserFile[];
     vercelCredential: public_UserVercelCredential | null;
     readonly [RelationKeys]?:
@@ -776,10 +733,9 @@ export namespace Models {
       | 'githubPrEvents'
       | 'githubRepoHooks'
       | 'githubSubscriptions'
-      | 'invitations'
+      | 'localPodCheckpoints'
       | 'localPodLeases'
       | 'mcpServers'
-      | 'members'
       | 'memories'
       | 'oauthConnections'
       | 'ownedProjects'
@@ -789,8 +745,6 @@ export namespace Models {
       | 'settings'
       | 'sshSigningKey'
       | 'threads'
-      | 'updatedVercelCredentials'
-      | 'updatedWorkspaceSecrets'
       | 'userFiles'
       | 'vercelCredential';
   };
@@ -858,51 +812,6 @@ export namespace Models {
     value: FieldOutputTypes['public']['Verification']['value'];
     readonly [RelationKeys]?: never;
   };
-  export type public_WorkspaceMcpServer = {
-    createdAt: FieldOutputTypes['public']['WorkspaceMcpServer']['createdAt'];
-    id: FieldOutputTypes['public']['WorkspaceMcpServer']['id'];
-    name: FieldOutputTypes['public']['WorkspaceMcpServer']['name'];
-    organizationId: FieldOutputTypes['public']['WorkspaceMcpServer']['organizationId'];
-    sealedSpec: FieldOutputTypes['public']['WorkspaceMcpServer']['sealedSpec'];
-    updatedAt: FieldOutputTypes['public']['WorkspaceMcpServer']['updatedAt'];
-    organization: public_Organization;
-    readonly [RelationKeys]?: 'organization';
-  };
-  export type public_WorkspaceSecret = {
-    createdAt: FieldOutputTypes['public']['WorkspaceSecret']['createdAt'];
-    id: FieldOutputTypes['public']['WorkspaceSecret']['id'];
-    kind: FieldOutputTypes['public']['WorkspaceSecret']['kind'];
-    name: FieldOutputTypes['public']['WorkspaceSecret']['name'];
-    organizationId: FieldOutputTypes['public']['WorkspaceSecret']['organizationId'];
-    sealedValue: FieldOutputTypes['public']['WorkspaceSecret']['sealedValue'];
-    updatedAt: FieldOutputTypes['public']['WorkspaceSecret']['updatedAt'];
-    updatedById: FieldOutputTypes['public']['WorkspaceSecret']['updatedById'];
-    organization: public_Organization;
-    updatedBy: public_User | null;
-    readonly [RelationKeys]?: 'organization' | 'updatedBy';
-  };
-  export type public_WorkspaceSetting = {
-    createdAt: FieldOutputTypes['public']['WorkspaceSetting']['createdAt'];
-    id: FieldOutputTypes['public']['WorkspaceSetting']['id'];
-    key: FieldOutputTypes['public']['WorkspaceSetting']['key'];
-    organizationId: FieldOutputTypes['public']['WorkspaceSetting']['organizationId'];
-    updatedAt: FieldOutputTypes['public']['WorkspaceSetting']['updatedAt'];
-    value: FieldOutputTypes['public']['WorkspaceSetting']['value'];
-    organization: public_Organization;
-    readonly [RelationKeys]?: 'organization';
-  };
-  export type public_WorkspaceVercelCredential = {
-    createdAt: FieldOutputTypes['public']['WorkspaceVercelCredential']['createdAt'];
-    organizationId: FieldOutputTypes['public']['WorkspaceVercelCredential']['organizationId'];
-    sealedToken: FieldOutputTypes['public']['WorkspaceVercelCredential']['sealedToken'];
-    teamId: FieldOutputTypes['public']['WorkspaceVercelCredential']['teamId'];
-    updatedAt: FieldOutputTypes['public']['WorkspaceVercelCredential']['updatedAt'];
-    updatedById: FieldOutputTypes['public']['WorkspaceVercelCredential']['updatedById'];
-    vercelProjectId: FieldOutputTypes['public']['WorkspaceVercelCredential']['vercelProjectId'];
-    organization: public_Organization;
-    updatedBy: public_User | null;
-    readonly [RelationKeys]?: 'organization' | 'updatedBy';
-  };
 }
 
 export declare const models: {
@@ -920,13 +829,11 @@ export declare const models: {
     GithubPrState: Models.public_GithubPrState;
     GithubRepoHook: Models.public_GithubRepoHook;
     GithubSubscription: Models.public_GithubSubscription;
-    Invitation: Models.public_Invitation;
+    LocalPodCheckpoint: Models.public_LocalPodCheckpoint;
     LocalPodLease: Models.public_LocalPodLease;
-    Member: Models.public_Member;
     Memory: Models.public_Memory;
     OauthConnection: Models.public_OauthConnection;
     OauthConnectionSandbox: Models.public_OauthConnectionSandbox;
-    Organization: Models.public_Organization;
     Project: Models.public_Project;
     ProjectMcpServer: Models.public_ProjectMcpServer;
     ProjectSecret: Models.public_ProjectSecret;
@@ -944,10 +851,6 @@ export declare const models: {
     UserSetting: Models.public_UserSetting;
     UserVercelCredential: Models.public_UserVercelCredential;
     Verification: Models.public_Verification;
-    WorkspaceMcpServer: Models.public_WorkspaceMcpServer;
-    WorkspaceSecret: Models.public_WorkspaceSecret;
-    WorkspaceSetting: Models.public_WorkspaceSetting;
-    WorkspaceVercelCredential: Models.public_WorkspaceVercelCredential;
   };
 };
 
@@ -2331,26 +2234,19 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly Invitation: {
+            readonly LocalPodCheckpoint: {
               columns: {
+                readonly checkpoint: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly email: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly expiresAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
@@ -2360,25 +2256,26 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly inviterId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly role: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
+                readonly revision: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
-                readonly status: {
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
@@ -2386,18 +2283,16 @@ type ContractBase = Omit<
                 };
               };
               primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['threadId'];
+                  readonly name: 'LocalPodCheckpoint_threadId_key';
+                },
+              ];
               indexes: readonly [
                 {
-                  readonly name: 'Invitation_inviterId_idx_c2d8c6d6';
-                  readonly prefix: 'Invitation_inviterId_idx';
-                  readonly columns: readonly ['inviterId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Invitation_organizationId_idx_2e17ef41';
-                  readonly prefix: 'Invitation_organizationId_idx';
-                  readonly columns: readonly ['organizationId'];
+                  readonly name: 'LocalPodCheckpoint_userId_idx';
+                  readonly columns: readonly ['userId'];
                   readonly unique: false;
                 },
               ];
@@ -2405,24 +2300,24 @@ type ContractBase = Omit<
                 {
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Invitation';
-                    readonly columns: readonly ['organizationId'];
+                    readonly tableName: 'LocalPodCheckpoint';
+                    readonly columns: readonly ['userId'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
+                    readonly tableName: 'User';
                     readonly columns: readonly ['id'];
                   };
                 },
                 {
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Invitation';
-                    readonly columns: readonly ['inviterId'];
+                    readonly tableName: 'LocalPodCheckpoint';
+                    readonly columns: readonly ['threadId'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
+                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -2558,83 +2453,6 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'McpServerConfig';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly Member: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly role: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['organizationId', 'userId'];
-                  readonly name: 'Member_organizationId_userId_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'Member_userId_idx_a489d58a';
-                  readonly prefix: 'Member_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Member';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Member';
                     readonly columns: readonly ['userId'];
                   };
                   readonly target: {
@@ -2918,54 +2736,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly Organization: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly logo: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly metadata: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly slug: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                { readonly columns: readonly ['slug']; readonly name: 'Organization_slug_key' },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [];
-            };
             readonly Project: {
               columns: {
                 readonly additionalRepos: {
@@ -3020,16 +2790,10 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
                 readonly ownerUserId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
+                  readonly nullable: false;
                   readonly many: false;
                 };
                 readonly repo: {
@@ -3082,11 +2846,6 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'Project_organizationId_idx';
-                  readonly columns: readonly ['organizationId'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'Project_ownerUserId_idx_f93ae154';
                   readonly prefix: 'Project_ownerUserId_idx';
                   readonly columns: readonly ['ownerUserId'];
@@ -3115,18 +2874,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Project';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -3571,12 +3318,6 @@ type ContractBase = Omit<
             };
             readonly Session: {
               columns: {
-                readonly activeOrganizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -3808,12 +3549,6 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
                 readonly parentThreadId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3874,11 +3609,6 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
               indexes: readonly [
-                {
-                  readonly name: 'Thread_organizationId_idx';
-                  readonly columns: readonly ['organizationId'];
-                  readonly unique: false;
-                },
                 {
                   readonly name: 'Thread_parentThreadId_idx';
                   readonly columns: readonly ['parentThreadId'];
@@ -3956,18 +3686,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Project';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4361,321 +4079,6 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
-            readonly WorkspaceMcpServer: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sealedSpec: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['organizationId', 'name'];
-                  readonly name: 'WorkspaceMcpServer_organizationId_name_key';
-                },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceMcpServer';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly WorkspaceSecret: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly kind: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'secret'>;
-                  };
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sealedValue: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly updatedById: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['organizationId', 'name'];
-                  readonly name: 'WorkspaceSecret_organizationId_name_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'WorkspaceSecret_updatedById_idx_d0517c24';
-                  readonly prefix: 'WorkspaceSecret_updatedById_idx';
-                  readonly columns: readonly ['updatedById'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceSecret';
-                    readonly columns: readonly ['updatedById'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceSecret';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly WorkspaceSetting: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly key: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly value: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['organizationId', 'key'];
-                  readonly name: 'WorkspaceSetting_organizationId_key_key';
-                },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceSetting';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly WorkspaceVercelCredential: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly organizationId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sealedToken: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly teamId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly updatedById: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly vercelProjectId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['organizationId'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'WorkspaceVercelCredential_updatedById_idx_d0517c24';
-                  readonly prefix: 'WorkspaceVercelCredential_updatedById_idx';
-                  readonly columns: readonly ['updatedById'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceVercelCredential';
-                    readonly columns: readonly ['updatedById'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'WorkspaceVercelCredential';
-                    readonly columns: readonly ['organizationId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Organization';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
           };
         };
       };
@@ -4737,9 +4140,9 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubSubscription';
     };
-    readonly Invitation: {
+    readonly LocalPodCheckpoint: {
       readonly namespace: 'public' & NamespaceId;
-      readonly model: 'Invitation';
+      readonly model: 'LocalPodCheckpoint';
     };
     readonly LocalPodLease: {
       readonly namespace: 'public' & NamespaceId;
@@ -4749,7 +4152,6 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserMcpServer';
     };
-    readonly Member: { readonly namespace: 'public' & NamespaceId; readonly model: 'Member' };
     readonly Memory: { readonly namespace: 'public' & NamespaceId; readonly model: 'Memory' };
     readonly OauthConnection: {
       readonly namespace: 'public' & NamespaceId;
@@ -4758,10 +4160,6 @@ type ContractBase = Omit<
     readonly OauthConnectionSandbox: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'OauthConnectionSandbox';
-    };
-    readonly Organization: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'Organization';
     };
     readonly Project: { readonly namespace: 'public' & NamespaceId; readonly model: 'Project' };
     readonly ProjectMcpServer: {
@@ -4804,22 +4202,6 @@ type ContractBase = Omit<
     readonly Verification: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Verification';
-    };
-    readonly WorkspaceMcpServer: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'WorkspaceMcpServer';
-    };
-    readonly WorkspaceSecret: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'WorkspaceSecret';
-    };
-    readonly WorkspaceSetting: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'WorkspaceSetting';
-    };
-    readonly WorkspaceVercelCredential: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'WorkspaceVercelCredential';
     };
   };
   readonly domain: {
@@ -5966,21 +5348,13 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly Invitation: {
+          readonly LocalPodCheckpoint: {
             readonly fields: {
+              readonly checkpoint: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
               readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly email: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly expiresAt: {
                 readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
@@ -5992,58 +5366,61 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly inviterId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly role: {
+              readonly revision: {
                 readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly threadId: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly status: {
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
             };
             readonly relations: {
-              readonly inviter: {
+              readonly thread: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Thread';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['threadId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
                 readonly nullable: false;
                 readonly on: {
-                  readonly localFields: readonly ['inviterId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
+                  readonly localFields: readonly ['userId'];
                   readonly targetFields: readonly ['id'];
                 };
               };
             };
             readonly storage: {
-              readonly table: 'Invitation';
+              readonly table: 'LocalPodCheckpoint';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly checkpoint: { readonly column: 'checkpoint' };
                 readonly createdAt: { readonly column: 'createdAt' };
-                readonly email: { readonly column: 'email' };
-                readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
-                readonly inviterId: { readonly column: 'inviterId' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly role: { readonly column: 'role' };
-                readonly status: { readonly column: 'status' };
+                readonly revision: { readonly column: 'revision' };
+                readonly threadId: { readonly column: 'threadId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
               };
             };
           };
@@ -6102,68 +5479,6 @@ type ContractBase = Omit<
                 readonly threadId: { readonly column: 'threadId' };
                 readonly tokenHash: { readonly column: 'tokenHash' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly Member: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly role: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Member';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly role: { readonly column: 'role' };
                 readonly userId: { readonly column: 'userId' };
               };
             };
@@ -6406,141 +5721,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly Organization: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly logo: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly metadata: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly slug: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly invitations: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Invitation';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly mcpServers: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceMcpServer';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly members: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Member';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly projects: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Project';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly secrets: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceSecret';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly settings: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceSetting';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly threads: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-              readonly vercelCredential: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceVercelCredential';
-                };
-                readonly cardinality: '1:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['organizationId'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Organization';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly logo: { readonly column: 'logo' };
-                readonly metadata: { readonly column: 'metadata' };
-                readonly name: { readonly column: 'name' };
-                readonly slug: { readonly column: 'slug' };
-              };
-            };
-          };
           readonly Project: {
             readonly fields: {
               readonly additionalRepos: {
@@ -6575,12 +5755,8 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly organizationId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly ownerUserId: {
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly repo: {
@@ -6629,22 +5805,10 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['projectId'];
                 };
               };
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
               readonly owner: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['ownerUserId'];
                   readonly targetFields: readonly ['id'];
@@ -6695,7 +5859,6 @@ type ContractBase = Omit<
                 readonly description: { readonly column: 'description' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
-                readonly organizationId: { readonly column: 'organizationId' };
                 readonly ownerUserId: { readonly column: 'ownerUserId' };
                 readonly repo: { readonly column: 'repo' };
                 readonly sandboxVcpus: { readonly column: 'sandboxVcpus' };
@@ -7031,10 +6194,6 @@ type ContractBase = Omit<
           };
           readonly Session: {
             readonly fields: {
-              readonly activeOrganizationId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -7095,7 +6254,6 @@ type ContractBase = Omit<
               readonly table: 'Session';
               readonly namespaceId: 'public';
               readonly fields: {
-                readonly activeOrganizationId: { readonly column: 'activeOrganizationId' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
@@ -7231,10 +6389,6 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly organizationId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly parentThreadId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7326,16 +6480,15 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['parentThreadId'];
                 };
               };
-              readonly organization: {
+              readonly localPodCheckpoints: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
+                  readonly model: 'LocalPodCheckpoint';
                 };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
+                readonly cardinality: '1:N';
                 readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['threadId'];
                 };
               };
               readonly parent: {
@@ -7417,7 +6570,6 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly modelEffort: { readonly column: 'modelEffort' };
                 readonly modelRef: { readonly column: 'modelRef' };
-                readonly organizationId: { readonly column: 'organizationId' };
                 readonly parentThreadId: { readonly column: 'parentThreadId' };
                 readonly pinnedAt: { readonly column: 'pinnedAt' };
                 readonly projectId: { readonly column: 'projectId' };
@@ -7694,15 +6846,15 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly invitations: {
+              readonly localPodCheckpoints: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Invitation';
+                  readonly model: 'LocalPodCheckpoint';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
                   readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['inviterId'];
+                  readonly targetFields: readonly ['userId'];
                 };
               };
               readonly localPodLeases: {
@@ -7720,17 +6872,6 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'UserMcpServer';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly members: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Member';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -7836,28 +6977,6 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly updatedVercelCredentials: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceVercelCredential';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['updatedById'];
-                };
-              };
-              readonly updatedWorkspaceSecrets: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'WorkspaceSecret';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['updatedById'];
                 };
               };
               readonly userFiles: {
@@ -8275,287 +7394,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly WorkspaceMcpServer: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedSpec: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-            };
-            readonly relations: {
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'WorkspaceMcpServer';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly name: { readonly column: 'name' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly sealedSpec: { readonly column: 'sealedSpec' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-              };
-            };
-          };
-          readonly WorkspaceSecret: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedValue: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly updatedById: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly updatedBy: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['updatedById'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'WorkspaceSecret';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
-                readonly name: { readonly column: 'name' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly sealedValue: { readonly column: 'sealedValue' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly updatedById: { readonly column: 'updatedById' };
-              };
-            };
-          };
-          readonly WorkspaceSetting: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly key: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly value: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'WorkspaceSetting';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly key: { readonly column: 'key' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly value: { readonly column: 'value' };
-              };
-            };
-          };
-          readonly WorkspaceVercelCredential: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly organizationId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedToken: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly teamId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly updatedById: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly vercelProjectId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly organization: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Organization';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['organizationId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly updatedBy: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['updatedById'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'WorkspaceVercelCredential';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly organizationId: { readonly column: 'organizationId' };
-                readonly sealedToken: { readonly column: 'sealedToken' };
-                readonly teamId: { readonly column: 'teamId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly updatedById: { readonly column: 'updatedById' };
-                readonly vercelProjectId: { readonly column: 'vercelProjectId' };
-              };
-            };
-          };
         };
       };
     };
@@ -8668,6 +7506,23 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'GithubSubscription';
             readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'LocalPodCheckpoint';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'LocalPodCheckpoint';
+            readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
         },
@@ -8858,42 +7713,6 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Verification';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'WorkspaceMcpServer';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'WorkspaceSecret';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'WorkspaceSetting';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'WorkspaceVercelCredential';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

@@ -6,7 +6,6 @@ import {
   mcpUpsertSchema,
   projectSandboxSchema,
   projectSchema,
-  workspaceSecretSchema,
 } from '../web'
 
 describe('web wire schemas', () => {
@@ -51,14 +50,5 @@ describe('web wire schemas', () => {
     ).toBe(true)
     expect(mcpUpsertSchema.safeParse({ transport: { kind: 'stdio' } }).success).toBe(false)
     expect(mcpUpsertSchema.safeParse({ disabled: true }).success).toBe(true)
-  })
-
-  it('workspace secret carries the updater or null', () => {
-    const base = { name: 'A', kind: 'env', value: 'v', createdAt: 'a', updatedAt: 'b' }
-    expect(workspaceSecretSchema.safeParse({ ...base, updatedBy: null }).success).toBe(true)
-    expect(
-      workspaceSecretSchema.safeParse({ ...base, updatedBy: { userId: 'u', name: 'N' } }).success,
-    ).toBe(true)
-    expect(workspaceSecretSchema.safeParse(base).success).toBe(false)
   })
 })

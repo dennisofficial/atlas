@@ -136,10 +136,7 @@ export class PodLaunchService {
     if (thread.executionLocation === null) {
       await db.orm.public.Thread.where({ id: thread.id }).update({ executionLocation: 'cloud' })
     }
-    const gap = await this.credentialsOf({
-      userId: thread.userId,
-      organizationId: thread.organizationId,
-    })
+    const gap = await this.credentialsOf({ userId: thread.userId })
     if (gap !== null) {
       await this.reportGap({ threadId: thread.id, failure: gap })
       await this.signals.podChanged({ threadId: thread.id })

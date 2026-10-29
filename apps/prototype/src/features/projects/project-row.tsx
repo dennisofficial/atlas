@@ -1,4 +1,4 @@
-import { MessageSquareIcon, UsersIcon } from 'lucide-react'
+import { MessageSquareIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -30,22 +30,11 @@ function Meta({ project }: { project: ProjectSummary }) {
         <MessageSquareIcon className="size-3" />
         <span className="font-mono tabular-nums">{project.threads}</span>
       </span>
-      <span aria-hidden>·</span>
-      <span className="flex items-center gap-1" title="Members">
-        <UsersIcon className="size-3" />
-        <span className="font-mono tabular-nums">{project.members}</span>
-      </span>
     </p>
   )
 }
 
-export function ProjectRow({
-  project,
-  showOwner,
-}: {
-  project: ProjectSummary
-  showOwner: boolean
-}) {
+export function ProjectRow({ project }: { project: ProjectSummary }) {
   return (
     <li>
       <Link
@@ -55,7 +44,7 @@ export function ProjectRow({
         <ProjectTile name={project.name} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="truncate text-sm">
-            {showOwner ? <span className="text-muted-foreground">{project.owner} / </span> : null}
+            <span className="text-muted-foreground">{project.owner} / </span>
             <span className="font-semibold text-foreground">{project.name}</span>
           </p>
           {project.description ? (
