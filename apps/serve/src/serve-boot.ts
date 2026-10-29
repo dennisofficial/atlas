@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 
 import {
   EExecutionLocation,
@@ -128,8 +129,18 @@ export async function bootServeFiles(args: {
     token: args.token,
     clientVersion: args.clientVersion,
     fetchFn: args.fetchFn,
+    fileMountRoots: {
+      repositoryDir:
+        workspace.state === EWorkspaceState.Failed || workspace.state === EWorkspaceState.Skipped
+          ? null
+          : cwd,
+      homeDir: env.HOME ?? homedir(),
+    },
   })
-  await reporter.track({ step: EBootStep.Settings, work: () => refreshCloudState.boot() })
+  const fileMounts = await reporter.track({
+    step: EBootStep.Settings,
+    work: () => refreshCloudState.boot(),
+  })
 
   const identity =
     spec === null || spec.remoteUrl === null ? null : normalizeRepoOrigin(spec.remoteUrl)
@@ -170,5 +181,5 @@ export async function bootServeFiles(args: {
     })
   }
 
-  return { workspace, activeCwd: cwd, spec, identity, refreshCloudState }
+  return { workspace, activeCwd: cwd, spec, identity, refreshCloudState, fileMounts }
 }

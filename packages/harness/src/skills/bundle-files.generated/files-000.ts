@@ -3,7 +3,8 @@
 import { embeddedFile, type EmbeddedSkillFile } from "../embedded-bundle"
 
 export const FILES: readonly EmbeddedSkillFile[] = [
-  embeddedFile({ path: "references/cloud.md", digest: "d51843579418bc91d90ad037261f29627e899df72a917d471241506fe49863e7", load: () => import("../../../skills/atlas/references/cloud.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/cloud-config.md", digest: "ff148ad43c82c0613fc162c0db6b6456ba4099ef2a1d29c969b79904f96e4cd4", load: () => import("../../../skills/atlas/references/cloud-config.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/cloud.md", digest: "bfa51cd98d69123b71b01d7079916b52b661f5f3860388813b554d65f0d37797", load: () => import("../../../skills/atlas/references/cloud.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/config.md", digest: "d4e1be144a062cd1dea630ba06e302bd8a4ac8d142be669309dd8369556563a8", load: () => import("../../../skills/atlas/references/config.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/container.md", digest: "2385e0441a101ee4542554a869313dd3fc742a1730ba4d0d4fd8f5ce70d29692", load: () => import("../../../skills/atlas/references/container.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/plugins.md", digest: "a5bb8dbdcd7bdcee2ce2b7ea3a2dcaefdf3669b3a76a725e560d2f661c133a91", load: () => import("../../../skills/atlas/references/plugins.md" as string, { with: { type: 'file' } }) }),

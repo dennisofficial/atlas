@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubModule } from '../github/github.module'
+import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
@@ -13,6 +14,7 @@ import { ProjectsService } from './projects.service'
   providers: [
     ProjectsService,
     ProjectResourcesService,
+    ProjectFileMountsService,
     ProjectSettingsService,
     ProjectsRouter,
     ProjectResourcesRouter,

@@ -62,6 +62,7 @@ const BUILTIN_NAMES = [
   'skill',
   'skill_install',
   'mcp-edit',
+  'cloud_config',
   'agent_spawn',
   'agent_say',
   'agent_list',

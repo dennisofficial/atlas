@@ -124,4 +124,28 @@ describe('GithubRepoReads', () => {
       expect((failure as GithubUserReadFailed).status).toBe(404)
     })
   })
+
+  describe('listTree', () => {
+    const treeArgs = { source: EGithubCallSource.RepoTree, token: 't', owner: 'o', repo: 'r' }
+
+    it('keeps slashes in the ref and encodes each segment', async () => {
+      fetchStub.mockResolvedValue(json({ tree: [], truncated: false }))
+
+      await reads.listTree({ ...treeArgs, ref: 'feat/x y' })
+
+      const [url] = fetchStub.mock.calls[0] as [string]
+      expect(url).toBe('https://api.github.com/repos/o/r/git/trees/feat/x%20y?recursive=1')
+    })
+
+    it('answers an empty tree when github says the repository is empty', async () => {
+      fetchStub.mockResolvedValue(
+        new Response('{"message":"Git Repository is empty."}', { status: 409 }),
+      )
+
+      expect(await reads.listTree({ ...treeArgs, ref: 'main' })).toEqual({
+        entries: [],
+        truncated: false,
+      })
+    })
+  })
 })

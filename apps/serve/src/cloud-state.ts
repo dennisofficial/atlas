@@ -27,6 +27,13 @@ import {
 
 import { createApiClient, httpStatusOf } from './api-client'
 import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
+import {
+  mountProjectFiles,
+  EFileMountState,
+  type FileMountGit,
+  type FileMountReport,
+  type FileMountRoots,
+} from './file-mounts'
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -111,6 +118,12 @@ export type CloudStateSeen = {
   exported: Set<string>
 }
 
+const WRITTEN_STATES: ReadonlySet<EFileMountState> = new Set([
+  EFileMountState.Written,
+  EFileMountState.WrittenLocallyExcluded,
+  EFileMountState.WrittenNotExcluded,
+])
+
 export const applyCloudState = async (args: {
   atlasHome: string
   controlPlaneUrl: string
@@ -126,7 +139,9 @@ export const applyCloudState = async (args: {
   maxAttempts?: number | undefined
   seen?: CloudStateSeen | undefined
   onConfigWritten?: (() => void) | undefined
-}): Promise<void> => {
+  fileMountRoots?: FileMountRoots | undefined
+  mountGit?: FileMountGit | undefined
+}): Promise<FileMountReport | null> => {
   const sleep = args.sleep ?? defaultSleep
   const retryBudgetMs = args.retryBudgetMs ?? DEFAULT_RETRY_BUDGET_MS
   const now = args.now ?? Date.now
@@ -179,6 +194,7 @@ export const applyCloudState = async (args: {
       settings: settings.settings,
       secrets: secrets.secrets,
       mcpServers: [],
+      fileMounts: [],
     }
   }
 
@@ -194,6 +210,7 @@ export const applyCloudState = async (args: {
       settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
       secrets: resolved.secrets,
       mcpServers: resolved.mcpServers,
+      fileMounts: resolved.fileMounts,
     }
   }
 
@@ -203,7 +220,7 @@ export const applyCloudState = async (args: {
     const configFingerprint = JSON.stringify(config)
     const leaseChanged = args.seen?.lease !== leaseFingerprint
     const configChanged = args.seen?.config !== configFingerprint
-    if (!leaseChanged && !configChanged) return
+    if (!leaseChanged && !configChanged) return null
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
     if (leaseChanged) {
@@ -225,6 +242,17 @@ export const applyCloudState = async (args: {
       args.seen.config = configFingerprint
     }
     args.onConfigWritten?.()
+    const mounted =
+      args.fileMountRoots === undefined || config.fileMounts.length === 0
+        ? null
+        : await mountProjectFiles({
+            mounts: config.fileMounts,
+            ...args.fileMountRoots,
+            git: args.mountGit,
+          })
+    const filesMounted = (mounted?.outcomes ?? []).filter((outcome) =>
+      WRITTEN_STATES.has(outcome.state),
+    ).length
     args.log({
       event: EServeEvent.CloudStateReady,
       accounts: accounts.length,
@@ -232,11 +260,23 @@ export const applyCloudState = async (args: {
       settings: config.settings.length,
       ...(config.mcpServers.length === 0 ? {} : { mcpServers: config.mcpServers.length }),
       ...(exported === 0 ? {} : { envExported: exported }),
+      ...(mounted === null ? {} : { filesMounted }),
     })
+    for (const outcome of mounted?.outcomes ?? []) {
+      if (WRITTEN_STATES.has(outcome.state)) continue
+      args.log({
+        event: EServeEvent.FileMountSkipped,
+        path: outcome.path,
+        state: outcome.state,
+        ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
+      })
+    }
+    return mounted
   } catch (failure) {
     args.log({
       event: EServeEvent.CloudStateFailed,
       reason: failure instanceof Error ? failure.message : String(failure),
     })
+    return null
   }
 }

@@ -13,6 +13,6 @@ import { GithubService } from './github.service'
     GithubRepoReads,
     { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },
   ],
-  exports: [GithubService],
+  exports: [GithubService, GithubRepoReads],
 })
 export class GithubModule {}

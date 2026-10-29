@@ -165,6 +165,13 @@ describe('SettingsRouter', () => {
       expect((await settings()).map((row) => row.value).sort()).toEqual(['image-a', 'image-b'])
     })
 
+    it('refuses a sandbox bearer on a personal write', async () => {
+      await mutate('settings.set', 'sandbox-token-a', { key: 'sandbox.image', value: 'x' }).expect(
+        401,
+      )
+      expect((await settings()).map((row) => row.value).sort()).toEqual(['image-a', 'image-b'])
+    })
+
     it('still lists and removes settings for a session', async () => {
       expect((await list('session-a').expect(200)).body.result.data.settings).toHaveLength(1)
 
