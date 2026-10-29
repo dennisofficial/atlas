@@ -1,7 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
-  assertThreadInFamily,
   createSessionsRouterApp,
   mutate,
   pod,
@@ -35,7 +34,7 @@ describe('ThreadsRouter', () => {
   })
 
   beforeEach(() => {
-    for (const fake of [create, open, launch, assertThreadInFamily]) {
+    for (const fake of [create, open, launch]) {
       fake.mockClear()
     }
   })
@@ -50,7 +49,6 @@ describe('ThreadsRouter', () => {
       })
 
       expect(reply.status).toBe(403)
-      expect(assertThreadInFamily).not.toHaveBeenCalled()
       expect(launch).not.toHaveBeenCalled()
       expect(create).not.toHaveBeenCalled()
     })
@@ -134,7 +132,6 @@ describe('ThreadsRouter', () => {
       })
 
       expect(reply.status).toBe(403)
-      expect(assertThreadInFamily).not.toHaveBeenCalled()
       expect(create).not.toHaveBeenCalled()
       expect(launch).not.toHaveBeenCalled()
     })

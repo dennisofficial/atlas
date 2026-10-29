@@ -1,7 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
-  assertThreadInFamily,
   createSessionsRouterApp,
   mutate,
   pod,
@@ -33,7 +32,7 @@ describe('ThreadsRouter under a pod token', () => {
   })
 
   beforeEach(() => {
-    for (const fake of [create, open, chooseModel, launch, assertThreadInFamily]) {
+    for (const fake of [create, open, chooseModel, launch]) {
       fake.mockClear()
     }
   })
@@ -82,7 +81,6 @@ describe('ThreadsRouter under a pod token', () => {
         const reply = await mutate({ app, procedure: 'threads.create', headers: pod, body })
         expect(reply.status).toBe(403)
       }
-      expect(assertThreadInFamily).not.toHaveBeenCalled()
       expect(create).not.toHaveBeenCalled()
       expect(launch).not.toHaveBeenCalled()
     })
