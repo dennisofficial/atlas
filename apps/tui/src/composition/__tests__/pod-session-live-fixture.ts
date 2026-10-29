@@ -1,7 +1,29 @@
 import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 export const OPENROUTER_KEY = 'sk-or-fake'
-export const CLASSIFIER_OFF = { key: 'classifier.mode', value: 'off' }
+export const CLASSIFIER_OFF_CONFIG = {
+  settings: { 'classifier.mode': 'off' },
+  secrets: [],
+  mcpServers: [],
+  provenance: {},
+}
+
+export const writeBehindReply = async (request: Request): Promise<Response | undefined> => {
+  const path = new URL(request.url).pathname
+  if (path === '/v1/trpc/sandboxSelf.events') {
+    const { events } = (await request.json()) as { events: { seq: number }[] }
+    const head = Math.max(0, ...events.map((event) => event.seq))
+    return Response.json({ result: { data: { head } } })
+  }
+  if (path === '/v1/trpc/sandboxSelf.truncateEvents') {
+    const { toSeq } = (await request.json()) as { toSeq: number }
+    return Response.json({ result: { data: { head: toSeq } } })
+  }
+  if (path === '/v1/trpc/sandboxCheckpoint.put') {
+    return Response.json({ result: { data: { checkpoint: null } } })
+  }
+  return undefined
+}
 
 export const OPENROUTER_LEASE = {
   accounts: [

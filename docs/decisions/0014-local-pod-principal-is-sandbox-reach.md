@@ -14,7 +14,7 @@ reached the API.
 
 - A local pod authenticates as a principal equal to a Vercel sandbox in
   `SessionOrSandboxMiddleware`: procedures whose input names a `threadId` in its own thread family,
-  plus threadless procedures marked `sandboxReachable` (or `podReachable`).
+  plus threadless procedures marked `sandboxReachable`.
 - The exceptions are the procedures that physically drive Vercel: `sandboxSelf.stop`,
   `sandboxSelf.exposePort` and `sandboxSelf.bootSteps` stay sandbox-only
   (`sandbox-token.middleware.ts`).
@@ -31,8 +31,9 @@ otherwise drive a provider the pod does not run on.
 ## Consequences
 
 - The API treats a laptop container's token as a family-scoped bearer for the owner's threads,
-  the same trust a Vercel sandbox token already carries. Memory is still the only store either
-  kind of pod writes beyond its thread family.
+  the same trust a Vercel sandbox token already carries. Beyond its thread family, either kind of
+  pod can write memory, the user-files store, GitHub PR subscriptions and direct sub-agent threads;
+  settings, secrets, accounts, Projects, bundles and the signing key need a user session.
 - The per-procedure allow/deny table is contract-tested in `session-or-sandbox.middleware.spec.ts`
   and `pod-lease-auth.spec.ts`.
 - Reverting would orphan `LocalPodCheckpoint` rows and break hydration again, so this is durable.

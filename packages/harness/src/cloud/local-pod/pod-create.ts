@@ -79,7 +79,10 @@ export type PodCreateArgs = {
 const callerEnvironment = (environment: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
     Object.entries(environment).filter(
-      ([key]) => !key.startsWith(VENDOR_ENV_PREFIX) && !FORBIDDEN_POD_ENV_KEYS.includes(key),
+      ([key]) =>
+        !key.startsWith(VENDOR_ENV_PREFIX) &&
+        key !== EServeEnv.Model &&
+        !FORBIDDEN_POD_ENV_KEYS.includes(key),
     ),
   )
 

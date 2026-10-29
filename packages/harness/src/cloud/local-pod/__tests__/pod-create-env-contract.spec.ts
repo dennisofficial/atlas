@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ATLAS_TELEMETRY_IDENTITY_ENV } from '@dltech/atlas-core'
+
 import {
   EServeEnv,
   FORBIDDEN_POD_ENV_KEYS,
   POD_ENV_IDENTITY_KEYS,
   POD_INGRESS_HOST_PORT_ENV,
+  POD_TELEMETRY_IDENTITY_ENV,
 } from '@dltech/atlas-wire'
 
 import { DEFAULT_POD_IMAGE, podCreateBody, type PodCreateArgs } from '../pod-create'
@@ -62,6 +65,7 @@ describe('local pod env contract', () => {
         [EServeEnv.CloudUrl]: 'https://evil.example',
         ATLAS_HOME: '/tmp',
         [POD_INGRESS_HOST_PORT_ENV]: '1',
+        [EServeEnv.Model]: 'caller-model',
       },
     })
 
@@ -72,5 +76,10 @@ describe('local pod env contract', () => {
       ATLAS_HOME: '/atlas/home',
       [POD_INGRESS_HOST_PORT_ENV]: '23457',
     })
+    expect(env).not.toHaveProperty(EServeEnv.Model)
+  })
+
+  it('names the telemetry identity the harness reads', () => {
+    expect(POD_TELEMETRY_IDENTITY_ENV).toBe(ATLAS_TELEMETRY_IDENTITY_ENV)
   })
 })
