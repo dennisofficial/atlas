@@ -86,6 +86,27 @@ const report: ReportItem = {
 }
 
 describe('ToolRow', () => {
+  it('shows the picture a read returned', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={null}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Read,
+            state: EToolState.Done,
+            label: 'shot.png',
+            image: { id: 'c1#image', src: 'data:image/png;base64,iVBOR', alt: 'shot.png' },
+          }}
+        />
+      ),
+    })
+    const picture = document.body.querySelector('img')
+    expect(picture?.getAttribute('src')).toBe('data:image/png;base64,iVBOR')
+    expect(document.body.textContent).toContain('Read shot.png')
+  })
+
   it('opens Changes at the edited path', async () => {
     const openChanges = mock((_path?: string) => undefined)
     await mount({

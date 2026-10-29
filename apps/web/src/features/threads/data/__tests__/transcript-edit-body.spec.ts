@@ -131,3 +131,25 @@ describe('toolCallItemOf change', () => {
     expect(bash.change).toBeUndefined()
   })
 })
+
+describe('toolCallItemOf image', () => {
+  it('carries the picture a read handed the model', () => {
+    const item = toolCallItemOf({
+      ...callOf({
+        name: 'read',
+        input: { path: '/repo/shot.png' },
+        output: { path: '/repo/shot.png', mediaType: 'image/png' },
+      }),
+      image: { data: 'iVBOR', mediaType: 'image/png' },
+    })
+    expect(item.image).toEqual({
+      id: 'c1#image',
+      src: 'data:image/png;base64,iVBOR',
+      alt: 'shot.png',
+    })
+  })
+
+  it('carries no picture for a text read', () => {
+    expect(toolCallItemOf(callOf({ name: 'read', input: { path: 'a.ts' } })).image).toBeUndefined()
+  })
+})
