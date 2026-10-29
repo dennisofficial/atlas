@@ -8,7 +8,7 @@ import {
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
-import type { CallId, Event } from '@dltech/atlas-core'
+import type { CallId, Event, SaidImage } from '@dltech/atlas-core'
 
 import {
   claimSpawn,
@@ -29,7 +29,12 @@ type Timed = { at?: string | undefined }
 
 export type TranscriptItem = Timed &
   (
-    | { kind: ETranscriptKind.User; id: string; text: string }
+    | {
+        kind: ETranscriptKind.User
+        id: string
+        text: string
+        images?: readonly SaidImage[]
+      }
     | {
         kind: ETranscriptKind.Agent
         id: string
@@ -57,6 +62,8 @@ export type ThreadTranscriptView = {
 function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
+      if (entry.images.length > 0)
+        return { kind: ETranscriptKind.User, id: entry.key, text: entry.text, images: entry.images }
       return entry.text.trim().length === 0
         ? null
         : { kind: ETranscriptKind.User, id: entry.key, text: entry.text }
