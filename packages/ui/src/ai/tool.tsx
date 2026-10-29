@@ -68,7 +68,7 @@ export function ToolLine({
   const text = failed ? errorText : output
   const body =
     children ??
-    (text ? (
+    (text && state !== EToolState.Running ? (
       <CodeBlock size="sm">
         <CodeBlockContent wrap className="max-h-64">
           {text}
@@ -86,7 +86,7 @@ export function ToolLine({
       status={status}
       defaultOpen={defaultOpen ?? failed}
     >
-      {state === EToolState.Running ? undefined : body}
+      {body}
     </Step>
   )
 }

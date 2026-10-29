@@ -140,7 +140,7 @@ function PullRequestList(props: Omit<PullRequestControlsProps, 'pinnedKey' | 'pu
         <span className="tabular-nums">+{rows.length - 1}</span>
         <ChevronDownIcon />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 gap-1 p-1.5">
+      <PopoverContent align="end" className="w-96">
         <p className="px-2 pt-1 pb-0.5 text-xs font-medium text-muted-foreground">Pull requests</p>
         {rows.map((row) => (
           <PullRequestRowItem
