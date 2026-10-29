@@ -1,3 +1,4 @@
+import { EThreadListFrame } from '@dltech/atlas-wire'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
@@ -8,6 +9,7 @@ import {
   createSandboxSelfApp,
   POD_TOKEN,
   procedurePath,
+  routerSignals,
   SANDBOX_TOKEN,
 } from './sandbox-self.router.fixture'
 
@@ -65,5 +67,38 @@ describe('SandboxSelfRouter.activity', () => {
   it('answers 401 without a known token', async () => {
     expect((await send(undefined, { working: true, awaiting: null })).status).toBe(401)
     expect((await send('session-a', { working: true, awaiting: null })).status).toBe(401)
+  })
+})
+
+describe('SandboxSelfRouter.activity list signals', () => {
+  useTestDatabase()
+  let app: INestApplication
+
+  beforeAll(async () => {
+    app = await createSandboxSelfApp()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(async () => {
+    await seedUsers('usr-1')
+    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', name: 'atlas-thread-1' })
+  })
+
+  it('signals the owner list on a change and not on an unchanged report', async () => {
+    const frames = routerSignals.listFramesOf('usr-1')
+    frames.length = 0
+    const send = () =>
+      request(app.getHttpServer())
+        .post(procedurePath('activity'))
+        .set(as(SANDBOX_TOKEN))
+        .send({ working: true, awaiting: null })
+
+    await send()
+    await send()
+
+    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
   })
 })

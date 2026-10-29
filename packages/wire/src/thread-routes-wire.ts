@@ -210,3 +210,19 @@ export const threadStreamOutputSchema = z.custom<AsyncIterable<ThreadStreamFrame
 
 export const threadStreamInputSchema = z.strictObject({ threadId: z.string().min(1) })
 export type ThreadStreamInput = z.infer<typeof threadStreamInputSchema>
+
+export enum EThreadListFrame {
+  Changed = 'changed',
+  Heartbeat = 'heartbeat',
+}
+
+export const threadListFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal(EThreadListFrame.Changed), threadId: z.string().min(1) }),
+  z.strictObject({ type: z.literal(EThreadListFrame.Heartbeat) }),
+])
+export type ThreadListFrame = z.infer<typeof threadListFrameSchema>
+
+const isListFrames = (value: unknown): value is AsyncIterable<ThreadListFrame> =>
+  typeof value === 'object' && value !== null && Symbol.asyncIterator in value
+
+export const threadListOutputSchema = z.custom<AsyncIterable<ThreadListFrame>>(isListFrames)

@@ -1,7 +1,9 @@
+import { EThreadListFrame } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
+import { recordingSignals } from './thread-signals.fixture'
 import { nextReadSeq, ThreadReadService } from './thread-read.service'
 
 const markerOf = async (userId: string) =>
@@ -21,11 +23,21 @@ describe('nextReadSeq', () => {
 
 describe('ThreadReadService.markRead', () => {
   useTestDatabase()
-  const service = new ThreadReadService()
+  const recorder = recordingSignals()
+  const service = new ThreadReadService(recorder.signals)
 
   beforeEach(async () => {
     await seedUsers(USER_A, USER_B)
     await seedThreadRow({ id: 'thr-1', userId: USER_A, head: 5 })
+  })
+
+  it('signals the reader list after marking read', async () => {
+    const frames = recorder.listFramesOf(USER_A)
+    frames.length = 0
+
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 2 })
+
+    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
   })
 
   it('is monotonic and clamped to head', async () => {

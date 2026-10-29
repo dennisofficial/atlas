@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { CreateThreadBody } from './create-thread'
+import type { SubscribeListSignals } from '@/features/shell/list-reload'
 import type { SubscribeThreadStream } from './thread-signals'
 
 export const fetchProjects = () => cloudCall(api.projects.list.query())
@@ -46,6 +47,9 @@ export const setThreadArchived = (args: { threadId: string; archived: boolean })
 
 export const subscribeThreadStream: SubscribeThreadStream = ({ threadId, handlers }) =>
   api.threadEvents.stream.subscribe({ threadId }, handlers)
+
+export const subscribeListSignals: SubscribeListSignals = (handlers) =>
+  api.threads.listSignals.subscribe(undefined, handlers)
 
 export const resizePod = (args: { threadId: string; vcpus: number }) =>
   cloudCall(api.threadPod.resize.mutate(args))
