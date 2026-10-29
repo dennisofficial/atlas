@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import {
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
   EServeFrame,
   EStepEnd,
@@ -37,6 +38,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
       capabilities: SERVE_CAPABILITIES,
       turnInFlight: false,
       transcriptCurrent: false,
@@ -59,6 +61,7 @@ describe('startServe', () => {
       kind: EServeFrame.Ready,
       seq: 3,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
       capabilities: SERVE_CAPABILITIES,
       turnInFlight: false,
       transcriptCurrent: false,

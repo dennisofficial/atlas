@@ -95,6 +95,7 @@ export function createRemoteDeltaChannel(
     onConnection: (listener) => facts.onView(listener),
     onReload: (listener) => on.reloads.add(listener),
     onReady: (listener) => on.readies.add(listener),
+    capabilities: () => state.capabilities,
     onInterruptAck: (listener) => on.interruptAcks.add(listener),
     onRoster: (listener) => on.rosters.add(listener),
     onPrStates: (listener) => on.prStates.add(listener),

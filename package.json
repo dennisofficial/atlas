@@ -21,7 +21,7 @@
     "test": "turbo run test",
     "build": "turbo run build",
     "eval": "bun run --cwd evals eval:run",
-    "lint": "biome ci .",
+    "lint": "biome ci . && bun scripts/check-wire-skew.ts",
     "format": "biome check --write ."
   },
   "devDependencies": {

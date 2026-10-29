@@ -8,6 +8,7 @@ import type { JobDispatch, JobDispatcher } from '../../../_core/ports/job-dispat
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import type { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ThreadsService } from '../../platform/sessions/threads.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -170,6 +171,7 @@ export function messagesWith(
   args: {
     endpoint?: { token: string; url: string } | null
     serveFails?: Error
+    park?: ReturnType<typeof vi.fn>
     scoped?: ScopedConfigService
     dispatcher?: ReturnType<typeof fakeDispatcher>
     signals?: ThreadSignalsService
@@ -178,6 +180,7 @@ export function messagesWith(
   const signals = args.signals ?? inertSignals()
   const endpoint = args.endpoint ?? null
   const runningEndpoint = vi.fn(async () => endpoint)
+  const park = args.park ?? vi.fn(async () => undefined)
   const serve = vi.fn(async (_delivery: ServeSendArgs) => {
     if (args.serveFails !== undefined) throw args.serveFails
   })
@@ -191,8 +194,9 @@ export function messagesWith(
     serve,
     launched.pod,
     signals,
+    { park } as unknown as SandboxesService,
   )
-  return { service, serve, runningEndpoint, dispatch: launched.dispatch }
+  return { service, serve, runningEndpoint, park, dispatch: launched.dispatch }
 }
 
 export type SeededCheckpoint = {

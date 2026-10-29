@@ -1,4 +1,5 @@
 import type {
+  CapabilitySet,
   PendingEntryWire,
   PrStateWire,
   SubscriptionsWire,
@@ -59,6 +60,7 @@ export type ChannelState = {
   heldPending: readonly PendingEntryWire[]
   helloPending: boolean
   heldUntilHello: string[]
+  capabilities: CapabilitySet
 }
 
 export function createChannelCore(args: RemoteDeltaChannelOptions) {
@@ -77,6 +79,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     heldPending: NOTHING_PENDING,
     helloPending: false,
     heldUntilHello: [],
+    capabilities: new Set(),
   }
   const attached = state.url !== undefined && state.token !== undefined
 

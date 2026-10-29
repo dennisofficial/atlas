@@ -1,5 +1,6 @@
 import {
   bearerSubprotocolOf,
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
   CHANNEL_SUBPROTOCOL,
   EClientFrame,
@@ -35,6 +36,7 @@ export function createChannelLifecycle(core: ChannelCore) {
         channelCursor: state.channelCursor,
         lastEventSeq: seq,
         protocol: CHANNEL_PROTOCOL_VERSION,
+        minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
       })
 
     if (typeof head === 'number') {

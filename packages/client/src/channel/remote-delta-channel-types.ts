@@ -1,5 +1,6 @@
 import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 import type {
+  CapabilitySet,
   PendingEntryWire,
   PrStateWire,
   RosterWire,
@@ -62,6 +63,8 @@ export type RemoteDeltaChannel = DeltaChannel & {
   onConnection(listener: (connection: ChannelConnection) => void): Unsubscribe
   onReload(listener: (reload: ChannelReload) => void): Unsubscribe
   onReady(listener: (ready: ChannelReady) => void): Unsubscribe
+  /** What the attached serve advertised on its last Ready; empty until one arrives. */
+  capabilities(): CapabilitySet
   onInterruptAck(listener: (ack: InterruptAck) => void): Unsubscribe
   onRoster(listener: (roster: RosterWire) => void): Unsubscribe
   onPrStates(listener: (states: readonly PrStateWire[]) => void): Unsubscribe

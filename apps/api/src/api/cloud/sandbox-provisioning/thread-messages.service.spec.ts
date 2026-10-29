@@ -1,9 +1,11 @@
-import { EBootStep, EThreadMessageState } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
 import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { applyPodEvents } from '../../platform/sandboxes/pod-events'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { ServeProtocolRefusedError } from './serve-send'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import {
   bootSteps,
@@ -82,6 +84,25 @@ describe('ThreadMessagesService.send', () => {
     const { service } = messagesWith({ endpoint: ENDPOINT, serveFails: new Error('socket down') })
 
     await expect(service.send(ARGS)).rejects.toMatchObject({ status: 502 })
+  })
+
+  it('parks, keeps the message and relaunches when serve refuses the protocol', async () => {
+    await seedProvisionedRow({ state: 'running', wakeClaim: null, serveUrl: ENDPOINT.url })
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [{ step: EBootStep.Agent, state: EBootStepState.Done }],
+    })
+    const refusal = new ServeProtocolRefusedError(
+      "this Atlas speaks a newer wire protocol (30) than this sandbox's serve (29)",
+    )
+    const { service, park, dispatch } = messagesWith({ endpoint: ENDPOINT, serveFails: refusal })
+
+    expect(await service.send(ARGS)).toEqual({ state: EThreadMessageState.Queued })
+
+    expect(park).toHaveBeenCalledTimes(1)
+    const [event] = await eventsOf()
+    expect(JSON.parse(event?.body ?? '')).toMatchObject({ type: 'user-said', requestId: 'snd-1' })
+    expect(dispatch).toHaveBeenCalledTimes(1)
   })
 
   it("does not send to another user's thread", async () => {

@@ -5,7 +5,13 @@ import type { TurnOutcome } from './turn-outcome'
 
 export {
   bearerSubprotocolOf,
+  capabilitySetOf,
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
+  ECapability,
+  EProtocolSkew,
+  protocolSkewOf,
+  supports,
   CHANNEL_SUBPROTOCOL,
   decodeClientFrame,
   decodeServeFrame,
@@ -18,7 +24,13 @@ export {
   tokenFromSubprotocols,
 } from '@dltech/atlas-wire/web'
 
-export type { ClientFrame, ServeFrame, TurnOutcomeWire } from '@dltech/atlas-wire/web'
+export type {
+  CapabilitySet,
+  ClientFrame,
+  ProtocolRange,
+  ServeFrame,
+  TurnOutcomeWire,
+} from '@dltech/atlas-wire/web'
 
 export const turnOutcomeFromWire = (outcome: TurnOutcomeWire): TurnOutcome => {
   if (outcome.status === ETurnStatus.Paused) {

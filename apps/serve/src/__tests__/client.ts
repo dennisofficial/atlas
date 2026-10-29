@@ -12,6 +12,7 @@ const PATIENCE_MS = 2_000
 export type TestClient = {
   frames: readonly ServeFrame[]
   send: (frame: ClientFrame) => void
+  sendRaw: (raw: string) => void
   waitFor: (predicate: (frame: ServeFrame) => boolean) => Promise<ServeFrame>
   closed: Promise<number>
   close: () => void
@@ -69,6 +70,8 @@ export async function connect(args: { port: number; token: string }): Promise<Te
     frames,
 
     send: (frame) => socket.send(encodeFrame(frame)),
+
+    sendRaw: (raw) => socket.send(raw),
 
     waitFor: (predicate) => {
       const held = frames.find(predicate)

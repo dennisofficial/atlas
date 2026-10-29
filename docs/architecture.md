@@ -256,8 +256,8 @@ state. The harness resolves the session root through the thread registry, includ
 `context-changed` signals and answers `list-context-files`/`read-context-file` requests through the
 same reader. Reads stay inside `context/`, refuse binary files and files over 2 MiB, and return
 complete text rather than the mention browser's truncated preview. The viewer only mounts visible
-code rows plus an overscan window. Clients and sandboxes require matching session wire protocol
-versions.
+code rows plus an overscan window. Clients and sandboxes negotiate a session wire protocol range
+(decision 0017).
 
 The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
 The limit applies to each regular file the command writes, not only its spool and not total disk use.

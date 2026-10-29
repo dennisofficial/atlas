@@ -7,7 +7,9 @@ import { EStepEnd } from '../signal'
 import { ETurnStatus, type TurnOutcome } from '../turn-outcome'
 import {
   bearerSubprotocolOf,
+  CHANNEL_PROTOCOL_MIN_VERSION,
   CHANNEL_PROTOCOL_VERSION,
+  ECapability,
   CHANNEL_SUBPROTOCOL,
   decodeClientFrame,
   EClientFrame,
@@ -111,6 +113,7 @@ describe('opening the session socket', () => {
       channelCursor: null,
       lastEventSeq: 12,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
     })
   })
 
@@ -151,6 +154,7 @@ describe('a durable head that reads off the wire', () => {
       channelCursor: null,
       lastEventSeq: 31,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
     })
   })
 
@@ -224,11 +228,26 @@ describe('a durable head that reads off the wire', () => {
     channel.onServerError((failure) => void failures.push(failure.message))
 
     open()
-    receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_VERSION - 1 })
+    receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_MIN_VERSION - 1 })
 
     expect(channel.connection().state).toBe(EConnectionView.Disconnected)
     expect(channel.connection().detail).toContain('re-open the conversation')
     expect(failures[0]).toContain('re-open the conversation')
+  })
+
+  it('attaches to an older serve inside its protocol range and reads its capabilities', () => {
+    const { channel, open, receive } = harness()
+
+    open()
+    receive({
+      kind: EServeFrame.Ready,
+      seq: 4,
+      protocol: CHANNEL_PROTOCOL_MIN_VERSION,
+      capabilities: [ECapability.RevokeGrant],
+    })
+
+    expect(channel.connection().state).not.toBe(EConnectionView.Disconnected)
+    expect(channel.capabilities().has(ECapability.RevokeGrant)).toBe(true)
   })
 
   it('reports itself connecting until the server is ready', () => {
@@ -428,6 +447,7 @@ describe('losing the socket', () => {
       channelCursor: 5,
       lastEventSeq: 7,
       protocol: CHANNEL_PROTOCOL_VERSION,
+      minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
     })
   })
 
@@ -540,6 +560,7 @@ describe('driving a turn over the wire', () => {
         channelCursor: null,
         lastEventSeq: 0,
         protocol: CHANNEL_PROTOCOL_VERSION,
+        minProtocol: CHANNEL_PROTOCOL_MIN_VERSION,
       },
       { kind: EClientFrame.Run },
     ])
