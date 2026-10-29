@@ -22,6 +22,9 @@ export type PersonalSecretList = z.infer<typeof personalSecretListSchema>
 export const personalSecretDetailListSchema = z.object({ secrets: z.array(secretDetailSchema) })
 export type PersonalSecretDetailList = z.infer<typeof personalSecretDetailListSchema>
 
+export const personalSecretNamesSchema = z.object({ names: z.array(z.string()) })
+export type PersonalSecretNames = z.infer<typeof personalSecretNamesSchema>
+
 export const personalSecretNameSchema = z.strictObject({ name: z.string().min(1) })
 export type PersonalSecretName = z.infer<typeof personalSecretNameSchema>
 
