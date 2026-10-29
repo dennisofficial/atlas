@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EClassifierMode,
+  EClassifierChoice,
   EDecisionsProvider,
   ESearchBackend,
   type AgentSettings,
@@ -12,7 +12,7 @@ const CUSTOM_DRAFT: AgentSettings = {
   provider: EDecisionsProvider.Custom,
   url: 'https://jev.internal',
   model: 'jev-luna',
-  classifierMode: EClassifierMode.Nudge,
+  classifierMode: EClassifierChoice.Nudge,
   searchBackend: ESearchBackend.Exa,
 }
 
@@ -22,9 +22,33 @@ describe('agent settings mapper', () => {
       provider: EDecisionsProvider.Typesafe,
       url: '',
       model: 'jev-latest',
-      classifierMode: EClassifierMode.Shadow,
+      classifierMode: EClassifierChoice.Default,
       searchBackend: ESearchBackend.DuckDuckGo,
     })
+  })
+
+  it('keeps a hidden endpoint and model out of changes once the provider leaves custom', () => {
+    const saved = agentSettingsFrom(new Map())
+    const draft = { ...saved, provider: EDecisionsProvider.OpenAi, url: 'jev.internal', model: 'x' }
+    expect(agentSettingsChanges({ saved, draft })).toEqual({ 'decisions.provider': 'openai' })
+  })
+
+  it('clears classifier.mode when set back to default and stores an explicit shadow', () => {
+    const nudging = agentSettingsFrom(new Map([['classifier.mode', 'nudge']]))
+    expect(
+      agentSettingsChanges({
+        saved: nudging,
+        draft: { ...nudging, classifierMode: EClassifierChoice.Default },
+      }),
+    ).toEqual({ 'classifier.mode': null })
+
+    const unset = agentSettingsFrom(new Map())
+    expect(
+      agentSettingsChanges({
+        saved: unset,
+        draft: { ...unset, classifierMode: EClassifierChoice.Shadow },
+      }),
+    ).toEqual({ 'classifier.mode': 'shadow' })
   })
 
   it('round-trips a custom endpoint and classifier/search choices into changes', () => {
@@ -59,7 +83,7 @@ describe('agent settings mapper', () => {
         ['web.searchBackend', 'google'],
       ]),
     )
-    expect(settings.classifierMode).toBe(EClassifierMode.Shadow)
+    expect(settings.classifierMode).toBe(EClassifierChoice.Shadow)
     expect(settings.searchBackend).toBe(ESearchBackend.DuckDuckGo)
   })
 

@@ -58,7 +58,8 @@ function AgentEditor({
   const { value, setValue } = draft
   const custom = value.provider === EDecisionsProvider.Custom
   const urlValid = isValidDecisionsUrl(value.url)
-  const dirty = draft.dirty && !saving
+  const pending = agentSettingsChanges({ saved: agentSettingsFrom(values), draft: value })
+  const dirty = Object.keys(pending).length > 0 && !saving
   const canSave = dirty && (!custom || urlValid)
 
   return (
@@ -129,7 +130,7 @@ function AgentEditor({
         <SettingsCard>
           <SettingsRow
             title="Nudge before damage"
-            description="Shadow watches and records what it would have done without pausing anything. Nudge lets the judge stop a call and ask you. Left at the default, sandboxes nudge once a decision provider is ready."
+            description="Shadow watches and records what it would have done without pausing anything. Nudge lets the judge stop a call and ask you. Default shadows until a decision provider is ready, then nudges."
             control={
               <ChoiceSelect
                 label="Nudge before damage"

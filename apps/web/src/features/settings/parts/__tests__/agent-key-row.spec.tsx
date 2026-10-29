@@ -6,7 +6,7 @@ import type { Root } from 'react-dom/client'
 import { EDecisionsProvider, ESearchBackend } from '../../fixtures/settings-decisions'
 import { DecisionsKeyRow, SearchKeyRow } from '../agent-key-row'
 
-type Saved = { name: string; value: string }
+type Saved = { name: string; value: string; noun: string }
 
 const SECRET = 'sk-very-secret-value'
 
@@ -88,7 +88,7 @@ describe('DecisionsKeyRow', () => {
     )
     await typeKey({ element, value: SECRET })
     await clickSave(element)
-    expect(saved).toEqual([{ name: 'decisions.token.vercel', value: SECRET }])
+    expect(saved).toEqual([{ name: 'decisions.token.vercel', value: SECRET, noun: 'key' }])
   })
 
   it('reads and writes the new provider’s key after switching', async () => {
@@ -113,7 +113,7 @@ describe('DecisionsKeyRow', () => {
     expect(openai.textContent).toContain('No key saved')
     await typeKey({ element: openai, value: SECRET })
     await clickSave(openai)
-    expect(saved).toEqual([{ name: 'decisions.token.openai', value: SECRET }])
+    expect(saved).toEqual([{ name: 'decisions.token.openai', value: SECRET, noun: 'key' }])
   })
 
   it('never renders the key back after saving', async () => {
@@ -133,7 +133,36 @@ describe('DecisionsKeyRow', () => {
   })
 })
 
+describe('trimming', () => {
+  it('saves a pasted key without surrounding whitespace', async () => {
+    const { saved, onSave } = recorder()
+    const element = await render(
+      <DecisionsKeyRow
+        provider={EDecisionsProvider.Typesafe}
+        savedNames={new Set()}
+        onSave={onSave}
+      />,
+    )
+    await typeKey({ element, value: `  ${SECRET}\n` })
+    await clickSave(element)
+    expect(saved).toEqual([{ name: 'decisions.token.typesafe', value: SECRET, noun: 'key' }])
+  })
+})
+
 describe('SearchKeyRow', () => {
+  it('saves a SearXNG instance as a URL', async () => {
+    const { saved, onSave } = recorder()
+    const element = await render(
+      <SearchKeyRow backend={ESearchBackend.SearXNG} savedNames={new Set()} onSave={onSave} />,
+    )
+    expect(element.textContent).toContain('No URL saved')
+    await typeKey({ element, value: 'https://searx.internal' })
+    await clickSave(element)
+    expect(saved).toEqual([
+      { name: 'search.searxng', value: 'https://searx.internal', noun: 'URL' },
+    ])
+  })
+
   it('renders nothing for a backend that takes no key', async () => {
     const { onSave } = recorder()
     const element = await render(
@@ -154,6 +183,6 @@ describe('SearchKeyRow', () => {
     expect(element.textContent).toContain('No key saved')
     await typeKey({ element, value: SECRET })
     await clickSave(element)
-    expect(saved).toEqual([{ name: 'search.tavily', value: SECRET }])
+    expect(saved).toEqual([{ name: 'search.tavily', value: SECRET, noun: 'key' }])
   })
 })

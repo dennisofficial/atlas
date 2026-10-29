@@ -15,7 +15,7 @@ import {
 import type { EDecisionsProvider, ESearchBackend } from '../fixtures/settings-decisions'
 import { SettingsRow } from '../settings-layout'
 
-export type KeyEntry = { name: string; value: string }
+export type KeyEntry = { name: string; value: string; noun: EKeyNoun }
 
 type KeyRowProps = {
   savedNames: ReadonlySet<string> | null
@@ -53,7 +53,7 @@ function KeyRow({ target, savedNames, onSave }: KeyRowProps & { target: KeyTarge
 
   const handleSave = async () => {
     setSaving(true)
-    const done = await onSave({ name: target.name, value })
+    const done = await onSave({ name: target.name, value: value.trim(), noun: target.noun })
     setSaving(false)
     if (done) setValue('')
   }

@@ -1,11 +1,18 @@
 import {
   DEFAULT_DECISIONS_MODEL_WIRE,
-  EClassifierModeWire as EClassifierMode,
+  EClassifierModeWire,
   EDecisionsProviderWire as EDecisionsProvider,
   EWebSearchBackendWire as ESearchBackend,
 } from '@dltech/atlas-wire/web'
 
-export { EClassifierMode, EDecisionsProvider, ESearchBackend }
+export { EDecisionsProvider, ESearchBackend }
+
+export enum EClassifierChoice {
+  Default = 'default',
+  Off = EClassifierModeWire.Off,
+  Shadow = EClassifierModeWire.Shadow,
+  Nudge = EClassifierModeWire.Nudge,
+}
 
 export const DEFAULT_DECISIONS_MODEL = DEFAULT_DECISIONS_MODEL_WIRE
 
@@ -13,7 +20,7 @@ export type AgentSettings = {
   provider: EDecisionsProvider
   url: string
   model: string
-  classifierMode: EClassifierMode
+  classifierMode: EClassifierChoice
   searchBackend: ESearchBackend
 }
 
@@ -26,10 +33,11 @@ export const DECISIONS_PROVIDER_ITEMS: ChoiceItem<EDecisionsProvider>[] = [
   { value: EDecisionsProvider.Custom, label: 'Custom endpoint' },
 ]
 
-export const CLASSIFIER_MODE_ITEMS: ChoiceItem<EClassifierMode>[] = [
-  { value: EClassifierMode.Off, label: 'Off' },
-  { value: EClassifierMode.Shadow, label: 'Shadow' },
-  { value: EClassifierMode.Nudge, label: 'Nudge' },
+export const CLASSIFIER_MODE_ITEMS: ChoiceItem<EClassifierChoice>[] = [
+  { value: EClassifierChoice.Default, label: 'Default' },
+  { value: EClassifierChoice.Off, label: 'Off' },
+  { value: EClassifierChoice.Shadow, label: 'Shadow' },
+  { value: EClassifierChoice.Nudge, label: 'Nudge' },
 ]
 
 export const SEARCH_BACKEND_ITEMS: ChoiceItem<ESearchBackend>[] = [

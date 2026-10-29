@@ -6,6 +6,7 @@ import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { ESecretKind } from '../../fixtures/settings-library'
 import type { KeyEntry } from '../../parts/agent-key-row'
+import { EKeyNoun } from './agent-keys'
 import { fetchSecretDetails, putSecret } from './secrets-api'
 import { useSaveAction } from './use-save-action'
 
@@ -23,7 +24,7 @@ export function useAgentKeys(): {
     async (entry: KeyEntry) => {
       const done = await run({
         work: () => putSecret({ name: entry.name, value: entry.value, kind: ESecretKind.Secret }),
-        success: 'Key saved',
+        success: entry.noun === EKeyNoun.Url ? 'URL saved' : 'Key saved',
       })
       if (done) reload()
       return done
