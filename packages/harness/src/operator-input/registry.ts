@@ -8,7 +8,7 @@ import {
 
 import type { DeltaChannel } from '../channel/delta-channel'
 import type { ShellInputOutcome } from '../shells/background-shell'
-import type { DeliverOperatorInputArgs } from './deliver'
+import type { DeliverOperatorInputArgs, PrepareOperatorInputDestinationArgs } from './deliver'
 import type {
   OperatorInputAnswerOutcome,
   OperatorInputPending,
@@ -38,6 +38,9 @@ export class InProcessOperatorInput implements OperatorInputPort {
       ids: IdPort
       channel: () => DeltaChannel | undefined
       deliver: (args: DeliverOperatorInputArgs) => Promise<OperatorInputAnswerOutcome>
+      prepareDestination?:
+        | ((args: PrepareOperatorInputDestinationArgs) => Promise<OperatorInputAnswerOutcome>)
+        | undefined
       writeShellInput?:
         | ((args: {
             threadId: ThreadId
@@ -53,7 +56,29 @@ export class InProcessOperatorInput implements OperatorInputPort {
     return this.open.get(args.threadId)?.request ?? null
   }
 
-  request(args: OperatorInputRequestArgs): Promise<OperatorInputAnswerOutcome> {
+  async request(args: OperatorInputRequestArgs): Promise<OperatorInputAnswerOutcome> {
+    const refused = this.refusal(args)
+    if (refused !== undefined) return refused
+    if (args.shellId === undefined && this.deps.prepareDestination !== undefined) {
+      const prepared = await this.deps.prepareDestination({
+        path: args.path,
+        threadId: args.threadId,
+        cwd: args.cwd,
+      })
+      if (!prepared.ok) return prepared
+    }
+    return await this.openRequest(args)
+  }
+
+  private refusal(args: OperatorInputRequestArgs): OperatorInputAnswerOutcome | undefined {
+    if (args.signal.aborted) return { ok: false, reason: OPERATOR_INPUT_CANCELLED }
+    if (this.open.has(args.threadId)) {
+      return { ok: false, reason: 'an operator input request is already pending for this thread' }
+    }
+    return undefined
+  }
+
+  private openRequest(args: OperatorInputRequestArgs): Promise<OperatorInputAnswerOutcome> {
     if (args.signal.aborted) return Promise.resolve({ ok: false, reason: OPERATOR_INPUT_CANCELLED })
     if (this.open.has(args.threadId)) {
       return Promise.resolve({
