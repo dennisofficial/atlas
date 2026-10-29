@@ -1,0 +1,12 @@
+// use prisma-8
+model PreviewRoute {
+  id              String               @id @onCreate(cuid(2))
+  previewTunnelId String
+  port            Int
+  hostname        String
+  dnsRecordId     String
+  createdAt       TimestamptzJsDate(3) @default(now())
+  tunnel          PreviewTunnel        @relation(fields: [previewTunnelId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([previewTunnelId, port], map: "PreviewRoute_previewTunnelId_port_key")
+}

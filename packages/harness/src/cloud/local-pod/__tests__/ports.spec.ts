@@ -1,28 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { derivedHostPort, podHostPortsFor } from '../ports'
+import { derivedHostPort } from '../ports'
 
-const COLLIDING_SESSION = 'pod-live-0-00001907'
+describe('derivedHostPort', () => {
+  it('is stable for a session and container port and stays below the ephemeral range', () => {
+    const port = derivedHostPort({ session: 'pod-ports', containerPort: 3000 })
 
-describe('podHostPortsFor', () => {
-  it('never hands serve and ingress the same host port when their derived ports collide', () => {
-    expect(derivedHostPort({ session: COLLIDING_SESSION, containerPort: 3000 })).toBe(
-      derivedHostPort({ session: COLLIDING_SESSION, containerPort: 7676 }),
-    )
-
-    const ports = podHostPortsFor({
-      session: COLLIDING_SESSION,
-      serveContainerPort: 3000,
-      ingressContainerPort: 7676,
-    })
-
-    expect(ports.ingressHostPort).not.toBe(ports.serveHostPort)
-  })
-
-  it('keeps the derived ports when they are distinct and free', () => {
-    const session = 'pod-ports-distinct'
-    const ports = podHostPortsFor({ session, serveContainerPort: 3000, ingressContainerPort: 7676 })
-
-    expect(ports.serveHostPort).not.toBe(ports.ingressHostPort)
+    expect(port).toBe(derivedHostPort({ session: 'pod-ports', containerPort: 3000 }))
+    expect(port).toBeGreaterThanOrEqual(20_000)
+    expect(port).toBeLessThan(49_152)
   })
 })

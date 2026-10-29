@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import { CHANNEL_PROTOCOL_VERSION, UNSTAMPED_PROTOCOL } from '@dltech/atlas-wire'
 
-import { POD_INGRESS_CONTAINER_PORT } from '../ingress'
 import {
   dindVolumeNameFor,
   podHomeDigestOf,
@@ -14,27 +13,16 @@ import {
 } from '../pod-create'
 import { POD_STAGED_PATH } from '../pod-staged'
 import type { PodServeLauncher } from '../serve-launch'
-import {
-  driverWith,
-  fakeEngine,
-  INGRESS_HOST_PORT,
-  NAME,
-  SERVE_HOST_PORT,
-  THREAD,
-} from './fake-pod-engine'
+import { driverWith, fakeEngine, NAME, SERVE_HOST_PORT, THREAD } from './fake-pod-engine'
 
 describe('DockerPodDriver createOrResume', () => {
-  it('boots a fresh pod: volumes, container, start, ingress, staging, then serve launch', async () => {
+  it('boots a fresh pod: volumes, container, start, staging, then serve launch', async () => {
     const fake = fakeEngine()
     const order: string[] = []
     const launches: Array<Parameters<PodServeLauncher>[0]> = []
     const driver = driverWith({
       engine: {
         ...fake.engine,
-        execSh: async (args) => {
-          order.push('ingress-probe')
-          return fake.engine.execSh(args)
-        },
       },
       desiredVersion: '1.2.3',
       launchServe: async (args) => {
@@ -61,7 +49,7 @@ describe('DockerPodDriver createOrResume', () => {
       'start:fresh-id',
       'writeFile',
     ])
-    expect(order).toEqual(['ingress-probe', `stage:${NAME}`, 'launch'])
+    expect(order).toEqual([`stage:${NAME}`, 'launch'])
     expect(fake.files).toEqual([{ id: 'fresh-id', path: POD_STAGED_PATH, mode: 0o600 }])
     expect(fake.volumes.map((volume) => volume.name)).toEqual([
       workspaceVolumeNameFor({ threadId: THREAD }),
@@ -275,7 +263,7 @@ describe('DockerPodDriver createOrResume', () => {
     const fake = fakeEngine({
       existing: { id: 'old-id', status: 'exited' },
       podDetails: {
-        ports: [{ containerPort: POD_INGRESS_CONTAINER_PORT, hostPort: INGRESS_HOST_PORT }],
+        ports: [],
       },
     })
     const driver = driverWith({ engine: fake.engine })

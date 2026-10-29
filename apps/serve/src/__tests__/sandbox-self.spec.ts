@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 
 import { apiPortExposer } from '../api-port-exposer'
+import { MISSING_BINARY_MESSAGE, type CloudflaredHost } from '../cloudflared'
 import { sandboxPark } from '../sandbox-park'
 import { ServeProcessPort } from '../serve-process'
 import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
@@ -25,22 +27,51 @@ const fakeFetch = (reply: () => Response) => {
 
 const controlPlaneUrl = 'https://api.example.com'
 
+const cloudflaredHost = (over: Partial<CloudflaredHost> = {}) => {
+  const launches: string[] = []
+  const host: CloudflaredHost = {
+    binaryExists: () => true,
+    isRunning: () => false,
+    storedTokenHash: () => undefined,
+    stopRunning: async () => {},
+    launch: ({ token }) => {
+      launches.push(token)
+    },
+    readLog: () => (launches.length > 0 ? 'Registered tunnel connection' : ''),
+    now: () => 0,
+    sleep: async () => {},
+    ...over,
+  }
+  return { host, launches }
+}
+
 describe('apiPortExposer', () => {
   it('posts the port with the serve token and answers the url', async () => {
-    const { calls, fetchFn } = fakeFetch(() => trpcOk({ url: 'https://sb-1.vercel.run' }))
+    const { calls, fetchFn } = fakeFetch(() =>
+      trpcOk({ url: 'https://sb-1.vercel.run', tunnelToken: 'tun-1' }),
+    )
+    const { host, launches } = cloudflaredHost()
     const exposer = apiPortExposer({
       controlPlaneUrl,
       token: 'serve-token',
       clientVersion: '1.2.3',
       fetchFn,
+      cloudflaredHost: host,
     })
 
-    const outcome = await new ServeProcessPort(exposer).exposePort({ containerPort: 3000 })
+    const outcome = await new ServeProcessPort(exposer).exposePort({
+      containerPort: 3000,
+    })
 
     expect(outcome).toEqual({
       ok: true,
-      exposure: { containerPort: 3000, hostPort: 3000, url: 'https://sb-1.vercel.run' },
+      exposure: {
+        containerPort: 3000,
+        hostPort: 3000,
+        url: 'https://sb-1.vercel.run',
+      },
     })
+    expect(launches).toEqual(['tun-1'])
     expect(calls).toHaveLength(1)
     expect(calls[0]?.url).toBe(trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.exposePort' }))
     expect(calls[0]?.body).toEqual({ port: 3000 })
@@ -58,12 +89,54 @@ describe('apiPortExposer', () => {
       fetchFn,
     })
 
-    const outcome = await new ServeProcessPort(exposer).exposePort({ containerPort: 3000 })
+    const outcome = await new ServeProcessPort(exposer).exposePort({
+      containerPort: 3000,
+    })
 
     expect(outcome.ok).toBe(false)
     if (outcome.ok) return
     expect(outcome.reason).toContain('409')
     expect(outcome.reason).toContain('port limit reached')
+  })
+})
+
+describe('apiPortExposer cloudflared', () => {
+  const ok = () => trpcOk({ url: 'https://p-1.byatlas.dev', tunnelToken: 'tun-1' })
+
+  it('does not relaunch when a connector is already running', async () => {
+    const { fetchFn } = fakeFetch(ok)
+    const { host, launches } = cloudflaredHost({
+      isRunning: () => true,
+      storedTokenHash: () => createHash('sha256').update('tun-1').digest('hex'),
+    })
+    const exposer = apiPortExposer({
+      controlPlaneUrl,
+      token: 't',
+      clientVersion: 'dev',
+      fetchFn,
+      cloudflaredHost: host,
+    })
+
+    expect(await exposer.exposePort({ port: 3000 })).toBe('https://p-1.byatlas.dev')
+    expect(launches).toEqual([])
+  })
+
+  it('refuses with the missing-binary reason', async () => {
+    const { fetchFn } = fakeFetch(ok)
+    const { host } = cloudflaredHost({ binaryExists: () => false })
+    const exposer = apiPortExposer({
+      controlPlaneUrl,
+      token: 't',
+      clientVersion: 'dev',
+      fetchFn,
+      cloudflaredHost: host,
+    })
+
+    const outcome = await new ServeProcessPort(exposer).exposePort({
+      containerPort: 3000,
+    })
+
+    expect(outcome).toEqual({ ok: false, reason: MISSING_BINARY_MESSAGE })
   })
 })
 
@@ -78,7 +151,10 @@ describe('sandboxPark when api-provisioned', () => {
       token: 'serve-token',
       clientVersion: '1.2.3',
       fetchFn,
-      env: { [API_PROVISIONED_ENV]: '1', ATLAS_SANDBOX_SESSION_ID: 'session-9' },
+      env: {
+        [API_PROVISIONED_ENV]: '1',
+        ATLAS_SANDBOX_SESSION_ID: 'session-9',
+      },
     })
 
     expect(calls).toEqual([])

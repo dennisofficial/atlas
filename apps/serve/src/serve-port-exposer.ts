@@ -1,21 +1,11 @@
-import { sandboxNameFor, VercelDriver } from '@dltech/atlas-harness'
-import { isApiProvisioned } from '@dltech/atlas-wire'
-
 import { apiPortExposer, type PortExposer } from './api-port-exposer'
 import type { ServeComposeArgs } from './serve-app'
-import { vercelCredentialsOf } from './vercel-credentials'
 
 export const exposerFor = (args: ServeComposeArgs): PortExposer | null => {
-  if (isApiProvisioned(args.env)) {
-    return apiPortExposer({
-      controlPlaneUrl: args.controlPlaneUrl,
-      token: args.token,
-      clientVersion: args.clientVersion,
-    })
-  }
-  const credentials = vercelCredentialsOf(args.env)
-  if (credentials === null) return null
-  const driver = new VercelDriver({ credentials, cloudUrl: args.controlPlaneUrl })
-  const name = sandboxNameFor({ threadId: args.threadId })
-  return { exposePort: ({ port }) => driver.exposePort({ name, port }) }
+  if (args.controlPlaneUrl.length === 0 || args.token.length === 0) return null
+  return apiPortExposer({
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+  })
 }

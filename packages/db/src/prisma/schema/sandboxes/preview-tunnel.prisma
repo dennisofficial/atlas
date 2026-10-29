@@ -1,0 +1,16 @@
+// use prisma-8
+model PreviewTunnel {
+  id                String               @id @onCreate(cuid(2))
+  userId            String
+  threadId          String
+  tunnelId          String
+  sealedTunnelToken String
+  label             String
+  createdAt         TimestamptzJsDate(3) @default(now())
+  updatedAt         TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  routes            PreviewRoute[]
+
+  @@unique([threadId], map: "PreviewTunnel_threadId_key")
+  @@index([userId], map: "PreviewTunnel_userId_idx")
+}

@@ -22,7 +22,10 @@ export const sandboxExposePortRequestSchema = z.object({
 })
 export type SandboxExposePortRequest = z.infer<typeof sandboxExposePortRequestSchema>
 
-export const sandboxExposePortReplySchema = z.object({ url: z.string().min(1) })
+export const sandboxExposePortReplySchema = z.object({
+  url: z.string().url(),
+  tunnelToken: z.string().min(1),
+})
 export type SandboxExposePortReply = z.infer<typeof sandboxExposePortReplySchema>
 
 export const sandboxSelfStopRequestSchema = z.object({ sessionId: z.string().min(1).optional() })

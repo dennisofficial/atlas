@@ -6,7 +6,6 @@ import type { ContainerSummary, CreateContainerBody } from '../../../execution/d
 import { EngineRequestFailed } from '../../../execution/docker/engine'
 import type { PodDetails } from '../../../execution/docker/pod-engine'
 import { DockerPodDriver, type PodDriverEngine } from '../driver'
-import { POD_INGRESS_CONTAINER_PORT } from '../ingress'
 import { podNameFor, podThreadLabel } from '../pod-create'
 import { POD_STAGED_PATH } from '../pod-staged'
 import type { ProvisionLock } from '../provision-lock'
@@ -15,7 +14,6 @@ import type { PodServeLauncher } from '../serve-launch'
 export const THREAD = 'thread-1'
 export const NAME = podNameFor({ threadId: THREAD })
 export const SERVE_HOST_PORT = 20_111
-export const INGRESS_HOST_PORT = 20_222
 export const GIB = 1024 * 1024 * 1024
 
 type FakeOptions = {
@@ -39,10 +37,7 @@ export const detailsFor = (args: {
   status: args.status,
   running: args.status === 'running',
   labels: {},
-  ports: [
-    { containerPort: SANDBOX_SERVE_PORT, hostPort: SERVE_HOST_PORT },
-    { containerPort: POD_INGRESS_CONTAINER_PORT, hostPort: INGRESS_HOST_PORT },
-  ],
+  ports: [{ containerPort: SANDBOX_SERVE_PORT, hostPort: SERVE_HOST_PORT }],
   nanoCpus: 0,
   memoryReservationBytes: 0,
   ...args.extra,
@@ -148,6 +143,6 @@ export const driverWith = (args: {
     devServe: args.devServe,
     provisionLock: args.provisionLock ?? unlockedProvision,
     log: args.log,
-    hostPorts: () => ({ serveHostPort: SERVE_HOST_PORT, ingressHostPort: INGRESS_HOST_PORT }),
+    hostPorts: () => ({ serveHostPort: SERVE_HOST_PORT }),
     launchServe: args.launchServe ?? (async () => ({})),
   })

@@ -1,0 +1,356 @@
+[
+  {
+    "id": "table.PreviewRoute",
+    "label": "Create table \"PreviewRoute\"",
+    "summary": "Creates table \"PreviewRoute\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewRoute"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PreviewRoute\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewRoute\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PreviewRoute\"",
+        "sql": "CREATE TABLE \"public\".\"PreviewRoute\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"dnsRecordId\" text NOT NULL,\n  \"hostname\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"port\" int4 NOT NULL,\n  \"previewTunnelId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PreviewRoute\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewRoute\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.PreviewTunnel",
+    "label": "Create table \"PreviewTunnel\"",
+    "summary": "Creates table \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PreviewTunnel\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PreviewTunnel\"",
+        "sql": "CREATE TABLE \"public\".\"PreviewTunnel\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"label\" text NOT NULL,\n  \"sealedTunnelToken\" text NOT NULL,\n  \"threadId\" text NOT NULL,\n  \"tunnelId\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PreviewTunnel\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.PreviewRoute.PreviewRoute_previewTunnelId_port_key",
+    "label": "Add unique constraint on \"PreviewRoute\" (previewTunnelId, port)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PreviewRoute_previewTunnelId_port_key",
+        "table": "PreviewRoute"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PreviewRoute_previewTunnelId_port_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewRoute_previewTunnelId_port_key",
+          "public",
+          "\"public\".\"PreviewRoute\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"PreviewRoute_previewTunnelId_port_key\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewRoute\" ADD CONSTRAINT \"PreviewRoute_previewTunnelId_port_key\" UNIQUE (\"previewTunnelId\", \"port\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"PreviewRoute_previewTunnelId_port_key\" exists on (previewTunnelId, port)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "PreviewRoute_previewTunnelId_port_key",
+          "public",
+          "\"public\".\"PreviewRoute\"",
+          "u",
+          "[\"previewTunnelId\",\"port\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.PreviewTunnel.PreviewTunnel_threadId_key",
+    "label": "Add unique constraint on \"PreviewTunnel\" (threadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PreviewTunnel_threadId_key",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PreviewTunnel_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewTunnel_threadId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"PreviewTunnel_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD CONSTRAINT \"PreviewTunnel_threadId_key\" UNIQUE (\"threadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"PreviewTunnel_threadId_key\" exists on (threadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "PreviewTunnel_threadId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\"",
+          "u",
+          "[\"threadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PreviewRoute.PreviewRoute_previewTunnelId_idx_a8997909",
+    "label": "Create index \"PreviewRoute_previewTunnelId_idx_a8997909\" on \"PreviewRoute\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PreviewRoute_previewTunnelId_idx_a8997909",
+        "table": "PreviewRoute"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PreviewRoute_previewTunnelId_idx_a8997909\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewRoute_previewTunnelId_idx_a8997909\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PreviewRoute_previewTunnelId_idx_a8997909\"",
+        "sql": "CREATE INDEX \"PreviewRoute_previewTunnelId_idx_a8997909\" ON \"public\".\"PreviewRoute\" (\"previewTunnelId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PreviewRoute_previewTunnelId_idx_a8997909\" exists on \"PreviewRoute\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewRoute_previewTunnelId_idx_a8997909\"",
+          "i",
+          "I",
+          "\"public\".\"PreviewRoute\"",
+          "btree",
+          "[\"previewTunnelId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PreviewTunnel.PreviewTunnel_userId_idx",
+    "label": "Create index \"PreviewTunnel_userId_idx\" on \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PreviewTunnel_userId_idx",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PreviewTunnel_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PreviewTunnel_userId_idx\"",
+        "sql": "CREATE INDEX \"PreviewTunnel_userId_idx\" ON \"public\".\"PreviewTunnel\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PreviewTunnel_userId_idx\" exists on \"PreviewTunnel\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel_userId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"PreviewTunnel\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PreviewRoute.PreviewRoute_previewTunnelId_fkey",
+    "label": "Add foreign key \"PreviewRoute_previewTunnelId_fkey\" on \"PreviewRoute\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PreviewRoute_previewTunnelId_fkey",
+        "table": "PreviewRoute"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PreviewRoute_previewTunnelId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewRoute_previewTunnelId_fkey",
+          "public",
+          "\"public\".\"PreviewRoute\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PreviewRoute_previewTunnelId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewRoute\"\nADD CONSTRAINT \"PreviewRoute_previewTunnelId_fkey\"\nFOREIGN KEY (\"previewTunnelId\")\nREFERENCES \"public\".\"PreviewTunnel\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PreviewRoute_previewTunnelId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "PreviewRoute_previewTunnelId_fkey",
+          "public",
+          "\"public\".\"PreviewRoute\"",
+          "f",
+          "[\"previewTunnelId\"]",
+          "\"public\".\"PreviewTunnel\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PreviewTunnel.PreviewTunnel_userId_fkey",
+    "label": "Add foreign key \"PreviewTunnel_userId_fkey\" on \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PreviewTunnel_userId_fkey",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PreviewTunnel_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewTunnel_userId_fkey",
+          "public",
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PreviewTunnel_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\"\nADD CONSTRAINT \"PreviewTunnel_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PreviewTunnel_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "PreviewTunnel_userId_fkey",
+          "public",
+          "\"public\".\"PreviewTunnel\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

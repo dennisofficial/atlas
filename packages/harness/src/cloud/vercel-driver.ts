@@ -13,7 +13,6 @@ import {
   liveSdk,
   assertLiveSession,
   observationOf,
-  SANDBOX_MAX_PORTS,
   SANDBOX_QUICK_TIMEOUT_MS,
   type SandboxObservation,
   type SandboxPlacement,
@@ -118,32 +117,6 @@ export class VercelDriver {
       return observationOf(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return undefined
-      throw asVercelFailure(failure)
-    }
-  }
-
-  /**
-   * `update` replaces the whole port list, so the already-routed ports go back in alongside the
-   * new one — omitting them would deregister the serve port and cut the session's own channel.
-   */
-  async exposePort(args: { name: string; port: number }): Promise<string> {
-    try {
-      const sandbox = await this.sandboxNamed(args.name)
-      const routed = sandbox.routes.map((route) => route.port)
-      if (!routed.includes(args.port)) {
-        if (routed.length >= SANDBOX_MAX_PORTS) {
-          throw new Error(
-            `a sandbox exposes at most ${SANDBOX_MAX_PORTS} ports and this one is at the limit`,
-          )
-        }
-        await sandbox.update(
-          { ports: [...routed, args.port] },
-          { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-        )
-      }
-      return sandbox.domain(args.port)
-    } catch (failure) {
-      if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
       throw asVercelFailure(failure)
     }
   }

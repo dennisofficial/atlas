@@ -23,7 +23,6 @@ const baseArgs: PodCreateArgs = {
   home: '/home/test/.atlas',
   image: DEFAULT_POD_IMAGE,
   serveHostPort: 23_456,
-  ingressHostPort: 23_457,
   vcpus: 2,
   token: 'serve-token',
   cloudUrl: 'https://cloud.example',
@@ -95,14 +94,13 @@ describe('podCreateBody', () => {
     expect(hostConfig).not.toHaveProperty('Memory')
   })
 
-  it('publishes serve and ingress on loopback only', () => {
+  it('publishes serve on loopback only', () => {
     const body = podCreateBody(baseArgs)
 
     expect(body.HostConfig?.PortBindings).toEqual({
       '3000/tcp': [{ HostIp: '127.0.0.1', HostPort: '23456' }],
-      '7676/tcp': [{ HostIp: '127.0.0.1', HostPort: '23457' }],
     })
-    expect(body.ExposedPorts).toEqual({ '3000/tcp': {}, '7676/tcp': {} })
+    expect(body.ExposedPorts).toEqual({ '3000/tcp': {} })
   })
 
   it('labels the pod with its thread, role and owning home', () => {

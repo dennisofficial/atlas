@@ -9,6 +9,9 @@ const VALID_ENV = {
   GOOGLE_CLIENT_ID: 'test-google-client-id.apps.googleusercontent.com',
   GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
   RESEND_API_KEY: 're_test_fixture_not_a_real_key',
+  CLOUDFLARE_API_TOKEN: 'cf-test-token',
+  CLOUDFLARE_ACCOUNT_ID: 'cf-test-account',
+  CLOUDFLARE_ZONE_ID: 'cf-test-zone',
 }
 
 function validate(env: Record<string, string>) {
@@ -33,6 +36,13 @@ describe('envConfigValidation', () => {
     expect(error?.message).toContain('GOOGLE_CLIENT_ID')
     expect(error?.message).toContain('GOOGLE_CLIENT_SECRET')
     expect(error?.message).toContain('RESEND_API_KEY')
+    expect(error?.message).toContain('CLOUDFLARE_API_TOKEN')
+    expect(error?.message).toContain('CLOUDFLARE_ACCOUNT_ID')
+    expect(error?.message).toContain('CLOUDFLARE_ZONE_ID')
+  })
+
+  it('defaults the preview domain to byatlas.dev', () => {
+    expect(validate(VALID_ENV).value.PREVIEW_DOMAIN).toBe('byatlas.dev')
   })
 
   it('rejects a short SECRET_KEY', () => {

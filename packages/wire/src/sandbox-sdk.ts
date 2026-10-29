@@ -6,8 +6,6 @@ export type SandboxStateWire = 'running' | 'parked' | 'resuming' | 'stopped' | '
 
 export const SANDBOX_REGION = 'iad1'
 export const SANDBOX_SERVE_PORT = 3000
-/** The SDK's per-sandbox ceiling; the serve port occupies one slot. */
-export const SANDBOX_MAX_PORTS = 15
 /**
  * The workspace lives on the sandbox's own snapshot-persisted filesystem. The path is told to
  * serve rather than inferred, so both halves agree.
