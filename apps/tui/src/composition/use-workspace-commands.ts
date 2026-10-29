@@ -34,6 +34,7 @@ export function useWorkspaceCommands(args: {
   handleResumeConversation: (handle: string) => void
   handleRestart: () => void
   handleQuit: () => void
+  quitDetaches: boolean
 }) {
   const {
     app,
@@ -52,6 +53,7 @@ export function useWorkspaceCommands(args: {
     handleResumeConversation,
     handleRestart,
     handleQuit,
+    quitDetaches,
   } = args
 
   const { view: cloudView, wake: wakeCloud } = cloud
@@ -94,6 +96,7 @@ export function useWorkspaceCommands(args: {
       onRestart: onRestart === null ? null : handleRestart,
       onWake: () => wakeEffect({ view: cloudView, wake: wakeCloud }),
       onQuit: handleQuit,
+      quitDetaches,
     })
   }, [
     chrome.handleShortcuts,
@@ -106,6 +109,7 @@ export function useWorkspaceCommands(args: {
     handleNewConversation,
     handleOpenAccounts,
     handleQuit,
+    quitDetaches,
     handleReloadSkills,
     handleRestart,
     app,

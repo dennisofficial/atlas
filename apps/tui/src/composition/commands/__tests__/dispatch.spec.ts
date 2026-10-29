@@ -583,6 +583,27 @@ describe('the exit command', () => {
     expect(quits).toBe(0)
   })
 
+  it('runs at once mid-turn when quitting only detaches from a pod', async () => {
+    let quits = 0
+
+    const dispatched = await dispatchSubmission({
+      text: '/exit',
+      commands: localCommands(
+        handlers({
+          quitDetaches: true,
+          onQuit: () => {
+            quits += 1
+          },
+        }),
+      ),
+      skills: [],
+      working: true,
+    })
+
+    expect(dispatched).toEqual({ type: EDispatch.Ran })
+    expect(quits).toBe(1)
+  })
+
   it('hands off to the same quit the ctrl+c chord runs', async () => {
     let quits = 0
 
