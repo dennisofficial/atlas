@@ -8,19 +8,7 @@ export enum EShellHoverCard {
   Project = 'project',
 }
 
-export enum EStatusStyle {
-  Dot = 'icon-and-dot',
-  Bold = 'icon-and-bold-title',
-  Label = 'icon-and-label',
-}
-
 export const SHELL_CONTROLS = {
-  statusStyle: {
-    type: 'select',
-    label: 'Status style',
-    options: Object.values(EStatusStyle),
-    default: EStatusStyle.Dot,
-  },
   hoverCard: {
     type: 'select',
     label: 'Hover card',

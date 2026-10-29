@@ -7,9 +7,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { type AppThread, EThreadStatus } from './fixtures/app'
 import { RowAction } from './shell-row-action'
-import { PRESENTATION, ThreadStatusIcon } from './shell-status-icon'
-import { EStatusStyle } from './shell-tweaks'
-import { useStatusStyle } from './use-status-style'
+import { ThreadStatusIcon } from './shell-status-icon'
 import { threadHref } from './thread-href'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
@@ -29,37 +27,19 @@ function hasPullRequest(thread: AppThread): boolean {
   )
 }
 
-const QUIET_LABEL = new Set([EThreadStatus.Idle])
-
-function StatusTrailing({ thread, style }: { thread: AppThread; style: EStatusStyle }) {
-  const unread = thread.unread === true
-  if (style === EStatusStyle.Label) {
-    if (QUIET_LABEL.has(thread.status) && !unread) return null
-    return (
-      <span className="flex shrink-0 items-center gap-1.5 pr-2 text-xs text-muted-foreground group-hover/thread:hidden">
-        {QUIET_LABEL.has(thread.status) ? null : PRESENTATION[thread.status].label}
-        {unread ? (
-          <span role="img" aria-label="Unread" className="size-1.5 rounded-full bg-primary" />
-        ) : null}
-      </span>
-    )
-  }
-  if (style === EStatusStyle.Dot && unread) {
-    return (
-      <span className="flex shrink-0 items-center pr-2.5 group-hover/thread:hidden">
-        <span role="img" aria-label="Unread" className="size-1.5 rounded-full bg-primary" />
-      </span>
-    )
-  }
-  return null
+function UnreadDot({ thread }: { thread: AppThread }) {
+  if (thread.unread !== true) return null
+  return (
+    <span className="flex shrink-0 items-center pr-2.5 group-hover/thread:hidden">
+      <span role="img" aria-label="Unread" className="size-1.5 rounded-full bg-primary" />
+    </span>
+  )
 }
 
 export function ThreadRowBody({ thread, active, defaultCardOpen, trailing }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
   const archived = thread.archived === true
   const handleArchive = () => onToggleArchive(thread.id)
-  const style = useStatusStyle()
-  const boldUnread = style === EStatusStyle.Bold && thread.unread === true && !active
   return (
     <ThreadHoverCard
       thread={thread}
@@ -77,16 +57,9 @@ export function ThreadRowBody({ thread, active, defaultCardOpen, trailing }: Thr
         className="h-7 min-w-0 flex-1 text-sm hover:bg-transparent data-active:bg-transparent"
       >
         <ThreadStatusIcon status={thread.status} />
-        <span
-          className={cn(
-            boldUnread && 'font-semibold text-foreground',
-            style === EStatusStyle.Bold && !boldUnread && !active && 'text-muted-foreground',
-          )}
-        >
-          {thread.title}
-        </span>
+        <span>{thread.title}</span>
       </SidebarMenuButton>
-      <StatusTrailing thread={thread} style={style} />
+      <UnreadDot thread={thread} />
       <div className="hidden shrink-0 items-center pr-1 group-hover/thread:flex group-data-popup-open/thread:flex">
         <RowAction label="Pin thread">
           <Pin />
