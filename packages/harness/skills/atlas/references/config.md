@@ -1,12 +1,7 @@
----
-name: atlas-config
-description: Configure and troubleshoot Atlas settings, settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, and MCP servers (mcp.json, .mcp.json). Use when asked how Atlas is configured, to change its configuration, or why it is not picking up a file.
----
-
 # Atlas configuration
 
 Use this guide without an Atlas source checkout. Establish the session's current project directory
-and Atlas home before inspecting files. For Cloud execution, transfer, and sign-in, load `atlas-cloud`.
+and Atlas home before inspecting files. For Cloud execution and sign-in, read cloud.md; for services, services.md; for containers, container.md; for plugins, plugins.md; for worktrees, worktrees.md.
 These instructions describe configuration mechanisms, not the live values in this session.
 
 ## Locate the configuration
@@ -74,7 +69,7 @@ Put `name` and `description` in YAML frontmatter, followed by the Markdown proce
 Use lowercase names with digits and hyphens, matching the folder, at most 64 characters. Descriptions
 have a 1,024-character limit and teach the model when to load the body. `user-invocable` defaults true;
 `disable-model-invocation` defaults false. The prompt lists descriptions; the `skill` tool loads bodies
-on demand. Built-ins have no installed directory, so they must work without local supporting files.
+on demand. A built-in with a references folder is materialized under Atlas home when loaded, so its directory is readable.
 To substitute invocation arguments, write a dollar sign followed by `ARGUMENTS` or a digit `1`–`9`.
 Substitution applies throughout the body, including fenced examples. Other accepted frontmatter is
 not proof of tool restrictions or model switching; verify behavior before promising enforcement.

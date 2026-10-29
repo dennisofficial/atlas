@@ -426,7 +426,7 @@ one or a stable per-(thread, name) pick from 20000-29999. Public exposure is a s
 bash one: URLs are `https://<port>-<rand>.byatlas.dev` through a Cloudflare tunnel that keeps the Host
 and adds `X-Forwarded-Proto`. Declared services are supervised — restart with 1/2/4/8/16 s backoff,
 crash-looping after more than 5 crashes in 120 s — and resumed at serve boot and TUI reopen. A
-workspace prompt fragment lists declared names and loader rejections, and the `atlas-services` skill
+workspace prompt fragment lists declared names and loader rejections, and the `atlas` skill
 carries the procedure.
 
 ## Sub-agents

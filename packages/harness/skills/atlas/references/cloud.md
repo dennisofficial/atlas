@@ -1,12 +1,7 @@
----
-name: atlas-cloud
-description: Explain and troubleshoot Atlas Cloud, born-placed threads, /container, Vercel sandbox setup, Cloud sign-in and backup, parked or disconnected sessions, preview URLs, and cloud logs. Use when asked where Atlas runs or how to operate a cloud session.
----
-
 # Atlas Cloud
 
 Use this guide without an Atlas source checkout. Establish placement, connection, and transcript
-freshness first; these instructions describe behavior, not live state. Load `atlas-config` for configuration.
+freshness first; these instructions describe behavior, not live state. Read config.md for configuration.
 
 ## Establish the placement
 
@@ -89,16 +84,16 @@ still needs authority.
 Keep sandbox lifecycle, client connection, and transcript freshness separate. Disconnection can
 leave the sandbox working while the terminal shows old history. Reopening through `/resume` or
 sending input can wake a parked session; `ctrl+r` retries disconnected attachment.
-With no outstanding work, a sandbox parks after about five idle minutes. Turns, children, shells,
+With no outstanding work, a sandbox parks after about thirty idle minutes. Turns, children, shells,
 or queued input block parking. Services prevent parking while a client is attached; detached
-service-only sessions may park after about thirty quiet minutes, stopping those processes.
+service-only sessions park after the same thirty quiet minutes, stopping those processes.
 A parked drive preserves data, not processes. Runtime replacement uses Atlas's drain/checkpoint
 procedure; a timeout is not permission to destroy a live sandbox.
 
 Signed-in startup may retire registered sandboxes whose last recorded activity exceeds seven days,
 including destroying their drives. Preserve work before leaving it unused. Parking is
 not indefinite storage; signed-out sessions also retain Vercel billing and storage responsibilities.
-`localhost` is the sandbox, not the operator's machine. For previews and servers, load `atlas-services`;
+`localhost` is the sandbox, not the operator's machine. For previews and servers, read services.md;
 use background `bash` only for finite jobs.
 
 ## Diagnose with evidence

@@ -1,9 +1,11 @@
+import { mkdtempSync, rmSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { EPromptAgent, toThreadId, type PromptContext } from '@dltech/atlas-core'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { SkillListingFragment } from '../../prompt/fragments/skills'
 import { SkillTool } from '../../tools/builtin/skill'
@@ -13,10 +15,23 @@ import { BUILT_IN_SKILLS } from '../manifest.generated'
 import { digestOfBytes } from '../embedded-bundle'
 import { ESkillOrigin, isSkillEntryFilename } from '../skill'
 
-const ATLAS_SKILLS = ['atlas-config', 'atlas-cloud', 'atlas-services']
+const ATLAS_SKILLS = ['atlas']
+const REFERENCE_PAGES = ['config', 'services', 'cloud', 'container', 'plugins', 'worktrees']
+
+let home: string
+
+beforeEach(() => {
+  home = mkdtempSync(join(tmpdir(), 'atlas-native-skills-'))
+})
+
+afterEach(() => {
+  rmSync(home, { recursive: true, force: true })
+})
 
 const registryOfBuiltIns = async (): Promise<LiveSkillRegistry> => {
-  const registry = new LiveSkillRegistry({ sources: () => [new EmbeddedSkillSource()] })
+  const registry = new LiveSkillRegistry({
+    sources: () => [new EmbeddedSkillSource({ home })],
+  })
   await registry.reload()
   return registry
 }
@@ -30,7 +45,7 @@ const contextFor = (agent: EPromptAgent): PromptContext => ({
 
 describe('native Atlas help skills', () => {
   it.each(ATLAS_SKILLS)(
-    'ships %s as an invocable built-in without installed files',
+    'ships %s as an invocable built-in with its references materialized',
     async (name) => {
       const registry = await registryOfBuiltIns()
       const skill = registry.byName(name)
@@ -42,8 +57,15 @@ describe('native Atlas help skills', () => {
       expect(skill?.body.trim().length).toBeGreaterThan(0)
       expect(skill?.userInvocable).toBe(true)
       expect(skill?.modelInvocable).toBe(true)
-      expect(skill?.directory).toBeUndefined()
-      expect(skill?.entryPath).toBeUndefined()
+      expect(skill?.directory).toBeDefined()
+      expect(skill?.entryPath).toBeDefined()
+      for (const page of REFERENCE_PAGES) {
+        const text = await readFile(
+          join(skill?.directory ?? '', 'references', `${page}.md`),
+          'utf8',
+        )
+        expect(text.trim().length).toBeGreaterThan(0)
+      }
       expect(skill?.warnings).toEqual([])
     },
   )
@@ -84,11 +106,12 @@ describe('native Atlas help skills', () => {
 
       expect(outcome.ok).toBe(true)
       if (!outcome.ok) throw new Error(outcome.reason)
-      expect(outcome.modelText).toBe(skill.body)
+      expect(outcome.modelText).toContain(skill.body)
+      expect(outcome.modelText).toContain(skill.directory ?? 'missing directory')
       expect(outcome.output).toEqual({
         name,
-        directory: undefined,
-        path: undefined,
+        directory: skill.directory,
+        path: skill.entryPath,
         text: skill.body,
         argumentText,
       })
@@ -112,7 +135,10 @@ describe('the shipped skill manifest', () => {
       selected
         .flat()
         .sort()
-        .map(async (path) => ({ path, text: await readFile(join(directory, path), 'utf8') })),
+        .map(async (path) => ({
+          path,
+          text: await readFile(join(directory, path), 'utf8'),
+        })),
     )
 
     expect(BUILT_IN_SKILLS.map(({ path, text }) => ({ path, text }))).toEqual(authored)
