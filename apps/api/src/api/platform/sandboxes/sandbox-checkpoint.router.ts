@@ -16,7 +16,6 @@ import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { storedCheckpointOf } from './sandbox-checkpoint'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { hashSessionToken } from './sandbox-tokens'
-import { ETokenPrincipalKind } from './token-principal'
 
 const CHECKPOINT_COLUMNS = ['userId', 'runtimeCheckpoint', 'runtimeCheckpointRevision'] as const
 
@@ -58,7 +57,7 @@ export class SandboxCheckpointRouter {
   @Mutation({
     input: runtimeCheckpointSchema,
     output: readRuntimeCheckpointReplySchema,
-    meta: meta({ podReachable: true, ...clientRead }),
+    meta: clientRead,
   })
   @UseMiddlewares(SandboxTokenMiddleware)
   async put(
@@ -71,9 +70,6 @@ export class SandboxCheckpointRouter {
     const bearer = ctx.bearerToken
     if (bearer === undefined) {
       throw new UnauthorizedException('a sandbox session token is required')
-    }
-    if (ctx.sandbox.kind === ETokenPrincipalKind.Pod) {
-      return this.putPodCheckpoint({ input, userId: ctx.sandbox.userId })
     }
     const { threadId, userId } = ctx.sandbox
     const revision = input.revision
@@ -104,43 +100,6 @@ export class SandboxCheckpointRouter {
         threadId,
         checkpoint: stored.runtimeCheckpoint,
         revision: stored.runtimeCheckpointRevision,
-      }),
-    }
-  }
-
-  private async putPodCheckpoint(args: {
-    input: RuntimeCheckpoint
-    userId: string
-  }): Promise<ReadRuntimeCheckpointReply> {
-    const { input, userId } = args
-    const { threadId, revision } = input
-    const checkpoint = asCheckpointJson(input)
-    const written = await db.transaction(async (tx) => {
-      const thread = await tx.orm.public.Thread.where({ id: threadId, userId }).select('id').first()
-      if (thread === null) throw new NotFoundException('thread not found')
-      await tx.orm.public.LocalPodCheckpoint.upsert({
-        create: { userId, threadId },
-        update: { userId },
-        conflictOn: { threadId },
-      })
-      return tx.orm.public.LocalPodCheckpoint.where({ threadId, userId })
-        .where((row) => or(row.revision.isNull(), row.revision.lt(revision)))
-        .updateAndCount({ checkpoint, revision, updatedAt: new Date() })
-    })
-    if (written === 1) {
-      await this.signals.podChanged({ threadId })
-      return { checkpoint: input }
-    }
-
-    const stored = await db.orm.public.LocalPodCheckpoint.where({ threadId, userId })
-      .select('checkpoint', 'revision')
-      .first()
-    if (stored === null) throw new NotFoundException('local pod checkpoint not found')
-    return {
-      checkpoint: storedCheckpointOf({
-        threadId,
-        checkpoint: stored.checkpoint,
-        revision: stored.revision,
       }),
     }
   }

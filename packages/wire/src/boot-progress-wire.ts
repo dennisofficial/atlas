@@ -43,6 +43,14 @@ const present = (value: string | undefined): boolean => value !== undefined && v
 export const writesBehind = (env: Record<string, string | undefined>): boolean =>
   isApiProvisioned(env) || (present(env.ATLAS_CLOUD_URL) && present(env.ATLAS_SERVE_TOKEN))
 
+export const POD_NAME_ENV = 'ATLAS_POD_NAME'
+
+export const isLocalPod = (env: Record<string, string | undefined>): boolean =>
+  present(env[POD_NAME_ENV])
+
+export const mirrorsThreadState = (env: Record<string, string | undefined>): boolean =>
+  writesBehind(env) && !isLocalPod(env)
+
 export const MAX_BOOT_STEP_TEXT = 2000
 
 export const bootStepEventSchema = z.object({

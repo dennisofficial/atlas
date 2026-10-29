@@ -8,8 +8,6 @@ import {
   createSignedInApiPodBridge,
   pingDocker,
   putPodLease,
-  readLocalPodCheckpoint,
-  registerLocalPodThread,
   reapOrphanPods,
   sandboxServeTokenFor,
   sandboxVcpusOf,
@@ -71,29 +69,6 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
       clientVersion: clientVersionHeader(),
       threadId,
       token,
-    })
-  },
-  registerThread: ({ threadId, projectId, model, effort }) => {
-    const session = app.cloud.session()
-    if (session === null) throw new Error(SIGN_IN_REQUIRED_MESSAGE)
-    return registerLocalPodThread({
-      url: cloudUrlOf(app),
-      sessionToken: session.token,
-      clientVersion: clientVersionHeader(),
-      threadId,
-      projectId,
-      ...(model === undefined ? {} : { model }),
-      ...(effort === undefined ? {} : { effort }),
-    })
-  },
-  readPodCheckpoint: ({ threadId }) => {
-    const session = app.cloud.session()
-    if (session === null) return Promise.resolve(null)
-    return readLocalPodCheckpoint({
-      url: cloudUrlOf(app),
-      sessionToken: session.token,
-      clientVersion: clientVersionHeader(),
-      threadId,
     })
   },
   environment: telemetryEnvironmentOf,

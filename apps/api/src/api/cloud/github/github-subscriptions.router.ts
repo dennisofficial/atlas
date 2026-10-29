@@ -30,7 +30,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscribeInputSchema,
     output: githubSubscriptionSchema,
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   subscribe(
     @Input() input: GithubSubscribeInput,
@@ -48,7 +48,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   async unsubscribe(
     @Input() input: GithubSubscriptionIdInput,
@@ -75,7 +75,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: githubHeartbeatSchema,
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   heartbeat(
     @Input() input: GithubSubscriptionIdInput,

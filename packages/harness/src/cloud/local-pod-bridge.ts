@@ -27,21 +27,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     ((config: PodDriverConfig): PodBridgeDriver =>
       new DockerPodDriver({ ...config, log: args.onDriverLog }))
 
-  const registerThread = async (thread: {
-    threadId: ThreadId
-    projectId: string | null
-    model: string | undefined
-    effort: string | undefined
-  }): Promise<void> => {
-    if (args.registerThread === undefined) return
-    await args.registerThread({
-      threadId: thread.threadId,
-      projectId: thread.projectId,
-      ...(thread.model === undefined ? {} : { model: thread.model }),
-      ...(thread.effort === undefined ? {} : { effort: thread.effort }),
-    })
-  }
-
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
   ): Promise<CloudSandbox> => {
@@ -64,13 +49,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     const environment: Record<string, string> = { ...args.environment?.() }
 
     await args.registerPodLease({ threadId: createArgs.threadId, token })
-
-    await registerThread({
-      threadId: createArgs.threadId,
-      projectId: createArgs.projectId,
-      model: createArgs.model,
-      effort: createArgs.birth?.effort,
-    })
 
     const placement = await driver.createOrResume({
       name,
@@ -97,15 +75,14 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
   }
 
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
-    const [observed, reported] = await Promise.all([
-      driverWith(args.pod()).inspect({ name: podNameFor({ threadId: findArgs.threadId }) }),
-      args.readPodCheckpoint?.(findArgs).catch(() => null) ?? null,
-    ])
+    const observed = await driverWith(args.pod()).inspect({
+      name: podNameFor({ threadId: findArgs.threadId }),
+    })
     return {
       ...(observed === undefined
         ? { state: ECloudSandboxState.Stopped }
         : { ...observed, state: sandboxStateSchema.parse(observed.state) }),
-      checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
+      checkpoint: null,
     }
   }
 

@@ -3,7 +3,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:t
 import {
   createSessionsRouterApp,
   mutate,
-  pod,
   SANDBOX_THREAD,
   sandbox,
   session,
@@ -31,10 +30,7 @@ describe('threads.open scope', () => {
     open.mockClear()
   })
 
-  describe.each([
-    { kind: 'sandbox', headers: sandbox },
-    { kind: 'pod', headers: pod },
-  ])('under a $kind token', ({ headers }) => {
+  describe.each([{ kind: 'sandbox', headers: sandbox }])('under a $kind token', ({ headers }) => {
     it('confines the open to the token thread family', async () => {
       const reply = await mutate({ app, procedure: 'threads.open', headers, body: BODY })
 

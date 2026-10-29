@@ -4,7 +4,6 @@ import {
   CHILD_THREAD,
   createSessionsRouterApp,
   mutate,
-  pod,
   SANDBOX_THREAD,
   sandbox,
   WIRE_THREAD,
@@ -31,10 +30,7 @@ describe('token spawn depth', () => {
     open.mockClear()
   })
 
-  describe.each([
-    { kind: 'sandbox', headers: sandbox },
-    { kind: 'pod', headers: pod },
-  ])('under a $kind token', ({ headers }) => {
+  describe.each([{ kind: 'sandbox', headers: sandbox }])('under a $kind token', ({ headers }) => {
     describe.each([
       { procedure: 'threads.create', service: create, base: {} },
       { procedure: 'threads.open', service: open, base: { runId: 'run_1', drafts: [] } },

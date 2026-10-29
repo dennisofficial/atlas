@@ -33,8 +33,8 @@ const reachesThreadless = ({
   principal: TokenPrincipal
   procedureMeta: ApiProcedureMeta
 }): boolean => {
-  if (procedureMeta.sandboxReachable === true) return true
-  return principal.kind === ETokenPrincipalKind.Pod && procedureMeta.podReachable === true
+  if (principal.kind === ETokenPrincipalKind.Pod) return procedureMeta.podReachable === true
+  return procedureMeta.sandboxReachable === true
 }
 
 type PrincipalCtx = { auth: VerifiedSession; sandbox?: SandboxPrincipal; pod?: PodPrincipal }
@@ -70,11 +70,17 @@ export class SessionOrSandboxMiddleware implements TRPCMiddleware {
         .verifyTokenPrincipal({ token: ctx.bearerToken })
         .catch(() => null)
       if (row !== null) {
-        const threadId = threadIdOf(await getRawInput())
-        if (threadId !== undefined) {
-          await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
-        } else if (!reachesThreadless({ principal: row, procedureMeta })) {
-          throw new ForbiddenException('a pod or sandbox token does not reach this route')
+        if (row.kind === ETokenPrincipalKind.Pod) {
+          if (!reachesThreadless({ principal: row, procedureMeta })) {
+            throw new ForbiddenException('a pod token does not reach this route')
+          }
+        } else {
+          const threadId = threadIdOf(await getRawInput())
+          if (threadId !== undefined) {
+            await this.sandboxes.assertThreadInFamily({ sandboxThreadId: row.threadId, threadId })
+          } else if (!reachesThreadless({ principal: row, procedureMeta })) {
+            throw new ForbiddenException('a sandbox token does not reach this route')
+          }
         }
         return next({ ctx: { ...ctx, ...principalCtx(row) } })
       }

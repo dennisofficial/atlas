@@ -37,7 +37,10 @@ export class GithubPrStreamRouter {
     private readonly mailbox: GithubPrEventMailboxService,
   ) {}
 
-  @Subscription({ output: githubPrStreamOutputSchema, meta: meta({ sandboxReachable: true }) })
+  @Subscription({
+    output: githubPrStreamOutputSchema,
+    meta: meta({ podReachable: true, sandboxReachable: true }),
+  })
   stream(
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
     @Options() opts: ProcedureOptions,

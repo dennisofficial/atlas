@@ -10,6 +10,7 @@ import {
 import {
   ERuntimePhase,
   EServeEnv,
+  isLocalPod,
   sandboxRotationReceiptSchema,
   type RuntimeCheckpoint,
   type SandboxRotationReceipt,
@@ -69,6 +70,7 @@ export function createRuntimeCheckpointCapture(
   const cloudURL = (deps.env[EServeEnv.CloudUrl] ?? '').trim().replace(/\/+$/, '')
   const sessionId = (deps.env[SANDBOX_SESSION_ID_ENV] ?? '').trim()
   const publishable = sessionId.length > 0
+  const mirrors = !isLocalPod(deps.env)
 
   let sealed = false
   let captures: Promise<void> = Promise.resolve()
@@ -156,7 +158,7 @@ export function createRuntimeCheckpointCapture(
   }
 
   const mirrorNow = (checkpoint: RuntimeCheckpoint): void => {
-    if (cloudURL.length === 0) return
+    if (!mirrors || cloudURL.length === 0) return
     const due =
       mirrorImmediately(checkpoint.phase) ||
       registrationMissing ||
@@ -336,7 +338,7 @@ export function createRuntimeCheckpointCapture(
 
   const flush = async (args: { timeoutMs: number }): Promise<void> => {
     await Promise.allSettled([captures, capturing ?? Promise.resolve()])
-    if (cloudURL.length > 0 && queuedMirror !== null) ensureMirrorLatch()
+    if (mirrors && cloudURL.length > 0 && queuedMirror !== null) ensureMirrorLatch()
     const timer = new Promise<'expired'>((resolve) => {
       const handle = setTimeout(() => resolve('expired'), args.timeoutMs)
       handle.unref?.()

@@ -113,7 +113,7 @@ describe('pod lease bearer on the tRPC surface', () => {
     expect((await mint('pod-token-a')).status).toBe(404)
   })
 
-  it('reaches its thread family and podReachable routes, and nothing else', async () => {
+  it('reaches podReachable routes only, never its thread family', async () => {
     const get = (procedure: string, input?: object) => {
       const call = request(app.getHttpServer()).get(`/v1/trpc/probe.${procedure}`)
       const withInput = input === undefined ? call : call.query({ input: JSON.stringify(input) })
@@ -121,9 +121,9 @@ describe('pod lease bearer on the tRPC surface', () => {
     }
 
     expect((await get('plain')).status).toBe(403)
-    expect((await get('plainThread', { threadId: 'thread-pod-a' })).status).toBe(200)
-    expect((await get('plainThread', { threadId: POD_CHILD_THREAD })).status).toBe(200)
-    expect((await get('plainThread', { threadId: 'thread-other' })).status).toBe(401)
+    expect((await get('plainThread', { threadId: 'thread-pod-a' })).status).toBe(403)
+    expect((await get('plainThread', { threadId: POD_CHILD_THREAD })).status).toBe(403)
+    expect((await get('plainThread', { threadId: 'thread-other' })).status).toBe(403)
     expect((await get('pod')).status).toBe(200)
   })
 

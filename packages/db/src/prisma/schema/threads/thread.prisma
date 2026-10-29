@@ -21,7 +21,6 @@ model Thread {
   archivedAt        TimestamptzJsDate(3)?
   cloudSandbox      CloudSandbox?
   bootSteps         SandboxBootStep[]
-  localPodCheckpoints LocalPodCheckpoint[]
   events            Event[]
   turns             Turn[]
   user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Thread_userId_updatedAt_idx")
