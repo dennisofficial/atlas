@@ -1,5 +1,6 @@
 import {
   bootStepsPostSchema,
+  podChildRegisterSchema,
   podEventsPostSchema,
   podEventsReplySchema,
   podEventsTruncateSchema,
@@ -8,6 +9,7 @@ import {
   sandboxExposePortRequestSchema,
   sandboxSelfStopRequestSchema,
   type BootStepsPost,
+  type PodChildRegister,
   type PodEventsPost,
   type PodEventsReply,
   type PodEventsTruncate,
@@ -25,7 +27,9 @@ import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
 import { applyThreadActivity } from './thread-activity'
+import { registerPodChild } from './pod-child'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
+import { assertWithinSandboxFamily } from './pod-family'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { PreviewTunnelService } from './preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
@@ -78,22 +82,37 @@ export class SandboxSelfRouter {
   }
 
   @Mutation({ input: podEventsPostSchema, output: podEventsReplySchema })
-  events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
-    return applyPodEvents({
-      threadId: ctx.sandbox.threadId,
-      events: input.events,
-      signals: this.signals,
+  async events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
     })
+    return applyPodEvents({ threadId, events: input.events, signals: this.signals })
   }
 
   @Mutation({ input: podEventsTruncateSchema, output: podEventsReplySchema })
-  truncateEvents(
+  async truncateEvents(
     @Input() input: PodEventsTruncate,
     @Ctx() ctx: SandboxTrpcCtx,
   ): Promise<PodEventsReply> {
-    return truncatePodEvents({
-      threadId: ctx.sandbox.threadId,
-      toSeq: input.toSeq,
+    const threadId = await assertWithinSandboxFamily({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      threadId: input.threadId,
+    })
+    return truncatePodEvents({ threadId, toSeq: input.toSeq, signals: this.signals })
+  }
+
+  @Mutation({ input: podChildRegisterSchema, output: podEventsReplySchema })
+  registerChild(
+    @Input() input: PodChildRegister,
+    @Ctx() ctx: SandboxTrpcCtx,
+  ): Promise<PodEventsReply> {
+    return registerPodChild({
+      rootThreadId: ctx.sandbox.threadId,
+      userId: ctx.sandbox.userId,
+      input,
       signals: this.signals,
     })
   }

@@ -1,0 +1,78 @@
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { recordingSignals } from '../sessions/thread-signals.fixture'
+import { registerPodChild } from './pod-child'
+
+const register = (input: { threadId: string; spawnedBy: string; agentType?: string }) =>
+  registerPodChild({
+    rootThreadId: 'thr-1',
+    userId: 'usr-1',
+    input: { agentType: 'explore', ...input },
+    signals: recordingSignals().signals,
+  })
+
+describe('registerPodChild', () => {
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await seedUsers('usr-1', 'usr-2')
+    await seedThreadRow({
+      id: 'thr-1',
+      userId: 'usr-1',
+      workspace: '/workspace',
+      repo: 'acme/app',
+      executionLocation: 'cloud',
+    })
+  })
+
+  it('creates the child row under the spawner with the root placement', async () => {
+    const reply = await register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })
+
+    const row = await db.orm.public.Thread.where({ id: 'thr-c1' }).first()
+    expect(reply).toEqual({ head: 0 })
+    expect(row).toMatchObject({
+      userId: 'usr-1',
+      spawnerThreadId: 'thr-1',
+      agentType: 'explore',
+      workspace: '/workspace',
+      repo: 'acme/app',
+      executionLocation: 'cloud',
+    })
+  })
+
+  it('is idempotent and reports the stored head', async () => {
+    await register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })
+    await db.orm.public.Thread.where({ id: 'thr-c1' }).update({ head: 4 })
+
+    expect(await register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })).toEqual({ head: 4 })
+  })
+
+  it('refuses a row registered under a different spawner with 409', async () => {
+    await seedThreadRow({ id: 'thr-c2', userId: 'usr-1', spawnerThreadId: 'thr-1' })
+    await register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })
+
+    await expect(register({ threadId: 'thr-c1', spawnedBy: 'thr-c2' })).rejects.toMatchObject({
+      status: 409,
+    })
+  })
+
+  it('registers a descendant of a child and refuses a spawner outside the family', async () => {
+    await register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })
+    await seedThreadRow({ id: 'thr-x', userId: 'usr-1' })
+
+    expect(await register({ threadId: 'thr-c2', spawnedBy: 'thr-c1' })).toEqual({ head: 0 })
+    await expect(register({ threadId: 'thr-c3', spawnedBy: 'thr-x' })).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it('refuses to adopt a thread row owned by another user', async () => {
+    await seedThreadRow({ id: 'thr-c1', userId: 'usr-2', spawnerThreadId: 'thr-1' })
+
+    await expect(register({ threadId: 'thr-c1', spawnedBy: 'thr-1' })).rejects.toMatchObject({
+      status: 409,
+    })
+  })
+})

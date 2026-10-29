@@ -10,7 +10,6 @@ import { Button } from '@dltech/atlas-ui/components/button'
 
 import { spanMsOf } from '../data/clock-time'
 import { spawnDomId, type ReportItem, type SpawnItem } from '../data/transcript-agents'
-import { useThreadPanel } from '../panel/thread-panel-context'
 
 function outcomeOf(item: SpawnItem) {
   if (item.status === EAgentStatus.Running) return undefined
@@ -23,14 +22,15 @@ export function SpawnCard({
   item,
   model,
   now,
+  onOpenAgent,
 }: {
   item: SpawnItem
   model: string | undefined
   now: number
+  onOpenAgent: ((id: string) => void) | null
 }) {
-  const { openAgent } = useThreadPanel()
   const running = item.status === EAgentStatus.Running
-  const handleShowAll = () => openAgent(item.agentId)
+  const handleShowAll = () => onOpenAgent?.(item.agentId)
   const elapsed = formatElapsed(
     spanMsOf({ startedAt: item.at, endedAt: item.endedAt, now, running }),
   )
@@ -45,9 +45,11 @@ export function SpawnCard({
         result={
           <div className="flex flex-col items-start gap-3">
             {outcomeOf(item)}
-            <Button variant="ghost" size="xs" onClick={handleShowAll}>
-              Show in agent detail
-            </Button>
+            {onOpenAgent === null ? null : (
+              <Button variant="ghost" size="xs" onClick={handleShowAll}>
+                Show in agent detail
+              </Button>
+            )}
           </div>
         }
         defaultOpen={false}
@@ -56,8 +58,13 @@ export function SpawnCard({
   )
 }
 
-export function ReportNotice({ item }: { item: ReportItem }) {
-  const { openAgent } = useThreadPanel()
+export function ReportNotice({
+  item,
+  onOpenAgent,
+}: {
+  item: ReportItem
+  onOpenAgent: ((id: string) => void) | null
+}) {
   return (
     <SubagentReports
       reports={[
@@ -71,7 +78,7 @@ export function ReportNotice({ item }: { item: ReportItem }) {
           errorText: item.errorText,
         },
       ]}
-      onOpen={openAgent}
+      onOpen={onOpenAgent ?? undefined}
     />
   )
 }

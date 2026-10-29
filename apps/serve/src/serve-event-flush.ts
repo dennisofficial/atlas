@@ -26,7 +26,7 @@ export class ControlPlaneRefusal extends Error {
 
 const REFUSAL_STATUSES: readonly number[] = [401, 403, 404]
 
-const failedWith = (failure: unknown): Error => {
+export const failedWith = (failure: unknown): Error => {
   const status = httpStatusOf(failure)
   if (status === undefined) return failure instanceof Error ? failure : new Error(String(failure))
   return REFUSAL_STATUSES.includes(status)
@@ -124,22 +124,30 @@ export function createEventFlusher(args: {
   return { flush, rebase, durableHead: () => durable }
 }
 
-export function httpTruncatePodEvents(remote: ApiRemote): TruncatePodEvents {
+export function httpTruncatePodEvents(
+  remote: ApiRemote,
+  threadId?: ThreadId | undefined,
+): TruncatePodEvents {
   const client = createApiClient(remote)
   return async (toSeq) => {
     try {
-      return (await client.sandboxSelf.truncateEvents.mutate({ toSeq })).head
+      const target = threadId === undefined ? {} : { threadId }
+      return (await client.sandboxSelf.truncateEvents.mutate({ ...target, toSeq })).head
     } catch (failure) {
       throw failedWith(failure)
     }
   }
 }
 
-export function httpPostPodEvents(remote: ApiRemote): PostPodEvents {
+export function httpPostPodEvents(
+  remote: ApiRemote,
+  threadId?: ThreadId | undefined,
+): PostPodEvents {
   const client = createApiClient(remote)
   return async (events) => {
     try {
-      const reply = await client.sandboxSelf.events.mutate({ events: [...events] })
+      const target = threadId === undefined ? {} : { threadId }
+      const reply = await client.sandboxSelf.events.mutate({ ...target, events: [...events] })
       return { kind: EFlushReply.Stored, head: reply.head }
     } catch (failure) {
       if (httpStatusOf(failure) !== 409) throw failedWith(failure)

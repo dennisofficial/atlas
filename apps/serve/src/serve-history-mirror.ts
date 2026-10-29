@@ -26,12 +26,13 @@ export const lowestChangedSeq = (args: {
 
 export function mirrorHistoryEdits(args: {
   app: Pick<ServeApp, 'log' | 'rewind' | 'compaction'>
-  threadId: ThreadId
-  flusher: Pick<EventFlusher, 'flush' | 'rebase'>
+  flusherFor: (threadId: ThreadId) => Pick<EventFlusher, 'flush' | 'rebase'> | undefined
 }): void {
-  const { app, threadId, flusher } = args
+  const { app } = args
 
-  const mirrored = async <T>(edit: () => Promise<T>): Promise<T> => {
+  const mirrored = async <T>(threadId: ThreadId, edit: () => Promise<T>): Promise<T> => {
+    const flusher = args.flusherFor(threadId)
+    if (flusher === undefined) return edit()
     const before = await snapshotOf({ events: app.log, threadId })
     const result = await edit()
     const after = await snapshotOf({ events: app.log, threadId })
@@ -43,13 +44,13 @@ export function mirrorHistoryEdits(args: {
 
   const truncate = app.rewind?.truncate
   if (app.rewind !== undefined && truncate !== undefined) {
-    app.rewind.truncate = (given) => mirrored(() => truncate(given))
+    app.rewind.truncate = (given) => mirrored(given.threadId, () => truncate(given))
   }
   const compaction = app.compaction
   if (compaction !== undefined) {
     const summarise = compaction.summarise.bind(compaction)
     const compact = compaction.compact.bind(compaction)
-    compaction.summarise = (given) => mirrored(() => summarise(given))
-    compaction.compact = (given) => mirrored(() => compact(given))
+    compaction.summarise = (given) => mirrored(given.threadId, () => summarise(given))
+    compaction.compact = (given) => mirrored(given.threadId, () => compact(given))
   }
 }

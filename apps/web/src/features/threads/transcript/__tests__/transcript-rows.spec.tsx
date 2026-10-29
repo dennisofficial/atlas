@@ -87,6 +87,7 @@ describe('ToolRow', () => {
       panel: panelOf({ openChanges }),
       element: (
         <ToolRow
+          onOpenChanges={openChanges}
           call={{
             id: 'c1',
             kind: EToolKind.Edit,
@@ -106,7 +107,29 @@ describe('ToolRow', () => {
       panel: panelOf({}),
       element: (
         <ToolRow
+          onOpenChanges={() => undefined}
           call={{ id: 'c1', kind: EToolKind.Edit, state: EToolState.Done, label: 'src/a.ts' }}
+        />
+      ),
+    })
+    expect(document.querySelector('button[aria-label^="Open"]')).toBeNull()
+  })
+})
+
+describe('ToolRow without actions', () => {
+  it('renders an edit without a navigation button', async () => {
+    await mount({
+      panel: panelOf({}),
+      element: (
+        <ToolRow
+          onOpenChanges={null}
+          call={{
+            id: 'c1',
+            kind: EToolKind.Edit,
+            state: EToolState.Done,
+            label: 'src/a.ts',
+            path: '/repo/src/a.ts',
+          }}
         />
       ),
     })
@@ -118,7 +141,7 @@ describe('SpawnCard', () => {
   it('carries the spawn DOM id and shows the brief and model', async () => {
     await mount({
       panel: panelOf({}),
-      element: <SpawnCard item={spawn} model="gpt-5" now={0} />,
+      element: <SpawnCard item={spawn} model="gpt-5" now={0} onOpenAgent={null} />,
     })
     expect(document.getElementById('agent-spawn-thr_child')).not.toBeNull()
     expect(document.body.textContent).toContain('Audit the vault')
@@ -130,7 +153,7 @@ describe('SpawnCard', () => {
     const openAgent = mock((_id: string) => undefined)
     await mount({
       panel: panelOf({ openAgent }),
-      element: <SpawnCard item={spawn} model={undefined} now={0} />,
+      element: <SpawnCard item={spawn} model={undefined} now={0} onOpenAgent={openAgent} />,
     })
     await click(buttonNamed('Show in agent detail'))
     expect(openAgent).toHaveBeenCalledWith('thr_child')
@@ -138,9 +161,17 @@ describe('SpawnCard', () => {
 })
 
 describe('ReportNotice', () => {
+  it('hides the open button without an action', async () => {
+    await mount({ panel: panelOf({}), element: <ReportNotice item={report} onOpenAgent={null} /> })
+    expect(buttonNamed('Open in Agents')).toBeUndefined()
+  })
+
   it('opens the reporting agent', async () => {
     const openAgent = mock((_id: string) => undefined)
-    await mount({ panel: panelOf({ openAgent }), element: <ReportNotice item={report} /> })
+    await mount({
+      panel: panelOf({ openAgent }),
+      element: <ReportNotice item={report} onOpenAgent={openAgent} />,
+    })
     await click(buttonNamed('reported'))
     await click(buttonNamed('Open in Agents'))
     expect(openAgent).toHaveBeenCalledWith('thr_child')

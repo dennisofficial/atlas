@@ -7,7 +7,6 @@ import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { Trace } from '@dltech/atlas-ui/components/trace'
 
 import { EToolFamily, type ToolCallItem } from '../data/transcript-items'
-import { useThreadPanel } from '../panel/thread-panel-context'
 
 const ICON_OF_FAMILY: Record<EToolFamily, ReactNode> = {
   [EToolFamily.Agent]: <BotIcon />,
@@ -20,9 +19,14 @@ const OPENABLE_STATES: readonly EToolState[] = [EToolState.Running, EToolState.D
 const isOpenableEdit = (call: ToolCallItem): call is ToolCallItem & { path: string } =>
   call.kind === EToolKind.Edit && call.path !== undefined && OPENABLE_STATES.includes(call.state)
 
-function EditToolRow({ call }: { call: ToolCallItem & { path: string } }) {
-  const { openChanges } = useThreadPanel()
-  const handleOpen = () => openChanges(call.path)
+function EditToolRow({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem & { path: string }
+  onOpenChanges: (path: string) => void
+}) {
+  const handleOpen = () => onOpenChanges(call.path)
   return (
     <Trace>
       <button
@@ -37,8 +41,16 @@ function EditToolRow({ call }: { call: ToolCallItem & { path: string } }) {
   )
 }
 
-export function ToolRow({ call }: { call: ToolCallItem }) {
-  if (isOpenableEdit(call)) return <EditToolRow call={call} />
+export function ToolRow({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem
+  onOpenChanges: ((path: string) => void) | null
+}) {
+  if (onOpenChanges !== null && isOpenableEdit(call)) {
+    return <EditToolRow call={call} onOpenChanges={onOpenChanges} />
+  }
   return (
     <Tool
       kind={call.kind}
