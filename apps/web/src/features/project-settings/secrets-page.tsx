@@ -220,7 +220,7 @@ export function SecretsPage() {
   return (
     <SettingsSection
       title="Secrets & Env Vars"
-      description="Order of precedence: default, then personal, then project. The project value wins. Sessions don't load project values yet."
+      description="Order of precedence: default, then personal, then project. The project value wins. Every shell and service in a cloud thread gets them as environment variables."
     >
       <QueryGate query={own.query} label="project secrets">
         {(snapshot) => {

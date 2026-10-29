@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { ATLAS_MCP_FILE_NAME } from '@dltech/atlas-harness'
-import { ENV_NAME_PATTERN, ESecretKind, type ScopedMcpServer } from '@dltech/atlas-wire/web'
+import { ENV_NAME_PATTERN, type ESecretKind, type ScopedMcpServer } from '@dltech/atlas-wire/web'
 
 import { writeAtomically } from './owner-only-file'
 
@@ -50,7 +50,6 @@ export const exportEnvSecrets = (args: {
   const previous = args.exported ?? new Set<string>()
   const current = new Set<string>()
   for (const secret of args.secrets) {
-    if (secret.kind !== ESecretKind.EnvVar) continue
     if (!ENV_NAME_PATTERN.test(secret.name) || secret.name.startsWith(RESERVED_ENV_PREFIX)) continue
     if (args.env[secret.name] !== undefined && !previous.has(secret.name)) continue
     args.env[secret.name] = secret.value

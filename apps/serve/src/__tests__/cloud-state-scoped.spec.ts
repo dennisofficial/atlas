@@ -56,13 +56,13 @@ describe('applyCloudState against the scoped config endpoint', () => {
     })
   })
 
-  it('exports env-kind entries to the process env, never secret-kind or ATLAS_* names, and never overrides', async () => {
+  it('exports secrets of either kind to the process env, never ATLAS_* names, and never overrides', async () => {
     const home = tempHome()
-    const env: Record<string, string | undefined> = { TAVILY_API_KEY: undefined }
+    const env: Record<string, string | undefined> = {}
     await apply({ home, cloud: cloudWith({ config: resolved }), env })
 
     expect(env.DATABASE_URL).toBe('postgres://proj')
-    expect(env.TAVILY_API_KEY).toBeUndefined()
+    expect(env.TAVILY_API_KEY).toBe('tvly-scoped')
     expect(env.ATLAS_MODEL).toBeUndefined()
     expect(env[ESettingId.SidebarWidth]).toBeUndefined()
 
