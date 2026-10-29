@@ -33,5 +33,6 @@ export const handlers = (overrides: Partial<LocalCommandHandlers> = {}): LocalCo
   onRestart: null,
   onWake: () => RAN,
   onQuit: stub,
+  quitDetaches: false,
   ...overrides,
 })

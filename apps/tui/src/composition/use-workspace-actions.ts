@@ -89,6 +89,7 @@ export function useWorkspaceActions(args: {
     handleContainerResources,
     handleRestart,
     handleQuit,
+    quitDetaches: props.cloudBridge !== null,
     handleOpenAccounts: args.handleOpenAccounts,
     handleNewConversation: args.handleNewConversation,
     handleResumeConversation: args.handleResumeConversation,
