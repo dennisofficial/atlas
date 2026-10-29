@@ -95,9 +95,9 @@ describe('livePreviewCount', () => {
   test('counts only the ports still serving', () => {
     const ports = previewPortsOf(
       roster({
-        shells: [shell({ exposure: exposure(5173) })],
         services: [
           service({ exposure: exposure(3000) }),
+          service({ serviceId: 'svc_3', exposure: exposure(5173) }),
           service({ serviceId: 'svc_2', exposure: exposure(8080), status: EServiceStatus.Exited }),
         ],
       }),
