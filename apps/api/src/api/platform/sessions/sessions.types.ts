@@ -26,6 +26,7 @@ export type LinkedPullRequestDto = {
   repo: string
   branch: string
   state?: string | undefined
+  via?: { threadId: string; title: string | null } | undefined
 }
 
 export type ThreadDraft = {

@@ -123,3 +123,36 @@ describe('pinnedPullRequestOf', () => {
     expect(pinnedPullRequestOf([])).toBeUndefined()
   })
 })
+
+describe('teammate pull requests', () => {
+  const mate = { threadId: 'mate', title: 'fix it' }
+
+  it('carries via onto the entry', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [linked(1, 'a'), { ...linked(2, 'b'), via: mate }],
+    })
+    const entries = pullRequestEntriesOf({ thread, states: [] })
+    expect(entries[0]?.via).toBeUndefined()
+    expect(entries[1]?.via).toEqual(mate)
+  })
+
+  it('pins the last own pull request over a newer teammate one', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [linked(1, 'a'), linked(2, 'b'), { ...linked(3, 'c'), via: mate }],
+    })
+    expect(pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))?.number).toBe(2)
+  })
+
+  it('pins the last entry when every pull request is a teammate one', () => {
+    const thread = threadOf({
+      id: 't',
+      pullRequests: [
+        { ...linked(1, 'a'), via: mate },
+        { ...linked(2, 'b'), via: mate },
+      ],
+    })
+    expect(pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))?.number).toBe(2)
+  })
+})

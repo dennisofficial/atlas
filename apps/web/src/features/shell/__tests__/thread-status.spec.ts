@@ -14,6 +14,18 @@ const pr = (number: number, state?: string) => ({
 })
 
 describe('threadStatusOf', () => {
+  it('ignores teammate pull requests', () => {
+    const via = { threadId: 'm', title: null }
+    expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [{ ...pr(1, 'open'), via }] }))).toBe(
+      EThreadStatus.Idle,
+    )
+    expect(
+      threadStatusOf(
+        threadOf({ id: 'a', pullRequests: [pr(1, 'merged'), { ...pr(2, 'open'), via }] }),
+      ),
+    ).toBe(EThreadStatus.PrMerged)
+  })
+
   it('is idle without pull requests', () => {
     expect(threadStatusOf(threadOf({ id: 'a' }))).toBe(EThreadStatus.Idle)
     expect(threadStatusOf(threadOf({ id: 'a', pullRequests: [] }))).toBe(EThreadStatus.Idle)

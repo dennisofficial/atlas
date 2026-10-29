@@ -58,4 +58,20 @@ describe('pullRequestListOf', () => {
     expect(row?.checks).toBeUndefined()
     expect(row?.conflicts).toBe(false)
   })
+
+  it('labels a teammate row with its title, or teammate when untitled', () => {
+    const list = pullRequestListOf({
+      thread: threadOf({
+        id: 't',
+        pullRequests: [
+          linked(1, 'b1', 'open'),
+          { ...linked(2, 'b2', 'open'), via: { threadId: 'm', title: 'fix it' } },
+          { ...linked(3, 'b3', 'open'), via: { threadId: 'n', title: null } },
+        ],
+      }),
+      states: [],
+    })
+    expect(list.rows.map((row) => row.via)).toEqual([undefined, 'via fix it', 'via teammate'])
+    expect(list.pinnedKey).toBe('o/r#1')
+  })
 })
