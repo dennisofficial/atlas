@@ -161,6 +161,19 @@ describe('ThreadsRouter', () => {
       expect(create).toHaveBeenCalledWith({ userId: USER_ID, draft: { title: 'x' } })
     })
 
+    it('lets a session name any spawner, its sub-agents included', async () => {
+      const agent = { spawnedBy: 'thr-child', type: 'explore' }
+      const reply = await mutate({
+        app,
+        procedure: 'threads.create',
+        headers: as.session,
+        body: { agent },
+      })
+
+      expect(reply.status).toBe(200)
+      expect(create).toHaveBeenCalledWith({ userId: USER_ID, draft: { agent } })
+    })
+
     it('refuses a sandbox token that names no agent', async () => {
       const reply = await mutate({
         app,
