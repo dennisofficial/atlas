@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+import { useReturnPath } from '../shell/return-path'
 import { PageStatusScope, PageStatusSlot } from '../settings/status/page-status-scope'
 import { PROJECT_SECTION_STATUS } from '../settings/status/page-status'
 import { EProjectSettingsSection, PROJECT_NAV, hrefOfProjectSection } from './project-settings-nav'
@@ -24,6 +25,7 @@ export function ProjectSettingsShell({
   bare?: boolean
   children: ReactNode
 }) {
+  const backHref = useReturnPath()
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 grid h-12 grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 md:grid-cols-[1fr_auto_1fr]">
@@ -32,7 +34,7 @@ export function ProjectSettingsShell({
           size="sm"
           className="justify-self-start text-muted-foreground"
           nativeButton={false}
-          render={<Link href="/threads" />}
+          render={<Link href={backHref} />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
           <span className="sr-only sm:not-sr-only">Back to Atlas</span>
