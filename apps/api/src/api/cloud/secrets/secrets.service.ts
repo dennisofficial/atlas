@@ -30,6 +30,7 @@ export class SecretsService {
 
   async listNames(args: { userId: string }): Promise<string[]> {
     const rows = await db.orm.public.UserSecret.where({ userId: args.userId })
+      .select('name')
       .orderBy((row) => row.name.asc())
       .all()
     return rows.map((row) => row.name)
