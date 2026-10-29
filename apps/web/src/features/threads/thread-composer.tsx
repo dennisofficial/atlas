@@ -10,6 +10,8 @@ export function ThreadComposer({
   onSubmit,
   onEscape,
   sending,
+  working,
+  onStop,
   placeholder,
   children,
   ...attach
@@ -19,6 +21,8 @@ export function ThreadComposer({
   onSubmit: (text: string) => void
   onEscape?: (() => void) | undefined
   sending: boolean
+  working?: boolean | undefined
+  onStop?: (() => void) | undefined
   placeholder?: string | undefined
   children?: ReactNode
 }) {
@@ -33,6 +37,9 @@ export function ThreadComposer({
         onValueChange={onValueChange}
         onSubmit={onSubmit}
         sending={sending}
+        busy={working}
+        queueWhileBusy
+        onStop={onStop}
         clearOnSubmit={false}
         accept="image/*"
         {...attach}

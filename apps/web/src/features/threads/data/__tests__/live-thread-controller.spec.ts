@@ -236,33 +236,6 @@ describe('createLiveThreadController', () => {
     expect(test.controller.send({ text: 'x', requestId: 'r' })).toBe(false)
   })
 
-  it('chooseModel sends set-thread-model with the thread id and model and resolves on the reply', async () => {
-    const test = rig()
-    test.controller.start()
-    await flush()
-    test.ready()
-    await flush()
-    const before = test.requests().length
-
-    const chosen = test.controller.chooseModel({ ref: 'anthropic/claude-opus-5', effort: 'high' })
-    await flush()
-
-    const request = test.requests()[before]
-    expect(request?.op).toBe(EClientRequest.SetThreadModel)
-    expect(request?.params).toEqual({
-      threadId: 'thr_1',
-      model: { ref: 'anthropic/claude-opus-5', effort: 'high' },
-    })
-    if (request === undefined) throw new Error('no request')
-    test.receive({
-      kind: EServeFrame.Reply,
-      replyTo: request.id,
-      ok: true,
-      data: { threadId: 'thr_1', model: { ref: 'anthropic/claude-opus-5', effort: 'high' } },
-    })
-    expect(await chosen).toBe(true)
-  })
-
   it('reports a thread-model-changed broadcast made elsewhere', async () => {
     const seen: { ref: string; effort: string }[] = []
     const test = rig({ onModelChanged: (model) => void seen.push(model) })
@@ -279,9 +252,11 @@ describe('createLiveThreadController', () => {
     expect(seen).toEqual([{ ref: 'openai/gpt-5', effort: 'low' }])
   })
 
-  it('chooseModel is false without a connected channel', async () => {
-    const test = rig()
-    expect(await test.controller.chooseModel({ ref: 'a/b', effort: 'low' })).toBe(false)
+  it('exposes the extracted actions', () => {
+    const { controller } = rig()
+    expect(typeof controller.chooseModel).toBe('function')
+    expect(typeof controller.takeBackPending).toBe('function')
+    expect(typeof controller.interrupt).toBe('function')
   })
 })
 

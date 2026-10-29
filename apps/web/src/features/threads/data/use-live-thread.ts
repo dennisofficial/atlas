@@ -7,6 +7,7 @@ import { createLiveChatSession, type LiveChatSession } from './live-chat-session
 import {
   IDLE_LIVE_THREAD,
   type LiveChooseModel,
+  type LiveInterrupt,
   type LiveSend,
   type LiveTakeBackPending,
   type LiveThreadState,
@@ -20,6 +21,7 @@ const CHAT_THROTTLE_MS = 16
 const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
 const NOT_TAKEABLE: LiveTakeBackPending = async () => null
+const NOT_INTERRUPTIBLE: LiveInterrupt = () => false
 
 export function useLiveThread(args: {
   threadId: string
@@ -33,6 +35,7 @@ export function useLiveThread(args: {
   const sendRef = useRef<LiveSend>(NOT_LIVE)
   const chooseRef = useRef<LiveChooseModel>(NOT_CHOOSABLE)
   const takeBackRef = useRef<LiveTakeBackPending>(NOT_TAKEABLE)
+  const interruptRef = useRef<LiveInterrupt>(NOT_INTERRUPTIBLE)
   const modelChangedRef = useRef(args.onModelChanged)
   useEffect(() => {
     modelChangedRef.current = args.onModelChanged
@@ -51,12 +54,14 @@ export function useLiveThread(args: {
     sendRef.current = next.controller.send
     chooseRef.current = next.controller.chooseModel
     takeBackRef.current = next.controller.takeBackPending
+    interruptRef.current = next.controller.interrupt
     setSession(next)
     next.controller.start()
     return () => {
       sendRef.current = NOT_LIVE
       chooseRef.current = NOT_CHOOSABLE
       takeBackRef.current = NOT_TAKEABLE
+      interruptRef.current = NOT_INTERRUPTIBLE
       next.controller.stop()
       setSession(null)
       setState(IDLE_LIVE_THREAD)
@@ -74,5 +79,6 @@ export function useLiveThread(args: {
   const send = useMemo<LiveSend>(() => (sent) => sendRef.current(sent), [])
   const chooseModel = useMemo<LiveChooseModel>(() => (model) => chooseRef.current(model), [])
   const takeBackPending = useMemo<LiveTakeBackPending>(() => () => takeBackRef.current(), [])
-  return { ...state, steps, send, chooseModel, takeBackPending }
+  const interrupt = useMemo<LiveInterrupt>(() => () => interruptRef.current(), [])
+  return { ...state, steps, send, chooseModel, takeBackPending, interrupt }
 }
