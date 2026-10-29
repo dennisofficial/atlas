@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
 import { Logger } from '@nestjs/common'
-import { EGithubCallSource, withGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 
 const rateHeaders = {
@@ -40,15 +40,12 @@ describe('githubFetch', () => {
     fakeGithub.stop(true)
   })
 
-  it('logs one json line with rate headers and the ambient source', async () => {
+  it('logs one json line with rate headers and the given source', async () => {
     const lines = captureLines()
-    await withGithubCallSource({
+    await githubFetch({
       source: EGithubCallSource.PollSweep,
-      run: () =>
-        githubFetch(urlOf('/rated?state=open'), {
-          method: 'POST',
-          headers: { authorization: 'Bearer ghp_supersecret' },
-        }),
+      url: urlOf('/rated?state=open'),
+      init: { method: 'POST', headers: { authorization: 'Bearer ghp_supersecret' } },
     })
     expect(lines).toHaveLength(1)
     const line = JSON.parse(lines[0] ?? '')
@@ -68,25 +65,20 @@ describe('githubFetch', () => {
     expect(lines[0]).not.toContain('body')
   })
 
-  it('lets a nested source win and falls back to unattributed', async () => {
+  it('logs the explicitly given source and null rate headers when absent', async () => {
     const lines = captureLines()
-    await withGithubCallSource({
-      source: EGithubCallSource.PollSweep,
-      run: () =>
-        withGithubCallSource({
-          source: EGithubCallSource.RepoAccess,
-          run: () => githubFetch(urlOf('/user')),
-        }),
-    })
-    await githubFetch(urlOf('/user'))
+    await githubFetch({ source: EGithubCallSource.RepoAccess, url: urlOf('/user') })
     expect(JSON.parse(lines[0] ?? '').source).toBe('repo-access')
-    expect(JSON.parse(lines[1] ?? '').source).toBe('unattributed')
-    expect(JSON.parse(lines[1] ?? '').rateRemaining).toBeNull()
+    expect(JSON.parse(lines[0] ?? '').rateRemaining).toBeNull()
   })
 
   it('logs an error status and rethrows', async () => {
     const lines = captureLines()
-    const attempt = githubFetch(urlOf('/hang'), { signal: AbortSignal.timeout(20) })
+    const attempt = githubFetch({
+      source: EGithubCallSource.Unattributed,
+      url: urlOf('/hang'),
+      init: { signal: AbortSignal.timeout(20) },
+    })
     await expect(attempt).rejects.toMatchObject({ name: 'TimeoutError' })
     expect(JSON.parse(lines[0] ?? '')).toMatchObject({
       status: 'error',

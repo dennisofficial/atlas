@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import type {
   PullRequestCacheFields,
@@ -41,20 +42,24 @@ export class GithubUserReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
 
   async readPullRequest(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     number: number
   }): Promise<PullRequestCacheFields> {
     const pull = await this.get<RestPullRequest>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/pulls/${args.number}`,
     })
     const checkRuns = await this.get<{ check_runs: RestCheckRun[] }>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/check-runs?per_page=100`,
     })
     const statuses = await this.get<{ statuses: RestCommitStatus[] }>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/commits/${pull.head.sha}/status`,
     })
@@ -72,6 +77,7 @@ export class GithubUserReads {
    * bare branch matches only same-repo heads and misses forks.
    */
   async findOpenPrForBranch(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
@@ -79,6 +85,7 @@ export class GithubUserReads {
   }): Promise<{ number: number } | null> {
     const head = `${args.owner}:${encodeURIComponent(args.branch)}`
     const pulls = await this.get<Array<{ number: number }>>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/pulls?state=open&head=${head}&per_page=5`,
     })
@@ -87,25 +94,30 @@ export class GithubUserReads {
   }
 
   async createHook(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     config: HookConfig
   }): Promise<CreateHookResult> {
-    const response = await githubFetch(`${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`, {
-      method: 'POST',
-      headers: this.headers({ token: args.token }),
-      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
-      body: JSON.stringify({
-        name: 'web',
-        active: true,
-        events: HOOK_EVENTS,
-        config: {
-          url: args.config.url,
-          content_type: 'json',
-          secret: args.config.secret,
-        },
-      }),
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`,
+      init: {
+        method: 'POST',
+        headers: this.headers({ token: args.token }),
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+        body: JSON.stringify({
+          name: 'web',
+          active: true,
+          events: HOOK_EVENTS,
+          config: {
+            url: args.config.url,
+            content_type: 'json',
+            secret: args.config.secret,
+          },
+        }),
+      },
     })
     if (response.ok) {
       const body = (await response.json()) as { id?: number }
@@ -122,18 +134,20 @@ export class GithubUserReads {
   }
 
   async getHook(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     hookId: number
   }): Promise<'found' | 'missing' | 'unauthorized'> {
-    const response = await githubFetch(
-      `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
-      {
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      init: {
         headers: this.headers({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
-    )
+    })
     if (response.ok) return 'found'
     if (response.status === 404) return 'missing'
     if (response.status === 401 || response.status === 403) return 'unauthorized'
@@ -145,12 +159,14 @@ export class GithubUserReads {
   }
 
   async getHookEvents(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     hookId: number
   }): Promise<string[]> {
     const hook = await this.get<{ events?: string[] }>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
     })
@@ -158,21 +174,23 @@ export class GithubUserReads {
   }
 
   async updateHook(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     hookId: number
     events: string[]
   }): Promise<void> {
-    const response = await githubFetch(
-      `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
-      {
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      init: {
         method: 'PATCH',
         headers: this.headers({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({ events: args.events }),
       },
-    )
+    })
     if (!response.ok) {
       const detail = (await response.text()).slice(0, DETAIL_CAP)
       throw new GithubUserReadFailed(
@@ -183,19 +201,21 @@ export class GithubUserReads {
   }
 
   async deleteHook(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     hookId: number
   }): Promise<'deleted' | 'unauthorized'> {
-    const response = await githubFetch(
-      `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
-      {
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      init: {
         method: 'DELETE',
         headers: this.headers({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
-    )
+    })
     if (response.ok || response.status === 404) return 'deleted'
     if (response.status === 401 || response.status === 403) return 'unauthorized'
     const detail = (await response.text()).slice(0, DETAIL_CAP)
@@ -206,22 +226,32 @@ export class GithubUserReads {
   }
 
   private async findHookId(args: {
+    source: EGithubCallSource
     token: string
     owner: string
     repo: string
     config: HookConfig
   }): Promise<number | undefined> {
     const hooks = await this.get<Array<{ id: number; config?: { url?: string } }>>({
+      source: args.source,
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/hooks?per_page=100`,
     })
     return hooks.find((hook) => hook.config?.url === args.config.url)?.id
   }
 
-  private async get<T>(args: { token: string; path: string }): Promise<T> {
-    const response = await githubFetch(`${this.baseUrl}${args.path}`, {
-      headers: this.headers({ token: args.token }),
-      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+  private async get<T>(args: {
+    source: EGithubCallSource
+    token: string
+    path: string
+  }): Promise<T> {
+    const response = await githubFetch({
+      source: args.source,
+      url: `${this.baseUrl}${args.path}`,
+      init: {
+        headers: this.headers({ token: args.token }),
+        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+      },
     })
     if (!response.ok) {
       const detail = (await response.text()).slice(0, DETAIL_CAP)

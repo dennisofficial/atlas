@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common'
-import { currentGithubCallSource } from './github-call-log'
+import type { EGithubCallSource } from './github-call-log'
 
 const logger = new Logger('GithubCall')
 
@@ -27,16 +27,21 @@ function emit(line: Record<string, unknown>): void {
   }
 }
 
-export async function githubFetch(input: string, init?: RequestInit): Promise<Response> {
+export async function githubFetch(args: {
+  source: EGithubCallSource
+  url: string
+  init?: RequestInit
+}): Promise<Response> {
+  const { source, url, init } = args
   const started = performance.now()
   const base = {
-    source: currentGithubCallSource(),
+    source,
     method: init?.method ?? 'GET',
-    path: pathOf(input),
+    path: pathOf(url),
   }
   let response: Response
   try {
-    response = await fetch(input, init)
+    response = await fetch(url, init)
   } catch (failure) {
     emit({
       ...base,

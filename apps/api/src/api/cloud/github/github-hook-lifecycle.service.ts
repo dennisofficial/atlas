@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { EGithubCallSource, withGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from './github-call-log'
 import { Injectable, Logger } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -32,17 +32,7 @@ export class GithubHookLifecycleService {
     private readonly installations: GithubAppInstallationsService,
   ) {}
 
-  ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
-    return withGithubCallSource({
-      source: EGithubCallSource.HookLifecycle,
-      run: () => this.runEnsureHook(args),
-    })
-  }
-
-  private async runEnsureHook(args: {
-    userId: string
-    repoFullName: string
-  }): Promise<EnsureHookResult> {
+  async ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
     if (await this.installations.coversRepo({ repoFullName: args.repoFullName })) {
       return 'app-backed'
     }
@@ -69,14 +59,7 @@ export class GithubHookLifecycleService {
     }).updateAndCount({ idleSince: new Date() })
   }
 
-  handleSweep(): Promise<void> {
-    return withGithubCallSource({
-      source: EGithubCallSource.HookSweep,
-      run: () => this.runSweep(),
-    })
-  }
-
-  private async runSweep(): Promise<void> {
+  async handleSweep(): Promise<void> {
     const now = new Date()
     const idleCutoff = new Date(now.getTime() - IDLE_DELETE_AFTER_MS)
     const candidates = await db.orm.public.GithubRepoHook.where((hook) =>
@@ -120,7 +103,13 @@ export class GithubHookLifecycleService {
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     let result: 'found' | 'missing' | 'unauthorized'
     try {
-      result = await this.reads.getHook({ token, owner, repo, hookId: Number(args.hookId) })
+      result = await this.reads.getHook({
+        source: EGithubCallSource.HookLifecycle,
+        token,
+        owner,
+        repo,
+        hookId: Number(args.hookId),
+      })
       if (result === 'found') {
         await this.reconcileEvents({ token, owner, repo, hookId: Number(args.hookId) })
       }
@@ -143,10 +132,17 @@ export class GithubHookLifecycleService {
     repo: string
     hookId: number
   }): Promise<void> {
-    const current = await this.reads.getHookEvents(args)
+    const current = await this.reads.getHookEvents({
+      ...args,
+      source: EGithubCallSource.HookLifecycle,
+    })
     const missing = HOOK_EVENTS.filter((event) => !current.includes(event))
     if (missing.length === 0) return
-    await this.reads.updateHook({ ...args, events: [...current, ...missing] })
+    await this.reads.updateHook({
+      ...args,
+      source: EGithubCallSource.HookLifecycle,
+      events: [...current, ...missing],
+    })
   }
 
   private async reconcile(args: {
@@ -160,6 +156,7 @@ export class GithubHookLifecycleService {
     const secret = randomHookSecret()
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     const result = await this.reads.createHook({
+      source: EGithubCallSource.HookLifecycle,
       token,
       owner,
       repo,
@@ -188,6 +185,7 @@ export class GithubHookLifecycleService {
     const secret = randomHookSecret()
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     const result = await this.reads.createHook({
+      source: EGithubCallSource.HookLifecycle,
       token,
       owner,
       repo,
@@ -229,7 +227,13 @@ export class GithubHookLifecycleService {
     }
 
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    const outcome = await this.reads.deleteHook({ token, owner, repo, hookId: Number(hook.hookId) })
+    const outcome = await this.reads.deleteHook({
+      source: EGithubCallSource.HookSweep,
+      token,
+      owner,
+      repo,
+      hookId: Number(hook.hookId),
+    })
     if (outcome === 'unauthorized') {
       await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).update({
         status: ERepoHookStatus.Orphaned,

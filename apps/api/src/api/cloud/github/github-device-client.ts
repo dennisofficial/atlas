@@ -1,5 +1,5 @@
 import { BadGatewayException } from '@nestjs/common'
-import { EGithubCallSource, withGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import type { GithubDeviceCodesDto } from './github.types'
 
@@ -37,8 +37,10 @@ function asHttpResponse(value: unknown): GithubHttpResponse {
   return value as GithubHttpResponse
 }
 
-export const defaultGithubFetch: FetchFn = async (url, request) =>
-  asHttpResponse(await githubFetch(url, request))
+export function defaultGithubFetch(args: { source: EGithubCallSource }): FetchFn {
+  return async (url, request) =>
+    asHttpResponse(await githubFetch({ source: args.source, url, init: request }))
+}
 
 export type GithubPollOutcome =
   | { kind: 'granted'; accessToken: string; scope: string }
@@ -86,14 +88,11 @@ export class GithubDeviceClient {
   private readonly fetchFn: FetchFn
 
   constructor(args: { fetchFn?: FetchFn } = {}) {
-    this.fetchFn = args.fetchFn ?? defaultGithubFetch
+    this.fetchFn = args.fetchFn ?? defaultGithubFetch({ source: EGithubCallSource.DeviceFlow })
   }
 
   private send(url: string, request: GithubHttpRequest): Promise<GithubHttpResponse> {
-    return withGithubCallSource({
-      source: EGithubCallSource.DeviceFlow,
-      run: () => this.fetchFn(url, request),
-    })
+    return this.fetchFn(url, request)
   }
 
   async beginDeviceFlow(args: { clientId: string }): Promise<GithubDeviceCodesDto> {

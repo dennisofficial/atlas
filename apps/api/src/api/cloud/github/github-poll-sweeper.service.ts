@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { EGithubCallSource, withGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
@@ -38,14 +38,7 @@ export class GithubPollSweeperService {
     private readonly signals: ThreadSignalsService,
   ) {}
 
-  handlePoll(): Promise<void> {
-    return withGithubCallSource({
-      source: EGithubCallSource.PollSweep,
-      run: () => this.runPoll(),
-    })
-  }
-
-  private async runPoll(): Promise<void> {
+  async handlePoll(): Promise<void> {
     const now = new Date()
 
     await this.refreshLiveUntil({ now })
@@ -147,7 +140,13 @@ export class GithubPollSweeperService {
     const [owner, repo] = args.repoFullName.split('/') as [string, string]
     let found: { number: number } | null
     try {
-      found = await this.reads.findOpenPrForBranch({ token, owner, repo, branch: args.branch })
+      found = await this.reads.findOpenPrForBranch({
+        source: EGithubCallSource.PollSweep,
+        token,
+        owner,
+        repo,
+        branch: args.branch,
+      })
     } catch (failure) {
       if (failure instanceof GithubUserReadFailed) return null
       throw failure
@@ -176,7 +175,13 @@ export class GithubPollSweeperService {
       prior: PrTransitionSnapshot | null
     }
     try {
-      const fields = await this.reads.readPullRequest({ token, owner, repo, number: args.prNumber })
+      const fields = await this.reads.readPullRequest({
+        source: EGithubCallSource.PollSweep,
+        token,
+        owner,
+        repo,
+        number: args.prNumber,
+      })
       const prior = snapshotOf(
         await db.orm.public.GithubPrState.first({
           repoFullName: args.repoFullName,
