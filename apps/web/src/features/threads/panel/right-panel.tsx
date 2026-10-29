@@ -9,6 +9,7 @@ import { AgentsTab } from './agents-tab'
 import { ChangesTab } from './changes-tab'
 import { FilesTab } from './files-tab'
 import { PreviewTab } from './preview-tab'
+import { ProcessesTab } from './processes-tab'
 import { ERightTab, isRightTab, TAB_LABEL } from './right-tab'
 import { SubscriptionsTab } from './subscriptions-tab'
 import { TerminalTab } from './terminal-tab'
@@ -26,6 +27,7 @@ const TAB_BODY: Record<
   [ERightTab.Changes]: ChangesTab,
   [ERightTab.Files]: FilesTab,
   [ERightTab.Terminal]: TerminalTab,
+  [ERightTab.Processes]: ProcessesTab,
   [ERightTab.Preview]: PreviewTab,
 }
 

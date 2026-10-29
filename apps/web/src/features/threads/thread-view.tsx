@@ -12,6 +12,7 @@ import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 import {
   branchOf,
   headerStateOf,
+  livePullRequestBadgeOf,
   pullRequestBadgeOf,
   sandboxSettingsHrefOf,
   spawnerIdOf,
@@ -41,6 +42,7 @@ import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
 import { usePodResize } from './data/use-pod-resize'
 import { usePodStatus } from './data/use-pod-status'
+import { usePrStates } from './data/use-pr-states'
 import { usePullRequestBell } from './data/use-pull-request-bell'
 import { useThreadSignals } from './data/use-thread-signals'
 import { messageOf, useSend } from './data/use-send'
@@ -86,6 +88,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     channel,
     thread: thread.data,
   })
+  const prStates = usePrStates(channel)
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
@@ -185,7 +188,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       branch={branchOf(thread.data)}
-      pullRequest={pullRequestBadgeOf(thread.data)}
+      pullRequest={
+        livePullRequestBadgeOf({ states: prStates, thread: thread.data }) ??
+        pullRequestBadgeOf(thread.data)
+      }
       bell={bell}
       onToggleBell={handleToggleBell}
       podChip={
