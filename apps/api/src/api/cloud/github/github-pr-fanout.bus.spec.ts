@@ -123,7 +123,7 @@ describe('GithubPrFanoutService over a bus', () => {
   it('delivers a received event frame and fires the ack handler with its ackId', () => {
     const { fanout, bus } = distributedFanout()
     const received: GithubPrEventDto[] = []
-    const acks: { ackId: string; userId: string }[] = []
+    const acks: unknown[] = []
     fanout.onEventDelivered((ack) => acks.push(ack))
     fanout.openStream({
       userId: 'usr_a',
@@ -141,7 +141,7 @@ describe('GithubPrFanoutService over a bus', () => {
     })
 
     expect(received).toEqual([EVENT])
-    expect(acks).toEqual([{ ackId: 'row_1', userId: 'usr_a' }])
+    expect(acks).toEqual([{ ackId: 'row_1', userId: 'usr_a', userStream: true, threadIds: [] }])
   })
 
   it('does not ack a frame without an ackId', () => {

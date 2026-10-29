@@ -3,6 +3,7 @@ import {
   podEventsPostSchema,
   podEventsReplySchema,
   podEventsTruncateSchema,
+  sandboxActivityPostSchema,
   sandboxExposePortReplySchema,
   sandboxExposePortRequestSchema,
   sandboxSelfStopRequestSchema,
@@ -10,6 +11,7 @@ import {
   type PodEventsPost,
   type PodEventsReply,
   type PodEventsTruncate,
+  type SandboxActivityPost,
   type SandboxExposePortReply,
   type SandboxExposePortRequest,
   type SandboxSelfStopRequest,
@@ -22,6 +24,7 @@ import { meta } from '../../../_module/trpc/procedure-meta'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { recordBootSteps } from './sandbox-boot-steps'
+import { applyThreadActivity } from './thread-activity'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { PreviewTunnelService } from './preview-tunnel.service'
@@ -30,9 +33,7 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
 type SandboxIdentity = { threadId: string; name: string }
 
 async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
-  const row = await db.orm.public.CloudSandbox.where({
-    threadId: ctx.sandbox.threadId,
-  })
+  const row = await db.orm.public.CloudSandbox.where({ threadId: ctx.sandbox.threadId })
     .select('threadId', 'name')
     .first()
   if (row === null) throw new NotFoundException('sandbox not found')
@@ -76,11 +77,7 @@ export class SandboxSelfRouter {
     await this.signals.podChanged({ threadId })
   }
 
-  @Mutation({
-    input: podEventsPostSchema,
-    output: podEventsReplySchema,
-    meta: meta({ podReachable: true }),
-  })
+  @Mutation({ input: podEventsPostSchema, output: podEventsReplySchema })
   events(@Input() input: PodEventsPost, @Ctx() ctx: SandboxTrpcCtx): Promise<PodEventsReply> {
     return applyPodEvents({
       threadId: ctx.sandbox.threadId,
@@ -89,11 +86,7 @@ export class SandboxSelfRouter {
     })
   }
 
-  @Mutation({
-    input: podEventsTruncateSchema,
-    output: podEventsReplySchema,
-    meta: meta({ podReachable: true }),
-  })
+  @Mutation({ input: podEventsTruncateSchema, output: podEventsReplySchema })
   truncateEvents(
     @Input() input: PodEventsTruncate,
     @Ctx() ctx: SandboxTrpcCtx,
@@ -103,5 +96,16 @@ export class SandboxSelfRouter {
       toSeq: input.toSeq,
       signals: this.signals,
     })
+  }
+
+  @Mutation({
+    input: sandboxActivityPostSchema,
+    output: z.void(),
+    meta: meta({ podReachable: true }),
+  })
+  async activity(@Input() input: SandboxActivityPost, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
+    const { threadId } = ctx.sandbox
+    const changed = await applyThreadActivity({ threadId, activity: input })
+    if (changed) await this.signals.listChangedForOwner({ threadId })
   }
 }

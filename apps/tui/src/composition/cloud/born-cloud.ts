@@ -8,7 +8,6 @@ import {
 
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
-import type { SendArgs } from '../conversation-types'
 import type { BirthPreflight } from './bridge-factory'
 import type { ProjectResolution } from './use-project-resolution'
 import { bornPlacementChip } from './born-placement-chip'
@@ -20,7 +19,6 @@ export type BornCloudArgs = {
   app: AtlasApp
   threadId: ThreadId
   choice?: ERunner | undefined
-  arrival: SendArgs
   preflightBirth?: BirthPreflight | undefined
   requireSignIn: () => void
   resolveProject: () => Promise<ProjectResolution>
@@ -73,12 +71,14 @@ export async function bornWith(args: BornCloudArgs): Promise<boolean> {
   const resolution = await args.resolveProject()
   if (resolution === 'cancelled') return false
 
-  bornPlacementChip(app).set({
+  const chip = bornPlacementChip(app)
+  const held = chip.snapshot()
+  chip.set({
     threadId,
     harness: EHarnessPlacement.Cloud,
     runner,
     provisioning: true,
-    arrival: args.arrival,
+    arrivals: held?.threadId === threadId ? held.arrivals : undefined,
   })
   args.birthCloud({ threadId, runner, projectId: resolution.projectId })
   return true

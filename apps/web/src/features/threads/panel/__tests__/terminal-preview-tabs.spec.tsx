@@ -46,7 +46,8 @@ describe('TerminalTab', () => {
 
 describe('PreviewTab', () => {
   it('shows the empty state when nothing is exposed', () => {
-    const html = render({ pod: null, body: <PreviewTab /> })
+    const data = { ports: [], selectedId: undefined, select: () => undefined }
+    const html = render({ pod: null, body: <PreviewTab data={data} /> })
     expect(html).toContain('Nothing to preview')
   })
 })

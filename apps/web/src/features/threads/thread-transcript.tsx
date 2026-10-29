@@ -18,24 +18,33 @@ import { useSessionUser } from '@/features/settings/session/use-session-identity
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import { clockTimeOf, spanMsOf } from './data/clock-time'
+import { messageImagesOf } from './data/message-images'
 import { isSameItem } from './data/same-item'
 import { rosterModelsOf } from './data/transcript-agents'
 import { ETranscriptKind, type TranscriptRow } from './data/transcript'
-import type { TranscriptItem } from './data/transcript-items'
-import { ETurnKind, turnsOf, type AgentTurn, type Turn } from './data/transcript-turns'
+import {
+  ESegmentKind,
+  ETurnKind,
+  turnsOf,
+  type AgentTurn,
+  type Segment,
+  type Turn,
+  type WorkItem as WorkItemData,
+} from './data/transcript-turns'
 import { useNow } from './data/use-now'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { ReportNotice, SpawnCard } from './transcript/transcript-agents'
+import { TranscriptNotice } from './transcript/transcript-notice'
 import { ToolRow } from './transcript/transcript-tool-row'
 
 const AGENT_AUTHOR = 'Atlas'
 
-function WorkItemView({ item }: { item: TranscriptItem }) {
+function WorkItemView({ item }: { item: WorkItemData }) {
   switch (item.kind) {
     case ETranscriptKind.Thought:
-      return <Reasoning text={item.text} running={item.streaming} />
+      return <Reasoning text={item.text} live={item.streaming || item.heldOpen} />
     case ETranscriptKind.Tools:
       return (
         <>
@@ -44,16 +53,6 @@ function WorkItemView({ item }: { item: TranscriptItem }) {
           ))}
         </>
       )
-    case ETranscriptKind.Agent:
-      return (
-        <div className="text-sm text-muted-foreground">
-          <MessageResponse isAnimating={item.streaming} caret="block">
-            {item.text}
-          </MessageResponse>
-        </div>
-      )
-    case ETranscriptKind.User:
-      return null
   }
 }
 
@@ -70,25 +69,14 @@ function AgentTurnView({
   now: number
   models: ReadonlyMap<string, string>
 }) {
-  const showSummary = turn.work.length > 0 || turn.running
-  const duration = formatElapsed(
-    spanMsOf({
-      startedAt: turn.startedAt,
-      endedAt: turn.endedAt,
-      now,
-      running: turn.running,
-    }),
-  )
-  const { answer } = turn
+  const final = turn.segments.at(-1)
+  const answer = final?.kind === ESegmentKind.Message && final.final ? final : null
+  const body = answer === null ? turn.segments : turn.segments.slice(0, -1)
   return (
     <div className="flex flex-col gap-4">
-      {showSummary ? (
-        <WorkSummary duration={duration} running={turn.running} stepCount={turn.stepCount}>
-          {turn.work.map((item) => (
-            <WorkItem key={item.id} item={item} />
-          ))}
-        </WorkSummary>
-      ) : null}
+      {body.map((segment) => (
+        <SegmentView key={segment.id} segment={segment} now={now} />
+      ))}
       {turn.spawns.length === 0 ? null : (
         <div className="flex flex-col gap-3">
           {turn.spawns.map((spawn) => (
@@ -96,20 +84,42 @@ function AgentTurnView({
           ))}
         </div>
       )}
-      {answer === null ? null : (
-        <AgentMessage
-          author={AGENT_AUTHOR}
-          timestamp={clockTimeOf(answer.at)}
-          streaming={answer.streaming}
-          caret={false}
-          copyText={answer.text}
-        >
-          <MessageResponse isAnimating={answer.streaming} caret="block">
-            {answer.text}
-          </MessageResponse>
-        </AgentMessage>
-      )}
+      {answer === null ? null : <SegmentView segment={answer} now={now} />}
     </div>
+  )
+}
+
+function SegmentView({ segment, now }: { segment: Segment; now: number }) {
+  if (segment.kind === ESegmentKind.Message) {
+    const { item } = segment
+    return (
+      <AgentMessage
+        author={AGENT_AUTHOR}
+        timestamp={clockTimeOf(item.at)}
+        streaming={item.streaming}
+        caret={false}
+        copyText={item.text}
+      >
+        <MessageResponse isAnimating={item.streaming} caret="block">
+          {item.text}
+        </MessageResponse>
+      </AgentMessage>
+    )
+  }
+  const duration = formatElapsed(
+    spanMsOf({
+      startedAt: segment.startedAt,
+      endedAt: segment.endedAt,
+      now,
+      running: segment.running,
+    }),
+  )
+  return (
+    <WorkSummary duration={duration} running={segment.running} stepCount={segment.stepCount}>
+      {segment.items.map((item) => (
+        <WorkItem key={item.id} item={item} />
+      ))}
+    </WorkSummary>
   )
 }
 
@@ -137,17 +147,22 @@ function TurnView({
         <UserMessage
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
+          images={messageImagesOf({ id: turn.item.id, images: turn.item.images })}
           onRewind={
             rewind === null || !rewind.points.has(turn.item.id)
               ? undefined
               : () => rewind.onRewind({ eventId: turn.item.id, text: turn.item.text })
           }
         >
-          <p className="whitespace-pre-wrap">{turn.item.text}</p>
+          {turn.item.text.trim().length === 0 ? undefined : (
+            <p className="whitespace-pre-wrap">{turn.item.text}</p>
+          )}
         </UserMessage>
       )
     case ETurnKind.Report:
       return <ReportNotice item={turn.item} />
+    case ETurnKind.Notice:
+      return <TranscriptNotice item={turn.item} />
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} />
   }
@@ -206,8 +221,9 @@ export function ThreadTranscript({
     boot
       .filter((entry) => entry.afterIndex === index)
       .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
+  const lastUserTurnId = turns.findLast((turn) => turn.kind === ETurnKind.User)?.id ?? null
   return (
-    <Chat>
+    <Chat jumpKey={lastUserTurnId}>
       {bootAfter(-1)}
       {turns.map((turn, index) => (
         <Fragment key={turn.id}>

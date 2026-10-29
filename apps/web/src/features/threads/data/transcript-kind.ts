@@ -5,4 +5,12 @@ export enum ETranscriptKind {
   Tools = 'tools',
   Spawn = 'spawn',
   Report = 'report',
+  Notice = 'notice',
+}
+
+export enum ENoticeTone {
+  Ok = 'ok',
+  Failed = 'failed',
+  Attention = 'attention',
+  Quiet = 'quiet',
 }

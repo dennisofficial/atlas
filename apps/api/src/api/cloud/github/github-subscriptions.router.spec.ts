@@ -200,7 +200,6 @@ describe('GithubSubscriptionsRouter', () => {
   it.each([
     ['subscribe', SUBSCRIBE],
     ['unsubscribe', { id: 'sub_1' }],
-    ['dismissAppInstallNotice', { repoFullName: 'compai/app' }],
     ['heartbeat', { id: 'sub_1' }],
   ])('lets a pod token reach %s', async (procedure, body) => {
     const reply = await call({ procedure, token: POD_TOKEN, body })
@@ -208,7 +207,17 @@ describe('GithubSubscriptionsRouter', () => {
     expect(reply.status).toBe(200)
   })
 
-  it('a pod subscribe carries no sandbox link', async () => {
+  it('refuses a pod token on dismissAppInstallNotice', async () => {
+    const reply = await call({
+      procedure: 'dismissAppInstallNotice',
+      token: POD_TOKEN,
+      body: { repoFullName: 'compai/app' },
+    })
+
+    expect(reply.status).toBe(403)
+  })
+
+  it('a pod subscribe links the pod’s thread', async () => {
     const reply = await call({ procedure: 'subscribe', token: POD_TOKEN, body: SUBSCRIBE })
 
     expect(reply.status).toBe(200)
@@ -216,6 +225,7 @@ describe('GithubSubscriptionsRouter', () => {
       userId: 'usr_1',
       repoFullName: 'compai/app',
       prNumber: 42,
+      threadId: 'thr_1',
     })
   })
 

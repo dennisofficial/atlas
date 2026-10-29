@@ -27,27 +27,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     ((config: PodDriverConfig): PodBridgeDriver =>
       new DockerPodDriver({ ...config, log: args.onDriverLog }))
 
-  const registerBornThread = async (born: {
-    threadId: ThreadId
-    projectId: string | null
-    model: string | undefined
-    effort: string
-  }): Promise<void> => {
-    if (args.registerThread === undefined) return
-    try {
-      await args.registerThread({
-        threadId: born.threadId,
-        projectId: born.projectId,
-        ...(born.model === undefined ? {} : { model: born.model }),
-        effort: born.effort,
-      })
-    } catch (failure) {
-      args.onDriverLog?.(
-        `thread registration failed: ${failure instanceof Error ? failure.message : String(failure)}`,
-      )
-    }
-  }
-
   const create = async (
     createArgs: Parameters<CloudSandboxes['create']>[0],
   ): Promise<CloudSandbox> => {
@@ -70,15 +49,6 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     const environment: Record<string, string> = { ...args.environment?.() }
 
     await args.registerPodLease({ threadId: createArgs.threadId, token })
-
-    if (createArgs.birth !== undefined) {
-      await registerBornThread({
-        threadId: createArgs.threadId,
-        projectId: createArgs.projectId,
-        model: createArgs.model,
-        effort: createArgs.birth.effort,
-      })
-    }
 
     const placement = await driver.createOrResume({
       name,
@@ -105,15 +75,14 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
   }
 
   const find = async (findArgs: { threadId: ThreadId }): Promise<CloudSandboxStatus> => {
-    const [observed, reported] = await Promise.all([
-      driverWith(args.pod()).inspect({ name: podNameFor({ threadId: findArgs.threadId }) }),
-      args.readPodCheckpoint?.(findArgs).catch(() => null) ?? null,
-    ])
+    const observed = await driverWith(args.pod()).inspect({
+      name: podNameFor({ threadId: findArgs.threadId }),
+    })
     return {
       ...(observed === undefined
         ? { state: ECloudSandboxState.Stopped }
         : { ...observed, state: sandboxStateSchema.parse(observed.state) }),
-      checkpoint: reported?.threadId === findArgs.threadId ? reported : null,
+      checkpoint: null,
     }
   }
 

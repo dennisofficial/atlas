@@ -4,6 +4,7 @@ export type ThreadSandboxCredentials = {
   projectId: string
   /** True when the credentials are the thread owner's: the sandbox must never carry them in its env. */
   ownerCredential: boolean
+  userId: string | undefined
 }
 
 export abstract class SandboxCredentials {

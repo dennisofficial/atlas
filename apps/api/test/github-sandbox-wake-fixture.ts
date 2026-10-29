@@ -16,6 +16,8 @@ import {
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
+import { GithubPrFanoutService } from '../src/api/cloud/github/github-pr-fanout.service'
+import { DrainStateService } from '../src/api/platform/health/drain-state.service'
 import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'
 import { advanceTimersByTimeAsync } from './fake-timers'
@@ -188,11 +190,14 @@ export class RecordingBackgroundWork extends BackgroundWork {
 
 let current: RecordingBackgroundWork = new RecordingBackgroundWork()
 
+export const WAKE_PEPPER = 'wake-pepper'
+
 export function serviceWith(args: {
   boot: SandboxWakeBoot
   background?: BackgroundWork
   debounceMs?: number
   credentials?: Partial<ThreadSandboxCredentials>
+  fanout?: GithubPrFanoutService
 }): GithubSandboxWakeService {
   const credentials: SandboxCredentials = {
     forThread: async () => ({
@@ -200,6 +205,7 @@ export function serviceWith(args: {
       teamId: 'team-1',
       projectId: 'proj-1',
       ownerCredential: false,
+      userId: undefined,
       ...args.credentials,
     }),
   }
@@ -208,6 +214,7 @@ export function serviceWith(args: {
       ({
         SANDBOX_IMAGE: 'atlas-sandbox:latest',
         ATLAS_CLOUD_URL: 'https://api.byatlas.io',
+        ATLAS_TELEMETRY_PEPPER: WAKE_PEPPER,
       })[key],
   } as unknown as EnvService
   const background = args.background ?? new RecordingBackgroundWork()
@@ -220,6 +227,7 @@ export function serviceWith(args: {
     background,
     args.debounceMs ?? WAKE_DEBOUNCE_MS,
     inertSignals(),
+    args.fanout ?? new GithubPrFanoutService(new DrainStateService()),
   )
 }
 

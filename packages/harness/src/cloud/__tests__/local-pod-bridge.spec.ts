@@ -114,9 +114,6 @@ describe('createLocalPodBridge birth', () => {
         registerPodLease: async () => {
           throw new Error('lease refused')
         },
-        registerThread: async () => {
-          events.push('thread')
-        },
       },
     })
 
@@ -140,11 +137,6 @@ describe('createLocalPodBridge birth', () => {
         driver,
         registered,
         events,
-        overrides: {
-          registerThread: async () => {
-            events.push('thread')
-          },
-        },
       }).sandboxes.create({
         threadId,
         projectId: null,
@@ -152,7 +144,7 @@ describe('createLocalPodBridge birth', () => {
       }),
     ).rejects.toThrow('image pull failed')
 
-    expect(events).toEqual(['register', 'thread', 'create'])
+    expect(events).toEqual(['register', 'create'])
     expect(registered).toEqual([{ threadId, token: serveToken }])
   })
 
@@ -174,91 +166,16 @@ describe('createLocalPodBridge birth', () => {
     expect(events).toEqual([])
   })
 
-  it('registers the lease, then the born thread with its project, model and effort, before the pod is created', async () => {
+  it('issues only the lease registration at birth', async () => {
     const { driver, events } = fakePodDriver({ created: true })
-    const registeredThreads: unknown[] = []
-
-    await podBridgeWith({
-      driver,
-      events,
-      overrides: {
-        registerThread: async (thread) => {
-          events.push('thread')
-          registeredThreads.push(thread)
-        },
-      },
-    }).sandboxes.create({
+    await podBridgeWith({ driver, events }).sandboxes.create({
       threadId,
       projectId: 'proj_1',
       model: 'claude-x',
       birth: { effort: 'high' },
     })
 
-    expect(events).toEqual([
-      'register',
-      'thread',
-      'create',
-      `write:${WORKSPACE_SPEC_PATH}`,
-      'launch',
-    ])
-    expect(registeredThreads).toEqual([
-      { threadId, projectId: 'proj_1', model: 'claude-x', effort: 'high' },
-    ])
-  })
-
-  it('registers no thread when the create carries no birth', async () => {
-    const { driver } = fakePodDriver({ created: false })
-    const registeredThreads: unknown[] = []
-
-    await podBridgeWith({
-      driver,
-      overrides: {
-        registerThread: async (thread) => {
-          registeredThreads.push(thread)
-        },
-      },
-    }).sandboxes.create({ threadId, projectId: null })
-
-    expect(registeredThreads).toEqual([])
-  })
-
-  it('still boots the pod when the thread cannot be registered, and logs why', async () => {
-    const { driver, created } = fakePodDriver({ created: true })
-    const logged: string[] = []
-
-    const sandbox = await podBridgeWith({
-      driver,
-      overrides: {
-        registerThread: async () => {
-          throw new Error('signed out')
-        },
-        onDriverLog: (line) => logged.push(line),
-      },
-    }).sandboxes.create({ threadId, projectId: null, birth: { effort: 'low' } })
-
-    expect(created).toHaveLength(1)
-    expect(sandbox.created).toBe(true)
-    expect(logged).toEqual(['thread registration failed: signed out'])
-  })
-
-  it('still boots the pod when the registrar throws before returning a promise', async () => {
-    const { driver, created } = fakePodDriver({ created: true })
-    const logged: string[] = []
-
-    await podBridgeWith({
-      driver,
-      overrides: {
-        registerThread: () => {
-          throw new Error('sign in to Atlas Cloud to start a session')
-        },
-        onDriverLog: (line) => logged.push(line),
-      },
-    }).sandboxes.create({ threadId, projectId: null, birth: { effort: 'low' } })
-
-    expect(created).toHaveLength(1)
-    expect(logged).toEqual([
-      'thread registration failed: sign in to Atlas Cloud to start a session',
-    ])
+    expect(events).toEqual(['register', 'create', `write:${WORKSPACE_SPEC_PATH}`, 'launch'])
   })
 
   it('offers no sandbox registration, authorization, omission or checkpoint hooks', () => {

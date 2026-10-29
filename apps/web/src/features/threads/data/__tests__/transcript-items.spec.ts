@@ -83,6 +83,46 @@ describe('transcriptViewOf', () => {
     })
   })
 
+  it('drops a settled thought once later work follows it', () => {
+    const view = viewOf({
+      events: [said(1, 'hi')],
+      signals: [
+        started,
+        chunk({ type: 'reasoning-start', id: 'r1' }),
+        chunk({ type: 'reasoning-delta', id: 'r1', text: 'weighing options' }),
+        chunk({ type: 'reasoning-end', id: 'r1' }),
+        chunk({ type: 'text-start', id: 't1' }),
+        chunk({ type: 'text-delta', id: 't1', text: 'Done' }),
+      ],
+    })
+    expect(view.items.map((item) => item.kind)).toEqual([
+      ETranscriptKind.User,
+      ETranscriptKind.Agent,
+    ])
+  })
+
+  it('keeps the trailing thought live while the tools it opened run', () => {
+    const view = viewOf({
+      events: [said(1, 'hi')],
+      signals: [
+        started,
+        chunk({ type: 'reasoning-start', id: 'r1' }),
+        chunk({ type: 'reasoning-delta', id: 'r1', text: 'check the tree' }),
+        chunk({ type: 'reasoning-end', id: 'r1' }),
+        chunk({
+          type: 'tool-call',
+          callId: toCallId('call_1'),
+          name: 'bash',
+          input: { command: 'ls' },
+        }),
+      ],
+    })
+    const last = view.items.at(-1)
+    expect(last).toMatchObject({ kind: ETranscriptKind.Thought, text: 'check the tree' })
+    if (last?.kind !== ETranscriptKind.Thought) throw new Error('expected a thought item')
+    expect(last.streaming || last.heldOpen).toBe(true)
+  })
+
   it('shows a call still being dictated as a running tool', () => {
     const callId = toCallId('call_1')
     const view = viewOf({
@@ -321,5 +361,18 @@ describe('tool titles', () => {
     const item = view.items[1]
     if (item?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
     expect(item.calls[0]?.title).toBeUndefined()
+  })
+
+  it('carries pasted images on the user item', () => {
+    const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: 'look', images: [shot] })] })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, images: [shot] })
+  })
+
+  it('keeps a message that is only a pasted image', () => {
+    const shot = { path: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' }
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', images: [shot] })] })
+    expect(view.items).toHaveLength(1)
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, text: '', images: [shot] })
   })
 })

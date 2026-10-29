@@ -146,7 +146,14 @@ async function startSession(args: {
     return {
       type: ESession.Ready,
       app,
-      opened: unstartedConversation({ ids: app.ids, bootCloudThreadId: outcome.threadId }),
+      opened: {
+        ...unstartedConversation({
+          ids: app.ids,
+          threadId: outcome.threadId,
+          bootCloudThreadId: outcome.threadId,
+        }),
+        name: (await app.threads.find({ threadId: outcome.threadId }))?.title ?? null,
+      },
       credentialNotice: readiness?.message ?? null,
     }
   }

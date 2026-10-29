@@ -16,7 +16,7 @@ import { CLOUD_WAKE_FAILED_NOTICE_KEY } from '../cloud/cloud-session'
 import { CLOUD_BIRTH_NOTICE_KEY } from '../cloud/cloud-birth-notices'
 import { CLOUD_SERVER_FAILURE_NOTICE_KEY } from '../use-cloud-connection'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
-import { LOADING_TRANSCRIPT_LABEL } from '../../ui/components/transcript-loading'
+import { loadingTranscriptLabel } from '../../ui/components/transcript-loading'
 import { cloudAttachmentOf } from '../session-binding'
 import { mountCloud } from './app-cloud-archive-fixture'
 import { promiseGate, THREAD, until } from './app-fixture'
@@ -28,6 +28,8 @@ afterEach(() => {
   dismissNotice()
   clearAttachFailure()
 })
+
+const LOADING_TRANSCRIPT_LABEL = loadingTranscriptLabel('the cloud thread')
 
 const SANDBOX_URL = 'https://sandbox.example/thread'
 
@@ -66,7 +68,7 @@ const bootOn = (threadId: ThreadId) => ({
   threadId: THREAD,
   events: [],
   turns: [],
-  name: null,
+  name: 'the cloud thread',
   started: false,
   bootCloudThreadId: threadId,
 })

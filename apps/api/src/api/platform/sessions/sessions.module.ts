@@ -5,6 +5,7 @@ import { EventsService } from './events.service'
 import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
+import { ThreadReadService } from './thread-read.service'
 import { ThreadSignalsModule } from './thread-signals.module'
 import { ThreadTurnsRouter } from './thread-turns.router'
 import { ThreadsHistoryService } from './threads-history.service'
@@ -17,6 +18,7 @@ import { TurnsService } from './turns.service'
   providers: [
     ThreadsService,
     ThreadArchiveService,
+    ThreadReadService,
     ThreadsHistoryService,
     EventsService,
     TurnsService,

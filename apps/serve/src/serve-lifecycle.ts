@@ -13,6 +13,8 @@ import type { ServeTurnDriver } from './turn-driver'
 // many exhausted re-park cycles the serve exits, and the next wake's launcher boots a fresh one.
 export const PARK_STOP_CYCLE_LIMIT = 3
 
+const PARK_ACTIVITY_DEADLINE_MS = 2_000
+
 export function createServeLifecycle(args: {
   app: ServeApp
   driver: ServeTurnDriver
@@ -30,6 +32,7 @@ export function createServeLifecycle(args: {
   detach: () => void
   stopSandbox: () => Promise<void>
   flushEvents?: (() => Promise<boolean>) | undefined
+  reportParked?: (() => Promise<void>) | undefined
   exit: (code: number) => void
 }): {
   close: (args: { reason: string }) => Promise<void>
@@ -134,6 +137,10 @@ export function createServeLifecycle(args: {
       await args.checkpoint.finalizePark()
       finalized = true
       args.log({ event: EServeEvent.ParkFinalized, threadId: args.threadId })
+      await withDeadline({
+        task: (args.reportParked?.() ?? Promise.resolve()).catch(() => undefined),
+        ms: PARK_ACTIVITY_DEADLINE_MS,
+      })
       args.handlers.park({ reason: 'idle' })
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {

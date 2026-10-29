@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, ERunner } from '@dltech/atlas-core'
 import { EConnectionView, ESandboxState } from '@dltech/atlas-harness'
 
 import { cloudPillOf, isResting } from '../cloud-state'
@@ -28,14 +28,18 @@ describe('the cloud pill', () => {
 
   it('is hidden once the session has detached', () => {
     expect(
-      cloudPillOf({ connection: { state: EConnectionView.Detached, detail: null } }),
+      cloudPillOf({
+        connection: { state: EConnectionView.Detached, detail: null },
+      }),
     ).toBeNull()
   })
 
   it('joins the sidebar model only when it is shown', () => {
     const shown = withCloud({
       model: IDLE_SIDEBAR,
-      cloud: cloudPillOf({ connection: { state: EConnectionView.Connected, detail: null } }),
+      cloud: cloudPillOf({
+        connection: { state: EConnectionView.Connected, detail: null },
+      }),
     })
     expect(shown.cloud?.state).toBe(EConnectionView.Connected)
 
@@ -56,7 +60,22 @@ describe('the cloud pill', () => {
 describe('the container pill in the cloud', () => {
   it('leaves the docker container pill away — the loop is not in a container here', () => {
     expect(
-      containerPillOf({ location: EExecutionLocation.Cloud, container: running, exposed: [] }),
+      containerPillOf({
+        location: EExecutionLocation.Cloud,
+        container: running,
+        exposed: [],
+      }),
     ).toBeNull()
+  })
+})
+
+describe('the cloud pill runner', () => {
+  it('carries the runner so the sidebar can call a local pod a pod', () => {
+    expect(
+      cloudPillOf({
+        connection: { state: EConnectionView.Connected, detail: null },
+        runner: ERunner.Local,
+      }),
+    ).toEqual({ state: EConnectionView.Connected, runner: ERunner.Local })
   })
 })

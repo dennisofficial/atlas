@@ -23,7 +23,6 @@ model CloudSandbox {
   runtimeCheckpointRevision Int?
   createdAt                 TimestamptzJsDate(3)
   updatedAt                 TimestamptzJsDate(3)
-  githubSubscriptions       GithubSubscription[]
   oauthConnections          OauthConnectionSandbox[]
   user                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   thread                    Thread                   @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade)

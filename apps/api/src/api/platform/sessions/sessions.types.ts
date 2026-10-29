@@ -26,6 +26,7 @@ export type LinkedPullRequestDto = {
   repo: string
   branch: string
   state?: string | undefined
+  via?: { threadId: string; title: string | null } | undefined
 }
 
 export type ThreadDraft = {
@@ -39,6 +40,8 @@ export type ThreadDraft = {
 }
 
 export type ThreadSubscriptionDto = NonNullable<WireThread['subscriptions']>[number]
+
+export type ThreadStatusDto = NonNullable<WireThread['status']>
 
 export type ThreadDto = {
   id: string
@@ -59,6 +62,7 @@ export type ThreadDto = {
   projectId?: string | null | undefined
   pinnedAt?: string | null | undefined
   archivedAt?: string | null | undefined
+  status?: ThreadStatusDto | undefined
 }
 
 export type EventDto = {

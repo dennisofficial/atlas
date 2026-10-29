@@ -93,7 +93,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
       ).toBe(true)
       mounted.pressEscape()
       await settle(300)
-      const frame = await mounted.showing('✗ cloud')
+      const frame = await mounted.showing('☁ cloud')
       expect(frame).not.toContain('WAKING THE POD')
 
       const owner = app.sessionOwner.snapshot()
@@ -105,7 +105,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
 
       await settle(1_000)
       const later = await mounted.nextFrame()
-      expect(later).toContain('✗ cloud')
+      expect(later).toContain('☁ cloud')
       expect(later).not.toContain('connecting')
       expect(app.sessionOwner.snapshot().bound).toBe(false)
     } finally {
@@ -130,7 +130,7 @@ describe('a boot attach that fails because the sandbox would not wake', () => {
 
       const failed = await mounted.showing('○ disconnected')
       expect(failed).toContain('✗ disconnected')
-      expect(failed).toContain('✗ cloud')
+      expect(failed).toContain('☁ cloud')
       expect(app.sessionOwner.snapshot().bound).toBe(false)
       expect(bridge.attached).toEqual([])
 
@@ -171,7 +171,7 @@ describe('the reconnect the transcript advertises on a failed attach', () => {
       mounted.pressEscape()
       await settle(300)
       const failed = await mounted.showing('ctrl+r reconnect')
-      expect(failed).toContain('✗ cloud')
+      expect(failed).toContain('☁ cloud')
       expect(bridge.attached).toEqual([])
 
       mounted.pressCtrl('r')

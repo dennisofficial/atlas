@@ -20,6 +20,7 @@ import { UserFilesService } from './user-files.service'
 import type { UserFileContentListDto, UserFileListDto } from './user-files.types'
 
 const SANDBOX_REACHABLE = meta({ sandboxReachable: true })
+const POD_REACHABLE = meta({ podReachable: true, sandboxReachable: true })
 
 @Router({ alias: 'userFiles' })
 @UseMiddlewares(SessionOrSandboxMiddleware)
@@ -46,7 +47,7 @@ export class UserFilesRouter {
   @Mutation({
     input: userFilesGetRequestSchema,
     output: userFilesGetReplySchema,
-    meta: SANDBOX_REACHABLE,
+    meta: POD_REACHABLE,
   })
   async get(
     @Input() input: UserFilesGetRequest,

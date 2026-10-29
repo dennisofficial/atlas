@@ -122,3 +122,14 @@ describe('parseThreadSignal', () => {
     expect(parseThreadSignal({ raw: JSON.stringify({ frame: HEAD.frame }) })).toBeUndefined()
   })
 })
+
+describe('parseThreadSignal list signals', () => {
+  it('parses a strict user-list signal and rejects mixed or partial shapes', () => {
+    const list = { userId: 'usr_1', threadId: 'thr_1' }
+    expect(parseThreadSignal({ raw: JSON.stringify(list) })).toEqual(list)
+    expect(parseThreadSignal({ raw: JSON.stringify({ userId: 'u' }) })).toBeUndefined()
+    expect(
+      parseThreadSignal({ raw: JSON.stringify({ ...list, frame: HEAD.frame }) }),
+    ).toBeUndefined()
+  })
+})

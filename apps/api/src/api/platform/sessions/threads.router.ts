@@ -7,6 +7,7 @@ import {
   createThreadOutputSchema,
   forkThreadInputSchema,
   listThreadsInputSchema,
+  markThreadReadInputSchema,
   openThreadInputSchema,
   openThreadReplySchema,
   recentThreadInputSchema,
@@ -15,6 +16,7 @@ import {
   rewindThreadInputSchema,
   summariseThreadInputSchema,
   threadIdInputSchema,
+  threadListOutputSchema,
   wireThreadSchema,
   type AdoptThreadInput,
   type ArchiveThreadInput,
@@ -23,6 +25,7 @@ import {
   type CreateThreadInput,
   type ForkThreadInput,
   type ListThreadsInput,
+  type MarkThreadReadInput,
   type OpenThreadInput,
   type RecentThreadInput,
   type RenameThreadInput,
@@ -31,19 +34,35 @@ import {
   type SummariseThreadInput,
   type SupervisedAgentInput,
   type ThreadIdInput,
+  type ThreadListFrame,
 } from '@dltech/atlas-wire'
-import { ForbiddenException } from '@nestjs/common'
-import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common'
+import {
+  Ctx,
+  Input,
+  Mutation,
+  Options,
+  type ProcedureOptions,
+  Query,
+  Router,
+  Subscription,
+  UseMiddlewares,
+} from 'nestjs-trpc'
 import { z } from 'zod'
 import { ThreadLauncher, type ThreadLaunchReply } from '../../../_core/ports/thread-launcher'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
+import { DrainStateService } from '../health/drain-state.service'
 import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from './session-or-sandbox.middleware'
 import type { EventDto, ThreadDto } from './sessions.types'
 import { ThreadArchiveService } from './thread-archive.service'
+import { ThreadReadService } from './thread-read.service'
+import { ThreadSignalsService } from './thread-signals.service'
+import { attachListStream } from './thread-list-stream'
+import { threadStreamFrames } from './thread-stream.frames'
 import { ThreadsHistoryService } from './threads-history.service'
 import { ThreadsService } from './threads.service'
 
@@ -58,11 +77,11 @@ function assertTokenSpawn({
   ctx: SessionOrSandboxTrpcCtx
   agent: SupervisedAgentInput | undefined
 }): void {
-  const principal = ctx.sandbox ?? ctx.pod
+  const principal = ctx.sandbox
   if (principal === undefined) return
   if (agent?.spawnedBy !== principal.threadId) {
     throw new ForbiddenException(
-      'a pod or sandbox token creates only direct sub-agent threads of its own thread',
+      'a sandbox token creates only direct sub-agent threads of its own thread',
     )
   }
 }
@@ -75,6 +94,9 @@ export class ThreadsRouter {
     private readonly history: ThreadsHistoryService,
     private readonly launcher: ThreadLauncher,
     private readonly archival: ThreadArchiveService,
+    private readonly reads: ThreadReadService,
+    private readonly signals: ThreadSignalsService,
+    private readonly drain: DrainStateService,
   ) {}
 
   @Mutation({ input: createThreadInputSchema, output: createThreadOutputSchema, meta: spawnMeta })
@@ -161,6 +183,34 @@ export class ThreadsRouter {
       userId: ctx.auth.userId,
       threadId: input.threadId,
       archived: input.archived,
+    })
+  }
+
+  @Mutation({ input: markThreadReadInputSchema, output: z.void(), meta: readMeta })
+  async markRead(
+    @Input() input: MarkThreadReadInput,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<void> {
+    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
+      throw new ForbiddenException('only the thread owner can mark a thread read')
+    }
+    await this.reads.markRead({ userId: ctx.auth.userId, threadId: input.threadId, seq: input.seq })
+  }
+
+  @Subscription({ output: threadListOutputSchema, meta: readMeta })
+  listSignals(
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ): AsyncGenerator<ThreadListFrame> {
+    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
+      throw new ForbiddenException('only the thread owner can subscribe to the thread list')
+    }
+    if (this.drain.isDraining()) {
+      throw new ServiceUnavailableException('the api is restarting — retry the stream')
+    }
+    return threadStreamFrames<ThreadListFrame>({
+      signal: opts.signal,
+      attach: (sink) => attachListStream({ signals: this.signals, userId: ctx.auth.userId, sink }),
     })
   }
 

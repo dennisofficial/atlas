@@ -2,6 +2,7 @@ import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 import { Confirmation, EConfirmationState } from '@dltech/atlas-ui/ai/confirmation'
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
+import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { Trace } from '@dltech/atlas-ui/components/trace'
@@ -50,6 +51,14 @@ function EditStep({ step, onOpenFile }: { step: StepSpec; onOpenFile: (path: str
       >
         <ToolLine kind={EToolKind.Edit} label={step.label} elapsed={step.elapsed} />
       </button>
+      {step.diff === undefined ? null : (
+        <DiffViewer
+          path={step.label}
+          lines={step.diff.lines}
+          added={step.diff.added}
+          removed={step.diff.removed}
+        />
+      )}
     </Trace>
   )
 }

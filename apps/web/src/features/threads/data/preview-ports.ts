@@ -36,6 +36,9 @@ const outranks = (args: { next: Candidate; current: Candidate }): boolean => {
   return next.startedAt > current.startedAt
 }
 
+export const livePreviewCount = (ports: PreviewPort[]): number =>
+  ports.filter((port) => port.status === EPreviewStatus.Live).length
+
 export function previewPortsOf(roster: RosterWire | null): PreviewPort[] {
   if (roster === null) return []
   const candidates = roster.services.map(fromService)

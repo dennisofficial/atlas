@@ -2,12 +2,13 @@ import {
   assembleTranscript,
   durableEntries,
   EEntryKind,
+  EThinkingVisibility,
   type InFlightStep,
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
-import type { CallId, Event } from '@dltech/atlas-core'
+import type { CallId, Event, SaidImage } from '@dltech/atlas-core'
 
 import {
   claimSpawn,
@@ -17,18 +18,26 @@ import {
   type ReportItem,
   type SpawnItem,
 } from './transcript-agents'
-import { ETranscriptKind } from './transcript-kind'
+import { ENoticeTone, ETranscriptKind } from './transcript-kind'
+import { noticeItemOf, type NoticeContext, type NoticeItem } from './transcript-notices'
 import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
-export { ETranscriptKind }
+export { ENoticeTone, ETranscriptKind }
+export type { NoticeContext, NoticeItem }
 export { EToolFamily, type ToolCallItem } from './transcript-tools'
+export { EEditBody, type EditBody } from './transcript-edit-body'
 export type { ReportItem, SpawnItem } from './transcript-agents'
 
 type Timed = { at?: string | undefined }
 
 export type TranscriptItem = Timed &
   (
-    | { kind: ETranscriptKind.User; id: string; text: string }
+    | {
+        kind: ETranscriptKind.User
+        id: string
+        text: string
+        images?: readonly SaidImage[]
+      }
     | {
         kind: ETranscriptKind.Agent
         id: string
@@ -40,8 +49,10 @@ export type TranscriptItem = Timed &
         id: string
         text: string
         streaming: boolean
+        heldOpen: boolean
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
+    | NoticeItem
   )
 
 export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
@@ -55,6 +66,8 @@ export type ThreadTranscriptView = {
 function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
+      if (entry.images.length > 0)
+        return { kind: ETranscriptKind.User, id: entry.key, text: entry.text, images: entry.images }
       return entry.text.trim().length === 0
         ? null
         : { kind: ETranscriptKind.User, id: entry.key, text: entry.text }
@@ -75,9 +88,10 @@ function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
             id: entry.key,
             text: entry.text,
             streaming: entry.streaming,
+            heldOpen: entry.heldOpen,
           }
     default:
-      return null
+      return noticeItemOf(entry)
   }
 }
 
@@ -152,6 +166,7 @@ export function transcriptViewOf(args: {
     durable: args.durable.entries,
     live: args.live,
     outputs: args.outputs,
+    thinking: EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
   })
   const { stamps } = args.durable

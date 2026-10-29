@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { announceSubscriberThreads } from './github-list-signals'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db, type Row } from '@dltech/atlas-db'
+import { threadActivityAt } from './github-thread-activity'
 import {
   dtoOf,
   liveUntilOf,
@@ -31,6 +34,7 @@ export class GithubPollSweeperService {
     private readonly reads: GithubUserReads,
     private readonly fanout: GithubPrFanoutService,
     private readonly mailbox: GithubPrEventMailboxService,
+    private readonly signals: ThreadSignalsService,
   ) {}
 
   async handlePoll(): Promise<void> {
@@ -98,14 +102,19 @@ export class GithubPollSweeperService {
   private async refreshLiveUntil(args: { now: Date }): Promise<void> {
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
       subscription.threadId.isNotNull(),
-    )
-      .include('sandbox')
-      .all()
+    ).all()
+    const activity = await threadActivityAt({
+      threadIds: linked.flatMap((subscription) =>
+        subscription.threadId === null ? [] : [subscription.threadId],
+      ),
+    })
     for (const subscription of linked) {
-      if (subscription.sandbox === null) continue
+      const lastActivityAt =
+        subscription.threadId === null ? undefined : activity.get(subscription.threadId)
+      if (lastActivityAt === undefined) continue
       const liveUntil = liveUntilOf({
         expiresAt: subscription.expiresAt,
-        sandboxLastActivityAt: subscription.sandbox.lastActivityAt,
+        sandboxLastActivityAt: lastActivityAt,
       })
       if (liveUntil.getTime() <= subscription.liveUntil.getTime()) continue
       await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
@@ -159,12 +168,7 @@ export class GithubPollSweeperService {
       prior: PrTransitionSnapshot | null
     }
     try {
-      const fields = await this.reads.readPullRequest({
-        token,
-        owner,
-        repo,
-        number: args.prNumber,
-      })
+      const fields = await this.reads.readPullRequest({ token, owner, repo, number: args.prNumber })
       const prior = snapshotOf(
         await db.orm.public.GithubPrState.first({
           repoFullName: args.repoFullName,
@@ -206,6 +210,7 @@ export class GithubPollSweeperService {
 
     const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
     this.fanout.push({ userIds, state: pushed.state })
+    await announceSubscriberThreads({ signals: this.signals, subscribers })
     await pushPrTransitions({
       mailbox: this.mailbox,
       prior: pushed.prior,

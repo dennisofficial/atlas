@@ -2,7 +2,11 @@ import type { INestApplication } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { publishedBundleUploadSchema } from '@dltech/atlas-wire'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { bundlesOf, waitForBlockedInsert } from '../../../../test/fake-published-bundle-db'
+import {
+  bundlesOf,
+  waitForBlockedInsert,
+  withRivalBundle,
+} from '../../../../test/fake-published-bundle-db'
 import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
 import { seedSessionUsers } from '../web-settings.fake-db'
 import { BundleBlobStore } from './blob-store'
@@ -103,25 +107,21 @@ describe('PublishedBundlesRouter', () => {
 
     it('retries once when the version collides', async () => {
       const pathname = await upload('session-a')
-      const rival = await database().pool.connect()
-      await rival.query('BEGIN')
-      await rival.query(
-        `INSERT INTO "PublishedBundle" (id, "userId", version, pathname, "blobUrl", sha256, "sizeBytes", manifest) VALUES ('rival', 'user-a', 1, 'bundles/user-a/rival.tar.gz', 'https://blob.test/rival', $1, 1, '{}')`,
-        [SHA],
-      )
 
-      const committing = commitInput('session-a', {
-        pathname,
-        sha256: SHA,
-        manifest: MANIFEST,
-      }).then((response) => response)
-      try {
-        await waitForBlockedInsert(database().pool)
-      } finally {
-        await rival.query('COMMIT')
-        rival.release()
-      }
-      const res = await committing
+      const res = await withRivalBundle({
+        pool: database().pool,
+        sha: SHA,
+        run: async (commitRival) => {
+          const committing = commitInput('session-a', {
+            pathname,
+            sha256: SHA,
+            manifest: MANIFEST,
+          }).then((response) => response)
+          await waitForBlockedInsert(database().pool)
+          await commitRival()
+          return committing
+        },
+      })
 
       expect(res.status).toBe(200)
       expect(summaryOf(res.body).version).toBe(2)

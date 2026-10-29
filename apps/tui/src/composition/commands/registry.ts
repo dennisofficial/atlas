@@ -66,6 +66,7 @@ export type LocalCommandHandlers = {
   onRestart: (() => void) | null
   onWake: () => CommandEffect
   onQuit: () => void
+  quitDetaches: boolean
 }
 
 const local = (command: Omit<LocalCommand, 'kind'>): LocalCommand => ({
@@ -234,7 +235,7 @@ export function localCommands(handlers: LocalCommandHandlers): readonly LocalCom
       name: 'exit',
       summary: 'quit atlas',
       group: ECommandGroup.Session,
-      timing: ECommandTiming.Settled,
+      timing: handlers.quitDetaches ? ECommandTiming.Immediate : ECommandTiming.Settled,
       echo: ECommandEcho.Silent,
       dropsQueue: true,
       losesWaiting: true,

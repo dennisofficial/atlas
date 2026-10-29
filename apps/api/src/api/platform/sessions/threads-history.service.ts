@@ -149,6 +149,7 @@ export class ThreadsHistoryService {
 
       return created
     })
+    await this.signals.listChanged({ userId: args.userId, threadId: into })
     return toThreadDto(row)
   }
 

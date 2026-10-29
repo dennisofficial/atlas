@@ -190,14 +190,12 @@ export type ThreadSnapshot = {
   base: LogAccumulator
 }
 
-export async function readThreadSnapshot(args: {
-  log: EventLogPort
-  threadId: ThreadId
-  rows: EThreadRows
+export function snapshotOf(args: {
+  events: readonly Event[]
   effects: ToolEffects
   digest: (events: readonly Event[]) => string
-}): Promise<ThreadSnapshot> {
-  const events = await readFrom(args)
+}): ThreadSnapshot {
+  const { events } = args
   const head = events.at(-1)?.seq ?? 0
   const fromSeq = Math.max(0, head - THREAD_WINDOW_EVENTS)
   return {
@@ -211,6 +209,20 @@ export async function readThreadSnapshot(args: {
       effects: args.effects,
     }),
   }
+}
+
+export async function readThreadSnapshot(args: {
+  log: EventLogPort
+  threadId: ThreadId
+  rows: EThreadRows
+  effects: ToolEffects
+  digest: (events: readonly Event[]) => string
+}): Promise<ThreadSnapshot> {
+  return snapshotOf({
+    events: await readFrom(args),
+    effects: args.effects,
+    digest: args.digest,
+  })
 }
 
 export async function readThreadBase(args: {

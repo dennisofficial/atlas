@@ -5,6 +5,7 @@ import {
   seedSubscription as seedSubscriptionRow,
 } from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
@@ -100,7 +101,15 @@ export function serviceWith(args: {
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
-    service: new GithubDeliveryService(github, reads, fanout, cipher, mailbox, discussion),
+    service: new GithubDeliveryService(
+      github,
+      reads,
+      fanout,
+      cipher,
+      mailbox,
+      discussion,
+      inertSignals(),
+    ),
     fanout,
   }
 }

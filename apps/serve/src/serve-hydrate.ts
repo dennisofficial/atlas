@@ -12,7 +12,7 @@ import {
   type MirrorWriter,
   type WireEvent,
 } from '@dltech/atlas-harness'
-import { BOOT_STEP_EVENT_TYPE, isApiProvisioned, writesBehind } from '@dltech/atlas-wire'
+import { BOOT_STEP_EVENT_TYPE, isApiProvisioned, mirrorsThreadState } from '@dltech/atlas-wire'
 
 import { EServeEvent, type ServeLog } from './serve-log'
 
@@ -73,7 +73,7 @@ export async function hydrateWhenRegistered(args: {
   fetchFn: typeof fetch
   log: ServeLog
 }): Promise<HydrateResult | undefined> {
-  if (!writesBehind(args.env)) return undefined
+  if (!mirrorsThreadState(args.env)) return undefined
   try {
     return await hydrateServeHistory({
       atlasHome: args.atlasHome,

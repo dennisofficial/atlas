@@ -1,12 +1,32 @@
-import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
+import {
+  EThreadListFrame,
+  EThreadStreamFrame,
+  type ThreadListFrame,
+  type ThreadStreamFrame,
+} from '@dltech/atlas-wire'
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
 import { DrainStateService } from '../health/drain-state.service'
-import { InProcessThreadSignalBus, parseThreadSignal, ThreadSignalBus } from './thread-signal.bus'
+import {
+  InProcessThreadSignalBus,
+  isListSignal,
+  parseThreadSignal,
+  ThreadSignalBus,
+  type ThreadSignal,
+} from './thread-signal.bus'
 
-export type ThreadSignalPublisher = Pick<ThreadSignalsService, 'headMoved' | 'podChanged'>
+export type ThreadSignalPublisher = Pick<
+  ThreadSignalsService,
+  'headMoved' | 'podChanged' | 'listChanged' | 'listChangedForOwner'
+>
 
 type OpenStream = {
   onFrame: (frame: ThreadStreamFrame) => void
+  onClosed: (() => void) | undefined
+}
+
+type OpenListStream = {
+  onFrame: (frame: ThreadListFrame) => void
   onClosed: (() => void) | undefined
 }
 
@@ -14,6 +34,7 @@ type OpenStream = {
 export class ThreadSignalsService implements OnModuleDestroy {
   private readonly logger = new Logger(ThreadSignalsService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
+  private readonly listStreams = new Map<string, Set<OpenListStream>>()
   private subscribed = false
 
   constructor(
@@ -47,9 +68,28 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
   }
 
-  async publish(args: { threadId: string; frame: ThreadStreamFrame }): Promise<void> {
+  openListStream(args: {
+    userId: string
+    onFrame: (frame: ThreadListFrame) => void
+    onClosed?: () => void
+  }): () => void {
+    const entry: OpenListStream = { onFrame: args.onFrame, onClosed: args.onClosed }
+    let entries = this.listStreams.get(args.userId)
+    if (entries === undefined) {
+      entries = new Set()
+      this.listStreams.set(args.userId, entries)
+    }
+    entries.add(entry)
+    this.ensureSubscribed()
+    return () => {
+      entries.delete(entry)
+      if (entries.size === 0) this.listStreams.delete(args.userId)
+    }
+  }
+
+  async publish(args: ThreadSignal): Promise<void> {
     try {
-      await this.bus.publish({ threadId: args.threadId, frame: args.frame })
+      await this.bus.publish(args)
     } catch (failure) {
       this.logger.warn(`publishing a thread signal failed, dropping it: ${String(failure)}`)
     }
@@ -62,13 +102,31 @@ export class ThreadSignalsService implements OnModuleDestroy {
     })
   }
 
-  podChanged(args: { threadId: string }): Promise<void> {
-    return this.publish({ threadId: args.threadId, frame: { type: EThreadStreamFrame.Pod } })
+  listChanged(args: { userId: string; threadId: string }): Promise<void> {
+    return this.publish({ userId: args.userId, threadId: args.threadId })
+  }
+
+  async podChanged(args: { threadId: string }): Promise<void> {
+    await this.publish({ threadId: args.threadId, frame: { type: EThreadStreamFrame.Pod } })
+    await this.listChangedForOwner(args)
+  }
+
+  async listChangedForOwner(args: { threadId: string }): Promise<void> {
+    try {
+      const row = await db.orm.public.Thread.where({ id: args.threadId }).select('userId').first()
+      if (row !== null) await this.listChanged({ userId: row.userId, threadId: args.threadId })
+    } catch (failure) {
+      this.logger.warn(`resolving the owner of ${args.threadId} failed: ${String(failure)}`)
+    }
   }
 
   closeAll(): void {
-    const entries = [...this.streams.values()].flatMap((open) => [...open])
+    const entries = [
+      ...[...this.streams.values()].flatMap((open) => [...open]),
+      ...[...this.listStreams.values()].flatMap((open) => [...open]),
+    ]
     this.streams.clear()
+    this.listStreams.clear()
     this.subscribed = false
     void this.bus.close().catch((failure: unknown) => {
       this.logger.warn(`closing the thread signal subscriber failed: ${String(failure)}`)
@@ -92,6 +150,16 @@ export class ThreadSignalsService implements OnModuleDestroy {
     const signal = parseThreadSignal({ raw: args.raw })
     if (signal === undefined) {
       this.logger.warn('ignoring a malformed thread signal')
+      return
+    }
+    if (isListSignal(signal)) {
+      for (const entry of this.listStreams.get(signal.userId) ?? []) {
+        try {
+          entry.onFrame({ type: EThreadListFrame.Changed, threadId: signal.threadId })
+        } catch (failure) {
+          this.logger.warn(`a list stream handler failed: ${String(failure)}`)
+        }
+      }
       return
     }
     for (const entry of this.streams.get(signal.threadId) ?? []) {

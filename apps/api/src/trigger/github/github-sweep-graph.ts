@@ -47,6 +47,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const github = new GithubService(cipher, env, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
+  const workerSignals = buildWorkerThreadSignals({ env })
   const wake = new GithubSandboxWakeService(
     env,
     cipher,
@@ -54,12 +55,19 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,
-    buildWorkerThreadSignals({ env }).signals,
+    workerSignals.signals,
+    fanout,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
 
   return {
-    pollSweeper: new GithubPollSweeperService(github, reads, fanout, mailbox),
+    pollSweeper: new GithubPollSweeperService(
+      github,
+      reads,
+      fanout,
+      mailbox,
+      workerSignals.signals,
+    ),
     hookLifecycle: new GithubHookLifecycleService(
       github,
       reads,
@@ -69,6 +77,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     ),
     dispose: async () => {
       await wake.settle()
+      await workerSignals.dispose()
       await fanout.onModuleDestroy()
       await redis.onModuleDestroy()
     },

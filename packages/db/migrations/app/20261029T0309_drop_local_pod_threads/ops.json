@@ -1,0 +1,60 @@
+[
+  {
+    "id": "data.delete-local-pod-threads",
+    "label": "Delete local-pod threads and their sub-agent threads before their checkpoint table is dropped",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Delete local-pod threads and their sub-agent threads before their checkpoint table is dropped",
+        "sql": "WITH RECURSIVE doomed AS (\n  SELECT t.\"id\" FROM \"public\".\"Thread\" t\n  WHERE t.\"id\" IN (SELECT \"threadId\" FROM \"public\".\"LocalPodLease\")\n  UNION\n  SELECT c.\"id\" FROM \"public\".\"Thread\" c JOIN doomed d ON c.\"spawnerThreadId\" = d.\"id\"\n)\nDELETE FROM \"public\".\"Thread\" WHERE \"id\" IN (SELECT \"id\" FROM doomed)"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropTable.LocalPodCheckpoint",
+    "label": "Drop table \"LocalPodCheckpoint\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "LocalPodCheckpoint"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"LocalPodCheckpoint\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"LocalPodCheckpoint\"",
+        "sql": "DROP TABLE \"public\".\"LocalPodCheckpoint\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"LocalPodCheckpoint\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"LocalPodCheckpoint\""
+        ]
+      }
+    ]
+  }
+]

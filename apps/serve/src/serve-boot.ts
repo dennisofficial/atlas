@@ -107,6 +107,9 @@ export async function bootServeFiles(args: {
 
   const spec = await fetchSpecOnce().catch(() => null)
   applyGitAccessEnv({ env, cwd, githubToken: spec?.githubToken })
+  if (spec?.projectId && !spec.githubToken) {
+    log({ event: EServeEvent.GithubTokenAbsent, projectId: spec.projectId })
+  }
   await applySigningKey({
     env,
     atlasHome,

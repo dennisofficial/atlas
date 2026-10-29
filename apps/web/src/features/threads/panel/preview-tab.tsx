@@ -4,13 +4,11 @@ import { GlobeIcon } from 'lucide-react'
 
 import { PreviewFrame } from '@dltech/atlas-ui/ai/preview-frame'
 
-import { usePreviews } from '../data/use-previews'
-import { useThreadPanel } from './thread-panel-context'
+import type { usePreviews } from '../data/use-previews'
 import { TabPlaceholder } from './tab-placeholder'
 
-export function PreviewTab() {
-  const { channel } = useThreadPanel()
-  const { ports, selectedId, select } = usePreviews(channel)
+export function PreviewTab({ data }: { data: ReturnType<typeof usePreviews> }) {
+  const { ports, selectedId, select } = data
 
   if (ports.length === 0) {
     return (

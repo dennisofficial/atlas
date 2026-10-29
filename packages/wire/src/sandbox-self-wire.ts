@@ -30,3 +30,10 @@ export type SandboxExposePortReply = z.infer<typeof sandboxExposePortReplySchema
 
 export const sandboxSelfStopRequestSchema = z.object({ sessionId: z.string().min(1).optional() })
 export type SandboxSelfStopRequest = z.infer<typeof sandboxSelfStopRequestSchema>
+
+export const sandboxActivityPostSchema = z.object({
+  working: z.boolean(),
+  awaiting: z.enum(['approval', 'input']).nullable(),
+  lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable().optional(),
+})
+export type SandboxActivityPost = z.infer<typeof sandboxActivityPostSchema>

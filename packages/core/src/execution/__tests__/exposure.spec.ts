@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EXPOSURE_HOST_SUFFIX, exposurePortFromHost, exposureUrlFor } from '../exposure'
+import {
+  EXPOSURE_HOST_SUFFIX,
+  exposureInfoPage,
+  exposurePortFromHost,
+  exposureUrlFor,
+} from '../exposure'
 
 describe('exposureUrlFor', () => {
   it('puts the container port in the hostname and the proxy port in the URL port', () => {
@@ -34,5 +39,13 @@ describe('exposurePortFromHost', () => {
     expect(exposurePortFromHost(`0${EXPOSURE_HOST_SUFFIX}:20482`)).toBeUndefined()
     expect(exposurePortFromHost(`65536${EXPOSURE_HOST_SUFFIX}:20482`)).toBeUndefined()
     expect(exposurePortFromHost(`123456${EXPOSURE_HOST_SUFFIX}:20482`)).toBeUndefined()
+  })
+})
+
+describe('exposureInfoPage', () => {
+  it('names the example url exposureUrlFor builds', () => {
+    expect(exposureInfoPage({ hostPort: 20482 })).toContain(
+      `${exposureUrlFor({ containerPort: 3000, hostPort: 20482 })}/`,
+    )
   })
 })

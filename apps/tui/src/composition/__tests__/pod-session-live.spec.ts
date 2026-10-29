@@ -19,6 +19,7 @@ import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
 import {
+  CLASSIFIER_OFF_CONFIG,
   dockerCli,
   MODEL_ID,
   OPENROUTER_KEY,
@@ -26,6 +27,7 @@ import {
   READ_TRIGGER,
   startFakeModel,
   WRITE_TRIGGER,
+  writeBehindReply,
 } from './pod-session-live-fixture'
 
 const SOCKET = process.env.ATLAS_DOCKER_SOCKET ?? DEFAULT_DOCKER_SOCKET
@@ -65,11 +67,17 @@ describeLive('a multi-turn session in a local pod', () => {
       const leaseApi = Bun.serve({
         port: 0,
         hostname: '0.0.0.0',
-        fetch: (request) => {
+        fetch: async (request) => {
           const path = new URL(request.url).pathname
+          const written = await writeBehindReply(request)
+          if (written !== undefined) return written
           if (path === '/v1/trpc/accountLease.get') {
             return Response.json({ result: { data: OPENROUTER_LEASE } })
           }
+          if (path === '/v1/trpc/podLeases.register')
+            return Response.json({ result: { data: null } })
+          if (path === '/v1/trpc/sandboxConfig.get')
+            return Response.json({ result: { data: CLASSIFIER_OFF_CONFIG } })
           if (path === '/v1/trpc/settings.list')
             return Response.json({ result: { data: { settings: [] } } })
           if (path === '/v1/trpc/secrets.list')
@@ -88,7 +96,7 @@ describeLive('a multi-turn session in a local pod', () => {
       const bridge = createLocalPodBridge({
         ...options,
         pod: () => ({ ...options.pod(), cloudUrl: `http://host.docker.internal:${leaseApi.port}` }),
-        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url, ATLAS_CLASSIFIER_MODE: 'off' }),
+        environment: () => ({ OPENROUTER_BASE_URL: fakeModel.url }),
       })
       const engine = new DockerEngine({ socketPath: SOCKET })
       const podIds = async (): Promise<string[]> =>

@@ -24,7 +24,7 @@ export class ControlPlaneRefusal extends Error {
   }
 }
 
-const REFUSAL_STATUSES: readonly number[] = [401, 403]
+const REFUSAL_STATUSES: readonly number[] = [401, 403, 404]
 
 const failedWith = (failure: unknown): Error => {
   const status = httpStatusOf(failure)

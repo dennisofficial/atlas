@@ -1,17 +1,29 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { threadPullRequests, threadWorktree } from './places'
+import { spawnedPullRequests } from './spawned-pull-requests'
 import { withPullRequestStates } from './pull-request-state'
 import { toThreadDto } from './rows'
 import type { ThreadDto } from './sessions.types'
+import { threadStatuses } from './thread-status'
 import { threadsSubscriptions } from './thread-subscriptions'
 
-export async function enrichThreads(rows: readonly Row<'Thread'>[]): Promise<ThreadDto[]> {
+export async function enrichThreads(args: {
+  rows: readonly Row<'Thread'>[]
+  viewerId: string
+}): Promise<ThreadDto[]> {
+  const { rows } = args
   const places = await Promise.all(
     rows.map(async (row) => {
-      const [worktree, pullRequests] = await Promise.all([
+      const [worktree, own, spawned] = await Promise.all([
         threadWorktree({ reader: db, threadId: row.id }),
         threadPullRequests({ reader: db, threadId: row.id }),
+        spawnedPullRequests({ reader: db, threadId: row.id }),
       ])
+      const ownKeys = new Set(own.map((pr) => `${pr.repo}#${pr.number}`))
+      const pullRequests = [
+        ...own,
+        ...spawned.filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
+      ]
       return { row, worktree, pullRequests }
     }),
   )
@@ -19,14 +31,17 @@ export async function enrichThreads(rows: readonly Row<'Thread'>[]): Promise<Thr
     reader: db,
     threadIds: rows.map((row) => row.id),
   })
+  const statuses = await threadStatuses({ rows, viewerId: args.viewerId })
   const stated = await withPullRequestStates(places.map((entry) => entry.pullRequests))
   return places.map(({ row, worktree }, index) => {
     const pullRequests = stated[index] ?? []
     const subscriptions = (subscriptionsByThread.get(row.id) ?? []).map(
       ({ provider, target, status }) => ({ provider, target, status }),
     )
+    const status = statuses.get(row.id)
     return {
       ...toThreadDto(row),
+      ...(status === undefined ? {} : { status }),
       ...(worktree === null ? {} : { worktree }),
       ...(pullRequests.length === 0 ? {} : { pullRequests }),
       ...(subscriptions.length === 0 ? {} : { subscriptions }),

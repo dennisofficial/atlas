@@ -19,8 +19,10 @@ import {
 } from '../../platform/sessions/session-or-sandbox.middleware'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 
-const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } =>
-  ctx.sandbox === undefined ? {} : { threadId: ctx.sandbox.threadId }
+const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } => {
+  const threadId = ctx.sandbox?.threadId ?? ctx.pod?.threadId
+  return threadId === undefined ? {} : { threadId }
+}
 
 @Router({ alias: 'githubSubscriptions' })
 @UseMiddlewares(SessionOrSandboxMiddleware)
@@ -30,7 +32,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscribeInputSchema,
     output: githubSubscriptionSchema,
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   subscribe(
     @Input() input: GithubSubscribeInput,
@@ -48,7 +50,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   async unsubscribe(
     @Input() input: GithubSubscriptionIdInput,
@@ -75,7 +77,7 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: githubHeartbeatSchema,
-    meta: meta({ sandboxReachable: true }),
+    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   heartbeat(
     @Input() input: GithubSubscriptionIdInput,

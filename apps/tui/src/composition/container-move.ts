@@ -1,4 +1,4 @@
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { EExecutionLocation, ERunner } from '@dltech/atlas-core'
 import type { BirthTransferProgress } from '@dltech/atlas-harness'
 
 export enum EStepMark {
@@ -37,7 +37,10 @@ export type ContainerMove = {
   failure: string | null
 }
 
-export const WAKE_HEADING = 'WAKING THE POD'
+export const WAKE_HEADING = 'Waking the pod'
+
+export const birthHeading = (runner: ERunner): string =>
+  runner === ERunner.Vercel ? 'Starting the cloud sandbox' : 'Starting the pod'
 
 const HEADING: Record<EExecutionLocation, string> = {
   [EExecutionLocation.Cloud]: 'STARTING A POD',

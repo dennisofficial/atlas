@@ -14,7 +14,6 @@ model User {
   deviceCodes              DeviceCode[]
   githubConnection         GithubConnection?
   localPodLeases           LocalPodLease[]
-  localPodCheckpoints      LocalPodCheckpoint[]
   previewTunnels           PreviewTunnel[]
   mcpServers               UserMcpServer[]
   memories                 Memory[]
@@ -31,6 +30,7 @@ model User {
   sessions                 Session[]
   sshSigningKey            SshSigningKey?
   threads                  Thread[]
+  threadReads              ThreadRead[]
   userFiles                UserFile[]
   vercelCredential         UserVercelCredential?
 

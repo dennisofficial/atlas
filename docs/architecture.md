@@ -1546,7 +1546,7 @@ deletion. A lost HTTP reply can be repaired by reading that receipt. A stopped p
 can be replaced without executing its old runtime. Build-version drift and protocol mismatch use
 this same ceremony; the protocol check is independent of release-version pinning.
 
-Parking requires five continuous minutes without outstanding work: turns, children, shells,
+Parking requires thirty continuous minutes without outstanding work: turns, children, shells,
 services, queued intake, and durable settlement all prevent it. Admission closes before the final
 idle check and metadata capture, so newly submitted work cannot race shutdown. A normal park
 stops nothing in flight because there is nothing in flight.

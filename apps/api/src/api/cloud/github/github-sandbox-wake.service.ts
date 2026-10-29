@@ -1,8 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 
-import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
-
 import { db, type Row } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
@@ -15,10 +13,14 @@ import {
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
+import { linkedThreadsOf } from './github-sandbox-wake-linked'
+import { LocalPodWakes } from './github-local-pod-wake'
+import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
+import { apiProvisionedEnvironment } from '../sandbox-provisioning/pod-telemetry-identity'
 
 export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
@@ -53,6 +55,7 @@ export class GithubSandboxWakeService {
   private readonly inFlight = new Set<string>()
   private readonly lookupsInFlight = new Set<Promise<void>>()
   private readonly bootsInFlight = new Set<Promise<void>>()
+  private readonly localPods: LocalPodWakes
 
   constructor(
     private readonly env: EnvService,
@@ -62,7 +65,10 @@ export class GithubSandboxWakeService {
     @Inject(BackgroundWork) private readonly background: BackgroundWork,
     @Inject(WAKE_DEBOUNCE) private readonly debounceMs: number,
     private readonly signals: ThreadSignalsService,
-  ) {}
+    fanout: GithubPrFanoutService,
+  ) {
+    this.localPods = new LocalPodWakes(fanout)
+  }
 
   notifyEvent(args: { userId: string; repoFullName: string; prNumber: number }): void {
     this.track({
@@ -109,26 +115,19 @@ export class GithubSandboxWakeService {
     repoFullName: string
     prNumber: number
   }): Promise<void> {
-    const subscriptions = await db.orm.public.GithubSubscription.where({
+    const { subscriptions, sandboxes } = await linkedThreadsOf(args)
+    await this.localPods.push({
       userId: args.userId,
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
+      subscriptions,
+      cloudThreadIds: new Set(sandboxes.keys()),
     })
-      .where((subscription) => subscription.threadId.isNotNull())
-      .include('sandbox')
-      .all()
     const wakeCutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
     const backoffCutoff = new Date(Date.now() - WAKE_FAILURE_BACKOFF_MS)
     const targets = subscriptions
-      .filter(
-        (subscription): subscription is typeof subscription & { threadId: string } =>
-          subscription.threadId !== null,
-      )
-      .flatMap((subscription): WakeTarget[] =>
-        subscription.sandbox === null
-          ? []
-          : [{ threadId: subscription.threadId, sandbox: subscription.sandbox }],
-      )
+      .flatMap((subscription): WakeTarget[] => {
+        const sandbox = sandboxes.get(subscription.threadId)
+        return sandbox === undefined ? [] : [{ threadId: subscription.threadId, sandbox }]
+      })
       .filter(
         (target) =>
           wakeableOf(target.sandbox) &&
@@ -209,13 +208,19 @@ export class GithubSandboxWakeService {
   private async bootClaimed(args: { row: Row<'CloudSandbox'> }): Promise<void> {
     const { row } = args
     const freshToken = randomBytes(32).toString('hex')
-    const { ownerCredential, ...credentials } = await this.credentials.forThread({
+    const { ownerCredential, userId, ...credentials } = await this.credentials.forThread({
       threadId: row.threadId,
     })
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials,
       ...(ownerCredential
-        ? { injectVercelCredentials: false, environment: { [API_PROVISIONED_ENV]: '1' } }
+        ? {
+            injectVercelCredentials: false,
+            environment: apiProvisionedEnvironment({
+              userId,
+              pepper: this.env.get('ATLAS_TELEMETRY_PEPPER'),
+            }),
+          }
         : {}),
       name: row.name,
       threadId: row.threadId,

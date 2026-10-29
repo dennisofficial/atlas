@@ -32,6 +32,7 @@ export enum EServeEvent {
   WorkspaceReady = 'serve.workspace-ready',
   WorkspaceFailed = 'serve.workspace-failed',
   ProfileStepFailed = 'serve.profile-step-failed',
+  GithubTokenAbsent = 'serve.github-token-absent',
   TranscriptRestored = 'serve.transcript-restored',
   TranscriptFailed = 'serve.transcript-failed',
   ChildrenAdopted = 'serve.children-adopted',
@@ -64,6 +65,7 @@ export enum EServeEvent {
   EventFlushConflict = 'serve.event-flush-conflict',
   EventFlushFailed = 'serve.event-flush-failed',
   EventFlushRefused = 'serve.event-flush-refused',
+  ActivityReportFailed = 'serve.activity-report-failed',
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
 }
 
