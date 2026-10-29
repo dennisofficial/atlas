@@ -27,25 +27,19 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
     ((config: PodDriverConfig): PodBridgeDriver =>
       new DockerPodDriver({ ...config, log: args.onDriverLog }))
 
-  const registerBornThread = async (born: {
+  const registerThread = async (thread: {
     threadId: ThreadId
     projectId: string | null
     model: string | undefined
-    effort: string
+    effort: string | undefined
   }): Promise<void> => {
     if (args.registerThread === undefined) return
-    try {
-      await args.registerThread({
-        threadId: born.threadId,
-        projectId: born.projectId,
-        ...(born.model === undefined ? {} : { model: born.model }),
-        effort: born.effort,
-      })
-    } catch (failure) {
-      args.onDriverLog?.(
-        `thread registration failed: ${failure instanceof Error ? failure.message : String(failure)}`,
-      )
-    }
+    await args.registerThread({
+      threadId: thread.threadId,
+      projectId: thread.projectId,
+      ...(thread.model === undefined ? {} : { model: thread.model }),
+      ...(thread.effort === undefined ? {} : { effort: thread.effort }),
+    })
   }
 
   const create = async (
@@ -71,14 +65,12 @@ export function createLocalPodBridge(args: LocalPodBridgeOptions): CloudBridge {
 
     await args.registerPodLease({ threadId: createArgs.threadId, token })
 
-    if (createArgs.birth !== undefined) {
-      await registerBornThread({
-        threadId: createArgs.threadId,
-        projectId: createArgs.projectId,
-        model: createArgs.model,
-        effort: createArgs.birth.effort,
-      })
-    }
+    await registerThread({
+      threadId: createArgs.threadId,
+      projectId: createArgs.projectId,
+      model: createArgs.model,
+      effort: createArgs.birth?.effort,
+    })
 
     const placement = await driver.createOrResume({
       name,

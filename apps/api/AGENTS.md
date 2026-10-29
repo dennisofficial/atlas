@@ -21,7 +21,7 @@ controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1
 `wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
 the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
 rows; a TUI BYO row (none) is never taken over by a web send or Retry. A TUI local pod registers its
-`Thread` row itself at birth, after its `LocalPodLease` (no `firstMessage`, so no claim and no
+`Thread` row itself on every pod create (a 409 means it already exists), after its `LocalPodLease` (no `firstMessage`, so no claim and no
 `SandboxBootStep` rows), and the send and Retry paths refuse a leased thread with 409.
 
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`

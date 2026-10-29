@@ -211,8 +211,8 @@ describe('park after a failed flush', () => {
     return { behind, lines }
   }
 
-  it('lets a registered pod park when the control plane refuses its token, and says so', async () => {
-    for (const status of [401, 403]) {
+  it('lets a registered pod park when the control plane refuses its token or has no such thread, and says so', async () => {
+    for (const status of [401, 403, 404]) {
       const { behind, lines } = await bind({ env: registeredEnv, status })
       expect(await behind?.flush()).toBe(true)
       expect(lines.map((line) => line.event)).toContain(EServeEvent.EventFlushRefused)
@@ -226,9 +226,11 @@ describe('park after a failed flush', () => {
     }
   })
 
-  it('keeps refusing the park of an api-provisioned pod on 401', async () => {
-    const { behind } = await bind({ env: { [API_PROVISIONED_ENV]: '1' }, status: 401 })
-    expect(await behind?.flush()).toBe(false)
+  it('keeps refusing the park of an api-provisioned pod on 401 or 404', async () => {
+    for (const status of [401, 404]) {
+      const { behind } = await bind({ env: { [API_PROVISIONED_ENV]: '1' }, status })
+      expect(await behind?.flush()).toBe(false)
+    }
   })
 
   it('does not write behind at all without a url and token in the environment', async () => {
