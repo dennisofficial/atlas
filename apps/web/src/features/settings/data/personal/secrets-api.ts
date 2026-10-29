@@ -35,6 +35,11 @@ export async function fetchSecretDetails(): Promise<SecretDetail[]> {
   return body.secrets
 }
 
+export async function fetchSecretNames(): Promise<string[]> {
+  const body = await cloudCall(api.secrets.names.query())
+  return body.names
+}
+
 export function putSecret(args: { name: string; value: string; kind: ESecretKind }): Promise<void> {
   return cloudCall(
     api.secrets.set.mutate({ name: args.name, value: args.value, kind: wireKindOf(args.kind) }),
