@@ -46,7 +46,6 @@ describe('GithubSandboxWakeService resume', () => {
       serveVersion: '1.92.6',
       resumeToken: 'stored-token',
     })
-    expect(calls[0]).not.toHaveProperty('driveName')
     expect(calls[0]?.credentials).toEqual({
       token: 'vercel-token',
       teamId: 'team-1',

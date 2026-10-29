@@ -290,10 +290,9 @@ Wake is **server-side** (#1205): the moment a mailbox row lands, `GithubSandboxW
 the realtime module resolves the subscription's thread link (#1202 stores `threadId`/
 `sandboxId` on the subscription row) to the parked sandbox, and — when its
 `CloudSandbox.lastActivityAt` sits inside the 24h `PARK_WAKE_WINDOW_MS`
-(`github-delivery-routing.ts`) — recreates the sandbox and boots its serve through the shared
-boot machinery in `@dltech/atlas-wire` (delete the stopped container, remount the thread's
-drive, launch serve under a freshly minted token sealed onto the row, at the registry row's
-`serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
+(`github-delivery-routing.ts`) — resumes the sandbox and boots its serve through the shared
+boot machinery in `@dltech/atlas-wire` (resume the persistent sandbox from its snapshot, launch
+serve under the token sealed onto the row, at the registry row's `serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
 the mailbox row and logs. The TUI forwarder (`pr-event-forwarder.ts`) is the attached-client
 fast path: an open TUI routes the event into the parked thread as ordinary input, which
 unparks without waiting for the boot.

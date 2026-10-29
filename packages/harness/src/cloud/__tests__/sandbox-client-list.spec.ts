@@ -12,14 +12,12 @@ describe('listing sandboxes', () => {
           {
             threadId: 'brn_one',
             name: 'fix the thing',
-            driveName: 'atlas',
             state: 'running',
             lastActivityAt: '2026-09-26T10:00:00.000Z',
           },
           {
             threadId: 'brn_two',
             name: 'parked work',
-            driveName: null,
             state: 'parked',
             lastActivityAt: '2026-09-25T08:30:00.000Z',
           },
@@ -36,14 +34,12 @@ describe('listing sandboxes', () => {
       {
         threadId: 'brn_one',
         name: 'fix the thing',
-        driveName: 'atlas',
         state: ECloudSandboxState.Running,
         lastActivityAt: '2026-09-26T10:00:00.000Z',
       },
       {
         threadId: 'brn_two',
         name: 'parked work',
-        driveName: null,
         state: ECloudSandboxState.Parked,
         lastActivityAt: '2026-09-25T08:30:00.000Z',
       },
@@ -63,7 +59,6 @@ describe('listing sandboxes', () => {
           {
             threadId: 'brn_one',
             name: 'fix the thing',
-            driveName: null,
             state: 'exploded',
             lastActivityAt: '2026-09-26T10:00:00.000Z',
           },

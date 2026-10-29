@@ -23,7 +23,7 @@ describe('session home after an ownership change', () => {
     await fixture.threads.writePlacement({
       threadId: thread.thread.id,
       record: {
-        placement: { harness: EHarnessPlacement.Cloud, driveName: 'test-drive' },
+        placement: { harness: EHarnessPlacement.Cloud },
         revision: 1,
       },
     })

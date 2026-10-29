@@ -37,10 +37,10 @@ export const threadId = toThreadId('thread-serve')
 
 export const CONTROL_PLANE = 'https://api.example.com'
 
-const driveHomes: string[] = []
+const atlasHomes: string[] = []
 let heldAtlasHome: string | undefined
 
-const writeDriveSpec = async (args: {
+const writeHomeSpec = async (args: {
   home: string
   spec?: Record<string, unknown> | undefined
 }): Promise<void> => {
@@ -56,7 +56,7 @@ const writeDriveSpec = async (args: {
   )
 }
 
-export const startWithDriveSpec = async (args: {
+export const startWithHomeSpec = async (args: {
   spec?: Record<string, unknown> | undefined
   fetchFn?: typeof fetch | undefined
   ensureWorkspace?: EnsureWorkspace | undefined
@@ -65,10 +65,10 @@ export const startWithDriveSpec = async (args: {
   }) => Promise<FakeServeApp>
 }): Promise<ServeHandle> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
-  driveHomes.push(home)
+  atlasHomes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
-  await writeDriveSpec({ home, spec: args.spec })
+  await writeHomeSpec({ home, spec: args.spec })
   const handle = await startServe({
     threadId,
     port: 0,
@@ -210,7 +210,7 @@ export const releaseServeSpec = async (): Promise<void> => {
   else process.env.ATLAS_HOME = heldAtlasHome
   heldAtlasHome = undefined
   while (running.length > 0) await running.pop()?.close()
-  for (const home of driveHomes.splice(0, driveHomes.length)) {
+  for (const home of atlasHomes.splice(0, atlasHomes.length)) {
     rmSync(home, { recursive: true, force: true })
   }
 }

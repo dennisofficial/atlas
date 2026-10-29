@@ -21,7 +21,7 @@ afterEach(async () => {
 })
 
 const THREAD = toThreadId('owned-session')
-const CLOUD = { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' } as const
+const CLOUD = { harness: EHarnessPlacement.Cloud } as const
 
 const binding = (args: { kind: ERuntimeKind; name: string; cwd: string }): Probe => {
   const made: Probe = {

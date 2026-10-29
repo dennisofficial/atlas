@@ -34,7 +34,6 @@ export const clientTokenPattern = /^[0-9a-f]{64}$/
 export const wireSandboxListEntrySchema = z.object({
   threadId: z.string(),
   name: z.string(),
-  driveName: z.string().nullable().optional(),
   state: sandboxStateSchema,
   lastActivityAt: z.string(),
 })

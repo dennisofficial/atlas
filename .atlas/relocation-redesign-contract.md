@@ -12,7 +12,7 @@ shape. Dennis's directions that this encodes:
 - **Single commit point, two-phase failure.** Before `flipOwnership`: abort-safe, GC orphans, stay put.
   After: ownership moved; recovery is re-attach or the reverse move. Never a half-state, never lost data.
 - **Dedicated attach seam.** Attaching to a lifted session is not "open a local conversation."
-- **Mount:** drive at `/atlas`, `/atlas/workspace` + `/atlas/home`. Unchanged.
+- **Layout:** `/atlas/workspaces` + `/atlas/home` on the sandbox filesystem, carried by persistent snapshots.
 
 ## 1. The pause mechanism
 
@@ -113,7 +113,7 @@ captureWorkspace   needs: []                          (git diff, durable workspa
 captureGpg         needs: []
 captureContext     needs: []                          (skills/memory tar)
 claim              needs: [captureWorkspace]          (control-plane row + token; needs workspace spec)
-provision          needs: [claim, captureContext]     (drive + sandbox boot + serve launch; SLOW)
+provision          needs: [claim, captureContext]     (sandbox boot + serve launch; SLOW)
 pauseLoops         needs: []                          (pause parent + ALL children at seam; no quiescence needed to START, runs concurrent with provision)
 archiveSession     needs: [pauseLoops]                (tar the session folder — ONLY after all writers paused)
 shipSession        needs: [archiveSession, provision] (upload transcript onto the row; serve must be up)

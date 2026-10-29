@@ -92,7 +92,7 @@ describe('queued Finished-child continuation across serve boots', () => {
     second.modelGate.release()
   }, 20_000)
 
-  it('retains a started child obligation after a model crash and recovers it from the same drive on the next boot', async () => {
+  it('retains a started child obligation after a model crash and recovers it from the same Atlas home on the next boot', async () => {
     const fixture = await rotationChildFixture()
     const first = await fixture.boot()
     const handle = await first.starting

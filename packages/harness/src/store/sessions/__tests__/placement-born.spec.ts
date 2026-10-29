@@ -80,7 +80,7 @@ describe('born-placed threads', () => {
     const store = fakePlacementStore()
     const placement = bound(store)
     const threadId = toThreadId('thr_born_fresh')
-    const born = { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' } as const
+    const born = { harness: EHarnessPlacement.Cloud } as const
 
     const stamped = await placement.placeAtCreation({ threadId, placement: born })
 
@@ -93,7 +93,7 @@ describe('born-placed threads', () => {
     const store = fakePlacementStore()
     const placement = bound(store)
     const threadId = toThreadId('thr_born_twice')
-    const first = { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' } as const
+    const first = { harness: EHarnessPlacement.Cloud } as const
 
     await placement.placeAtCreation({ threadId, placement: first })
     const again = await placement.placeAtCreation({
@@ -113,7 +113,7 @@ describe('born-placed threads', () => {
 
     const stamped = await placement.placeAtCreation({
       threadId,
-      placement: { harness: EHarnessPlacement.Cloud, driveName: 'drive-1' },
+      placement: { harness: EHarnessPlacement.Cloud },
     })
 
     expect(stamped.placement).toEqual({
