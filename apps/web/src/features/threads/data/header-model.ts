@@ -13,11 +13,13 @@ export enum EHeaderState {
   Idle = 'idle',
 }
 
+export type ChecksTally = { running: number; passed: number; failed: number }
+
 export type PullRequestBadge = {
   label: string
   stateLabel: string | undefined
   url: string
-  checksLabel?: string | undefined
+  checks?: ChecksTally | undefined
   mergeable?: boolean | undefined
   overflow: number
 }
@@ -68,19 +70,12 @@ export const hasConflicts = (badge: PullRequestBadge): boolean =>
 export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
   entry.mergeable === false && entry.state === EPullRequestStateWire.Open
 
-const SETTLED_STATES: ReadonlySet<string> = new Set([
-  EPullRequestStateWire.Merged,
-  EPullRequestStateWire.Closed,
-])
-
-export function checksLabelOf(entry: PullRequestEntry): string | undefined {
-  if (entry.state === undefined || SETTLED_STATES.has(entry.state as EPullRequestStateWire)) {
-    return undefined
-  }
-  if ((entry.checksFailed ?? 0) > 0) return `✕ ${entry.checksFailed} failing`
-  if ((entry.checksRunning ?? 0) > 0) return `${entry.checksRunning} running`
-  if ((entry.checksPassed ?? 0) > 0) return `✓ ${entry.checksPassed} passing`
-  return undefined
+export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined {
+  const running = entry.checksRunning ?? 0
+  const passed = entry.checksPassed ?? 0
+  const failed = entry.checksFailed ?? 0
+  if (running + passed + failed === 0) return undefined
+  return { running, passed, failed }
 }
 
 export function livePullRequestBadgeOf(args: {
@@ -98,7 +93,7 @@ export function livePullRequestBadgeOf(args: {
     label: `#${pinned.number}`,
     stateLabel: pinned.state === undefined ? undefined : capitalized(pinned.state),
     url: pinned.url,
-    checksLabel: checksLabelOf(pinned),
+    checks: checksTallyOf(pinned),
     ...(pinned.mergeable === null || pinned.mergeable === undefined
       ? {}
       : { mergeable: pinned.mergeable }),

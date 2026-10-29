@@ -71,6 +71,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-pr-open: var(--pr-open);
+  --color-pr-draft: var(--pr-draft);
+  --color-pr-merged: var(--pr-merged);
+  --color-pr-closed: var(--pr-closed);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-code: var(--code);
@@ -132,6 +136,10 @@
   --sidebar-ring: #d97757;
   --success: #57ab5a;
   --success-foreground: #241f1c;
+  --pr-open: #3fb950;
+  --pr-draft: #9198a1;
+  --pr-merged: #ab7df8;
+  --pr-closed: #f85149;
   --warning: #e3b341;
   --warning-foreground: #241f1c;
   --code: #7cbdff;
@@ -189,6 +197,10 @@
   --sidebar-ring: #a44d31;
   --success: #2f7333;
   --success-foreground: #fdfcfa;
+  --pr-open: #1a7f37;
+  --pr-draft: #59636e;
+  --pr-merged: #8250df;
+  --pr-closed: #cf222e;
   --warning: #8f6615;
   --warning-foreground: #fdfcfa;
   --code: #28558f;

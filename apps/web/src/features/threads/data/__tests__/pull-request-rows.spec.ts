@@ -36,7 +36,7 @@ describe('pullRequestListOf', () => {
     expect(list.rows[0]?.branch).toBe('b1')
   })
 
-  it('flags failing checks and conflicts from live state', () => {
+  it('tallies checks and flags conflicts from live state', () => {
     const live: PrStateWire = {
       repo: 'o/r',
       number: 2,
@@ -49,14 +49,13 @@ describe('pullRequestListOf', () => {
       mergeable: false,
     }
     const row = pullRequestListOf({ thread, states: [live] }).rows[1]
-    expect(row?.checksLabel).toBe('✕ 2 failing')
-    expect(row?.failing).toBe(true)
+    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2 })
     expect(row?.conflicts).toBe(true)
   })
 
-  it('leaves settled pull requests without checks or conflicts', () => {
+  it('leaves pull requests without live state without checks or conflicts', () => {
     const row = pullRequestListOf({ thread, states: [] }).rows[0]
-    expect(row?.checksLabel).toBeUndefined()
+    expect(row?.checks).toBeUndefined()
     expect(row?.conflicts).toBe(false)
   })
 })
