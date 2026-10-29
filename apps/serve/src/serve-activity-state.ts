@@ -26,6 +26,7 @@ export type ActivityTracker = {
   turnEnded: () => void
   setInput: (waiting: boolean) => void
   setApproval: (waiting: boolean) => void
+  setBackground: (running: boolean) => void
 }
 
 export const NOOP_ACTIVITY_TRACKER: ActivityTracker = {
@@ -35,17 +36,20 @@ export const NOOP_ACTIVITY_TRACKER: ActivityTracker = {
   turnEnded: () => undefined,
   setInput: () => undefined,
   setApproval: () => undefined,
+  setBackground: () => undefined,
 }
 
 export function createActivityTracker(args: {
   report: (state: ActivityState) => void
 }): ActivityTracker {
-  let working = false
+  let turning = false
+  let background = false
   let input = false
   let approval = false
   let outcome: ActivityOutcome | undefined
 
   const emit = (): void => {
+    const working = turning || background
     const awaiting = input ? 'input' : approval ? 'approval' : null
     args.report({
       working,
@@ -56,7 +60,7 @@ export function createActivityTracker(args: {
 
   return {
     turnStarted: () => {
-      working = true
+      turning = true
       outcome = undefined
       emit()
     },
@@ -67,7 +71,7 @@ export function createActivityTracker(args: {
       outcome = 'failed'
     },
     turnEnded: () => {
-      working = false
+      turning = false
       emit()
     },
     setInput: (waiting) => {
@@ -78,6 +82,11 @@ export function createActivityTracker(args: {
     setApproval: (waiting) => {
       if (approval === waiting) return
       approval = waiting
+      emit()
+    },
+    setBackground: (running) => {
+      if (background === running) return
+      background = running
       emit()
     },
   }
