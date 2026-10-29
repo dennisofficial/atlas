@@ -24,7 +24,7 @@ a generic 502.
   id; the socket stays open.
 - **Recovery when skew still bites.** When serve refuses the protocol, the API parks the sandbox,
   keeps the message and relaunches it on the current serve instead of answering 502.
-- **CI enforces it.** `scripts/check-wire-skew.ts` fails a change whose minimum drops the protocol
+- **CI enforces it.** `scripts/check-wire-skew.ts`, run by the root `lint` script against the PR base, fails a change whose minimum drops the protocol
   the base spoke, a bump of more than one, or a removed frame/request without a bump.
 
 ## Why

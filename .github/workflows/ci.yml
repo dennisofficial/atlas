@@ -84,12 +84,6 @@ jobs:
         if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
         run: git fetch --no-tags --depth=1 origin "$RENDER_CHECK_BASE" || echo "RENDER_CHECK_ALL=1" >> "$GITHUB_ENV"
 
-      - name: check wire protocol skew
-        if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
-        run: bun scripts/check-wire-skew.ts
-        env:
-          WIRE_SKEW_BASE: ${{ env.RENDER_CHECK_BASE }}
-
       # The pull_request checkout is the merge commit, so base.sha..HEAD is exactly the PR's diff
       # and a tree diff needs no history on a shallow clone.
       - name: plan storybook render check
