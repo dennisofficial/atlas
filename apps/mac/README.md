@@ -6,7 +6,7 @@ macOS client: the apps/web static export in an Electrobun window, served by a lo
 
 1. Install Hutch: `curl -fsSL https://hutch.blackboard.sh/hutch/install.sh | sh`
 2. `bun install` at the repo root.
-3. `cd apps/mac && bun run dev` (builds the web export, copies it to `web-out/`, launches the app).
+3. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web export, copies it to `web-out/`, launches the app).
 
 `bun run typecheck` and `bun run test` cover the host and run anywhere. `bun run typecheck:main` checks the Electrobun main process and needs the Hutch devkit.
 
