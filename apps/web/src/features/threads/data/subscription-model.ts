@@ -5,7 +5,12 @@ import {
   type WireThread,
 } from '@dltech/atlas-wire/web'
 
-import { linkedPullRequestOf } from '@/features/shell/thread-status'
+import {
+  pinnedPullRequestOf,
+  pullRequestEntriesOf,
+  pullRequestKeyOf,
+  type PullRequestEntry,
+} from './pull-request-entries'
 
 const GITHUB_PREFIX = 'github.com/'
 const MINUTE_MS = 60_000
@@ -17,17 +22,19 @@ export type PullRequestTarget = { repo: string; number: number; input: string }
 const ownerRepoOf = (repo: string): string =>
   repo.startsWith(GITHUB_PREFIX) ? repo.slice(GITHUB_PREFIX.length) : repo
 
-export function pullRequestTargetOf(thread: WireThread | undefined): PullRequestTarget | undefined {
-  if (thread === undefined) return undefined
-  const linked = linkedPullRequestOf(thread)
-  if (linked === undefined) return undefined
-
-  const ownerRepo = ownerRepoOf(linked.repo).toLowerCase()
+export function pullRequestTargetOfEntry(entry: PullRequestEntry): PullRequestTarget {
+  const ownerRepo = ownerRepoOf(entry.repo).toLowerCase()
   return {
     repo: `${GITHUB_PREFIX}${ownerRepo}`,
-    number: linked.number,
-    input: `${ownerRepo}#${linked.number}`,
+    number: entry.number,
+    input: `${ownerRepo}#${entry.number}`,
   }
+}
+
+export function pullRequestTargetOf(thread: WireThread | undefined): PullRequestTarget | undefined {
+  if (thread === undefined) return undefined
+  const pinned = pinnedPullRequestOf(pullRequestEntriesOf({ thread, states: [] }))
+  return pinned === undefined ? undefined : pullRequestTargetOfEntry(pinned)
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -107,4 +114,21 @@ export function pullRequestBellOf(args: {
     busy: args.busy.has(target.input) || (existing !== undefined && args.busy.has(existing.id)),
     label: watching ? 'Stop watching pull request' : 'Watch pull request',
   }
+}
+
+export function pullRequestBellsOf(args: {
+  entries: readonly PullRequestEntry[]
+  subscriptions: readonly SubscriptionWire[]
+  busy: ReadonlySet<string>
+}): Record<string, PullRequestBell> {
+  const bells: Record<string, PullRequestBell> = {}
+  for (const entry of args.entries) {
+    const bell = pullRequestBellOf({
+      target: pullRequestTargetOfEntry(entry),
+      subscriptions: args.subscriptions,
+      busy: args.busy,
+    })
+    if (bell !== undefined) bells[pullRequestKeyOf(entry)] = bell
+  }
+  return bells
 }

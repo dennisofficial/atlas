@@ -12,9 +12,13 @@ import {
   detailOf,
   expiryTextOf,
   pullRequestBellOf,
+  pullRequestBellsOf,
   pullRequestTargetOf,
+  pullRequestTargetOfEntry,
   subscriptionForPullRequest,
 } from '../subscription-model'
+
+import type { PullRequestEntry } from '../pull-request-entries'
 
 const NOW = Date.parse('2026-10-28T12:00:00.000Z')
 
@@ -37,13 +41,42 @@ const threadWith = (pullRequests: NonNullable<WireThread['pullRequests']>): Wire
 describe('pullRequestTargetOf', () => {
   it('builds the owner/repo#n input from the linked pull request', () => {
     const thread = threadWith([
-      { number: 4, url: 'https://github.com/o/r/pull/4', repo: 'github.com/o/r', branch: 'b' },
+      {
+        number: 4,
+        url: 'https://github.com/o/r/pull/4',
+        repo: 'github.com/o/r',
+        branch: 'b',
+      },
     ])
     expect(pullRequestTargetOf(thread)).toEqual({
       repo: 'github.com/o/r',
       number: 4,
       input: 'o/r#4',
     })
+  })
+
+  it('targets the open pull request on the current branch over a merged one', () => {
+    const thread = {
+      id: 't',
+      worktree: { path: '/w', branch: 'b2' },
+      pullRequests: [
+        {
+          number: 1467,
+          url: 'u1',
+          repo: 'github.com/o/r',
+          branch: 'b1',
+          state: 'merged',
+        },
+        {
+          number: 1469,
+          url: 'u2',
+          repo: 'github.com/o/r',
+          branch: 'b2',
+          state: 'open',
+        },
+      ],
+    } as WireThread
+    expect(pullRequestTargetOf(thread)?.number).toBe(1469)
   })
 
   it('has no target without a linked pull request', () => {
@@ -64,7 +97,10 @@ describe('subscriptionForPullRequest', () => {
       }),
     ).toBeUndefined()
     expect(
-      subscriptionForPullRequest({ subscriptions: [row({ provider: 'other' })], target }),
+      subscriptionForPullRequest({
+        subscriptions: [row({ provider: 'other' })],
+        target,
+      }),
     ).toBeUndefined()
   })
 })
@@ -86,7 +122,12 @@ describe('session-wide matching', () => {
 
   it('lowercases the target built from a linked pull request', () => {
     const thread = threadWith([
-      { number: 4, url: 'https://github.com/O/R/pull/4', repo: 'github.com/O/R', branch: 'b' },
+      {
+        number: 4,
+        url: 'https://github.com/O/R/pull/4',
+        repo: 'github.com/O/R',
+        branch: 'b',
+      },
     ])
 
     expect(pullRequestTargetOf(thread)?.repo).toBe('github.com/o/r')
@@ -98,7 +139,11 @@ describe('pullRequestBellOf', () => {
 
   it('is absent without a target', () => {
     expect(
-      pullRequestBellOf({ target: undefined, subscriptions: [], busy: new Set() }),
+      pullRequestBellOf({
+        target: undefined,
+        subscriptions: [],
+        busy: new Set(),
+      }),
     ).toBeUndefined()
   })
 
@@ -119,7 +164,11 @@ describe('pullRequestBellOf', () => {
       true,
     )
     expect(
-      pullRequestBellOf({ target, subscriptions: [row()], busy: new Set(['sub_1']) })?.busy,
+      pullRequestBellOf({
+        target,
+        subscriptions: [row()],
+        busy: new Set(['sub_1']),
+      })?.busy,
     ).toBe(true)
   })
 })
@@ -147,5 +196,41 @@ describe('detailOf', () => {
       expiresAt: new Date(NOW + 60 * 60_000).toISOString(),
     })
     expect(detailOf({ subscription, now: NOW })).toBe('Pull request · You · 2 held · Expires in 1h')
+  })
+})
+
+const entryOf = (number: number): PullRequestEntry => ({
+  repo: 'github.com/O/R',
+  number,
+  url: `u${number}`,
+  branch: `b${number}`,
+  state: 'open',
+  checksRunning: undefined,
+  checksPassed: undefined,
+  checksFailed: undefined,
+  mergeable: undefined,
+  current: false,
+})
+
+describe('pullRequestTargetOfEntry', () => {
+  it('lowercases the repo and builds the input', () => {
+    expect(pullRequestTargetOfEntry(entryOf(4))).toEqual({
+      repo: 'github.com/o/r',
+      number: 4,
+      input: 'o/r#4',
+    })
+  })
+})
+
+describe('pullRequestBellsOf', () => {
+  it('keys a bell per entry and watches only the subscribed one', () => {
+    const bells = pullRequestBellsOf({
+      entries: [entryOf(4), entryOf(5)],
+      subscriptions: [row()],
+      busy: new Set(),
+    })
+    expect(Object.keys(bells)).toEqual(['github.com/O/R#4', 'github.com/O/R#5'])
+    expect(bells['github.com/O/R#4']?.watching).toBe(true)
+    expect(bells['github.com/O/R#5']?.watching).toBe(false)
   })
 })
