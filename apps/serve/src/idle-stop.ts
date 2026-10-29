@@ -1,6 +1,6 @@
 import { serveIdleDue } from '@dltech/atlas-core'
 
-export const SERVE_IDLE_MINUTES = 5
+export const SERVE_IDLE_MINUTES = 30
 export const SERVE_SERVICE_IDLE_MINUTES = 30
 
 const IDLE_TICK_MS = 30_000

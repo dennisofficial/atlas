@@ -81,7 +81,7 @@ export function PausedNotice({ onResume }: { onResume: () => void }) {
     <Notice
       icon={<PauseIcon />}
       title="Pod paused"
-      description="It paused after 15 minutes without activity. Files and terminals come back when it resumes."
+      description="It paused after 30 minutes without activity. Files and terminals come back when it resumes."
       action={
         <Button size="sm" onClick={onResume}>
           <PlayIcon data-icon="inline-start" />
