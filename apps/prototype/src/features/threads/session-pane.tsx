@@ -1,7 +1,6 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type ReactNode } from 'react'
 
-import type { AgentsPanelTeammate } from '@dltech/atlas-ui/ai/agents-panel'
 import { EConfirmationState } from '@dltech/atlas-ui/ai/confirmation'
 import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import {
@@ -11,14 +10,14 @@ import {
 } from '@dltech/atlas-ui/components/resizable'
 
 import type { AppTeammate } from '../shell/fixtures/teammates'
-import { teammateDisplay } from '../shell/teammate-display'
 import { threadPath } from '../shell/thread-href'
 import { toPanelAgent } from './agent-adapters'
+import { subagentRowsOf, teammateRowsOf } from './details/crew-rows'
 import type { AgentRun } from './agent-run'
 import type { PodPanelState } from './pod-state'
 import { RightPanel } from './right-panel'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
-import { SessionHeader, type SessionHeaderProps } from './session-header'
+import { DEFAULT_TITLE, SessionHeader, type SessionHeaderProps } from './session-header'
 import { ERightTab, ESessionState } from './session-types'
 import { TeammateTranscript } from './teammate-transcript'
 import { ThreadComposer } from './thread-composer'
@@ -40,10 +39,6 @@ export interface SessionPaneProps {
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
   composer?: ReactNode
-}
-
-function toPanelTeammate(teammate: AppTeammate): AgentsPanelTeammate {
-  return { id: teammate.id, title: teammate.title, display: teammateDisplay(teammate) }
 }
 
 export function SessionPane({
@@ -75,10 +70,12 @@ export function SessionPane({
     setExpanded((previous) => (previous.includes(path) ? previous : [...previous, path]))
   }
 
+  const handleOpenDetails = () => setTab(ERightTab.Details)
+
   const handleOpenTeammate = (id: string) => router.push(threadPath(id))
 
   const handleOpenAgent = (id: string) => {
-    setTab(ERightTab.Agents)
+    setTab(ERightTab.Details)
     setDetailId(id)
   }
 
@@ -108,6 +105,7 @@ export function SessionPane({
             {renderMain()}
             {composer ?? (
               <ThreadComposer
+                onOpenPlan={handleOpenDetails}
                 steps={openedTeammate ? [] : planFor(state)}
                 initialQueue={initialQueue}
                 busy={busy}
@@ -126,7 +124,9 @@ export function SessionPane({
             initialPreviewId={initialPreviewId}
             pod={pod}
             agents={panelAgents}
-            teammates={teammates.map(toPanelTeammate)}
+            title={header.title ?? DEFAULT_TITLE}
+            teammates={teammateRowsOf(teammates)}
+            subagents={subagentRowsOf(agents)}
             detailId={detailId}
             onDetailChange={setDetailId}
             onOpenTeammate={handleOpenTeammate}

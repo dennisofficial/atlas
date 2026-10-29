@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import {
-  checksLabelOf,
-  othersOf,
-  pinnedOf,
-  pullRequestsOf,
-  toggleWatched,
-} from '../pull-request-model'
+import { checksLabelOf, pullRequestsOf, toggleWatched } from '../pull-request-model'
 
 describe('pullRequestsOf', () => {
   test('returns the requested count, oldest first, clamped to 0..4', () => {
@@ -18,15 +12,6 @@ describe('pullRequestsOf', () => {
 
   test('always keeps the current pull request when any are shown', () => {
     expect(pullRequestsOf(1).map((pr) => pr.number)).toEqual([1469])
-  })
-})
-
-describe('pinnedOf and othersOf', () => {
-  test('pin the current pull request and list the rest', () => {
-    const prs = pullRequestsOf(3)
-    expect(pinnedOf(prs)?.number).toBe(1469)
-    expect(othersOf(prs).map((pr) => pr.number)).toEqual([1467, 1472])
-    expect(pinnedOf([])).toBeUndefined()
   })
 })
 

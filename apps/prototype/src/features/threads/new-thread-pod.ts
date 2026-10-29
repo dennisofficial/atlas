@@ -3,11 +3,8 @@ import type { DiffLine } from '@dltech/atlas-ui/ai/diff-viewer'
 import type { FileNode } from '@dltech/atlas-ui/ai/file-tree'
 import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 
-import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
-
 import { ETerminalEntry, type UserTerminal } from './sandbox-terminal'
 import { EPodPhase, type PodPanelState } from './pod-state'
-import { RUNNING_POD, type PodChipConfig } from './pod-status'
 import { FIRST_TURN_STEPS } from './new-thread-data'
 import { EPodProgress, isFailedPod, isStartingPod } from './new-thread-types'
 
@@ -84,12 +81,6 @@ export function phaseOf(pod: EPodProgress): EPodPhase {
   if (pod === EPodProgress.None) return EPodPhase.None
   if (isStartingPod(pod)) return EPodPhase.Starting
   return isFailedPod(pod) ? EPodPhase.Failed : EPodPhase.Ready
-}
-
-export function podChipOf(pod: EPodProgress): PodChipConfig | undefined {
-  const phase = phaseOf(pod)
-  if (phase === EPodPhase.Starting) return { status: { ...RUNNING_POD, state: EPodState.Starting } }
-  return phase === EPodPhase.Ready ? { status: RUNNING_POD } : undefined
 }
 
 interface PodStateInput {

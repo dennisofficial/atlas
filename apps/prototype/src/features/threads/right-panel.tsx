@@ -1,17 +1,14 @@
 import { useState } from 'react'
 
-import {
-  AgentsPanel,
-  type AgentsPanelAgent,
-  type AgentsPanelTeammate,
-  runningAgentCount,
-} from '@dltech/atlas-ui/ai/agents-panel'
+import { type AgentsPanelAgent, runningAgentCount } from '@dltech/atlas-ui/ai/agents-panel'
 import { ChangesPanel, type ChangeScopeOption } from '@dltech/atlas-ui/ai/changes-panel'
 import { FileTree } from '@dltech/atlas-ui/ai/file-tree'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
 import { CHANGED_FILES } from '@dltech/atlas-ui/fixtures/agent'
 import { CHANGE_SCOPES, filesInScope } from './session-changes'
+import { DetailsTab } from './details/details-tab'
+import type { CrewRow } from './details/details-model'
 import { PodChanges, PodFiles, PodPreview, PodTerminal } from './pod-panels'
 import type { PodPanelState } from './pod-state'
 import { ERightTab, isRightTab } from './session-types'
@@ -28,7 +25,9 @@ export interface RightPanelProps {
   initialPreviewId?: string
   pod?: PodPanelState
   agents: AgentsPanelAgent[]
-  teammates: AgentsPanelTeammate[]
+  title: string
+  teammates: CrewRow[]
+  subagents: CrewRow[]
   detailId?: string
   onDetailChange: (id: string | undefined) => void
   onOpenTeammate: (id: string) => void
@@ -36,7 +35,7 @@ export interface RightPanelProps {
 }
 
 const TAB_LABEL: Record<ERightTab, string> = {
-  [ERightTab.Agents]: 'Agents',
+  [ERightTab.Details]: 'Details',
   [ERightTab.Changes]: 'Changes',
   [ERightTab.Files]: 'Files',
   [ERightTab.Terminal]: 'Terminal',
@@ -54,7 +53,9 @@ export function RightPanel({
   initialPreviewId,
   pod,
   agents,
+  title,
   teammates,
+  subagents,
   detailId,
   onDetailChange,
   onOpenTeammate,
@@ -77,16 +78,18 @@ export function RightPanel({
         {Object.values(ERightTab).map((value) => (
           <TabsTrigger key={value} value={value} className="flex-none px-1">
             {TAB_LABEL[value]}
-            {value === ERightTab.Agents && running > 0 ? (
+            {value === ERightTab.Details && running > 0 ? (
               <span className="font-mono text-xs tabular-nums">{running}</span>
             ) : null}
           </TabsTrigger>
         ))}
       </TabsList>
-      <TabsContent value={ERightTab.Agents} className="min-h-0 flex-1">
-        <AgentsPanel
+      <TabsContent value={ERightTab.Details} className="min-h-0 flex-1">
+        <DetailsTab
+          title={title}
           agents={agents}
           teammates={teammates}
+          subagents={subagents}
           detailId={detailId}
           onDetailChange={onDetailChange}
           onOpenTeammate={onOpenTeammate}

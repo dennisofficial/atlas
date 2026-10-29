@@ -1,5 +1,3 @@
-import { GitBranchIcon } from 'lucide-react'
-
 import { agentDisplayLabel, EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
 
 import type { AppTeammate } from '../shell/fixtures/teammates'
@@ -28,7 +26,6 @@ export function teammateHeader({
   return {
     state: teammateSessionState(teammate),
     title: teammate.title,
-    subtitle: { label: teammate.branch, icon: GitBranchIcon },
     badgeLabel: agentDisplayLabel(teammateDisplay(teammate)),
     parent: { title: parentTitle, href: parentHref },
   }
