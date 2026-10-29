@@ -1,10 +1,11 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EThreadStreamFrame } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { eventsOf, seedEventRow, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
 import { ThreadsService } from './threads.service'
-import { inertSignals } from './thread-signals.fixture'
+import { inertSignals, recordingSignals } from './thread-signals.fixture'
 
 describe('ThreadsService', () => {
   useTestDatabase()
@@ -273,6 +274,20 @@ describe('ThreadsService', () => {
 
     const recent = await service.mostRecent({ userId: USER_A, project: '/repo' })
     expect(recent?.id).toBe(fresh.id)
+  })
+
+  it('rename publishes a title frame after updating the row', async () => {
+    const { signals, framesOf } = recordingSignals()
+    const created = await new ThreadsService(signals).create({ userId: USER_A, draft: {} })
+    const frames = framesOf(created.id)
+
+    await new ThreadsService(signals).rename({
+      userId: USER_A,
+      threadId: created.id,
+      draft: { title: 'renamed' },
+    })
+
+    expect(frames).toEqual([{ type: EThreadStreamFrame.Title }])
   })
 
   it('rename, chooseModel and adopt write their fields', async () => {

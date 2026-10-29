@@ -21,8 +21,6 @@ export {
   type TranscriptRow,
 } from './transcript-items'
 
-const TITLE_LIMIT = 60
-
 export const coreEventsOf = (events: readonly WireEvent[]): WireEvent[] =>
   events.filter((event) => event.type !== BOOT_STEP_EVENT_TYPE)
 
@@ -34,6 +32,3 @@ export const transcriptOf = (events: readonly WireEvent[]): TranscriptItem[] =>
     (item): item is TranscriptItem =>
       item.kind === ETranscriptKind.User || item.kind === ETranscriptKind.Agent,
   )
-
-export const threadTitleOf = (text: string): string =>
-  text.replace(/\s+/g, ' ').trim().slice(0, TITLE_LIMIT)

@@ -28,6 +28,8 @@ export type ThreadSource = {
   pending: readonly PendingEntryWire[]
   reported: ModelUsage | null
   operatorInput: OperatorInputRequestWire | null
+  titling: boolean
+  liveTitle: string | null
   waitingOnOperator: boolean
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
@@ -63,6 +65,8 @@ export function threadSourceOf(args: {
       pending: live.pending,
       reported: live.reported,
       operatorInput: live.operatorInput,
+      titling: live.titling,
+      liveTitle: live.liveTitle,
       waitingOnOperator: live.operatorInput !== null,
       takeBackPending: live.takeBackPending,
       interrupt: live.interrupt,
@@ -85,6 +89,8 @@ export function threadSourceOf(args: {
     pending: NO_PENDING,
     reported: null,
     operatorInput: null,
+    titling: false,
+    liveTitle: live.liveTitle,
     waitingOnOperator: false,
     takeBackPending: live.takeBackPending,
     interrupt: live.interrupt,

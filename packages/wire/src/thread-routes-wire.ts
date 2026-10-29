@@ -194,12 +194,14 @@ export enum EThreadStreamFrame {
   Head = 'head',
   Pod = 'pod',
   Heartbeat = 'heartbeat',
+  Title = 'title',
 }
 
 export const threadStreamFrameSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal(EThreadStreamFrame.Head), head: z.number().int() }),
   z.object({ type: z.literal(EThreadStreamFrame.Pod) }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
+  z.object({ type: z.literal(EThreadStreamFrame.Title) }),
 ])
 export type ThreadStreamFrame = z.infer<typeof threadStreamFrameSchema>
 

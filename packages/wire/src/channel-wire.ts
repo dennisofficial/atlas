@@ -45,6 +45,7 @@ export enum EServeFrame {
   Subscriptions = 'subscriptions',
   Checkpoint = 'checkpoint',
   ThreadRenamed = 'thread-renamed',
+  ThreadTitling = 'thread-titling',
   ThreadModelChanged = 'thread-model-changed',
   TerminalOutput = 'terminal-output',
   TerminalExit = 'terminal-exit',
@@ -229,6 +230,11 @@ export const serveFrameSchema = z.discriminatedUnion('kind', [
     kind: z.literal(EServeFrame.ThreadRenamed),
     threadId: threadIdWireSchema,
     title: z.string(),
+  }),
+  z.object({
+    kind: z.literal(EServeFrame.ThreadTitling),
+    threadId: threadIdWireSchema,
+    titling: z.boolean(),
   }),
   z.object({
     kind: z.literal(EServeFrame.ThreadModelChanged),

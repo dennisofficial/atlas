@@ -28,6 +28,7 @@ import {
   type RemoteDeltaChannelOptions,
   type ThreadModelChangedFrame,
   type ThreadRenamedFrame,
+  type ThreadTitlingFrame,
 } from './remote-delta-channel-types'
 import type { ChannelSignal } from './signal'
 import type { TurnOutcome } from './turn-outcome'
@@ -91,6 +92,7 @@ export function createChannelCore(args: RemoteDeltaChannelOptions) {
     terminalExits: registryOf<TerminalExitWire>(),
     pendingChanges: registryOf<readonly PendingEntryWire[]>(),
     threadRenames: registryOf<ThreadRenamedFrame>(),
+    threadTitlings: registryOf<ThreadTitlingFrame>(),
     threadModelChanges: registryOf<ThreadModelChangedFrame>(),
     detachments: registryOf<string>(),
     turnEndings: registryOf<TurnOutcome>(),

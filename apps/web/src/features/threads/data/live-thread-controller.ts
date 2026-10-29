@@ -92,6 +92,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       pending: [],
       reported: null,
       channel: null,
+      titling: false,
       ...RELEASED_FIELDS,
     })
   }
@@ -219,6 +220,12 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       live.subscribe({ threadId, listener: handleSignal(live) }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
+      live.onThreadTitling((frame) => {
+        if (frame.threadId === threadId) update({ titling: frame.titling })
+      }),
+      live.onThreadRenamed((renamed) => {
+        if (renamed.threadId === threadId) update({ liveTitle: renamed.title })
+      }),
       live.onInterruptAck(() => {
         interruptPending = false
       }),

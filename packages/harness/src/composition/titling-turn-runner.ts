@@ -111,6 +111,7 @@ export class TitlingTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
+    void this.titleOnce({ threadId: args.threadId })
     return this.inner.resume(args)
   }
 

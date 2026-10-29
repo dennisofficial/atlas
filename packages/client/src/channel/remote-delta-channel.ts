@@ -109,6 +109,7 @@ export function createRemoteDeltaChannel(
     pendingEntries: () => state.heldPending,
     onPendingChanged: (listener) => on.pendingChanges.add(listener),
     onThreadRenamed: (listener) => on.threadRenames.add(listener),
+    onThreadTitling: (listener) => on.threadTitlings.add(listener),
     onThreadModelChanged: (listener) => on.threadModelChanges.add(listener),
     onTurnEnded: (listener) => on.turnEndings.add(listener),
     onError: (listener) => on.failures.add(listener),

@@ -28,6 +28,7 @@ import type { TurnPolicy } from '@dltech/atlas-harness'
 import type { TurnRunner } from '@dltech/atlas-harness'
 import type { LostService, LostShell } from '@dltech/atlas-harness'
 import type { ThreadStorePort, CompactionPort, RotationPort } from '@dltech/atlas-harness'
+import type { TitlingTurnRunner } from '@dltech/atlas-harness'
 
 /**
  * The registries' notice queues narrowed to what the idle wake reads: whether the served thread has
@@ -199,6 +200,8 @@ export type ServeApp = {
   pendingInput?: (() => boolean) | undefined
   /** Absent in a fake without registries: no endings means nothing to wake for. */
   wakeNotices?: ServeWakeNotices | undefined
+  /** The first-message titler's in-flight state; absent in a fake that never titles. */
+  titling?: Pick<TitlingTurnRunner, 'titling' | 'onTitling'> | undefined
   /** Absent in a fake without registries: the client is answered an empty roster instead. */
   roster?: ServeRoster | undefined
   /**

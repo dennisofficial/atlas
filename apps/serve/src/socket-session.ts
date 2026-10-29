@@ -131,6 +131,7 @@ export function createSessionHandlers(args: SessionHandlersArgs): SessionHandler
     driver,
     pending,
     operatorInput,
+    titling: args.titling,
     checkpointField,
     historyGeneration: () => historyGeneration,
     refusal,

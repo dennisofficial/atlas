@@ -6,6 +6,7 @@ import type { RuntimeCheckpoint } from '@dltech/atlas-wire'
 import type { StepId } from '@dltech/atlas-harness'
 import type { ClientFrame, EClientFrame, ServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser, OperatorInputPort, PendingQueues } from '@dltech/atlas-harness'
+import type { TitlingTurnRunner } from '@dltech/atlas-harness'
 
 import type { SessionTools } from './session-tool-requests'
 import type { ContextReaders } from './context-requests'
@@ -71,6 +72,7 @@ export type SessionHandlersArgs = {
   log: ServeLog
   applyUserSettings?: ((content: string) => void) | undefined
   roster?: ServeRoster | undefined
+  titling?: Pick<TitlingTurnRunner, 'titling'> | undefined
   /** The github plugin's live PR readings; absent in fakes, which answer empty. */
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined

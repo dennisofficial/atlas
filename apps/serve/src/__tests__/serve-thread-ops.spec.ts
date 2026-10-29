@@ -211,6 +211,45 @@ describe('store-originated transcript changes', () => {
   })
 })
 
+describe('thread titling', () => {
+  it('broadcasts titling true then false around the titler ask', async () => {
+    const { app, client } = await start()
+
+    app.fireTitling({ threadId, titling: true })
+    app.fireTitling({ threadId, titling: false })
+
+    await client.waitFor(
+      (frame) => frame.kind === EServeFrame.ThreadTitling && frame.titling === false,
+    )
+    const titlings = client.frames.filter((frame) => frame.kind === EServeFrame.ThreadTitling)
+    expect(titlings).toEqual([
+      { kind: EServeFrame.ThreadTitling, threadId, titling: true },
+      { kind: EServeFrame.ThreadTitling, threadId, titling: false },
+    ])
+  })
+
+  it('tells a late-attaching client the titler is already asking', async () => {
+    const { handle, app } = await start()
+    app.fireTitling({ threadId, titling: true })
+
+    const late = await connect({ port: handle.port, token: TOKEN })
+    late.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
+
+    const pushed = await late.waitFor((frame) => frame.kind === EServeFrame.ThreadTitling)
+    expect(pushed).toEqual({ kind: EServeFrame.ThreadTitling, threadId, titling: true })
+  })
+
+  it('sends a late-attaching client nothing when no ask is in flight', async () => {
+    const { handle } = await start()
+
+    const late = await connect({ port: handle.port, token: TOKEN })
+    late.send({ kind: EClientFrame.Hello, threadId, channelCursor: null, lastEventSeq: 0 })
+    await late.waitFor((frame) => frame.kind === EServeFrame.Ready)
+
+    expect(late.frames.some((frame) => frame.kind === EServeFrame.ThreadTitling)).toBe(false)
+  })
+})
+
 describe('answerRequest', () => {
   it('answers an op it has no handler for with a protocol refusal', async () => {
     const { answerRequest } = await import('../requests')

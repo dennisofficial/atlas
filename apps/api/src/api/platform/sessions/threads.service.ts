@@ -252,6 +252,7 @@ export class ThreadsService {
   }): Promise<void> {
     await this.ownedThread(args)
     await db.orm.public.Thread.where({ id: args.threadId }).update({ title: args.draft.title })
+    await this.signals.titleChanged({ threadId: args.threadId })
     await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
   }
 

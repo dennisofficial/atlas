@@ -6,6 +6,7 @@ import type { ServeApp } from './serve-app'
 import { createEventFlusher, httpPostPodEvents, httpTruncatePodEvents } from './serve-event-flush'
 import { mirrorHistoryEdits } from './serve-history-mirror'
 import type { ServeLog } from './serve-log'
+import { forwardRenamesToApi } from './serve-rename-forward'
 
 export type ServeWriteBehind = {
   flush: () => Promise<boolean>
@@ -15,6 +16,7 @@ export type ServeWriteBehind = {
 export function bindServeWriteBehind(args: {
   env: Record<string, string | undefined>
   app: Pick<ServeApp, 'log' | 'rewind' | 'compaction'> & {
+    threads: Pick<ServeApp['threads'], 'onRename'>
     channel: Pick<DeltaChannel, 'subscribe'>
   }
   threadId: ThreadId
@@ -43,6 +45,17 @@ export function bindServeWriteBehind(args: {
       if (settled) void flusher.flush()
     },
   })
+  const unforward = forwardRenamesToApi({
+    threads: args.app.threads,
+    remote: args.remote,
+    log: args.log,
+  })
   void flusher.flush()
-  return { flush: flusher.flush, detach: unsubscribe }
+  return {
+    flush: flusher.flush,
+    detach: () => {
+      unsubscribe()
+      unforward()
+    },
+  }
 }

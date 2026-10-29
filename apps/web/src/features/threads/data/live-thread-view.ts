@@ -21,6 +21,8 @@ export type LiveThreadState = {
   reported: ModelUsage | null
   channel: ServeChannel | null
   operatorInput: OperatorInputRequestWire | null
+  titling: boolean
+  liveTitle: string | null
 }
 
 export type LiveSend = (args: {
@@ -63,4 +65,6 @@ export const IDLE_LIVE_THREAD: LiveThreadState = {
   reported: null,
   channel: null,
   operatorInput: null,
+  titling: false,
+  liveTitle: null,
 }

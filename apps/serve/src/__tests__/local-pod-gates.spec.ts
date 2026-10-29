@@ -67,6 +67,7 @@ describe('local pod mirrors no thread state', () => {
     const bound = bindServeWriteBehind({
       env: localPod,
       app: {} as Pick<ServeApp, 'log' | 'rewind' | 'compaction'> & {
+        threads: Pick<ServeApp['threads'], 'onRename'>
         channel: Pick<DeltaChannel, 'subscribe'>
       },
       threadId,
