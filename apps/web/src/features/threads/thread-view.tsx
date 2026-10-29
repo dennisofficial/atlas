@@ -162,6 +162,11 @@ export function ThreadView({ threadId }: { threadId: string }) {
     }
   }
 
+  const handleStop = () => {
+    if (source.interrupt()) return
+    toast.error('Could not reach the sandbox to stop the turn')
+  }
+
   if (thread.state === EQueryState.Failed && thread.error.status === NOT_FOUND) {
     return <ThreadMissing />
   }
@@ -242,6 +247,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
               onSubmit={handleSubmit}
               onEscape={() => void handleEscape()}
               sending={sending || handoff.waiting || images.encoding}
+              working={working}
+              onStop={handleStop}
               {...images.composerProps}
               placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
             >

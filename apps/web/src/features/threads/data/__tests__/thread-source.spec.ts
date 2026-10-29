@@ -19,10 +19,15 @@ const event = (seq: number): WireEvent => ({
 const polled = { events: [event(1)], loaded: true, error: null, poke: () => undefined }
 const send = () => false
 const chooseModel = async () => false
+const takeBackPending = async () => null
+const interrupt = () => false
 const liveView = (change: Partial<LiveThreadView>): LiveThreadView => ({
   ...IDLE_LIVE_THREAD,
+  steps: [],
   send,
   chooseModel,
+  takeBackPending,
+  interrupt,
   ...change,
 })
 
@@ -56,6 +61,19 @@ describe('threadSourceOf channel', () => {
   it('has no channel while polling', () => {
     const source = threadSourceOf({ live: liveView({ channel }), polled })
     expect(source.channel).toBeNull()
+  })
+})
+
+describe('threadSourceOf interrupt', () => {
+  it('exposes interrupt from the live source', () => {
+    const source = threadSourceOf({ live: liveView({ live: true }), polled })
+    expect(source.interrupt).toBe(interrupt)
+  })
+
+  it('exposes interrupt in the polled branch', () => {
+    const source = threadSourceOf({ live: liveView({}), polled })
+    expect(source.interrupt).toBe(interrupt)
+    expect(source.interrupt()).toBe(false)
   })
 })
 

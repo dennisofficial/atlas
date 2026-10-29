@@ -5,6 +5,7 @@ import type { OperatorInputRequestWire, PendingEntryWire, WireEvent } from '@dlt
 import type { PolledThreadEvents } from './use-thread-events'
 import type {
   LiveChooseModel,
+  LiveInterrupt,
   LiveSend,
   LiveTakeBackPending,
   LiveThreadView,
@@ -27,6 +28,7 @@ export type ThreadSource = {
   operatorInput: OperatorInputRequestWire | null
   waitingOnOperator: boolean
   takeBackPending: LiveTakeBackPending
+  interrupt: LiveInterrupt
   refreshEvents: () => void
 }
 
@@ -59,6 +61,7 @@ export function threadSourceOf(args: {
       operatorInput: live.operatorInput,
       waitingOnOperator: live.operatorInput !== null,
       takeBackPending: live.takeBackPending,
+      interrupt: live.interrupt,
       refreshEvents: STREAMED,
     }
   }
@@ -78,5 +81,6 @@ export function threadSourceOf(args: {
     operatorInput: null,
     waitingOnOperator: false,
     takeBackPending: live.takeBackPending,
+    interrupt: live.interrupt,
   }
 }

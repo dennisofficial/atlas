@@ -12,12 +12,12 @@ import { toThreadId } from '@dltech/atlas-core'
 import {
   readEventsReplySchema,
   readThreadReplySchema,
-  takeBackPendingReplySchema,
   type WireEvent,
 } from '@dltech/atlas-wire/web'
 
 import { appendEvents, headOf, keepThrough } from './live-events'
 import { absorbInto, isStepSignal, RELEASED_FIELDS, settleInto } from './live-signals'
+import { createLiveThreadActions } from './live-thread-actions'
 import {
   IDLE_LIVE_THREAD,
   type LiveSend,
@@ -47,6 +47,7 @@ export type LiveThreadControllerArgs = {
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   onStepOpened?: () => void
   onReset?: () => void
+  onInterruptLost?: () => void
   channelOptions?: LiveChannelOptions
   scheduleReconnect?: (task: { delayMs: number; run: () => void }) => void
 }
@@ -63,6 +64,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   let reminted = 0
   let connected = false
   let modelChoices = 0
+  let interruptPending = false
   let reading = false
   let readAgain = false
   const releases: (() => void)[] = []
@@ -217,8 +219,14 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       live.subscribe({ threadId, listener: handleSignal(live) }),
       live.onConnection(() => handleConnection(live)),
       live.onThreadModelChanged((changed) => args.onModelChanged?.(changed.model)),
+      live.onInterruptAck(() => {
+        interruptPending = false
+      }),
       live.onError(() => {
-        if (!everConnected) fallBack()
+        if (!everConnected) return fallBack()
+        if (!interruptPending) return
+        interruptPending = false
+        args.onInterruptLost?.()
       }),
       live.onReload(({ sinceEventSeq }) => {
         signalTransport.dropAll()
@@ -254,34 +262,24 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     return true
   }
 
-  const chooseModel = async (model: { ref: string; effort: string }): Promise<boolean> => {
-    const live = channel
-    modelChoices += 1
-    if (stopped || fellBack || live === null) return false
-    if (live.connection().state !== EConnectionView.Connected) return false
-    await live.request({
-      op: EClientRequest.SetThreadModel,
-      params: { threadId: args.threadId, model },
-    })
-    return true
-  }
-
-  const takeBackPending = async (): Promise<string | null> => {
-    const live = channel
-    if (stopped || fellBack || live === null) throw new Error('the sandbox is not connected')
-    const reply = await live.request({
-      op: EClientRequest.TakeBackPending,
-      params: { threadId: args.threadId },
-    })
-    return takeBackPendingReplySchema.parse(reply).taken?.text ?? null
-  }
+  const actions = createLiveThreadActions({
+    threadId: args.threadId,
+    liveChannel: () => (stopped || fellBack ? null : channel),
+    onModelChosen: () => {
+      modelChoices += 1
+    },
+  })
 
   return {
     chatTransport: signalTransport.transport,
     start: () => void start(),
     send,
-    chooseModel,
-    takeBackPending,
+    ...actions,
+    interrupt: () => {
+      const sent = actions.interrupt()
+      if (sent) interruptPending = true
+      return sent
+    },
     stop: () => {
       update({ channel: null, ...RELEASED_FIELDS })
       stopped = true

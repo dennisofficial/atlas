@@ -33,11 +33,14 @@ export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
 
 export type LiveTakeBackPending = () => Promise<string | null>
 
+export type LiveInterrupt = () => boolean
+
 export type LiveThreadView = LiveThreadState & {
   steps: InFlightStep[]
   send: LiveSend
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
+  interrupt: LiveInterrupt
 }
 
 export const IDLE_LIVE_THREAD: LiveThreadState = {
