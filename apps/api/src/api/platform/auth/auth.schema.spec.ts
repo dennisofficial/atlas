@@ -41,8 +41,8 @@ describe('better-auth schema against the @dltech/atlas-db contract', () => {
   it('resolves every core and plugin model to a PascalCase table', () => {
     expect([...modelNameOf.values()].sort()).toEqual([
       'Account',
+      'AuthSession',
       'DeviceCode',
-      'Session',
       'User',
       'Verification',
     ])

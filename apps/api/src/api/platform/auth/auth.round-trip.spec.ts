@@ -28,6 +28,8 @@ describe('better-auth over the shared pool', () => {
     const user = await db.orm.public.User.first({ id: signedUp.user.id })
     expect(user?.createdAt).toBeInstanceOf(Date)
     expect(await db.orm.public.Account.where({ userId: signedUp.user.id }).all()).toHaveLength(1)
-    expect(await db.orm.public.Session.where({ userId: signedUp.user.id }).all()).toHaveLength(2)
+    expect(await db.orm.public.AuthSession.where({ userId: signedUp.user.id }).all()).toHaveLength(
+      2,
+    )
   })
 })

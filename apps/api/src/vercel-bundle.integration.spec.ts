@@ -104,7 +104,7 @@ describeLive('vercel bundle (built output served from a read-only container)', (
     })
     const seed = `
       INSERT INTO "User" (id, name, email, "updatedAt") VALUES ('usr_bundle', 'Bundle Spec', 'bundle@spec.test', now());
-      INSERT INTO "Session" (id, token, "expiresAt", "updatedAt", "userId")
+      INSERT INTO "AuthSession" (id, token, "expiresAt", "updatedAt", "userId")
         VALUES ('ses_bundle', '${SESSION_TOKEN}', now() + interval '1 day', now(), 'usr_bundle');`
     docker([
       'exec',

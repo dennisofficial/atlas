@@ -1,0 +1,286 @@
+[
+  {
+    "id": "renameTable.Session",
+    "label": "Rename table \"Session\" to \"AuthSession\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "AuthSession"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Session\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session\""
+        ]
+      },
+      {
+        "description": "ensure table \"AuthSession\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "rename table \"Session\" to \"AuthSession\"",
+        "sql": "ALTER TABLE \"public\".\"Session\" RENAME TO \"AuthSession\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"AuthSession\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "verify table \"Session\" no longer exists",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "primaryKey.public.AuthSession.Session_pkey.rename",
+    "label": "Rename primary key \"Session_pkey\" to \"AuthSession_pkey\" on \"AuthSession\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "primaryKey",
+        "name": "AuthSession_pkey",
+        "table": "AuthSession"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Session_pkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_pkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "ensure constraint \"AuthSession_pkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_pkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "rename primary key \"Session_pkey\" to \"AuthSession_pkey\"",
+        "sql": "ALTER TABLE \"public\".\"AuthSession\" RENAME CONSTRAINT \"Session_pkey\" TO \"AuthSession_pkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"AuthSession_pkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_pkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "verify constraint \"Session_pkey\" no longer exists",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_pkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.public.AuthSession.Session_token_key.rename",
+    "label": "Rename unique constraint \"Session_token_key\" to \"AuthSession_token_key\" on \"AuthSession\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "AuthSession_token_key",
+        "table": "AuthSession"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Session_token_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "ensure constraint \"AuthSession_token_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_token_key",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "rename unique constraint \"Session_token_key\" to \"AuthSession_token_key\"",
+        "sql": "ALTER TABLE \"public\".\"AuthSession\" RENAME CONSTRAINT \"Session_token_key\" TO \"AuthSession_token_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"AuthSession_token_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_token_key",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "verify constraint \"Session_token_key\" no longer exists",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_token_key",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.public.AuthSession.Session_userId_fkey.rename",
+    "label": "Rename foreign key \"Session_userId_fkey\" to \"AuthSession_userId_fkey\" on \"AuthSession\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "AuthSession_userId_fkey",
+        "table": "AuthSession"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Session_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_userId_fkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "ensure constraint \"AuthSession_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_userId_fkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "rename foreign key \"Session_userId_fkey\" to \"AuthSession_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"AuthSession\" RENAME CONSTRAINT \"Session_userId_fkey\" TO \"AuthSession_userId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"AuthSession_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "AuthSession_userId_fkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      },
+      {
+        "description": "verify constraint \"Session_userId_fkey\" no longer exists",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_userId_fkey",
+          "public",
+          "\"public\".\"AuthSession\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.public.AuthSession.Session_userId_idx_a489d58a.rename",
+    "label": "Rename index \"Session_userId_idx_a489d58a\" to \"AuthSession_userId_idx_a489d58a\" on \"AuthSession\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "AuthSession_userId_idx_a489d58a",
+        "table": "AuthSession"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
+      },
+      {
+        "description": "ensure index \"AuthSession_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AuthSession_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "rename index \"Session_userId_idx_a489d58a\" to \"AuthSession_userId_idx_a489d58a\"",
+        "sql": "ALTER INDEX \"public\".\"Session_userId_idx_a489d58a\" RENAME TO \"AuthSession_userId_idx_a489d58a\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"AuthSession_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AuthSession_userId_idx_a489d58a\""
+        ]
+      },
+      {
+        "description": "verify index \"Session_userId_idx_a489d58a\" no longer exists",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  }
+]

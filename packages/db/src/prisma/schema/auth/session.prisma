@@ -1,5 +1,5 @@
 // use prisma-8
-model Session {
+model AuthSession {
   id                   String               @id
   expiresAt            TimestamptzJsDate(3)
   token                String
@@ -10,5 +10,5 @@ model Session {
   userId               String
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([token], map: "Session_token_key")
+  @@unique([token], map: "AuthSession_token_key")
 }

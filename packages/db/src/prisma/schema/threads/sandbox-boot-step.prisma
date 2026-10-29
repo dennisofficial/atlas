@@ -1,14 +1,14 @@
 // use prisma-8
 model SandboxBootStep {
   id       String               @id @onCreate(cuid(2))
-  threadId String
+  sessionId String
   step     String
   state    String
   error    String?
   gap      String?
   outcome  String?
   at       TimestamptzJsDate(3) @default(now())
-  thread   Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_threadId_at_idx")
+  session  Session              @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_sessionId_at_idx")
 
-  @@index([threadId, at], map: "SandboxBootStep_threadId_at_idx")
+  @@index([sessionId, at], map: "SandboxBootStep_sessionId_at_idx")
 }

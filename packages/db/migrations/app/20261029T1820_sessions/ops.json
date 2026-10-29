@@ -1,0 +1,1947 @@
+[
+  {
+    "id": "table.Session",
+    "label": "Create table \"Session\"",
+    "summary": "Creates table \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Session\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Session\"",
+        "sql": "CREATE TABLE \"public\".\"Session\" (\n  \"archivedAt\" timestamptz(3),\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"executionLocation\" text,\n  \"id\" text NOT NULL,\n  \"mainThreadId\" text,\n  \"managedBySessionId\" text,\n  \"pinnedAt\" timestamptz(3),\n  \"projectId\" text,\n  \"repo\" text,\n  \"title\" text,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  \"workspace\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Session\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"Session\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.CloudSandbox.sessionId",
+    "label": "Add column \"sessionId\" to \"CloudSandbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "sessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ADD COLUMN \"sessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "verify column \"sessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "sessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.SandboxBootStep.sessionId",
+    "label": "Add column \"sessionId\" to \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "sessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" ADD COLUMN \"sessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "verify column \"sessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "sessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Thread.sessionId",
+    "label": "Add column \"sessionId\" to \"Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "sessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" ADD COLUMN \"sessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "verify column \"sessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "sessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.sessions-main-and-teammate",
+    "label": "Create one session per main thread, fork and teammate thread",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create one session per main thread, fork and teammate thread",
+        "sql": "INSERT INTO \"public\".\"Session\"\n  (\"id\", \"userId\", \"projectId\", \"repo\", \"workspace\", \"executionLocation\", \"title\", \"pinnedAt\", \"archivedAt\", \"createdAt\", \"updatedAt\", \"mainThreadId\")\nSELECT 'ses_' || t.\"id\", t.\"userId\", t.\"projectId\", t.\"repo\", t.\"workspace\", t.\"executionLocation\", t.\"title\", t.\"pinnedAt\", t.\"archivedAt\", t.\"createdAt\", t.\"updatedAt\", t.\"id\"\nFROM \"public\".\"Thread\" t WHERE t.\"sessionId\" IS NULL AND (t.\"spawnerThreadId\" IS NULL OR t.\"agentType\" = 'teammate');\nUPDATE \"public\".\"Thread\" t SET \"sessionId\" = 'ses_' || t.\"id\" WHERE t.\"sessionId\" IS NULL AND (t.\"spawnerThreadId\" IS NULL OR t.\"agentType\" = 'teammate')"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.sessions-sub-agents",
+    "label": "Put each sub-agent thread in its nearest ancestor thread session",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Put each sub-agent thread in its nearest ancestor thread session",
+        "sql": "WITH RECURSIVE walk AS (\n  SELECT c.\"id\", p.\"sessionId\"\n  FROM \"public\".\"Thread\" c JOIN \"public\".\"Thread\" p ON p.\"id\" = c.\"spawnerThreadId\"\n  WHERE c.\"sessionId\" IS NULL AND p.\"sessionId\" IS NOT NULL\n  UNION\n  SELECT c.\"id\", w.\"sessionId\"\n  FROM walk w JOIN \"public\".\"Thread\" c ON c.\"spawnerThreadId\" = w.\"id\"\n  WHERE c.\"sessionId\" IS NULL\n)\nUPDATE \"public\".\"Thread\" t SET \"sessionId\" = w.\"sessionId\" FROM walk w WHERE t.\"id\" = w.\"id\""
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.sessions-orphans",
+    "label": "Give any thread still without a session its own session",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Give any thread still without a session its own session",
+        "sql": "INSERT INTO \"public\".\"Session\"\n  (\"id\", \"userId\", \"projectId\", \"repo\", \"workspace\", \"executionLocation\", \"title\", \"pinnedAt\", \"archivedAt\", \"createdAt\", \"updatedAt\", \"mainThreadId\")\nSELECT 'ses_' || t.\"id\", t.\"userId\", t.\"projectId\", t.\"repo\", t.\"workspace\", t.\"executionLocation\", t.\"title\", t.\"pinnedAt\", t.\"archivedAt\", t.\"createdAt\", t.\"updatedAt\", t.\"id\"\nFROM \"public\".\"Thread\" t WHERE t.\"sessionId\" IS NULL;\nUPDATE \"public\".\"Thread\" t SET \"sessionId\" = 'ses_' || t.\"id\" WHERE t.\"sessionId\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.sessions-teammate-manager",
+    "label": "Point each teammate session at the session of the thread that spawned it",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Point each teammate session at the session of the thread that spawned it",
+        "sql": "UPDATE \"public\".\"Session\" s SET \"managedBySessionId\" = sp.\"sessionId\"\nFROM \"public\".\"Thread\" t JOIN \"public\".\"Thread\" sp ON sp.\"id\" = t.\"spawnerThreadId\"\nWHERE s.\"mainThreadId\" = t.\"id\" AND t.\"agentType\" = 'teammate'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.sessions-pod-rows",
+    "label": "Key cloud sandboxes and boot steps by the session of their thread",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Thread",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Key cloud sandboxes and boot steps by the session of their thread",
+        "sql": "UPDATE \"public\".\"CloudSandbox\" c SET \"sessionId\" = t.\"sessionId\" FROM \"public\".\"Thread\" t WHERE t.\"id\" = c.\"threadId\";\nUPDATE \"public\".\"SandboxBootStep\" b SET \"sessionId\" = t.\"sessionId\" FROM \"public\".\"Thread\" t WHERE t.\"id\" = b.\"threadId\""
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropConstraint.CloudSandbox.CloudSandbox_threadId_fkey",
+    "label": "Drop constraint \"CloudSandbox_threadId_fkey\" on \"CloudSandbox\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CloudSandbox_threadId_fkey",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CloudSandbox_threadId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_fkey",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"CloudSandbox_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" DROP CONSTRAINT \"CloudSandbox_threadId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CloudSandbox_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_fkey",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.CloudSandbox.CloudSandbox_threadId_key",
+    "label": "Drop constraint \"CloudSandbox_threadId_key\" on \"CloudSandbox\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CloudSandbox_threadId_key",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CloudSandbox_threadId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"CloudSandbox_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" DROP CONSTRAINT \"CloudSandbox_threadId_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CloudSandbox_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_threadId_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.CloudSandbox.threadId",
+    "label": "Drop column \"threadId\" from \"CloudSandbox\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "threadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"threadId\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" DROP COLUMN \"threadId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"threadId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "threadId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.SandboxBootStep.SandboxBootStep_threadId_fkey",
+    "label": "Drop constraint \"SandboxBootStep_threadId_fkey\" on \"SandboxBootStep\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SandboxBootStep_threadId_fkey",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"SandboxBootStep_threadId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SandboxBootStep_threadId_fkey",
+          "public",
+          "\"public\".\"SandboxBootStep\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"SandboxBootStep_threadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" DROP CONSTRAINT \"SandboxBootStep_threadId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"SandboxBootStep_threadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SandboxBootStep_threadId_fkey",
+          "public",
+          "\"public\".\"SandboxBootStep\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.SandboxBootStep.SandboxBootStep_threadId_at_idx",
+    "label": "Drop index \"SandboxBootStep_threadId_at_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SandboxBootStep_threadId_at_idx",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SandboxBootStep_threadId_at_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_threadId_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"SandboxBootStep_threadId_at_idx\"",
+        "sql": "DROP INDEX \"public\".\"SandboxBootStep_threadId_at_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SandboxBootStep_threadId_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_threadId_at_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.SandboxBootStep.threadId",
+    "label": "Drop column \"threadId\" from \"SandboxBootStep\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "threadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"threadId\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" DROP COLUMN \"threadId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"threadId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "threadId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.archivedAt",
+    "label": "Drop column \"archivedAt\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "archivedAt",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"archivedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "archivedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"archivedAt\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"archivedAt\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"archivedAt\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "archivedAt"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.executionLocation",
+    "label": "Drop column \"executionLocation\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "executionLocation",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"executionLocation\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "executionLocation"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"executionLocation\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"executionLocation\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"executionLocation\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "executionLocation"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.pinnedAt",
+    "label": "Drop column \"pinnedAt\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pinnedAt",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pinnedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "pinnedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"pinnedAt\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"pinnedAt\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pinnedAt\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "pinnedAt"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.title",
+    "label": "Drop column \"title\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "title",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"title\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "title"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"title\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"title\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"title\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "title"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.Thread.Thread_projectId_fkey",
+    "label": "Drop constraint \"Thread_projectId_fkey\" on \"Thread\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Thread_projectId_fkey",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Thread_projectId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Thread_projectId_fkey",
+          "public",
+          "\"public\".\"Thread\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Thread_projectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP CONSTRAINT \"Thread_projectId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Thread_projectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Thread_projectId_fkey",
+          "public",
+          "\"public\".\"Thread\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Thread.Thread_projectId_idx",
+    "label": "Drop index \"Thread_projectId_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Thread_projectId_idx",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Thread_projectId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_projectId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Thread_projectId_idx\"",
+        "sql": "DROP INDEX \"public\".\"Thread_projectId_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Thread_projectId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_projectId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.projectId",
+    "label": "Drop column \"projectId\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "projectId",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"projectId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "projectId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"projectId\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"projectId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"projectId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "projectId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Thread.Thread_userId_repo_updatedAt_idx",
+    "label": "Drop index \"Thread_userId_repo_updatedAt_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Thread_userId_repo_updatedAt_idx",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Thread_userId_repo_updatedAt_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_userId_repo_updatedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Thread_userId_repo_updatedAt_idx\"",
+        "sql": "DROP INDEX \"public\".\"Thread_userId_repo_updatedAt_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Thread_userId_repo_updatedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_userId_repo_updatedAt_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.repo",
+    "label": "Drop column \"repo\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "repo",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"repo\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "repo"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"repo\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"repo\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"repo\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "repo"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Thread.Thread_userId_workspace_updatedAt_idx",
+    "label": "Drop index \"Thread_userId_workspace_updatedAt_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Thread_userId_workspace_updatedAt_idx",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Thread_userId_workspace_updatedAt_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_userId_workspace_updatedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Thread_userId_workspace_updatedAt_idx\"",
+        "sql": "DROP INDEX \"public\".\"Thread_userId_workspace_updatedAt_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Thread_userId_workspace_updatedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_userId_workspace_updatedAt_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Thread.workspace",
+    "label": "Drop column \"workspace\" from \"Thread\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "workspace",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"workspace\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "workspace"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"workspace\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" DROP COLUMN \"workspace\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"workspace\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "workspace"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.CloudSandbox.sessionId",
+    "label": "Set NOT NULL on \"CloudSandbox\".\"sessionId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"sessionId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"CloudSandbox\" WHERE \"sessionId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "CloudSandbox",
+            "column": "sessionId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ALTER COLUMN \"sessionId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "sessionId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.SandboxBootStep.sessionId",
+    "label": "Set NOT NULL on \"SandboxBootStep\".\"sessionId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"sessionId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"SandboxBootStep\" WHERE \"sessionId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "SandboxBootStep",
+            "column": "sessionId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" ALTER COLUMN \"sessionId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "sessionId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.Thread.sessionId",
+    "label": "Set NOT NULL on \"Thread\".\"sessionId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sessionId",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "sessionId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"sessionId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"Thread\" WHERE \"sessionId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "Thread",
+            "column": "sessionId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"sessionId\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\" ALTER COLUMN \"sessionId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sessionId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Thread",
+          "sessionId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CloudSandbox.CloudSandbox_sessionId_key",
+    "label": "Add unique constraint on \"CloudSandbox\" (sessionId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CloudSandbox_sessionId_key",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CloudSandbox_sessionId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_sessionId_key",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CloudSandbox_sessionId_key\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ADD CONSTRAINT \"CloudSandbox_sessionId_key\" UNIQUE (\"sessionId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"CloudSandbox_sessionId_key\" exists on (sessionId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "CloudSandbox_sessionId_key",
+          "public",
+          "\"public\".\"CloudSandbox\"",
+          "u",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Session.Session_mainThreadId_key",
+    "label": "Add unique constraint on \"Session\" (mainThreadId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Session_mainThreadId_key",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Session_mainThreadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_mainThreadId_key",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Session_mainThreadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"Session\" ADD CONSTRAINT \"Session_mainThreadId_key\" UNIQUE (\"mainThreadId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Session_mainThreadId_key\" exists on (mainThreadId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Session_mainThreadId_key",
+          "public",
+          "\"public\".\"Session\"",
+          "u",
+          "[\"mainThreadId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SandboxBootStep.SandboxBootStep_sessionId_at_idx",
+    "label": "Create index \"SandboxBootStep_sessionId_at_idx\" on \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SandboxBootStep_sessionId_at_idx",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SandboxBootStep_sessionId_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SandboxBootStep_sessionId_at_idx\"",
+        "sql": "CREATE INDEX \"SandboxBootStep_sessionId_at_idx\" ON \"public\".\"SandboxBootStep\" (\"sessionId\", \"at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SandboxBootStep_sessionId_at_idx\" exists on \"SandboxBootStep\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_at_idx\"",
+          "i",
+          "I",
+          "\"public\".\"SandboxBootStep\"",
+          "btree",
+          "[\"sessionId\",\"at\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_managedBySessionId_idx",
+    "label": "Create index \"Session_managedBySessionId_idx\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_managedBySessionId_idx",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_managedBySessionId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_managedBySessionId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_managedBySessionId_idx\"",
+        "sql": "CREATE INDEX \"Session_managedBySessionId_idx\" ON \"public\".\"Session\" (\"managedBySessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_managedBySessionId_idx\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_managedBySessionId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"managedBySessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_projectId_idx",
+    "label": "Create index \"Session_projectId_idx\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_projectId_idx",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_projectId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_projectId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_projectId_idx\"",
+        "sql": "CREATE INDEX \"Session_projectId_idx\" ON \"public\".\"Session\" (\"projectId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_projectId_idx\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_projectId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"projectId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_userId_idx_a489d58a",
+    "label": "Create index \"Session_userId_idx_a489d58a\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_userId_idx_a489d58a",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"Session_userId_idx_a489d58a\" ON \"public\".\"Session\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_userId_idx_a489d58a\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_userId_repo_updatedAt_idx",
+    "label": "Create index \"Session_userId_repo_updatedAt_idx\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_userId_repo_updatedAt_idx",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_repo_updatedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_repo_updatedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_userId_repo_updatedAt_idx\"",
+        "sql": "CREATE INDEX \"Session_userId_repo_updatedAt_idx\" ON \"public\".\"Session\" (\"userId\", \"repo\", \"updatedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_userId_repo_updatedAt_idx\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_repo_updatedAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"userId\",\"repo\",\"updatedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_userId_updatedAt_idx",
+    "label": "Create index \"Session_userId_updatedAt_idx\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_userId_updatedAt_idx",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_updatedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_updatedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_userId_updatedAt_idx\"",
+        "sql": "CREATE INDEX \"Session_userId_updatedAt_idx\" ON \"public\".\"Session\" (\"userId\", \"updatedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_userId_updatedAt_idx\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_updatedAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"userId\",\"updatedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Session.Session_userId_workspace_updatedAt_idx",
+    "label": "Create index \"Session_userId_workspace_updatedAt_idx\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_userId_workspace_updatedAt_idx",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_workspace_updatedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_workspace_updatedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Session_userId_workspace_updatedAt_idx\"",
+        "sql": "CREATE INDEX \"Session_userId_workspace_updatedAt_idx\" ON \"public\".\"Session\" (\"userId\", \"workspace\", \"updatedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_userId_workspace_updatedAt_idx\" exists on \"Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_workspace_updatedAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Session\"",
+          "btree",
+          "[\"userId\",\"workspace\",\"updatedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Thread.Thread_sessionId_idx",
+    "label": "Create index \"Thread_sessionId_idx\" on \"Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Thread_sessionId_idx",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Thread_sessionId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_sessionId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Thread_sessionId_idx\"",
+        "sql": "CREATE INDEX \"Thread_sessionId_idx\" ON \"public\".\"Thread\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Thread_sessionId_idx\" exists on \"Thread\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Thread_sessionId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Thread\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Session.Session_userId_fkey",
+    "label": "Add foreign key \"Session_userId_fkey\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Session_userId_fkey",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Session_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_userId_fkey",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Session_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Session\"\nADD CONSTRAINT \"Session_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Session_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Session_userId_fkey",
+          "public",
+          "\"public\".\"Session\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Session.Session_projectId_fkey",
+    "label": "Add foreign key \"Session_projectId_fkey\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Session_projectId_fkey",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Session_projectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_projectId_fkey",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Session_projectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Session\"\nADD CONSTRAINT \"Session_projectId_fkey\"\nFOREIGN KEY (\"projectId\")\nREFERENCES \"public\".\"Project\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Session_projectId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Session_projectId_fkey",
+          "public",
+          "\"public\".\"Session\"",
+          "f",
+          "[\"projectId\"]",
+          "\"public\".\"Project\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Session.Session_mainThreadId_fkey",
+    "label": "Add foreign key \"Session_mainThreadId_fkey\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Session_mainThreadId_fkey",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Session_mainThreadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_mainThreadId_fkey",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Session_mainThreadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Session\"\nADD CONSTRAINT \"Session_mainThreadId_fkey\"\nFOREIGN KEY (\"mainThreadId\")\nREFERENCES \"public\".\"Thread\" (\"id\")\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Session_mainThreadId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Session_mainThreadId_fkey",
+          "public",
+          "\"public\".\"Session\"",
+          "f",
+          "[\"mainThreadId\"]",
+          "\"public\".\"Thread\"",
+          "[\"id\"]",
+          "a",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Session.Session_managedBySessionId_fkey",
+    "label": "Add foreign key \"Session_managedBySessionId_fkey\" on \"Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Session_managedBySessionId_fkey",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Session_managedBySessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Session_managedBySessionId_fkey",
+          "public",
+          "\"public\".\"Session\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Session_managedBySessionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Session\"\nADD CONSTRAINT \"Session_managedBySessionId_fkey\"\nFOREIGN KEY (\"managedBySessionId\")\nREFERENCES \"public\".\"Session\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Session_managedBySessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Session_managedBySessionId_fkey",
+          "public",
+          "\"public\".\"Session\"",
+          "f",
+          "[\"managedBySessionId\"]",
+          "\"public\".\"Session\"",
+          "[\"id\"]",
+          "n",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CloudSandbox.CloudSandbox_sessionId_fkey",
+    "label": "Add foreign key \"CloudSandbox_sessionId_fkey\" on \"CloudSandbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CloudSandbox_sessionId_fkey",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CloudSandbox_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CloudSandbox_sessionId_fkey",
+          "public",
+          "\"public\".\"CloudSandbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CloudSandbox_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\"\nADD CONSTRAINT \"CloudSandbox_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"public\".\"Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CloudSandbox_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "CloudSandbox_sessionId_fkey",
+          "public",
+          "\"public\".\"CloudSandbox\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"public\".\"Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.SandboxBootStep.SandboxBootStep_sessionId_fkey",
+    "label": "Add foreign key \"SandboxBootStep_sessionId_fkey\" on \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SandboxBootStep_sessionId_fkey",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"SandboxBootStep_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SandboxBootStep_sessionId_fkey",
+          "public",
+          "\"public\".\"SandboxBootStep\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"SandboxBootStep_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\"\nADD CONSTRAINT \"SandboxBootStep_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"public\".\"Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"SandboxBootStep_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "SandboxBootStep_sessionId_fkey",
+          "public",
+          "\"public\".\"SandboxBootStep\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"public\".\"Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Thread.Thread_sessionId_fkey",
+    "label": "Add foreign key \"Thread_sessionId_fkey\" on \"Thread\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Thread_sessionId_fkey",
+        "table": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Thread_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Thread_sessionId_fkey",
+          "public",
+          "\"public\".\"Thread\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Thread_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Thread\"\nADD CONSTRAINT \"Thread_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"public\".\"Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Thread_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Thread_sessionId_fkey",
+          "public",
+          "\"public\".\"Thread\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"public\".\"Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

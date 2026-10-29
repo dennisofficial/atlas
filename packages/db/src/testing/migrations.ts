@@ -21,11 +21,29 @@ export function migrationSetHash(): string {
   return hash.digest('hex').slice(0, 12)
 }
 
-export async function applyMigrations(client: pg.Client): Promise<void> {
-  for (const file of opsFiles()) {
-    const operations: Operation[] = JSON.parse(readFileSync(file, 'utf8'))
-    for (const operation of operations) {
-      for (const step of operation.execute) await client.query(step.sql, step.params ?? [])
-    }
+async function applyOps({ client, file }: { client: pg.Client; file: string }): Promise<void> {
+  const operations: Operation[] = JSON.parse(readFileSync(file, 'utf8'))
+  for (const operation of operations) {
+    for (const step of operation.execute) await client.query(step.sql, step.params ?? [])
   }
+}
+
+export async function applyMigrations(
+  client: pg.Client,
+  { stopBefore }: { stopBefore?: string } = {},
+): Promise<void> {
+  for (const file of opsFiles()) {
+    if (stopBefore !== undefined && file.includes(`/${stopBefore}/`)) return
+    await applyOps({ client, file })
+  }
+}
+
+export async function applyMigration({
+  client,
+  directory,
+}: {
+  client: pg.Client
+  directory: string
+}): Promise<void> {
+  await applyOps({ client, file: join(MIGRATIONS_DIR, directory, 'ops.json') })
 }

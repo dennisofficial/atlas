@@ -1,0 +1,31 @@
+// use prisma-8
+model Session {
+  id                 String               @id
+  userId             String
+  projectId          String?
+  repo               String?
+  workspace          String?
+  executionLocation  String?
+  title              String?
+  pinnedAt           TimestamptzJsDate(3)?
+  archivedAt         TimestamptzJsDate(3)?
+  createdAt          TimestamptzJsDate(3)
+  updatedAt          TimestamptzJsDate(3)
+  mainThreadId       String?
+  managedBySessionId String?
+  threads            Thread[]             @relation(name: "Session_threads")
+  cloudSandbox       CloudSandbox?
+  bootSteps          SandboxBootStep[]
+  teammates          Session[]            @relation(name: "Session_managedBy")
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  project            Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  mainThread         Thread?              @relation(name: "Session_mainThread", fields: [mainThreadId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  managedBy          Session?             @relation(name: "Session_managedBy", fields: [managedBySessionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([mainThreadId], map: "Session_mainThreadId_key")
+  @@index([userId, updatedAt], map: "Session_userId_updatedAt_idx")
+  @@index([projectId], map: "Session_projectId_idx")
+  @@index([managedBySessionId], map: "Session_managedBySessionId_idx")
+  @@index([userId, repo, updatedAt], map: "Session_userId_repo_updatedAt_idx")
+  @@index([userId, workspace, updatedAt], map: "Session_userId_workspace_updatedAt_idx")
+}

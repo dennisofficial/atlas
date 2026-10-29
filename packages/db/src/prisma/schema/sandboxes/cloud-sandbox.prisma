@@ -1,7 +1,7 @@
 // use prisma-8
 model CloudSandbox {
   id                        String                   @id
-  threadId                  String
+  sessionId                 String
   userId                    String
   sandboxId                 String
   name                      String
@@ -25,9 +25,9 @@ model CloudSandbox {
   updatedAt                 TimestamptzJsDate(3)
   oauthConnections          OauthConnectionSandbox[]
   user                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  thread                    Thread                   @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  session                   Session                  @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([threadId], map: "CloudSandbox_threadId_key")
+  @@unique([sessionId], map: "CloudSandbox_sessionId_key")
   @@index([userId], map: "CloudSandbox_userId_idx")
   @@unique([tokenHash])
   @@index([state, lastActivityAt], map: "CloudSandbox_state_lastActivityAt_idx")

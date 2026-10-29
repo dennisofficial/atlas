@@ -16,7 +16,7 @@ model Project {
   mcpServers      ProjectMcpServer[]
   secrets         ProjectSecret[]
   settings        ProjectSetting[]
-  threads         Thread[]
+  sessions        Session[]
   owner           User                 @relation(name: "Project_owner", fields: [ownerUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   createdBy       User?                @relation(name: "Project_createdBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 

@@ -14,10 +14,13 @@ describe('drop_local_pod_threads data step', () => {
       id: 'local-child',
       userId: 'usr-1',
       spawnerThreadId: 'local',
+      sessionId: 'ses_local',
       createdAt: new Date(),
       updatedAt: new Date(),
     })
     await db.orm.public.LocalPodLease.create({ userId: 'usr-1', threadId: 'local', tokenHash: 'h' })
+
+    await db.orm.public.Session.where({ id: 'ses_local' }).update({ mainThreadId: null })
 
     for (const step of deleteLocalPodThreads.execute) await pool.query(step.sql)
 

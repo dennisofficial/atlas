@@ -48,7 +48,7 @@ export const auth = betterAuth({
   database: sharedPool(),
   advanced: { database: { validateSchema: false } },
   user: { modelName: 'User' },
-  session: { modelName: 'Session' },
+  session: { modelName: 'AuthSession' },
   account: { modelName: 'Account' },
   verification: { modelName: 'Verification' },
   emailAndPassword: {
