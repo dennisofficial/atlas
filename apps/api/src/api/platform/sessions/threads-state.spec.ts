@@ -93,24 +93,34 @@ describe('ThreadsService thread state reads', () => {
 
   it('enriches linked pull requests with the live GithubPrState state', async () => {
     await seedThreadRow({ id: 'brn_pr', projectId: 'prj_a' })
-    await linkPullRequest({ threadId: 'brn_pr', seq: 1, repo: 'compai/app', number: 42 })
-    await linkPullRequest({ threadId: 'brn_pr', seq: 2, repo: 'compai/app', number: 43 })
-    await linkPullRequest({ threadId: 'brn_pr', seq: 3, repo: 'compai/other', number: 42 })
+    await linkPullRequest({ threadId: 'brn_pr', seq: 1, repo: 'github.com/compai/app', number: 42 })
+    await linkPullRequest({ threadId: 'brn_pr', seq: 2, repo: 'github.com/compai/app', number: 43 })
+    await linkPullRequest({
+      threadId: 'brn_pr',
+      seq: 3,
+      repo: 'github.com/CompAI/Other',
+      number: 42,
+    })
     await seedPrState({ repoFullName: 'compai/app', prNumber: 42, state: 'merged' })
     await seedPrState({ repoFullName: 'compai/other', prNumber: 42, state: 'closed' })
 
     const [thread] = await service.list({ userId: USER_A, projectId: 'prj_a' })
 
     expect(thread?.pullRequests?.map((pr) => [pr.repo, pr.number, pr.state])).toEqual([
-      ['compai/app', 42, 'merged'],
-      ['compai/app', 43, undefined],
-      ['compai/other', 42, 'closed'],
+      ['github.com/compai/app', 42, 'merged'],
+      ['github.com/compai/app', 43, undefined],
+      ['github.com/CompAI/Other', 42, 'closed'],
     ])
   })
 
   it('enriches pull requests on the legacy project listing too', async () => {
     await seedThreadRow({ id: 'brn_legacy', workspace: '/repo' })
-    await linkPullRequest({ threadId: 'brn_legacy', seq: 1, repo: 'compai/app', number: 42 })
+    await linkPullRequest({
+      threadId: 'brn_legacy',
+      seq: 1,
+      repo: 'github.com/compai/app',
+      number: 42,
+    })
     await seedPrState({ repoFullName: 'compai/app', prNumber: 42, state: 'open' })
 
     const [thread] = await service.list({ userId: USER_A, project: '/repo' })
