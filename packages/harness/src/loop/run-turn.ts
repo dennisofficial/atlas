@@ -35,7 +35,7 @@ import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/reco
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
-import type { TurnOutcome } from './turn-outcome'
+import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
 
 export type { PendingDrain }
@@ -260,6 +260,20 @@ export class LoopTurnRunner extends TurnRunner {
         },
       )
       status = outcome.status
+      if (outcome.status === ETurnStatus.Failed) {
+        await this.log.append({
+          threadId,
+          runId,
+          drafts: [
+            {
+              type: 'turn-failed',
+              message: outcome.message,
+              modelId: this.model.identity.modelId,
+              providerId: this.model.identity.id,
+            },
+          ],
+        })
+      }
       return outcome
     } finally {
       releaseSleepAssertion?.()
