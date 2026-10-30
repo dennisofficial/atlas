@@ -171,6 +171,11 @@ describe('accounts mapping', () => {
     })
     expect(apiKeyFor({ accounts, provider: EProviderId.OpenAI })).toBeNull()
   })
+
+  it('finds an Inference.net api key', () => {
+    const accounts = [account({ id: '3', provider: 'inference', kind: 'api-key' })]
+    expect(apiKeyFor({ accounts, provider: EProviderId.Inference })?.id).toBe('3')
+  })
 })
 
 describe('models settings', () => {
