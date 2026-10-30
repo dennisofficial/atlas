@@ -15,3 +15,37 @@ export {
 export { splitFrontmatter, type Frontmatter } from './frontmatter'
 export { expandSkillBody } from './expand'
 export { ECommandGroup, ECommandKind, qualifiedName, type CommandSpec } from './spec'
+export {
+  ECommandEcho,
+  ECommandEffect,
+  ECommandTiming,
+  NOTHING,
+  RAN,
+  refused,
+  type CommandEffect,
+} from './effect'
+export {
+  EContainerAsk,
+  ECompactScope,
+  EMcpAsk,
+  NOTHING_SAID_YET,
+  NO_NAME_CAME_BACK,
+  containerAskOfArgument,
+  instructionsOfArgument,
+  mcpAskOfArgument,
+  scopeOfArgument,
+  unknownContainerReason,
+  unknownMcpReason,
+  unknownScopeReason,
+  type McpAsk,
+} from './arguments'
+export { COMMAND_CATALOGUE, COMMAND_ORDER, ECommand, type CommandDefinition } from './catalogue'
+export {
+  UNSUPPORTED,
+  surfaceCommands,
+  unsupportedCommand,
+  type CommandHandler,
+  type CommandHandlers,
+  type CommandRun,
+  type SurfaceCommand,
+} from './surface'

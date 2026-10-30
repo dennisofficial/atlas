@@ -63,6 +63,7 @@ describe('a message that loaded a skill', () => {
     const app = fakeApp({
       model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'arr' } }),
       skills: [PIRATE],
+      intake: true,
     })
     const setup = await opened(app)
 

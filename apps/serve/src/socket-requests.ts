@@ -1,7 +1,11 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
-import type { RotationStateWire } from '@dltech/atlas-wire'
+import {
+  listCommandsParamsSchema,
+  listCommandsReplySchema,
+  type RotationStateWire,
+} from '@dltech/atlas-wire'
 
 import { isAgentSteerOp } from './agent-steer'
 import { routeAgentSteerRequest } from './agent-steer-routing'
@@ -16,7 +20,7 @@ import { routeProcessRequest, type ServeProcesses } from './process-requests'
 import { refusedRequest, type RequestFrame, type TranscriptReaders } from './requests'
 import { answerRewindRequest } from './rewind-request'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
-import type { ServeAgentSteer, ServeRewind, ServeRoster } from './serve-app'
+import type { ServeAgentSteer, ServeCommands, ServeRewind, ServeRoster } from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
 import { routeSessionToolRequest } from './session-tool-routing'
@@ -31,6 +35,7 @@ export function createRequestRouter(args: {
   files: Pick<FileBrowser, 'list'>
   log: ServeLog
   snapshot: ServeRoster['snapshot']
+  commands?: ServeCommands | undefined
   prStates?: (() => readonly import('@dltech/atlas-wire').PrStateWire[]) | undefined
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
@@ -100,6 +105,42 @@ export function createRequestRouter(args: {
           data: snapshot(),
         },
       })
+      return
+    }
+
+    if (frame.op === EClientRequest.ListCommands) {
+      const reload = listCommandsParamsSchema.safeParse(frame.params)
+      if (!reload.success) {
+        send({
+          socket,
+          frame: refusedRequest({
+            replyTo: frame.id,
+            message: 'invalid list-commands params',
+          }),
+        })
+        return
+      }
+      const listed =
+        args.commands?.skills({ reload: reload.data.reload === true }) ?? Promise.resolve([])
+      void listed.then(
+        (skills) => {
+          const reply = listCommandsReplySchema.safeParse({ skills })
+          send({
+            socket,
+            frame: reply.success
+              ? { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: reply.data }
+              : refusedRequest({ replyTo: frame.id, message: 'could not list commands' }),
+          })
+        },
+        (error: unknown) =>
+          send({
+            socket,
+            frame: refusedRequest({
+              replyTo: frame.id,
+              message: error instanceof Error ? error.message : 'could not list commands',
+            }),
+          }),
+      )
       return
     }
 

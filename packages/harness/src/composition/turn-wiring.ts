@@ -153,6 +153,7 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     dispatch: container.resolve(registeredPortToken(ToolDispatcher)),
     hooks: container.resolve(HookChainToken),
     drainPending: (args) => intake.prepare(args),
+    expandContext: args.pending.expandContext,
     spend: {
       ledger,
       clock: container.resolve(registeredPortToken(ClockPort)),

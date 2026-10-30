@@ -1,4 +1,4 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
 import {
   EConnectionView,
   userSaidDraft,
@@ -12,7 +12,9 @@ import type { PendingQueue, PendingSaid, RemotePendingEntry } from '../store'
 import type { QueuedSettled } from './commands'
 import type { AtlasApp } from './compose'
 import type { SendArgs } from './conversation-types'
+import { withLocalSkillContext, withOldServeSkillContext } from './client-skill-context'
 import type { OpenedConversation } from './open-conversation'
+import { useCloudWakeDrain } from './use-cloud-wake-drain'
 import { useSendingRows } from './use-sending-rows'
 import type { TurnDriver } from './use-turn-driver'
 
@@ -148,7 +150,17 @@ export function useSendMessage(args: {
   const { app, threadId, pending, sending, cloudRunner, working, moving, drive, setFailure } = args
   const { cloudView, wakeCloud } = args
 
-  useCloudWakeDrain({ threadId, pending, sending, cloudRunner, cloudView, working, moving, drive })
+  useCloudWakeDrain({
+    app,
+    threadId,
+    pending,
+    sending,
+    cloudRunner,
+    cloudView,
+    working,
+    moving,
+    drive,
+  })
 
   return useCallback(
     (send: SendArgs) => {
@@ -170,7 +182,18 @@ export function useSendMessage(args: {
       if (working) {
         if (cloudRunner !== null) {
           sending.add(text)
-          cloudRunner.steer({ threadId, text, images, files, ...contextPart })
+          const steerContext = withOldServeSkillContext({
+            app,
+            text,
+            context: send.context ?? [],
+          })
+          cloudRunner.steer({
+            threadId,
+            text,
+            images,
+            files,
+            ...(steerContext.length === 0 ? {} : { context: steerContext }),
+          })
           return
         }
 
@@ -206,7 +229,13 @@ export function useSendMessage(args: {
         return
       }
 
-      const drained = [...pending.drain()]
+      const drained = pending.drain().map((said) => ({
+        ...said,
+        context:
+          cloudRunner === null
+            ? withLocalSkillContext({ app, text: said.text, context: said.context ?? [] })
+            : (said.context ?? []),
+      }))
       const sendingId = sending.add(text)
       const onCommitFailed = (): void => {
         for (const said of drained) sending.resolve(said.text)
@@ -235,56 +264,4 @@ export function useSendMessage(args: {
       working,
     ],
   )
-}
-
-const saidDrafts = (said: PendingSaid): readonly EventDraft[] => [
-  ...(said.context ?? []),
-  userSaidDraft(said),
-]
-
-const queuedMessageCount = (
-  queue: ReturnType<PendingQueue<QueuedSettled>['getSnapshot']>,
-): number => queue.filter((entry) => entry.kind === 'message').length
-
-function useCloudWakeDrain(args: {
-  threadId: ThreadId
-  pending: PendingQueue<QueuedSettled>
-  sending: ConversationSending
-  cloudRunner: RemoteTurnRunner | null
-  cloudView: EConnectionView | null
-  working: boolean
-  moving: boolean
-  drive: TurnDriver['drive']
-}): void {
-  const { threadId, pending, sending, cloudRunner, cloudView, working, moving, drive } = args
-  const queued = useSyncExternalStore(pending.subscribe, pending.getSnapshot)
-  const waiting = queuedMessageCount(queued)
-
-  useEffect(() => {
-    if (cloudRunner === null || cloudView !== EConnectionView.Connected) return
-    if (moving || waiting === 0) return
-
-    const drained = pending.drain()
-    if (drained.length === 0) return
-
-    if (working) {
-      for (const said of drained) {
-        sending.add(said.text)
-        cloudRunner.steer({
-          threadId,
-          text: said.text,
-          images: said.images,
-          files: said.files,
-          ...(said.context === undefined ? {} : { context: said.context }),
-        })
-      }
-      return
-    }
-
-    const sendingIds = drained.map((said) => sending.add(said.text))
-    const onCommitFailed = (): void => {
-      for (const id of sendingIds) sending.markFailed(id)
-    }
-    void drive(drained.flatMap(saidDrafts), { onCommitFailed })
-  }, [cloudRunner, cloudView, drive, moving, pending, sending, threadId, waiting, working])
 }

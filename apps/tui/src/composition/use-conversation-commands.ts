@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import type { PendingQueue } from '../store'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import { droppedNotice, type QueuedSettled } from './commands'
-import { ECommandEffect } from './commands/local-command'
+import { ECommandEffect } from '@dltech/atlas-core'
 
 export function useSettledCommands(args: { pending: PendingQueue<QueuedSettled> }): {
   drainSettledCommands: () => Promise<void>

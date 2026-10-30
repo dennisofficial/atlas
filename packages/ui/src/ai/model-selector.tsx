@@ -76,6 +76,8 @@ export interface ModelSelectorProps {
   collapsedProviders?: string[]
   collapsedLimit?: number
   defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   placeholder?: string
   className?: string
 }
@@ -96,11 +98,18 @@ export function ModelSelector({
   collapsedProviders = [],
   collapsedLimit = DEFAULT_COLLAPSED_LIMIT,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   placeholder = 'No model',
   className,
 }: ModelSelectorProps) {
   const current = models.find((model) => model.id === value)
-  const [open, setOpen] = useState(defaultOpen)
+  const [heldOpen, setHeldOpen] = useState(defaultOpen)
+  const open = controlledOpen ?? heldOpen
+  const setOpen = (next: boolean) => {
+    setHeldOpen(next)
+    onOpenChange?.(next)
+  }
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<EModelFilter[]>([])
   const [expanded, setExpanded] = useState<string[]>([])
@@ -224,7 +233,8 @@ export function ModelSelector({
               <CommandList className="max-h-96">
                 {groups.state === EModelSelectorState.NoMatches ? (
                   <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">
-                    No models match{query.trim() ? ` “${query.trim()}”` : ' these filters'}
+                    No models match
+                    {query.trim() ? ` “${query.trim()}”` : ' these filters'}
                   </p>
                 ) : null}
                 {groups.pinned.length > 0 ? (

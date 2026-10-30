@@ -1,5 +1,6 @@
 export {
   createPendingQueue,
+  type ExpandContext,
   type PendingCommand,
   type PendingEntry,
   type PendingMessage,

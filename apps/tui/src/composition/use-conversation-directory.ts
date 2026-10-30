@@ -2,7 +2,7 @@ import type { Event, ThreadId } from '@dltech/atlas-core'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import type { LogSummary } from '../store/log-window'
-import type { CommandEffect } from './commands/local-command'
+import type { CommandEffect } from '@dltech/atlas-core'
 import type { AtlasApp } from './compose'
 import type { ConversationWorkspace } from './conversation-types'
 import { changeDirectory, type DirectoryMove } from './directory-move'
