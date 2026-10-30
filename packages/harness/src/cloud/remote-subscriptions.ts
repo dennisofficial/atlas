@@ -19,7 +19,7 @@ import {
   type SubscribeOutcome,
   type SubscriptionProviderInfo,
   type SubscriptionView,
-} from '@dltech/atlas-harness'
+} from '../subscriptions/port'
 
 type SubscriptionChannel = Pick<
   RemoteDeltaChannel,

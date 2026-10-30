@@ -8,7 +8,8 @@ import {
   toThreadId,
 } from '@dltech/atlas-core'
 import { type RosterWire } from '@dltech/atlas-wire'
-import { EClientRequest, RemoteRequestFailed } from '@dltech/atlas-harness'
+import { EClientRequest } from '../channel-wire'
+import { RemoteRequestFailed } from '@dltech/atlas-client/channel'
 
 import { RemoteAgentRegistry } from '../remote-agents'
 import { RemoteServiceRegistry } from '../remote-services'

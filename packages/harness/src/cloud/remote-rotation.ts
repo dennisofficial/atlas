@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 
 import type { ThreadId } from '@dltech/atlas-core'
+import { EClientRequest } from './channel-wire'
 import {
-  EClientRequest,
   RotationPort,
-  type CloudChannel,
   type RotationListener,
   type RotationOutcome,
-} from '@dltech/atlas-harness'
+} from '../rotation/rotation-port'
+import { type CloudChannel } from './cloud-bridge'
 import {
   EWireRotationPhase,
   rotateReplySchema,
@@ -15,7 +15,7 @@ import {
   type RotationStateWire,
 } from '@dltech/atlas-wire'
 
-import { stagePhaseOfWire } from '../rotation-phase'
+import { stagePhaseOfWire } from './rotation-phase'
 
 type RotationChannel = Pick<CloudChannel, 'request' | 'subscribe' | 'threadId'>
 

@@ -1,30 +1,45 @@
-import type { ThreadId } from '@dltech/atlas-core'
-import {
-  EConnectionView,
-  ERuntimePhase,
-  sameConnectionView,
-  type CloudChannel,
-  type CloudReload,
-  type CloudSandboxes,
-  type ConnectionView,
-} from '@dltech/atlas-harness'
+import { ENoticeTone, NOTICE_WARN_MS, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 
-import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
-import { messageOf } from '../error-text'
+import type { CloudChannel, CloudReload, CloudSandboxes } from '../cloud/cloud-bridge'
+import { EConnectionView, sameConnectionView, type ConnectionView } from '../cloud/connection-view'
+import { ERuntimePhase } from '@dltech/atlas-wire'
+import { podFailureReasonOf } from './pod-failure'
 
-export const CLOUD_WAKE_FAILED_NOTICE_KEY = 'cloud-wake-failed'
+export const POD_WAKE_FAILED_NOTICE_KEY = 'cloud-wake-failed'
 
-export type CloudHealth = {
+export type PodHealth = {
   view: ConnectionView
   stale: boolean
   lastSeenAt: number | null
   failure: string | null
 }
 
-export type CloudSession = {
+export type PodSessionChannel = Pick<
+  CloudChannel,
+  | 'threadId'
+  | 'connection'
+  | 'onConnection'
+  | 'onReload'
+  | 'onServerError'
+  | 'onTurnEnded'
+  | 'beginWake'
+  | 'failWake'
+  | 'observeCheckpoint'
+  | 'attachment'
+  | 'reconnect'
+  | 'close'
+>
+
+export type PodReadiness = {
+  applied(): { appliedAt: number } | null
+  subscribe(listener: () => void): () => void
+  cancelWaiting(): void
+}
+
+export type PodSession = {
   threadId: ThreadId
-  channel: CloudChannel
-  health: () => CloudHealth
+  channel: PodSessionChannel
+  health: () => PodHealth
   subscribe: (listener: () => void) => () => void
   reconnect: () => void
   wake: () => void
@@ -32,7 +47,7 @@ export type CloudSession = {
   close: () => void
 }
 
-const sameHealth = (left: CloudHealth, right: CloudHealth): boolean =>
+const sameHealth = (left: PodHealth, right: PodHealth): boolean =>
   sameConnectionView({ left: left.view, right: right.view }) &&
   left.stale === right.stale &&
   left.lastSeenAt === right.lastSeenAt &&
@@ -53,18 +68,19 @@ const RESTING_PHASES: ReadonlySet<ERuntimePhase> = new Set([
   ERuntimePhase.Parking,
 ])
 
-const wakeFailureOf = (error: unknown): string => `the pod could not be woken — ${messageOf(error)}`
+const wakeFailureOf = (error: unknown): string =>
+  `the pod could not be woken — ${podFailureReasonOf(error)}`
 
-export function createCloudSession(args: {
-  channel: CloudChannel
-  sandboxes: CloudSandboxes
+export function createPodSession(args: {
+  channel: PodSessionChannel
+  sandboxes: Pick<CloudSandboxes, 'find'>
   wake: () => Promise<void>
   onReload: (reload: CloudReload) => Promise<void>
-  appliedSnapshot?: (() => { appliedAt: number } | null) | undefined
-  subscribeApplied?: ((listener: () => void) => () => void) | undefined
+  notice: NoticePort
+  readiness?: PodReadiness | undefined
   settleMs?: number | undefined
   onClose?: (() => void) | undefined
-}): CloudSession {
+}): PodSession {
   const { channel, sandboxes } = args
   const listeners = new Set<() => void>()
   let closed = false
@@ -77,10 +93,10 @@ export function createCloudSession(args: {
   let waking: Promise<void> | null = null
   let settled = false
 
-  const current = (): CloudHealth => ({
+  const current = (): PodHealth => ({
     view: channel.connection(),
     stale: pendingReload !== null || resyncing,
-    lastSeenAt: args.appliedSnapshot?.()?.appliedAt ?? null,
+    lastSeenAt: args.readiness?.applied()?.appliedAt ?? null,
     failure,
   })
   let held = current()
@@ -116,11 +132,6 @@ export function createCloudSession(args: {
     void args
       .onReload(reload)
       .catch(() => {
-        // A resync can fail before it lands — the birth's binding is still committing when the
-        // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
-        // would leave the open socket dimmed forever, so it goes back on the pending slot for a
-        // settle-timed retry — never an immediate re-flush, which would spin on a persistently
-        // rejecting handler.
         if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
         if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq)
           pendingReload = reload
@@ -147,8 +158,8 @@ export function createCloudSession(args: {
         if (closed) return
         const reason = wakeFailureOf(error)
         channel.failWake({ reason })
-        notify({
-          key: CLOUD_WAKE_FAILED_NOTICE_KEY,
+        args.notice.notify({
+          key: POD_WAKE_FAILED_NOTICE_KEY,
           text: reason,
           tone: ENoticeTone.Warn,
           ttlMs: NOTICE_WARN_MS,
@@ -197,7 +208,7 @@ export function createCloudSession(args: {
     sync()
   })
   const unsubscribeApplied =
-    args.subscribeApplied?.(() => {
+    args.readiness?.subscribe(() => {
       if (!closed) sync()
     }) ?? (() => undefined)
 
@@ -223,6 +234,7 @@ export function createCloudSession(args: {
       unsubscribeError()
       unsubscribeTurnEnded()
       unsubscribeApplied()
+      args.readiness?.cancelWaiting()
       args.onClose?.()
       listeners.clear()
       channel.close()

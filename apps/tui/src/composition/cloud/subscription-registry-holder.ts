@@ -1,6 +1,4 @@
-import type { SubscriptionRegistryPort } from '@dltech/atlas-harness'
-
-import { RemoteSubscriptionRegistry } from './remote-subscriptions'
+import { RemoteSubscriptionRegistry, type SubscriptionRegistryPort } from '@dltech/atlas-harness'
 
 let current: SubscriptionRegistryPort | null = null
 

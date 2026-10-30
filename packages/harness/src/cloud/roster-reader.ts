@@ -1,13 +1,8 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import type { RosterWire } from '@dltech/atlas-wire'
-import {
-  EMPTY_ROSTER,
-  rosterAgents,
-  rosterShells,
-  type AgentSnapshot,
-  type RemoteRosterReader,
-  type ShellSnapshot,
-} from '@dltech/atlas-harness'
+import { EMPTY_ROSTER, rosterAgents, rosterShells, type RemoteRosterReader } from './remote-roster'
+import { type AgentSnapshot } from '../agents/registry/snapshot'
+import { type ShellSnapshot } from '../shells/background-shell'
 
 export { EMPTY_ROSTER }
 
