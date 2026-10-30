@@ -224,13 +224,14 @@ throwaway probe that produced the numbers is `apps/tui/scripts/proto-shimmer.tsx
   green. Keep PRs small enough to review in one sitting.
 - Never force-push, never `--no-verify`.
 - Conventional commits: `<type>(<scope>): <description>` — imperative, lowercase. The merged PR
-  title is the release decision: `feat` cuts a minor, `fix` a patch, anything else no release.
+  title sizes the release: `feat` cuts a minor, anything else a patch. A merge releases whenever
+  it changes TUI, serve, Mac or web (directly or through a workspace dependency), or is a `fix`/`feat`.
   Reserve `feat` for "a user can do something today they couldn't yesterday" — cosmetic tweaks,
   restyles, and behavior polish are `fix` or `refactor`.
 - **A change the released serve or TUI cannot talk to must cut a release.** The API deploys on
   every merge, but sandboxes download the latest *release* of serve. A `refactor` that moves or
   removes a route serve calls leaves every new sandbox hanging on "Start Atlas" until the next
-  release (#1400 did exactly that). Title such a PR `fix` or `feat`.
+  release (#1400 did exactly that). Title such an api-only PR `fix` or `feat`.
 
 ## Workspace mechanics
 

@@ -51,6 +51,7 @@ describe('nextReleaseVersion', () => {
       nextReleaseVersion({
         current: null,
         subjects: ['chore: tidy', 'docs: fix typo'],
+        appsAffected: false,
       }),
     ).toBe(null)
   })
@@ -60,18 +61,22 @@ describe('nextReleaseVersion', () => {
       nextReleaseVersion({
         current: semver('1.2.3'),
         subjects: ['ci: bump runner'],
+        appsAffected: false,
       }),
     ).toBe(null)
   })
 
   it('returns null for an empty subject list', () => {
-    expect(nextReleaseVersion({ current: semver('1.2.3'), subjects: [] })).toBe(null)
+    expect(
+      nextReleaseVersion({ current: semver('1.2.3'), subjects: [], appsAffected: false }),
+    ).toBe(null)
   })
 
   it('baselines a first-ever release at 0.1.0 before bumping', () => {
     const next = nextReleaseVersion({
       current: null,
       subjects: ['feat: add the thing'],
+      appsAffected: false,
     })
     expect(next).not.toBeNull()
     expect(formatSemver(next as Semver)).toBe('0.2.0')
@@ -81,6 +86,7 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('0.1.0'),
       subjects: ['fix: stop the crash'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('0.1.1')
   })
@@ -89,6 +95,7 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('0.1.0'),
       subjects: ['feat: add the thing'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('0.2.0')
   })
@@ -97,6 +104,7 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('0.5.0'),
       subjects: ['feat!: drop the old flag'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('0.6.0')
   })
@@ -105,6 +113,7 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('1.2.3'),
       subjects: ['feat!: drop the old flag'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('2.0.0')
   })
@@ -113,6 +122,7 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('1.0.0'),
       subjects: ['fix: small thing', 'chore: tidy', 'feat: bigger thing'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('1.1.0')
   })
@@ -121,7 +131,35 @@ describe('nextReleaseVersion', () => {
     const next = nextReleaseVersion({
       current: semver('1.2.3'),
       subjects: ['feat: add the thing'],
+      appsAffected: false,
     })
     expect(formatSemver(next as Semver)).toBe('1.3.0')
+  })
+
+  it('cuts a patch for a chore when a shipped app is affected', () => {
+    const next = nextReleaseVersion({
+      current: semver('1.2.3'),
+      subjects: ['chore: tidy', 'refactor(tui): split a file'],
+      appsAffected: true,
+    })
+    expect(formatSemver(next as Semver)).toBe('1.2.4')
+  })
+
+  it('still sizes an affected feat as a minor', () => {
+    const next = nextReleaseVersion({
+      current: semver('1.2.3'),
+      subjects: ['feat(web): add the thing'],
+      appsAffected: true,
+    })
+    expect(formatSemver(next as Semver)).toBe('1.3.0')
+  })
+
+  it('still releases a fix that touches no shipped app', () => {
+    const next = nextReleaseVersion({
+      current: semver('1.2.3'),
+      subjects: ['fix(api): keep the route serve calls'],
+      appsAffected: false,
+    })
+    expect(formatSemver(next as Semver)).toBe('1.2.4')
   })
 })
