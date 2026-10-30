@@ -44,7 +44,7 @@ export function threadWorktrees(args: {
     reader: args.reader,
     threadIds: args.threadIds,
     eventTypes: WORKTREE_EVENT_TYPES,
-    fallback: null,
+    fallback: () => null,
     pick: (events) => {
       const latest = events.at(-1)
       if (latest === undefined) return null
@@ -63,7 +63,7 @@ export function threadsPullRequests(args: {
     reader: args.reader,
     threadIds: args.threadIds,
     eventTypes: [PULL_REQUEST_EVENT_TYPE],
-    fallback: [],
+    fallback: () => [],
     pick: (events) => {
       if (events.length === 0) return null
       const byIdentity = new Map<string, LinkedPullRequestDto>()
