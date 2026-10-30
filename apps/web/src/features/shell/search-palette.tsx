@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from '@dltech/atlas-ui/components/command'
 
 import { ThreadStatusIcon } from './shell-status-icon'
@@ -43,8 +44,8 @@ function SearchRow({ item, onSelect }: { item: SearchItem; onSelect: (item: Sear
   return (
     <CommandItem value={value} keywords={[item.label]} onSelect={() => onSelect(item)}>
       <ThreadStatusIcon status={item.status} />
-      <span className="truncate">{item.label}</span>
-      <span className="ml-auto shrink-0 text-xs text-muted-foreground">{item.projectName}</span>
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <CommandShortcut className="shrink-0 tracking-normal">{item.projectName}</CommandShortcut>
     </CommandItem>
   )
 }
