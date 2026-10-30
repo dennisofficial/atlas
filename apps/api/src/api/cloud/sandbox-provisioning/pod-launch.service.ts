@@ -81,6 +81,7 @@ export class PodLaunchService {
     writer?: RowWriter | undefined
     thread: Row<'Thread'>
     existing: Row<'CloudSandbox'> | null
+    pendingVcpus?: number | undefined
   }): Promise<RowClaim | null> {
     const { writer, ...rest } = args
     if (writer === undefined)
@@ -92,6 +93,7 @@ export class PodLaunchService {
     writer: RowWriter
     thread: Row<'Thread'>
     existing: Row<'CloudSandbox'> | null
+    pendingVcpus?: number | undefined
   }): Promise<RowClaim | null> {
     const claim = await claimRow({ ...args, cipher: this.cipher })
     if (claim === null) return null
@@ -132,8 +134,9 @@ export class PodLaunchService {
   async launch(args: {
     thread: Row<'Thread'>
     existing: Row<'CloudSandbox'> | null
+    pendingVcpus?: number | undefined
   }): Promise<PodLaunchOutcome> {
-    const { thread, existing } = args
+    const { thread, existing, pendingVcpus } = args
     const session = await sessionOfThread({ reader: db, threadId: thread.id })
     if (session.executionLocation === null) {
       await db.orm.public.Session.where({ id: session.id }).update({ executionLocation: 'cloud' })
@@ -145,7 +148,7 @@ export class PodLaunchService {
       return { reply: notConfiguredReplyOf(gap), dispatchFailed: false }
     }
     const booting = { state: ESandboxProvisionState.Booting }
-    const claim = await this.claim({ thread, existing })
+    const claim = await this.claim({ thread, existing, pendingVcpus })
     if (claim === null) return { reply: booting, dispatchFailed: false }
     await this.signals.podChanged({ threadId: thread.id })
     const dispatched = await this.dispatch({ threadId: thread.id, claim })

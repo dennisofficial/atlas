@@ -19,6 +19,7 @@ model CloudSandbox {
   wakeFailedAt              TimestamptzJsDate(3)?
   wakeClaim                 TimestamptzJsDate(3)?
   pendingSend               Jsonb?
+  pendingVcpus              Int?
   runtimeCheckpoint         Jsonb?
   runtimeCheckpointRevision Int?
   createdAt                 TimestamptzJsDate(3)

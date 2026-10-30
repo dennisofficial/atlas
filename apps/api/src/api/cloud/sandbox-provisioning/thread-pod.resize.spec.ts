@@ -61,26 +61,32 @@ describe('ThreadPodService resize', () => {
     await seedThreadRow({ id: 'thr-1', userId: 'usr-1' })
   })
 
-  it('saves the size, stops the sandbox and wakes it as a new boot attempt', async () => {
+  it('records the owed restart and hands it to pod-provision without stopping in the request', async () => {
     await seedProvisioned({ state: 'running', serveUrl: SERVE_URL })
-    const { service, vercel, dispatch } = arrange()
+    const { service, dispatch } = arrange()
 
     const reply = await service.resize({ ...scope, vcpus: 4 })
 
     expect(reply).toEqual({ vcpus: 4, appliesAt: EPodResizeApplies.Live })
-    expect(calls).toEqual(['update', 'notify', 'stop'])
-    expect(vercel.updateResources).toHaveBeenCalledWith({
-      threadId: 'thr-1',
-      name: 'atlas-thread-thr-1',
-      vcpus: 4,
-    })
+    expect(calls).toEqual([])
     expect(dispatch).toHaveBeenCalledTimes(1)
+    const row = await db.orm.public.CloudSandbox.first({ sessionId: 'ses_thr-1' })
+    expect(row?.pendingVcpus).toBe(4)
     const pod = await service.status(scope)
     expect(pod.state).toBe(EPodState.Booting)
+    expect(pod.resources?.pendingVcpus).toBe(4)
     expect(pod.steps.map(({ step, state }) => [step, state])).toEqual([
       [EBootStep.Provision, EBootStepState.Running],
     ])
     expect(pod.history).toHaveLength(3)
+  })
+
+  it('refuses a second resize while the first restart is owed', async () => {
+    await seedProvisioned({ state: 'running', serveUrl: SERVE_URL })
+    const { service } = arrange()
+    await service.resize({ ...scope, vcpus: 4 })
+
+    await expect(service.resize({ ...scope, vcpus: 8 })).rejects.toMatchObject({ status: 409 })
   })
 
   it('only saves the size of a parked sandbox, which takes it at the next wake', async () => {
@@ -124,5 +130,6 @@ describe('ThreadPodService resize', () => {
 
     const row = await db.orm.public.CloudSandbox.first({ sessionId: 'ses_thr-1' })
     expect(row?.wakeFailedAt).not.toBeNull()
+    expect(row?.pendingVcpus).toBeNull()
   })
 })

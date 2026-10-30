@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'89d0e01e024a2b52ea52e576ed299d368420e8504f2b2d344831cf8862473b00'>;
+  StorageHashBase<'05c8abbf9c944bf7ffa3662999f668ff77b0692a3187973586edcce69da73a19'>;
 export type ExecutionHash =
   ExecutionHashBase<'e5139d1de8d5766e0bfebef978a82018efb9a20a4c75ca8470538fe80225e0c7'>;
 export type ProfileHash =
@@ -335,6 +335,7 @@ export namespace Models {
     lastActivityAt: FieldOutputTypes['public']['CloudSandbox']['lastActivityAt'];
     name: FieldOutputTypes['public']['CloudSandbox']['name'];
     pendingSend: FieldOutputTypes['public']['CloudSandbox']['pendingSend'];
+    pendingVcpus: FieldOutputTypes['public']['CloudSandbox']['pendingVcpus'];
     pinnedModel: FieldOutputTypes['public']['CloudSandbox']['pinnedModel'];
     region: FieldOutputTypes['public']['CloudSandbox']['region'];
     runtimeCheckpoint: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpoint'];
@@ -1418,6 +1419,12 @@ type ContractBase = Omit<
                 readonly pendingSend: {
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly pendingVcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -5389,6 +5396,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
+              readonly pendingVcpus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly pinnedModel: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -5514,6 +5525,7 @@ type ContractBase = Omit<
                 readonly lastActivityAt: { readonly column: 'lastActivityAt' };
                 readonly name: { readonly column: 'name' };
                 readonly pendingSend: { readonly column: 'pendingSend' };
+                readonly pendingVcpus: { readonly column: 'pendingVcpus' };
                 readonly pinnedModel: { readonly column: 'pinnedModel' };
                 readonly region: { readonly column: 'region' };
                 readonly runtimeCheckpoint: { readonly column: 'runtimeCheckpoint' };

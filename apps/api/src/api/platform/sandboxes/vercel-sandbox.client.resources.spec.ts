@@ -80,7 +80,7 @@ describe('VercelSandboxClient resources', () => {
     sdk.getFailure = null
   })
 
-  it('reads the running session size and flags a configured size it has not reached', async () => {
+  it('reads the running session size, never the configured size it has not reached', async () => {
     const client = clientWith()
 
     expect(await client.readResources({ threadId: THREAD, name: NAME })).toEqual({
@@ -92,7 +92,6 @@ describe('VercelSandboxClient resources', () => {
     expect(await client.readResources({ threadId: THREAD, name: NAME })).toEqual({
       vcpus: 2,
       memoryMb: 4096,
-      pendingVcpus: 4,
     })
     expect(sdk.getParams.at(-1)).toMatchObject({ resume: false })
   })

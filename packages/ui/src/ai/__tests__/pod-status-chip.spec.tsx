@@ -104,4 +104,35 @@ describe('PodStatusChip resize', () => {
     expect(document.body.textContent).toContain('Could not resize the pod.')
     await view.unmount()
   })
+
+  it('keeps showing an owed restart after the popover remounts, with Apply locked', async () => {
+    const restarting = { ...RUNNING, state: EPodState.Resuming, pendingVcpus: 8 }
+    const first = await mount(
+      <PodPopoverBody status={restarting} onResize={mock(() => Promise.resolve())} />,
+    )
+    await first.unmount()
+    const view = await mount(
+      <PodPopoverBody status={restarting} onResize={mock(() => Promise.resolve())} />,
+    )
+    expect(document.body.textContent).toContain('Restarting with 8 vCPU · 16 GB')
+    expect(buttonNamed('Apply')?.disabled).toBe(true)
+    await view.unmount()
+  })
+
+  it('follows the server once the restart lands', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    const onResize = mock(() => Promise.resolve())
+    await act(async () =>
+      root.render(<PodPopoverBody status={{ ...RUNNING, pendingVcpus: 8 }} onResize={onResize} />),
+    )
+    await act(async () =>
+      root.render(<PodPopoverBody status={{ ...RUNNING, vcpus: 8 }} onResize={onResize} />),
+    )
+    expect(container.textContent).not.toContain('Restarting with')
+    expect(container.textContent).toContain('RAM 16 GB')
+    await act(async () => root.unmount())
+  })
 })

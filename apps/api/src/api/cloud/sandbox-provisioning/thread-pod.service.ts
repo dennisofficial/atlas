@@ -12,7 +12,6 @@ import {
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
-import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import {
   SandboxMissingError,
   VercelSandboxClient,
@@ -30,7 +29,6 @@ import { podStateOf, standingStateOf } from '../../platform/sandboxes/pod-state'
 import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
 
 const TICKET_TTL_SECONDS = 60
-const RESIZE_PARK_REASON = 'the sandbox is restarting to apply a new size'
 
 export const RESIZE_UNMANAGED_MESSAGE =
   'This sandbox was started from the terminal and cannot be resized here.'
@@ -42,7 +40,6 @@ export class ThreadPodService {
   constructor(
     private readonly endpoints: SandboxEndpointService,
     private readonly vercel: VercelSandboxClient,
-    private readonly sandboxes: SandboxesService,
     private readonly pod: PodLaunchService,
     private readonly signals: ThreadSignalsService,
   ) {}
@@ -72,8 +69,11 @@ export class ThreadPodService {
     if (standing === ESandboxProvisionState.Booting) {
       throw new ConflictException(SANDBOX_BUSY_MESSAGE)
     }
-    await this.saveSize({ threadId, name: row.name, vcpus })
-    if (standing === ESandboxProvisionState.Running) await this.restart({ thread, row })
+    if (standing === ESandboxProvisionState.Running) {
+      await this.restart({ thread, row, vcpus })
+    } else {
+      await this.saveSize({ threadId, name: row.name, vcpus })
+    }
     return { vcpus, appliesAt: EPodResizeApplies.Live }
   }
 
@@ -101,10 +101,17 @@ export class ThreadPodService {
     }
   }
 
-  private async restart(args: { thread: Row<'Thread'>; row: Row<'CloudSandbox'> }): Promise<void> {
-    const { thread, row } = args
-    await this.sandboxes.park({ row, threadId: thread.id, reason: RESIZE_PARK_REASON })
-    const { reply, dispatchFailed } = await this.pod.launch({ thread, existing: row })
+  private async restart(args: {
+    thread: Row<'Thread'>
+    row: Row<'CloudSandbox'>
+    vcpus: number
+  }): Promise<void> {
+    const { thread, row, vcpus } = args
+    const { reply, dispatchFailed } = await this.pod.launch({
+      thread,
+      existing: row,
+      pendingVcpus: vcpus,
+    })
     if (dispatchFailed) throw dispatchFailure()
     if (reply.state === ESandboxProvisionState.NotConfigured) {
       throw new ConflictException(reply.error)
@@ -116,10 +123,14 @@ export class ThreadPodService {
     threadId: string
   }): Promise<PodResources> {
     const { row } = args
-    const identity = { sandboxId: row.sandboxId, region: row.region }
+    const identity = {
+      sandboxId: row.sandboxId,
+      region: row.region,
+      ...(row.pendingVcpus === null ? {} : { pendingVcpus: row.pendingVcpus }),
+    }
     try {
       const live = await this.vercel.readResources({ threadId: args.threadId, name: row.name })
-      return { ...identity, ...live }
+      return { ...live, ...identity }
     } catch (failure) {
       this.logger.warn(`reading resources of ${row.name} failed: ${String(failure)}`)
       return identity

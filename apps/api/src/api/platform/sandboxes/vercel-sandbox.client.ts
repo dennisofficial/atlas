@@ -11,7 +11,7 @@ export const SANDBOX_SERVE_PORT = 3000
 const SANDBOX_QUICK_TIMEOUT_MS = 30_000
 const SANDBOX_DELETE_TIMEOUT_MS = 30_000
 const PARK_PATH = '/v1/park'
-const PARK_NOTIFY_TIMEOUT_MS = 3_000
+export const PARK_NOTIFY_TIMEOUT_MS = 3_000
 
 /**
  * The API only stores a hash of serve's session token, so it cannot call serve's authed endpoints
@@ -19,7 +19,7 @@ const PARK_NOTIFY_TIMEOUT_MS = 3_000
  * serve launcher already wrote to disk there. The reason rides an env var rather than the script
  * text, so it can never break out of the curl payload.
  */
-const parkNoticeScript = (port: number): string =>
+export const parkNoticeScript = (port: number): string =>
   `_serve_token=$(cat ${SERVE_TOKEN_PATH} 2>/dev/null || true); ` +
   `curl -sf -m 2 --connect-timeout 1 -X POST ` +
   `-H "Authorization: Bearer $_serve_token" -H "Content-Type: application/json" ` +
@@ -50,25 +50,17 @@ const stateOf = (status: string): ESandboxState => {
 export interface SandboxResourcesObservation {
   vcpus?: number
   memoryMb?: number
-  pendingVcpus?: number
 }
 
 const resourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
-  const configured = sandbox.vcpus
   if (sandbox.status !== 'running') {
     return {
-      ...(configured === undefined ? {} : { vcpus: configured }),
+      ...(sandbox.vcpus === undefined ? {} : { vcpus: sandbox.vcpus }),
       ...(sandbox.memory === undefined ? {} : { memoryMb: sandbox.memory }),
     }
   }
   const session = sandbox.currentSession()
-  return {
-    vcpus: session.vcpus,
-    memoryMb: session.memory,
-    ...(configured === undefined || configured === session.vcpus
-      ? {}
-      : { pendingVcpus: configured }),
-  }
+  return { vcpus: session.vcpus, memoryMb: session.memory }
 }
 
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
