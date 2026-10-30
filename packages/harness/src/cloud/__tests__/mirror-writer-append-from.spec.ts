@@ -87,14 +87,15 @@ describe('appending a pod delta by seq', () => {
 
   it('lands each seq exactly once when two processes copy the same pod at once', async () => {
     const home = homeOf()
-    const first = writerIn(home)
-    const second = writerIn(home)
+    const processCopy = async (deltas: readonly Event[][]): Promise<void> => {
+      const registry = new SessionRegistry(home)
+      const writer = mirrorWriter({ home: () => home, registry: () => registry })
+      for (const events of deltas) await writer.appendFrom({ threadId: THREAD, events })
+    }
 
     await Promise.all([
-      first.appendFrom({ threadId: THREAD, events: range(1, 4) }),
-      second.appendFrom({ threadId: THREAD, events: range(1, 6) }),
-      first.appendFrom({ threadId: THREAD, events: range(3, 8) }),
-      second.appendFrom({ threadId: THREAD, events: range(5, 10) }),
+      processCopy([range(1, 4), range(3, 8), range(7, 10)]),
+      processCopy([range(1, 6), range(5, 10)]),
     ])
 
     expect(seqsOnDisk(home)).toEqual(range(1, 10).map((event) => event.seq))
