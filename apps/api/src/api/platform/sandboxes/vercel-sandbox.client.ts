@@ -106,6 +106,7 @@ export class VercelSandboxClient {
     try {
       const sandbox = await this.get({ ...args, resume: false })
       assertLiveSession({ sandbox, name: args.name, expected: args.sessionId })
+      if (sandbox.status === 'stopped') return
       await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
     } catch (failure) {
       if (isSandboxMissing(failure)) return

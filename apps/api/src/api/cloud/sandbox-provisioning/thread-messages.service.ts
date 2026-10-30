@@ -35,6 +35,7 @@ import { agentStartedIn, appendUserSaid, servesLiveIn } from './thread-message-q
 
 export const DELIVERY_FAILED_MESSAGE = "Couldn't hand the message to the sandbox. Try again."
 const OUTDATED_SERVE_PARK_REASON = "the sandbox is restarting to pick up this Atlas's serve"
+const STOPPED_SILENTLY_PARK_REASON = 'the sandbox stopped without reporting it'
 export const TAKE_BACK_TOO_LATE_MESSAGE =
   'The sandbox already picked this message up, so it cannot be taken back.'
 export const TAKE_BACK_NOT_FOUND_MESSAGE = 'message not found'
@@ -78,25 +79,16 @@ export class ThreadMessagesService {
         if (queued.head !== undefined) await this.signals.headMoved({ threadId, head: queued.head })
         return { state: EThreadMessageState.Queued }
       }
-      const refused = await this.serve({
+      const parkReason = await this.deliver({
         ...endpoint,
         threadId,
         sendId,
         text,
         images,
         uploads,
-      }).then(
-        () => false,
-        (failure: unknown) => {
-          this.logger.warn(
-            `delivering a message to thread ${threadId} failed: ${failureText(failure)}`,
-          )
-          if (failure instanceof ServeProtocolRefusedError) return true
-          throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
-        },
-      )
-      if (!refused) return { state: EThreadMessageState.Delivered }
-      return this.relaunchOutdated({ thread, userId, sendId, text, images, uploads })
+      })
+      if (parkReason === null) return { state: EThreadMessageState.Delivered }
+      return this.relaunchParked({ thread, userId, sendId, text, images, uploads, parkReason })
     }
 
     const { existing, relaunch, head } = await this.appendOnce({
@@ -116,7 +108,33 @@ export class ThreadMessagesService {
     return { state: EThreadMessageState.Queued }
   }
 
-  private async relaunchOutdated(args: {
+  private async deliver(args: Parameters<ServeSend>[0]): Promise<string | null> {
+    try {
+      await this.serve(args)
+      return null
+    } catch (failure) {
+      this.logger.warn(
+        `delivering a message to thread ${args.threadId} failed: ${failureText(failure)}`,
+      )
+      if (failure instanceof ServeProtocolRefusedError) return OUTDATED_SERVE_PARK_REASON
+      if (await this.stoppedBehindServe(args.threadId)) return STOPPED_SILENTLY_PARK_REASON
+      throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
+    }
+  }
+
+  private async stoppedBehindServe(threadId: string): Promise<boolean> {
+    try {
+      return !(await this.endpoints.observedRunning({ threadId }))
+    } catch (failure) {
+      this.logger.warn(
+        `could not inspect the sandbox of thread ${threadId}: ${failureText(failure)}`,
+      )
+      return false
+    }
+  }
+
+  private async relaunchParked(args: {
+    parkReason: string
     thread: Row<'Thread'>
     userId: string
     sendId: string
@@ -124,12 +142,12 @@ export class ThreadMessagesService {
     images?: readonly SaidImageWire[] | undefined
     uploads?: readonly SaidUploadWire[] | undefined
   }): Promise<ThreadMessageReply> {
-    const { thread, userId, sendId, text, images, uploads } = args
+    const { thread, userId, sendId, text, images, uploads, parkReason } = args
     const threadId = thread.id
     const sessionId = await podSessionOf({ reader: db, threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null) throw new BadGatewayException(DELIVERY_FAILED_MESSAGE)
-    await this.sandboxes.park({ row, threadId, reason: OUTDATED_SERVE_PARK_REASON })
+    await this.sandboxes.park({ row, threadId, reason: parkReason })
     const { head } = await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       return appendUserSaid({ tx, threadId, userId, sendId, text, images, uploads })
