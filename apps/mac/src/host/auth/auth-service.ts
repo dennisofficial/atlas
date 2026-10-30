@@ -21,6 +21,7 @@ export interface IAuthService {
   status: () => IAuthStatus
   signOut: () => Promise<void>
   token: () => string | undefined
+  adopt: (token: string) => Promise<void>
 }
 
 export interface IAuthConfig {
@@ -69,6 +70,14 @@ export function createAuthService({
     } catch {
       return undefined
     }
+  }
+
+  const revoke = async (token: string): Promise<void> => {
+    await fetch(`${origin}/api/auth/sign-out`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: '{}',
+    }).catch(() => undefined)
   }
 
   const live = (): IPending | undefined =>
@@ -122,12 +131,14 @@ export function createAuthService({
       const token = store.token()
       store.clear()
       if (token === undefined) return
-      await fetch(`${origin}/api/auth/sign-out`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: '{}',
-      }).catch(() => undefined)
+      await revoke(token)
     },
     token: () => store.token(),
+    adopt: async (token) => {
+      const previous = store.token()
+      if (previous === token) return
+      store.save({ token, email: await fetchEmail(token) })
+      if (previous !== undefined) await revoke(previous)
+    },
   }
 }
