@@ -15,6 +15,7 @@ import {
 import { createdThreads, useCreatedThreads, withCreatedThreads } from './created-threads'
 import { useListSignals } from './use-list-signals'
 import { hasThread, type ProjectThreads } from './thread-partition'
+import { SHELL_THREADS_KEY } from '@/lib/cloud-keys'
 
 type ShellLoad = { entries: ProjectThreads[]; startedAt: number }
 
@@ -37,7 +38,7 @@ async function loadShellEntries(): Promise<ShellLoad> {
 }
 
 export function useShellEntries(activeThreadId: string | null): CloudQuery<ProjectThreads[]> {
-  const query = useCloudQuery({ key: 'shell-threads', load: loadShellEntries })
+  const query = useCloudQuery({ key: SHELL_THREADS_KEY, load: loadShellEntries })
   const created = useCreatedThreads()
   const overrides = useActivityOverrides()
   const reloadedFor = useRef<string | null>(null)

@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, type ReactNode } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
-import { sessionUserPresent } from '@/lib/auth-api'
+import { EQueryState } from '@/lib/use-cloud-query'
+import { useSessionQuery } from '@/lib/use-session-query'
 
 import { FormError } from './auth-controls'
 import { SignInRedirect } from './sign-in-redirect'
@@ -20,33 +21,19 @@ export enum ESessionState {
 type GateState = { state: ESessionState; message: string }
 
 export function useSessionState(): { gate: GateState; retry: () => void } {
-  const [gate, setGate] = useState<GateState>({ state: ESessionState.Checking, message: '' })
-  const [attempt, setAttempt] = useState(0)
+  const query = useSessionQuery()
+  const { reload } = query
+  const retry = useCallback(() => reload(), [reload])
 
-  useEffect(() => {
-    let live = true
-    sessionUserPresent().then(
-      (present) => {
-        if (!live) return
-        setGate({ state: present ? ESessionState.SignedIn : ESessionState.SignedOut, message: '' })
-      },
-      (cause: unknown) => {
-        if (!live) return
-        const message = cause instanceof Error ? cause.message : 'Session check failed'
-        setGate({ state: ESessionState.Failed, message })
-      },
-    )
-    return () => {
-      live = false
-    }
-  }, [attempt])
-
-  const retry = useCallback(() => {
-    setGate({ state: ESessionState.Checking, message: '' })
-    setAttempt((value) => value + 1)
-  }, [])
-
-  return { gate, retry }
+  if (query.state === EQueryState.Failed) {
+    const message = query.error.message || 'Session check failed'
+    return { gate: { state: ESessionState.Failed, message }, retry }
+  }
+  if (query.state === EQueryState.Loading) {
+    return { gate: { state: ESessionState.Checking, message: '' }, retry }
+  }
+  const state = query.data === null ? ESessionState.SignedOut : ESessionState.SignedIn
+  return { gate: { state, message: '' }, retry }
 }
 
 export function CheckingSession() {

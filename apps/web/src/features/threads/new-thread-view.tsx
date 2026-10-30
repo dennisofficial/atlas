@@ -17,6 +17,9 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useNewThreadCommands } from './commands/use-new-thread-commands'
 import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
+import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
+
 import { createThread, fetchProjects } from './data/threads-api'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useModelPicker } from './data/use-model-picker'
@@ -27,10 +30,10 @@ import { ThreadComposer } from './thread-composer'
 
 function Welcome({ projects }: { projects: readonly Project[] }) {
   const router = useRouter()
+  const invalidateCloud = useInvalidateCloud()
   const preselected = useSearchParams().get('project')
-  const [selected, setSelected] = useState<string | null | undefined>(() =>
-    projects.some((project) => project.id === preselected) ? preselected : undefined,
-  )
+  const [selected, setSelected] = useState<string | null | undefined>(undefined)
+  const preselectedId = projects.some((project) => project.id === preselected) ? preselected : null
   const [draft, setDraft] = useState('')
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const picker = useModelPicker()
@@ -52,7 +55,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     projectId: string | null
     sendId: string
   } | null>(null)
-  const projectId = selected === undefined ? (projects[0]?.id ?? null) : selected
+  const projectId = selected === undefined ? (preselectedId ?? projects[0]?.id ?? null) : selected
   const local =
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
 
@@ -105,6 +108,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       attempt.current = null
       images.clear()
       createdThreads.announce(thread)
+      void invalidateCloud([SHELL_THREADS_KEY])
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
       toast.error(messageOf(failure))
@@ -142,7 +146,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
 }
 
 export function NewThreadView() {
-  const query = useCloudQuery({ key: 'projects', load: fetchProjects })
+  const query = useCloudQuery({ key: PROJECTS_KEY, load: fetchProjects })
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">

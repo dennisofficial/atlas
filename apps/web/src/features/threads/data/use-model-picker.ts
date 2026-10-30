@@ -1,3 +1,4 @@
+import { MODEL_PICKER_KEY } from '@/lib/cloud-keys'
 import { useCallback, useMemo, useState } from 'react'
 import { z } from 'zod'
 
@@ -23,7 +24,7 @@ export type ModelPicker = {
 
 export function useModelPicker(args: { currentId?: string | undefined } = {}): ModelPicker {
   const source = useCloudQuery({
-    key: 'model-picker-source',
+    key: MODEL_PICKER_KEY,
     load: loadSource,
   })
   const settings = useCloudSettings()

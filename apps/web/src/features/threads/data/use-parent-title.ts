@@ -8,7 +8,7 @@ const NO_PARENT = ''
 export function useParentTitle(parentId: string | undefined): string | null {
   const { fetchThread } = useThreadBackend()
   const parent = useCloudQuery({
-    key: parentId ?? NO_PARENT,
+    key: `thread:${parentId ?? NO_PARENT}`,
     load: async () => (parentId === undefined ? undefined : await fetchThread(parentId)),
   })
   if (parentId === undefined || parent.state === EQueryState.Loading) return null

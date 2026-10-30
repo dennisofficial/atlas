@@ -9,6 +9,7 @@ import { eventsFromWire } from '../data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from '../data/transcript-items'
 
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
@@ -66,16 +67,18 @@ const mount = async (rewind: TranscriptRewind | null, rows: TranscriptRow[] = it
   const root = createRoot(container)
   await act(async () =>
     root.render(
-      <ThreadPanelProvider value={panel}>
-        <ThreadTranscript
-          items={rows}
-          failure={null}
-          pod={null}
-          working={false}
-          onRetryBoot={() => undefined}
-          rewind={rewind}
-        />
-      </ThreadPanelProvider>,
+      <TestQueryProvider client={createTestQueryClient()}>
+        <ThreadPanelProvider value={panel}>
+          <ThreadTranscript
+            items={rows}
+            failure={null}
+            pod={null}
+            working={false}
+            onRetryBoot={() => undefined}
+            rewind={rewind}
+          />
+        </ThreadPanelProvider>
+      </TestQueryProvider>,
     ),
   )
 }

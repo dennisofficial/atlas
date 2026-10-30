@@ -11,6 +11,7 @@ import {
   normalizeUserCode,
   requestPasswordReset,
   resetPassword,
+  sessionUser,
   sessionUserPresent,
   signIn,
   signOut,
@@ -285,5 +286,22 @@ describe('isAccountExistsError', () => {
 
     expect(isAccountExistsError(failure)).toBe(true)
     expect(isAccountExistsError(new Error('other'))).toBe(false)
+  })
+})
+
+describe('sessionUser', () => {
+  it('maps 401 and 403 to signed out', async () => {
+    answerWith(json({}, 401))
+    expect(await sessionUser()).toBeNull()
+    answerWith(json({}, 403))
+    expect(await sessionUser()).toBeNull()
+  })
+
+  it('throws on a 5xx instead of reporting signed out', async () => {
+    answerWith(json({}, 502))
+
+    const failure = await sessionUser().catch((thrown: unknown) => thrown)
+
+    expect(failure).toBeInstanceOf(AuthApiError)
   })
 })

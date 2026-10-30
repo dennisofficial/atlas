@@ -1,24 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
-import { sessionUser, type SessionUser } from '@/lib/auth-api'
+import { type SessionUser } from '@/lib/auth-api'
+import { EQueryState } from '@/lib/use-cloud-query'
+import { useSessionQuery } from '@/lib/use-session-query'
 
 export function useSessionUser(): { user: SessionUser | null; ready: boolean } {
-  const [state, setState] = useState<{ user: SessionUser | null; ready: boolean }>({
-    user: null,
-    ready: false,
-  })
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const user = await sessionUser().catch(() => null)
-      if (!cancelled) setState({ user, ready: true })
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-  return state
+  const query = useSessionQuery()
+  return {
+    user: query.state === EQueryState.Ready ? query.data : null,
+    ready: query.state !== EQueryState.Loading,
+  }
 }

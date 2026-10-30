@@ -17,6 +17,7 @@ import type { Project } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { fetchProjects } from '@/features/threads/data/threads-api'
+import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { NewProjectHost } from './new-project-host'
@@ -58,7 +59,7 @@ function NoProjects({ onNewProject }: { onNewProject: () => void }) {
 export function ProjectsView() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const query = useCloudQuery({ key: 'projects', load: fetchProjects })
+  const query = useCloudQuery({ key: PROJECTS_KEY, load: fetchProjects })
   const [dismissed, setDismissed] = useState(false)
   const [opened, setOpened] = useState(false)
   const open = opened || (searchParams.get(NEW_PROJECT_PARAM) === '1' && !dismissed)

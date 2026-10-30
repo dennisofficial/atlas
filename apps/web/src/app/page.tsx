@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
+import { QueryProvider } from '@/lib/query-provider'
 import {
   CheckingSession,
   ESessionState,
@@ -10,7 +11,7 @@ import {
   useSessionState,
 } from '@/features/auth/session-gate'
 
-export default function RootPage() {
+function RootRedirect() {
   const router = useRouter()
   const { gate, retry } = useSessionState()
 
@@ -23,4 +24,12 @@ export default function RootPage() {
     return <SessionFailed message={gate.message} onRetry={retry} />
   }
   return <CheckingSession />
+}
+
+export default function RootPage() {
+  return (
+    <QueryProvider>
+      <RootRedirect />
+    </QueryProvider>
+  )
 }
