@@ -1,13 +1,12 @@
 import type { EKilledBy, EventDraft, ThreadId } from '@dltech/atlas-core'
+import { ShellRegistryPort, type ShellReadOutcome } from '../shells/port'
+import { type PendingShellNotice } from '../shells/attention'
 import {
-  ShellRegistryPort,
-  type PendingShellNotice,
   type ShellKillOutcome,
-  type ShellReadOutcome,
   type ShellSnapshot,
   type StartedShellOutcome,
   type StartShellArgs,
-} from '@dltech/atlas-harness'
+} from '../shells/background-shell'
 
 import {
   killShell,

@@ -1,17 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toRunId } from '@dltech/atlas-core'
-import {
-  EConnectionView,
-  ECloudSandboxState,
-  EResizeApplies,
-  ETurnStatus,
-  type ChannelConnection,
-  type CloudReload,
-} from '@dltech/atlas-harness'
 
-import { createCloudSession, type CloudSession } from '../cloud-session'
-import { fakeCloudChannel, type FakeCloudChannel } from './fixture'
+import type { CloudReload } from '../../cloud/cloud-bridge'
+import { EConnectionView } from '../../cloud/connection-view'
+import type { ChannelConnection } from '../../cloud/remote-delta-channel'
+import { ETurnStatus } from '../../loop/turn-outcome'
+import { createPodSession, type PodSession } from '../pod-session'
+import { fakeSessionChannel, type FakeSessionChannel } from './fake-session-channel'
+import { recordingNotices } from './pod-fakes'
 
 const tick = async (): Promise<void> => {
   for (let i = 0; i < 5; i += 1) await Promise.resolve()
@@ -38,24 +35,14 @@ const sessionOn = (
     appliedAt?: number | undefined
     settleMs?: number | undefined
   } = {},
-): { channel: FakeCloudChannel; session: CloudSession; reloads: CloudReload[] } => {
-  const channel = fakeCloudChannel({ connection: args.connection ?? CONNECTED })
+): { channel: FakeSessionChannel; session: PodSession; reloads: CloudReload[] } => {
+  const channel = fakeSessionChannel({ connection: args.connection ?? CONNECTED })
   const reloads: CloudReload[] = []
-  const session = createCloudSession({
+  const session = createPodSession({
     channel,
-    sandboxes: {
-      create: async () => ({
-        url: '',
-        token: '',
-        state: ECloudSandboxState.Running,
-        created: false,
-      }),
-      find: async () => undefined,
-      readResources: async () => ({}),
-      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
-      destroy: async () => undefined,
-    },
+    sandboxes: { find: async () => undefined },
     wake: async () => undefined,
+    notice: recordingNotices(),
     onReload:
       args.onReload ??
       (async (reload) => {
@@ -63,13 +50,19 @@ const sessionOn = (
       }),
     ...(args.appliedAt === undefined
       ? {}
-      : { appliedSnapshot: () => ({ appliedAt: args.appliedAt ?? 0 }) }),
+      : {
+          readiness: {
+            applied: () => ({ appliedAt: args.appliedAt ?? 0 }),
+            subscribe: () => () => undefined,
+            cancelWaiting: () => undefined,
+          },
+        }),
     ...(args.settleMs === undefined ? {} : { settleMs: args.settleMs }),
   })
   return { channel, session, reloads }
 }
 
-describe('the connection view a cloud session reports', () => {
+describe('the connection view a pod session reports', () => {
   it('is the channel view, followed through every move', () => {
     const { channel, session } = sessionOn({
       connection: { state: EConnectionView.Waking, detail: null },

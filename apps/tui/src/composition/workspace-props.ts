@@ -2,7 +2,7 @@ import type { CloudBridge, CloudReload, CloudStores } from '@dltech/atlas-harnes
 import type { ThreadId } from '@dltech/atlas-core'
 
 import type { ClipboardImageReader } from '../ui/clipboard-image'
-import type { CloudSession } from './cloud/cloud-session'
+import type { PodSession } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import type { OpenedConversation } from './open-conversation'
 import type { SurfaceAttachment } from './session-binding'
@@ -20,7 +20,7 @@ export type WorkspaceProps = {
   whatsNew: WhatsNewControl
   clipboard: ClipboardImageReader
   onRestart: (() => void) | null
-  cloudSession: CloudSession | null
+  cloudSession: PodSession | null
   cloudBridge: CloudBridge | null
   cloudStores: CloudStores | null
   createBridge: CloudBridgeFactory

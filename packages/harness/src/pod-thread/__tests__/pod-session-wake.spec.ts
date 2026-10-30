@@ -1,26 +1,13 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
-import {
-  EConnectionView,
-  ECloudSandboxState,
-  EResizeApplies,
-  ERuntimePhase,
-  type ChannelConnection,
-  type CloudSandboxStatus,
-} from '@dltech/atlas-harness'
-import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
+import { ERuntimePhase, runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
 
-import { currentNotices, dismissNotice } from '../../../ui/notice-store'
-import {
-  CLOUD_WAKE_FAILED_NOTICE_KEY,
-  createCloudSession,
-  type CloudSession,
-} from '../cloud-session'
-import { CLOUD_THREAD, fakeCloudChannel, type FakeCloudChannel } from './fixture'
-
-beforeEach(() => {
-  dismissNotice()
-})
+import { ECloudSandboxState, type CloudSandboxStatus } from '../../cloud/cloud-bridge'
+import { EConnectionView } from '../../cloud/connection-view'
+import type { ChannelConnection } from '../../cloud/remote-delta-channel'
+import { createPodSession, POD_WAKE_FAILED_NOTICE_KEY, type PodSession } from '../pod-session'
+import { fakeSessionChannel, POD_THREAD, type FakeSessionChannel } from './fake-session-channel'
+import { recordingNotices, type RecordingNotices } from './pod-fakes'
 
 const tick = async (): Promise<void> => {
   for (let i = 0; i < 8; i += 1) await Promise.resolve()
@@ -30,7 +17,7 @@ const PARKED: ChannelConnection = { state: EConnectionView.Parked, detail: null 
 
 const checkpointAt = (phase: ERuntimePhase): RuntimeCheckpoint =>
   runtimeCheckpointSchema.parse({
-    threadId: CLOUD_THREAD,
+    threadId: POD_THREAD,
     runtimeId: 'runtime-1',
     sandboxSessionId: 'session-a',
     revision: 2,
@@ -39,7 +26,12 @@ const checkpointAt = (phase: ERuntimePhase): RuntimeCheckpoint =>
     transcript: { head: 10, count: 10, digest: 'a'.repeat(64) },
   })
 
-type Rig = { channel: FakeCloudChannel; session: CloudSession; wakes: () => number }
+type Rig = {
+  channel: FakeSessionChannel
+  session: PodSession
+  wakes: () => number
+  notices: RecordingNotices
+}
 
 const sessionOn = (
   args: {
@@ -48,29 +40,20 @@ const sessionOn = (
     connection?: ChannelConnection | undefined
   } = {},
 ): Rig => {
-  const channel = fakeCloudChannel({ connection: args.connection ?? PARKED })
+  const channel = fakeSessionChannel({ connection: args.connection ?? PARKED })
+  const notices = recordingNotices()
   let wakes = 0
-  const session = createCloudSession({
+  const session = createPodSession({
     channel,
-    sandboxes: {
-      create: async () => ({
-        url: '',
-        token: '',
-        state: ECloudSandboxState.Running,
-        created: false,
-      }),
-      find: args.find ?? (async () => undefined),
-      readResources: async () => ({}),
-      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
-      destroy: async () => undefined,
-    },
+    sandboxes: { find: args.find ?? (async () => undefined) },
     wake: () => {
       wakes += 1
       return args.wake?.() ?? new Promise<void>(() => undefined)
     },
+    notice: notices,
     onReload: async () => undefined,
   })
-  return { channel, session, wakes: () => wakes }
+  return { channel, session, wakes: () => wakes, notices }
 }
 
 describe('settling a render-first open', () => {
@@ -200,7 +183,7 @@ describe('the quiet background wake', () => {
   })
 
   it('reads Disconnected with the reason and posts one non-sticky notice when it fails', async () => {
-    const { session } = sessionOn({
+    const { session, notices } = sessionOn({
       wake: async () => {
         throw new Error('the sandbox would not start')
       },
@@ -211,14 +194,13 @@ describe('the quiet background wake', () => {
 
     expect(session.health().view.state).toBe(EConnectionView.Disconnected)
     expect(session.health().view.detail).toContain('the sandbox would not start')
-    const notices = currentNotices()
-    expect(notices.map((notice) => notice.key)).toEqual([CLOUD_WAKE_FAILED_NOTICE_KEY])
-    expect(notices[0]?.ttlMs).not.toBeNull()
+    expect(notices.posted.map((notice) => notice.key)).toEqual([POD_WAKE_FAILED_NOTICE_KEY])
+    expect(notices.posted[0]?.ttlMs).not.toBeNull()
   })
 
   it('posts nothing after the session closed under it', async () => {
     let fail: (error: unknown) => void = () => undefined
-    const { session } = sessionOn({
+    const { session, notices } = sessionOn({
       wake: () =>
         new Promise<void>((_resolve, reject) => {
           fail = reject
@@ -230,13 +212,13 @@ describe('the quiet background wake', () => {
     fail(new Error('too late'))
     await tick()
 
-    expect(currentNotices()).toEqual([])
+    expect(notices.posted).toEqual([])
   })
 })
 
 describe('a park', () => {
   it('never produces a notice', async () => {
-    const { channel } = sessionOn({
+    const { channel, notices } = sessionOn({
       connection: { state: EConnectionView.Connected, detail: null },
     })
 
@@ -244,6 +226,6 @@ describe('a park', () => {
     channel.moveTo(PARKED)
     await tick()
 
-    expect(currentNotices()).toEqual([])
+    expect(notices.posted).toEqual([])
   })
 })

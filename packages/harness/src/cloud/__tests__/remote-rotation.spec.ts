@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import {
-  EClientRequest,
-  ERotationPhase,
-  type ChannelSignal,
-  type ChannelListener,
-} from '@dltech/atlas-harness'
+import { EClientRequest } from '../channel-wire'
+import { ERotationPhase } from '../../rotation/rotation-port'
+import { type ChannelSignal } from '../../channel/signal'
+import { type ChannelListener } from '../../channel/delta-channel'
 import { EWireRotationPhase } from '@dltech/atlas-wire'
 
 import { RemoteRotation } from '../remote-rotation'

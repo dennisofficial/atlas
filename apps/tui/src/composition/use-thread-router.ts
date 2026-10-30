@@ -13,7 +13,7 @@ import { openCloudThread } from './cloud/cloud-open'
 import { clearAttachFailure, recordAttachFailure } from './attach-failure'
 import { cloudAttachmentOf } from './session-binding'
 import type { CloudBridge, CloudReload, CloudSandboxes } from '@dltech/atlas-harness'
-import type { CloudSession } from './cloud/cloud-session'
+import type { PodSession } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import { EOpenMode } from './config'
 import { openConversation, type OpenedConversation } from './open-conversation'
@@ -38,7 +38,7 @@ export type ThreadRouter = {
 export function useThreadRouter(args: {
   localApp: AtlasApp
   cloudBridge: CloudBridge | null
-  cloudSession: CloudSession | null
+  cloudSession: PodSession | null
   createBridge: CloudBridgeFactory
   containerMove: ContainerMoveControl
   working: boolean

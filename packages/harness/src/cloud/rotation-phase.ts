@@ -1,4 +1,4 @@
-import { ERotationPhase } from '@dltech/atlas-harness'
+import { ERotationPhase } from '../rotation/rotation-port'
 import { EWireRotationPhase } from '@dltech/atlas-wire'
 
 export const stagePhaseOfWire = (phase: EWireRotationPhase): ERotationPhase => {

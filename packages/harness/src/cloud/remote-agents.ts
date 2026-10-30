@@ -8,15 +8,14 @@ import type {
 import { agentOutcomeWireSchema, EClientRequest } from '@dltech/atlas-wire'
 import {
   AgentRegistryPort,
-  toAgentSnapshot,
   type AgentOutcome,
-  type AgentSnapshot,
-  type AgentType,
-  type CloudChannel,
-  type NoticeDrain,
-  type RecoveredAgents,
   type RelocateChildrenArgs,
-} from '@dltech/atlas-harness'
+} from '../agents/registry/port'
+import { toAgentSnapshot } from './remote-roster'
+import { type AgentSnapshot, type RecoveredAgents } from '../agents/registry/snapshot'
+import { type AgentType } from '../agents/types/agent-type'
+import { type CloudChannel } from './cloud-bridge'
+import { type NoticeDrain } from '../agents/registry/delivery'
 
 import { agentsFor, heldIfSame, type SharedRoster } from './roster-reader'
 

@@ -6,14 +6,13 @@ import {
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { EEnsureStatus, type EnsuredService } from '../services/declared-ensure'
 import {
-  EEnsureStatus,
   ServiceRegistryPort,
-  type EnsuredService,
-  type ServiceSnapshot,
   type StartedServiceOutcome,
   type ServiceStopOutcome,
-} from '@dltech/atlas-harness'
+} from '../services/service-registry-port'
+import { type ServiceSnapshot } from '../services/service-process'
 
 import {
   ensureDeclaredServices,

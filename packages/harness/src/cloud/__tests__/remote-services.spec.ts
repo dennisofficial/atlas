@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EDeclaredServiceState, toThreadId } from '@dltech/atlas-core'
-import { EClientRequest, EEnsureStatus } from '@dltech/atlas-harness'
+import { EClientRequest } from '../channel-wire'
+import { EEnsureStatus } from '../../services/declared-ensure'
 
 import { RemoteServiceRegistry } from '../remote-services'
 import { createSharedRoster } from '../roster-reader'
