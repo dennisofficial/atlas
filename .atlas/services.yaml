@@ -14,3 +14,15 @@ services:
       ATLAS_API_ORIGIN: ${services.api.url}
     portal:
       title: Atlas web
+  storybook:
+    command: bunx storybook dev -p $PORT --host 0.0.0.0 --no-open
+    cwd: apps/storybook
+    health: /
+    portal:
+      title: Storybook
+  prototype:
+    command: bunx next dev -p $PORT -H 0.0.0.0
+    cwd: apps/prototype
+    health: /
+    portal:
+      title: Prototype
