@@ -126,6 +126,7 @@ export const start = async (args: {
   wakeNotices?: boolean | undefined
   roster?: ReturnType<typeof fakeRoster> | undefined
   commands?: Parameters<typeof fakeServeApp>[0]['commands']
+  mcp?: Parameters<typeof fakeServeApp>[0]['mcp']
   idleMinutes?: number | undefined
   idleTickMs?: number | undefined
   exit?: ((code: number) => void) | undefined
@@ -144,6 +145,7 @@ export const start = async (args: {
     wakeNotices: args.wakeNotices,
     roster: args.roster,
     commands: args.commands,
+    mcp: args.mcp,
   })
 
   const told =

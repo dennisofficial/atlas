@@ -3,7 +3,7 @@ import { BeforeTurnHook, DynamicToolSource } from '@dltech/atlas-core'
 import { createUrlOpener } from '../../browser/open-url'
 import { registerDisposable } from '../../container/disposal'
 import { portToken, type DependencyContainer } from '../../container/injection'
-import { SecretsStoreToken } from '../../container/tokens'
+import { ClientVersionToken, SecretsStoreToken, ServeSessionToken } from '../../container/tokens'
 import { SystemClock } from '../../store/clock'
 import {
   BuiltInMcpSource,
@@ -14,6 +14,9 @@ import {
   type McpSource,
 } from '../config'
 import { HandleStore } from '../bridge/handle-store'
+import { tokenSourceOfFlow, type McpTokenSource } from '../bridge/token-source'
+import { CloudMcpTokenSource } from '../cloud/cloud-mcp-token-source'
+import { mcpOauthAccessCall } from '../cloud/mcp-oauth-client'
 import { McpInstructionsHook } from '../instructions/instructions-hook'
 import { OAuthCallbackServer } from '../oauth/callback-server'
 import { McpOAuthFlow, type McpAuthResult } from '../oauth/flow'
@@ -35,9 +38,23 @@ export type RegisteredMcp = {
   signIn:
     | ((args: { serverUrl: string; wwwAuthenticate?: string }) => Promise<McpAuthResult>)
     | undefined
+  refresh: () => Promise<void>
+}
+
+export const MCP_REFRESH_BUDGET_MS = 5_000
+
+const cloudTokenSourceFrom = (container: DependencyContainer): McpTokenSource | undefined => {
+  if (!container.isRegistered(ServeSessionToken, true)) return undefined
+  const clientVersion = container.isRegistered(ClientVersionToken, true)
+    ? container.resolve(ClientVersionToken)
+    : 'dev'
+  return new CloudMcpTokenSource({
+    access: mcpOauthAccessCall({ session: container.resolve(ServeSessionToken), clientVersion }),
+  })
 }
 
 const oauthFlowFrom = (container: DependencyContainer): McpOAuthFlow | undefined => {
+  if (container.isRegistered(ServeSessionToken, true)) return undefined
   if (!container.isRegistered(SecretsStoreToken, true)) return undefined
   return new McpOAuthFlow({
     store: new McpOAuthStore({ secrets: container.resolve(SecretsStoreToken) }),
@@ -50,15 +67,19 @@ const oauthFlowFrom = (container: DependencyContainer): McpOAuthFlow | undefined
 export async function registerMcp(args: {
   container: DependencyContainer
   cwd: string
+  refreshBudgetMs?: number
 }): Promise<RegisteredMcp> {
   const resolved = await resolveMcpSpecs({
     sources: mcpSourcesFor({ cwd: args.cwd }),
   })
 
   const flow = oauthFlowFrom(args.container)
+  const tokenSource =
+    cloudTokenSourceFrom(args.container) ??
+    (flow === undefined ? undefined : tokenSourceOfFlow(flow))
   const store = new HandleStore({
     specs: resolved.specs,
-    ...(flow === undefined ? {} : { authFlow: flow }),
+    ...(tokenSource === undefined ? {} : { tokenSource }),
   })
   const connected = store.connectAll()
 
@@ -73,5 +94,25 @@ export async function registerMcp(args: {
       ? undefined
       : (signInArgs: { serverUrl: string; wwwAuthenticate?: string }) => flow.signIn(signInArgs)
 
-  return { store, rejections: resolved.rejections, signIn, connected }
+  const reconcileAndRetry = async (): Promise<void> => {
+    const latest = await resolveMcpSpecs({ sources: mcpSourcesFor({ cwd: args.cwd }) })
+    await store.reconcile({ specs: latest.specs })
+    await store.retryNeedsAuth()
+  }
+  let inFlight: Promise<void> | undefined
+  const refresh = (): Promise<void> => {
+    inFlight ??= reconcileAndRetry()
+      .catch(() => undefined)
+      .finally(() => {
+        inFlight = undefined
+      })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const budget = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, args.refreshBudgetMs ?? MCP_REFRESH_BUDGET_MS)
+      timer.unref?.()
+    })
+    return Promise.race([inFlight, budget]).finally(() => clearTimeout(timer))
+  }
+
+  return { store, rejections: resolved.rejections, signIn, connected, refresh }
 }

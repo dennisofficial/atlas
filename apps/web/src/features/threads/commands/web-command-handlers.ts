@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-client/channel'
 import { compactionReplySchema, rotateReplySchema } from '@dltech/atlas-wire/web'
 
+import { isSignInArgument, MCP_SETTINGS_HINT, mcpNoticeOf } from './mcp-notice'
 import { skillCountNotice } from './skill-specs'
 
 export const NOT_CONNECTED = 'The sandbox is not connected'
@@ -117,7 +118,12 @@ export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
     [ECommand.Auth]: UNSUPPORTED,
     [ECommand.Exit]: UNSUPPORTED,
     [ECommand.Restart]: UNSUPPORTED,
-    [ECommand.Mcp]: UNSUPPORTED,
+    [ECommand.Mcp]: async ({ argumentText }) => {
+      if (isSignInArgument(argumentText)) return ran(MCP_SETTINGS_HINT)
+      const pending = ask({ op: EClientRequest.ListMcpServers, params: { refresh: true } })
+      if (pending === null) return refused(NOT_CONNECTED)
+      return ran(mcpNoticeOf(await pending))
+    },
     [ECommand.Rewind]: UNSUPPORTED,
   }
 }

@@ -16,6 +16,8 @@ model User {
   localPodLeases           LocalPodLease[]
   previewTunnels           PreviewTunnel[]
   mcpServers               UserMcpServer[]
+  mcpOauthGrants           McpOauthGrant[]
+  mcpOauthPendings         McpOauthPending[]
   memories                 Memory[]
   oauthConnections         OauthConnection[]
   ownedProjects            Project[]                   @relation(name: "Project_owner")

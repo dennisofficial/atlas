@@ -135,6 +135,7 @@ export type HarnessApp<TSurface = undefined, Command = never, TPluginSurface = u
   skillRegistry: SkillRegistryPort
   agentTypes: AgentTypeCatalog
   mcp: () => readonly McpServerStatus[]
+  mcpRefresh: () => Promise<void>
   /** Runs the browser sign-in for a server that answered 401; undefined when there is no secrets store. */
   mcpSignIn:
     | ((args: { serverName: string }) => Promise<{ ok: boolean; detail: string }>)

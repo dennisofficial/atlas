@@ -409,6 +409,7 @@ export async function composeHarness<
     sandbox,
     containerStatus,
     mcp: mcp.servers,
+    mcpRefresh: mcp.refresh,
     mcpSignIn: mcp.signIn,
     threadOpened: threadOpenedHandler({ container, log, threads, ids, notice }),
     journalResume: ({ active, directory }) =>

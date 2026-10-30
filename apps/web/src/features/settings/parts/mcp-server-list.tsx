@@ -19,6 +19,8 @@ import {
 } from '@dltech/atlas-ui/components/empty'
 import { Switch } from '@dltech/atlas-ui/components/switch'
 
+import { McpOauthControl, McpSignOutItem } from './mcp-oauth-control'
+import type { McpOauth } from '../data/shared/use-mcp-oauth'
 import type { McpServer } from '../fixtures/settings-mcp'
 import { Mono, SettingsCard, SettingsRow } from '../settings-layout'
 
@@ -26,10 +28,12 @@ export function McpServerList({
   servers,
   onToggle,
   onRemove,
+  auth,
 }: {
   servers: McpServer[]
   onToggle: (change: { id: string; enabled: boolean }) => void
   onRemove: (id: string) => void
+  auth: McpOauth
 }) {
   if (servers.length === 0) {
     return (
@@ -61,6 +65,11 @@ export function McpServerList({
           }
           control={
             <>
+              <McpOauthControl
+                serverId={server.id}
+                signInUrl={server.enabled ? server.signInUrl : undefined}
+                auth={auth}
+              />
               <Switch
                 size="sm"
                 aria-label={`Enable ${server.id}`}
@@ -76,6 +85,7 @@ export function McpServerList({
                   <EllipsisIcon />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
+                  <McpSignOutItem signInUrl={server.signInUrl} auth={auth} />
                   <DropdownMenuItem variant="destructive" onClick={() => onRemove(server.id)}>
                     Remove
                   </DropdownMenuItem>
