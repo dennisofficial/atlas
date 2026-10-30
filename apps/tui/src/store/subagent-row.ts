@@ -1,7 +1,6 @@
 import {
   agentDisplayName,
   EAgentStatus,
-  EShellStatus,
   type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -13,16 +12,16 @@ import {
   type ShellSnapshot,
 } from '@dltech/atlas-harness'
 
+import {
+  crewActivityOf,
+  subagentStateLabel as crewStateLabel,
+  type CrewActivity,
+  type CrewReadout,
+} from '@dltech/atlas-client/crew'
 import { truncateCells } from '../ui/components/sidebar/cells'
-import { formatElapsed, formatTokens } from '../ui/theme'
 import { TITLE_CELLS } from './sidebar-text'
 
-export type SubagentReadout = {
-  status: EAgentStatus
-  startedAt: string
-  endedAt: string | null
-  waitingOn?: string | undefined
-}
+export type SubagentReadout = CrewReadout
 
 export type SidebarSubagent = SubagentReadout & {
   id: string
@@ -37,180 +36,34 @@ export type SidebarSubagent = SubagentReadout & {
   pullRequest?: PullRequestBadge | undefined
 }
 
-/** What a child still has running: its own shells and its own children, nothing deeper. */
-export type CrewActivity = { shells: number; subagents: number }
-
 /** The cross-thread listings the activity is counted from: every shell and every child in the process. */
-export type CrewRosters = { shells: readonly ShellSnapshot[]; children: readonly AgentSnapshot[] }
+export type CrewRosters = {
+  shells: readonly ShellSnapshot[]
+  children: readonly AgentSnapshot[]
+}
 
 export type SidebarCrewFold = { hidden: number; hiddenFailed: boolean }
 
 export const subagentLabel = (snapshot: Pick<AgentSnapshot, 'intent' | 'agentType'>): string =>
   truncateCells({ text: agentDisplayName(snapshot), cells: TITLE_CELLS })
 
-export const isSubagentWaiting = (
-  subagent: Pick<SidebarSubagent, 'status' | 'waitingOn'>,
-): boolean => subagent.waitingOn !== undefined
-
-export const isSubagentAlive = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
-  subagent.status === EAgentStatus.Running || subagent.status === EAgentStatus.Blocked
-
-/**
- * A settled child whose shells or own children are still going is still working — its loop has
- * ended, but the session it owns has not. The running counts follow this rather than the bare
- * status so a finished teammate holding a live preview still reads as an agent at work.
- */
-export const isSubagentWorking = (
-  subagent: Pick<SidebarSubagent, 'status' | 'activity' | 'waitingOn'>,
-): boolean =>
-  isSubagentAlive(subagent) || subagent.activity !== undefined || isSubagentWaiting(subagent)
-
-const SUBAGENT_WENT_WRONG: Record<EAgentStatus, boolean> = {
-  [EAgentStatus.Running]: false,
-  [EAgentStatus.Blocked]: false,
-  [EAgentStatus.Finished]: false,
-  [EAgentStatus.Failed]: true,
-  [EAgentStatus.Stopped]: true,
-  [EAgentStatus.Paused]: false,
-}
-
-export const subagentWentWrong = (subagent: Pick<SidebarSubagent, 'status'>): boolean =>
-  SUBAGENT_WENT_WRONG[subagent.status]
-
-/**
- * What the narrow value column spends its cells on. A child that is still going is judged by how
- * long it has been going; one that has settled says nothing unless the ending needs saying — a
- * finished child reads as its title alone.
- */
-export enum ESubagentReading {
-  Live = 'live',
-  Held = 'held',
-  Settled = 'settled',
-}
-
-const SUBAGENT_READING: Record<EAgentStatus, ESubagentReading> = {
-  [EAgentStatus.Running]: ESubagentReading.Live,
-  [EAgentStatus.Blocked]: ESubagentReading.Held,
-  [EAgentStatus.Finished]: ESubagentReading.Settled,
-  [EAgentStatus.Failed]: ESubagentReading.Settled,
-  [EAgentStatus.Stopped]: ESubagentReading.Settled,
-  [EAgentStatus.Paused]: ESubagentReading.Held,
-}
-
-const SUBAGENT_STATE_LABEL: Record<EAgentStatus, string> = {
-  [EAgentStatus.Running]: 'running',
-  [EAgentStatus.Blocked]: 'blocked',
-  [EAgentStatus.Finished]: 'done',
-  [EAgentStatus.Failed]: 'failed',
-  [EAgentStatus.Stopped]: 'stopped',
-  [EAgentStatus.Paused]: 'paused',
-}
-
-export const subagentReading = (subagent: Pick<SidebarSubagent, 'status'>): ESubagentReading =>
-  SUBAGENT_READING[subagent.status]
-
-export const subagentShowsElapsed = (
-  subagent: Pick<SidebarSubagent, 'status' | 'waitingOn'>,
-): boolean => subagentReading(subagent) !== ESubagentReading.Settled && !isSubagentWaiting(subagent)
-
-const instantOf = (iso: string): number | null => {
-  const at = Date.parse(iso)
-  return Number.isNaN(at) ? null : at
-}
-
-export function subagentElapsedMs(args: {
-  subagent: Pick<SubagentReadout, 'startedAt' | 'endedAt'>
-  now: number
-}): number | null {
-  const started = instantOf(args.subagent.startedAt)
-  if (started === null) return null
-
-  const ended = args.subagent.endedAt === null ? null : instantOf(args.subagent.endedAt)
-  return Math.max(0, (ended ?? args.now) - started)
-}
-
-const WAITING_CELLS = 24
-
-const READOUT_SEPARATOR = ' · '
-
-const stateWord = (subagent: Pick<SubagentReadout, 'status'>): string =>
-  SUBAGENT_STATE_LABEL[subagent.status]
-
-type ReadoutParts = { subagent: SubagentReadout; since: string | null }
-
-const SUBAGENT_READOUT: Record<
+export {
+  crewActivityOf,
+  crewRowReading,
   ESubagentReading,
-  (parts: ReadoutParts) => readonly (string | null)[]
-> = {
-  [ESubagentReading.Live]: ({ since }) => [since],
-  [ESubagentReading.Held]: ({ subagent, since }) => [stateWord(subagent), since],
-  [ESubagentReading.Settled]: ({ subagent }) =>
-    subagent.status === EAgentStatus.Finished ? [] : [stateWord(subagent)],
-}
+  isSubagentAlive,
+  isSubagentWaiting,
+  isSubagentWorking,
+  subagentContextLabel,
+  subagentElapsedMs,
+  subagentReading,
+  subagentShowsElapsed,
+  subagentWentWrong,
+  type CrewActivity,
+} from '@dltech/atlas-client/crew'
 
-export function subagentStateLabel(args: { subagent: SubagentReadout; now: number }): string {
-  const { subagent } = args
-  if (isSubagentWaiting(subagent)) {
-    return truncateCells({ text: `waiting on ${subagent.waitingOn}`, cells: WAITING_CELLS })
-  }
-  const elapsed = subagentElapsedMs({ subagent, now: args.now })
-  const parts = SUBAGENT_READOUT[subagentReading(subagent)]({
-    subagent,
-    since: elapsed === null ? null : formatElapsed(elapsed),
-  })
-
-  const written = parts.filter((part): part is string => part !== null).join(READOUT_SEPARATOR)
-  if (written !== '') return written
-
-  return subagentReading(subagent) === ESubagentReading.Settled ? '' : stateWord(subagent)
-}
-
-/**
- * A child's own window, never added to the parent's: a child may run a different model, so the two
- * are different windows and a sum of them would make the parent's remaining context read as a lie.
- */
-export function subagentContextLabel(context: ChildContext | undefined): string | null {
-  if (context === undefined) return null
-
-  return formatTokens(context.tokens)
-}
-
-/**
- * A child's activity is transitive: a shell or a child that itself still has live work counts
- * toward its owner, so a teammate whose sub-agent is running a bash shell reads as working on the
- * parent's sidebar — main waits on teammate, teammate waits on sub-agent, sub-agent waits on the
- * shell, and the activity propagates up the whole chain rather than lighting only the deepest row.
- */
-export function crewActivityOf(args: {
-  id: ThreadId
-  rosters: CrewRosters
-}): CrewActivity | undefined {
-  const shells = args.rosters.shells.filter(
-    (shell) => shell.threadId === args.id && shell.status === EShellStatus.Running,
-  ).length
-  const subagents = args.rosters.children.filter(
-    (child) =>
-      child.spawnedBy === args.id &&
-      (isSubagentAlive(child) ||
-        crewActivityOf({ id: child.agentId, rosters: args.rosters }) !== undefined),
-  ).length
-
-  if (shells === 0 && subagents === 0) return undefined
-  return { shells, subagents }
-}
-
-export function crewRowReading(
-  subagent: Pick<SidebarSubagent, 'status' | 'activity' | 'waitingOn'>,
-): ESubagentReading {
-  const reading = subagentReading(subagent)
-  if (
-    reading === ESubagentReading.Settled &&
-    (subagent.activity !== undefined || isSubagentWaiting(subagent))
-  ) {
-    return ESubagentReading.Live
-  }
-  return reading
-}
+export const subagentStateLabel = (args: { subagent: SubagentReadout; now: number }): string =>
+  crewStateLabel({ ...args, truncate: truncateCells })
 
 export function subagentRows(args: {
   snapshots: readonly AgentSnapshot[]
@@ -228,7 +81,10 @@ export function subagentRows(args: {
       waitingOn: snapshot.waitingOn,
     }
 
-    const activity = crewActivityOf({ id: snapshot.agentId, rosters: args.rosters })
+    const activity = crewActivityOf({
+      id: snapshot.agentId,
+      rosters: args.rosters,
+    })
     const pullRequest =
       snapshot.agentType === TEAMMATE_AGENT_TYPE
         ? (args.pullRequestOf?.({ threadId: snapshot.agentId }) ?? undefined)

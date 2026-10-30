@@ -37,7 +37,7 @@ describe('applyCloudState when the cloud never registers the token', () => {
           active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_or' }],
         },
         settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
-        secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-fake' }],
+        harnessSecrets: [{ name: 'search.tavily', value: 'tvly-fake' }],
       }),
     })
     const files = ['auth.json', 'secrets.json', 'settings.json']
@@ -61,7 +61,7 @@ describe('applyCloudState when the cloud never registers the token', () => {
     expect((await accountStoreAt(home).list()).map((account) => String(account.id))).toEqual([
       'acc_or',
     ])
-    expect(secretsAt(home).read('TAVILY_API_KEY')).toBe('tvly-fake')
+    expect(secretsAt(home).read('search.tavily')).toBe('tvly-fake')
     expect(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'))).toEqual({
       [ESettingId.SidebarWidth]: 42,
     })

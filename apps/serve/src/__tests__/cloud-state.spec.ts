@@ -11,9 +11,7 @@ import {
   apiKeyAccount,
   oauthAccount,
   SANDBOX_CONFIG_PATH,
-  SECRETS_LIST_PATH,
   SERVE_TOKEN,
-  SETTINGS_LIST_PATH,
 } from './cloud-state-fixture'
 import {
   accountStoreAt,
@@ -42,7 +40,7 @@ describe('applyCloudState', () => {
         active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_or' }],
       },
       settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
-      secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-fake' }],
+      harnessSecrets: [{ name: 'search.tavily', value: 'tvly-fake' }],
     })
 
     const lines = await apply({ home, cloud })
@@ -56,7 +54,7 @@ describe('applyCloudState', () => {
     })
 
     const secrets = secretsAt(home)
-    expect(secrets.read('TAVILY_API_KEY')).toBe('tvly-fake')
+    expect(secrets.read('search.tavily')).toBe('tvly-fake')
 
     const previous = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home
@@ -72,13 +70,16 @@ describe('applyCloudState', () => {
     }
 
     expect(lines).toEqual([
-      { event: EServeEvent.CloudStateReady, accounts: 1, secrets: 1, settings: 1 },
+      {
+        event: EServeEvent.CloudStateReady,
+        accounts: 1,
+        secrets: 1,
+        settings: 1,
+      },
     ])
     expect(cloud.requests.map((request) => request.path).sort()).toEqual([
       '/v1/trpc/accountLease.get',
       SANDBOX_CONFIG_PATH,
-      SECRETS_LIST_PATH,
-      SETTINGS_LIST_PATH,
     ])
     expect(
       cloud.requests.every((request) => request.authorization === `Bearer ${SERVE_TOKEN}`),
@@ -99,7 +100,7 @@ describe('applyCloudState', () => {
         ],
         active: [],
       },
-      secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-secret' }],
+      harnessSecrets: [{ name: 'search.tavily', value: 'tvly-secret' }],
     })
 
     const lines = await apply({ home, cloud })
@@ -130,7 +131,7 @@ describe('applyCloudState', () => {
           active: [{ provider: EAuthProvider.OpenRouter, accountId: 'acc_old' }],
         },
         settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
-        secrets: [{ name: 'STALE', value: 'stale' }],
+        harnessSecrets: [{ name: 'STALE', value: 'stale' }],
       }),
     })
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).toContain(ESettingId.SidebarWidth)
@@ -215,28 +216,33 @@ describe('applyCloudState', () => {
     expect((await store.list()).map((account) => String(account.id))).toEqual(['acc_or'])
     expect(await store.activeFor(EAuthProvider.OpenRouter)).toBe(toAccountId('acc_or'))
     expect(await store.activeFor(EAuthProvider.Anthropic)).toBeUndefined()
-    expect(lines[0]).toMatchObject({ event: EServeEvent.CloudStateReady, accounts: 1 })
+    expect(lines[0]).toMatchObject({
+      event: EServeEvent.CloudStateReady,
+      accounts: 1,
+    })
   })
 
   it('skips the client-held sandbox-serve and mcp-oauth secret names', async () => {
     const home = tempHome()
     const cloud = cloudWith({
-      secrets: [
+      harnessSecrets: [
         { name: 'sandbox-serve:thread-1', value: 'serve-token' },
         { name: 'mcp-oauth:https://mcp.test/', value: '{}' },
-        { name: 'TAVILY_API_KEY', value: 'tvly-fake' },
+        { name: 'search.tavily', value: 'tvly-fake' },
       ],
     })
 
     await apply({ home, cloud })
 
     const secrets = secretsAt(home)
-    expect(secrets.names()).toEqual(['TAVILY_API_KEY'])
+    expect(secrets.names()).toEqual(['search.tavily'])
   })
 
   it('retries a 401 until the lease registers, then succeeds', async () => {
     const home = tempHome()
-    const cloud = cloudWith({ secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-fake' }] })
+    const cloud = cloudWith({
+      harnessSecrets: [{ name: 'search.tavily', value: 'tvly-fake' }],
+    })
     cloud.unauthorizedUntil.remaining = 2
     const sleeps: number[] = []
 

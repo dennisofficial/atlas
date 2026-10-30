@@ -8,6 +8,7 @@ const PROBE = 'CLOUD_SECRET_PROBE'
 
 const config = {
   settings: {},
+  harnessSecrets: [{ name: 'search.exa', value: 'harness-value' }],
   secrets: [
     { name: PROBE, value: 'bar' },
     { name: 'decisions.token.vercel', value: 'decisions-value' },
@@ -34,11 +35,16 @@ afterEach(async () => {
 describe('project secrets in a sandbox shell', () => {
   it('reach a bash tool child env by name, leaving out internal entries, invalid names and harness vars', async () => {
     const home = process.env.HOME
-    await apply({ home: tempHome(), cloud: cloudWith({ config }), env: process.env })
+    await apply({
+      home: tempHome(),
+      cloud: cloudWith({ config }),
+      env: process.env,
+    })
 
     const lines = (await shellEnv()).split('\n')
     expect(lines).toContain(`${PROBE}=bar`)
     expect(lines.some((line) => line.includes('decisions-value'))).toBe(false)
+    expect(lines.some((line) => line.includes('harness-value'))).toBe(false)
     expect(lines.some((line) => line.includes('invalid-value'))).toBe(false)
     expect(lines).toContain(`HOME=${home}`)
   })

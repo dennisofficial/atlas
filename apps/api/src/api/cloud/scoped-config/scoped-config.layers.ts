@@ -58,11 +58,13 @@ const layerOf = (args: {
   cipher: SecretCipherService
   settings: readonly SettingRow[]
   secrets: readonly SealedSecretRow[]
+  harnessSecrets: readonly SealedSecretRow[]
   mcpServers: readonly SealedMcpRow[]
   fileMounts: readonly SealedFileMountRow[]
 }): ScopeLayer => ({
   settings: settingsOf(args.settings),
   secrets: secretsOf({ cipher: args.cipher, rows: args.secrets }),
+  harnessSecrets: secretsOf({ cipher: args.cipher, rows: args.harnessSecrets }),
   mcpServers: mcpServersOf({ cipher: args.cipher, rows: args.mcpServers }),
   fileMounts: fileMountsOf({ cipher: args.cipher, rows: args.fileMounts }),
 })
@@ -72,12 +74,20 @@ export const loadUserLayer = async (args: {
   userId: string
 }): Promise<ScopeLayer> => {
   const where = { userId: args.userId }
-  const [settings, secrets, mcpServers] = await Promise.all([
+  const [settings, secrets, harnessSecrets, mcpServers] = await Promise.all([
     db.orm.public.UserSetting.where(where).all(),
     db.orm.public.UserSecret.where(where).all(),
+    db.orm.public.UserHarnessSecret.where(where).all(),
     db.orm.public.UserMcpServer.where(where).all(),
   ])
-  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers, fileMounts: [] })
+  return layerOf({
+    cipher: args.cipher,
+    settings,
+    secrets,
+    harnessSecrets,
+    mcpServers,
+    fileMounts: [],
+  })
 }
 
 export const loadProjectLayer = async (args: {
@@ -93,5 +103,12 @@ export const loadProjectLayer = async (args: {
       .orderBy((row) => row.path.asc())
       .all(),
   ])
-  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers, fileMounts })
+  return layerOf({
+    cipher: args.cipher,
+    settings,
+    secrets,
+    harnessSecrets: [],
+    mcpServers,
+    fileMounts,
+  })
 }

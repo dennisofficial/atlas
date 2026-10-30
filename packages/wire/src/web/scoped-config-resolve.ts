@@ -11,6 +11,7 @@ import {
 export type ScopeLayer = {
   settings: Readonly<Record<string, string>>
   secrets: readonly ScopedSecret[]
+  harnessSecrets: readonly ScopedSecret[]
   mcpServers: readonly ScopedMcpServer[]
   fileMounts: readonly ScopedFileMount[]
 }
@@ -18,6 +19,7 @@ export type ScopeLayer = {
 export const EMPTY_SCOPE_LAYER: ScopeLayer = {
   settings: {},
   secrets: [],
+  harnessSecrets: [],
   mcpServers: [],
   fileMounts: [],
 }
@@ -65,12 +67,16 @@ export const resolveScopedConfig = (layers: ScopedConfigLayers): ResolvedSandbox
     }
   }
 
+  const harnessSecrets = [...layers.user.harnessSecrets].sort((left, right) =>
+    left.name.localeCompare(right.name),
+  )
   const fileMounts = [...(layers.project?.fileMounts ?? [])].sort((left, right) =>
     left.path.localeCompare(right.path),
   )
   return {
     settings,
     secrets: byName(secrets),
+    harnessSecrets,
     mcpServers: byName(mcpServers),
     fileMounts,
     provenance,
@@ -89,6 +95,7 @@ export const podFacingConfig = (resolved: ResolvedSandboxConfig): ResolvedSandbo
     Object.entries(resolved.settings).filter(([key]) => !isProvisioningOnlyName(key)),
   ),
   secrets: resolved.secrets.filter((secret) => !isProvisioningOnlyName(secret.name)),
+  harnessSecrets: resolved.harnessSecrets.filter((secret) => !isProvisioningOnlyName(secret.name)),
   mcpServers: resolved.mcpServers,
   fileMounts: resolved.fileMounts,
   provenance: Object.fromEntries(

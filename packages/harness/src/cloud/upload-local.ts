@@ -4,6 +4,7 @@ import {
   type AccountStorePort,
   type StoredAccount,
 } from '@dltech/atlas-core'
+import { ENV_NAME_PATTERN, isHarnessLocalOnlyName } from '@dltech/atlas-wire'
 
 import { FileMcpSource } from '../mcp/config/sources'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
@@ -71,6 +72,7 @@ export async function uploadLocalSecrets(args: {
 
   let uploaded = 0
   for (const name of args.localSecrets.names()) {
+    if (isHarnessLocalOnlyName(name) || ENV_NAME_PATTERN.test(name)) continue
     const value = args.localSecrets.read(name)
     if (value === undefined) continue
     await args.client.putSecret({ name, value })

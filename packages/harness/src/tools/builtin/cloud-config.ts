@@ -20,7 +20,7 @@ const description = [
   'Read and change Atlas Cloud configuration for the session project, or for the signed-in user.',
   'scope is project or personal; kind is setting, secret, mcp or file; action is list, read, set or remove.',
   'Files exist only in project scope: path is repo-relative or starts with ~/, contents is text up to 64 KiB, mode is an octal string like "0600" (the default) or "644".',
-  'setting covers Atlas setting keys only; environment variables are secrets.',
+  'setting covers Atlas setting keys only; kind secret is an environment variable (name like FOO_BAR) exported to the agent shells and services.',
   'list never returns secret or file values. read returns them: do not echo them to the user unless asked.',
   'Settings and secrets apply before the next turn. Files and mcp servers apply on the next sandbox start.',
   'Personal scope cannot be read or changed from a cloud sandbox. projectId defaults to the project of this session.',

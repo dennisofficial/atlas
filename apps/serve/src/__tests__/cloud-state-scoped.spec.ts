@@ -15,20 +15,28 @@ afterEach(cleanupCloudState)
 const resolved = {
   settings: { [ESettingId.SidebarWidth]: encodeSettingValue(42) },
   secrets: [
-    { name: 'TAVILY_API_KEY', value: 'tvly-scoped' },
     { name: 'DATABASE_URL', value: 'postgres://proj' },
     { name: 'ATLAS_MODEL', value: 'hijack/attempt' },
   ],
+  harnessSecrets: [{ name: 'search.tavily', value: 'tvly-scoped' }],
   mcpServers: [
-    { name: 'docs', spec: { transport: { kind: 'http', url: 'https://docs.example.com/mcp' } } },
+    {
+      name: 'docs',
+      spec: {
+        transport: { kind: 'http', url: 'https://docs.example.com/mcp' },
+      },
+    },
   ],
   provenance: { [`setting:${ESettingId.SidebarWidth}`]: 'project' },
 }
 
 describe('applyCloudState against the scoped config endpoint', () => {
-  it('writes settings, secrets and mcp.json from one config fetch and skips the legacy pair', async () => {
+  it('writes settings, secrets and mcp.json from one config fetch and never asks the legacy pair', async () => {
     const home = tempHome()
-    const cloud = cloudWith({ config: resolved, settings: [{ key: 'legacy', value: 'x' }] })
+    const cloud = cloudWith({
+      config: resolved,
+      settings: [{ key: 'legacy', value: 'x' }],
+    })
 
     const lines = await apply({ home, cloud, projectId: 'proj 1' })
 
@@ -40,8 +48,8 @@ describe('applyCloudState against the scoped config endpoint', () => {
     expect(configRequest?.search).toBe(sandboxConfigSearch('proj 1'))
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).toContain(ESettingId.SidebarWidth)
     expect(readFileSync(join(home, 'settings.json'), 'utf8')).not.toContain('legacy')
-    expect(secretsAt(home).read('TAVILY_API_KEY')).toBe('tvly-scoped')
-    expect(secretsAt(home).read('DATABASE_URL')).toBe('postgres://proj')
+    expect(secretsAt(home).read('search.tavily')).toBe('tvly-scoped')
+    expect(secretsAt(home).read('DATABASE_URL')).toBeUndefined()
 
     const mcp = await new FileMcpSource({
       file: join(home, 'mcp.json'),
@@ -62,12 +70,18 @@ describe('applyCloudState against the scoped config endpoint', () => {
     await apply({ home, cloud: cloudWith({ config: resolved }), env })
 
     expect(env.DATABASE_URL).toBe('postgres://proj')
-    expect(env.TAVILY_API_KEY).toBe('tvly-scoped')
+    expect(Object.values(env)).not.toContain('tvly-scoped')
     expect(env.ATLAS_MODEL).toBeUndefined()
     expect(env[ESettingId.SidebarWidth]).toBeUndefined()
 
-    const preset: Record<string, string | undefined> = { DATABASE_URL: 'from-image' }
-    await apply({ home: tempHome(), cloud: cloudWith({ config: resolved }), env: preset })
+    const preset: Record<string, string | undefined> = {
+      DATABASE_URL: 'from-image',
+    }
+    await apply({
+      home: tempHome(),
+      cloud: cloudWith({ config: resolved }),
+      env: preset,
+    })
     expect(preset.DATABASE_URL).toBe('from-image')
   })
 
@@ -92,5 +106,18 @@ describe('applyCloudState against the scoped config endpoint', () => {
     const cloud = cloudWith({ config: resolved })
     await apply({ home: tempHome(), cloud })
     expect(cloud.requests.find((request) => request.path === SANDBOX_CONFIG_PATH)?.search).toBe('')
+  })
+})
+
+describe('env and harness secrets stay in their own stores', () => {
+  it('keeps env secrets out of secrets.json and harness secrets out of the process env', async () => {
+    const home = tempHome()
+    const env: Record<string, string | undefined> = {}
+
+    await apply({ home, cloud: cloudWith({ config: resolved }), env })
+
+    expect(secretsAt(home).names()).toEqual(['search.tavily'])
+    expect(env.DATABASE_URL).toBe('postgres://proj')
+    expect(Object.values(env)).not.toContain('tvly-scoped')
   })
 })

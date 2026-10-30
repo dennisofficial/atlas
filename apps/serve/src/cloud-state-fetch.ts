@@ -68,30 +68,15 @@ export const fetchCloudState = async (args: CloudStateFetchArgs) => {
   const leasePatiently = () =>
     patiently(() => api.accountLease.get.query(undefined, { signal: attemptSignal() }))
 
-  const legacyConfig = async (): Promise<CloudConfig> => {
-    const [settings, secrets] = await Promise.all([
-      patiently(() => api.settings.list.query(undefined, { signal: attemptSignal() })),
-      patiently(() => api.secrets.list.query(undefined, { signal: attemptSignal() })),
-    ])
-    return {
-      settings: settings.settings,
-      secrets: secrets.secrets,
-      mcpServers: [],
-      fileMounts: [],
-    }
-  }
-
   const scopedConfig = async (): Promise<CloudConfig> => {
     const input = args.projectId ? { projectId: args.projectId } : undefined
     const resolved = await patiently(() =>
-      cloudCall(api.sandboxConfig.get.query(input, { signal: attemptSignal() }), {
-        allowMissing: true,
-      }),
+      cloudCall(api.sandboxConfig.get.query(input, { signal: attemptSignal() })),
     )
-    if (resolved === undefined) return legacyConfig()
     return {
       settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
       secrets: resolved.secrets,
+      harnessSecrets: resolved.harnessSecrets,
       mcpServers: resolved.mcpServers,
       fileMounts: resolved.fileMounts,
     }

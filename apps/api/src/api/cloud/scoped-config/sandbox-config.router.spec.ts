@@ -45,12 +45,14 @@ describe('sandboxConfig router', () => {
       settings: object
       provenance: Record<string, string>
       secrets: object[]
+      harnessSecrets: object[]
     }
 
     expect(response.headers['cache-control']).toBe('no-store')
     expect(data.settings).toEqual({ [KEY]: setting('high') })
     expect(data.provenance[`setting:${KEY}`]).toBe('project')
     expect(data.secrets).toEqual([{ name: 'API', value: 'proj' }])
+    expect(data.harnessSecrets).toEqual([{ name: 'search.jina', value: 'jina-key' }])
     const body = JSON.stringify(response.body)
     for (const leaked of ['vercel', 'vtok', 'team_', 'prj_']) expect(body).not.toContain(leaked)
   })

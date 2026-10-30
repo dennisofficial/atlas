@@ -144,8 +144,8 @@ const cloudFake = (): CloudFake => {
     }
     const trpc = trpcCallOf({ input, init })
     const args = trpc.input as Record<string, unknown> | undefined
-    if (trpc.procedure === 'secrets.list') return trpcData({ secrets: fake.remoteSecrets })
-    if (trpc.procedure === 'secrets.set') {
+    if (trpc.procedure === 'harnessSecrets.list') return trpcData({ secrets: fake.remoteSecrets })
+    if (trpc.procedure === 'harnessSecrets.set') {
       const name = String(args?.['name'])
       fake.putSecrets.push({ name, value: args?.['value'] })
       fake.remoteSecrets.push({
@@ -280,6 +280,7 @@ describe('CloudService sign-in', () => {
     const service = serviceWithSettings(fake.fetchFn)
     await seedLocal()
     localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    localSecrets.write({ name: 'API_KEY', value: 'env-value' })
     writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
     writeFileSync(
       join(directory, 'mcp.json'),
@@ -327,6 +328,7 @@ describe('CloudService sign-in', () => {
     await seedLocal()
     writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
     localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    localSecrets.write({ name: 'API_KEY', value: 'env-value' })
 
     const ticket = await service.beginLogin()
     await service.finishLogin({ ticket, token: 'sess_new' })
@@ -423,6 +425,9 @@ describe('CloudService explicit sync', () => {
     const service = serviceWithSettings(fake.fetchFn)
     await seedLocal()
     localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    localSecrets.write({ name: 'API_KEY', value: 'env-value' })
+    localSecrets.write({ name: 'sandbox-serve:thr_1', value: 'local-token' })
+    localSecrets.write({ name: 'mcp-oauth:https://mcp.test/', value: '{}' })
     writeFileSync(
       join(directory, 'mcp.json'),
       JSON.stringify({
@@ -530,6 +535,7 @@ describe('CloudService explicit sync', () => {
     await seedLocal()
     writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')
     localSecrets.write({ name: 'search.tavily', value: 'tvly-1' })
+    localSecrets.write({ name: 'API_KEY', value: 'env-value' })
     localSettings.write({ values: { 'appearance.accent': 'moss' } })
     signIn()
 

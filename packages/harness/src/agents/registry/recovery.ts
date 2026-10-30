@@ -8,7 +8,7 @@ import {
 
 import type { ThreadStorePort } from '../../store'
 import { recoveredChild } from './child-state'
-import { requeueOwedNotices } from './owed-notices'
+import { requeueOwedNotices, stampSettledDeliveries } from './owed-notices'
 import { settleLostChildren, unloggedChildren } from './lost-children'
 import type { AgentNoticeQueue } from './notices'
 import type { AgentRoster } from './roster'
@@ -97,8 +97,10 @@ export class ChildRecovery {
     return attempt.then(async (owners) => {
       for (const owner of owners) {
         this.notices.forgetAgents({ threadId: owner.threadId, agentIds: owner.agentIds })
+        const events = await this.log.readOwn({ threadId: owner.threadId })
+        stampSettledDeliveries({ events, threadId: owner.threadId, roster: this.roster })
         requeueOwedNotices({
-          events: await this.log.readOwn({ threadId: owner.threadId }),
+          events,
           threadId: owner.threadId,
           roster: this.roster,
           notices: this.notices,
@@ -165,6 +167,7 @@ export class ChildRecovery {
       this.roster.add(child)
     }
 
+    stampSettledDeliveries({ events, threadId, roster: this.roster })
     requeueOwedNotices({ events, threadId, roster: this.roster, notices: this.notices })
   }
 }

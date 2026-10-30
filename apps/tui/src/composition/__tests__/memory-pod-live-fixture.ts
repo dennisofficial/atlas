@@ -176,7 +176,7 @@ export const startFakeMemoryApi = (): FakeMemoryApi => {
       }
       if (url.pathname === '/v1/trpc/sandboxConfig.get') return trpcData(CLASSIFIER_OFF_CONFIG)
       if (url.pathname === '/v1/trpc/settings.list') return trpcData({ settings: [] })
-      if (url.pathname === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
+      if (url.pathname === '/v1/trpc/harnessSecrets.list') return trpcData({ secrets: [] })
       const bearer = request.headers.get('authorization')
       if (bearer !== null) bearers.add(bearer)
       if (url.pathname === '/v1/trpc/memories.list' && request.method === 'GET') {
