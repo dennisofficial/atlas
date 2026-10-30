@@ -15,10 +15,11 @@ import { INTEGRATIONS, type Integration } from '../fixtures/settings-account'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { AccountIntegrationRow } from '../parts/account-integration-row'
 import { McpServersSection } from '../parts/mcp-servers-section'
-import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
+import { SettingsCard, SettingsPage, SettingsSection, Mono } from '../settings-layout'
+import { GithubConnectPanel } from '../parts/github-connect-panel'
+import { EGithubFlow, useGithubConnect } from '../data/personal/use-github-connect'
 
 const GITHUB_ID = 'github'
-const GITHUB_HINT = 'Connect GitHub from the terminal with `atlas`.'
 
 export function githubIntegration(connection: GithubConnection): Integration {
   const base = INTEGRATIONS.find((integration) => integration.id === GITHUB_ID)
@@ -28,16 +29,47 @@ export function githubIntegration(connection: GithubConnection): Integration {
     id: GITHUB_ID,
     name: 'GitHub',
     brand: EBrand.GitHub,
-    description: connection.connected
-      ? (base?.description ?? '')
-      : `${base?.description ?? ''} ${GITHUB_HINT}`.trim(),
-    ...(connection.connected ? { connectedAs: connection.login } : {}),
+    description: base?.description ?? '',
+    ...(connection.connected
+      ? {
+          connectedAs: connection.login,
+          missingScopes: connection.missingScopes,
+        }
+      : {}),
     capabilities: [
       { label: 'Clone private repos', granted: granted(GITHUB_REPO_SCOPE) },
       { label: 'Open pull requests', granted: granted(GITHUB_REPO_SCOPE) },
       { label: 'Org-wide access', granted: granted(GITHUB_ORG_SCOPE) },
     ],
   }
+}
+
+export function GithubRow({
+  connection,
+  reload,
+}: {
+  connection: GithubConnection
+  reload: () => void
+}) {
+  const control = useGithubConnect({ onChanged: reload })
+  const integration = githubIntegration(connection)
+  const missing = integration.missingScopes ?? []
+  const busy = control.disconnecting || control.flow.status !== EGithubFlow.Idle
+  return (
+    <AccountIntegrationRow
+      integration={integration}
+      busy={busy}
+      onConnect={control.connect}
+      onDisconnect={control.disconnect}
+    >
+      {missing.length > 0 && control.flow.status === EGithubFlow.Idle ? (
+        <p className="pl-12 text-sm text-muted-foreground">
+          Reconnect to grant <Mono>{missing.join(', ')}</Mono>
+        </p>
+      ) : null}
+      <GithubConnectPanel flow={control.flow} onCancel={control.cancel} onRetry={control.connect} />
+    </AccountIntegrationRow>
+  )
 }
 
 function IntegrationsList() {
@@ -47,7 +79,7 @@ function IntegrationsList() {
       <QuerySection query={query} title="GitHub" rows={1}>
         {(connection) => (
           <SettingsCard>
-            <AccountIntegrationRow integration={githubIntegration(connection)} actionsDisabled />
+            <GithubRow connection={connection} reload={query.reload} />
           </SettingsCard>
         )}
       </QuerySection>

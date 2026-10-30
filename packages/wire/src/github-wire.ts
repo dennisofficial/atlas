@@ -49,6 +49,7 @@ export const githubConnectionStateSchema = z.discriminatedUnion('connected', [
     connected: z.literal(true),
     login: z.string(),
     scopes: z.array(z.string()),
+    missingScopes: z.array(z.string()),
     connectedAt: z.string(),
   }),
 ])

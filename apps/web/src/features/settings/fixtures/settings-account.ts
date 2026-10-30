@@ -11,6 +11,7 @@ export type Integration = {
   brand: EBrand
   description: string
   connectedAs?: string
+  missingScopes?: string[]
   capabilities: IntegrationCapability[]
 }
 
