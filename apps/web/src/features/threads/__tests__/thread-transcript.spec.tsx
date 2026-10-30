@@ -12,13 +12,18 @@ import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadTranscript, type TranscriptRewind } from '../thread-transcript'
+import { installVirtuaViewport } from './virtua-viewport'
+
+let restoreViewport = () => {}
 
 beforeAll(() => {
   GlobalRegistrator.register()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  restoreViewport = installVirtuaViewport()
 })
 
 afterAll(async () => {
+  restoreViewport()
   await GlobalRegistrator.unregister()
 })
 

@@ -183,7 +183,7 @@ export function Transcript(props: TranscriptProps) {
   const { agents = [], flashId, onOpenAgent = noop } = props
   return (
     <Chat className="min-h-0 flex-1">
-      <ChatItem id="u1" anchor>
+      <ChatItem id="u1">
         <UserMessage author="Dennis" timestamp="14:02">
           {FIRST_PROMPT}
         </UserMessage>

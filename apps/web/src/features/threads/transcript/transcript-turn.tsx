@@ -11,6 +11,7 @@ import { formatElapsed } from '@dltech/atlas-client/transcript'
 import { clockTimeOf, spanMsOf } from '../data/clock-time'
 import { messageImagesOf } from '../data/message-images'
 import { isSameItem } from '../data/same-item'
+import { isSameTurn } from '../data/same-turn'
 import { ETranscriptKind } from '../data/transcript'
 import {
   ESegmentKind,
@@ -151,7 +152,7 @@ function SegmentView({
   )
 }
 
-export function TurnView({
+function TurnViewBody({
   turn,
   now,
   models,
@@ -195,3 +196,13 @@ export function TurnView({
       return <AgentTurnView turn={turn} now={now} models={models} actions={actions} />
   }
 }
+
+export const TurnView = memo(
+  TurnViewBody,
+  (previous, next) =>
+    isSameTurn({ previous: previous.turn, next: next.turn }) &&
+    previous.now === next.now &&
+    previous.models === next.models &&
+    previous.userName === next.userName &&
+    previous.actions === next.actions,
+)

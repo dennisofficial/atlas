@@ -68,7 +68,7 @@ export function NewThreadTranscript(props: NewThreadTranscriptProps) {
   return (
     <Chat className="min-h-0 flex-1">
       {sent ? (
-        <ChatItem id="u1" anchor>
+        <ChatItem id="u1">
           <UserMessage author="Dennis" timestamp="14:02">
             {props.prompt}
           </UserMessage>

@@ -1,102 +1,135 @@
 'use client'
 
-import { useEffect, useRef, type KeyboardEvent, type ReactNode, type WheelEvent } from 'react'
-
 import {
-  MessageScroller,
-  MessageScrollerButton,
-  MessageScrollerContent,
-  MessageScrollerItem,
-  MessageScrollerProvider,
-  MessageScrollerViewport,
-  useMessageScroller,
-} from '#components/message-scroller'
+  Children,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { ArrowDownIcon } from 'lucide-react'
+import { VList, type VListHandle } from 'virtua'
+
+import { Button } from '#components/button'
 import { cn } from '#lib/utils'
 
-import { isAtEnd, isDownwardKey, isDownwardWheel } from './chat-follow'
+import { isAtEnd, shouldFollow } from './chat-follow'
 
 export interface ChatProps {
   children: ReactNode
-  autoScroll?: boolean
   jumpKey?: string | null
   className?: string
-  contentClassName?: string
 }
 
 export interface ChatItemProps {
   id: string
-  anchor?: boolean
   children: ReactNode
 }
 
-function useJumpOnKeyChange(jumpKey: string | null | undefined) {
-  const { scrollToEnd } = useMessageScroller()
-  const previousKey = useRef(jumpKey)
+function Spacer() {
+  return <div className="h-3" />
+}
+
+export function Chat({ children, jumpKey, className }: ChatProps) {
+  const listRef = useRef<VListHandle>(null)
+  const atEndRef = useRef(true)
+  const lastOffsetRef = useRef(0)
+  const scrolledUpRef = useRef(false)
+  const previousJumpKey = useRef(jumpKey)
+  const [showButton, setShowButton] = useState(false)
+  const items = [
+    <Spacer key="chat-top" />,
+    ...Children.toArray(children),
+    <Spacer key="chat-end" />,
+  ]
+
+  const scrollToEnd = useCallback(() => {
+    listRef.current?.scrollToIndex(items.length - 1, { align: 'end' })
+  }, [items.length])
+
+  useLayoutEffect(() => {
+    scrollToEnd()
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!shouldFollow({ wasAtEnd: atEndRef.current, scrolledUp: scrolledUpRef.current })) return
+    scrollToEnd()
+  }, [items.length, scrollToEnd])
+
   useEffect(() => {
-    if (previousKey.current === jumpKey) return
-    previousKey.current = jumpKey
+    if (previousJumpKey.current === jumpKey) return
+    previousJumpKey.current = jumpKey
     if (jumpKey === null || jumpKey === undefined) return
-    scrollToEnd({ behavior: 'auto' })
+    atEndRef.current = true
+    scrolledUpRef.current = false
+    scrollToEnd()
   }, [jumpKey, scrollToEnd])
-}
 
-function ChatViewport({
-  jumpKey,
-  contentClassName,
-  children,
-}: {
-  jumpKey: string | null | undefined
-  contentClassName: string | undefined
-  children: ReactNode
-}) {
-  const { scrollToEnd } = useMessageScroller()
-  useJumpOnKeyChange(jumpKey)
+  const handleScroll = (offset: number) => {
+    const list = listRef.current
+    if (!list) return
+    const atEnd = isAtEnd({
+      scrollOffset: offset,
+      viewportSize: list.viewportSize,
+      scrollSize: list.scrollSize,
+    })
+    scrolledUpRef.current = offset < lastOffsetRef.current && !atEnd
+    lastOffsetRef.current = offset
+    atEndRef.current = atEnd
+    setShowButton(!atEnd)
+  }
 
-  const resumeFollowingAtEnd = (viewport: HTMLElement) => {
-    if (!isAtEnd(viewport)) return
-    scrollToEnd({ behavior: 'auto' })
+  const handleResize = () => {
+    if (!shouldFollow({ wasAtEnd: atEndRef.current, scrolledUp: scrolledUpRef.current })) return
+    scrollToEnd()
   }
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (!isDownwardWheel(event.deltaY)) return
-    resumeFollowingAtEnd(event.currentTarget)
-  }
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!isDownwardKey(event.key)) return
-    resumeFollowingAtEnd(event.currentTarget)
+
+  const handleJumpClick = () => {
+    atEndRef.current = true
+    scrolledUpRef.current = false
+    scrollToEnd()
   }
 
   return (
-    <MessageScrollerViewport onWheel={handleWheel} onKeyDown={handleKeyDown}>
-      <MessageScrollerContent className={cn('mx-auto w-full max-w-3xl', contentClassName)}>
-        {children}
-      </MessageScrollerContent>
-    </MessageScrollerViewport>
+    <div
+      data-slot="chat"
+      role="log"
+      aria-label="Messages"
+      className={cn('relative flex size-full min-h-0 flex-col overflow-hidden', className)}
+    >
+      <VList
+        ref={listRef}
+        data-slot="chat-viewport"
+        className="size-full min-h-0 min-w-0 scroll-fade-b scrollbar-thin scrollbar-gutter-stable overscroll-contain"
+        onScroll={handleScroll}
+        onResize={handleResize}
+      >
+        {items}
+      </VList>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        data-active={showButton}
+        onClick={handleJumpClick}
+        className="absolute inset-s-1/2 bottom-4 -translate-x-1/2 transition-[translate,scale,opacity] duration-200 data-[active=false]:pointer-events-none data-[active=false]:translate-y-full data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100"
+      >
+        <ArrowDownIcon />
+        <span className="sr-only">Scroll to end</span>
+      </Button>
+    </div>
   )
 }
 
-export function Chat({
-  children,
-  autoScroll = true,
-  jumpKey,
-  className,
-  contentClassName,
-}: ChatProps) {
+export function ChatItem({ id, children }: ChatItemProps) {
   return (
-    <MessageScrollerProvider autoScroll={autoScroll}>
-      <MessageScroller className={className}>
-        <ChatViewport jumpKey={jumpKey} contentClassName={contentClassName}>
-          {children}
-        </ChatViewport>
-        <MessageScrollerButton />
-      </MessageScroller>
-    </MessageScrollerProvider>
-  )
-}
-
-export function ChatItem({ id, anchor = false, children }: ChatItemProps) {
-  return (
-    <MessageScrollerItem messageId={id} scrollAnchor={anchor}>
+    <div
+      data-slot="chat-item"
+      data-chat-item-id={id}
+      className="mx-auto w-full max-w-3xl min-w-0 px-4 py-3"
+    >
       {children}
-    </MessageScrollerItem>
+    </div>
   )
 }
