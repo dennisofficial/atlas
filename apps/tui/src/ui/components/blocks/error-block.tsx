@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { ERunFailureAction } from '@dltech/atlas-core'
+
 import { useClickRegion } from '../../hooks/use-click-region'
 import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { formatElapsed, formatTokens, glyph, theme, TRANSCRIPT_INSET } from '../../theme'
@@ -9,6 +11,8 @@ import { Spans } from '../spans'
 import type { Span } from '../spans'
 
 const HEADING = 'failed'
+
+export const SETTINGS_HINT = 'fix the key: ctrl+a or /auth'
 
 const SEPARATOR = ' · '
 
@@ -27,10 +31,10 @@ const costOf = (args: { durationMs?: number; outputTokens?: number }): string =>
   return parts.join(SEPARATOR)
 }
 
-function Header(props: { cost: string; onDismiss?: () => void }): React.ReactNode {
+function Header(props: { title: string; cost: string; onDismiss?: () => void }): React.ReactNode {
   return (
     <>
-      <text fg={theme.error} bg={theme.panelBg}>{`${glyph.failed} ${HEADING}`}</text>
+      <text fg={theme.error} bg={theme.panelBg}>{`${glyph.failed} ${props.title}`}</text>
       <box flexGrow={1} />
       {props.cost.length === 0 ? null : (
         <text
@@ -55,6 +59,8 @@ const retrySpans = (hovered: boolean): readonly Span[] => [
 
 export function ErrorBlock(props: {
   message: string
+  title?: string
+  action?: ERunFailureAction
   width: number
   durationMs?: number
   outputTokens?: number
@@ -67,7 +73,14 @@ export function ErrorBlock(props: {
   useKeyBindings(
     onRetry === undefined
       ? []
-      : [{ ...RETRY, layer: EKeyLayer.Block, group: EKeyGroup.Turn, run: onRetry }],
+      : [
+          {
+            ...RETRY,
+            layer: EKeyLayer.Block,
+            group: EKeyGroup.Turn,
+            run: onRetry,
+          },
+        ],
   )
 
   return (
@@ -79,6 +92,7 @@ export function ErrorBlock(props: {
         width={Math.max(1, props.width - TRANSCRIPT_INSET)}
         header={
           <Header
+            title={props.title ?? HEADING}
             cost={costOf(props)}
             {...(props.onDismiss === undefined ? {} : { onDismiss: props.onDismiss })}
           />
@@ -87,6 +101,11 @@ export function ErrorBlock(props: {
         <text fg={theme.body} bg={theme.overlayBg}>
           {props.message}
         </text>
+        {props.action === ERunFailureAction.OpenProviderSettings ? (
+          <text fg={theme.accent} bg={theme.overlayBg}>
+            {SETTINGS_HINT}
+          </text>
+        ) : null}
         {props.onRetry === undefined ? null : (
           <text bg={theme.overlayBg} {...retry.handlers}>
             <Spans spans={retrySpans(retry.hovered)} />

@@ -14,6 +14,7 @@ import { applyTranscriptBounds } from '../viewport-rows-store'
 import type { ContainerMove } from '../../composition/container-move'
 import { BootBlockView } from './boot-block'
 import { ErrorBlock } from './blocks/error-block'
+import { failureText } from './blocks/failure-text'
 import { PendingBlock } from './blocks/pending-block'
 import { ResumeBlock } from './blocks/resume-block'
 import { openedInjectionsOf, type OpenedInjections } from './blocks/system-context-expansion'
@@ -27,8 +28,6 @@ import { RotatingLine, type Rotating } from './rotating-line'
 import { EWorkingVerb, WaitingLine, WorkingLine } from './working-line'
 
 export type { RetryWait }
-
-const FAILURE_WITHOUT_A_REASON = 'The model reported no reason.'
 
 const NOTHING_PENDING: readonly PendingRow[] = Object.freeze([])
 
@@ -54,6 +53,7 @@ function DerivedTranscript(props: {
   boot?: { move: ContainerMove; cancel: (() => void) | undefined } | null
   background?: BackgroundWork
   waitingSince?: number | null
+  accountLabel?: string
   onRetry?: () => void
   onDismissFailure?: () => void
   onResume?: () => void
@@ -162,10 +162,22 @@ function DerivedTranscript(props: {
             width={props.width}
             expanded={opened.has(entry.key)}
             {...(entry.kind === EEntryKind.ToolsRan
-              ? { opened: openedSubsetOf({ cache: openedSubsets, run: entry.run, opened }) }
+              ? {
+                  opened: openedSubsetOf({
+                    cache: openedSubsets,
+                    run: entry.run,
+                    opened,
+                  }),
+                }
               : {})}
             {...(entry.kind === EEntryKind.SystemContext
-              ? { opened: openedInjectionsOf({ cache: openedInjections, entry, opened }) }
+              ? {
+                  opened: openedInjectionsOf({
+                    cache: openedInjections,
+                    entry,
+                    opened,
+                  }),
+                }
               : {})}
             onToggle={handleToggle}
             cwd={props.cwd}
@@ -194,7 +206,10 @@ function DerivedTranscript(props: {
 
         {model.failure ? (
           <ErrorBlock
-            message={model.failure.message ?? FAILURE_WITHOUT_A_REASON}
+            {...failureText({
+              failure: model.failure,
+              accountLabel: props.accountLabel,
+            })}
             width={props.width}
             {...(turn.completed === null
               ? {}

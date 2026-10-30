@@ -19,6 +19,7 @@ import type { AtlasApp } from './compose'
 import { SubagentTranscript } from './subagent-transcript'
 import { TeammateTranscript } from './teammate-transcript'
 import type { InlineBoot } from './use-inline-boot'
+import { useFailureAccountLabel } from './use-failure-account-label'
 import { useSessionOwner } from './use-session-owner'
 import type { AgentView } from './use-agent-view'
 import type { Conversation } from './use-conversation'
@@ -66,6 +67,10 @@ export function WorkspaceTranscript(props: {
     props
   const { location, threadId } = useSessionOwner({ app })
   const attachFailed = useAttachFailure()
+  const accountLabel = useFailureAccountLabel({
+    accounts: app.accounts,
+    accountId: conversation.model.failure?.failure?.accountId,
+  })
   const chip = bornPlacementChip(app)
   const unplaced = useSyncExternalStore(chip.subscribe, chip.snapshot)
   const placement =
@@ -156,6 +161,7 @@ export function WorkspaceTranscript(props: {
               }
             : {})}
           sends={props.sends}
+          {...(accountLabel === undefined ? {} : { accountLabel })}
           pending={pending}
           boot={props.inlineBoot.block}
           background={props.background}
@@ -168,7 +174,9 @@ export function WorkspaceTranscript(props: {
           opened={props.opened}
           onToggle={props.onToggle}
           {...(conversation.hasOlderHistory
-            ? { onNearTop: () => void conversation.loadOlderHistory().catch(() => undefined) }
+            ? {
+                onNearTop: () => void conversation.loadOlderHistory().catch(() => undefined),
+              }
             : {})}
         />
       )}
