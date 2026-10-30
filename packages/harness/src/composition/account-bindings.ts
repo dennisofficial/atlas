@@ -8,6 +8,7 @@ import {
   type AccountSecret,
 } from '@dltech/atlas-core'
 
+import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import { CloudService } from '../cloud/cloud-service'
 import type { CloudSession } from '../cloud/cloud-session'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
@@ -55,6 +56,10 @@ export async function bindAccounts(args: {
       : {}),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
+    migrateOnSignIn: args.cloudBacked === true && args.reconcileHostSources !== false,
+    ...(accountStore instanceof AccountStoreProxy
+      ? { onMigrated: async () => accountStore.forgetCloudCache() }
+      : {}),
     ...(credentials instanceof CloudManagedCredentialPort
       ? {
           handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) =>
@@ -63,13 +68,19 @@ export async function bindAccounts(args: {
       : {}),
   })
 
-  if (args.reconcileHostSources !== false && args.cloudBacked !== true) {
-    await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
+  if (args.reconcileHostSources !== false) {
+    await syncEnvironmentAccounts({
+      accounts:
+        args.cloudBacked === true ? container.resolve(LocalAccountStoreToken) : accountStore,
+      env: args.env,
+    })
   }
 
   const accounts = new AccountsService({
     accounts: accountStore,
-    clients: builtinOauthClients({ clock: container.resolve(registeredPortToken(ClockPort)) }),
+    clients: builtinOauthClients({
+      clock: container.resolve(registeredPortToken(ClockPort)),
+    }),
     ...(credentials instanceof CloudManagedCredentialPort
       ? {
           onOauthLogin: (account: Account) =>

@@ -10,21 +10,25 @@ import {
   type StoredAccount,
 } from '@dltech/atlas-core'
 
+import { AccountSnapshot } from './account-snapshot'
 import { CachingAccountStore } from './caching-account-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteAccountStore } from './remote-account-store'
+import type { SealedSnapshotFile } from './sealed-snapshot-file'
+import { SignedInAccountStore } from './signed-in-account-store'
 
 /**
- * Signed in, the cloud is the store and stays the store: an outage surfaces as a failed call,
- * never as a quiet switch to the local vault. Signing in archives that vault, so there is
- * nothing behind it to serve until signing out again; while signed out, the local vault serves.
+ * Signed in, the cloud is the store and stays the store: an outage serves the last inventory the
+ * cloud gave (in memory, then the sealed snapshot on disk), never the local vault. Signing in
+ * migrates that vault up and archives it; while signed out, the local vault serves.
  */
 export class AccountStoreProxy extends AccountStorePort {
   private readonly local: AccountStorePort
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
   private readonly clock: ClockPort | undefined
+  private readonly snapshotFile: SealedSnapshotFile | undefined
   private remote: { token: string; store: AccountStorePort } | undefined
 
   constructor(args: {
@@ -32,14 +36,17 @@ export class AccountStoreProxy extends AccountStorePort {
     sessions: CloudSessionStore
     clientVersion?: string
     clock?: ClockPort
+    snapshotFile?: SealedSnapshotFile | undefined
   }) {
     super()
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
     this.clock = args.clock
+    this.snapshotFile = args.snapshotFile
     this.sessions.onCleared(() => {
       this.remote = undefined
+      this.snapshotFile?.remove()
     })
   }
 
@@ -75,6 +82,10 @@ export class AccountStoreProxy extends AccountStorePort {
     return this.current().activeFor(provider)
   }
 
+  forgetCloudCache(): void {
+    this.remote = undefined
+  }
+
   private current(): AccountStorePort {
     const session = this.sessions.read()
     if (session === null) return this.local
@@ -86,12 +97,24 @@ export class AccountStoreProxy extends AccountStorePort {
           ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
         }),
       })
+      const cloud =
+        this.clock === undefined
+          ? remote
+          : new CachingAccountStore({
+              remote,
+              clock: this.clock,
+              ...(this.snapshotFile === undefined
+                ? {}
+                : {
+                    snapshot: new AccountSnapshot({
+                      file: this.snapshotFile,
+                      url: session.url,
+                    }),
+                  }),
+            })
       this.remote = {
         token: session.token,
-        store:
-          this.clock === undefined
-            ? remote
-            : new CachingAccountStore({ remote, clock: this.clock }),
+        store: new SignedInAccountStore({ cloud, local: this.local }),
       }
     }
 
