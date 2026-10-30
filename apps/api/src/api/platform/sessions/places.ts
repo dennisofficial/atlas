@@ -1,5 +1,6 @@
 import type { LinkedPullRequestDto, ThreadWorktreeDto } from './sessions.types'
-import { REFERENCE_CHAIN_LIMIT, type SessionReader } from './fork-chain'
+import type { SessionReader } from './fork-chain'
+import { walkReferences } from './reference-walk'
 
 const WORKTREE_EVENT_TYPES = ['worktree-entered', 'worktree-exited', 'directory-changed']
 const PULL_REQUEST_EVENT_TYPE = 'pull-request-linked'
@@ -35,84 +36,42 @@ const linkedFrom = (body: string): LinkedPullRequestDto | null => {
   }
 }
 
-type ForkLink = { parentThreadId: string; forkSeq: number } | null
-
-async function referenceLink(args: { reader: SessionReader; threadId: string }): Promise<ForkLink> {
-  const link = await args.reader.orm.public.Thread.where({ id: args.threadId })
-    .select('parentThreadId', 'forkSeq', 'forkMode')
-    .first()
-  if (link === null || link.forkMode !== 'reference') return null
-  if (link.parentThreadId === null || link.forkSeq === null) return null
-  return { parentThreadId: link.parentThreadId, forkSeq: link.forkSeq }
+export function threadWorktrees(args: {
+  reader: SessionReader
+  threadIds: readonly string[]
+}): Promise<Map<string, ThreadWorktreeDto | null>> {
+  return walkReferences<ThreadWorktreeDto | null>({
+    reader: args.reader,
+    threadIds: args.threadIds,
+    eventTypes: WORKTREE_EVENT_TYPES,
+    fallback: null,
+    pick: (events) => {
+      const latest = events.at(-1)
+      if (latest === undefined) return null
+      return {
+        value: latest.type === 'worktree-entered' ? enteredFrom(latest.body) : null,
+      }
+    },
+  })
 }
 
-export async function threadWorktree(args: {
+export function threadsPullRequests(args: {
   reader: SessionReader
-  threadId: string
-  upTo?: number | undefined
-}): Promise<ThreadWorktreeDto | null> {
-  let threadId = args.threadId
-  let upTo = args.upTo
-
-  for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
-    const scoped = args.reader.orm.public.Event.where((event) =>
-      event.type.in(WORKTREE_EVENT_TYPES),
-    ).where({ threadId })
-    const bound = upTo
-    const latest = await (bound === undefined
-      ? scoped
-      : scoped.where((event) => event.seq.lte(bound))
-    )
-      .select('type', 'body')
-      .orderBy((event) => event.seq.desc())
-      .first()
-    if (latest !== null) {
-      return latest.type === 'worktree-entered' ? enteredFrom(latest.body) : null
-    }
-
-    const link = await referenceLink({ reader: args.reader, threadId })
-    if (link === null) return null
-
-    threadId = link.parentThreadId
-    upTo = upTo === undefined ? link.forkSeq : Math.min(upTo, link.forkSeq)
-  }
-
-  return null
-}
-
-export async function threadPullRequests(args: {
-  reader: SessionReader
-  threadId: string
-  upTo?: number | undefined
-}): Promise<LinkedPullRequestDto[]> {
-  let threadId = args.threadId
-  let upTo = args.upTo
-
-  for (let hop = 0; hop <= REFERENCE_CHAIN_LIMIT; hop += 1) {
-    const scoped = args.reader.orm.public.Event.where({ threadId, type: PULL_REQUEST_EVENT_TYPE })
-    const bound = upTo
-    const rows = await (bound === undefined
-      ? scoped
-      : scoped.where((event) => event.seq.lte(bound))
-    )
-      .select('body')
-      .orderBy((event) => event.seq.asc())
-      .all()
-    if (rows.length > 0) {
+  threadIds: readonly string[]
+}): Promise<Map<string, LinkedPullRequestDto[]>> {
+  return walkReferences<LinkedPullRequestDto[]>({
+    reader: args.reader,
+    threadIds: args.threadIds,
+    eventTypes: [PULL_REQUEST_EVENT_TYPE],
+    fallback: [],
+    pick: (events) => {
+      if (events.length === 0) return null
       const byIdentity = new Map<string, LinkedPullRequestDto>()
-      for (const row of rows) {
-        const linked = linkedFrom(row.body)
+      for (const event of events) {
+        const linked = linkedFrom(event.body)
         if (linked !== null) byIdentity.set(`${linked.repo}#${linked.number}`, linked)
       }
-      return [...byIdentity.values()]
-    }
-
-    const link = await referenceLink({ reader: args.reader, threadId })
-    if (link === null) return []
-
-    threadId = link.parentThreadId
-    upTo = upTo === undefined ? link.forkSeq : Math.min(upTo, link.forkSeq)
-  }
-
-  return []
+      return { value: [...byIdentity.values()] }
+    },
+  })
 }
