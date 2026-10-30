@@ -15,11 +15,13 @@ import { SidebarMenuButton } from '@dltech/atlas-ui/components/sidebar'
 
 import { desktopSignOut } from '@/features/desktop/desktop-auth'
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { useVersionLine } from '@/features/desktop/use-version-line'
 import { signOut, type SessionUser } from '@/lib/auth-api'
 
 const SIGN_IN_PATH = '/sign-in'
 
 export function AccountMenu({ user, initials }: { user: SessionUser | null; initials: string }) {
+  const version = useVersionLine()
   const handleSignOut = async () => {
     const leave = isDesktopHost(window) ? desktopSignOut : signOut
     await leave().catch(() => undefined)
@@ -53,6 +55,18 @@ export function AccountMenu({ user, initials }: { user: SessionUser | null; init
             Sign out
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        {version === null ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel data-testid="account-menu-version" title={version}>
+                <span className="block truncate font-normal tabular-nums select-text">
+                  {version}
+                </span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

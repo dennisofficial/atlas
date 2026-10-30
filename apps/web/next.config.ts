@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process'
+
 import type { NextConfig } from 'next'
 
 import { resolveApiOrigin } from './src/lib/api-origin'
@@ -14,8 +16,24 @@ const devOrigins = [
 
 const desktop = process.env.ATLAS_WEB_TARGET === 'desktop'
 
+function readGitCommit(): string {
+  try {
+    return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return ''
+  }
+}
+
+const webCommit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || readGitCommit()
+
 const sharedConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
+  env: {
+    ATLAS_WEB_COMMIT: webCommit,
+    ATLAS_WEB_VERSION: process.env.ATLAS_VERSION ?? '',
+  },
   transpilePackages: [
     '@dltech/atlas-api-router',
     '@dltech/atlas-client',

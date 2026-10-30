@@ -31,6 +31,7 @@ await runLogged(async () => {
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
     pods: podConfig,
+    app: { version: localInfo.version, channel: localInfo.channel },
     auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
     updates: { status: updateState.status, restart: () => Updater.applyUpdate() },
     window: {

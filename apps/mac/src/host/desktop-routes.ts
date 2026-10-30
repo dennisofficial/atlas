@@ -1,3 +1,4 @@
+import { APP_INFO_PATH, type IDesktopAppInfo } from './app-info'
 import type { AuthHandler } from './auth/routes'
 import type { PodsHandler } from './pods/routes'
 import { createUpdateHandler, type IDesktopUpdatesPort } from './update-routes'
@@ -10,14 +11,17 @@ export function createDesktopRouter({
   auth,
   updates,
   window,
+  app,
 }: {
   pods?: PodsHandler | undefined
   auth?: AuthHandler | undefined
   updates?: IDesktopUpdatesPort | undefined
   window?: IDesktopWindowPort | undefined
+  app?: IDesktopAppInfo | undefined
 } = {}): (request: Request, pathname: string) => Response | Promise<Response> {
   const routes = new Map<string, DesktopRouteHandler>()
   routes.set('/desktop/health', () => Response.json({ ok: true }))
+  if (app !== undefined) routes.set(APP_INFO_PATH, () => Response.json(app))
   const updateHandler = updates === undefined ? undefined : createUpdateHandler({ updates })
   const windowHandler = window === undefined ? undefined : createWindowHandler({ window })
   return async (request, pathname) => {
