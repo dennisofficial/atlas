@@ -22,3 +22,15 @@ export const createQueryClient = (): QueryClient =>
       },
     },
   })
+
+let browserClient: QueryClient | undefined
+
+export const sharedQueryClient = (): QueryClient => {
+  if (typeof window === 'undefined') return createQueryClient()
+  browserClient ??= createQueryClient()
+  return browserClient
+}
+
+export const clearCloudCache = (): void => {
+  browserClient?.clear()
+}

@@ -19,12 +19,16 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 
+import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
+
 import { useProjectContext } from './data/project-context'
 import { deleteProject } from './data/project-api'
 import { SettingsCard, SettingsRow, SettingsSection } from './settings-layout'
 
 function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
   const router = useRouter()
+  const invalidateCloud = useInvalidateCloud()
   const { projectId } = useProjectContext()
   const [confirmation, setConfirmation] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -34,6 +38,7 @@ function DeleteProjectDialog({ projectSlug }: { projectSlug: string }) {
     setDeleting(true)
     try {
       await deleteProject(projectId)
+      await invalidateCloud([PROJECTS_KEY, SHELL_THREADS_KEY])
       toast.success('Project deleted')
       router.push('/threads')
     } catch (error) {

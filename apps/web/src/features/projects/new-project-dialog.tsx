@@ -14,6 +14,8 @@ import {
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import type { Project } from '@dltech/atlas-wire/web'
 
+import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { createProject } from '@/features/project-settings/data/project-api'
 
 import { DetailsStep } from './new-project-details-step'
@@ -66,6 +68,7 @@ function NewProjectBody({
   onClose,
 }: Omit<NewProjectDialogProps, 'open' | 'onOpenChange'> & { onClose: () => void }) {
   const router = useRouter()
+  const invalidateCloud = useInvalidateCloud()
   const [step, setStep] = useState(ENewProjectStep.Source)
   const [draft, setDraft] = useState<ProjectDraft>(() => emptyDraft())
   const [submitting, setSubmitting] = useState(false)
@@ -87,6 +90,7 @@ function NewProjectBody({
     setSubmitting(true)
     try {
       const created = await createProject(createBodyOf({ draft, name }))
+      await invalidateCloud([PROJECTS_KEY, SHELL_THREADS_KEY])
       toast.success('Project created')
       router.push(`/threads/new?project=${encodeURIComponent(created.id)}`)
     } catch (failure) {

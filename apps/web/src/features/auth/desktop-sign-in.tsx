@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
+import { clearCloudCache } from '@/lib/query-client'
+
 import { FormError } from './auth-controls'
 import { AuthHeading } from './auth-heading'
 import { DESKTOP_POLL_MS, EDesktopSignInPhase, useDesktopSignIn } from './use-desktop-sign-in'
@@ -53,7 +55,10 @@ export function DesktopSignIn({
 }) {
   const router = useRouter()
   const { phase, start, cancel } = useDesktopSignIn({
-    onSignedIn: () => router.replace(next ?? '/threads'),
+    onSignedIn: () => {
+      clearCloudCache()
+      router.replace(next ?? '/threads')
+    },
     pollMs,
   })
   const pending = phase === EDesktopSignInPhase.Pending

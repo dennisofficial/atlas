@@ -3,9 +3,9 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 
-import { createQueryClient } from './query-client'
+import { sharedQueryClient } from './query-client'
 
 export function QueryProvider({ children }: { children: ReactNode }) {
-  const [client] = useState(createQueryClient)
+  const [client] = useState(sharedQueryClient)
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }

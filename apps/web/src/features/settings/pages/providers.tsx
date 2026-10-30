@@ -5,7 +5,9 @@ import { useCallback } from 'react'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 
+import { MODEL_PICKER_KEY } from '@/lib/cloud-keys'
 import { useCloudQuery } from '@/lib/use-cloud-query'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import {
   apiKeyFor,
@@ -67,7 +69,18 @@ export function ProvidersPage() {
   )
 }
 
-function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: () => void }) {
+function ProvidersContent({
+  accounts,
+  reload: reloadAccounts,
+}: {
+  accounts: Account[]
+  reload: () => void
+}) {
+  const invalidateCloud = useInvalidateCloud()
+  const reload = useCallback(() => {
+    reloadAccounts()
+    void invalidateCloud([MODEL_PICKER_KEY])
+  }, [reloadAccounts, invalidateCloud])
   const { saving, run } = useSaveAction()
 
   const handleKeySave = useCallback(

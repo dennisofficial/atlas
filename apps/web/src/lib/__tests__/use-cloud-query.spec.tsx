@@ -165,4 +165,20 @@ describe('useCloudQuery', () => {
     expect(result.error?.message).toBe('boom')
     await probe.unmount()
   })
+
+  it('stays ready with the old data when a background refetch fails', async () => {
+    let calls = 0
+    const probe = await mount(async (key) => {
+      calls += 1
+      if (calls > 1) throw new Error('502')
+      return `data:${key}`
+    })
+
+    await probe.rerender('thr_1')
+    await act(async () => probe.latest().reload())
+    await flush()
+
+    expect(probe.latest()).toMatchObject({ state: EQueryState.Ready, data: 'data:thr_1' })
+    await probe.unmount()
+  })
 })

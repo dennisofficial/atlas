@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
 import { DesktopChrome } from '@/features/desktop/desktop-chrome'
-import { QueryProvider } from '@/lib/query-provider'
 
 import './globals.css'
 
@@ -22,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         />
-        <QueryProvider>{children}</QueryProvider>
+        {children}
       </body>
     </html>
   )

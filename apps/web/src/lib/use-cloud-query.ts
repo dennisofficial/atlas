@@ -46,11 +46,11 @@ export function useCloudQuery<TData>(args: {
   const { refetch } = query
   const reload = useCallback(() => void refetch(), [refetch])
 
+  if (query.data !== undefined) {
+    return { state: EQueryState.Ready, data: query.data.value, error: undefined, reload }
+  }
   if (query.status === 'error') {
     return { state: EQueryState.Failed, data: undefined, error: query.error, reload }
   }
-  if (query.status === 'pending') {
-    return { state: EQueryState.Loading, data: undefined, error: undefined, reload }
-  }
-  return { state: EQueryState.Ready, data: query.data.value, error: undefined, reload }
+  return { state: EQueryState.Loading, data: undefined, error: undefined, reload }
 }

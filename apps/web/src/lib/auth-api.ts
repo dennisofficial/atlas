@@ -21,6 +21,9 @@ export const isAccountExistsError = (cause: unknown): boolean =>
 export const isInvalidTokenError = (cause: unknown): boolean =>
   cause instanceof AuthApiError && cause.code === EAuthErrorCode.InvalidToken
 
+const HTTP_UNAUTHORIZED = 401
+const HTTP_FORBIDDEN = 403
+const SESSION_CHECK_FAILED = 'Session check failed — Atlas Cloud returned an error.'
 export const UNREACHABLE = 'Could not reach Atlas Cloud — check your connection and retry.'
 
 export function normalizeUserCode(raw: string | null): string {
@@ -140,7 +143,8 @@ export async function sessionUser(): Promise<SessionUser | null> {
   } catch {
     throw new AuthApiError(UNREACHABLE)
   }
-  if (!response.ok) return null
+  if (response.status === HTTP_UNAUTHORIZED || response.status === HTTP_FORBIDDEN) return null
+  if (!response.ok) throw new AuthApiError(SESSION_CHECK_FAILED)
 
   const body = (await response.json().catch(() => null)) as SessionUserBody
   const user = body?.user
