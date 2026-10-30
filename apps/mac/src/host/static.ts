@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import { isAbsolute, join, normalize, resolve, sep } from 'node:path'
 import { contentTypeFor } from './content-types'
-import { fallbackTargetFor } from './fallback-routes'
+import { placeholderLookup } from './fallback-routes'
 
 const IMMUTABLE = 'public, max-age=31536000, immutable'
 
@@ -76,10 +76,13 @@ export async function serveStatic({
   const direct = await firstFile(candidates({ root, relative }))
   if (direct) return fileResponse({ path: direct, status: 200, pathname: decoded })
 
-  const fallbackTarget = fallbackTargetFor(decoded)
-  if (fallbackTarget) {
-    const fallback = await firstFile(candidates({ root, relative: fallbackTarget }))
-    if (fallback) return fileResponse({ path: fallback, status: 200, pathname: decoded })
+  const placeholder = await placeholderLookup({
+    root,
+    segments: relative.replace(/\/+$/, '').split('/').filter(Boolean),
+  })
+  if (placeholder) {
+    const path = join(root, ...placeholder)
+    if (await isFile(path)) return fileResponse({ path, status: 200, pathname: decoded })
   }
 
   const notFound = join(root, '404.html')
