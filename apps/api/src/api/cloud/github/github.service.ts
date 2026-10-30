@@ -79,6 +79,7 @@ export class GithubService {
       connected: true,
       login: row.login,
       scopes: splitScopes(row.scopes),
+      missingScopes: missingScopesOf(row.scopes),
       connectedAt: row.createdAt.toISOString(),
     }
   }

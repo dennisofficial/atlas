@@ -182,6 +182,7 @@ describe('GithubService', () => {
 
     const own = await service.read({ userId: USER_A })
     expect(own.connected).toBe(true)
+    expect(own).toMatchObject({ missingScopes: [] })
   })
 
   it('readToken answers 404 when nothing is connected', async () => {

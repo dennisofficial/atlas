@@ -55,7 +55,11 @@ type GithubConnectPollResponse = z.infer<typeof githubConnectPollResponseSchema>
 
 export const githubStateResponseSchema = z.discriminatedUnion('connected', [
   z.strictObject({ connected: z.literal(false) }),
-  z.strictObject({ connected: z.literal(true), ...githubConnectionSchema.shape }),
+  z.strictObject({
+    connected: z.literal(true),
+    ...githubConnectionSchema.shape,
+    missingScopes: z.array(z.string()).optional(),
+  }),
 ])
 
 export const githubTokenResponseSchema = z.strictObject({ token: z.string().min(1) })

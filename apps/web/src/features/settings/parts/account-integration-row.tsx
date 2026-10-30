@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { CheckIcon, XIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
@@ -9,12 +10,19 @@ import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 
 export function AccountIntegrationRow({
   integration,
-  actionsDisabled = false,
+  busy = false,
+  onConnect,
+  onDisconnect,
+  children,
 }: {
   integration: Integration
-  actionsDisabled?: boolean
+  busy?: boolean
+  onConnect: () => void
+  onDisconnect: () => void
+  children?: ReactNode
 }) {
   const connected = integration.connectedAs !== undefined
+  const needsReconnect = (integration.missingScopes ?? []).length > 0
 
   return (
     <SettingsRow
@@ -35,15 +43,20 @@ export function AccountIntegrationRow({
       control={
         connected ? (
           <>
-            <Button variant="outline" size="sm" disabled={actionsDisabled}>
-              Configure
+            <Button
+              variant={needsReconnect ? 'default' : 'outline'}
+              size="sm"
+              disabled={busy}
+              onClick={onConnect}
+            >
+              Reconnect
             </Button>
-            <Button variant="outline" size="sm" disabled={actionsDisabled}>
+            <Button variant="outline" size="sm" disabled={busy} onClick={onDisconnect}>
               Disconnect
             </Button>
           </>
         ) : (
-          <Button size="sm" disabled={actionsDisabled}>
+          <Button size="sm" disabled={busy} onClick={onConnect}>
             Connect {integration.name}
           </Button>
         )
@@ -68,6 +81,7 @@ export function AccountIntegrationRow({
           </li>
         ))}
       </ul>
+      {children}
     </SettingsRow>
   )
 }
