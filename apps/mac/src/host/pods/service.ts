@@ -32,18 +32,21 @@ export interface IPodConnect {
 
 export interface IPodService {
   capabilities: () => Promise<DesktopCapabilities>
-  list: (args: { cookie: string | null }) => Promise<LocalPod[]>
-  get: (args: { threadId: string; cookie: string | null }) => Promise<LocalPod | undefined>
-  create: (args: { input: CreatePodInput; cookie: string | null }) => Promise<LocalPod>
-  wake: (args: { threadId: string; cookie: string | null }) => Promise<LocalPod | undefined>
-  connect: (args: {
-    threadId: string
-    cookie: string | null
-  }) => Promise<IPodConnect | undefined | 'not-running'>
-  destroy: (args: { threadId: string; cookie: string | null }) => Promise<void>
+  list: () => Promise<LocalPod[]>
+  get: (args: { threadId: string }) => Promise<LocalPod | undefined>
+  create: (args: { input: CreatePodInput }) => Promise<LocalPod>
+  wake: (args: { threadId: string }) => Promise<LocalPod | undefined>
+  connect: (args: { threadId: string }) => Promise<IPodConnect | undefined | 'not-running'>
+  destroy: (args: { threadId: string }) => Promise<void>
 }
 
-export function createPodService({ config }: { config: IPodHostConfig }): IPodService {
+export function createPodService({
+  config,
+  bearer,
+}: {
+  config: IPodHostConfig
+  bearer: () => string | undefined
+}): IPodService {
   const secrets = new FileSecretsStore({
     file: join(config.home, 'secrets.json'),
     cipher: new SecretCipher(join(config.home, 'key')),
@@ -53,7 +56,7 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
   const now = config.now ?? Date.now
   const apiOrigin = config.apiOrigin ?? resolveApiOrigin(process.env)
 
-  const bridgeFor = ({ cookie }: { cookie: string | null }): CloudBridge =>
+  const bridgeFor = (): CloudBridge =>
     createLocalPodBridge({
       pod: () => ({
         cloudUrl: apiOrigin,
@@ -66,7 +69,7 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
       attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets, threadId }),
       registerPodLease: leaseRegistrarFor({
         apiOrigin,
-        cookie,
+        bearer,
         ...(config.clientVersion === undefined ? {} : { clientVersion: config.clientVersion }),
       }),
       ...(config.driverWith === undefined ? {} : { driverWith: config.driverWith }),
@@ -89,14 +92,8 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
     state,
   })
 
-  const provision = async ({
-    entry,
-    cookie,
-  }: {
-    entry: PodIndexEntry
-    cookie: string | null
-  }): Promise<LocalPod> => {
-    const bridge = bridgeFor({ cookie })
+  const provision = async ({ entry }: { entry: PodIndexEntry }): Promise<LocalPod> => {
+    const bridge = bridgeFor()
     await bridge.sandboxes.create({
       threadId: toThreadId(entry.threadId),
       projectId: entry.projectId,
@@ -113,8 +110,8 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
       const reason = await (config.ping ?? (() => pingDocker({ socketPath })))()
       return reason === undefined ? { docker: true } : { docker: false, reason }
     },
-    list: async ({ cookie }) => {
-      const bridge = bridgeFor({ cookie })
+    list: async () => {
+      const bridge = bridgeFor()
       return Promise.all(
         index
           .list()
@@ -123,27 +120,27 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
           ),
       )
     },
-    get: async ({ threadId, cookie }) => {
+    get: async ({ threadId }) => {
       const entry = index.find({ threadId })
       if (entry === undefined) return undefined
-      const { state } = await stateOf({ bridge: bridgeFor({ cookie }), threadId })
+      const { state } = await stateOf({ bridge: bridgeFor(), threadId })
       return podOf({ entry, state })
     },
-    create: async ({ input, cookie }) => {
+    create: async ({ input }) => {
       const held = index.find({ threadId: input.threadId })
       const entry: PodIndexEntry = held ?? {
         ...input,
         createdAt: new Date(now()).toISOString(),
       }
-      return provision({ entry, cookie })
+      return provision({ entry })
     },
-    wake: async ({ threadId, cookie }) => {
+    wake: async ({ threadId }) => {
       const entry = index.find({ threadId })
-      return entry === undefined ? undefined : provision({ entry, cookie })
+      return entry === undefined ? undefined : provision({ entry })
     },
-    connect: async ({ threadId, cookie }) => {
+    connect: async ({ threadId }) => {
       if (index.find({ threadId }) === undefined) return undefined
-      const { state, url } = await stateOf({ bridge: bridgeFor({ cookie }), threadId })
+      const { state, url } = await stateOf({ bridge: bridgeFor(), threadId })
       if (state !== ELocalPodState.Running || url === undefined) return 'not-running'
       return {
         url,
@@ -151,8 +148,8 @@ export function createPodService({ config }: { config: IPodHostConfig }): IPodSe
         expiresAt: new Date(now() + CONNECT_TTL_MS).toISOString(),
       }
     },
-    destroy: async ({ threadId, cookie }) => {
-      await bridgeFor({ cookie }).sandboxes.destroy({ threadId: toThreadId(threadId) })
+    destroy: async ({ threadId }) => {
+      await bridgeFor().sandboxes.destroy({ threadId: toThreadId(threadId) })
       index.remove({ threadId })
       secrets.remove(sandboxServeTokenName(toThreadId(threadId)))
     },

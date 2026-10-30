@@ -6,6 +6,7 @@ import { useState, type FormEvent } from 'react'
 
 import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
+import { useIsDesktop } from '@/features/desktop/use-is-desktop'
 import { AuthApiError, signIn } from '@/lib/auth-api'
 import { ESignInContext, safeNextPath, signInContextOf, withNext } from '@/lib/auth-redirect'
 import { signInErrorMessage } from '@/lib/sign-in-error'
@@ -20,6 +21,7 @@ import {
 } from './auth-controls'
 import { AuthField } from './auth-field'
 import { AuthBanner, AuthHeading } from './auth-heading'
+import { DesktopSignIn } from './desktop-sign-in'
 import { useGoogleSignIn } from './use-google-sign-in'
 
 function ContextBanner({ context }: { context: ESignInContext }) {
@@ -29,7 +31,7 @@ function ContextBanner({ context }: { context: ESignInContext }) {
   return null
 }
 
-export function SignInForm() {
+function WebSignInForm() {
   const searchParams = useSearchParams()
   const next = safeNextPath(searchParams.get('next'))
   const context = signInContextOf(next)
@@ -100,5 +102,18 @@ export function SignInForm() {
         No account? <AuthLink href={withNext({ path: '/sign-up', next })}>Sign up</AuthLink>
       </AuthFooterText>
     </div>
+  )
+}
+
+export function SignInForm() {
+  const desktop = useIsDesktop()
+  const searchParams = useSearchParams()
+  if (!desktop) return <WebSignInForm />
+  return (
+    <DesktopSignIn
+      title="Sign in to Atlas"
+      description="Approve this Mac in your browser."
+      next={safeNextPath(searchParams.get('next'))}
+    />
   )
 }

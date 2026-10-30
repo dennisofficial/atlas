@@ -20,10 +20,20 @@ export function isProxyPath(pathname: string): boolean {
   )
 }
 
-function forwardHeaders(incoming: Headers): Headers {
+function forwardHeaders({
+  incoming,
+  bearer,
+}: {
+  incoming: Headers
+  bearer: string | undefined
+}): Headers {
   const headers = new Headers(incoming)
   for (const name of HOP_BY_HOP) headers.delete(name)
   headers.delete('accept-encoding')
+  headers.delete('origin')
+  if (bearer === undefined) return headers
+  headers.delete('cookie')
+  headers.set('authorization', `Bearer ${bearer}`)
   return headers
 }
 
@@ -40,9 +50,11 @@ function responseHeaders(upstream: Headers): Headers {
 export async function proxyToApi({
   request,
   apiOrigin,
+  bearer,
 }: {
   request: Request
   apiOrigin: string
+  bearer?: (() => string | undefined) | undefined
 }): Promise<Response> {
   const source = new URL(request.url)
   const target = `${apiOrigin.replace(/\/+$/, '')}${source.pathname}${source.search}`
@@ -50,7 +62,7 @@ export async function proxyToApi({
   try {
     const upstream = await fetch(target, {
       method: request.method,
-      headers: forwardHeaders(request.headers),
+      headers: forwardHeaders({ incoming: request.headers, bearer: bearer?.() }),
       body: hasBody ? request.body : null,
       redirect: 'manual',
       signal: request.signal,

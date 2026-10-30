@@ -6,6 +6,7 @@ import { podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
 import { startAutoUpdate } from './auto-update'
+import { DESKTOP_PRELOAD } from './preload'
 import { runLogged } from './crash-log'
 
 await runLogged(async () => {
@@ -16,16 +17,19 @@ await runLogged(async () => {
     appVersion: localInfo.version,
   })
   const secret = randomBytes(32).toString('hex')
+  const podConfig = podConfigFromEnv({ env: process.env, serveVersion })
   const host = createDesktopHost({
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
-    pods: podConfigFromEnv({ env: process.env, serveVersion }),
+    pods: podConfig,
+    auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
   })
 
   const win = new BrowserWindow({
     title: 'Atlas',
     url: `${host.url}/desktop/session?secret=${secret}`,
     frame: { width: 1280, height: 820 },
+    preload: DESKTOP_PRELOAD,
     titleBarStyle: 'hiddenInset',
     trafficLightOffset: { x: 14, y: 14 },
   })

@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 const desktopBridgeSchema = z.object({ vibrancy: z.boolean().optional() })
 
+export function isDesktopHost(host: object): boolean {
+  return desktopBridgeSchema.safeParse(Reflect.get(host, 'atlasDesktop')).success
+}
+
 export function applyDesktopAttributes({ root, host }: { root: HTMLElement; host: object }): void {
   const parsed = desktopBridgeSchema.safeParse(Reflect.get(host, 'atlasDesktop'))
   if (!parsed.success) return

@@ -1,4 +1,6 @@
 import { resolveApiOrigin } from './api-origin'
+import { createAuthService, type IAuthConfig } from './auth/auth-service'
+import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
 import { isAuthorized, startSession } from './guard'
 import { isProxyPath, proxyToApi } from './proxy'
@@ -13,6 +15,7 @@ export interface ICreateDesktopHostOptions {
   secret: string
   apiOrigin?: string
   pods?: IPodHostConfig
+  auth?: Omit<IAuthConfig, 'home'> & { home?: string }
   port?: number
 }
 
@@ -28,13 +31,20 @@ export function createDesktopHost({
   port,
   secret,
   pods,
+  auth,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
+  const authService = createAuthService({
+    config: { ...auth, home: auth?.home ?? pods?.home ?? '' },
+    apiOrigin: origin,
+  })
+  const bearer = () => authService.token()
   const desktopRouter = createDesktopRouter({
+    auth: createAuthHandler({ auth: authService }),
     pods:
       pods === undefined
         ? undefined
-        : createPodsHandler({ config: { apiOrigin: origin, ...pods } }),
+        : createPodsHandler({ config: { apiOrigin: origin, ...pods }, bearer }),
   })
 
   const server = Bun.serve({
@@ -51,7 +61,7 @@ export function createDesktopHost({
         }
         return desktopRouter(request, pathname)
       }
-      if (isProxyPath(pathname)) return proxyToApi({ request, apiOrigin: origin })
+      if (isProxyPath(pathname)) return proxyToApi({ request, apiOrigin: origin, bearer })
       return serveStatic({ webRoot, pathname })
     },
   })

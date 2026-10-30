@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { PodBridgeDriver } from '@dltech/atlas-harness'
 import { createDesktopHost, type IDesktopHost } from '../../index'
 import { SESSION_COOKIE } from '../../guard'
+import { createTokenStore } from '../../auth/token-store'
 import { POD_INDEX_NAME } from '../pod-index'
 
 const SECRET = 'b'.repeat(64)
@@ -20,7 +21,7 @@ interface IFakeState {
 const HOME = mkdtempSync(join(tmpdir(), 'atlas-mac-pods-'))
 let host: IDesktopHost
 let upstream: ReturnType<typeof Bun.serve>
-let leaseCookies: (string | null)[]
+let leaseHeaders: { authorization: string | null; cookie: string | null; origin: string | null }[]
 let leaseBodies: unknown[]
 let leaseStatus: number
 let dockerUp: boolean
@@ -50,7 +51,11 @@ beforeAll(() => {
     port: 0,
     hostname: '127.0.0.1',
     async fetch(request) {
-      leaseCookies.push(request.headers.get('cookie'))
+      leaseHeaders.push({
+        authorization: request.headers.get('authorization'),
+        cookie: request.headers.get('cookie'),
+        origin: request.headers.get('origin'),
+      })
       leaseBodies.push(await request.json())
       if (leaseStatus !== 200) {
         return Response.json(
@@ -87,7 +92,8 @@ afterAll(async () => {
 
 beforeEach(() => {
   rmSync(join(HOME, POD_INDEX_NAME), { force: true })
-  leaseCookies = []
+  leaseHeaders = []
+  createTokenStore({ home: HOME }).save({ token: 'bearer-tok' })
   leaseBodies = []
   leaseStatus = 200
   dockerUp = true
@@ -133,13 +139,14 @@ describe('capabilities', () => {
 })
 
 describe('pods', () => {
-  test('create registers the lease with the forwarded cookie and indexes the pod', async () => {
+  test('create registers the lease with the stored bearer, no cookie, and indexes the pod', async () => {
     const res = await create()
     expect(res.status).toBe(200)
     const pod = await res.json()
     expect(pod).toMatchObject({ threadId: THREAD, projectId: 'p1', model: 'm', state: 'running' })
-    expect(leaseCookies).toHaveLength(1)
-    expect(leaseCookies[0]).toBe(SESSION)
+    expect(leaseHeaders).toEqual([
+      { authorization: 'Bearer bearer-tok', cookie: null, origin: null },
+    ])
     expect(JSON.stringify(leaseBodies[0])).toContain(THREAD)
     const listed = (await (await call({ path: '/desktop/pods' })).json()) as { pods: unknown[] }
     expect(listed.pods).toHaveLength(1)
