@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "storybook dev -p 6006 --no-open",
+    "dev": "storybook dev -p ${PORT:-6006} --exact-port --no-open",
     "build": "storybook build -o storybook-static --stats-json storybook-static",
     "render-check": "bun scripts/render-check.ts",
     "typecheck": "tsc --noEmit",

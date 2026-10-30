@@ -12,7 +12,7 @@ import {
   startMoveNode,
   type ContainerMove,
 } from '../../composition/container-move'
-import { ROTATE_HEADING } from '../../composition/cloud/cloud-runner'
+import { ROTATE_HEADING } from '../../composition/cloud/wake-narration'
 import { WAKE_HEADING } from '../../composition/container-move'
 import { ContainerMoveOverlay } from '../components/container-move'
 import { frameOf, mount } from './transcript-fixture'

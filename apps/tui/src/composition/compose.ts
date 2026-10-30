@@ -13,6 +13,11 @@ import {
   MutablePrEventSink,
   PrEventFrameSink,
   PullRequestPort,
+  RemoteAgentRegistry,
+  RemoteRotation,
+  RemoteServiceRegistry,
+  RemoteShellRegistry,
+  RemoteSubscriptionRegistry,
   SubscriptionRegistryPort,
   cloudClientFor,
   CloudSessionStoreToken,
@@ -37,11 +42,6 @@ import { createVisibleThread } from '../plugins/subscriptions/visible-thread'
 import type { ContributedSurface, PluginSurface } from '../plugins/surface'
 import { tldrFeed } from '../ui/tldr-feed-store'
 
-import { RemoteAgentRegistry } from './cloud/remote-agents'
-import { RemoteRotation } from './cloud/remote-rotation'
-import { RemoteServiceRegistry } from './cloud/remote-services'
-import { RemoteShellRegistry } from './cloud/remote-shells'
-import { RemoteSubscriptionRegistry } from './cloud/remote-subscriptions'
 import {
   activeSubscriptionRegistry,
   onSubscriptionRegistryChanged,
@@ -135,7 +135,7 @@ export async function composeAtlas(args: {
     env: args.env,
     settings: args.settings,
     cloudSettings: true,
-    cloudSecretsAndAccounts: pods,
+    cloudSecretsAndAccounts: true,
     clientVersion: clientVersionHeader(),
     ports: {
       ...sharedPortBindings,

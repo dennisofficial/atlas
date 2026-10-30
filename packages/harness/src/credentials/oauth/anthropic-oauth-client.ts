@@ -2,45 +2,33 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import type { ClockPort, OauthTokens } from '@dltech/atlas-core'
 
+import {
+  anthropicExchangeCode,
+  anthropicExchangePasted,
+  anthropicLoopbackAuthorizeUrl,
+  anthropicManualAuthorizeUrl,
+  anthropicRefresh,
+  type OauthLogin,
+  type Pkce,
+  type ProviderFetch,
+} from '../../provider-oauth'
 import { AnthropicLoopbackServer, type AnthropicLoopback } from './anthropic-loopback'
 import type { BrowserLoginClient, BrowserLoginSession } from './browser-login'
-import { OauthHttpError, OauthResponseError } from './oauth-error'
 
-// Claude.ai subscription OAuth: authorization code + PKCE (S256). The primary login is Claude
-// Code's own loopback flow — the browser is sent back to a local listener and the exchange posts
-// the verifier — and manual paste-back (Anthropic's hosted callback page displays `code#state`)
-// stays as the headless fallback. The client id and URLs are public values carried by the Claude
-// Code binary (2.1.287); the loopback parameters were verified end-to-end against a real account
-// in the 2026-10-02 spike.
-const AUTHORIZE_URL = 'https://claude.com/cai/oauth/authorize'
-const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token'
-const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
-const REDIRECT_URL = 'https://platform.claude.com/oauth/code/callback'
-const SCOPES = 'org:create_api_key user:profile user:inference'
-const REQUEST_TIMEOUT_MS = 10_000
-const FALLBACK_LIFETIME_SECONDS = 3600
-
-export type Pkce = { verifier: string; challenge: string; state: string }
-
-export type OauthLogin = {
-  tokens: OauthTokens
-  email?: string
-  subscription?: string
-}
-
-type TokenFetch = (input: string, init: RequestInit) => Promise<Response>
+export type { OauthLogin, Pkce } from '../../provider-oauth'
 
 const base64url = (bytes: Buffer): string => bytes.toString('base64url')
 
-const stringOr = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.length > 0 ? value : undefined
-
 export class AnthropicOauthClient implements BrowserLoginClient {
   private readonly clock: ClockPort
-  private readonly fetch: TokenFetch
+  private readonly fetch: ProviderFetch
   private readonly loopback: () => AnthropicLoopback
 
-  constructor(args: { clock: ClockPort; fetch?: TokenFetch; loopback?: () => AnthropicLoopback }) {
+  constructor(args: {
+    clock: ClockPort
+    fetch?: ProviderFetch
+    loopback?: () => AnthropicLoopback
+  }) {
     this.clock = args.clock
     this.fetch = args.fetch ?? globalThis.fetch
     this.loopback = args.loopback ?? (() => new AnthropicLoopbackServer())
@@ -92,32 +80,11 @@ export class AnthropicOauthClient implements BrowserLoginClient {
   }
 
   authorizeUrl(pkce: Pkce): string {
-    const url = new URL(AUTHORIZE_URL)
-    url.searchParams.set('client_id', CLIENT_ID)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('redirect_uri', REDIRECT_URL)
-    url.searchParams.set('scope', SCOPES)
-    url.searchParams.set('code_challenge', pkce.challenge)
-    url.searchParams.set('code_challenge_method', 'S256')
-    url.searchParams.set('state', pkce.state)
-    url.searchParams.set('code', 'true')
-
-    return url.toString()
+    return anthropicManualAuthorizeUrl(pkce)
   }
 
-  // The loopback authorize request omits the `code=true` the paste-back flow sends — that param is
-  // what asks Anthropic for the manual code page (Claude Code 2.1.287; spike, 2026-10-02).
   authorizeBrowserUrl(args: { pkce: Pkce; redirectUri: string }): string {
-    const url = new URL(AUTHORIZE_URL)
-    url.searchParams.set('client_id', CLIENT_ID)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('redirect_uri', args.redirectUri)
-    url.searchParams.set('scope', SCOPES)
-    url.searchParams.set('code_challenge', args.pkce.challenge)
-    url.searchParams.set('code_challenge_method', 'S256')
-    url.searchParams.set('state', args.pkce.state)
-
-    return url.toString()
+    return anthropicLoopbackAuthorizeUrl(args)
   }
 
   exchangeBrowserCode(args: {
@@ -125,91 +92,25 @@ export class AnthropicOauthClient implements BrowserLoginClient {
     pkce: Pkce
     redirectUri: string
   }): Promise<OauthLogin> {
-    return this.post({
-      grant_type: 'authorization_code',
-      code: args.code,
-      state: args.pkce.state,
-      redirect_uri: args.redirectUri,
-      client_id: CLIENT_ID,
-      code_verifier: args.pkce.verifier,
+    return anthropicExchangeCode({
+      ...args,
+      fetch: this.fetch,
+      nowMs: this.nowMs,
     })
   }
 
   /** The operator pastes `code#state`; the fragment is a tamper check, not part of the code. */
-  async exchange(args: { pasted: string; pkce: Pkce }): Promise<OauthLogin> {
-    const [code, pastedState] = args.pasted.trim().split('#')
-
-    if (pastedState !== undefined && pastedState !== args.pkce.state)
-      throw new OauthResponseError(
-        'the pasted code carries a different state than the login began with',
-      )
-    if (code === undefined || code.length === 0)
-      throw new OauthResponseError('the pasted value holds no code')
-
-    return this.post({
-      grant_type: 'authorization_code',
-      code,
-      state: args.pkce.state,
-      redirect_uri: REDIRECT_URL,
-      client_id: CLIENT_ID,
-      code_verifier: args.pkce.verifier,
+  exchange(args: { pasted: string; pkce: Pkce }): Promise<OauthLogin> {
+    return anthropicExchangePasted({
+      ...args,
+      fetch: this.fetch,
+      nowMs: this.nowMs,
     })
   }
 
-  async refresh(args: { refreshToken: string }): Promise<OauthTokens> {
-    const login = await this.post({
-      grant_type: 'refresh_token',
-      refresh_token: args.refreshToken,
-      client_id: CLIENT_ID,
-    })
-
-    return login.tokens
+  refresh(args: { refreshToken: string }): Promise<OauthTokens> {
+    return anthropicRefresh({ ...args, fetch: this.fetch, nowMs: this.nowMs })
   }
 
-  private async post(body: Record<string, string>): Promise<OauthLogin> {
-    const response = await this.fetch(TOKEN_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-
-    if (!response.ok) throw new OauthHttpError({ provider: 'Anthropic', status: response.status })
-
-    return this.loginFrom(await response.json())
-  }
-
-  private loginFrom(raw: unknown): OauthLogin {
-    const body = (raw ?? {}) as {
-      access_token?: unknown
-      refresh_token?: unknown
-      expires_in?: unknown
-      scope?: unknown
-      subscription_type?: unknown
-      account?: { subscription_type?: unknown; email_address?: unknown }
-    }
-
-    const accessToken = stringOr(body.access_token)
-    const refreshToken = stringOr(body.refresh_token)
-    if (accessToken === undefined || refreshToken === undefined)
-      throw new OauthResponseError('it carries no access_token or no refresh_token')
-
-    const lifetimeSeconds =
-      typeof body.expires_in === 'number' ? body.expires_in : FALLBACK_LIFETIME_SECONDS
-    const scope = stringOr(body.scope)
-    const email = stringOr(body.account?.email_address)
-    const subscription =
-      stringOr(body.subscription_type) ?? stringOr(body.account?.subscription_type)
-
-    return {
-      tokens: {
-        accessToken,
-        refreshToken,
-        expiresAt: new Date(Date.parse(this.clock.now()) + lifetimeSeconds * 1000).toISOString(),
-        ...(scope === undefined ? {} : { scopes: scope.split(/\s+/).filter(Boolean) }),
-      },
-      ...(email === undefined ? {} : { email }),
-      ...(subscription === undefined ? {} : { subscription }),
-    }
-  }
+  private readonly nowMs = (): number => Date.parse(this.clock.now())
 }

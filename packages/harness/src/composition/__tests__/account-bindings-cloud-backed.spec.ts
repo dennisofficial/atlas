@@ -4,11 +4,12 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { AccountStorePort } from '@dltech/atlas-core'
+import { AccountStorePort, EAccountOrigin } from '@dltech/atlas-core'
 
 import { createHarnessContainer } from '../../container/create-harness-container'
 import { disposeAll } from '../../container/disposal'
 import { registeredPortToken } from '../../container/injection'
+import { LocalAccountStoreToken } from '../../container/tokens'
 import { bindAccounts } from '../account-bindings'
 
 let atlasHome: string
@@ -27,7 +28,7 @@ afterEach(async () => {
 })
 
 describe('bindAccounts with cloud-backed stores', () => {
-  it('skips environment reconciliation so env keys never reach the cloud store', async () => {
+  it('keeps environment keys in the local vault, where they serve without reaching the cloud', async () => {
     const container = createHarnessContainer()
 
     await bindAccounts({
@@ -38,7 +39,9 @@ describe('bindAccounts with cloud-backed stores', () => {
       cloudBacked: true,
     })
 
-    expect(await container.resolve(registeredPortToken(AccountStorePort)).list()).toEqual([])
+    const local = await container.resolve(LocalAccountStoreToken).list()
+    expect(local.map((account) => account.origin)).toEqual([EAccountOrigin.Environment])
+    expect(await container.resolve(registeredPortToken(AccountStorePort)).list()).toEqual(local)
 
     await disposeAll({ container })
   })

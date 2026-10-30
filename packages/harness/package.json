@@ -8,6 +8,7 @@
     "./models": "./src/models/index.ts",
     "./skill-specs": "./src/skill-specs/index.ts",
     "./titling": "./src/titling/index.ts",
+    "./provider-oauth": "./src/provider-oauth/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {

@@ -1,16 +1,13 @@
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
-  createRemotePrStateReader,
-  createRemoteRosterReader,
-  EClientRequest,
-  LocalRewindMachinery,
-  RemoteCompaction,
-  RemoteMentionFiles,
-  RemoteRewindMachinery,
-  type RotationPort,
-  rewindApplyParamsOf,
-  type RewindRead,
-  type SessionRuntime,
+  podRuntimeParts,
+  RemoteSubscriptionRegistry,
+  type CloudChannel,
+  type CloudReload,
+  type PodThreadPorts,
+  type CloudStores,
+  type PodRuntimeParts,
+  type PodSurfaceReaders,
   type TurnRunner,
 } from '@dltech/atlas-harness'
 
@@ -23,73 +20,28 @@ import {
 import type { AtlasApp } from '../compose'
 import { noticePortBinding } from '../notice-binding'
 import { unstartedConversation, type OpenedConversation } from '../open-conversation'
-import type { CloudChannel, CloudStores } from '@dltech/atlas-harness'
 import { attachCloudSession, MissingCloudThreadError } from './attach-cloud'
-import { RemoteAgentRegistry } from './remote-agents'
-import { RemoteRotation } from './remote-rotation'
-import { RemoteServiceRegistry } from './remote-services'
-import { RemoteShellRegistry } from './remote-shells'
-import { RemoteSubscriptionRegistry } from './remote-subscriptions'
-import { createSharedRoster } from './roster-reader'
+import { cloudReadinessOf } from './cloud-readiness'
 
-export type CloudRuntimeParts = Pick<
-  SessionRuntime,
-  | 'runner'
-  | 'channel'
-  | 'log'
-  | 'threads'
-  | 'ledger'
-  | 'intake'
-  | 'shells'
-  | 'agents'
-  | 'services'
-  | 'rewindMachinery'
-  | 'compaction'
-  | 'files'
-> & { rotation?: RotationPort | undefined }
+export type CloudRuntimeParts = PodRuntimeParts
+
+export const publishPodSurfaceReaders = (readers: PodSurfaceReaders): void => {
+  publishPrStateReader(readers.prStates)
+  const held = activeSubscriptionRegistry()
+  if (held instanceof RemoteSubscriptionRegistry && held.channel === readers.channel) return
+  publishSubscriptionRegistry(new RemoteSubscriptionRegistry(readers.channel))
+}
 
 export const cloudRuntimeParts = (args: {
   channel: CloudChannel
   stores: CloudStores
   runner: TurnRunner
-}): CloudRuntimeParts => {
-  const roster = createSharedRoster(createRemoteRosterReader({ channel: args.channel }))
-  const prStates = createRemotePrStateReader({ channel: args.channel })
-  publishPrStateReader(prStates)
-  const held = activeSubscriptionRegistry()
-  if (!(held instanceof RemoteSubscriptionRegistry) || held.channel !== args.channel) {
-    publishSubscriptionRegistry(new RemoteSubscriptionRegistry(args.channel))
-  }
-  const shells = new RemoteShellRegistry(roster, args.channel)
-  const agents = new RemoteAgentRegistry(roster, args.channel)
-  const services = new RemoteServiceRegistry(roster, args.channel)
-  const pricing = new LocalRewindMachinery({ agents, shells, services })
-
-  return {
-    log: args.stores.log,
-    intake: undefined,
-    threads: args.stores.threads,
-    ledger: args.stores.ledger,
-    channel: args.channel,
-    runner: args.runner,
-    files: new RemoteMentionFiles({ channel: args.channel, threadId: args.channel.threadId }),
-    shells,
-    agents,
-    services,
-    compaction: new RemoteCompaction({ channel: args.channel }),
-    rotation: new RemoteRotation({ channel: args.channel }),
-    rewindMachinery: new RemoteRewindMachinery({
-      channel: {
-        apply: (applyArgs) =>
-          args.channel
-            .request({ op: EClientRequest.Rewind, params: rewindApplyParamsOf(applyArgs) })
-            .then(() => undefined),
-      },
-      read: (readArgs): Promise<RewindRead> => pricing.snapshot(readArgs),
-      notice: noticePortBinding(),
-    }),
-  }
-}
+}): CloudRuntimeParts =>
+  podRuntimeParts({
+    ...args,
+    notice: noticePortBinding(),
+    onSurfaceReaders: publishPodSurfaceReaders,
+  })
 
 export const cloudApp = (args: {
   app: AtlasApp
@@ -117,3 +69,20 @@ export async function openCloudConversation(args: {
     }
   }
 }
+
+export const podThreadPortsOf = (args: {
+  app: AtlasApp
+  threadId: ThreadId
+  onReload: (reload: CloudReload) => Promise<void>
+}): Pick<
+  PodThreadPorts<OpenedConversation>,
+  'home' | 'notice' | 'onReload' | 'open' | 'readinessOf' | 'onSurfaceReaders'
+> => ({
+  home: args.app.threads,
+  notice: noticePortBinding(),
+  onReload: args.onReload,
+  open: (runtime) =>
+    openCloudConversation({ app: { ...args.app, ...runtime }, threadId: args.threadId }),
+  readinessOf: cloudReadinessOf,
+  onSurfaceReaders: publishPodSurfaceReaders,
+})

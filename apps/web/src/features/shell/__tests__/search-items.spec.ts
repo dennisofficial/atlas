@@ -40,6 +40,16 @@ describe('searchItemsOf', () => {
       },
     ])
   })
+
+  it('finds projectless threads without listing a project for them', () => {
+    const loose = searchItemsOf([
+      { project: null, sessions: [sessionOf(threadOf({ id: 't3', title: 'Loose' }))] },
+    ])
+    expect(loose.projects).toEqual([])
+    expect(
+      loose.threads.map((item) => item.kind === ESearchKind.Thread && item.projectName),
+    ).toEqual(['No project'])
+  })
 })
 
 describe('searchHrefOf', () => {

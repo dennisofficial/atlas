@@ -3,7 +3,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { EExecutionLocation } from '@dltech/atlas-core'
 import { EConnectionView, type CloudConnection } from '@dltech/atlas-harness'
 
-import type { CloudHealth, CloudSession } from './cloud/cloud-session'
+import type { PodHealth, PodSession } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import { useAttachFailure } from './attach-failure'
 import { useSessionOwner } from './use-session-owner'
@@ -15,12 +15,12 @@ const WAKING: CloudConnection = { state: EConnectionView.Waking, detail: null }
 
 const NEVER_CHANGES = (): (() => void) => () => undefined
 
-function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
+function useCloudState(args: { app: AtlasApp; session: PodSession | null }): {
   location: EExecutionLocation
   bound: boolean
   threadId: ReturnType<typeof useSessionOwner>['threadId']
   failure: ReturnType<typeof useAttachFailure>
-  health: CloudHealth | null
+  health: PodHealth | null
 } {
   const { app, session } = args
 
@@ -45,7 +45,7 @@ function useCloudState(args: { app: AtlasApp; session: CloudSession | null }): {
  */
 export function useCloudConnection(args: {
   app: AtlasApp
-  session: CloudSession | null
+  session: PodSession | null
 }): CloudConnection | null {
   const { location, bound, threadId, failure, health } = useCloudState(args)
 
@@ -65,8 +65,8 @@ export function useCloudConnection(args: {
  */
 export function useCloudHealth(args: {
   app: AtlasApp
-  session: CloudSession | null
-}): CloudHealth | null {
+  session: PodSession | null
+}): PodHealth | null {
   const { location, bound, health } = useCloudState(args)
 
   const failure = health?.failure ?? null

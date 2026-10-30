@@ -6,7 +6,7 @@ import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
 import { useClock } from './use-clock'
 import { Bucket } from './shell-bucket'
 import { ProjectGroup } from './shell-project-group'
-import { partitionThreads, type ProjectThreads } from './thread-partition'
+import { partitionThreads, projectKeyOf, type ProjectThreads } from './thread-partition'
 
 export interface ThreadListProps {
   entries: readonly ProjectThreads[]
@@ -35,7 +35,7 @@ export function ThreadList({ entries, activeThreadId }: ThreadListProps) {
     )
   }
 
-  if (entries.length === 0) {
+  if (entries.every((entry) => entry.project === null && entry.sessions.length === 0)) {
     return (
       <SidebarGroup>
         <NoProjects />
@@ -47,15 +47,18 @@ export function ThreadList({ entries, activeThreadId }: ThreadListProps) {
   return (
     <SidebarGroup>
       <div className="flex flex-col gap-3">
-        {partition.groups.map((entry) => (
-          <ProjectGroup
-            key={entry.project.id}
-            entry={entry}
-            open={!collapsed.includes(entry.project.id)}
-            onOpenChange={(open) => handleOpenChange(entry.project.id, open)}
-            activeThreadId={activeThreadId}
-          />
-        ))}
+        {partition.groups.map((entry) => {
+          const key = projectKeyOf(entry.project)
+          return (
+            <ProjectGroup
+              key={key}
+              entry={entry}
+              open={!collapsed.includes(key)}
+              onOpenChange={(open) => handleOpenChange(key, open)}
+              activeThreadId={activeThreadId}
+            />
+          )
+        })}
         {hasBuckets && (
           <div className="flex flex-col gap-0.5">
             {partition.inactive.length > 0 && (

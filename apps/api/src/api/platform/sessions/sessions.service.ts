@@ -7,7 +7,7 @@ import { withSessions } from './thread-with-session'
 
 @Injectable()
 export class SessionsService {
-  async list(args: { userId: string; projectId: string }): Promise<WireSessionNode[]> {
+  async list(args: { userId: string; projectId: string | null }): Promise<WireSessionNode[]> {
     const top = await db.orm.public.Session.where({
       userId: args.userId,
       projectId: args.projectId,

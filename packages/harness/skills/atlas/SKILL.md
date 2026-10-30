@@ -20,7 +20,7 @@ Create only what the repo needs; each item is optional and commit the shared one
 1. Instructions: `AGENTS.md` (or `CLAUDE.md` / `ATLAS.md`) at the repo root; `*.local.md` siblings stay uncommitted.
 2. `.atlas/settings.json`: repo-wide settings overrides.
 3. `.atlas/mcp.json`: MCP servers for this repo; no secrets in it.
-4. `.atlas/services.yaml`: dev servers and APIs the agent should run and expose.
+4. `.atlas/services.yaml`: every dev server and API the agent should run and expose. A good file gives one-press previews: each app starts with one press of play or one `service_start({ name })`, and previews work first time. Follow "Writing a good services.yaml" in `references/services.md`.
 5. `.atlas/container.json` (or `.atlas/Dockerfile`): the image and setup for Docker execution.
 6. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
 7. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
@@ -47,7 +47,7 @@ Read the page for the task; do not load them all.
 | Page | Covers |
 | --- | --- |
 | `references/config.md` | Settings, instruction files, skills, agent types, MCP, verifying a change |
-| `references/services.md` | `services.yaml`, `services_ensure`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
+| `references/services.md` | Writing a good `services.yaml`, `services.yaml` fields, `services_ensure`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
 | `references/cloud.md` | Placement, Vercel sandbox setup, `/container`, sign-in and backup, parking, cloud logs |
 | `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts |
 | `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |

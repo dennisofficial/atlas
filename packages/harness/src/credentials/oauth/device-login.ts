@@ -1,21 +1,10 @@
-import type { OauthLogin } from './anthropic-oauth-client'
+import type { DeviceLogin, DevicePoll } from '../../provider-oauth'
 
-export enum EDevicePoll {
-  Pending = 'pending',
-  Complete = 'complete',
-}
-
-export type DeviceLogin = {
-  deviceAuthId: string
-  userCode: string
-  verificationUrl: string
-  intervalMs: number
-  expiresInMs: number
-}
-
-export type DevicePoll =
-  | { status: EDevicePoll.Pending }
-  | { status: EDevicePoll.Complete; login: OauthLogin }
+export {
+  EDevicePoll,
+  type DeviceLogin,
+  type DevicePoll,
+} from '../../provider-oauth'
 
 export interface DeviceLoginClient {
   startDeviceLogin(): Promise<DeviceLogin>

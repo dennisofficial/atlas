@@ -1,5 +1,7 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Progress } from '@dltech/atlas-ui/components/progress'
@@ -22,7 +24,8 @@ export function SubscriptionRow({
   signOutLabel = 'Sign out',
   account,
   busy = false,
-  signInHint,
+  signInBusy = false,
+  signInPanel,
   onSignIn,
   onSignOut,
 }: {
@@ -33,7 +36,8 @@ export function SubscriptionRow({
   signOutLabel?: string
   account: SubscriptionAccount | null
   busy?: boolean
-  signInHint?: string
+  signInBusy?: boolean
+  signInPanel?: ReactNode
   onSignIn?: () => void
   onSignOut: () => void
 }) {
@@ -47,13 +51,15 @@ export function SubscriptionRow({
             <Badge variant="outline">Not connected</Badge>
           </>
         }
-        description={signInHint ? `${idleDescription} ${signInHint}` : idleDescription}
+        description={idleDescription}
         control={
-          <Button size="sm" disabled={onSignIn === undefined} onClick={onSignIn}>
+          <Button size="sm" disabled={onSignIn === undefined || signInBusy} onClick={onSignIn}>
             {signInLabel}
           </Button>
         }
-      />
+      >
+        {signInPanel}
+      </SettingsRow>
     )
   }
   return (
