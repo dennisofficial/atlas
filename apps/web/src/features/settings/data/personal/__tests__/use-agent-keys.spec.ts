@@ -28,11 +28,11 @@ beforeEach(() => {
 })
 
 describe('agent key names', () => {
-  it('learns saved key names from secrets.names and never calls secrets.details', async () => {
+  it('learns saved key names from harnessSecrets.names and never calls secrets.*', async () => {
     const names = await loadSecretNames()
 
     expect([...names]).toEqual(['decisions.token.typesafe', 'search.tavily'])
-    expect(urls.some((url) => url.includes('secrets.names'))).toBe(true)
-    expect(urls.some((url) => url.includes('secrets.details'))).toBe(false)
+    expect(urls.some((url) => url.includes('harnessSecrets.names'))).toBe(true)
+    expect(urls.some((url) => /\/secrets\./.test(url))).toBe(false)
   })
 })

@@ -79,7 +79,7 @@ describe('live thread take-back', () => {
     expect(request?.params).toEqual({ threadId: 'thr_1' })
 
     test.reply({ index: before, data: { taken: { text: 'later', images: [], files: [] } } })
-    expect(await taken).toBe('later')
+    expect(await taken).toEqual({ text: 'later', images: [], uploads: [] })
   })
 
   it('resolves null when it is too late', async () => {

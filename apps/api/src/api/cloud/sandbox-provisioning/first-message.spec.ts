@@ -23,4 +23,18 @@ describe('userSaidDraftOf', () => {
       expect('images' in body).toBe(false)
     }
   })
+
+  it('writes uploads into the body and omits an empty list', () => {
+    const upload = {
+      uploadId: 'u1',
+      pathname: 'composer-uploads/x/u1/a.txt',
+      name: 'a.txt',
+      size: 1,
+      mediaType: 'text/plain',
+    }
+    const body = JSON.parse(userSaidDraftOf({ sendId: 's', text: 'look', uploads: [upload] }).body)
+    expect(body.uploads).toEqual([upload])
+    const empty = JSON.parse(userSaidDraftOf({ sendId: 's', text: 'look', uploads: [] }).body)
+    expect('uploads' in empty).toBe(false)
+  })
 })

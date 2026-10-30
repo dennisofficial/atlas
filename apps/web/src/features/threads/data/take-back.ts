@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-import { EPodState, type WireEvent } from '@dltech/atlas-wire/web'
+import type { SaidUpload } from '@dltech/atlas-core'
+import { EPodState, threadMessageRequestSchema, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { CloudApiError } from '@/lib/cloud-api'
 
@@ -15,9 +16,17 @@ export enum ETakeBackOutcome {
   TooLate = 'too-late',
 }
 
-export type TakeBackTarget = { sendId: string; text: string }
+export type TakeBackTarget = {
+  sendId: string
+  text: string
+  uploads: SaidUpload[]
+}
 
-const userBodySchema = z.object({ text: z.string(), requestId: z.string().optional() })
+const userBodySchema = z.object({
+  text: z.string(),
+  requestId: z.string().optional(),
+  uploads: threadMessageRequestSchema.shape.uploads,
+})
 
 export function userBodyOf(event: WireEvent): z.infer<typeof userBodySchema> | null {
   if (event.type !== USER_SAID) return null
@@ -43,7 +52,11 @@ export function takeBackTargetOf(args: {
   const last = lastCoreOf(args.events)
   const body = last === undefined ? null : userBodyOf(last)
   if (body === null || body.requestId === undefined) return null
-  return { sendId: body.requestId, text: body.text }
+  return {
+    sendId: body.requestId,
+    text: body.text,
+    uploads: body.uploads ?? [],
+  }
 }
 
 export function restoredDraftOf(args: { current: string; restored: string }): string {
@@ -64,9 +77,11 @@ export function withoutTakenBack(args: {
 export async function takeBack(args: {
   threadId: string
   sendId: string
+  request?: typeof takeBackMessage | undefined
 }): Promise<ETakeBackOutcome> {
+  const { request = takeBackMessage, ...target } = args
   try {
-    await takeBackMessage(args)
+    await request(target)
     return ETakeBackOutcome.TakenBack
   } catch (failure) {
     if (failure instanceof CloudApiError && failure.status === CONFLICT) {

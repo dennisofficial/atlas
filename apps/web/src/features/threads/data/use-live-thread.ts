@@ -17,8 +17,7 @@ import {
   type LiveThreadView,
   type ThreadModelChoice,
 } from './live-thread-view'
-import { connectPod } from './pod-connect'
-import { fetchEvents, fetchThread } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 
 const CHAT_THROTTLE_MS = 16
 const NOT_LIVE: LiveSend = () => false
@@ -38,6 +37,7 @@ export function useLiveThread(args: {
   onModelChanged?: ((model: ThreadModelChoice) => void) | undefined
 }): LiveThreadView {
   const { threadId, active } = args
+  const backend = useThreadBackend()
   const [state, setState] = useState<LiveThreadState>(IDLE_LIVE_THREAD)
   const [idleChat] = useState(() => new Chat<AtlasStepMessage>({}))
   const [session, setSession] = useState<LiveChatSession | null>(null)
@@ -56,9 +56,14 @@ export function useLiveThread(args: {
     if (!active) return undefined
     const next = createLiveChatSession({
       threadId,
-      mint: () => connectPod(threadId),
-      readSeed: () => fetchEvents(threadId),
-      readStoredModel: async () => (await fetchThread(threadId)).model,
+      mint: () => backend.mint(threadId),
+      readSeed: () => backend.fetchEvents(threadId),
+      catchUpOnConnect: backend.local,
+      ...(backend.local
+        ? {}
+        : {
+            readStoredModel: async () => (await backend.fetchThread(threadId)).model,
+          }),
       onChange: setState,
       onModelChanged: (model) => modelChangedRef.current?.(model),
       onInterruptLost: () => toast.error(INTERRUPT_LOST),
@@ -82,7 +87,7 @@ export function useLiveThread(args: {
       setSession(null)
       setState(IDLE_LIVE_THREAD)
     }
-  }, [threadId, active])
+  }, [threadId, active, backend])
 
   const chat = session?.chat ?? idleChat
   const { messages } = useChat({ chat, throttle: CHAT_THROTTLE_MS })

@@ -4,6 +4,7 @@ import type {
   EReportKind,
   ETldrStatus,
   SaidImage,
+  SaidUpload,
 } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
@@ -49,6 +50,7 @@ export type OperatorSaidEntry = {
   skills: readonly string[]
   files: readonly string[]
   images: readonly SaidImage[]
+  uploads?: readonly SaidUpload[] | undefined
 }
 
 export type ModelSaidEntry = {

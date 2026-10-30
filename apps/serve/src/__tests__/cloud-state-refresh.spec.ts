@@ -16,6 +16,7 @@ afterEach(cleanupCloudState)
 const configWith = (width: number) => ({
   settings: { [ESettingId.SidebarWidth]: encodeSettingValue(width) },
   secrets: [],
+  harnessSecrets: [],
   mcpServers: [],
   provenance: {},
 })
@@ -25,10 +26,17 @@ const rig = (options: { secrets?: unknown[] } = {}) => {
   process.env.ATLAS_HOME = home
   const settings = loadSettings({ env: {}, cwd: home })
   const env: Record<string, string | undefined> = { INHERITED: 'from-image' }
-  const state: { lease: unknown; settings: never[]; secrets: never[]; config: unknown } = {
+  const state: {
+    lease: unknown
+    settings: never[]
+    secrets: never[]
+    harnessSecrets: never[]
+    config: unknown
+  } = {
     lease: { accounts: [], active: [] },
     settings: [],
     secrets: [],
+    harnessSecrets: [],
     config: { ...configWith(50), secrets: options.secrets ?? [] },
   }
   const cloud: FakeCloud = startFakeCloud(state)
@@ -145,7 +153,10 @@ describe('per-turn Cloud refresh', () => {
     expect(env.DATABASE_URL).toBe('postgres://a')
     expect(env.INHERITED).toBe('from-image')
 
-    state.config = { ...configWith(50), secrets: [envSecret('DATABASE_URL', 'postgres://b')] }
+    state.config = {
+      ...configWith(50),
+      secrets: [envSecret('DATABASE_URL', 'postgres://b')],
+    }
     await refresh.refresh()
     expect(env.DATABASE_URL).toBe('postgres://b')
 

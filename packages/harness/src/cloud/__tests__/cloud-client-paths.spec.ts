@@ -32,11 +32,11 @@ describe('CloudClient mutation bodies', () => {
 
     expect(requests).toEqual([
       {
-        path: '/v1/trpc/secrets.set',
+        path: '/v1/trpc/harnessSecrets.set',
         method: 'POST',
         body: { name, value: 'synthetic-encrypted-blob' },
       },
-      { path: '/v1/trpc/secrets.remove', method: 'POST', body: { name } },
+      { path: '/v1/trpc/harnessSecrets.remove', method: 'POST', body: { name } },
     ])
   })
 

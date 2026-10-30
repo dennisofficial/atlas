@@ -10,12 +10,18 @@ import {
   digestOfText,
 } from '../src/skills/embedded-bundle'
 import { isSkillEntryFilename } from '../src/skills/skill'
+import { skillSpecsModule } from './skill-specs-source'
 
 const harnessRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const FILES_PER_MODULE = 100
 const IGNORED_FILENAMES: ReadonlySet<string> = new Set(['.DS_Store'])
 
-type Layout = { skillsRoot: string; manifestFile: string; chunkDirectory: string }
+type Layout = {
+  skillsRoot: string
+  manifestFile: string
+  chunkDirectory: string
+  specsFile: string
+}
 
 type SourceFile = { path: string; digest: string }
 
@@ -33,6 +39,7 @@ const defaultLayout = (): Layout => ({
   skillsRoot: join(harnessRoot, 'skills'),
   manifestFile: join(harnessRoot, 'src', 'skills', 'manifest.generated.ts'),
   chunkDirectory: join(harnessRoot, 'src', 'skills', 'bundle-files.generated'),
+  specsFile: join(harnessRoot, 'src', 'skill-specs', 'builtin.generated.ts'),
 })
 
 const byCodePoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
@@ -284,6 +291,13 @@ export async function generateSkills(args: Partial<Layout> = {}): Promise<Genera
   const skills = await authoredSkills(layout.skillsRoot)
   const emitted = await writeChunks({ layout, skills })
   await writeManifest({ layout, emitted })
+  await mkdir(dirname(layout.specsFile), { recursive: true })
+  await writeIfChanged({
+    path: layout.specsFile,
+    text: skillSpecsModule(
+      skills.map((skill) => ({ entryPath: skill.entryPath, text: skill.text })),
+    ),
+  })
   await removeStaleChunks({
     directory: layout.chunkDirectory,
     kept: new Set(emitted.flatMap((item) => item.chunkNames.map((name) => `${name}.ts`))),

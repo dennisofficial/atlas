@@ -26,17 +26,21 @@ import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { ModelsModule } from './platform/models/models.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
+import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
+import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
 import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
 import { ScopedConfigModule } from './cloud/scoped-config/scoped-config.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
+import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
+import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
 
@@ -60,20 +64,24 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
       globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
     }),
     AuthModule,
+    DesktopAuthModule,
     AccountsModule,
     OauthConnectionsModule,
     ModelsModule,
     PodLeasesModule,
     SecretsModule,
+    HarnessSecretsModule,
     SettingsModule,
     ProjectsModule,
     UserFilesModule,
+    SkillCatalogueModule,
     UserVercelModule,
     McpServersModule,
     GithubModule,
     SshSigningKeyModule,
     MemoriesModule,
     PublishedBundlesModule,
+    ComposerUploadsModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,

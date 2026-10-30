@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1f29b6b2d37c5afc2213f8109458d7518b4f21d3304c9b367f1526917851a586'>;
+  StorageHashBase<'80d413755dd13ad67ff66f9633530718bc157c37bb693509cbc2b52ccf0b3f71'>;
 export type ExecutionHash =
-  ExecutionHashBase<'2ab833cac7ff7ec81f28e078c305fa2d528bd999a302d6a4bca8a421241647c0'>;
+  ExecutionHashBase<'9edb13dd49458935156c1e79670f8e0b87f76f0e4209b475755d129798762f13'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -777,6 +777,7 @@ export namespace Models {
     githubPrEvents: public_GithubPrEvent[];
     githubRepoHooks: public_GithubRepoHook[];
     githubSubscriptions: public_GithubSubscription[];
+    harnessSecrets: public_UserHarnessSecret[];
     localPodLeases: public_LocalPodLease[];
     mcpServers: public_UserMcpServer[];
     memories: public_Memory[];
@@ -805,6 +806,7 @@ export namespace Models {
       | 'githubPrEvents'
       | 'githubRepoHooks'
       | 'githubSubscriptions'
+      | 'harnessSecrets'
       | 'localPodLeases'
       | 'mcpServers'
       | 'memories'
@@ -832,6 +834,16 @@ export namespace Models {
     tree: FieldOutputTypes['public']['UserFile']['tree'];
     updatedAt: FieldOutputTypes['public']['UserFile']['updatedAt'];
     userId: FieldOutputTypes['public']['UserFile']['userId'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
+  export type public_UserHarnessSecret = {
+    createdAt: FieldOutputTypes['public']['UserHarnessSecret']['createdAt'];
+    id: FieldOutputTypes['public']['UserHarnessSecret']['id'];
+    name: FieldOutputTypes['public']['UserHarnessSecret']['name'];
+    sealedValue: FieldOutputTypes['public']['UserHarnessSecret']['sealedValue'];
+    updatedAt: FieldOutputTypes['public']['UserHarnessSecret']['updatedAt'];
+    userId: FieldOutputTypes['public']['UserHarnessSecret']['userId'];
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
@@ -923,6 +935,7 @@ export declare const models: {
     Turn: Models.public_Turn;
     User: Models.public_User;
     UserFile: Models.public_UserFile;
+    UserHarnessSecret: Models.public_UserHarnessSecret;
     UserMcpServer: Models.public_UserMcpServer;
     UserSecret: Models.public_UserSecret;
     UserSetting: Models.public_UserSetting;
@@ -4449,6 +4462,71 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly UserHarnessSecret: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sealedValue: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['userId', 'name'];
+                  readonly name: 'UserHarnessSecret_userId_name_key';
+                },
+              ];
+              indexes: readonly [];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'UserHarnessSecret';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly UserVercelCredential: {
               columns: {
                 readonly createdAt: {
@@ -4700,6 +4778,10 @@ type ContractBase = Omit<
     readonly Turn: { readonly namespace: 'public' & NamespaceId; readonly model: 'Turn' };
     readonly User: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
     readonly UserFile: { readonly namespace: 'public' & NamespaceId; readonly model: 'UserFile' };
+    readonly UserHarnessSecret: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'UserHarnessSecret';
+    };
     readonly UserVercelCredential: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserVercelCredential';
@@ -7763,6 +7845,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
+              readonly harnessSecrets: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'UserHarnessSecret';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly localPodLeases: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -8023,6 +8116,65 @@ type ContractBase = Omit<
                 readonly revision: { readonly column: 'revision' };
                 readonly tombstonedAt: { readonly column: 'tombstonedAt' };
                 readonly tree: { readonly column: 'tree' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly UserHarnessSecret: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sealedValue: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'UserHarnessSecret';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly name: { readonly column: 'name' };
+                readonly sealedValue: { readonly column: 'sealedValue' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
               };
@@ -8635,6 +8787,15 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'UserFile';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'UserHarnessSecret';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

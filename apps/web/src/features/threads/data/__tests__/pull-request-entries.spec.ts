@@ -29,6 +29,20 @@ const live = (over: Partial<PrStateWire> & { number: number }): PrStateWire => (
 const onBranch = (branch: string) => ({ path: '/w', branch })
 
 describe('pullRequestEntriesOf', () => {
+  it('treats a host-prefixed linked repo and a bare api repo as one pull request', () => {
+    const thread = threadOf({
+      id: 't',
+      worktree: onBranch('b'),
+      pullRequests: [{ ...linked(7, 'b', 'open'), repo: 'github.com/o/r' }],
+    })
+    const entries = pullRequestEntriesOf({
+      thread,
+      states: [live({ number: 7, checksPassed: 6 })],
+    })
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.checksPassed).toBe(6)
+  })
+
   it('lists linked pull requests oldest first', () => {
     const thread = threadOf({
       id: 't',

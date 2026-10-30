@@ -27,7 +27,13 @@ const workspace = {
   additionalRepos: [],
   githubToken: null,
 }
-const emptyConfig = { settings: {}, secrets: [], mcpServers: [], provenance: {} }
+const emptyConfig = {
+  settings: {},
+  secrets: [],
+  harnessSecrets: [],
+  mcpServers: [],
+  provenance: {},
+}
 
 describe('throttle opt-out on the serve-facing routes', () => {
   useTestDatabase()

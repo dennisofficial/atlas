@@ -51,7 +51,9 @@ export function createLiveThreadActions(args: {
       op: EClientRequest.TakeBackPending,
       params: { threadId: args.threadId },
     })
-    return takeBackPendingReplySchema.parse(reply).taken?.text ?? null
+    const taken = takeBackPendingReplySchema.parse(reply).taken
+    if (taken === null) return null
+    return { text: taken.text, images: taken.images, uploads: taken.uploads ?? [] }
   }
 
   const interrupt: LiveInterrupt = () => {

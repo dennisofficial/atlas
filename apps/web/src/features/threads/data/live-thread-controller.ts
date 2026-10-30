@@ -44,6 +44,7 @@ export type LiveThreadControllerArgs = {
   readSeed: () => Promise<WireEvent[]>
   onChange: (state: LiveThreadState) => void
   onModelChanged?: (model: { ref: string; effort: string }) => void
+  catchUpOnConnect?: boolean
   readStoredModel?: () => Promise<{ ref: string; effort: string } | undefined>
   onStepOpened?: () => void
   onReset?: () => void
@@ -194,6 +195,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       reminted = 0
       update({ live: true })
       if (!connected) void recheckModel(live)
+      if (!connected && args.catchUpOnConnect) void readFromHead(live)
       connected = true
       return
     }
@@ -262,10 +264,10 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
   }
 
-  const send: LiveSend = ({ text, requestId, images }) => {
+  const send: LiveSend = ({ text, requestId, images, uploads }) => {
     if (stopped || fellBack || channel === null) return false
     if (channel.connection().state !== EConnectionView.Connected) return false
-    channel.send({ text, requestId, images })
+    channel.send({ text, requestId, images, uploads })
     return true
   }
 

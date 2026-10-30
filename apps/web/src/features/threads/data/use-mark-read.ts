@@ -4,7 +4,7 @@ import { usePageVisible } from '@/lib/use-page-visible'
 
 import { createMarkReadScheduler, type MarkReadScheduler } from './mark-read-scheduler'
 import type { ThreadSignalHub } from './thread-signal-hub'
-import { markThreadRead } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 
 export function useMarkRead(args: {
   threadId: string
@@ -12,13 +12,14 @@ export function useMarkRead(args: {
   head: number | undefined
 }) {
   const { threadId, signals, head } = args
+  const { markRead } = useThreadBackend()
   const visible = usePageVisible()
   const scheduler = useRef<MarkReadScheduler | undefined>(undefined)
 
   useEffect(() => {
     if (!visible) return undefined
     const created = createMarkReadScheduler({
-      send: (seq) => markThreadRead({ threadId, seq }),
+      send: (seq) => markRead({ threadId, seq }),
     })
     scheduler.current = created
     const stopListening = signals.listen({ onHead: created.push })
@@ -27,7 +28,7 @@ export function useMarkRead(args: {
       created.stop()
       scheduler.current = undefined
     }
-  }, [threadId, signals, visible])
+  }, [threadId, signals, visible, markRead])
 
   useEffect(() => {
     if (head !== undefined) scheduler.current?.push(head)

@@ -1,0 +1,103 @@
+html[data-desktop]:not([data-fullscreen]) [data-slot="sidebar-inner"] > :first-child {
+  box-sizing: border-box;
+  height: calc(var(--spacing) * 13);
+  padding-block: 0;
+  padding-left: calc(var(--spacing) * 22);
+}
+
+html[data-desktop]:not([data-fullscreen])
+  [data-slot="sidebar"][data-state="collapsed"]
+  [data-slot="sidebar-inner"]
+  > :first-child {
+  height: auto;
+  margin-top: calc(var(--spacing) * 13);
+  padding: calc(var(--spacing) * 2);
+}
+
+html[data-desktop]:not([data-fullscreen]) header[data-chrome] {
+  height: calc(var(--spacing) * 13);
+}
+
+html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
+  padding-left: calc(var(--spacing) * 22);
+}
+
+html[data-desktop]:not([data-fullscreen])
+  [data-slot="sidebar"][data-state="collapsed"]
+  ~ [data-slot="sidebar-inset"]
+  header[data-chrome="titlebar"] {
+  padding-left: calc(var(--spacing) * 22);
+}
+
+html[data-desktop]
+  :is(
+    header,
+    nav,
+    label,
+    button,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    [data-slot="sidebar-inner"]
+  ) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html[data-desktop] :is(input, textarea, pre, code, [contenteditable], [data-slot="code-block"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+html[data-desktop]
+  :is(
+    button,
+    summary,
+    select,
+    label[for],
+    [role="button"],
+    [role="tab"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="menuitem"],
+    a[data-slot="button"],
+    header a,
+    [data-slot="sidebar-inner"] a
+  ):not(:disabled, [aria-disabled="true"], [data-disabled]) {
+  cursor: default;
+}
+
+html[data-vibrancy],
+html[data-vibrancy] body:has([data-slot="sidebar-wrapper"]),
+html[data-vibrancy] [data-slot="sidebar-wrapper"],
+html[data-vibrancy] [data-slot="sidebar-inner"] {
+  background: transparent;
+}
+
+html[data-vibrancy] [data-slot="sidebar-inset"] {
+  background: var(--background);
+}
+
+html[data-vibrancy]
+  :is(
+    [data-slot="dialog-content"],
+    [data-slot="popover-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="select-content"],
+    [data-slot="hover-card-content"],
+    [data-slot="sheet-content"],
+    [data-slot="command"],
+    [data-sonner-toast]
+  ) {
+  background: var(--popover);
+}
+
+[data-desktop-drag-strip] {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 0;
+  height: calc(var(--spacing) * 13);
+}

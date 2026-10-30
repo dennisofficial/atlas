@@ -120,16 +120,17 @@ describe('PromptInput paste', () => {
     await unmount()
   })
 
-  it('attaches only the image files of a mixed file paste', async () => {
+  it('attaches every file of a mixed file paste', async () => {
     const attached: File[][] = []
     const { field, unmount } = await mount(<PromptInput onAttachFiles={(f) => attached.push(f)} />)
     const image = screenshot()
+    const pdf = screenshot('notes.pdf', 'application/pdf')
 
     await act(async () => {
-      pasteInto({ field, data: {}, files: [screenshot('notes.pdf', 'application/pdf'), image] })
+      pasteInto({ field, data: {}, files: [pdf, image] })
     })
 
-    expect(attached).toEqual([[image]])
+    expect(attached).toEqual([[pdf, image]])
     await unmount()
   })
 

@@ -4,6 +4,7 @@ import {
   type EventDraft,
   type SaidFile,
   type SaidImage,
+  type SaidUpload,
 } from '@dltech/atlas-core'
 import { EPendingEdit } from '@dltech/atlas-wire'
 import type { InputBatch } from '../intake/input-batch'
@@ -12,6 +13,7 @@ export type PendingSaid = {
   text: string
   images: readonly SaidImage[]
   files: readonly SaidFile[]
+  uploads?: readonly SaidUpload[] | undefined
   context?: readonly EventDraft[] | undefined
   via?: EMessageOrigin | undefined
   requestId?: string | undefined
@@ -36,6 +38,7 @@ export type PendingQueue<Command = never> = {
     text: string
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
+    uploads?: readonly SaidUpload[] | undefined
     context?: readonly EventDraft[] | undefined
     via?: EMessageOrigin | undefined
     requestId?: string | undefined
@@ -110,7 +113,7 @@ export function createPendingQueue<Command = never>(
 
     reserved: (entryId) => reserved.has(entryId),
 
-    enqueue({ text, images, files, context, via, requestId }) {
+    enqueue({ text, images, files, uploads, context, via, requestId }) {
       settle([
         ...entries,
         {
@@ -119,6 +122,7 @@ export function createPendingQueue<Command = never>(
           text,
           images: images ?? NO_IMAGES,
           files: files ?? NO_FILES,
+          ...(uploads === undefined || uploads.length === 0 ? {} : { uploads }),
           ...(context === undefined ? {} : { context }),
           ...(via === undefined ? {} : { via }),
           ...(requestId === undefined ? {} : { requestId }),

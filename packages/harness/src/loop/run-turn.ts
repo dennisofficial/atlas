@@ -11,6 +11,7 @@ import {
   type EventLogPort,
   type SaidFile,
   type SaidImage,
+  type SaidUpload,
   type IdPort,
   type LogPort,
   type LoopCut,
@@ -21,6 +22,7 @@ import {
 import { modelFailureDiagnosticsOf } from '../model/failure-diagnostics'
 import { logFieldsOf } from '../store/logs'
 import type { HookChain } from '../hooks/registry'
+import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { ApplyLoopCut } from '../store/sessions/ops/cut-loop'
 import type { ToolDispatcher } from '../tools/dispatch'
 import type { LoopWatch } from './loop-watchdog'
@@ -63,6 +65,7 @@ export type TurnDeps = {
   onContext?: ((args: { tokens: number; window: number }) => void) | undefined
   dispatch?: ToolDispatcher | undefined
   hooks?: HookChain | undefined
+  uploads?: SaidUploadsPort | undefined
   drainPending?: ((args: { threadId: ThreadId }) => Promise<PendingDrain>) | undefined
   expandContext?: ExpandContext | undefined
   spend?: TurnLedgerDeps | undefined
@@ -116,6 +119,7 @@ export class LoopTurnRunner extends TurnRunner {
       onChunk: deps.onChunk,
       onContext: deps.onContext,
       hooks: deps.hooks,
+      uploads: deps.uploads,
       drainPending: deps.drainPending,
       settlePending:
         deps.dispatch === undefined
@@ -177,6 +181,7 @@ export class LoopTurnRunner extends TurnRunner {
     requestId,
     images,
     files,
+    uploads,
     context,
     signal,
     pause,
@@ -186,6 +191,7 @@ export class LoopTurnRunner extends TurnRunner {
     requestId?: string | undefined
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
+    uploads?: readonly SaidUpload[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal
@@ -195,7 +201,7 @@ export class LoopTurnRunner extends TurnRunner {
     await this.log.append({
       threadId,
       runId: this.ids.nextRunId(),
-      drafts: [...held, ...expanded, saidBody({ text, requestId, images, files })],
+      drafts: [...held, ...expanded, saidBody({ text, requestId, images, files, uploads })],
     })
     return this.runTurn({
       threadId,
@@ -213,7 +219,12 @@ export class LoopTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
-    await appendResumeDrafts({ log: this.log, ids: this.ids, threadId })
+    await appendResumeDrafts({
+      log: this.log,
+      ids: this.ids,
+      threadId,
+      expandContext: this.expandContext,
+    })
     return this.runTurn({
       threadId,
       ...(signal === undefined ? {} : { signal }),

@@ -17,6 +17,7 @@ export type CloudSecret = { name: string; value: string }
 export type CloudConfig = {
   settings: readonly { key: string; value: string }[]
   secrets: readonly CloudSecret[]
+  harnessSecrets: readonly CloudSecret[]
   mcpServers: readonly ScopedMcpServer[]
   fileMounts: readonly ScopedFileMount[]
 }

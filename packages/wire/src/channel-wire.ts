@@ -8,6 +8,7 @@ import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
 import { subscriptionsWireSchema } from './subscription-wire'
 import { terminalExitWireSchema, terminalOutputWireSchema } from './terminal-wire'
+import { MAX_MESSAGE_UPLOADS, saidUploadWireSchema } from './upload-wire'
 
 export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
 
@@ -213,6 +214,7 @@ export const takeBackPendingReplySchema = z.object({
       text: z.string(),
       images: z.array(saidImageWireSchema).readonly(),
       files: z.array(saidFileWireSchema).readonly(),
+      uploads: z.array(saidUploadWireSchema).readonly().optional(),
       context: z.array(z.unknown()).readonly().optional(),
     })
     .nullable(),
@@ -298,6 +300,7 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     requestId: z.string().min(1).optional(),
     images: z.array(saidImageWireSchema).readonly().optional(),
     files: z.array(saidFileWireSchema).readonly().optional(),
+    uploads: z.array(saidUploadWireSchema).max(MAX_MESSAGE_UPLOADS).readonly().optional(),
     context: z.array(z.unknown()).readonly().optional(),
   }),
   z.object({ kind: z.literal(EClientFrame.Run), resume: z.boolean().optional() }),

@@ -3,8 +3,6 @@ import { EAccountOrigin, EAccountStatus, EAuthKind, EAuthProvider } from '@dltec
 import { trpcFailure, trpcOk } from './trpc-fake'
 
 export const SANDBOX_CONFIG_PATH = '/v1/trpc/sandboxConfig.get'
-export const SETTINGS_LIST_PATH = '/v1/trpc/settings.list'
-export const SECRETS_LIST_PATH = '/v1/trpc/secrets.list'
 
 export const sandboxConfigSearch = (projectId: string): string =>
   `?input=${encodeURIComponent(JSON.stringify({ projectId }))}`
@@ -41,7 +39,11 @@ export const oauthAccount = (args: { id: string; connectionId: string }) => ({
   updatedAt: '2026-10-20T00:00:00.000Z',
   secret: {
     kind: EAuthKind.Oauth,
-    tokens: { accessToken: 'fake-access', refreshToken: '', expiresAt: '2099-01-01T00:00:00.000Z' },
+    tokens: {
+      accessToken: 'fake-access',
+      refreshToken: '',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    },
     authority: { url: 'https://cloud.test', connectionId: args.connectionId },
   },
 })
@@ -50,6 +52,7 @@ export type FakeCloudState = {
   lease: unknown
   settings: { key: string; value: string }[]
   secrets: { name: string; value: string }[]
+  harnessSecrets: { name: string; value: string }[]
   config?: unknown
 }
 
@@ -59,6 +62,15 @@ export type FakeCloud = {
   unauthorizedUntil: { remaining: number }
   stop: () => Promise<void>
 }
+
+const configOf = (state: FakeCloudState) => ({
+  settings: Object.fromEntries(state.settings.map((setting) => [setting.key, setting.value])),
+  secrets: state.secrets,
+  harnessSecrets: state.harnessSecrets,
+  mcpServers: [],
+  fileMounts: [],
+  provenance: {},
+})
 
 export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
   const requests: FakeCloud['requests'] = []
@@ -76,12 +88,7 @@ export const startFakeCloud = (state: FakeCloudState): FakeCloud => {
         return unauthorized('not registered yet')
       }
       if (path === '/v1/trpc/accountLease.get') return trpcOk(state.lease)
-      if (path === SANDBOX_CONFIG_PATH)
-        return state.config === undefined
-          ? trpcFailure({ status: 404, message: 'no such procedure' })
-          : trpcOk(state.config)
-      if (path === SETTINGS_LIST_PATH) return trpcOk({ settings: state.settings })
-      if (path === SECRETS_LIST_PATH) return trpcOk({ secrets: state.secrets })
+      if (path === SANDBOX_CONFIG_PATH) return trpcOk(state.config ?? configOf(state))
       return new Response('not found', { status: 404 })
     },
   })

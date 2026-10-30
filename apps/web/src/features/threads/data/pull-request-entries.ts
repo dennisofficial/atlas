@@ -14,8 +14,12 @@ export type PullRequestEntry = {
   via: { threadId: string; title: string | null } | undefined
 }
 
+const GITHUB_HOST_PREFIX = /^github\.com\//i
+
+const repoIdentityOf = (repo: string): string => repo.replace(GITHUB_HOST_PREFIX, '').toLowerCase()
+
 export const pullRequestKeyOf = (pullRequest: { repo: string; number: number }): string =>
-  `${pullRequest.repo}#${pullRequest.number}`
+  `${repoIdentityOf(pullRequest.repo)}#${pullRequest.number}`
 
 function entryOf(args: {
   repo: string

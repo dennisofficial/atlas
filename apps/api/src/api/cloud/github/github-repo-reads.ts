@@ -27,7 +27,19 @@ interface RestBranch {
 }
 
 interface RestTree {
-  tree: { path: string; type: string }[]
+  sha: string
+  tree: { path: string; type: string; sha: string }[]
+  truncated: boolean
+}
+
+interface RestBlob {
+  content: string
+  encoding: string
+}
+
+export type RepoTreeSnapshot = {
+  sha: string
+  entries: { path: string; kind: ERepoTreeEntryKind; sha: string }[]
   truncated: boolean
 }
 
@@ -78,6 +90,20 @@ export class GithubRepoReads {
     repo: string
     ref: string
   }): Promise<ProjectRepoTree> {
+    const snapshot = await this.listTreeSnapshot(args)
+    return {
+      entries: snapshot.entries.map(({ path, kind }) => ({ path, kind })),
+      truncated: snapshot.truncated,
+    }
+  }
+
+  async listTreeSnapshot(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    ref: string
+  }): Promise<RepoTreeSnapshot> {
     const ref = args.ref.split('/').map(encodeURIComponent).join('/')
     const result = await this.get<RestTree>({
       source: args.source,
@@ -87,14 +113,33 @@ export class GithubRepoReads {
       if (failure instanceof GithubUserReadFailed && failure.status === HTTP_CONFLICT) return null
       throw failure
     })
-    if (result === null) return { entries: [], truncated: false }
+    if (result === null) return { sha: '', entries: [], truncated: false }
     return {
+      sha: result.sha,
       entries: result.tree.flatMap((entry) => {
         const kind = TREE_KINDS[entry.type]
-        return kind === undefined ? [] : [{ path: entry.path, kind }]
+        return kind === undefined ? [] : [{ path: entry.path, kind, sha: entry.sha }]
       }),
       truncated: result.truncated,
     }
+  }
+
+  async readBlob(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    sha: string
+  }): Promise<string> {
+    const blob = await this.get<RestBlob>({
+      source: args.source,
+      token: args.token,
+      path: `/repos/${args.owner}/${args.repo}/git/blobs/${args.sha}`,
+    })
+    if (blob.encoding !== 'base64') {
+      throw new GithubUserReadFailed(`github sent a ${blob.encoding} blob`, 502)
+    }
+    return Buffer.from(blob.content, 'base64').toString('utf8')
   }
 
   private async get<T>(args: {

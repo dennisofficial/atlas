@@ -9,6 +9,8 @@ import { seedUsers } from './session-seed'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
+import { HarnessSecretsRouter } from '../src/api/cloud/harness-secrets/harness-secrets.router'
+import { HarnessSecretsService } from '../src/api/cloud/harness-secrets/harness-secrets.service'
 import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SettingsRouter } from '../src/api/cloud/settings/settings.router'
@@ -25,7 +27,7 @@ import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session
 const LEASE = '/v1/trpc/accountLease.get'
 const ACCOUNTS_LIST = '/v1/trpc/accounts.list'
 const SETTINGS_LIST = '/v1/trpc/settings.list'
-const SECRETS_LIST = '/v1/trpc/secrets.list'
+const SECRETS_LIST = '/v1/trpc/harnessSecrets.list'
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 const POD_TOKENS: Record<string, { threadId: string; userId: string }> = {
@@ -39,7 +41,9 @@ type AccountSeed = { id: string; userId: string; secret: AccountSecretDto; creat
 
 const countWrites = async (): Promise<{ settings: number; secrets: number }> => ({
   settings: (await db.orm.public.UserSetting.all()).length,
-  secrets: (await db.orm.public.UserSecret.all()).length,
+  secrets:
+    (await db.orm.public.UserSecret.all()).length +
+    (await db.orm.public.UserHarnessSecret.all()).length,
 })
 
 describe('account lease and pod-reachable settings and secrets', () => {
@@ -114,10 +118,10 @@ describe('account lease and pod-reachable settings and secrets', () => {
       ['user-a', 'vercel-a'],
       ['user-b', 'vercel-b'],
     ] as const) {
-      await db.orm.public.UserSecret.create({
-        id: `sec_${userId}`,
+      await db.orm.public.UserHarnessSecret.create({
+        id: `hsec_${userId}`,
         userId,
-        name: 'VERCEL_TOKEN',
+        name: 'search.tavily',
         sealedValue: cipher.encrypt(JSON.stringify(value)),
         createdAt: stamp,
         updatedAt: stamp,
@@ -130,9 +134,11 @@ describe('account lease and pod-reachable settings and secrets', () => {
         AccountLeaseRouter,
         SettingsRouter,
         SecretsRouter,
+        HarnessSecretsRouter,
         AccountsService,
         SettingsService,
         SecretsService,
+        HarnessSecretsService,
         SessionMiddleware,
         SessionOrSandboxMiddleware,
         { provide: SecretCipherService, useValue: cipher },
@@ -236,7 +242,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
       { key: 'sandbox.image', value: 'image-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
     expect(secrets.body.result.data.secrets).toEqual([
-      { name: 'VERCEL_TOKEN', value: 'vercel-a', updatedAt: '2026-10-03T00:00:00.000Z' },
+      { name: 'search.tavily', value: 'vercel-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
   })
 

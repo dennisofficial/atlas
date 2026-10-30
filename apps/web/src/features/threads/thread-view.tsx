@@ -1,12 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import { liveSteps } from '@dltech/atlas-client/transcript'
 
-import { CloudApiError } from '@/lib/cloud-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { headerStateOf, spawnerIdOf } from './data/header-model'
@@ -15,13 +13,13 @@ import { clearedDraftOf } from './data/composer-handoff'
 import { notConfiguredOf } from './data/not-configured'
 import { restoredDraftOf } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
-import { fetchThread } from './data/threads-api'
+import { useThreadBackend } from './data/use-thread-backend'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
-import { useComposerImages } from './data/use-composer-images'
+import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
@@ -37,6 +35,7 @@ import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { useThreadSubmit } from './data/use-thread-submit'
 import { useTakeBackEscape } from './data/use-take-back-escape'
 import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
@@ -51,6 +50,7 @@ import { isBootStarting } from './sandbox-boot-props'
 import { ThreadComposer } from './thread-composer'
 import { ThreadHeader } from './thread-header'
 import { ThreadLayout } from './thread-layout'
+import { ThreadLoadError } from './thread-load-error'
 import { ThreadMissing } from './thread-missing'
 import { ThreadTranscript } from './thread-transcript'
 import { RewindDialog } from './transcript/rewind-dialog'
@@ -59,9 +59,10 @@ const NOT_FOUND = 404
 const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…'
 
 export function ThreadView({ threadId }: { threadId: string }) {
+  const backend = useThreadBackend()
   const thread = useCloudQuery({
     key: threadId,
-    load: () => fetchThread(threadId),
+    load: () => backend.fetchThread(threadId),
   })
   const [liveEligible, setLiveEligible] = useState(false)
   const model = useThreadModel({ threadId, stored: thread.data?.model })
@@ -80,12 +81,16 @@ export function ThreadView({ threadId }: { threadId: string }) {
   })
   const { events, steps, outputs, loaded, error, working, channel, sendLive, chooseModel } = source
   const { sending, send, retryBoot } = useSend()
+  const { afterConnect } = backend
+  useEffect(() => {
+    if (source.live) afterConnect({ threadId, send: sendLive })
+  }, [source.live, afterConnect, threadId, sendLive])
   const rightPanel = useRightPanel()
   const pullRequests = usePullRequests({ threadId, channel, thread: thread.data })
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
-  const images = useComposerImages()
+  const images = useComposerAttachments()
 
   const { pod, refresh } = usePodStatus({ threadId, signals })
   const { visible, handleEscape } = useTakeBackEscape({
@@ -93,6 +98,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     events,
     podState: pod?.state ?? null,
     setDraft,
+    onRestoreUploads: (uploads) => images.restore({ uploads, images: [] }),
   })
   const parsed = useMemo(() => eventsFromWire(visible), [visible])
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
@@ -108,7 +114,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     source,
     picker: model.picker,
     selection: model.selection,
-    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+    onRestore: (taken) => {
+      setDraft((current) => restoredDraftOf({ current, restored: taken.text }))
+      images.restore({ uploads: taken.uploads, images: taken.images })
+    },
   })
   const operator = useOperatorInput(source)
   const handoff = useComposerHandoff({
@@ -153,25 +162,26 @@ export function ThreadView({ threadId }: { threadId: string }) {
     threadId,
     channel,
     live: source.live,
+    projectId: thread.data?.projectId,
     working,
     rightPanel,
     retryBoot,
     refresh,
   })
 
-  const handleSubmit = async (text: string) => {
-    if (await commands.handleCommand(text)) {
-      setDraft('')
-      return
-    }
-    if (!images.checkBudget()) return
-    const sent = await send({ threadId, text, images: images.images, liveSend: sendLive })
-    if (sent === null) return
-    images.clear()
-    handoff.begin(sent)
-    source.refreshEvents()
-    refresh()
-  }
+  const handleSubmit = useThreadSubmit({
+    threadId,
+    handleCommand: commands.handleCommand,
+    attachments: images,
+    send,
+    sendLive,
+    setDraft,
+    onSent: (sent) => {
+      handoff.begin(sent)
+      source.refreshEvents()
+      refresh()
+    },
+  })
   const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
   const handleRetryBoot = async () => {
@@ -209,6 +219,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
         waitingOnOperator: source.waitingOnOperator,
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
+      local={backend.local}
       onOpenPanel={() => rightPanel.setSheetOpen(true)}
     />
   )
@@ -223,16 +234,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
           sheetOpen={rightPanel.sheetOpen}
           onSheetOpenChange={rightPanel.setSheetOpen}
         >
-          {error !== null && !loaded ? (
-            <div className="mx-auto w-full max-w-3xl px-4 pt-4">
-              <Alert variant="destructive">
-                <AlertTitle>Couldn&apos;t load this thread</AlertTitle>
-                <AlertDescription>
-                  {error instanceof CloudApiError ? error.message : String(error)}
-                </AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
+          {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
           <ThreadMainSlot
             footer={
               <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
@@ -257,7 +259,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onValueChange={setDraft}
                   onSubmit={handleSubmit}
                   onEscape={() => void handleEscape()}
-                  sending={sending || handoff.waiting || images.encoding}
+                  sending={sending || handoff.waiting || images.uploading}
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}
