@@ -1,3 +1,5 @@
+import { encodeSettingValue } from '@dltech/atlas-wire/web'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
@@ -80,6 +82,25 @@ describe('GithubSandboxWakeService resume', () => {
       ATLAS_API_PROVISIONED: '1',
       ATLAS_TELEMETRY_IDENTITY: podTelemetryIdentity({ userId: 'usr-1', pepper: WAKE_PEPPER }),
     })
+  })
+
+  it("boots an owner-credential row at the owner's sandbox.vcpus size", async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    await db.orm.public.UserSetting.create({
+      id: 'set-1',
+      userId: 'usr-1',
+      key: 'sandbox.vcpus',
+      value: encodeSettingValue(6),
+    })
+    const { boot, calls } = fakeBoot()
+
+    serviceWith({ boot, credentials: { ownerCredential: true, userId: 'usr-1' } }).notifyEvent(
+      PR_EVENT,
+    )
+    await flushDebounce()
+
+    expect(calls[0]?.vcpus).toBe(6)
   })
 
   it('omits the telemetry identity when the owner is not known', async () => {

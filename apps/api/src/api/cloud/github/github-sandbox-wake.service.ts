@@ -22,6 +22,7 @@ import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'
 import { failureText, SANDBOX_WAKE_BOOT, type SandboxWakeBoot } from './github-sandbox-wake-boot'
 import { apiProvisionedEnvironment } from '../sandbox-provisioning/pod-telemetry-identity'
+import { podVcpusOf } from '../sandbox-provisioning/pod-size'
 
 export { WAKE_DEBOUNCE_MS }
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000
@@ -224,6 +225,7 @@ export class GithubSandboxWakeService {
     })
     const { serveUrl, created } = await this.bootAdapter.boot({
       credentials,
+      vcpus: ownerCredential ? await podVcpusOf({ sessionId: row.sessionId, userId }) : undefined,
       ...(ownerCredential
         ? {
             injectVercelCredentials: false,

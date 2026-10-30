@@ -26,6 +26,8 @@ export type WakeBootArgs = {
   name: string
   threadId: string
   image: string
+  /** Creation-time size; Vercel ignores it when the sandbox resumes. */
+  vcpus?: number | undefined
   cloudUrl: string
   serveVersion: string | undefined
   freshToken: string
@@ -131,6 +133,7 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
       credentials: args.credentials,
       name: args.name,
       image: args.image,
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       threadId: args.threadId,
       token: args.freshToken,
       ...(args.injectVercelCredentials === undefined

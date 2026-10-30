@@ -18,6 +18,7 @@ import {
   type PodProvisionPayload,
 } from './pod-provision.contract'
 import { apiProvisionedEnvironment } from './pod-telemetry-identity'
+import { podVcpusOf } from './pod-size'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
@@ -71,11 +72,13 @@ export async function runPodProvision(args: {
       sessionPromise,
     ])
     const credentials = await deps.scoped.vercelCredentials({ thread })
+    const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const { serveUrl } = await deps.boot.boot({
       credentials,
       name: row.name,
       threadId,
       image: deps.image,
+      vcpus,
       cloudUrl: deps.cloudUrl,
       serveVersion: undefined,
       freshToken: token,
