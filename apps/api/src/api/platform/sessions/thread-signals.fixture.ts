@@ -8,6 +8,7 @@ export function recordingSignals(): {
   listFramesOf: (userId: string) => ThreadListFrame[]
 } {
   const signals = new ThreadSignalsService(new DrainStateService())
+  signals.threadChanged = () => {}
   const seen = new Map<string, ThreadStreamFrame[]>()
   const framesOf = (threadId: string): ThreadStreamFrame[] => {
     const known = seen.get(threadId)

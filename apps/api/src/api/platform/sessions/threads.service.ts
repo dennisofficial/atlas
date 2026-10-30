@@ -302,7 +302,7 @@ export class ThreadsService {
       modelRef: args.draft.ref,
       modelEffort: args.draft.effort,
     })
-    await this.signals.threadChanged({ threadId: args.threadId })
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async adopt(args: {
@@ -319,7 +319,7 @@ export class ThreadsService {
       workspace: args.draft.workspace,
       ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
     })
-    await this.signals.threadChanged({ threadId: args.threadId })
+    this.signals.threadChanged({ threadId: args.threadId })
   }
 
   private ownedThread(args: { userId: string; threadId: string }) {

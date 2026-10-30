@@ -6,7 +6,9 @@ import {
   type ThreadListFrame,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
-import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
+import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
+import { BackgroundWork } from '../../../_core/ports/background-work'
+import { ProcessBackgroundWork } from '../../../_lib/background-work/background-work.providers'
 import { bumpAndEnrichThread } from './thread-changed'
 import { DrainStateService } from '../health/drain-state.service'
 import {
@@ -59,11 +61,14 @@ export class ThreadSignalsService implements OnModuleDestroy {
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly listStreams = new Map<string, Set<OpenListStream>>()
   private readonly changeWatches = new Map<string, Set<OpenChangeWatch>>()
+  private readonly changing = new Map<string, { dirty: boolean; done: Promise<void> }>()
   private subscribed = false
 
   constructor(
     drain: DrainStateService,
     private readonly bus: ThreadSignalBus = new InProcessThreadSignalBus(),
+    @Inject(BackgroundWork)
+    private readonly background: BackgroundWork = new ProcessBackgroundWork(),
   ) {
     drain.onDrain(() => this.closeAll())
   }
@@ -135,12 +140,39 @@ export class ThreadSignalsService implements OnModuleDestroy {
     }
   }
 
-  async threadChanged(args: { threadId: string }): Promise<void> {
+  threadChanged(args: { threadId: string }): void {
+    const running = this.changing.get(args.threadId)
+    if (running !== undefined) {
+      running.dirty = true
+      return
+    }
+    const entry = { dirty: false, done: Promise.resolve() }
+    this.changing.set(args.threadId, entry)
+    entry.done = this.runChanges({ threadId: args.threadId, entry })
+    this.background.keepAlive(entry.done)
+  }
+
+  async changesSettled(): Promise<void> {
+    while (this.changing.size > 0) {
+      await Promise.all([...this.changing.values()].map((entry) => entry.done))
+    }
+  }
+
+  private async runChanges(args: { threadId: string; entry: { dirty: boolean } }): Promise<void> {
     try {
-      const changed = await bumpAndEnrichThread({ threadId: args.threadId })
-      if (changed !== null) await this.publish(changed)
-    } catch (failure) {
-      this.logger.warn(`publishing the change of ${args.threadId} failed: ${String(failure)}`)
+      do {
+        args.entry.dirty = false
+        try {
+          const changed = await bumpAndEnrichThread({
+            threadId: args.threadId,
+          })
+          if (changed !== null) await this.publish(changed)
+        } catch (failure) {
+          this.logger.warn(`publishing the change of ${args.threadId} failed: ${String(failure)}`)
+        }
+      } while (args.entry.dirty)
+    } finally {
+      this.changing.delete(args.threadId)
     }
   }
 
@@ -157,7 +189,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
       threadId: args.threadId,
       frame: { type: EThreadStreamFrame.Head, head: args.head },
     })
-    await this.threadChanged({ threadId: args.threadId })
+    this.threadChanged({ threadId: args.threadId })
   }
 
   titleChanged(args: { threadId: string }): Promise<void> {
@@ -176,7 +208,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
     await this.publish(
       activity === undefined ? { userId, threadId } : { userId, threadId, activity },
     )
-    await this.threadChanged({ threadId })
+    this.threadChanged({ threadId })
   }
 
   async podChanged(args: { threadId: string }): Promise<void> {
