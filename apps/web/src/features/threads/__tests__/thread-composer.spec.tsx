@@ -29,11 +29,17 @@ const mount = async (element: ReactElement) => {
 const buttonLabelled = (label: string) =>
   document.body.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
 
-const composer = (props: { value?: string; working?: boolean; onStop?: () => void }) => (
+const composer = (props: {
+  value?: string
+  working?: boolean
+  onStop?: () => void
+  onEscape?: () => void
+}) => (
   <ThreadComposer
     value={props.value ?? ''}
     onValueChange={() => undefined}
     onSubmit={() => undefined}
+    onEscape={props.onEscape}
     sending={false}
     {...(props.working === undefined ? {} : { working: props.working })}
     {...(props.onStop === undefined ? {} : { onStop: props.onStop })}
@@ -72,6 +78,52 @@ describe('ThreadComposer', () => {
 
     expect(buttonLabelled('Stop')).not.toBeNull()
     expect(buttonLabelled('Send')?.disabled).toBe(false)
+    await unmount()
+  })
+
+  const pressEscape = async () => {
+    const textarea = document.body.querySelector('textarea')
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    await act(async () => {
+      textarea?.dispatchEvent(event)
+    })
+    return event
+  }
+
+  it('interrupts the turn on Escape while working and claims the key', async () => {
+    let stops = 0
+    let escapes = 0
+    const unmount = await mount(
+      composer({
+        working: true,
+        onStop: () => void (stops += 1),
+        onEscape: () => void (escapes += 1),
+      }),
+    )
+
+    const event = await pressEscape()
+
+    expect(stops).toBe(1)
+    expect(escapes).toBe(0)
+    expect(event.defaultPrevented).toBe(true)
+    await unmount()
+  })
+
+  it('falls back to onEscape on Escape when idle', async () => {
+    let stops = 0
+    let escapes = 0
+    const unmount = await mount(
+      composer({
+        working: false,
+        onStop: () => void (stops += 1),
+        onEscape: () => void (escapes += 1),
+      }),
+    )
+
+    await pressEscape()
+
+    expect(stops).toBe(0)
+    expect(escapes).toBe(1)
     await unmount()
   })
 })
