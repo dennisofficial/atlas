@@ -262,6 +262,9 @@ jobs:
           path: ~/.hutch
           key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'bun.lock') }}
 
+      - name: install create-dmg
+        run: command -v create-dmg >/dev/null || brew install create-dmg
+
       - name: build unsigned app
         run: bun run build:app
         working-directory: apps/mac
@@ -445,6 +448,9 @@ jobs:
         run: |
           echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           echo "ELECTROBUN_APPLEAPIKEYPATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: install create-dmg
+        run: command -v create-dmg >/dev/null || brew install create-dmg
 
       - name: build signed app
         run: |
