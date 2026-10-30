@@ -13,6 +13,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { callMutation, callQuery, createRouterApp } from './sandbox-provisioning.router.fixture'
@@ -23,7 +24,13 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import { PodLaunchService } from './pod-launch.service'
 import { ThreadPodRouter } from './thread-pod.router'
 import { ThreadPodService } from './thread-pod.service'
-import { realEndpoints, SERVE_TOKEN, SERVE_URL, seedServingPod } from './thread-pod.fixture'
+import {
+  RecordingBackground,
+  realEndpoints,
+  SERVE_TOKEN,
+  SERVE_URL,
+  seedServingPod,
+} from './thread-pod.fixture'
 
 const sandboxRows = () => db.orm.public.CloudSandbox.all()
 
@@ -47,6 +54,7 @@ describe('ThreadPodRouter', () => {
       { provide: SandboxesService, useValue: {} },
       { provide: PodLaunchService, useValue: {} },
       { provide: ThreadSignalsService, useValue: inertSignals() },
+      { provide: BackgroundWork, useValue: new RecordingBackground() },
     ])
   })
 
