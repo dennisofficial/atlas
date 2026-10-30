@@ -5,6 +5,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { atlasBinDirectory } from '../store/paths'
 import type { DeclaredService } from './declared-services'
 import { cwdOf, resolvedFromRunning, type DeclaredContext } from './declared-launch'
 
@@ -44,6 +45,7 @@ export async function runSetup({
 }): Promise<string | undefined> {
   const env = {
     ...process.env,
+    PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
     ...interpolateServiceEnv({
       env: declared.env ?? {},
       resolved: resolvedFromRunning({ services: context.services }),
@@ -52,7 +54,7 @@ export async function runSetup({
   for (const command of declared.setup ?? []) {
     const { code, tail } = await runCommand({
       handle: spawn.call(context.processes, {
-        cmd: ['bash', '-lc', command],
+        cmd: ['bash', '-c', command],
         cwd: cwdOf({ declared, root: context.root }),
         env,
         threadId,

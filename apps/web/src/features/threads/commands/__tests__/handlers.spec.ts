@@ -26,7 +26,7 @@ const rig = (reply: unknown = { type: 'compacted', replaced: 4, fromSeq: 1, thro
     operationId: () => 'op_1',
     openModelPicker: () => undefined,
     openSearch: () => undefined,
-    openProcesses: () => undefined,
+    openDetails: () => undefined,
     navigate: (href) => void navigated.push(href),
     wake: async () => undefined,
     reloadSkills: async () => 3,

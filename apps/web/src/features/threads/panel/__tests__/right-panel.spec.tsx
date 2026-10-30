@@ -42,11 +42,17 @@ const render = (args: { tab: ERightTab; pod?: PodStatus | null }): string =>
   )
 
 describe('RightPanel', () => {
-  it('lists the six tabs in prototype order', () => {
+  it('lists the five tabs in prototype order', () => {
     const html = render({ tab: ERightTab.Details })
     const positions = Object.values(TAB_LABEL).map((label) => html.indexOf(`>${label}`))
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+  })
+
+  it('has no Processes tab', () => {
+    const html = render({ tab: ERightTab.Details })
+    expect(html).not.toContain('>Processes')
+    expect(Object.values(TAB_LABEL)).not.toContain('Processes')
   })
 
   it('shows no running count while nothing is running', () => {
@@ -86,6 +92,7 @@ describe('isRightTab', () => {
   it('accepts tab values and rejects anything else', () => {
     expect(isRightTab('changes')).toBe(true)
     expect(isRightTab('nope')).toBe(false)
+    expect(isRightTab('processes')).toBe(false)
     expect(isRightTab(undefined)).toBe(false)
   })
 })

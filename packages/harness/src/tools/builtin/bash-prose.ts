@@ -19,7 +19,7 @@ export function bashDescription({
     'call carries a description: a few imperative words naming the job, which the developer reads in',
     'place of the command.',
     'Background bash is for finite jobs - builds, test runs, installs, migrations - not for servers that',
-    'run until stopped; declared services go through services_ensure, one-off servers through service_start. Start a slow command with',
+    'run until stopped; declared services start with service_start({ name }) or services_ensure, one-off servers through service_start with a command. Start a slow command with',
     'runInBackground to get a shell id back at once; the shell',
     'outlives the turn that started it and reconnects after an Atlas restart. Full background output',
     'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',

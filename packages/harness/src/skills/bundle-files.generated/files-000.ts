@@ -8,6 +8,6 @@ export const FILES: readonly EmbeddedSkillFile[] = [
   embeddedFile({ path: "references/config.md", digest: "d4e1be144a062cd1dea630ba06e302bd8a4ac8d142be669309dd8369556563a8", load: () => import("../../../skills/atlas/references/config.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/container.md", digest: "8a3c7a0d20496b3b43b4d7cef4b402f12c861afeaad540e3e6e35c337242365a", load: () => import("../../../skills/atlas/references/container.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/plugins.md", digest: "a0f3117e49cf4cc6c555e1086bfcbc40396512432c6e70bf0c4e409c3b026c11", load: () => import("../../../skills/atlas/references/plugins.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/services.md", digest: "e6c1540b3e20da82f6c7b83c82f7a73ed25d9fc265fc4f27c68a9df97b24e20f", load: () => import("../../../skills/atlas/references/services.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/services.md", digest: "7f3494fb3f0a3e5e1283d63b4d7c9d32d176c62d5c395ca89ed38af562677dd5", load: () => import("../../../skills/atlas/references/services.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/worktrees.md", digest: "aa3a94252cb5e2fa41bc4faadb061ca4174fc34995af87dc912233c1e2b26cff", load: () => import("../../../skills/atlas/references/worktrees.md" as string, { with: { type: 'file' } }) }),
 ]
