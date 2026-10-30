@@ -372,7 +372,7 @@ jobs:
           # --target pins the tag to the commit these binaries were built from: without it
           # gh release create tags the default branch's HEAD at creation time, and a merge
           # that lands while this run is building would tag a commit past the built one.
-          args=(--title "atlas v${VERSION}" --generate-notes --latest --target "$TARGET_SHA")
+          args=(--title "atlas v${VERSION}" --generate-notes --latest=false --target "$TARGET_SHA")
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
@@ -388,8 +388,10 @@ jobs:
         run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
 
   # Signed and notarized build, only for a release the `release` job actually cut. The app is
-  # stamped with that release's version and its files are attached to the same GitHub release, so
-  # releases/latest/download/<file> (the auto-updater's URL) serves them.
+  # stamped with that release's version and its files are attached to the same GitHub release.
+  # The release is created with --latest=false and only marked latest here, after the upload, so
+  # releases/latest/download/<file> (the Mac auto-updater's URL) never points at a release that
+  # lacks the Mac files. The TUI updater reads the releases list, so it is unaffected.
   mac-release:
     runs-on: macos-latest
     needs: [release]
@@ -467,7 +469,13 @@ jobs:
           ls -la artifacts
           files=(artifacts/*)
           [ -e "${files[0]}" ] || { echo "::error::apps/mac/artifacts is empty"; exit 1; }
-          gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          for attempt in 1 2 3; do
+            gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "::warning::upload attempt $attempt failed; retrying"
+            sleep $((attempt * 15))
+          done
+          gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
         working-directory: apps/mac
 
       - name: remove signing material
