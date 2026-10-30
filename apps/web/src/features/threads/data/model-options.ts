@@ -22,6 +22,7 @@ const PROVIDER_BRANDS: Record<string, EBrand> = {
   anthropic: EBrand.Anthropic,
   openai: EBrand.OpenAI,
   openrouter: EBrand.OpenRouter,
+  inference: EBrand.Inference,
 }
 
 const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => [effort, effort]))

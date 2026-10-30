@@ -122,6 +122,7 @@ export enum EProviderId {
   Anthropic = 'anthropic',
   OpenAI = 'openai',
   OpenRouter = 'openrouter',
+  Inference = 'inference',
 }
 
 export type ApiKeyEntry = { id: string; label: string; added: string }
@@ -152,10 +153,17 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
     brand: EBrand.OpenRouter,
     description: 'Any model behind one key',
   },
+  {
+    id: EProviderId.Inference,
+    name: 'Inference.net',
+    brand: EBrand.Inference,
+    description: 'Open models on managed inference',
+  },
 ]
 
 export const KEY_PREFIXES: Record<EProviderId, string> = {
   [EProviderId.Anthropic]: 'sk-ant-',
   [EProviderId.OpenAI]: 'sk-proj-',
   [EProviderId.OpenRouter]: 'sk-or-',
+  [EProviderId.Inference]: 'sk-inference-',
 }
