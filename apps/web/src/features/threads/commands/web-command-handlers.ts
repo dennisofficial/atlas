@@ -17,8 +17,9 @@ import {
 } from '@dltech/atlas-client/channel'
 import { compactionReplySchema, rotateReplySchema } from '@dltech/atlas-wire/web'
 
+import { skillCountNotice } from './skill-specs'
+
 export const NOT_CONNECTED = 'The sandbox is not connected'
-export const CANNOT_LIST_SKILLS = "This sandbox can't list skills"
 export const NOTHING_TO_COMPACT = 'Nothing to compact'
 export const NEW_HREF = '/threads/new'
 export const SETTINGS_HREF = '/settings'
@@ -32,7 +33,7 @@ export type CommandDeps = {
   openProcesses: () => void
   navigate: (href: string) => void
   wake: () => Promise<void>
-  reloadSkills: () => Promise<number | null>
+  reloadSkills: () => Promise<number>
 }
 
 const ran = (notice: string): CommandEffect => ({ type: ECommandEffect.Ran, notice })
@@ -108,9 +109,7 @@ export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
       return RAN
     },
     [ECommand.Skills]: async () => {
-      const count = await deps.reloadSkills()
-      if (count === null) return refused(CANNOT_LIST_SKILLS)
-      return ran(count === 1 ? '1 skill' : `${count} skills`)
+      return ran(skillCountNotice(await deps.reloadSkills()))
     },
     [ECommand.Cd]: UNSUPPORTED,
     [ECommand.Container]: UNSUPPORTED,

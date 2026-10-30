@@ -38,6 +38,7 @@ import { SecretsModule } from './cloud/secrets/secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
+import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
 
@@ -69,6 +70,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     SettingsModule,
     ProjectsModule,
     UserFilesModule,
+    SkillCatalogueModule,
     UserVercelModule,
     McpServersModule,
     GithubModule,

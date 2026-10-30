@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ECommandGroup, ECommandKind, type CommandSpec } from '@dltech/atlas-core'
+import type { CommandSpec } from '@dltech/atlas-core'
 import {
   EClientRequest,
   EConnectionView,
@@ -12,17 +12,13 @@ import {
   type ListCommandsReply,
 } from '@dltech/atlas-wire/web'
 
+import { mergeSkillSpecs, skillSpecOf } from './skill-specs'
+import { useCatalogueSkills } from './use-catalogue-skills'
+
 const NO_SKILLS: readonly CommandSpec[] = []
 
 export const skillSpecsOf = (reply: ListCommandsReply): readonly CommandSpec[] =>
-  reply.skills.map((skill) => ({
-    name: skill.name,
-    aliases: skill.aliases,
-    kind: ECommandKind.Skill,
-    summary: skill.summary,
-    group: ECommandGroup.Workspace,
-    argumentHint: skill.argumentHint,
-  }))
+  reply.skills.map(skillSpecOf)
 
 export const fetchSkillSpecs = async (args: {
   channel: RemoteDeltaChannel | null
@@ -39,8 +35,13 @@ export const fetchSkillSpecs = async (args: {
   return skillSpecsOf(listCommandsReplySchema.parse(reply))
 }
 
-export function useCommandList(args: { channel: RemoteDeltaChannel | null; live: boolean }) {
-  const [skills, setSkills] = useState<readonly CommandSpec[]>(NO_SKILLS)
+export function useCommandList(args: {
+  channel: RemoteDeltaChannel | null
+  live: boolean
+  projectId: string | null | undefined
+}) {
+  const [sandboxSkills, setSandboxSkills] = useState<readonly CommandSpec[]>(NO_SKILLS)
+  const catalogue = useCatalogueSkills(args.projectId)
   const { channel, live } = args
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export function useCommandList(args: { channel: RemoteDeltaChannel | null; live:
     let current = true
     fetchSkillSpecs({ channel, reload: false })
       .then((found) => {
-        if (current && found !== null) setSkills(found)
+        if (current && found !== null) setSandboxSkills(found)
       })
       .catch(() => undefined)
     return () => {
@@ -56,12 +57,20 @@ export function useCommandList(args: { channel: RemoteDeltaChannel | null; live:
     }
   }, [channel, live])
 
-  const reload = useCallback(async (): Promise<number | null> => {
-    const found = await fetchSkillSpecs({ channel, reload: true })
-    if (found === null) return null
-    setSkills(found)
-    return found.length
-  }, [channel])
+  const skills = useMemo(
+    () => mergeSkillSpecs({ catalogue: catalogue.skills, sandbox: sandboxSkills }),
+    [catalogue.skills, sandboxSkills],
+  )
+
+  const { reload: reloadCatalogue } = catalogue
+  const reload = useCallback(async (): Promise<number> => {
+    const [sandbox, fromCatalogue] = await Promise.all([
+      fetchSkillSpecs({ channel, reload: true }),
+      reloadCatalogue(),
+    ])
+    if (sandbox !== null) setSandboxSkills(sandbox)
+    return mergeSkillSpecs({ catalogue: fromCatalogue, sandbox: sandbox ?? NO_SKILLS }).length
+  }, [channel, reloadCatalogue])
 
   return { skills, reload }
 }
