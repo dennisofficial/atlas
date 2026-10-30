@@ -7,6 +7,8 @@
     "src/main/crash-log.ts",
     "src/main/auto-update.ts",
     "scripts/dmg-plan.ts",
+    "scripts/wrapper-autoclose-plan.ts",
+    "scripts/wrapper-autoclose.ts",
     "scripts/__tests__",
     "src/main/__tests__"
   ]
