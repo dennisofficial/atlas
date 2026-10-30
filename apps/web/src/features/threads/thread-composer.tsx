@@ -40,7 +40,12 @@ export function ThreadComposer({
     onComplete: onValueChange,
   })
   const handleKeyDown = (event: KeyboardEvent<HTMLFieldSetElement>) => {
-    if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
+    if (event.key !== 'Escape' || event.nativeEvent.isComposing || event.defaultPrevented) return
+    event.preventDefault()
+    if (working === true && onStop !== undefined) {
+      onStop()
+      return
+    }
     onEscape?.()
   }
   return (
