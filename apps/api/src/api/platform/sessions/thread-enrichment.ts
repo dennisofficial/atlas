@@ -1,39 +1,42 @@
 import { db } from '@dltech/atlas-db'
 import type { ThreadWithSession } from './thread-with-session'
-import { threadPullRequests, threadWorktree } from './places'
-import { spawnedPullRequests } from './spawned-pull-requests'
+import { threadsPullRequests, threadWorktrees } from './places'
+import { spawnedPullRequestsByThread } from './spawned-pull-requests'
 import { withPullRequestStates } from './pull-request-state'
 import { toThreadDto } from './rows'
-import type { ThreadDto } from './sessions.types'
+import type { LinkedPullRequestDto, ThreadDto } from './sessions.types'
 import { threadStatuses } from './thread-status'
 import { threadsSubscriptions } from './thread-subscriptions'
+
+async function pullRequestStatesByThread(threadIds: string[]) {
+  const [own, spawned] = await Promise.all([
+    threadsPullRequests({ reader: db, threadIds }),
+    spawnedPullRequestsByThread({ reader: db, threadIds }),
+  ])
+  const groups = threadIds.map((id): LinkedPullRequestDto[] => {
+    const ownPullRequests = own.get(id) ?? []
+    const ownKeys = new Set(ownPullRequests.map((pr) => `${pr.repo}#${pr.number}`))
+    return [
+      ...ownPullRequests,
+      ...(spawned.get(id) ?? []).filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
+    ]
+  })
+  return withPullRequestStates(groups)
+}
 
 export async function enrichThreads(args: {
   rows: readonly ThreadWithSession[]
   viewerId: string
 }): Promise<ThreadDto[]> {
-  const places = await Promise.all(
-    args.rows.map(async ({ thread: row, session }) => {
-      const [worktree, own, spawned] = await Promise.all([
-        threadWorktree({ reader: db, threadId: row.id }),
-        threadPullRequests({ reader: db, threadId: row.id }),
-        spawnedPullRequests({ reader: db, threadId: row.id }),
-      ])
-      const ownKeys = new Set(own.map((pr) => `${pr.repo}#${pr.number}`))
-      const pullRequests = [
-        ...own,
-        ...spawned.filter((pr) => !ownKeys.has(`${pr.repo}#${pr.number}`)),
-      ]
-      return { row, session, worktree, pullRequests }
-    }),
-  )
-  const subscriptionsByThread = await threadsSubscriptions({
-    reader: db,
-    threadIds: args.rows.map(({ thread }) => thread.id),
-  })
-  const statuses = await threadStatuses({ rows: args.rows, viewerId: args.viewerId })
-  const stated = await withPullRequestStates(places.map((entry) => entry.pullRequests))
-  return places.map(({ row, session, worktree }, index) => {
+  const threadIds = args.rows.map(({ thread }) => thread.id)
+  const [worktrees, stated, subscriptionsByThread, statuses] = await Promise.all([
+    threadWorktrees({ reader: db, threadIds }),
+    pullRequestStatesByThread(threadIds),
+    threadsSubscriptions({ reader: db, threadIds }),
+    threadStatuses({ rows: args.rows, viewerId: args.viewerId }),
+  ])
+  return args.rows.map(({ thread: row, session }, index) => {
+    const worktree = worktrees.get(row.id) ?? null
     const pullRequests = stated[index] ?? []
     const subscriptions = (subscriptionsByThread.get(row.id) ?? []).map(
       ({ provider, target, status }) => ({ provider, target, status }),
