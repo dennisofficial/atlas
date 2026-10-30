@@ -12,7 +12,7 @@ export function SettingsTopBar() {
   return (
     <header
       data-chrome="titlebar-start"
-      className="flex h-12 shrink-0 items-center gap-2 border-b px-3 md:grid md:grid-cols-[1fr_auto_1fr]"
+      className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b px-3 md:grid md:grid-cols-[1fr_auto_1fr]"
     >
       <Button
         variant="ghost"
