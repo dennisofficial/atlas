@@ -57,7 +57,8 @@ describe('codexModelsFsPorts', () => {
 
   it('stamps now as an ISO timestamp', () => {
     const { now } = codexModelsFsPorts({ cacheFile: join(directory, 'c.json') })
-    expect(new Date(now()).toISOString()).toBe(now())
+    const stamp = now()
+    expect(new Date(stamp).toISOString()).toBe(stamp)
   })
 
   it('persists the same entry JSON shape the catalogue always wrote', async () => {

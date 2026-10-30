@@ -82,7 +82,9 @@ describe('a pr-event in the transcript', () => {
       ]),
     )
 
-    expect(entry.body).toBe('PR #42 in github.com/owner/repo: checks green on abc1234.')
+    expect(entry.body).toBe(
+      'PR #42 in github.com/owner/repo: CI finished, all checks passed on abc1234.',
+    )
     expect(isExpandable(entry)).toBe(true)
   })
 
