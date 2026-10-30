@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { FileIcon, FolderIcon } from 'lucide-react'
 
 import {
-  Combobox,
-  ComboboxContent,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@dltech/atlas-ui/components/combobox'
+  Autocomplete,
+  AutocompleteContent,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+} from '@dltech/atlas-ui/components/autocomplete'
 
 import { pickerChoices, type TreeEntry } from './data/file-mount-helpers'
 
@@ -27,50 +27,66 @@ export function FilePathPicker({
   onPathChange: (path: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [highlighted, setHighlighted] = useState<string | undefined>(undefined)
   const choices = pickerChoices({ entries, query: path })
+  const showing = open && choices.length > 0
 
-  const handleValueChange = (next: string | null) => {
-    if (next === null) return
+  const handleTyped = (next: string, { reason }: { reason: string }) => {
+    if (reason === 'escape-key') return
     onPathChange(next)
-    setOpen(next.endsWith('/'))
+    setOpen(true)
   }
-  const handleInputChange = (next: string) => onPathChange(next)
+  const handleChoose = (choice: string) => {
+    onPathChange(choice)
+    setOpen(choice.endsWith('/'))
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Tab' || event.shiftKey) return
+    const completion = highlighted ?? choices[0]
+    if (!showing || completion === undefined || completion === path) return
+    event.preventDefault()
+    handleChoose(completion)
+  }
 
   return (
-    <Combobox
+    <Autocomplete
       items={choices}
       filter={null}
       autoHighlight
-      open={open && choices.length > 0}
+      open={showing}
       onOpenChange={setOpen}
-      value={null}
-      onValueChange={handleValueChange}
-      inputValue={path}
-      onInputValueChange={handleInputChange}
+      value={path}
+      onValueChange={handleTyped}
+      onItemHighlighted={setHighlighted}
     >
-      <ComboboxInput
+      <AutocompleteInput
         id={id}
         className="font-mono"
         placeholder=".env.local"
         autoComplete="off"
         spellCheck={false}
-        showTrigger={false}
         aria-invalid={invalid || undefined}
+        onKeyDown={handleKeyDown}
       />
-      <ComboboxContent>
-        <ComboboxList>
+      <AutocompleteContent>
+        <AutocompleteList>
           {(choice: string) => (
-            <ComboboxItem key={choice} value={choice} className="font-mono text-xs">
+            <AutocompleteItem
+              key={choice}
+              value={choice}
+              className="font-mono text-xs"
+              onClick={() => handleChoose(choice)}
+            >
               {choice.endsWith('/') ? (
                 <FolderIcon className="text-muted-foreground" />
               ) : (
                 <FileIcon className="text-muted-foreground" />
               )}
               <span className="truncate">{choice}</span>
-            </ComboboxItem>
+            </AutocompleteItem>
           )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
+        </AutocompleteList>
+      </AutocompleteContent>
+    </Autocomplete>
   )
 }
