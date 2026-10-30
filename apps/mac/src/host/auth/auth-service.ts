@@ -1,11 +1,6 @@
-import {
-  ECloudLoginPoll,
-  beginCloudLogin,
-  pollCloudLogin,
-  type CloudLoginOutcome,
-  type CloudLoginTicket,
-} from '@dltech/atlas-harness'
+import { createApiClient } from '@dltech/atlas-api-router'
 import { z } from 'zod'
+import { createPkcePair, type IPkcePair } from './pkce'
 import { createTokenStore, type ITokenStore } from './token-store'
 
 export type TAuthState = 'idle' | 'pending' | 'signed-in' | 'expired' | 'denied'
@@ -15,8 +10,14 @@ export interface IAuthStatus {
   email?: string
 }
 
+export enum ECallbackOutcome {
+  SignedIn = 'signed-in',
+  Rejected = 'rejected',
+}
+
 export interface IAuthService {
-  start: () => Promise<{ userCode: string; verificationUrl: string }>
+  start: () => { authorizeUrl: string }
+  callback: (url: URL) => Promise<ECallbackOutcome>
   status: () => IAuthStatus
   signOut: () => Promise<void>
   token: () => string | undefined
@@ -25,31 +26,38 @@ export interface IAuthService {
 export interface IAuthConfig {
   home: string
   openExternal?: (url: string) => boolean
-  begin?: (args: { url: string }) => Promise<CloudLoginTicket>
-  poll?: (args: { ticket: CloudLoginTicket }) => Promise<CloudLoginOutcome>
-  sleep?: (ms: number) => Promise<void>
   now?: () => number
   store?: ITokenStore
+  webOrigin?: string
 }
 
-const SLOW_DOWN_MS = 5_000
+export const CALLBACK_PATH = '/desktop/auth/callback'
+export const PENDING_TTL_MS = 5 * 60_000
 const sessionSchema = z.object({ user: z.object({ email: z.string() }) })
+
+interface IPending extends IPkcePair {
+  redirectUri: string
+  deadline: number
+}
 
 export function createAuthService({
   config,
   apiOrigin,
+  webOrigin,
+  port,
 }: {
   config: IAuthConfig
   apiOrigin: string
+  webOrigin: string
+  port: () => number
 }): IAuthService {
   const store = config.store ?? createTokenStore({ home: config.home })
-  const begin = config.begin ?? beginCloudLogin
-  const poll = config.poll ?? pollCloudLogin
-  const sleep = config.sleep ?? ((ms: number) => Bun.sleep(ms))
   const now = config.now ?? Date.now
   const origin = apiOrigin.replace(/\/+$/, '')
-  let attempt = 0
-  let phase: 'idle' | 'pending' | 'expired' | 'denied' = 'idle'
+  const web = webOrigin.replace(/\/+$/, '')
+  const api = createApiClient({ baseUrl: origin })
+  let pending: IPending | undefined
+  let failed: 'denied' | undefined
 
   const fetchEmail = async (token: string): Promise<string | undefined> => {
     try {
@@ -63,62 +71,60 @@ export function createAuthService({
     }
   }
 
-  const watch = async ({ ticket, id }: { ticket: CloudLoginTicket; id: number }) => {
-    const deadline = now() + ticket.expiresInMs
-    let interval = ticket.intervalMs
-    while (id === attempt) {
-      await sleep(interval)
-      if (id !== attempt) return
-      if (now() >= deadline) {
-        phase = 'expired'
-        return
-      }
-      const outcome = await poll({ ticket }).catch(() => undefined)
-      if (id !== attempt || outcome === undefined) continue
-      if (outcome.status === ECloudLoginPoll.SlowDown) interval += SLOW_DOWN_MS
-      if (outcome.status === ECloudLoginPoll.Denied) phase = 'denied'
-      if (outcome.status === ECloudLoginPoll.Expired) phase = 'expired'
-      if (outcome.status === ECloudLoginPoll.Approved) {
-        const email = await fetchEmail(outcome.token)
-        if (id !== attempt) return
-        store.save({ token: outcome.token, email })
-        phase = 'idle'
-      }
-      if (outcome.status === ECloudLoginPoll.Approved || phase !== 'pending') return
-    }
-  }
+  const live = (): IPending | undefined =>
+    pending !== undefined && now() < pending.deadline ? pending : undefined
 
   return {
-    start: async () => {
-      attempt += 1
-      const id = attempt
-      const ticket = await begin({ url: origin })
-      phase = 'pending'
-      config.openExternal?.(ticket.verificationUrl)
-      void watch({ ticket, id })
-      return {
-        userCode: ticket.userCode,
-        verificationUrl: ticket.verificationUrl,
+    start: () => {
+      const pair = createPkcePair()
+      const redirectUri = `http://127.0.0.1:${port()}${CALLBACK_PATH}`
+      pending = { ...pair, redirectUri, deadline: now() + PENDING_TTL_MS }
+      failed = undefined
+      const query = new URLSearchParams({
+        redirect_uri: redirectUri,
+        state: pair.state,
+        code_challenge: pair.challenge,
+        code_challenge_method: 'S256',
+      })
+      const authorizeUrl = `${web}/desktop/authorize?${query.toString()}`
+      config.openExternal?.(authorizeUrl)
+      return { authorizeUrl }
+    },
+    callback: async (url) => {
+      const current = live()
+      const code = url.searchParams.get('code')
+      if (current === undefined || code === null) return ECallbackOutcome.Rejected
+      if (url.searchParams.get('state') !== current.state) return ECallbackOutcome.Rejected
+      pending = undefined
+      try {
+        const { token } = await api.desktopAuth.exchange.mutate({
+          code,
+          codeVerifier: current.verifier,
+          redirectUri: current.redirectUri,
+        })
+        store.save({ token, email: await fetchEmail(token) })
+        return ECallbackOutcome.SignedIn
+      } catch {
+        failed = 'denied'
+        return ECallbackOutcome.Rejected
       }
     },
     status: () => {
-      const email = store.email()
-      if (phase === 'pending' || phase === 'expired' || phase === 'denied') return { state: phase }
+      if (pending !== undefined) return { state: live() === undefined ? 'expired' : 'pending' }
+      if (failed !== undefined) return { state: failed }
       if (store.token() === undefined) return { state: 'idle' }
+      const email = store.email()
       return email === undefined ? { state: 'signed-in' } : { state: 'signed-in', email }
     },
     signOut: async () => {
-      attempt += 1
-      phase = 'idle'
+      pending = undefined
+      failed = undefined
       const token = store.token()
       store.clear()
       if (token === undefined) return
       await fetch(`${origin}/api/auth/sign-out`, {
         method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
-        },
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
         body: '{}',
       }).catch(() => undefined)
     },

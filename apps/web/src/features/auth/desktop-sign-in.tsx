@@ -6,30 +6,34 @@ import type { ReactNode } from 'react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
-import { formatUserCode } from '@/lib/auth-api'
-
 import { FormError } from './auth-controls'
 import { AuthHeading } from './auth-heading'
 import { DESKTOP_POLL_MS, EDesktopSignInPhase, useDesktopSignIn } from './use-desktop-sign-in'
 
 const FAILURE_COPY: Partial<Record<EDesktopSignInPhase, string>> = {
-  [EDesktopSignInPhase.Expired]: 'Code expired',
+  [EDesktopSignInPhase.Expired]: 'Sign-in timed out',
   [EDesktopSignInPhase.Denied]: 'Sign-in denied',
   [EDesktopSignInPhase.Failed]: 'Could not start sign-in',
 }
 
-function CodeCard({ code }: { code: string }) {
+function WaitingCard({ onRetry, onCancel }: { onRetry: () => void; onCancel: () => void }) {
   return (
     <div
       role="status"
-      className="flex flex-col gap-2 rounded-xl border bg-card px-4 py-4 font-mono text-sm shadow-lg"
+      className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-4 text-sm shadow-lg"
     >
-      <p className="text-muted-foreground">Enter this code in your browser</p>
-      <p className="text-xl font-medium tracking-[0.12em] text-foreground">{code}</p>
-      <p className="flex items-center gap-2 text-muted-foreground">
+      <p className="flex items-center gap-2 text-foreground">
         <Spinner />
-        Waiting for approval
+        Finish signing in in your browser
       </p>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          Reopen browser
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
     </div>
   )
 }
@@ -48,7 +52,7 @@ export function DesktopSignIn({
   children?: ReactNode
 }) {
   const router = useRouter()
-  const { phase, userCode, start } = useDesktopSignIn({
+  const { phase, start, cancel } = useDesktopSignIn({
     onSignedIn: () => router.replace(next ?? '/threads'),
     pollMs,
   })
@@ -60,7 +64,7 @@ export function DesktopSignIn({
       <AuthHeading title={title} description={description} />
       <div className="flex flex-col gap-4">
         {failure !== undefined && <FormError>{failure}</FormError>}
-        {pending && <CodeCard code={formatUserCode(userCode)} />}
+        {pending && <WaitingCard onRetry={() => void start()} onCancel={cancel} />}
         {!pending && (
           <Button
             type="button"

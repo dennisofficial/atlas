@@ -1,5 +1,6 @@
-import { resolveApiOrigin } from './api-origin'
-import { createAuthService, type IAuthConfig } from './auth/auth-service'
+import { resolveApiOrigin, resolveWebOrigin } from './api-origin'
+import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-service'
+import { callbackResponse } from './auth/callback-page'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
 import { isAuthorized, startSession } from './guard'
@@ -8,7 +9,7 @@ import type { IPodHostConfig } from './pods/config'
 import { createPodsHandler } from './pods/routes'
 import { serveStatic } from './static'
 
-export { resolveApiOrigin }
+export { resolveApiOrigin, resolveWebOrigin }
 
 export interface ICreateDesktopHostOptions {
   webRoot: string
@@ -37,6 +38,8 @@ export function createDesktopHost({
   const authService = createAuthService({
     config: { ...auth, home: auth?.home ?? pods?.home ?? '' },
     apiOrigin: origin,
+    webOrigin: auth?.webOrigin ?? resolveWebOrigin(process.env),
+    port: () => server.port as number,
   })
   const bearer = () => authService.token()
   const desktopRouter = createDesktopRouter({
@@ -54,6 +57,12 @@ export function createDesktopHost({
     async fetch(request) {
       const url = new URL(request.url)
       const { pathname } = url
+      if (pathname === CALLBACK_PATH && request.method === 'GET') {
+        if (request.headers.get('host') !== `127.0.0.1:${server.port}`) {
+          return new Response('Forbidden', { status: 403 })
+        }
+        return callbackResponse(await authService.callback(url))
+      }
       if (pathname === '/desktop/session') return startSession({ url, secret })
       if (pathname === '/desktop' || pathname.startsWith('/desktop/')) {
         if (!isAuthorized({ request, secret, port: server.port as number })) {

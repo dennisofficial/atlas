@@ -30,7 +30,9 @@ beforeEach(() => {
     const key = `${init?.method ?? 'GET'} ${String(input)}`
     calls.push(key)
     if (key === 'POST /desktop/auth/start') {
-      return Response.json({ userCode: 'WDJBMJHT', verificationUrl: 'https://byatlas.io/device' })
+      return Response.json({
+        authorizeUrl: 'https://byatlas.io/desktop/authorize?x=1',
+      })
     }
     if (key === 'GET /desktop/auth/status')
       return Response.json(statuses.shift() ?? { state: 'pending' })
@@ -93,23 +95,30 @@ describe('desktop sign-in polling', () => {
     )
   }
 
-  it('shows the code, polls, and redirects to /threads when signed in', async () => {
+  it('shows the browser prompt, polls, and redirects to /threads when signed in', async () => {
     statuses = [{ state: 'pending' }, { state: 'signed-in', email: 'a@b.c' }]
     await desktopMount()
     await click('Continue in browser')
-    expect(document.body.textContent).toContain('WDJB-MJHT')
-    expect(document.body.textContent).toContain('Waiting for approval')
+    expect(document.body.textContent).toContain('Finish signing in in your browser')
+    expect(document.body.textContent).not.toContain('Enter this code')
     await wait(60)
     expect(calls.filter((c) => c === 'GET /desktop/auth/status').length).toBeGreaterThanOrEqual(2)
     expect(replace).toHaveBeenCalledWith('/threads')
   })
 
-  it('offers retry when the code expires', async () => {
+  it('cancel returns to the button', async () => {
+    await desktopMount()
+    await click('Continue in browser')
+    await click('Cancel')
+    expect(document.body.textContent).toContain('Continue in browser')
+  })
+
+  it('offers retry when sign-in times out', async () => {
     statuses = [{ state: 'expired' }]
     await desktopMount()
     await click('Continue in browser')
     await wait(40)
-    expect(document.body.textContent).toContain('Code expired')
+    expect(document.body.textContent).toContain('Sign-in timed out')
     expect(document.body.textContent).toContain('Try again')
     expect(replace).not.toHaveBeenCalled()
   })

@@ -27,14 +27,12 @@ export function useDesktopSignIn({
   pollMs?: number
 }) {
   const [phase, setPhase] = useState(EDesktopSignInPhase.Idle)
-  const [userCode, setUserCode] = useState('')
   const handleSignedIn = useEffectEvent(onSignedIn)
 
   const start = async () => {
     setPhase(EDesktopSignInPhase.Starting)
     try {
-      const started = await startDesktopSignIn()
-      setUserCode(started.userCode)
+      await startDesktopSignIn()
       setPhase(EDesktopSignInPhase.Pending)
     } catch {
       setPhase(EDesktopSignInPhase.Failed)
@@ -64,5 +62,7 @@ export function useDesktopSignIn({
     }
   }, [phase, pollMs])
 
-  return { phase, userCode, start }
+  const cancel = () => setPhase(EDesktopSignInPhase.Idle)
+
+  return { phase, start, cancel }
 }

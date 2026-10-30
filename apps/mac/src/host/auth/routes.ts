@@ -10,7 +10,7 @@ export function createAuthHandler({ auth }: { auth: IAuthService }): AuthHandler
     }
     if (pathname === '/desktop/auth/start' && method === 'POST') {
       try {
-        return Response.json(await auth.start())
+        return Response.json(auth.start())
       } catch (error) {
         return Response.json(
           {

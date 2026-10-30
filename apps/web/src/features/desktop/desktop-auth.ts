@@ -8,7 +8,7 @@ export enum EDesktopAuthState {
   Denied = 'denied',
 }
 
-const startSchema = z.object({ userCode: z.string().min(1), verificationUrl: z.string() })
+const startSchema = z.object({ authorizeUrl: z.string().min(1) })
 const statusSchema = z.object({
   state: z.enum(EDesktopAuthState),
   email: z.string().optional(),

@@ -26,6 +26,7 @@ import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { ModelsModule } from './platform/models/models.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
+import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
@@ -61,6 +62,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
       globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
     }),
     AuthModule,
+    DesktopAuthModule,
     AccountsModule,
     OauthConnectionsModule,
     ModelsModule,
