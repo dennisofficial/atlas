@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronRightIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
+import { ChevronRightIcon, LaptopIcon, PanelRightIcon, PlusIcon } from 'lucide-react'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 
 import { EHeaderState, STATE_LABEL } from './data/header-model'
 
@@ -21,6 +22,7 @@ export type ThreadHeaderProps = {
   naming?: boolean | undefined
   state: EHeaderState
   parent?: HeaderParent | undefined
+  local?: boolean | undefined
   onOpenPanel: () => void
 }
 
@@ -52,10 +54,32 @@ function ParentCrumb({ parent }: { parent: HeaderParent }) {
   )
 }
 
-export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, naming = false, state, parent, onOpenPanel } = props
+export function LocalPodIcon() {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4">
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            role="img"
+            aria-label="This Mac"
+            className="flex shrink-0 items-center text-muted-foreground"
+          />
+        }
+      >
+        <LaptopIcon className="size-4" />
+      </TooltipTrigger>
+      <TooltipContent side="bottom">This Mac</TooltipContent>
+    </Tooltip>
+  )
+}
+
+export function ThreadHeader(props: ThreadHeaderProps) {
+  const { title, naming = false, state, parent, local = false, onOpenPanel } = props
+  return (
+    <header
+      data-chrome="titlebar"
+      className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4"
+    >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger aria-label="Open navigation" />
         {parent ? <ParentCrumb parent={parent} /> : null}
@@ -68,6 +92,7 @@ export function ThreadHeader(props: ThreadHeaderProps) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {local ? <LocalPodIcon /> : null}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
         <Button
           variant="ghost"

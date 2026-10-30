@@ -3,8 +3,7 @@
 import { useMemo } from 'react'
 
 import { useRoster } from './use-roster'
-import { fetchEvents } from './threads-api'
-import { fetchSpawned } from './agents-api'
+import { useThreadBackend } from './use-thread-backend'
 import {
   agentRecordsOf,
   agentViewsOf,
@@ -30,6 +29,7 @@ export function useAgents(args: {
   working: boolean
 }): AgentsData {
   const { threadId, channel, working } = args
+  const { fetchEvents, fetchSpawned } = useThreadBackend()
   const roster = useRoster(channel)
   const refreshKey = `${rosterKeyOf({ threadId, roster })}|${working}`
   const events = useRefetched({

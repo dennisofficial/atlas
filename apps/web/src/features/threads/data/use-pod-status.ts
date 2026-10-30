@@ -4,7 +4,7 @@ import type { PodStatus } from '@dltech/atlas-wire/web'
 
 import { createPodStatusReader } from './pod-status-reader'
 import type { ThreadSignalHub } from './thread-signal-hub'
-import { fetchPod } from './threads-api'
+import { useThreadBackend } from './use-thread-backend'
 
 const NOT_READING = () => undefined
 
@@ -13,6 +13,7 @@ export function usePodStatus(args: { threadId: string; signals: ThreadSignalHub 
   refresh: () => void
 } {
   const { threadId, signals } = args
+  const { fetchPod } = useThreadBackend()
   const [pod, setPod] = useState<PodStatus | null>(null)
   const refreshRef = useRef<() => void>(NOT_READING)
 
@@ -26,7 +27,7 @@ export function usePodStatus(args: { threadId: string; signals: ThreadSignalHub 
       unlisten()
       reader.stop()
     }
-  }, [threadId, signals])
+  }, [threadId, signals, fetchPod])
 
   const refresh = useCallback(() => refreshRef.current(), [])
   return { pod, refresh }

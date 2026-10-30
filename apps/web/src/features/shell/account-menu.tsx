@@ -13,13 +13,16 @@ import {
 } from '@dltech/atlas-ui/components/dropdown-menu'
 import { SidebarMenuButton } from '@dltech/atlas-ui/components/sidebar'
 
+import { desktopSignOut } from '@/features/desktop/desktop-auth'
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { signOut, type SessionUser } from '@/lib/auth-api'
 
 const SIGN_IN_PATH = '/sign-in'
 
 export function AccountMenu({ user, initials }: { user: SessionUser | null; initials: string }) {
   const handleSignOut = async () => {
-    await signOut().catch(() => undefined)
+    const leave = isDesktopHost(window) ? desktopSignOut : signOut
+    await leave().catch(() => undefined)
     window.location.assign(SIGN_IN_PATH)
   }
   return (

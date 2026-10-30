@@ -7,7 +7,9 @@ const devOrigins = (process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0)
 
-const nextConfig: NextConfig = {
+const desktop = process.env.ATLAS_WEB_TARGET === 'desktop'
+
+const sharedConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   transpilePackages: [
     '@dltech/atlas-api-router',
@@ -17,6 +19,16 @@ const nextConfig: NextConfig = {
     '@dltech/atlas-ui',
     '@dltech/atlas-wire',
   ],
+}
+
+const desktopConfig: NextConfig = {
+  ...sharedConfig,
+  output: 'export',
+  images: { unoptimized: true },
+}
+
+const cloudConfig: NextConfig = {
+  ...sharedConfig,
   async rewrites() {
     const apiOrigin = resolveApiOrigin(process.env)
     return [
@@ -25,5 +37,7 @@ const nextConfig: NextConfig = {
     ]
   },
 }
+
+const nextConfig = desktop ? desktopConfig : cloudConfig
 
 export default nextConfig

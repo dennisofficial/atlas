@@ -227,6 +227,52 @@ jobs:
         env:
           ATLAS_LIVE_DOCKER: '1'
 
+  # Unsigned rehearsal of the mac build on every PR and main push: proves the web export, main
+  # bundle and Hutch packaging still work without touching a secret, so fork PRs run it too and
+  # it gates merges. Signing and notarization happen only in `mac-release`. Hutch builds for the
+  # host only, so this runs on the arm64 mac runner.
+  mac-app-rehearsal:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      ATLAS_MAC_UNSIGNED: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            next-${{ runner.os }}-
+
+      - name: restore hutch
+        uses: actions/cache@v6
+        with:
+          path: ~/.hutch
+          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'bun.lock') }}
+
+      - name: install create-dmg
+        run: command -v create-dmg >/dev/null || brew install create-dmg
+
+      - name: build unsigned app
+        run: bun run build:app
+        working-directory: apps/mac
+
+      - name: list artifacts
+        run: ls -la artifacts
+        working-directory: apps/mac
+
   # Single required status for the main ruleset: one name covers every job above, so tightening
   # CI never leaves the ruleset behind. Named `ci` only on pull_request runs — a required check is
   # satisfied by whichever run reports the name first on a sha, and the push run's answers are not
@@ -235,7 +281,7 @@ jobs:
   ci:
     name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
     runs-on: ubuntu-latest
-    needs: [check, test, api-bundle]
+    needs: [check, test, api-bundle, mac-app-rehearsal]
     if: always()
     steps:
       - name: Fail if any check failed
@@ -267,6 +313,8 @@ jobs:
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: true
+    outputs:
+      tag: ${{ steps.version.outputs.skip != 'true' && format('tui-v{0}', steps.version.outputs.version) || '' }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TARGET_SHA: ${{ github.sha }}
@@ -324,7 +372,7 @@ jobs:
           # --target pins the tag to the commit these binaries were built from: without it
           # gh release create tags the default branch's HEAD at creation time, and a merge
           # that lands while this run is building would tag a commit past the built one.
-          args=(--title "atlas v${VERSION}" --generate-notes --target "$TARGET_SHA")
+          args=(--title "atlas v${VERSION}" --generate-notes --latest --target "$TARGET_SHA")
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
@@ -338,3 +386,92 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
+
+  # Signed and notarized build, only for a release the `release` job actually cut. The app is
+  # stamped with that release's version and its files are attached to the same GitHub release, so
+  # releases/latest/download/<file> (the auto-updater's URL) serves them.
+  mac-release:
+    runs-on: macos-latest
+    needs: [release]
+    if: needs.release.outputs.tag != ''
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.release.outputs.tag }}
+      ELECTROBUN_DEVELOPER_ID: 'Developer ID Application: Dennis Lysenko (9H7HK25CVR)'
+      ELECTROBUN_APPLEAPIKEY: ${{ secrets.APPLE_API_KEY_ID }}
+      ELECTROBUN_APPLEAPIISSUER: ${{ secrets.APPLE_API_ISSUER }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: restore hutch
+        uses: actions/cache@v6
+        with:
+          path: ~/.hutch
+          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'bun.lock') }}
+
+      - name: import signing certificate
+        env:
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/atlas-signing.keychain-db"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "$MAC_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MAC_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: write notarization key
+        env:
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+        run: |
+          echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          echo "ELECTROBUN_APPLEAPIKEYPATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: install create-dmg
+        run: command -v create-dmg >/dev/null || brew install create-dmg
+
+      - name: build signed app
+        run: |
+          set -euo pipefail
+          ATLAS_VERSION="${TAG#tui-v}"
+          [ -n "$ATLAS_VERSION" ] && [ "$ATLAS_VERSION" != "$TAG" ] || { echo "::error::unexpected release tag '$TAG'"; exit 1; }
+          export ATLAS_VERSION
+          bun run build:app
+        working-directory: apps/mac
+
+      - name: upload to release
+        run: |
+          set -euo pipefail
+          ls -la artifacts
+          files=(artifacts/*)
+          [ -e "${files[0]}" ] || { echo "::error::apps/mac/artifacts is empty"; exit 1; }
+          gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+        working-directory: apps/mac
+
+      - name: remove signing material
+        if: always()
+        run: |
+          [ -z "$KEYCHAIN_PATH" ] || security delete-keychain "$KEYCHAIN_PATH" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/cert.p12"

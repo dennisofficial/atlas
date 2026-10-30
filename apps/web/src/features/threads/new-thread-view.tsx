@@ -7,6 +7,9 @@ import { toast } from 'sonner'
 import type { SaidUpload } from '@dltech/atlas-core'
 import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
+import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
+import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
+import { useDesktop } from '@/features/desktop/use-desktop'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { createdThreads } from '@/features/shell/created-threads'
 import { useCloudQuery } from '@/lib/use-cloud-query'
@@ -40,6 +43,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     })
   const images = useComposerAttachments()
   const [creating, setCreating] = useState(false)
+  const desktop = useDesktop()
+  const [runner, setRunner] = useState(ERunnerChoice.Cloud)
   const attempt = useRef<{
     text: string
     images: SaidImageWire[]
@@ -48,6 +53,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     sendId: string
   } | null>(null)
   const projectId = selected === undefined ? (projects[0]?.id ?? null) : selected
+  const local =
+    desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
 
   const clearDraft = useCallback(() => setDraft(''), [])
   const commands = useNewThreadCommands({ projectId, clearDraft })
@@ -70,6 +77,21 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     attempt.current = { text, images: held, uploads, projectId, sendId }
     setCreating(true)
     try {
+      if (local && projectId !== null) {
+        const id = await createLocalThread({
+          threadId: newLocalThreadId(),
+          projectId,
+          ...createFieldsOf(selection),
+          text,
+          sendId,
+          images: held,
+          uploads,
+        })
+        attempt.current = null
+        images.clear()
+        router.push(`/threads/${encodeURIComponent(id)}`)
+        return
+      }
       const { thread } = await createThread(
         createThreadBodyOf({
           projectId,
@@ -100,6 +122,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       commandSpecs={commands.specs}
       placeholder="Describe a task for Atlas…"
     >
+      <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
       <ModelPickerControls
         picker={picker}
         selection={selection}

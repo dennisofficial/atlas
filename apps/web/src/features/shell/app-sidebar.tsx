@@ -9,6 +9,7 @@ import {
   SidebarRail,
 } from '@dltech/atlas-ui/components/sidebar'
 
+import { UpdateCard } from '@/features/desktop/update-card'
 import { initialsOf } from '@/features/settings/session/initials'
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 import { EQueryState } from '@/lib/use-cloud-query'
@@ -47,6 +48,9 @@ export function AppSidebar({ activeThreadId, activeNav }: AppSidebarProps) {
           <ShellSidebarContent query={query} activeThreadId={activeThreadId} />
         </SidebarContent>
         <SidebarFooter variant="bordered" className="group-data-[collapsible=icon]:mt-auto">
+          <div className="group-data-[collapsible=icon]:hidden empty:hidden">
+            <UpdateCard />
+          </div>
           <ShellBottomNav activeNav={activeNav} />
           <SidebarMenu>
             <SidebarMenuItem>

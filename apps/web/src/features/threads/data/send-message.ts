@@ -12,9 +12,10 @@ export async function sendMessage(args: {
   sendId: string
   images?: SaidImageWire[] | undefined
   uploads?: SaidUpload[] | undefined
+  post?: typeof postMessage | undefined
 }): Promise<EThreadMessageState> {
-  const { images, uploads, ...message } = args
-  const reply = await postMessage({
+  const { images, uploads, post = postMessage, ...message } = args
+  const reply = await post({
     ...message,
     ...imagesFieldOf(images),
     ...uploadsFieldOf(uploads),
@@ -29,6 +30,7 @@ export async function deliverMessage(args: {
   images?: SaidImageWire[] | undefined
   uploads?: SaidUpload[] | undefined
   liveSend: LiveSend
+  post?: typeof postMessage | undefined
 }): Promise<void> {
   const { liveSend, ...message } = args
   const live = {

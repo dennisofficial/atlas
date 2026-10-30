@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 
 import { FieldGroup } from '@dltech/atlas-ui/components/field'
 
+import { useIsDesktop } from '@/features/desktop/use-is-desktop'
 import { AuthApiError, isAccountExistsError, signUp } from '@/lib/auth-api'
 import { safeNextPath, withNext } from '@/lib/auth-redirect'
 
@@ -18,11 +19,12 @@ import {
 } from './auth-controls'
 import { AuthField } from './auth-field'
 import { AuthHeading } from './auth-heading'
+import { DesktopSignIn } from './desktop-sign-in'
 import { useGoogleSignIn } from './use-google-sign-in'
 
 export const PASSWORD_MIN_LENGTH = 8
 
-export function SignUpForm() {
+function WebSignUpForm() {
   const next = safeNextPath(useSearchParams().get('next'))
   const signInHref = withNext({ path: '/sign-in', next })
   const google = useGoogleSignIn(next)
@@ -110,5 +112,18 @@ export function SignUpForm() {
         Already have an account? <AuthLink href={signInHref}>Sign in</AuthLink>
       </AuthFooterText>
     </div>
+  )
+}
+
+export function SignUpForm() {
+  const desktop = useIsDesktop()
+  const searchParams = useSearchParams()
+  if (!desktop) return <WebSignUpForm />
+  return (
+    <DesktopSignIn
+      title="Create your Atlas account"
+      description="Finish sign-up in your browser."
+      next={safeNextPath(searchParams.get('next'))}
+    />
   )
 }

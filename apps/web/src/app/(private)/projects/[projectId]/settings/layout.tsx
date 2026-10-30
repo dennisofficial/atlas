@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react'
 
-import { ProjectSettingsLayout } from '@/features/project-settings/project-settings-layout'
+import { ProjectSettingsRoute } from '@/features/project-settings/project-settings-route'
+import { STATIC_EXPORT_PLACEHOLDER, staticParamsForDesktop } from '@/lib/route-id'
 
-export default async function ProjectSettingsRouteLayout({
-  children,
-  params,
-}: {
-  children: ReactNode
-  params: Promise<{ projectId: string }>
-}) {
-  const { projectId } = await params
-  return <ProjectSettingsLayout projectId={projectId}>{children}</ProjectSettingsLayout>
+export function generateStaticParams() {
+  return staticParamsForDesktop({ projectId: STATIC_EXPORT_PLACEHOLDER })
+}
+
+export default function ProjectSettingsRouteLayout({ children }: { children: ReactNode }) {
+  return <ProjectSettingsRoute>{children}</ProjectSettingsRoute>
 }

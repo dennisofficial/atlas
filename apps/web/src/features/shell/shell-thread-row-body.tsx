@@ -8,6 +8,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { rowNamingOf, useThreadNaming } from './active-naming'
+import { LocalPodIcon } from '@/features/threads/thread-header'
 import { RowAction } from './shell-row-action'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadActions } from './thread-actions-context'
@@ -52,6 +53,7 @@ export function ThreadRowBody({ thread, projectName, active, trailing }: ThreadR
           naming={naming.naming}
           className={cn(isWorking(thread) && 'shimmer motion-reduce:shimmer-none')}
         />
+        {thread.runner === 'local' ? <LocalPodIcon /> : null}
       </SidebarMenuButton>
       {isUnread({ thread, active }) ? <UnreadDot /> : null}
       {trailing}
