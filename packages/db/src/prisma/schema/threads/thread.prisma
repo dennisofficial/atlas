@@ -2,6 +2,7 @@
 model Thread {
   id                String               @id
   head              Int                  @default(0)
+  rev               Int                  @default(0)
   createdAt         TimestamptzJsDate(3)
   updatedAt         TimestamptzJsDate(3)
   parentThreadId    String?

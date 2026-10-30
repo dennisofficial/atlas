@@ -26,7 +26,9 @@ import { ThreadSignalsService } from './thread-signals.service'
 import { threadProjectColumn, type ThreadProjectColumns } from './thread-project'
 import type { EventDto, ThreadDraft, ThreadDto } from './sessions.types'
 
-export type OpenThreadDraft = Omit<OpenThreadInput, 'id'> & { threadId?: string | undefined }
+export type OpenThreadDraft = Omit<OpenThreadInput, 'id'> & {
+  threadId?: string | undefined
+}
 
 @Injectable()
 export class ThreadsService {
@@ -37,13 +39,20 @@ export class ThreadsService {
       userId: args.userId,
       projectId: args.draft.projectId,
     })
-    const columns = createColumnsOf({ userId: args.userId, draft: args.draft, project })
+    const columns = createColumnsOf({
+      userId: args.userId,
+      draft: args.draft,
+      project,
+    })
     const created = await db.transaction(async (tx) => {
       const taken = await tx.orm.public.Thread.where({ id: columns.thread.id }).select('id').first()
       if (taken !== null) throw new ConflictException('thread id is already in use')
       return createDraftThread({ tx, ...columns })
     })
-    await this.signals.listChanged({ userId: args.userId, threadId: created.thread.id })
+    await this.signals.listChanged({
+      userId: args.userId,
+      threadId: created.thread.id,
+    })
     return toThreadDto(created)
   }
 
@@ -122,7 +131,10 @@ export class ThreadsService {
         drafts: args.draft.drafts,
       })
       const row = await tx.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
-      return { thread: toThreadDto({ thread: row, session: created.session }), events }
+      return {
+        thread: toThreadDto({ thread: row, session: created.session }),
+        events,
+      }
     })
     await this.signals.listChanged({ userId: args.userId, threadId })
     return opened
@@ -181,11 +193,15 @@ export class ThreadsService {
         })
       }
 
-      const updated = await tx.orm.public.Thread.where({ id: args.threadId }).update({
+      const updated = await tx.orm.public.Thread.where({
+        id: args.threadId,
+      }).update({
         updatedAt: new Date(),
       })
       if (updated === null) throw new NotFoundException('thread not found')
-      const session = await tx.orm.public.Session.where({ id: updated.sessionId }).update({
+      const session = await tx.orm.public.Session.where({
+        id: updated.sessionId,
+      }).update({
         updatedAt: new Date(),
         ...(args.draft.title === undefined ? {} : { title: args.draft.title }),
         ...(args.draft.workspace === undefined ? {} : { workspace: args.draft.workspace }),
@@ -196,7 +212,9 @@ export class ThreadsService {
       })
       if (session === null) throw new NotFoundException('thread not found')
 
-      const events = await tx.orm.public.Event.where({ threadId: args.threadId })
+      const events = await tx.orm.public.Event.where({
+        threadId: args.threadId,
+      })
         .orderBy((event) => event.seq.asc())
         .all()
       return {
@@ -209,7 +227,10 @@ export class ThreadsService {
 
   async find(args: { userId: string; threadId: string }): Promise<ThreadDto> {
     const [thread] = await enrichThreads({
-      rows: await withSessions({ reader: db, threads: [await this.ownedThread(args)] }),
+      rows: await withSessions({
+        reader: db,
+        threads: [await this.ownedThread(args)],
+      }),
       viewerId: args.userId,
     })
     if (thread === undefined) throw new NotFoundException('thread not found')
@@ -257,10 +278,18 @@ export class ThreadsService {
     draft: Omit<RenameThreadInput, 'threadId'>
   }): Promise<void> {
     await this.ownedThread(args)
-    const session = await sessionOfThread({ reader: db, threadId: args.threadId })
-    await db.orm.public.Session.where({ id: session.id }).update({ title: args.draft.title })
+    const session = await sessionOfThread({
+      reader: db,
+      threadId: args.threadId,
+    })
+    await db.orm.public.Session.where({ id: session.id }).update({
+      title: args.draft.title,
+    })
     await this.signals.titleChanged({ threadId: args.threadId })
-    await this.signals.listChanged({ userId: args.userId, threadId: args.threadId })
+    await this.signals.listChanged({
+      userId: args.userId,
+      threadId: args.threadId,
+    })
   }
 
   async chooseModel(args: {
@@ -273,6 +302,7 @@ export class ThreadsService {
       modelRef: args.draft.ref,
       modelEffort: args.draft.effort,
     })
+    await this.signals.threadChanged({ threadId: args.threadId })
   }
 
   async adopt(args: {
@@ -281,14 +311,22 @@ export class ThreadsService {
     draft: Omit<AdoptThreadInput, 'threadId'>
   }): Promise<void> {
     await this.ownedThread(args)
-    const session = await sessionOfThread({ reader: db, threadId: args.threadId })
+    const session = await sessionOfThread({
+      reader: db,
+      threadId: args.threadId,
+    })
     await db.orm.public.Session.where({ id: session.id }).update({
       workspace: args.draft.workspace,
       ...(args.draft.repo === undefined ? {} : { repo: args.draft.repo }),
     })
+    await this.signals.threadChanged({ threadId: args.threadId })
   }
 
   private ownedThread(args: { userId: string; threadId: string }) {
-    return requireOwnedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    return requireOwnedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+    })
   }
 }

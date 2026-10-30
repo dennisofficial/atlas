@@ -1,12 +1,14 @@
 import {
   threadListActivitySchema,
   threadStreamFrameSchema,
+  wireThreadSchema,
   type ThreadListActivity,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
 import { Logger, type Provider } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { z } from 'zod'
+import type { ThreadDto } from './sessions.types'
 import { RedisService } from '../../../_lib/redis/redis.service'
 
 export const THREAD_SIGNAL_CHANNEL = 'atlas:thread-signals'
@@ -17,7 +19,13 @@ export type ListSignal = {
   threadId: string
   activity?: ThreadListActivity | undefined
 }
-export type ThreadSignal = ThreadFrameSignal | ListSignal
+export type ThreadChangedSignal = {
+  userId: string
+  threadId: string
+  rev: number
+  thread: ThreadDto
+}
+export type ThreadSignal = ThreadFrameSignal | ListSignal | ThreadChangedSignal
 
 const threadFrameSignalSchema = z.strictObject({
   threadId: z.string().min(1),
@@ -28,9 +36,23 @@ const listSignalSchema = z.strictObject({
   threadId: z.string().min(1),
   activity: threadListActivitySchema.optional(),
 })
-const threadSignalSchema = z.union([threadFrameSignalSchema, listSignalSchema])
+const threadChangedSignalSchema = z.strictObject({
+  userId: z.string().min(1),
+  threadId: z.string().min(1),
+  rev: z.number().int().nonnegative(),
+  thread: wireThreadSchema.extend({ forkMode: z.string().optional() }),
+})
+const threadSignalSchema = z.union([
+  threadFrameSignalSchema,
+  listSignalSchema,
+  threadChangedSignalSchema,
+])
 
-export const isListSignal = (signal: ThreadSignal): signal is ListSignal => !('frame' in signal)
+export const isThreadChangedSignal = (signal: ThreadSignal): signal is ThreadChangedSignal =>
+  'thread' in signal
+
+export const isListSignal = (signal: ThreadSignal): signal is ListSignal =>
+  !('frame' in signal) && !('thread' in signal)
 
 export function parseThreadSignal(args: { raw: string }): ThreadSignal | undefined {
   try {
