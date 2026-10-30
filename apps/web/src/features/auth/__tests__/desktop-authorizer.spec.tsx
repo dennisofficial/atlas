@@ -54,21 +54,27 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-const mount = async () => {
+const mount = async (settled?: Promise<unknown>) => {
   const { createRoot } = await import('react-dom/client')
   const { DesktopAuthorizer } = await import('../desktop-authorizer')
   const container = document.createElement('div')
   document.body.append(container)
   await act(async () => createRoot(container).render(<DesktopAuthorizer />))
-  await act(async () => {})
-  await act(async () => {})
+  await act(async () => {
+    await settled
+  })
 }
+
+const nextCall = (fn: ReturnType<typeof mock>) =>
+  new Promise<void>((resolve) => {
+    fn.mockImplementationOnce(() => resolve())
+  })
 
 describe('DesktopAuthorizer', () => {
   it('redirects to the loopback with code and state when signed in', async () => {
     search = query()
     signedIn = true
-    await mount()
+    await mount(nextCall(assign))
     expect(minted).toEqual([
       { redirectUri: REDIRECT, codeChallenge: 'c'.repeat(43), codeChallengeMethod: 'S256' },
     ])
@@ -77,7 +83,7 @@ describe('DesktopAuthorizer', () => {
 
   it('sends a signed-out visitor to sign-in with next back to itself', async () => {
     search = query()
-    await mount()
+    await mount(nextCall(replace))
     expect(assign).not.toHaveBeenCalled()
     expect(replace).toHaveBeenCalledWith(
       `/sign-in?next=${encodeURIComponent(`/desktop/authorize?${query()}`)}`,
