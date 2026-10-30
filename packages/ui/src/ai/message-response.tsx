@@ -11,6 +11,7 @@ import remarkGemoji from 'remark-gemoji'
 import { defaultRemarkPlugins, Streamdown } from 'streamdown'
 
 import { remarkGithubAlerts } from './internal/markdown-alerts'
+import { remarkLiteralHtml } from './internal/markdown-literal-html'
 import { markdownComponents } from './internal/markdown-elements'
 import { starRuleHandler } from './internal/markdown-rules'
 import { mermaidOptions } from './internal/mermaid-theme'
@@ -19,7 +20,12 @@ import { useDiagramWheelDamping } from './internal/mermaid-wheel'
 export type MessageResponseProps = ComponentProps<typeof Streamdown>
 
 const plugins = { mermaid, math: createMathPlugin({ singleDollarTextMath: true }) }
-const remarkPlugins = [...Object.values(defaultRemarkPlugins), remarkGemoji, remarkGithubAlerts]
+const remarkPlugins = [
+  ...Object.values(defaultRemarkPlugins),
+  remarkGemoji,
+  remarkGithubAlerts,
+  remarkLiteralHtml,
+]
 const allowedTags = { blockquote: ['cite', 'dataAlert'] }
 const remendOptions = { handlers: [starRuleHandler] }
 const linkSafety = { enabled: false }
