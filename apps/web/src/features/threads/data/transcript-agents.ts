@@ -47,6 +47,12 @@ export type ReportItem = {
   at?: string | undefined
 }
 
+const isSpawnItem = (row: { kind: ETranscriptKind }): row is SpawnItem =>
+  row.kind === ETranscriptKind.Spawn
+
+export const anySpawnRunning = (rows: readonly { kind: ETranscriptKind }[]): boolean =>
+  rows.some((row) => isSpawnItem(row) && row.status === EAgentStatus.Running)
+
 export const spawnDomId = (agentId: string): string => `agent-spawn-${agentId}`
 
 export const rosterModelsOf = (roster: RosterWire | null): ReadonlyMap<string, string> =>
