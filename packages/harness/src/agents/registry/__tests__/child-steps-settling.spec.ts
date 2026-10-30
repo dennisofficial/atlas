@@ -33,20 +33,23 @@ describe('a child step still settling', () => {
     if (run === undefined) throw new Error('the child never started')
     run.settle({ ...finished(), status: ETurnStatus.Completed })
 
-    let cleanedUp = false
-    void supervisor.whenChildrenSettled({ threadId: opened.parent }).then(() => {
-      cleanedUp = true
-    })
-    for (let attempt = 0; attempt < 400 && !cleanedUp; attempt += 1) await Bun.sleep(5)
-    expect(cleanedUp).toBe(true)
+    await supervisor.whenChildrenSettled({ threadId: opened.parent })
     expect(supervisor.settling?.()).toBe(false)
   })
 
   it('announces once the last in-flight step finishes, not while any still runs', async () => {
     opened = await openSupervisor()
     const { supervisor, runners } = opened
-    const settledCalls: number[] = []
-    const unsubscribe = supervisor.onSettled?.(() => settledCalls.push(settledCalls.length))
+    let lastStepReleased = false
+    const announcedWithLastStepReleased: boolean[] = []
+    let announced: () => void = () => undefined
+    const announcement = new Promise<void>((resolve) => {
+      announced = resolve
+    })
+    const unsubscribe = supervisor.onSettled?.(() => {
+      announcedWithLastStepReleased.push(lastStepReleased)
+      announced()
+    })
     if (unsubscribe === undefined) throw new Error('onSettled is optional but must exist here')
 
     await spawnHeld(opened)
@@ -54,12 +57,11 @@ describe('a child step still settling', () => {
     expect(runners.started).toHaveLength(2)
 
     runners.started[0]?.settle(finished())
-    await Bun.sleep(20)
-    expect(settledCalls).toHaveLength(0)
-
+    lastStepReleased = true
     runners.started[1]?.settle(finished())
-    await Bun.sleep(20)
-    expect(settledCalls).toHaveLength(1)
+    await announcement
+    await supervisor.whenChildrenSettled({ threadId: opened.parent })
+    expect(announcedWithLastStepReleased).toEqual([true])
     unsubscribe()
   })
 })

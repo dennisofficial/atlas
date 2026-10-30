@@ -12,7 +12,7 @@ import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-w
 import { grammarsReady } from '../../ui/markdown/__tests__/harness'
 import { clearAttachFailure } from '../attach-failure'
 import { currentNotices, dismissNotice } from '../../ui/notice-store'
-import { CLOUD_WAKE_FAILED_NOTICE_KEY } from '../cloud/cloud-session'
+import { POD_WAKE_FAILED_NOTICE_KEY } from '@dltech/atlas-harness'
 import { CLOUD_BIRTH_NOTICE_KEY } from '../cloud/cloud-birth-notices'
 import { CLOUD_SERVER_FAILURE_NOTICE_KEY } from '../use-cloud-connection'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
@@ -82,7 +82,7 @@ const stickyNotices = (): readonly string[] =>
     .map((notice) => notice.key)
 
 const CLOUD_NOTICE_KEYS: ReadonlySet<string> = new Set([
-  CLOUD_WAKE_FAILED_NOTICE_KEY,
+  POD_WAKE_FAILED_NOTICE_KEY,
   CLOUD_SERVER_FAILURE_NOTICE_KEY,
   CLOUD_BIRTH_NOTICE_KEY,
 ])

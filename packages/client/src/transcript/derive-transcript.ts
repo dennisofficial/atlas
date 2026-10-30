@@ -10,6 +10,7 @@ import {
   type InFlightStep,
 } from './in-flight-steps'
 import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
+import { persistedFailureOf } from './persisted-failure'
 import { revealedText, type RevealGate } from './reveal-gate'
 import { latestRunFailure, type DurableRunFailure } from './run-failure'
 import { modelEntries } from './model-entries'
@@ -45,7 +46,11 @@ const failureOf = (args: {
 function saidInStep(args: { step: InFlightStep; reveal: RevealGate | null }): TranscriptEntry[] {
   return modelEntries({
     runs: args.step.blocks.map((block) => {
-      const key = runKey({ stepId: args.step.stepId, kind: block.kind, id: block.id })
+      const key = runKey({
+        stepId: args.step.stepId,
+        kind: block.kind,
+        id: block.id,
+      })
       return {
         key,
         text: revealedText({ key, text: block.text, gate: args.reveal }),
@@ -127,6 +132,7 @@ export function assembleTranscript(args: {
   outputs?: ReadonlyMap<CallId, string> | undefined
   working?: boolean | undefined
   durableFailure?: DurableRunFailure | null | undefined
+  persistedFailure?: StepFailure | null | undefined
 }): TranscriptModel {
   const reveal = args.reveal ?? null
   const pending = args.pendingTldr ?? null
@@ -150,7 +156,9 @@ export function assembleTranscript(args: {
     ...sandboxNoticeOf(args.sandbox ?? null),
   ]
   const streaming = args.live.some((step) => step.end === null) || args.working === true
-  const failure = failureOf({ steps: args.live, durable: args.durableFailure ?? null })
+  const failure =
+    failureOf({ steps: args.live, durable: args.durableFailure ?? null }) ??
+    (streaming ? null : (args.persistedFailure ?? null))
 
   if (entries.length === 0 && !streaming && failure === null) {
     return EMPTY_TRANSCRIPT
@@ -174,6 +182,7 @@ export function deriveTranscript(args: {
   return assembleTranscript({
     durable: durableEntries({ events: args.events, turns: args.turns }),
     durableFailure: latestRunFailure(args.events),
+    persistedFailure: persistedFailureOf(args.events),
     live: liveSteps({
       steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
       events: args.events,

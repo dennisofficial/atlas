@@ -40,6 +40,27 @@ describe('ThreadReadService.markRead', () => {
     expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
   })
 
+  it('does not signal when the stored marker does not move', async () => {
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
+    const frames = recorder.listFramesOf(USER_A)
+    frames.length = 0
+
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 1 })
+
+    expect(frames).toEqual([])
+  })
+
+  it('signals once when the marker advances', async () => {
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
+    const frames = recorder.listFramesOf(USER_A)
+    frames.length = 0
+
+    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 4 })
+
+    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
+  })
+
   it('is monotonic and clamped to head', async () => {
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 1 })

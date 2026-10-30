@@ -11,6 +11,7 @@ import {
   type CommandHandlers,
 } from '@dltech/atlas-core'
 
+import { MCP_SETTINGS_HINT } from './mcp-notice'
 import { skillCountNotice } from './skill-specs'
 import { NOTHING_TO_COMPACT, SETTINGS_HREF } from './web-command-handlers'
 
@@ -56,7 +57,7 @@ export function newThreadCommandHandlers(deps: NewThreadCommandDeps): CommandHan
     [ECommand.Auth]: UNSUPPORTED,
     [ECommand.Exit]: UNSUPPORTED,
     [ECommand.Restart]: UNSUPPORTED,
-    [ECommand.Mcp]: UNSUPPORTED,
+    [ECommand.Mcp]: () => ran(MCP_SETTINGS_HINT),
     [ECommand.Rewind]: UNSUPPORTED,
   }
 }

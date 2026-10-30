@@ -10,6 +10,7 @@ export type CloudStateRefresh = {
   boot: (prefetched?: Promise<CloudStateFetched>) => Promise<FileMountReport | null>
   refresh: () => Promise<void>
   bindSettings: (settings: SettingsService | undefined) => void
+  exportedEnvNames: () => readonly string[]
 }
 
 export const createCloudStateRefresh = (
@@ -30,5 +31,6 @@ export const createCloudStateRefresh = (
     bindSettings: (settings) => {
       bound.settings = settings
     },
+    exportedEnvNames: () => [...seen.exported].sort(),
   }
 }

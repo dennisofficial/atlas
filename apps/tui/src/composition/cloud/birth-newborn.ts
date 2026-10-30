@@ -1,5 +1,6 @@
 import { EExecutionLocation, EHarnessPlacement, ERunner, type ThreadId } from '@dltech/atlas-core'
 import {
+  assemblePodThread,
   birthInCloud,
   EBirthNode,
   storedModel,
@@ -12,20 +13,18 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import { birthHeading } from '../container-move'
-import { cloudAnchorOf, cloudBindingOf, prepareOn } from '../session-binding'
+import { cloudBindingOf, prepareOn } from '../session-binding'
 import type { BootNarration } from '../boot-block-store'
 import type { CloudBridgeFactory } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
-import { cloudRuntimeParts, openCloudConversation } from './cloud-app'
+import { podThreadPortsOf } from './cloud-app'
+import { localCopyFor } from './cloud-open'
 import {
   BIRTH_CANCELLED_NOTICE,
   CLOUD_BIRTH_NOTICE_KEY,
   birthFailedNotice,
 } from './cloud-birth-notices'
-import { cloudReadinessOf } from './cloud-readiness'
-import { createCloudRunner, createCloudWake } from './cloud-runner'
-import { createCloudSession } from './cloud-session'
-import { mirrorCloudRenames } from './rename-mirror'
+import { podWakeNarrationOf } from './wake-narration'
 
 const BOOT_LABEL_ROWS = [EBirthNode.Provision, 'waiting']
 
@@ -105,61 +104,19 @@ export function birthNewborn(args: {
           bornPlacementChip(app).retire(threadId)
         },
       })
-      const wake = createCloudWake({
+      const pod = await assemblePodThread({
         bridge,
-        channel: attachment.channel,
         threadId,
+        attachment,
         projectId,
-        move,
-      })
-      const turns = createCloudRunner({
-        bridge,
-        channel: attachment.channel,
-        threadId,
-        projectId,
-        move,
-        wake,
-      })
-      const base = {
-        ...app,
-        ...cloudRuntimeParts({
-          channel: attachment.channel,
-          stores: attachment.stores,
-          runner: turns,
-        }),
-      }
-      const opened = await openCloudConversation({ app: base, threadId })
-      const anchor = await cloudAnchorOf({ stores: attachment.stores, threadId, opened })
-      if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
-      const stopMirroring = mirrorCloudRenames({
-        home: app.threads,
-        remote: attachment.stores.threads,
-      })
-      const session = createCloudSession({
-        channel: attachment.channel,
-        sandboxes: bridge.sandboxes,
-        wake: () => wake(),
-        onReload: args.onReload,
-        appliedSnapshot: () => cloudReadinessOf(attachment.channel).applied(),
-        subscribeApplied: (listener) => cloudReadinessOf(attachment.channel).subscribe(listener),
-        onClose: () => {
-          cloudReadinessOf(attachment.channel).cancelWaiting()
-          stopMirroring()
+        ...podThreadPortsOf({ app, threadId, onReload: args.onReload }),
+        localCopy: localCopyFor({ app, runner }),
+        wakeNarration: podWakeNarrationOf(move),
+        assertStillWanted: () => {
+          if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
         },
       })
-      prepareOn({
-        prepareRuntime,
-        binding: cloudBindingOf({
-          local: app,
-          anchor,
-          channel: attachment.channel,
-          stores: attachment.stores,
-          bridge,
-          runner: turns,
-          opened,
-          session,
-        }),
-      })
+      prepareOn({ prepareRuntime, binding: cloudBindingOf({ local: app, bridge, pod }) })
     },
   })
     .then((born) => {

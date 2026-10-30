@@ -1,11 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { EClientRequest, EServeFrame } from '@dltech/atlas-harness'
 import type { FileBrowser } from '@dltech/atlas-harness'
-import {
-  listCommandsParamsSchema,
-  listCommandsReplySchema,
-  type RotationStateWire,
-} from '@dltech/atlas-wire'
+import type { RotationStateWire } from '@dltech/atlas-wire'
 
 import { isAgentSteerOp } from './agent-steer'
 import { routeAgentSteerRequest } from './agent-steer-routing'
@@ -13,6 +9,8 @@ import { createCompactionRequests, isCompactionOp } from './compaction-requests'
 import { routeContextRead } from './context-routing'
 import type { ContextReaders } from './context-requests'
 import { routeFileRequest } from './file-routing'
+import { answerListCommands } from './list-commands'
+import { answerListMcpServers } from './list-mcp-servers'
 import { createHistoryMutations } from './history-mutations'
 import { routeMentionRead, type MentionRouting } from './mention-requests'
 import { routeOperatorInput } from './operator-input'
@@ -20,7 +18,13 @@ import { routeProcessRequest, type ServeProcesses } from './process-requests'
 import { refusedRequest, type RequestFrame, type TranscriptReaders } from './requests'
 import { answerRewindRequest } from './rewind-request'
 import { createRotationRequests, isRotationOp } from './rotation-requests'
-import type { ServeAgentSteer, ServeCommands, ServeRewind, ServeRoster } from './serve-app'
+import type {
+  ServeAgentSteer,
+  ServeCommands,
+  ServeMcp,
+  ServeRewind,
+  ServeRoster,
+} from './serve-app'
 import { EServeEvent, type ServeLog } from './serve-log'
 import type { ThreadModelPersister } from './serve-thread-model-persist'
 import { routeSessionToolRequest } from './session-tool-routing'
@@ -36,6 +40,8 @@ export function createRequestRouter(args: {
   log: ServeLog
   snapshot: ServeRoster['snapshot']
   commands?: ServeCommands | undefined
+  mcp?: ServeMcp | undefined
+  admissionClosed?: (() => boolean) | undefined
   prStates?: (() => readonly import('@dltech/atlas-wire').PrStateWire[]) | undefined
   send: (args: { socket: SessionSocket; frame: import('@dltech/atlas-harness').ServeFrame }) => void
   rewind?: ServeRewind | undefined
@@ -109,38 +115,21 @@ export function createRequestRouter(args: {
     }
 
     if (frame.op === EClientRequest.ListCommands) {
-      const reload = listCommandsParamsSchema.safeParse(frame.params)
-      if (!reload.success) {
-        send({
-          socket,
-          frame: refusedRequest({
-            replyTo: frame.id,
-            message: 'invalid list-commands params',
-          }),
-        })
-        return
-      }
-      const listed =
-        args.commands?.skills({ reload: reload.data.reload === true }) ?? Promise.resolve([])
-      void listed.then(
-        (skills) => {
-          const reply = listCommandsReplySchema.safeParse({ skills })
-          send({
-            socket,
-            frame: reply.success
-              ? { kind: EServeFrame.Reply, replyTo: frame.id, ok: true, data: reply.data }
-              : refusedRequest({ replyTo: frame.id, message: 'could not list commands' }),
-          })
-        },
-        (error: unknown) =>
-          send({
-            socket,
-            frame: refusedRequest({
-              replyTo: frame.id,
-              message: error instanceof Error ? error.message : 'could not list commands',
-            }),
-          }),
-      )
+      answerListCommands({
+        frame,
+        commands: args.commands,
+        reply: (replyFrame) => send({ socket, frame: replyFrame }),
+      })
+      return
+    }
+
+    if (frame.op === EClientRequest.ListMcpServers) {
+      answerListMcpServers({
+        frame,
+        mcp: args.mcp,
+        admissionClosed: args.admissionClosed?.() === true,
+        reply: (replyFrame) => send({ socket, frame: replyFrame }),
+      })
       return
     }
 

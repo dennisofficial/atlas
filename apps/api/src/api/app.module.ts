@@ -23,6 +23,7 @@ import { HealthController } from './platform/health/health.controller'
 import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
 import { MemoriesModule } from './cloud/memories/memories.module'
+import { McpOauthModule } from './cloud/mcp-oauth/mcp-oauth.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { ModelsModule } from './platform/models/models.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
@@ -82,6 +83,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     SkillCatalogueModule,
     UserVercelModule,
     McpServersModule,
+    McpOauthModule,
     GithubModule,
     SshSigningKeyModule,
     MemoriesModule,

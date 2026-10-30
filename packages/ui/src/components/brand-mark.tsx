@@ -40,7 +40,7 @@ const BRAND_PATHS: Record<EBrand, { title: string; d: string; fill?: string }> =
   },
   [EBrand.Inference]: {
     title: 'Inference.net',
-    d: 'M4 4h16v4H4zM4 10h16v4H4zM4 16h10v4H4z',
+    d: 'M22 21.376h-4.89V2.62H22v18.756zM14.532 21.376h-3.469V2.62h3.469v18.756zM8.764 21.376h-2.66V2.62h2.66v18.756zM3.903 21.376H2V2.62h1.903v18.756z',
   },
   [EBrand.Vercel]: {
     title: 'Vercel',

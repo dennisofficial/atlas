@@ -7,8 +7,12 @@ import { dropTornTail, encodeEvent } from '../store/sessions/lines'
 import { newThreadMeta, readMetaSync, threadMetaSchema, writeMeta } from '../store/sessions/meta'
 import { eventLogFile, threadMetaFile } from '../store/sessions/paths'
 import { registryFor, type SessionRegistry } from '../store/sessions/registry'
+import { withMirrorLock } from './mirror-lock'
+
+export type MirrorAppend = { head: number; gapAt?: number | undefined }
 
 export type MirrorWriter = {
+  appendFrom(args: { threadId: ThreadId; events: readonly Event[] }): Promise<MirrorAppend>
   appendDelta(args: { threadId: ThreadId; events: readonly Event[] }): Promise<void>
   rewriteFrom(args: {
     threadId: ThreadId
@@ -19,7 +23,11 @@ export type MirrorWriter = {
 
 type MirrorTarget = { file: string; sessionDir: string; registry: SessionRegistry }
 
-export function mirrorWriter(args: { home: () => string }): MirrorWriter {
+export function mirrorWriter(args: {
+  home: () => string
+  registry?: (() => SessionRegistry) | undefined
+}): MirrorWriter {
+  const registryOf = (): SessionRegistry => args.registry?.() ?? registryFor({ home: args.home() })
   const exclusively = async <T>({
     threadId,
     run,
@@ -27,12 +35,19 @@ export function mirrorWriter(args: { home: () => string }): MirrorWriter {
     threadId: ThreadId
     run: (target: MirrorTarget) => Promise<T>
   }): Promise<T> => {
-    const registry = registryFor({ home: args.home() })
+    const registry = registryOf()
     const sessionDir = await registry.sessionDirFor({ threadId })
     const file = eventLogFile({ sessionDir, threadId })
     return registry.enqueue({
       handle: registry.handleFor({ sessionDir }),
-      run: () => run({ file, sessionDir, registry }),
+      run: () =>
+        withMirrorLock({
+          eventsFile: file,
+          run: () => {
+            registry.invalidateSession({ sessionDir })
+            return run({ file, sessionDir, registry })
+          },
+        }),
     })
   }
 
@@ -86,6 +101,29 @@ export function mirrorWriter(args: { home: () => string }): MirrorWriter {
     })
   }
 
+  const appendFrom = (given: {
+    threadId: ThreadId
+    events: readonly Event[]
+  }): Promise<MirrorAppend> =>
+    exclusively({
+      threadId: given.threadId,
+      run: async ({ file, sessionDir, registry }) => {
+        const existing = await registry.readThreadLog({ sessionDir, threadId: given.threadId })
+        const fresh = given.events.filter((event) => event.seq > existing.head)
+        const first = fresh[0]
+        if (first === undefined) return { head: existing.head }
+        if (first.seq !== existing.head + 1)
+          return { head: existing.head, gapAt: existing.head + 1 }
+        const head = fresh[fresh.length - 1]?.seq ?? existing.head
+        await mkdir(dirname(file), { recursive: true })
+        await dropTornTail({ file, threadId: given.threadId, on: 'append' })
+        await appendFile(file, fresh.map(lineOf).join(''), 'utf8')
+        await setHead({ threadId: given.threadId, sessionDir, head })
+        registry.invalidateSession({ sessionDir })
+        return { head }
+      },
+    })
+
   const rewriteFrom = async (given: {
     threadId: ThreadId
     fromSeq: number
@@ -107,5 +145,5 @@ export function mirrorWriter(args: { home: () => string }): MirrorWriter {
     })
   }
 
-  return { appendDelta, rewriteFrom }
+  return { appendFrom, appendDelta, rewriteFrom }
 }

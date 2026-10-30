@@ -34,6 +34,13 @@ describe('chipLabel', () => {
     expect(chipLabel({ ...RUNNING, state: EPodState.Resuming })).toBe('Resuming · 4 vCPU · 8 GB')
   })
 
+  it('names the owed size while a resize restart is in flight', () => {
+    expect(chipLabel({ ...RUNNING, state: EPodState.Resuming, pendingVcpus: 8 })).toBe(
+      'Restarting · 8 vCPU · 16 GB',
+    )
+    expect(chipLabel({ ...RUNNING, state: EPodState.Parked, pendingVcpus: 8 })).toBe('Parked')
+  })
+
   it('shows only the state when parked or starting', () => {
     expect(chipLabel({ ...RUNNING, state: EPodState.Parked })).toBe('Parked')
     expect(chipLabel({ ...RUNNING, state: EPodState.Starting })).toBe('Starting')

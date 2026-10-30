@@ -26,6 +26,7 @@ const sandbox = (partial: Partial<Row<'CloudSandbox'>> = {}): Row<'CloudSandbox'
   wakeFailedAt: null,
   wakeClaim: null,
   pendingSend: null,
+  pendingVcpus: null,
   runtimeCheckpoint: null,
   runtimeCheckpointRevision: null,
   createdAt: NOW,

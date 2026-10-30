@@ -2,7 +2,6 @@ import { vi } from 'bun:test'
 import { seedSandboxRow } from '../../../../test/session-seed'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
-import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { PodLaunchService } from './pod-launch.service'
@@ -27,14 +26,7 @@ export const podServiceOver = (
   vercel: VercelSandboxClient = unreachableVercel(),
   launch: PodLaunchService = podLaunchWith().pod,
   signals: ThreadSignalsService = inertSignals(),
-): ThreadPodService =>
-  new ThreadPodService(
-    endpoints,
-    vercel,
-    new SandboxesService(vercel, cipher, signals),
-    launch,
-    signals,
-  )
+): ThreadPodService => new ThreadPodService(endpoints, vercel, launch, signals)
 
 export const realEndpoints = (): SandboxEndpointService =>
   new SandboxEndpointService(unreachableVercel(), cipher)

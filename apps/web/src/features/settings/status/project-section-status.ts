@@ -19,7 +19,8 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
     status: EPageStatus.Live,
   },
   [EProjectSettingsSection.Mcp]: {
-    status: EPageStatus.Partial,
-    detail: "Servers are saved to the project; sessions don't load them yet.",
+    status: EPageStatus.Live,
+    detail:
+      'Servers reach every session of this project; OAuth sign-ins are yours and shared across projects.',
   },
 }

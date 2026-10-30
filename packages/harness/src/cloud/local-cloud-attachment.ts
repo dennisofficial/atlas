@@ -18,16 +18,15 @@ export const attachmentOf =
     sandboxThreadId,
   }: {
     threadId: ThreadId
-    url: string
-    token: string
+    url?: string | undefined
+    token?: string | undefined
     sandboxThreadId?: ThreadId | undefined
   }) => {
     const { options, sandboxes } = args
     const hosted = sandboxThreadId ?? threadId
     const channel = createRemoteDeltaChannel({
       threadId,
-      url,
-      token,
+      ...(url === undefined || token === undefined ? { readsWake: false } : { url, token }),
       ...(options.lastEventSeq === undefined
         ? {}
         : { lastEventSeq: () => options.lastEventSeq?.({ threadId }) ?? 0 }),

@@ -5,7 +5,7 @@ import { createDesktopHost } from '../host'
 import { podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
-import { startAutoUpdate } from './auto-update'
+import { restartToLatest, startAutoUpdate } from './auto-update'
 import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
 import { DESKTOP_PRELOAD } from './preload'
@@ -31,8 +31,12 @@ await runLogged(async () => {
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
     pods: podConfig,
+    app: { version: localInfo.version, channel: localInfo.channel },
     auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
-    updates: { status: updateState.status, restart: () => Updater.applyUpdate() },
+    updates: {
+      status: updateState.status,
+      restart: () => restartToLatest({ updater: Updater, onReady: updateState.markReady }),
+    },
     window: {
       titlebarDoubleClick: () => {
         if (windowRef.current)

@@ -157,7 +157,7 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
     id: EProviderId.Inference,
     name: 'Inference.net',
     brand: EBrand.Inference,
-    description: 'Open-weight models served by Inference.net',
+    description: 'Open models on managed inference',
   },
 ]
 
@@ -165,5 +165,5 @@ export const KEY_PREFIXES: Record<EProviderId, string> = {
   [EProviderId.Anthropic]: 'sk-ant-',
   [EProviderId.OpenAI]: 'sk-proj-',
   [EProviderId.OpenRouter]: 'sk-or-',
-  [EProviderId.Inference]: '',
+  [EProviderId.Inference]: 'sk-inference-',
 }

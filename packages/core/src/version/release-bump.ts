@@ -35,6 +35,7 @@ export const RELEASE_BASELINE: Semver = {
 export function nextReleaseVersion(args: {
   current: Semver | null
   subjects: readonly string[]
+  appsAffected: boolean
 }): Semver | null {
   const base = args.current ?? RELEASE_BASELINE
   const kinds = new Set(args.subjects.map(classifyCommitSubject))
@@ -46,22 +47,10 @@ export function nextReleaseVersion(args: {
   }
 
   if (kinds.has(ECommitKind.Feature)) {
-    return {
-      major: base.major,
-      minor: base.minor + 1,
-      patch: 0,
-      prerelease: null,
-    }
+    return { major: base.major, minor: base.minor + 1, patch: 0, prerelease: null }
   }
 
-  if (kinds.has(ECommitKind.Fix)) {
-    return {
-      major: base.major,
-      minor: base.minor,
-      patch: base.patch + 1,
-      prerelease: null,
-    }
-  }
+  if (!kinds.has(ECommitKind.Fix) && !args.appsAffected) return null
 
-  return null
+  return { major: base.major, minor: base.minor, patch: base.patch + 1, prerelease: null }
 }

@@ -14,7 +14,7 @@ import { BackPill } from '../ui/components/back-pill'
 import { Transcript } from '../ui/components/transcript'
 import { TranscriptLoading, transcriptLoading } from '../ui/components/transcript-loading'
 import { WelcomeScreen } from '../ui/components/welcome-screen'
-import type { CloudHealth, CloudSession } from './cloud/cloud-session'
+import type { PodHealth, PodSession } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import { SubagentTranscript } from './subagent-transcript'
 import { TeammateTranscript } from './teammate-transcript'
@@ -53,8 +53,8 @@ export function WorkspaceTranscript(props: {
     | 'hasOlderHistory'
     | 'loadOlderHistory'
   >
-  cloudHealth: CloudHealth | null
-  cloudSession: CloudSession | null
+  cloudHealth: PodHealth | null
+  cloudSession: PodSession | null
   reconnectingSince: number | null
   onRetryAttach: () => void
   sends: number

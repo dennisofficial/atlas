@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EEffort, ERunner, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import {
+  createPodRunner,
   birthInCloud,
   createLocalPodBridge,
   DEFAULT_DOCKER_SOCKET,
@@ -11,7 +12,6 @@ import {
   type CloudAttachment,
 } from '@dltech/atlas-harness'
 
-import { createCloudRunner } from '../cloud/cloud-runner'
 import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
@@ -78,7 +78,7 @@ describeLive('memory written in one pod', () => {
         const attachment = attachments[0]
         if (attachment === undefined)
           throw new Error(`birth of ${threadId} never opened an attachment`)
-        return createCloudRunner({ bridge, channel: attachment.channel, threadId, projectId: null })
+        return createPodRunner({ bridge, channel: attachment.channel, threadId, projectId: null })
       }
 
       try {

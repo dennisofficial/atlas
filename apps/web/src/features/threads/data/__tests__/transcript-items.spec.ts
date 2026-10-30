@@ -396,3 +396,12 @@ describe('upload-only messages', () => {
     expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads })
   })
 })
+
+describe('a persisted failed turn on return', () => {
+  it('shows the failure with no live signals', () => {
+    const view = viewOf({
+      events: [said(1, 'go'), wire(2, { type: 'turn-failed', message: 'InvalidApiKey' })],
+    })
+    expect(view.failure).toBe('InvalidApiKey')
+  })
+})

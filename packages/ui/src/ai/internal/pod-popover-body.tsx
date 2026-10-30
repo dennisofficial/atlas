@@ -65,13 +65,21 @@ export interface PodPopoverBodyProps {
 }
 
 export function PodPopoverBody({ status, onResize, settingsHref }: PodPopoverBodyProps) {
-  const [selected, setSelected] = useState(status.pendingVcpus ?? status.vcpus)
+  const target = status.pendingVcpus ?? status.vcpus
+  const [selected, setSelected] = useState(target)
+  const [syncedTarget, setSyncedTarget] = useState(target)
   const [requested, setRequested] = useState<number>()
   const [applying, setApplying] = useState(false)
   const [failed, setFailed] = useState(false)
+  if (syncedTarget !== target) {
+    setSyncedTarget(target)
+    setSelected(target)
+    setRequested(undefined)
+  }
   const pending = status.pendingVcpus ?? requested
   const canChange = canResize(status.state)
-  const locked = !canChange || applying || !onResize
+  const restarting = status.pendingVcpus !== undefined && status.state !== EPodState.Parked
+  const locked = !canChange || restarting || applying || !onResize
   const unchanged = selected === status.vcpus || selected === pending
 
   const handleSizeChange = (values: string[]) => {

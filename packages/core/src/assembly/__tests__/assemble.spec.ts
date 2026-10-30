@@ -199,3 +199,20 @@ describe('assemble', () => {
     expect(events).toEqual(snapshot)
   })
 })
+
+describe('a persisted failed turn', () => {
+  it('never reaches the model', () => {
+    const events = log([
+      { type: 'user-said', text: 'hello' },
+      { type: 'turn-failed', message: 'InvalidApiKey', modelId: 'm', providerId: 'p' },
+    ])
+
+    const { assembled } = assemble({
+      rules: [doctrine(), messagesFromEvents()],
+      ctx: contextFor({ events }),
+    })
+
+    expect(JSON.stringify(assembled.messages)).not.toContain('InvalidApiKey')
+    expect(assembled.messages.map((entry) => entry.message.role)).toEqual(['user'])
+  })
+})

@@ -8,13 +8,16 @@ import {
   type AccountSecret,
 } from '@dltech/atlas-core'
 
+import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import { CloudService } from '../cloud/cloud-service'
+import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import type { CloudSession } from '../cloud/cloud-session'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   CloudSessionStoreToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
+  SecretsStoreToken,
   UserSettingsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
@@ -55,6 +58,12 @@ export async function bindAccounts(args: {
       : {}),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
+    uploadOnSignIn: args.cloudBacked === true && args.reconcileHostSources !== false,
+    onUploaded: async () => {
+      if (accountStore instanceof AccountStoreProxy) accountStore.invalidateCloudCache()
+      const secrets = container.resolve(SecretsStoreToken)
+      if (secrets instanceof SecretsStoreProxy) await secrets.warm()
+    },
     ...(credentials instanceof CloudManagedCredentialPort
       ? {
           handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) =>
@@ -63,13 +72,19 @@ export async function bindAccounts(args: {
       : {}),
   })
 
-  if (args.reconcileHostSources !== false && args.cloudBacked !== true) {
-    await syncEnvironmentAccounts({ accounts: accountStore, env: args.env })
+  if (args.reconcileHostSources !== false) {
+    await syncEnvironmentAccounts({
+      accounts:
+        args.cloudBacked === true ? container.resolve(LocalAccountStoreToken) : accountStore,
+      env: args.env,
+    })
   }
 
   const accounts = new AccountsService({
     accounts: accountStore,
-    clients: builtinOauthClients({ clock: container.resolve(registeredPortToken(ClockPort)) }),
+    clients: builtinOauthClients({
+      clock: container.resolve(registeredPortToken(ClockPort)),
+    }),
     ...(credentials instanceof CloudManagedCredentialPort
       ? {
           onOauthLogin: (account: Account) =>

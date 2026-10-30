@@ -4,15 +4,13 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { EExecutionLocation, type ThreadId } from '@dltech/atlas-core'
 import {
   EConnectionView,
-  ECloudSandboxState,
-  EResizeApplies,
   type ChannelConnection,
   type CloudConnection,
 } from '@dltech/atlas-harness'
 import { act } from 'react'
 
-import type { CloudSession } from '../cloud/cloud-session'
-import { createCloudSession } from '../cloud/cloud-session'
+import { createPodSession, type PodSession } from '@dltech/atlas-harness'
+import { noticePortBinding } from '../notice-binding'
 import { fakeCloudChannel } from '../cloud/__tests__/fixture'
 import { ERuntimeKind } from '@dltech/atlas-harness'
 import { useCloudConnection, useCloudHealth } from '../use-cloud-connection'
@@ -30,25 +28,15 @@ const switchToHostThread = async (app: FakeApp): Promise<void> => {
   await app.sessionOwner.activateLocal({ threadId: HOST_THREAD, fallback: EExecutionLocation.Host })
 }
 
-const sessionOn = (connection?: ChannelConnection): CloudSession =>
+const sessionOn = (connection?: ChannelConnection): PodSession =>
   sessionOver(fakeCloudChannel({ connection }))
 
-const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): CloudSession => {
-  return createCloudSession({
+const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): PodSession => {
+  return createPodSession({
     channel,
-    sandboxes: {
-      create: async () => ({
-        url: '',
-        token: '',
-        state: ECloudSandboxState.Running,
-        created: false,
-      }),
-      find: async () => undefined,
-      readResources: async () => ({}),
-      updateResources: async () => ({ appliesAt: EResizeApplies.Live }),
-      destroy: async () => undefined,
-    },
+    sandboxes: { find: async () => undefined },
     wake: async () => undefined,
+    notice: noticePortBinding(),
     onReload: async () => undefined,
   })
 }
@@ -56,12 +44,12 @@ const sessionOver = (channel: ReturnType<typeof fakeCloudChannel>): CloudSession
 type Probe = { current: CloudConnection | null | undefined }
 type HealthProbe = { current: ReturnType<typeof useCloudHealth> | undefined }
 
-function HealthHarness(args: { probe: HealthProbe; app: FakeApp; session: CloudSession | null }) {
+function HealthHarness(args: { probe: HealthProbe; app: FakeApp; session: PodSession | null }) {
   args.probe.current = useCloudHealth({ app: args.app, session: args.session })
   return <box />
 }
 
-function Harness(args: { probe: Probe; app: FakeApp; session: CloudSession | null }) {
+function Harness(args: { probe: Probe; app: FakeApp; session: PodSession | null }) {
   args.probe.current = useCloudConnection({ app: args.app, session: args.session })
   return <box />
 }
@@ -77,7 +65,7 @@ const live: Mounted[] = []
 async function mount(args: {
   app: FakeApp
   location: EExecutionLocation
-  session: CloudSession | null
+  session: PodSession | null
   attached?: boolean
 }): Promise<Mounted> {
   await args.app.threads.create({ id: THREAD, executionLocation: args.location })
@@ -235,7 +223,7 @@ type MountedHealth = {
 async function mountHealth(args: {
   app: FakeApp
   location: EExecutionLocation
-  session: CloudSession | null
+  session: PodSession | null
   attached?: boolean
 }): Promise<MountedHealth> {
   await args.app.threads.create({ id: THREAD, executionLocation: args.location })

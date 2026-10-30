@@ -64,7 +64,7 @@ describe('new thread command handlers', () => {
   })
 
   it('refuses unsupported commands', async () => {
-    for (const name of ['cd', 'container', 'help', 'auth', 'exit', 'restart', 'mcp', 'rewind']) {
+    for (const name of ['cd', 'container', 'help', 'auth', 'exit', 'restart', 'rewind']) {
       expect((await rig().run(`/${name}`)).type).toBe(EDispatch.Refused)
     }
   })

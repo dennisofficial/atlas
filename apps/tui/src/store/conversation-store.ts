@@ -6,6 +6,7 @@ import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
 import {
   assembleTranscript,
   durableEntries,
+  persistedFailureOf,
   SHIPPED_THINKING,
   type EThinkingVisibility,
   type RevealGate,
@@ -130,6 +131,7 @@ export function createConversationStore(args: {
 
   let model = assembleTranscript({
     durable: durableNow(),
+    persistedFailure: persistedFailureOf(events),
     live: [],
     thinking,
     pendingTldr,
@@ -194,6 +196,7 @@ export function createConversationStore(args: {
     model = settled(
       assembleTranscript({
         durable: durableNow(),
+        persistedFailure: persistedFailureOf(events),
         live: tracker.live(events),
         reveal: gate,
         thinking,

@@ -4,6 +4,7 @@ export type OAuthFetch = (input: string, init?: RequestInit) => Promise<Response
 
 export type ProtectedResourceMetadata = {
   authorization_servers: string[]
+  resource?: string
   scopes_supported?: string[]
 }
 
@@ -64,12 +65,17 @@ export const parseWwwAuthenticate = (header: string): WwwAuthenticateChallenge =
 
 const parseProtectedResourceMetadata = (raw: unknown): ProtectedResourceMetadata | undefined => {
   if (typeof raw !== 'object' || raw === null) return undefined
-  const body = raw as { authorization_servers?: unknown; scopes_supported?: unknown }
+  const body = raw as {
+    authorization_servers?: unknown
+    scopes_supported?: unknown
+    resource?: unknown
+  }
   const authorizationServers = stringArrayOr(body.authorization_servers)
   if (authorizationServers === undefined) return undefined
   const scopesSupported = stringArrayOr(body.scopes_supported)
   return {
     authorization_servers: authorizationServers,
+    ...(typeof body.resource === 'string' ? { resource: body.resource } : {}),
     ...(scopesSupported === undefined ? {} : { scopes_supported: scopesSupported }),
   }
 }

@@ -45,6 +45,7 @@ export async function claimRow(args: {
   thread: Row<'Thread'>
   existing: Row<'CloudSandbox'> | null
   cipher: SecretCipherService
+  pendingVcpus?: number | undefined
 }): Promise<RowClaim | null> {
   const writer = args.writer ?? db
   const sessionId = await podSessionOf({ reader: writer, threadId: args.thread.id })
@@ -84,6 +85,7 @@ export async function claimRow(args: {
   }).updateAndCount({
     wakeClaim,
     ...mintedColumns,
+    ...(args.pendingVcpus === undefined ? {} : { pendingVcpus: args.pendingVcpus }),
     state: ESandboxState.Resuming,
     updatedAt: wakeClaim,
   })
@@ -94,6 +96,7 @@ export async function markRunning(args: {
   threadId: string
   wakeClaim: Date
   serveUrl: string
+  refreshClaim?: boolean | undefined
 }): Promise<boolean> {
   const at = new Date()
   const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
@@ -104,6 +107,8 @@ export async function markRunning(args: {
     state: ESandboxState.Running,
     serveUrl: args.serveUrl,
     wakeFailedAt: null,
+    pendingVcpus: null,
+    ...(args.refreshClaim === true ? { wakeClaim: at } : {}),
     lastActivityAt: at,
     updatedAt: at,
   })
@@ -121,7 +126,7 @@ export async function markFailed(args: {
   return writer.orm.public.CloudSandbox.where({
     sessionId,
     wakeClaim: args.wakeClaim,
-  }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, updatedAt: at })
+  }).updateAndCount({ wakeClaim: null, wakeFailedAt: at, pendingVcpus: null, updatedAt: at })
 }
 
 export async function claimHeld(args: { threadId: string; wakeClaim: Date }): Promise<boolean> {

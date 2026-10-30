@@ -99,6 +99,7 @@ export enum EClientRequest {
   BrowseDirectory = 'browse-directory',
   ListRoster = 'list-roster',
   ListCommands = 'list-commands',
+  ListMcpServers = 'list-mcp-servers',
   ListPrStates = 'list-pr-states',
   ListSubscriptions = 'list-subscriptions',
   Subscribe = 'subscribe',

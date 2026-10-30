@@ -46,6 +46,10 @@ export function showsSize(state: EPodState): boolean {
 }
 
 export function chipLabel(status: PodStatus): string {
+  const restarting = status.state !== EPodState.Parked && status.state !== EPodState.Stopped
+  if (restarting && status.pendingVcpus !== undefined) {
+    return `Restarting · ${sizeLabel(status.pendingVcpus)}`
+  }
   if (status.state === EPodState.Running) return sizeLabel(status.vcpus)
   const label = STATE_LABEL[status.state]
   return showsSize(status.state) ? `${label} · ${sizeLabel(status.vcpus)}` : label

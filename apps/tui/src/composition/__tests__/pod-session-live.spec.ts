@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EEffort, ERunner, toThreadId } from '@dltech/atlas-core'
 import {
+  createPodRunner,
   birthInCloud,
   createLocalPodBridge,
   DEFAULT_DOCKER_SOCKET,
@@ -14,7 +15,6 @@ import {
   type CloudAttachment,
 } from '@dltech/atlas-harness'
 
-import { createCloudRunner } from '../cloud/cloud-runner'
 import { livePodBridgeOptionsFor } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 import { fakeSessionRuntime } from './fake-session-runtime'
@@ -137,7 +137,7 @@ describeLive('a multi-turn session in a local pod', () => {
         if (podId === undefined) throw new Error('no pod carries the thread label')
         const attachment = attachments[0]
         if (attachment === undefined) throw new Error('birth never opened an attachment')
-        const runner = createCloudRunner({
+        const runner = createPodRunner({
           bridge,
           channel: attachment.channel,
           threadId: THREAD,

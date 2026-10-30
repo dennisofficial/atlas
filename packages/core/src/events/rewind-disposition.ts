@@ -26,6 +26,7 @@ export const REWIND_DISPOSITION = {
   'loop-watch-verdict': ERewindDisposition.Discard,
   nudge: ERewindDisposition.Discard,
   'sandbox-setup-reported': ERewindDisposition.Discard,
+  'turn-failed': ERewindDisposition.Discard,
   parked: ERewindDisposition.Discard,
   rotated: ERewindDisposition.Discard,
   'permission-granted': ERewindDisposition.Discard,

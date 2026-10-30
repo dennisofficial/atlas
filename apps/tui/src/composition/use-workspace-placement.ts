@@ -1,5 +1,5 @@
 import type { CloudReload } from '@dltech/atlas-harness'
-import type { CloudSession } from './cloud/cloud-session'
+import type { PodSession } from '@dltech/atlas-harness'
 import type { AtlasApp } from './compose'
 import { useCloudConnection } from './use-cloud-connection'
 import { useContainerPill } from './use-container-pill'
@@ -15,7 +15,7 @@ export function useWorkspacePlacement(args: {
   opened: OpenedConversation
   createBridge: CloudBridgeFactory
   onReload: (reload: CloudReload) => Promise<void>
-  cloudSession: CloudSession | null
+  cloudSession: PodSession | null
   conversation: Pick<Conversation, 'threadId' | 'executionLocation'>
 }) {
   const { app, cloudSession, conversation } = args

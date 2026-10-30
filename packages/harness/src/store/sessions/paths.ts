@@ -10,6 +10,7 @@ export const LEDGER_FILE_NAME = 'ledger.jsonl'
 export const LOGS_FILE_NAME = 'logs.jsonl'
 export const EVENTS_FILE_SUFFIX = '.events.jsonl'
 export const THREAD_META_FILE_SUFFIX = '.meta.json'
+export const THREAD_READ_FILE_SUFFIX = '.read.json'
 export const CONTEXT_DIRECTORY_NAME = 'context'
 export const IMAGES_DIRECTORY_NAME = 'images'
 
@@ -67,6 +68,16 @@ export function threadMetaFile({
   threadId: ThreadId
 }): string {
   return join(threadsDirectory({ sessionDir }), `${threadId}${THREAD_META_FILE_SUFFIX}`)
+}
+
+export function threadReadCursorFile({
+  sessionDir,
+  threadId,
+}: {
+  sessionDir: string
+  threadId: ThreadId
+}): string {
+  return join(threadsDirectory({ sessionDir }), `${threadId}${THREAD_READ_FILE_SUFFIX}`)
 }
 
 export function threadDataDirectory({

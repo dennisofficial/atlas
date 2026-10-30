@@ -79,10 +79,14 @@ export const listThreadsInputSchema = z
   })
 export type ListThreadsInput = z.infer<typeof listThreadsInputSchema>
 
-export const renameThreadInputSchema = threadIdInputSchema.extend({ title: z.string() })
+export const renameThreadInputSchema = threadIdInputSchema.extend({
+  title: z.string(),
+})
 export type RenameThreadInput = z.infer<typeof renameThreadInputSchema>
 
-export const archiveThreadInputSchema = threadIdInputSchema.extend({ archived: z.boolean() })
+export const archiveThreadInputSchema = threadIdInputSchema.extend({
+  archived: z.boolean(),
+})
 export type ArchiveThreadInput = z.infer<typeof archiveThreadInputSchema>
 
 export const markThreadReadInputSchema = z.strictObject({
@@ -152,7 +156,9 @@ export const readEventsInputSchema = threadIdInputSchema.extend({
 })
 export type ReadEventsInput = z.infer<typeof readEventsInputSchema>
 
-export const importEventsInputSchema = podEventsPostSchema.extend({ threadId: z.string().min(1) })
+export const importEventsInputSchema = podEventsPostSchema.extend({
+  threadId: z.string().min(1),
+})
 export type ImportEventsInput = z.infer<typeof importEventsInputSchema>
 
 export const threadHeadReplySchema = z.object({ head: z.number().int() })
@@ -198,7 +204,10 @@ export enum EThreadStreamFrame {
 }
 
 export const threadStreamFrameSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal(EThreadStreamFrame.Head), head: z.number().int() }),
+  z.object({
+    type: z.literal(EThreadStreamFrame.Head),
+    head: z.number().int(),
+  }),
   z.object({ type: z.literal(EThreadStreamFrame.Pod) }),
   z.object({ type: z.literal(EThreadStreamFrame.Heartbeat) }),
   z.object({ type: z.literal(EThreadStreamFrame.Title) }),
@@ -210,7 +219,9 @@ const isAsyncIterable = (value: unknown): value is AsyncIterable<ThreadStreamFra
 
 export const threadStreamOutputSchema = z.custom<AsyncIterable<ThreadStreamFrame>>(isAsyncIterable)
 
-export const threadStreamInputSchema = z.strictObject({ threadId: z.string().min(1) })
+export const threadStreamInputSchema = z.strictObject({
+  threadId: z.string().min(1),
+})
 export type ThreadStreamInput = z.infer<typeof threadStreamInputSchema>
 
 export enum EThreadListFrame {
@@ -218,8 +229,19 @@ export enum EThreadListFrame {
   Heartbeat = 'heartbeat',
 }
 
+export const threadListActivitySchema = z.strictObject({
+  working: z.boolean(),
+  awaiting: z.enum(['approval', 'input']).nullable(),
+  lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable(),
+})
+export type ThreadListActivity = z.infer<typeof threadListActivitySchema>
+
 export const threadListFrameSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal(EThreadListFrame.Changed), threadId: z.string().min(1) }),
+  z.strictObject({
+    type: z.literal(EThreadListFrame.Changed),
+    threadId: z.string().min(1),
+    activity: threadListActivitySchema.optional(),
+  }),
   z.strictObject({ type: z.literal(EThreadListFrame.Heartbeat) }),
 ])
 export type ThreadListFrame = z.infer<typeof threadListFrameSchema>

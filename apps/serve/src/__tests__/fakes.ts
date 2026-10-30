@@ -209,6 +209,7 @@ export function fakeServeApp(args: {
   rewindTarget?: FakeRewindTarget | undefined
   roster?: FakeRoster | undefined
   commands?: ServeApp['commands'] | undefined
+  mcp?: ServeApp['mcp'] | undefined
   expandContext?: ServeApp['expandContext'] | undefined
   family?: ServeFamily | undefined
   intake?: boolean | undefined
@@ -377,6 +378,7 @@ export function fakeServeApp(args: {
     ...(args.roster === undefined ? {} : { roster: args.roster }),
 
     ...(args.commands === undefined ? {} : { commands: args.commands }),
+    ...(args.mcp === undefined ? {} : { mcp: args.mcp }),
     ...(args.expandContext === undefined ? {} : { expandContext: args.expandContext }),
 
     ...(args.family === undefined ? {} : { family: args.family }),

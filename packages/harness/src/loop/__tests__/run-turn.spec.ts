@@ -110,7 +110,7 @@ describe('a turn over a real log', () => {
     expect(outcome.status).toBe(ETurnStatus.Failed)
     expect(outcome.status === ETurnStatus.Failed ? outcome.message : '').toMatch(/overloaded_error/)
     const events = await harness.log.read({ threadId: thread.id })
-    expect(events.map((event) => event.type)).toEqual(['user-said'])
+    expect(events.map((event) => event.type)).toEqual(['user-said', 'turn-failed'])
   })
 })
 
