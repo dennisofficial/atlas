@@ -36,6 +36,7 @@ export type ScopedMcpServer = z.infer<typeof scopedMcpServerSchema>
 export const resolvedSandboxConfigSchema = z.object({
   settings: z.record(z.string(), z.string()),
   secrets: z.array(scopedSecretSchema),
+  harnessSecrets: z.array(scopedSecretSchema),
   mcpServers: z.array(scopedMcpServerSchema),
   fileMounts: z.array(scopedFileMountSchema).default([]),
   provenance: z.record(z.string(), z.enum(EConfigScope)),

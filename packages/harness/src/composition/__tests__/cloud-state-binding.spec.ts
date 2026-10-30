@@ -59,7 +59,7 @@ const handle = async (request: Request): Promise<Response> => {
   if (request.method === 'GET' && path === '/v1/trpc/accounts.active') {
     return Response.json({ result: { data: { accountId: ACCOUNT.id } } })
   }
-  if (path === '/v1/trpc/secrets.list') {
+  if (path === '/v1/trpc/harnessSecrets.list') {
     return Response.json({
       result: {
         data: { secrets: [{ name: 'search.tavily', value: 'cloud-secret', updatedAt: STAMP }] },
@@ -127,7 +127,7 @@ const compose = async (cloudState: boolean | undefined, settingsOnly = false) =>
   return { app, notices }
 }
 
-const requestsTo = (resource: 'accounts' | 'secrets' | 'settings'): Call[] =>
+const requestsTo = (resource: 'accounts' | 'harnessSecrets' | 'settings'): Call[] =>
   calls.filter((call) => call.path.startsWith(`/v1/trpc/${resource}.`))
 
 const isWrite = (call: Call): boolean => call.path.endsWith('.set')
@@ -161,8 +161,8 @@ describe('composeHarness with cloudState on', () => {
     app.secrets.write({ name: 'mcp-oauth:https://mcp.test/', value: '{}' })
     app.secrets.write({ name: 'search.exa', value: 'goes-to-cloud' })
 
-    await eventually(() => requestsTo('secrets').some(isWrite))
-    const puts = requestsTo('secrets')
+    await eventually(() => requestsTo('harnessSecrets').some(isWrite))
+    const puts = requestsTo('harnessSecrets')
       .filter(isWrite)
       .map((call) => call.body)
     expect(puts).toEqual([{ name: 'search.exa', value: 'goes-to-cloud' }])
@@ -232,7 +232,7 @@ describe('composeHarness with cloud settings only', () => {
     expect(requestsTo('settings').length).toBeGreaterThan(0)
     expect(await app.accounts.list()).toEqual([])
     expect(app.secrets.read('search.tavily')).toBeUndefined()
-    expect(requestsTo('secrets')).toEqual([])
+    expect(requestsTo('harnessSecrets')).toEqual([])
     expect(requestsTo('accounts')).toEqual([])
   })
 })

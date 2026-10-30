@@ -143,11 +143,23 @@ export const applyCloudState = async (args: {
     const cipher = new SecretCipher(join(args.atlasHome, ATLAS_VAULT_KEY_NAME))
     const accounts = storedAccountsOf(lease.accounts)
     if (leaseChanged) {
-      writeVault({ atlasHome: args.atlasHome, cipher, accounts, active: lease.active })
+      writeVault({
+        atlasHome: args.atlasHome,
+        cipher,
+        accounts,
+        active: lease.active,
+      })
     }
-    const secretCount = writeSecrets({ atlasHome: args.atlasHome, cipher, secrets: config.secrets })
+    const secretCount = writeSecrets({
+      atlasHome: args.atlasHome,
+      cipher,
+      secrets: config.harnessSecrets,
+    })
     writeSettings({ atlasHome: args.atlasHome, settings: config.settings })
-    mergeCloudMcpServers({ atlasHome: args.atlasHome, servers: config.mcpServers })
+    mergeCloudMcpServers({
+      atlasHome: args.atlasHome,
+      servers: config.mcpServers,
+    })
     const exported =
       args.env === undefined
         ? 0

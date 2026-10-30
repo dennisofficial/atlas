@@ -95,6 +95,42 @@ describe('resolveScopedConfig', () => {
   })
 })
 
+describe('harness secrets in the resolved config', () => {
+  it('passes the user layer through sorted and ignores the project layer', () => {
+    const resolved = resolveScopedConfig({
+      defaults: EMPTY_SCOPE_LAYER,
+      user: layer({
+        harnessSecrets: [
+          { name: 'search.jina', value: 'j' },
+          { name: 'decisions.token.openai', value: 'o' },
+        ],
+      }),
+      project: layer({ harnessSecrets: [{ name: 'search.exa', value: 'e' }] }),
+    })
+    expect(resolved.harnessSecrets.map((secret) => secret.name)).toEqual([
+      'decisions.token.openai',
+      'search.jina',
+    ])
+    expect(resolved.secrets).toEqual([])
+  })
+
+  it('strips sandbox.vercel* harness secrets from the pod-facing view', () => {
+    const pod = podFacingConfig(
+      resolveScopedConfig({
+        defaults: EMPTY_SCOPE_LAYER,
+        user: layer({
+          harnessSecrets: [
+            { name: 'sandbox.vercelToken', value: 'tok' },
+            { name: 'search.jina', value: 'j' },
+          ],
+        }),
+        project: null,
+      }),
+    )
+    expect(pod.harnessSecrets).toEqual([{ name: 'search.jina', value: 'j' }])
+  })
+})
+
 describe('project setting registry', () => {
   it('holds harness keys and no vercel provisioning key, and rejects unknown keys', () => {
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelProjectId')).toBe(false)

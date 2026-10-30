@@ -28,6 +28,7 @@ export const cloudWith = (state: Partial<FakeCloudState>): FakeCloud => {
     lease: { accounts: [], active: [] },
     settings: [],
     secrets: [],
+    harnessSecrets: [],
     ...state,
   })
   clouds.push(cloud)
@@ -68,7 +69,11 @@ export const secretsAt = (home: string) =>
   })
 
 export const accountStoreAt = (home: string) =>
-  fileAccountStore({ file: join(home, 'auth.json'), keyFile: join(home, 'key'), clock })
+  fileAccountStore({
+    file: join(home, 'auth.json'),
+    keyFile: join(home, 'key'),
+    clock,
+  })
 
 export const cleanupCloudState = async (): Promise<void> => {
   for (const cloud of clouds.splice(0)) await cloud.stop()

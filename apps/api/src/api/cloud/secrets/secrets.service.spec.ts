@@ -23,57 +23,60 @@ describe('SecretsService', () => {
     )
   })
 
-  it('set seals the value and list returns it decrypted', async () => {
-    await service.set({ userId: USER_A, name: 'web.searchKey', value: 'sk-search-1' })
+  it('set seals the value and reveal returns it decrypted', async () => {
+    await service.set({ userId: USER_A, name: 'API_KEY', value: 'sk-search-1' })
 
     const stored = (await secrets())[0]
     expect(stored?.id).toMatch(/^sec_/)
     expect(stored?.sealedValue).not.toContain('sk-search-1')
 
-    expect<unknown>(await service.list({ userId: USER_A })).toEqual([
-      {
-        name: 'web.searchKey',
-        value: 'sk-search-1',
-        updatedAt: stored?.updatedAt.toISOString(),
-      },
-    ])
+    expect(await service.reveal({ userId: USER_A, name: 'API_KEY' })).toBe('sk-search-1')
   })
 
   it('set upserts an existing name and bumps updatedAt', async () => {
-    await service.set({ userId: USER_A, name: 'web.searchKey', value: 'old-value' })
+    await service.set({ userId: USER_A, name: 'API_KEY', value: 'old-value' })
     const sealedBefore = (await secrets())[0]?.sealedValue
 
-    await service.set({ userId: USER_A, name: 'web.searchKey', value: 'new-value' })
+    await service.set({ userId: USER_A, name: 'API_KEY', value: 'new-value' })
 
     const rows = await secrets()
     expect(rows).toHaveLength(1)
     expect(rows[0]?.sealedValue).not.toBe(sealedBefore)
-    expect((await service.list({ userId: USER_A }))[0]?.value).toBe('new-value')
+    expect(await service.reveal({ userId: USER_A, name: 'API_KEY' })).toBe('new-value')
   })
 
-  it('list scopes to the owning user', async () => {
-    await service.set({ userId: USER_A, name: 'web.searchKey', value: 'sk-search-1' })
+  it('listNames scopes to the owning user', async () => {
+    await service.set({ userId: USER_A, name: 'API_KEY', value: 'sk-search-1' })
 
-    expect(await service.list({ userId: USER_B })).toEqual([])
+    expect(await service.listNames({ userId: USER_B })).toEqual([])
   })
 
   it('the same name under different users stays independent', async () => {
-    await service.set({ userId: USER_A, name: 'shared', value: 'value-a' })
-    await service.set({ userId: USER_B, name: 'shared', value: 'value-b' })
+    await service.set({ userId: USER_A, name: 'SHARED', value: 'value-a' })
+    await service.set({ userId: USER_B, name: 'SHARED', value: 'value-b' })
 
-    expect((await service.list({ userId: USER_A }))[0]?.value).toBe('value-a')
-    expect((await service.list({ userId: USER_B }))[0]?.value).toBe('value-b')
+    expect(await service.reveal({ userId: USER_A, name: 'SHARED' })).toBe('value-a')
+    expect(await service.reveal({ userId: USER_B, name: 'SHARED' })).toBe('value-b')
   })
 
   it('remove deletes only the caller’s own entry and tolerates unknown names', async () => {
-    await service.set({ userId: USER_A, name: 'web.searchKey', value: 'sk-search-1' })
-    await service.set({ userId: USER_B, name: 'web.searchKey', value: 'sk-search-2' })
+    await service.set({ userId: USER_A, name: 'API_KEY', value: 'sk-search-1' })
+    await service.set({ userId: USER_B, name: 'API_KEY', value: 'sk-search-2' })
 
-    await service.remove({ userId: USER_A, name: 'web.searchKey' })
-    await service.remove({ userId: USER_A, name: 'never-existed' })
+    await service.remove({ userId: USER_A, name: 'API_KEY' })
+    await service.remove({ userId: USER_A, name: 'NEVER_EXISTED' })
 
     expect(await secrets()).toHaveLength(1)
-    expect((await service.list({ userId: USER_B }))[0]?.value).toBe('sk-search-2')
+    expect(await service.reveal({ userId: USER_B, name: 'API_KEY' })).toBe('sk-search-2')
+  })
+
+  it('rejects non-env names', async () => {
+    for (const name of ['decisions.token.openai', 'search.jina', '1BAD', 'has space']) {
+      await expect(service.set({ userId: USER_A, name, value: 'x' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      )
+    }
+    expect(await secrets()).toHaveLength(0)
   })
 
   it('rejects empty and over-long names', async () => {

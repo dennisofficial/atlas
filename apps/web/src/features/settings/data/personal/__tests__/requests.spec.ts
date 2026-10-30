@@ -6,24 +6,29 @@ import { answerTrpc, resetTrpc, restoreTrpc, trpcCalls, trpcData } from '@/lib/_
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { addMcpServer } from '../mcp-api'
 import { deleteMemory, fetchMemoryEntry, fetchMemoryGroups } from '../memory-api'
-import { deleteSecret, revealSecret, saveSecretEntry } from '../secrets-api'
+import { putHarnessSecret } from '../harness-secrets-api'
+import { deleteSecret, putSecret, revealSecret } from '../secrets-api'
 
 beforeEach(resetTrpc)
 afterEach(restoreTrpc)
 
 describe('personal secret save', () => {
   it('sends the typed value', async () => {
-    await saveSecretEntry({ entry: { key: 'API_KEY', value: 'new' } })
+    await putSecret({ name: 'API_KEY', value: 'new' })
     expect(trpcCalls).toEqual([
       { url: '/v1/trpc/secrets.set', method: 'POST', body: { name: 'API_KEY', value: 'new' } },
     ])
   })
 
-  it('refuses a blank value without calling the API', () => {
-    expect(() => saveSecretEntry({ entry: { key: 'API_KEY', value: '' } })).toThrow(
-      'A value is required',
-    )
-    expect(trpcCalls).toHaveLength(0)
+  it('sends agent keys to harnessSecrets.set', async () => {
+    await putHarnessSecret({ name: 'search.tavily', value: 'k' })
+    expect(trpcCalls).toEqual([
+      {
+        url: '/v1/trpc/harnessSecrets.set',
+        method: 'POST',
+        body: { name: 'search.tavily', value: 'k' },
+      },
+    ])
   })
 
   it('reveals one value by name through secrets.reveal', async () => {

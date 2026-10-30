@@ -75,7 +75,7 @@ const secretsBody = (server: Map<string, string>) => ({
 })
 
 const isDoomedSet = (args: { procedure: string; body: unknown }): boolean =>
-  args.procedure === 'secrets.set' && Reflect.get(Object(args.body), 'name') === 'doomed'
+  args.procedure === 'harnessSecrets.set' && Reflect.get(Object(args.body), 'name') === 'doomed'
 
 const deferred = () => {
   let release!: () => void
@@ -95,19 +95,19 @@ const statefulCloud = (args?: {
 
   const { store } = storeWith(async ({ procedure, body }) => {
     const name = (body as { name?: string } | undefined)?.name ?? ''
-    if (procedure === 'secrets.list') {
+    if (procedure === 'harnessSecrets.list') {
       const snapshot = secretsBody(server)
       order.push('GET')
       await args?.holdGet?.()
       return { status: 200, body: snapshot }
     }
-    if (procedure === 'secrets.set') {
+    if (procedure === 'harnessSecrets.set') {
       order.push(`PUT ${name}`)
       await args?.holdPut?.()
       server.set(name, (body as { value: string }).value)
       return { status: 200 }
     }
-    if (procedure === 'secrets.remove') {
+    if (procedure === 'harnessSecrets.remove') {
       server.delete(name)
       return { status: 200 }
     }
@@ -148,7 +148,9 @@ describe('RemoteSecretsStore', () => {
 
   it('write updates memory immediately and enqueues a PUT, remove a DELETE, in order', async () => {
     const { store, calls } = storeWith(({ procedure }) =>
-      procedure === 'secrets.list' ? { status: 200, body: { secrets: [] } } : { status: 200 },
+      procedure === 'harnessSecrets.list'
+        ? { status: 200, body: { secrets: [] } }
+        : { status: 200 },
     )
     await store.warm()
 
@@ -164,9 +166,9 @@ describe('RemoteSecretsStore', () => {
     expect(
       calls.slice(1).map(({ procedure, method, body }) => ({ procedure, method, body })),
     ).toEqual([
-      { procedure: 'secrets.set', method: 'POST', body: { name: 'a', value: '1' } },
-      { procedure: 'secrets.set', method: 'POST', body: { name: 'b', value: '2' } },
-      { procedure: 'secrets.remove', method: 'POST', body: { name: 'a' } },
+      { procedure: 'harnessSecrets.set', method: 'POST', body: { name: 'a', value: '1' } },
+      { procedure: 'harnessSecrets.set', method: 'POST', body: { name: 'b', value: '2' } },
+      { procedure: 'harnessSecrets.remove', method: 'POST', body: { name: 'a' } },
     ])
     expect(store.failure).toBeNull()
   })
@@ -193,7 +195,7 @@ describe('RemoteSecretsStore', () => {
   it('clears the recorded failure after a successful drain', async () => {
     let open = false
     const { store } = storeWith(({ procedure }) => {
-      if (procedure === 'secrets.list') return { status: 200, body: { secrets: [] } }
+      if (procedure === 'harnessSecrets.list') return { status: 200, body: { secrets: [] } }
       return open ? { status: 200 } : { status: 500, body: { message: 'down' } }
     })
     await store.warm()
@@ -313,7 +315,7 @@ describe('RemoteSecretsStore', () => {
 
   it('a warm keeps the local value of a write the cloud refused', async () => {
     const { store } = storeWith(({ procedure, body }) => {
-      if (procedure === 'secrets.list') return { status: 200, body: { secrets: [] } }
+      if (procedure === 'harnessSecrets.list') return { status: 200, body: { secrets: [] } }
       if (isDoomedSet({ procedure, body })) {
         return { status: 500, body: { message: 'vault sealed' } }
       }

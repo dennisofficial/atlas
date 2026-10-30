@@ -46,12 +46,14 @@ export function AddSecretDialog({
   defaultOpen = false,
   initialName = '',
   hideTrigger = false,
+  description,
   onClosed,
   onAdd,
 }: {
   defaultOpen?: boolean
   initialName?: string
   hideTrigger?: boolean
+  description: string
   onClosed?: () => void
   onAdd: (pair: SecretPair) => void
 }) {
@@ -85,9 +87,7 @@ export function AddSecretDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add a secret</DialogTitle>
-          <DialogDescription>
-            Available to every thread in this project as an environment variable.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <Field data-invalid={nameInvalid || undefined}>
           <FieldLabel htmlFor="secret-name">Name</FieldLabel>

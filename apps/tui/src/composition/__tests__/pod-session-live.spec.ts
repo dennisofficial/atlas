@@ -80,7 +80,7 @@ describeLive('a multi-turn session in a local pod', () => {
             return Response.json({ result: { data: CLASSIFIER_OFF_CONFIG } })
           if (path === '/v1/trpc/settings.list')
             return Response.json({ result: { data: { settings: [] } } })
-          if (path === '/v1/trpc/secrets.list')
+          if (path === '/v1/trpc/harnessSecrets.list')
             return Response.json({ result: { data: { secrets: [] } } })
           return new Response(null, { status: 204 })
         },
