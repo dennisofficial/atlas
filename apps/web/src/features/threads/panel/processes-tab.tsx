@@ -20,6 +20,8 @@ import {
   shellToneOf,
   type ProcessRef,
 } from '../data/processes-model'
+import { declaredNamesOf, undeclaredServicesOf } from '../data/services-model'
+import { useDeclaredServices } from '../data/use-declared-services'
 import { useNow } from '../data/use-now'
 import { useProcesses, type ProcessesData } from '../data/use-processes'
 import { ProcessRow, STDIN_CLOSED } from './processes-rows'
@@ -94,8 +96,27 @@ function RunCommand(props: { onStart: (command: string) => Promise<boolean> }) {
   )
 }
 
-export function ProcessesList(props: { data: ProcessesData }) {
-  const { shells, services, busyId, notice, selected, log } = props.data
+const listedServicesOf = (args: {
+  services: ProcessesData['services']
+  declared: ReadonlySet<string>
+  selected: ProcessRef | null
+}): ProcessesData['services'] => {
+  const { services, declared, selected } = args
+  const pinned = selected?.kind === EProcessKind.Service ? selected.id : undefined
+  return services.filter(
+    (service) =>
+      service.serviceId === pinned ||
+      undeclaredServicesOf({ services: [service], declared }).length > 0,
+  )
+}
+
+export function ProcessesList(props: { data: ProcessesData; declared: ReadonlySet<string> }) {
+  const { shells, busyId, notice, selected, log } = props.data
+  const services = listedServicesOf({
+    services: props.data.services,
+    declared: props.declared,
+    selected,
+  })
   const { handleSelect, handleKill, handleStop, handleStart } = props.data
   const runningShells = shells.filter(isShellRunning).length
   const runningServices = services.filter(isServiceRunning).length
@@ -174,9 +195,16 @@ export function ProcessesList(props: { data: ProcessesData }) {
   )
 }
 
-export function ProcessesTab() {
+export function ProcessesTab(props: { openServiceId?: string }) {
   const { threadId, channel } = useThreadPanel()
-  const data = useProcesses({ threadId, channel })
+  const { openServiceId } = props
+  const data = useProcesses({
+    threadId,
+    channel,
+    initialSelected:
+      openServiceId === undefined ? undefined : { kind: EProcessKind.Service, id: openServiceId },
+  })
+  const declared = useDeclaredServices(channel)
 
   if (channel === null) {
     return (
@@ -194,5 +222,5 @@ export function ProcessesTab() {
       </div>
     )
   }
-  return <ProcessesList data={data} />
+  return <ProcessesList data={data} declared={declaredNamesOf(declared.view)} />
 }

@@ -364,6 +364,9 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   z.object({
     type: z.literal('service-started'),
     serviceId: z.string().min(1),
+    name: z.string().min(1).optional(),
+    port: z.number().int().optional(),
+    declarationHash: z.string().min(1).optional(),
     command: z.string(),
     description: z.string().optional(),
     bootId: z.string().min(1).optional(),

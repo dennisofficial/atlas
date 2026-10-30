@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { DeclaredServicesViewWire } from '@dltech/atlas-wire/web'
+
 import { EClientRequest } from '../channel-wire'
 import { RemoteRequestFailed, RemoteRequestLost } from '../remote-channel-upstream'
 import {
+  ensureDeclaredServices,
   killShell,
+  listDeclaredServices,
   readServiceLog,
   readShellOutput,
+  restartService,
   startShell,
   stopService,
   type RequestChannel,
@@ -188,5 +193,48 @@ describe('the process-control helpers', () => {
     const { channel } = fakeChannel(() => ({ puzzling: true }))
 
     await expect(killShell({ channel, threadId: 'thread-1', shellId: 'shell-1' })).rejects.toThrow()
+  })
+})
+
+describe('the declared-services helpers', () => {
+  it('listDeclaredServices sends an empty request and parses the view', async () => {
+    const view: DeclaredServicesViewWire = {
+      services: [{ name: 'web', state: 'stopped', links: [] }],
+      rejections: [],
+    }
+    const { channel, requests } = fakeChannel(() => ({ ok: true, view }))
+
+    const reply = await listDeclaredServices({ channel })
+
+    expect(requests).toEqual([{ op: EClientRequest.ListDeclaredServices, params: {} }])
+    expect(reply).toEqual({ ok: true, view })
+  })
+
+  it('ensureDeclaredServices sends names only when given', async () => {
+    const { channel, requests } = fakeChannel(() => ({ ok: true, results: [] }))
+
+    await ensureDeclaredServices({ channel })
+    await ensureDeclaredServices({ channel, names: ['web'] })
+
+    expect(requests.map((entry) => entry.params)).toEqual([{}, { names: ['web'] }])
+  })
+
+  it('restartService sends the service id', async () => {
+    const { channel, requests } = fakeChannel(() => ({ ok: false, reason: 'gone' }))
+
+    const reply = await restartService({ channel, serviceId: 'svc-1' })
+
+    expect(requests).toEqual([
+      { op: EClientRequest.RestartService, params: { serviceId: 'svc-1' } },
+    ])
+    expect(reply).toEqual({ ok: false, reason: 'gone' })
+  })
+
+  it('reads a refused op as a refusal for all three', async () => {
+    const { channel } = refusing()
+
+    expect(await listDeclaredServices({ channel })).toMatchObject({ ok: false })
+    expect(await ensureDeclaredServices({ channel })).toMatchObject({ ok: false })
+    expect(await restartService({ channel, serviceId: 's' })).toMatchObject({ ok: false })
   })
 })

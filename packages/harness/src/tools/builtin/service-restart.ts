@@ -15,7 +15,7 @@ import type { ServiceRegistryPort } from '../../services/service-registry-port'
 const inputSchema = z.strictObject({ id: z.string().min(1) })
 
 const description = [
-  'Restart a service: stop it if it is running, then start it again with the same command, name, port and environment.',
+  'Restart a service: stop it if it is running, then start it again with the same command, name, port and environment; a declared service restarts from the current .atlas/services.yaml instead, so edits to it take effect.',
   'Takes a service id or the name it was declared under; a service that gave up after crash-looping is restarted fresh.',
 ].join(' ')
 

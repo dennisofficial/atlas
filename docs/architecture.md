@@ -418,16 +418,33 @@ shells, the exit guard counts live services alongside shells and agents, and no 
 across a restart. Declared services are the exception: they are re-ensured after a pod resume (below).
 
 **Declared services.** A repository lists its services in `.atlas/services.yaml`
-(`loadDeclaredServices`, schema in `core/services/declaration`); `services_ensure` starts the missing
-ones, waits on health (GET path 2xx/3xx, else TCP accept, 60 s budget) and returns each URL, flagged
-not-ready rather than withheld on timeout. Every service gets `PORT` and `ATLAS_THREAD_ID`; a service
-with a `portal` also gets `PUBLIC_URL` and the Vite allowed-hosts variable. Ports are the declared
-one or a stable per-(thread, name) pick from 20000-29999. Public exposure is a service concern, not a
-bash one: URLs are `https://<port>-<rand>.byatlas.dev` through a Cloudflare tunnel that keeps the Host
-and adds `X-Forwarded-Proto`. Declared services are supervised — restart with 1/2/4/8/16 s backoff,
-crash-looping after more than 5 crashes in 120 s — and resumed at serve boot and TUI reopen. A
-workspace prompt fragment lists declared names and loader rejections, and the `atlas` skill
-carries the procedure.
+(`loadDeclaredServices`, schema in `core/services/declaration`), and the file is load-bearing: the
+agent, the preview agent and the operator all start, stop and restart services through one harness
+path, and what runs always matches the file. `services_ensure` brings reality to the file — it starts
+missing services in dependency order, runs each service's `setup` once per registry lifetime, waits on
+health (GET path 2xx/3xx, else TCP accept, 60 s budget), restarts any stale service, and returns each
+URL, flagged not-ready rather than withheld on timeout. Every service gets `PORT` and
+`ATLAS_THREAD_ID`; a service with a `portal` also gets `PUBLIC_URL` and the Vite allowed-hosts
+variable, and `portals` add extra links. Env values may reference another service
+(`${services.<name>.url|publicUrl|port}`); the reference graph decides start order and a cycle or
+missing target is rejected before anything starts. Ports are the declared one or a stable pick from
+20000-29999 derived from the service name alone, since each cloud thread is its own pod; the
+free-port probe remains only for in-process sessions sharing a host. A service is **stale** when its
+own parsed declaration (a per-service canonical hash, not the file text) changed since its running
+instance started. `restart` of a declared service re-reads the file, and a removed or invalid
+declaration fails the restart without stopping anything. `service_start` refuses a declared name.
+Public exposure is a service concern, not a bash one: URLs are `https://<port>-<rand>.byatlas.dev`
+through a Cloudflare tunnel that keeps the Host and adds `X-Forwarded-Proto`. Declared services are
+supervised — restart with 1/2/4/8/16 s backoff, crash-looping after more than 5 crashes in 120 s —
+and resumed at serve boot and TUI reopen.
+
+Surfaces render, they do not decide. `ServiceRegistryPort.declared()` returns a
+`DeclaredServicesView` (every declared service with state, port, URLs, links and reason, plus
+rejections); serve exposes it with the `ListDeclaredServices`, `EnsureDeclaredServices` and
+`RestartService` channel ops, and the web Details sidebar and the TUI list it with Start, Stop and
+Restart. The harness watches `.atlas/services.yaml` and bumps the services change feed, so clients
+refetch the view on every roster push. A workspace prompt fragment lists declared names and loader
+rejections, and the `atlas` skill carries the procedure.
 
 ## Sub-agents
 

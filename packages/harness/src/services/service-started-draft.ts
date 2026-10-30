@@ -17,6 +17,7 @@ export function startedDraftOf({
     description: args.description,
     ...(args.name === undefined ? {} : { name: args.name }),
     ...(args.port === undefined ? {} : { port: args.port }),
+    ...(args.declarationHash === undefined ? {} : { declarationHash: args.declarationHash }),
     bootId,
   }
 }

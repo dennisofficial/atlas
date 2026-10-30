@@ -24,14 +24,27 @@ const declaredEnvSchema = z.record(z.string(), z.string()).superRefine((env, con
   }
 })
 
+const LINK_URL_PATTERN = /^(\/|https?:\/\/)/
+
+const linkUrlSchema = z
+  .string()
+  .min(1)
+  .regex(LINK_URL_PATTERN, 'must start with / or be an absolute http(s) URL')
+
 export const servicePortalSchema = z.union([
   z.literal(true),
   z.strictObject({
-    url: z.string().min(1).optional(),
+    url: linkUrlSchema.optional(),
     title: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
   }),
 ])
+
+export const serviceLinkSchema = z.strictObject({
+  url: linkUrlSchema,
+  title: z.string().min(1),
+  description: z.string().min(1).optional(),
+})
 
 export const serviceDeclarationSchema = z.strictObject({
   command: z.string().min(1),
@@ -39,7 +52,9 @@ export const serviceDeclarationSchema = z.strictObject({
   port: z.number().int().min(1).max(65_535).optional(),
   health: z.string().startsWith('/').optional(),
   env: declaredEnvSchema.optional(),
+  setup: z.array(z.string().min(1)).min(1).optional(),
   portal: servicePortalSchema.optional(),
+  portals: z.array(serviceLinkSchema).optional(),
 })
 
 export const servicesFileSchema = z.object({
@@ -47,3 +62,45 @@ export const servicesFileSchema = z.object({
 })
 
 export type ServiceDeclaration = z.infer<typeof serviceDeclarationSchema>
+
+export type ServiceLinkDeclaration = {
+  url: string
+  title: string
+  description?: string | undefined
+}
+
+export function declaredLinks({
+  name,
+  portal,
+  portals,
+}: {
+  name: string
+  portal?: ServiceDeclaration['portal'] | undefined
+  portals?: ServiceDeclaration['portals'] | undefined
+}): ServiceLinkDeclaration[] {
+  const links: ServiceLinkDeclaration[] = []
+  if (portal !== undefined) {
+    const primary = portal === true ? {} : portal
+    links.push({
+      url: primary.url ?? '/',
+      title: primary.title ?? name,
+      ...(primary.description === undefined ? {} : { description: primary.description }),
+    })
+  }
+  for (const link of portals ?? []) links.push({ ...link })
+  return links
+}
+
+export function resolveLinks({
+  links,
+  publicUrl,
+}: {
+  links: readonly ServiceLinkDeclaration[]
+  publicUrl: string
+}): ServiceLinkDeclaration[] {
+  const base = publicUrl.replace(/\/+$/, '')
+  return links.map((link) => ({
+    ...link,
+    url: link.url.startsWith('/') ? `${base}${link.url}` : link.url,
+  }))
+}

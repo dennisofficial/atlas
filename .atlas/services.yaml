@@ -1,0 +1,16 @@
+services:
+  api:
+    command: bun run dev:no-trigger
+    cwd: apps/api
+    port: 3400
+    health: /v1/health
+    setup:
+      - bun install
+  web:
+    command: bun run dev -p $PORT -H 0.0.0.0
+    cwd: apps/web
+    health: /
+    env:
+      ATLAS_API_ORIGIN: ${services.api.url}
+    portal:
+      title: Atlas web

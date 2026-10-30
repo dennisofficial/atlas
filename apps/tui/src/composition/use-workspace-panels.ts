@@ -21,7 +21,7 @@ export function useWorkspacePanels(args: {
   const { props, conversation, settings, models, frame } = args
 
   const shells = useShells({ app: props.app, threadId: conversation.threadId })
-  const services = useServices({ app: props.app })
+  const services = useServices({ app: props.app, threadId: conversation.threadId })
   const contextBrowser = useWorkspaceContext({
     readers: props.attachment?.context,
     threadId: conversation.threadId,

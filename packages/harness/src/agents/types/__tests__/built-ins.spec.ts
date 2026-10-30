@@ -110,11 +110,13 @@ describe('the built-in agent types', () => {
     const preview = await named('preview')
 
     expect(preview.prompt).toContain('0.0.0.0')
-    expect(preview.prompt).toContain('exposePort')
+    expect(preview.prompt).toContain('portal')
     expect(preview.prompt).toContain('CORS')
     expect(preview.prompt).toContain('allowedDevOrigins')
-    expect(preview.prompt).toContain('service_start')
-    expect(preview.prompt).toContain('.atlas/preview.md')
+    expect(preview.prompt).toContain('services_ensure')
+    expect(preview.prompt).toContain('.atlas/services.yaml')
+    expect(preview.prompt).toContain('Never run project servers with `service_start`')
+    expect(preview.prompt).toContain('there is no `.atlas/preview.md`')
     expect(preview.prompt).toContain('Verify before you report')
   })
 

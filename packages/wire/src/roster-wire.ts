@@ -112,6 +112,8 @@ export const serviceSnapshotWireSchema = z.object({
   startedAt: z.string(),
   endedAt: z.string().optional(),
   exposure: portExposureSchema.optional(),
+  name: z.string().optional(),
+  port: z.number().int().nonnegative().optional(),
 })
 
 export type ServiceSnapshotWire = z.infer<typeof serviceSnapshotWireSchema>

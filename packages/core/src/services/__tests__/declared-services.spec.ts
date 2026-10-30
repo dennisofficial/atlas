@@ -27,7 +27,10 @@ describe('serviceDeclarationSchema', () => {
 
   it('rejects reserved env keys', () => {
     for (const key of ['PORT', 'PUBLIC_URL', 'ATLAS_THREAD_ID']) {
-      const parsed = serviceDeclarationSchema.safeParse({ command: 'x', env: { [key]: '1' } })
+      const parsed = serviceDeclarationSchema.safeParse({
+        command: 'x',
+        env: { [key]: '1' },
+      })
       expect(parsed.success).toBe(false)
     }
   })
@@ -45,18 +48,16 @@ describe('serviceDeclarationSchema', () => {
 })
 
 describe('deriveServicePort', () => {
-  it('is stable for one thread and name and stays in 20000-29999', () => {
-    const port = deriveServicePort({ threadId: THREAD, name: 'web' })
-    expect(deriveServicePort({ threadId: THREAD, name: 'web' })).toBe(port)
+  it('is stable for one name and stays in 20000-29999', () => {
+    const port = deriveServicePort({ name: 'web' })
+    expect(deriveServicePort({ name: 'web' })).toBe(port)
     expect(port).toBeGreaterThanOrEqual(20_000)
     expect(port).toBeLessThanOrEqual(29_999)
   })
 
   it('spreads names across ports', () => {
     const ports = new Set(
-      ['web', 'api', 'db', 'cache', 'worker'].map((name) =>
-        deriveServicePort({ threadId: THREAD, name }),
-      ),
+      ['web', 'api', 'db', 'cache', 'worker'].map((name) => deriveServicePort({ name })),
     )
     expect(ports.size).toBeGreaterThan(1)
   })
@@ -79,7 +80,11 @@ describe('serviceEnv', () => {
 
   it('adds PUBLIC_URL and the Vite allowed host for a portal', () => {
     expect(
-      serviceEnv({ port: 3000, threadId: THREAD, publicUrl: 'https://3000-abc.byatlas.dev' }),
+      serviceEnv({
+        port: 3000,
+        threadId: THREAD,
+        publicUrl: 'https://3000-abc.byatlas.dev',
+      }),
     ).toEqual({
       PORT: '3000',
       ATLAS_THREAD_ID: 'thread-1',

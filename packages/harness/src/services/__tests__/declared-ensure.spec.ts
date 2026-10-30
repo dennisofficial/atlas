@@ -1,115 +1,11 @@
-import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { describe, expect, it } from 'bun:test'
 
-import {
-  EKilledBy,
-  EServiceStatus,
-  toThreadId,
-  type ClockPort,
-  type Event,
-  type PortExposureOutcome,
-  type ProcessHandle,
-  type ProcessPort,
-  type SpawnCommand,
-} from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, type Event } from '@dltech/atlas-core'
 
 import { EEnsureStatus } from '../declared-ensure'
 import { resumeDeclaredServices } from '../declared-resume'
 import { declaredServicesToResume } from '../service-resume'
-import { BunServiceRegistry } from '../service-registry'
-
-const THREAD = toThreadId('thread-ensure')
-
-class Clock implements ClockPort {
-  now(): string {
-    return '2026-10-29T12:00:00.000Z'
-  }
-}
-
-class Processes implements ProcessPort {
-  readonly spawned: SpawnCommand[] = []
-  probeExit: number | undefined
-  private readonly listening = new Set<string>()
-
-  spawn(args: SpawnCommand): ProcessHandle {
-    this.spawned.push(args)
-    const isProbe = args.cmd[0] === 'curl' || args.cmd[2]?.startsWith('exec 3<>')
-    let end: (code: number) => void = () => undefined
-    const exited = new Promise<number>((resolve) => {
-      end = resolve
-    })
-    if (isProbe) {
-      const port = /(?:127\.0\.0\.1[:/])(\d+)/.exec(args.cmd.join(' '))?.[1] ?? ''
-      end(this.probeExit ?? (this.listening.has(port) ? 0 : 1))
-    } else if (args.env?.PORT !== undefined) this.listening.add(args.env.PORT)
-    return {
-      stdout: new ReadableStream({ start: (c) => c.close() }),
-      stderr: new ReadableStream({ start: (c) => c.close() }),
-      exited,
-      terminate: () => end(143),
-    }
-  }
-
-  which(): string | null {
-    return null
-  }
-
-  async exposePort({ containerPort }: { containerPort: number }): Promise<PortExposureOutcome> {
-    return {
-      ok: true,
-      exposure: {
-        containerPort,
-        hostPort: containerPort,
-        url: `https://${containerPort}-x.byatlas.dev`,
-      },
-    }
-  }
-
-  servicesStarted(): SpawnCommand[] {
-    return this.spawned.filter(
-      (one) => one.cmd[0] === 'bash' && one.cmd[1] === '-c' && !one.cmd[2]?.startsWith('exec 3<>'),
-    )
-  }
-}
-
-const roots: string[] = []
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
-
-const YAML = `services:
-  web:
-    command: serve web
-    health: /up
-    portal: true
-  worker:
-    command: run worker
-    port: 24500
-`
-
-function open(args?: { probeExit?: number; yaml?: string }) {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-ensure-'))
-  roots.push(root)
-  const processes = new Processes()
-  processes.probeExit = args?.probeExit
-  const registry = new BunServiceRegistry({
-    root,
-    clock: new Clock(),
-    logsDirectory: join(root, 'logs'),
-    processes,
-    declared: {
-      load: async () =>
-        (await import('../declared-services')).parseDeclaredServices({
-          text: args?.yaml ?? YAML,
-          file: 'services.yaml',
-        }),
-      timing: { budgetMs: 50, intervalMs: 5, sleep: () => Bun.sleep(5) },
-    },
-  })
-  return { registry, processes }
-}
+import { open, THREAD } from './declared-fixture'
 
 describe('ensureDeclared', () => {
   it('starts declared services in order and reports urls and readiness', async () => {

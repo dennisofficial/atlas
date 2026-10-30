@@ -12,6 +12,7 @@ import {
   serviceReadoutOf,
   shellReadoutOf,
 } from '../../data/processes-model'
+import { undeclaredServicesOf } from '../../data/services-model'
 import { useNow } from '../../data/use-now'
 import { ERightTab } from '../right-tab'
 import { earlierLabelOf, keptServiceOf } from './details-model'
@@ -25,8 +26,13 @@ function ServiceIcon({ kept }: { kept: ReturnType<typeof keptServiceOf> }) {
   return <CircleCheckIcon aria-hidden className="size-3.5 text-muted-foreground" />
 }
 
-export function ProcessesSection(props: { data: ProcessesData; onOpen: (tab: ERightTab) => void }) {
-  const { shells, services } = props.data
+export function ProcessesSection(props: {
+  data: ProcessesData
+  declared: ReadonlySet<string>
+  onOpen: (tab: ERightTab) => void
+}) {
+  const { shells } = props.data
+  const services = undeclaredServicesOf({ services: props.data.services, declared: props.declared })
   const running = shells.filter(isShellRunning)
   const fold = foldServices({ services: services.map(keptServiceOf) })
   const now = useNow(running.length + fold.shown.length > 0)

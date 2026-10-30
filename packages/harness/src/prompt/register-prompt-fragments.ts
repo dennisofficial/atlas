@@ -31,6 +31,7 @@ import {
 import { BackgroundShellsFragment } from './fragments/shells'
 import { DeclaredServicesFragment } from './fragments/services'
 import { SkillListingFragment } from './fragments/skills'
+import { ServiceRegistryPort } from '../services/service-registry-port'
 import {
   OperatorInputFragment,
   OperatorSeesImagesFragment,
@@ -75,6 +76,17 @@ export function registerBuiltinPromptFragments({
   ]
 
   for (const fragment of fragments) {
+    if (fragment === DeclaredServicesFragment) {
+      container.register(portToken(PromptFragment), {
+        useFactory: (resolver) =>
+          new DeclaredServicesFragment(
+            resolver.isRegistered(registeredPortToken(ServiceRegistryPort), true)
+              ? resolver.resolve(registeredPortToken(ServiceRegistryPort))
+              : undefined,
+          ),
+      })
+      continue
+    }
     if (fragment === SkillListingFragment) {
       container.register(portToken(PromptFragment), {
         useFactory: (resolver) =>

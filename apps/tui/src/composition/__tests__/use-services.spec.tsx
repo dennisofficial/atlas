@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import React, { useEffect } from 'react'
 
-import { EServiceStatus } from '@dltech/atlas-core'
+import { EServiceStatus, toThreadId } from '@dltech/atlas-core'
 import type { ServiceSnapshot } from '@dltech/atlas-harness'
 
 import { settle, teardown } from '../../ui/markdown/__tests__/harness'
@@ -28,7 +28,7 @@ const service = ({
 })
 
 const Probe = ({ app, seen }: { app: FakeApp; seen: ServicesControl[] }): React.ReactNode => {
-  const control = useServices({ app })
+  const control = useServices({ app, threadId: toThreadId('opened-thread') })
   useEffect(() => {
     seen.push(control)
   })

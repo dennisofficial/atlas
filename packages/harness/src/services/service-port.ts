@@ -36,7 +36,7 @@ export async function allocateServicePort({
 }): Promise<number> {
   if (declared !== undefined) return declared
 
-  let port = deriveServicePort({ threadId, name })
+  let port = deriveServicePort({ name })
   for (let attempt = 0; attempt < SERVICE_PORT_SPAN; attempt += 1) {
     if (await isFree({ port, threadId })) return port
     port = nextServicePort({ port })

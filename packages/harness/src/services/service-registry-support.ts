@@ -1,3 +1,8 @@
+import { EServiceStatus, type ThreadId } from '@dltech/atlas-core'
+
+import type { TrackedService } from './service-endings'
+import type { ServiceSnapshot } from './service-process'
+
 export const unknownService = (args: { serviceId: string; known: readonly string[] }): string => {
   const known = args.known.length === 0 ? 'none is registered' : args.known.join(', ')
   return `no service is registered as "${args.serviceId}"; known services: ${known}`
@@ -21,3 +26,15 @@ export const diedWithin = async (ms: number, promise: Promise<unknown>): Promise
   clearTimeout(timer)
   return died
 }
+
+export const runningSnapshotsFor = ({
+  entries,
+  threadId,
+}: {
+  entries: Iterable<TrackedService>
+  threadId: ThreadId
+}): readonly ServiceSnapshot[] =>
+  [...entries]
+    .filter((entry) => entry.threadId === threadId)
+    .map((entry) => entry.service.snapshot())
+    .filter((snapshot) => snapshot.status === EServiceStatus.Running)

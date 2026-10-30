@@ -1,14 +1,36 @@
-import { EStopAction, type EKilledBy, type EventDraft, type ThreadId } from '@dltech/atlas-core'
 import {
+  EDeclaredServiceState,
+  EStopAction,
+  type DeclaredServicesView,
+  type EKilledBy,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
+import {
+  EEnsureStatus,
   ServiceRegistryPort,
+  type EnsuredService,
   type ServiceSnapshot,
   type StartedServiceOutcome,
   type ServiceStopOutcome,
 } from '@dltech/atlas-harness'
 
-import { readServiceLog, stopService, type RequestChannel } from '@dltech/atlas-client/channel'
+import {
+  ensureDeclaredServices,
+  listDeclaredServices,
+  readServiceLog,
+  restartService,
+  stopService,
+  type RequestChannel,
+} from '@dltech/atlas-client/channel'
 
 import { heldIfSame, type SharedRoster } from './roster-reader'
+
+const ensureStatusOf = (status: string): EEnsureStatus =>
+  Object.values(EEnsureStatus).find((one) => one === status) ?? EEnsureStatus.Unknown
+
+const declaredStateOf = (state: string): EDeclaredServiceState =>
+  Object.values(EDeclaredServiceState).find((one) => one === state) ?? EDeclaredServiceState.Stopped
 
 const NO_PENDING_SERVICES: readonly ServiceSnapshot[] = Object.freeze([])
 
@@ -53,6 +75,39 @@ export class RemoteServiceRegistry extends ServiceRegistryPort {
       return {
         ok: false,
         reason: 'the sandbox answered the stop with a shape this build does not know',
+      }
+    }
+  }
+
+  override async declared(): Promise<DeclaredServicesView> {
+    const reply = await listDeclaredServices({ channel: this.channel })
+    if (!reply.ok) throw new Error(reply.reason)
+    return {
+      services: reply.view.services.map((one) => ({
+        ...one,
+        state: declaredStateOf(one.state),
+      })),
+      rejections: reply.view.rejections,
+    }
+  }
+
+  override async ensureDeclared(args: {
+    threadId: ThreadId
+    names?: readonly string[] | undefined
+  }): Promise<readonly EnsuredService[]> {
+    const reply = await ensureDeclaredServices({ channel: this.channel, names: args.names })
+    if (!reply.ok) throw new Error(reply.reason)
+    return reply.results.map((one) => ({ ...one, status: ensureStatusOf(one.status) }))
+  }
+
+  override async restart(args: { serviceId: string }): Promise<StartedServiceOutcome> {
+    try {
+      const reply = await restartService({ channel: this.channel, serviceId: args.serviceId })
+      return reply.ok ? { ok: true, snapshot: reply.snapshot } : reply
+    } catch {
+      return {
+        ok: false,
+        reason: 'the sandbox answered the restart with a shape this build does not know',
       }
     }
   }

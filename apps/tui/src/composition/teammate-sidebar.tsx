@@ -1,4 +1,5 @@
-import type { AgentSnapshot, ServiceSnapshot, ShellSnapshot } from '@dltech/atlas-harness'
+import type { AgentSnapshot, ShellSnapshot } from '@dltech/atlas-harness'
+import type { ServiceRow } from '../ui/services-model'
 import React from 'react'
 
 import type { SidebarModel } from '../store/sidebar-model'
@@ -22,11 +23,11 @@ export function TeammateSidebar(props: {
   shells?: readonly ShellSnapshot[]
   shellNow?: number
   shellFold?: SidebarCrewFold
-  services?: readonly ServiceSnapshot[]
+  services?: readonly ServiceRow[]
   serviceNow?: number
   serviceFold?: SidebarCrewFold
   onOpenShell?: (shellId: string) => void
-  onOpenService?: (serviceId: string) => void
+  onOpenService?: (key: string) => void
   context?: Omit<ContextSectionProps, 'cells'>
   onSelectSubagent?: (agentId: string) => void
   naming?: NamingState | null | undefined
