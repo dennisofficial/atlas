@@ -101,6 +101,7 @@ export function useThreadRouter(args: {
       if (threadId === args.activeThreadId && cloudSession !== null) return
 
       const bridge = await bridgeOf(threadId)
+      const runner = await runnerOf(threadId)
       await localApp.sessionOwner
         .activateLocal({ threadId: toThreadId(threadId) })
         .catch(() => undefined)
@@ -121,6 +122,7 @@ export function useThreadRouter(args: {
         app: localApp,
         bridge,
         threadId: toThreadId(threadId),
+        runner,
         move: containerMove,
         boot: bootBlocks(localApp),
         onReload: args.onReload,
@@ -156,7 +158,7 @@ export function useThreadRouter(args: {
       clearAttachFailure()
       cloudAttachmentOf(adopted)?.settleOpen()
     },
-    [args, bridgeOf, cloudSession, containerMove, localApp],
+    [args, bridgeOf, cloudSession, containerMove, localApp, runnerOf],
   )
 
   const route = useCallback(

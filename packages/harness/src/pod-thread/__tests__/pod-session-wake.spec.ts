@@ -85,6 +85,28 @@ describe('settling a render-first open', () => {
     expect(session.health().view.state).toBe(EConnectionView.Waking)
   })
 
+  it('leaves a local pod asleep when its container is stopped or parked', async () => {
+    for (const state of [ECloudSandboxState.Stopped, ECloudSandboxState.Parked]) {
+      const { session, wakes } = sessionOn({ find: async () => ({ state, checkpoint: null }) })
+
+      session.settleOpen()
+      await tick()
+
+      expect(wakes()).toBe(0)
+    }
+  })
+
+  it('wakes a pod whose container runs without a lifecycle record', async () => {
+    const { session, wakes } = sessionOn({
+      find: async () => ({ state: ECloudSandboxState.Running, checkpoint: null }),
+    })
+
+    session.settleOpen()
+    await tick()
+
+    expect(wakes()).toBe(1)
+  })
+
   it('wakes when the provider has no record at all', async () => {
     const { session, wakes } = sessionOn({ find: async () => undefined })
 

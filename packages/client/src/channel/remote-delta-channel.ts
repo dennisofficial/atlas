@@ -5,6 +5,7 @@ import { EConnectionView, ESocketLiveness } from './connection-view'
 import { createChannelCore } from './remote-channel-core'
 import { createChannelLifecycle } from './remote-channel-lifecycle'
 import { NOTHING_IN_FLIGHT } from './remote-channel-in-flight'
+import { PASSIVE_REQUESTS } from './passive-requests'
 import { RemotePublishRefused, RemoteRequestLost } from './remote-channel-upstream'
 import type {
   RemoteDeltaChannel,
@@ -82,7 +83,8 @@ export function createRemoteDeltaChannel(
         )
       }
       const parked = facts.view().state === EConnectionView.Parked
-      if (parked && args.wakeSandbox === undefined) {
+      const asleepForReads = args.readsWake === false && PASSIVE_REQUESTS.has(request.op)
+      if (parked && (args.wakeSandbox === undefined || asleepForReads)) {
         return Promise.reject(
           new RemoteRequestLost({ op: request.op, reason: 'the sandbox is parked' }),
         )
