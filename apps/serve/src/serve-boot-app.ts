@@ -6,6 +6,7 @@ import { bootServeFiles } from './serve-boot'
 import { bootReporterFor, strictBootSinkFor, trackAgentStep } from './serve-boot-reporter'
 import { composeBootApp } from './serve-compose-boot'
 import { hydrateWhenRegistered } from './serve-hydrate'
+import { apiThreadModel } from './serve-thread-model-boot'
 import { bindServeWriteBehind } from './serve-write-behind'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { fileMountNoticeOf } from './file-mount-notice'
@@ -28,95 +29,107 @@ export async function bootServeApp(args: {
   const clientVersion = serveArgs.clientVersion ?? 'dev'
   const remote = { controlPlaneUrl, token, clientVersion, fetchFn }
   const reporter = bootReporterFor({ env, threadId, log, ...remote })
-  const recovery = await createServeRotationRecovery({
-    atlasHome,
-    threadId,
-    sandboxSessionId: args.sandboxSessionId,
-    log,
-  })
-  const collected = collectNotices(notice)
-  const { workspace, activeCwd, spec, identity, refreshCloudState, fileMounts } =
-    await bootServeFiles({
-      env,
-      threadId,
-      cwd,
+  try {
+    const recovery = await createServeRotationRecovery({
       atlasHome,
+      threadId,
+      sandboxSessionId: args.sandboxSessionId,
       log,
-      ensureWorkspace: serveArgs.ensureWorkspace,
-      profile: serveArgs.profile,
-      contextFiles: serveArgs.contextFiles,
-      reporter,
-      notice: collected.port,
-      ...remote,
     })
-  let hydrated: { remoteHead: number } | undefined
-  const app = await trackAgentStep({
-    reporter,
-    strictSink: strictBootSinkFor({ env, ...remote }),
-    work: async () => {
-      hydrated = await hydrateWhenRegistered({
+    const collected = collectNotices(notice)
+    const prefetchedModel = apiThreadModel({ env, threadId, notice, ...remote })
+    const { workspace, activeCwd, spec, identity, refreshCloudState, fileMounts } =
+      await bootServeFiles({
         env,
-        atlasHome,
         threadId,
+        cwd,
+        atlasHome,
         log,
+        ensureWorkspace: serveArgs.ensureWorkspace,
+        profile: serveArgs.profile,
+        contextFiles: serveArgs.contextFiles,
+        reporter,
+        notice: collected.port,
         ...remote,
       })
-      return composeBootApp({
-        compose: serveArgs.compose,
-        model: serveArgs.model,
-        spec,
-        identity,
-        threadId,
-        cwd: activeCwd,
-        atlasHome,
-        controlPlaneUrl,
-        token,
-        clientVersion,
-        env,
-        notice,
-        fetchFn,
-      })
-    },
-  })
-  await recordNoticeEvents({ posts: collected.posts, threadId, app, log })
-  const writeBehind = bindServeWriteBehind({
-    env,
-    app,
-    threadId,
-    durableHead: hydrated?.remoteHead ?? 0,
-    remote,
-    log,
-  })
-  const mountNotice = fileMounts === null ? null : fileMountNoticeOf(fileMounts)
-  if (mountNotice !== null) {
-    try {
-      await app.log.append({
-        threadId,
-        runId: app.ids.nextRunId(),
-        drafts: [
-          {
-            type: 'context-loaded',
-            slot: 'project-file-mounts',
-            key: 'boot',
-            content: mountNotice,
-          },
-        ],
-      })
-      app.channel.publisherFor({ threadId }).eventsAppended()
-    } catch (failure) {
-      log({
-        event: EServeEvent.FileMountNoticeFailed,
-        reason: failure instanceof Error ? failure.message : String(failure),
-      })
+    let hydrated: { remoteHead: number } | undefined
+    const app = await trackAgentStep({
+      reporter,
+      strictSink: strictBootSinkFor({ env, ...remote }),
+      work: async () => {
+        const hydrateStartedAt = Date.now()
+        hydrated = await hydrateWhenRegistered({
+          env,
+          atlasHome,
+          threadId,
+          log,
+          ...remote,
+        })
+        log({ event: EServeEvent.BootPhase, phase: 'hydrate', ms: Date.now() - hydrateStartedAt })
+        const composeStartedAt = Date.now()
+        const composed = await composeBootApp({
+          apiModel: prefetchedModel,
+          compose: serveArgs.compose,
+          model: serveArgs.model,
+          spec,
+          identity,
+          threadId,
+          cwd: activeCwd,
+          atlasHome,
+          controlPlaneUrl,
+          token,
+          clientVersion,
+          env,
+          notice,
+          fetchFn,
+        })
+        log({ event: EServeEvent.BootPhase, phase: 'compose', ms: Date.now() - composeStartedAt })
+        return composed
+      },
+    })
+    await recordNoticeEvents({ posts: collected.posts, threadId, app, log })
+    const writeBehind = bindServeWriteBehind({
+      env,
+      app,
+      threadId,
+      durableHead: hydrated?.remoteHead ?? 0,
+      remote,
+      log,
+    })
+    const mountNotice = fileMounts === null ? null : fileMountNoticeOf(fileMounts)
+    if (mountNotice !== null) {
+      try {
+        await app.log.append({
+          threadId,
+          runId: app.ids.nextRunId(),
+          drafts: [
+            {
+              type: 'context-loaded',
+              slot: 'project-file-mounts',
+              key: 'boot',
+              content: mountNotice,
+            },
+          ],
+        })
+        app.channel.publisherFor({ threadId }).eventsAppended()
+      } catch (failure) {
+        log({
+          event: EServeEvent.FileMountNoticeFailed,
+          reason: failure instanceof Error ? failure.message : String(failure),
+        })
+      }
     }
-  }
-  return {
-    app,
-    recovery,
-    workspace,
-    fetchFn,
-    clientVersion,
-    writeBehind,
-    refreshCloudState,
+    return {
+      app,
+      recovery,
+      workspace,
+      fetchFn,
+      clientVersion,
+      writeBehind,
+      refreshCloudState,
+    }
+  } catch (failure) {
+    await reporter.flush()
+    throw failure
   }
 }

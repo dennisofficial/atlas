@@ -3715,6 +3715,20 @@
                   "kind": "scalar"
                 }
               },
+              "repos": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "seq": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int8@1",
+                  "kind": "scalar"
+                }
+              },
               "sessionId": {
                 "nullable": false,
                 "type": {
@@ -3771,6 +3785,12 @@
                 },
                 "outcome": {
                   "column": "outcome"
+                },
+                "repos": {
+                  "column": "repos"
+                },
+                "seq": {
+                  "column": "seq"
                 },
                 "sessionId": {
                   "column": "sessionId"
@@ -8999,6 +9019,20 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "repos": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
+                "seq": {
+                  "codecId": "pg/int8@1",
+                  "dataType": "pg/int8",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
                 "sessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -9018,7 +9052,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "SandboxBootStep_sessionId_at_idx"
+                    "name": "SandboxBootStep_sessionId_seq_idx"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -9042,9 +9076,9 @@
                 {
                   "columns": [
                     "sessionId",
-                    "at"
+                    "seq"
                   ],
-                  "name": "SandboxBootStep_sessionId_at_idx",
+                  "name": "SandboxBootStep_sessionId_seq_idx",
                   "unique": false
                 }
               ],
@@ -10242,7 +10276,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e07ae9a598861423b56f58f537da83035af72b4444e26e28b3f1a1617fd53574"
+    "storageHash": "1f29b6b2d37c5afc2213f8109458d7518b4f21d3304c9b367f1526917851a586"
   },
   "execution": {
     "executionHash": "2ab833cac7ff7ec81f28e078c305fa2d528bd999a302d6a4bca8a421241647c0",

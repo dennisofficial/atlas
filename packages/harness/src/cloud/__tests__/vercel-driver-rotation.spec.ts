@@ -37,6 +37,12 @@ const trackSwap = ({
     },
     runCommand: async (params: RunParams) => {
       const script = params.args?.[1] ?? ''
+      if (script.includes('alive=1')) {
+        const observed = (await run(params)) as { stdout: () => Promise<string> }
+        if (!retired || downloaded) return observed
+        const text = (await observed.stdout()).replace('healthy=1', 'healthy=0')
+        return { ...observed, stdout: async () => text }
+      }
       if (script.includes('/v1/drain')) {
         events.push('drain')
         retired = true

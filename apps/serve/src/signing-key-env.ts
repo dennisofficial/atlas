@@ -116,6 +116,13 @@ export const applySigningKeyEnv = async (args: {
   return ESigningKeyEnvResult.Applied
 }
 
+export const startSigningKeyFetch = (args: {
+  controlPlaneUrl: string
+  token: string
+  clientVersion: string
+  fetchFn: typeof fetch
+}): Promise<SshSigningKeyLease | undefined> => fetchSigningKeyLease(args)
+
 export const applySigningKey = async (args: {
   env: Record<string, string | undefined>
   atlasHome: string
@@ -124,8 +131,9 @@ export const applySigningKey = async (args: {
   token: string
   clientVersion: string
   fetchFn: typeof fetch
+  prefetched?: Promise<SshSigningKeyLease | undefined> | undefined
 }): Promise<void> => {
-  const lease = await fetchSigningKeyLease(args)
+  const lease = await (args.prefetched ?? fetchSigningKeyLease(args))
   if (lease === undefined) {
     args.log({ event: EServeEvent.SigningKeyAbsent })
     return

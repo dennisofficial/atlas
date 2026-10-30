@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
+import { SANDBOX_HOME_PATH, SERVE_TOKEN_PATH } from '@dltech/atlas-wire'
 import { VercelDriver } from '../vercel-driver'
 import {
   CREDENTIALS,
@@ -172,7 +172,7 @@ describe('createOrResume', () => {
       (call) => call.kind === ERecordedCallKind.Write && call.path === 'context.tar.gz',
     )
     const tokenStage = calls.findIndex(
-      (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+      (call) => call.kind === ERecordedCallKind.Write && call.path === SERVE_TOKEN_PATH,
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -216,7 +216,7 @@ describe('createOrResume', () => {
       (call) => call.kind === ERecordedCallKind.Write && call.path === 'context.tar.gz',
     )
     const tokenStage = calls.findIndex(
-      (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
+      (call) => call.kind === ERecordedCallKind.Write && call.path === SERVE_TOKEN_PATH,
     )
     const health = calls.findIndex(
       (call) => call.kind === ERecordedCallKind.Command && call.script.includes('/v1/health'),
@@ -252,9 +252,7 @@ describe('createOrResume', () => {
     ).rejects.toThrow('context upload failed')
 
     expect(
-      calls.some(
-        (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
-      ),
+      calls.some((call) => call.kind === ERecordedCallKind.Write && call.path === SERVE_TOKEN_PATH),
     ).toBe(false)
     expect(
       calls.some(
@@ -291,9 +289,7 @@ describe('createOrResume', () => {
     ).rejects.toThrow('context upload failed')
 
     expect(
-      calls.some(
-        (call) => call.kind === ERecordedCallKind.Command && call.script === 'mkdir -p /opt/atlas',
-      ),
+      calls.some((call) => call.kind === ERecordedCallKind.Write && call.path === SERVE_TOKEN_PATH),
     ).toBe(false)
     expect(
       calls.some(

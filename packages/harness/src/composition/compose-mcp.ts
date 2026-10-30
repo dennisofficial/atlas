@@ -14,6 +14,7 @@ export type McpSignIn = (args: { serverName: string }) => Promise<McpSignInResul
 export type McpBinding = {
   servers: () => readonly McpServerStatus[]
   signIn: McpSignIn | undefined
+  connected: Promise<void>
 }
 
 const announce = (args: { mcp: RegisteredMcp; notice: NoticePort }): void => {
@@ -77,7 +78,7 @@ export async function bindMcp(args: {
   notice: NoticePort
 }): Promise<McpBinding> {
   const mcp = await registerMcp({ container: args.container, cwd: args.cwd })
-  announce({ mcp, notice: args.notice })
+  const connected = mcp.connected.then(() => announce({ mcp, notice: args.notice }))
 
-  return { servers: () => mcp.store.servers(), signIn: signInFor(mcp) }
+  return { servers: () => mcp.store.servers(), signIn: signInFor(mcp), connected }
 }

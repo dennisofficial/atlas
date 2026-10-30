@@ -46,7 +46,10 @@ describe('ensureWorkspace environment profile', () => {
 
     const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
 
-    expect(readiness).toEqual({ state: EWorkspaceState.Materialized, profile })
+    expect(readiness).toMatchObject({
+      state: EWorkspaceState.Materialized,
+      profile,
+    })
   })
 
   it('applies the profile for a workspace-less session too', async () => {
@@ -69,7 +72,8 @@ describe('ensureWorkspace environment profile', () => {
 
     const readiness = await ensure({ cwd: CWD, fetchSpec: async () => spec() })
 
-    expect(readiness).toEqual({ state: EWorkspaceState.Materialized })
+    expect(readiness).toMatchObject({ state: EWorkspaceState.Materialized })
+    expect(readiness).not.toHaveProperty('profile', expect.anything())
   })
 
   it('stays profile-less on a present workspace whose profile fetch throws', async () => {

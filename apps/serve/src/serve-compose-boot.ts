@@ -9,7 +9,7 @@ import {
 import { composeServeApp } from './compose-serve'
 import type { ServeApp, ServeCompose } from './serve-app'
 import type { bootServeFiles } from './serve-boot'
-import { apiThreadModel } from './serve-thread-model-boot'
+import { apiThreadModel, type BootModel } from './serve-thread-model-boot'
 
 type Booted = Awaited<ReturnType<typeof bootServeFiles>>
 
@@ -31,6 +31,7 @@ const storedThreadModel = (args: {
 export async function composeBootApp(args: {
   compose?: ServeCompose | undefined
   model?: { ref: string; effort?: string | undefined } | undefined
+  apiModel?: Promise<BootModel | undefined> | undefined
   spec: Booted['spec']
   identity: Booted['identity']
   threadId: ThreadId
@@ -46,7 +47,7 @@ export async function composeBootApp(args: {
   const { spec } = args
   const model =
     args.model ??
-    (await apiThreadModel(args)) ??
+    (await (args.apiModel ?? apiThreadModel(args))) ??
     storedThreadModel(args) ??
     (spec?.model === undefined || spec.model === null
       ? undefined

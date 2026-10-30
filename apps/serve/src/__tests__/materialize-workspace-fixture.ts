@@ -20,6 +20,7 @@ export const harness = (args: {
   fails?: ((attempt: Attempt) => { stderr: string } | undefined) | undefined
   answers?: ((attempt: Attempt) => string | undefined) | undefined
   profile?: ApplyEnvironmentProfile | undefined
+  gate?: ((attempt: Attempt) => Promise<void> | undefined) | undefined
 }) => {
   const attempts: Attempt[] = []
   const written: { path: string; text: string }[] = []
@@ -28,6 +29,7 @@ export const harness = (args: {
 
   const git: GitRunner = async (attempt) => {
     attempts.push(attempt)
+    await args.gate?.(attempt)
     const failure = args.fails?.(attempt)
     if (failure !== undefined) return { ok: false, stdout: '', stderr: failure.stderr }
     return { ok: true, stdout: args.answers?.(attempt) ?? '', stderr: '' }

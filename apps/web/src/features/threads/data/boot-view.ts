@@ -7,6 +7,7 @@ import {
   foldBootSteps,
   type BootStepEvent,
   type BootStepStatus,
+  type CloneRepoProgress,
   type PodStatus,
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
@@ -43,11 +44,19 @@ function labelOf(args: {
   return BOOT_LABELS[args.id]
 }
 
+export type BootStepChild = {
+  id: string
+  label: string
+  state: EBootStepState
+  detail?: string
+}
+
 export type BootStepView = {
   id: EBootStep
   label: string
   state: EBootStepState
   detail?: string
+  children?: BootStepChild[]
 }
 
 export type BootView = {
@@ -67,7 +76,23 @@ const eventOf = (step: RecordedBootStep): BootStepEvent => ({
   state: step.state,
   ...(step.error === undefined ? {} : { error: step.error }),
   ...(step.outcome === undefined ? {} : { outcome: step.outcome }),
+  ...(step.repos === undefined ? {} : { repos: step.repos }),
 })
+
+const repoNameOf = (repo: string): string => repo.slice(repo.lastIndexOf('/') + 1)
+
+const childOf = (progress: CloneRepoProgress): BootStepChild => ({
+  id: progress.repo,
+  label: repoNameOf(progress.repo),
+  state: progress.state,
+  ...(progress.error === undefined ? {} : { detail: progress.error }),
+})
+
+function childrenOf(args: { id: EBootStep; status: BootStepStatus }): BootStepChild[] | undefined {
+  const { repos } = args.status
+  if (args.id !== EBootStep.Clone || repos === undefined || repos.length < 2) return undefined
+  return repos.map(childOf)
+}
 
 function overallStateOf(steps: readonly BootStepView[]): EBootStepState {
   if (steps.some((step) => step.state === EBootStepState.Error)) return EBootStepState.Error
@@ -109,11 +134,13 @@ function attemptViewOf(args: {
   const recorded = BOOT_STEP_ORDER.map((id): BootStepView => {
     const status = folded[id]
     const detail = status.state === EBootStepState.Error ? status.error : undefined
+    const children = childrenOf({ id, status })
     return {
       id,
       label: labelOf({ id, status, folded }),
       state: status.state,
       ...(detail === undefined ? {} : { detail }),
+      ...(children === undefined ? {} : { children }),
     }
   })
   const steps = args.failed ? failedAtUnreportedStep(recorded) : recorded

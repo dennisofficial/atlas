@@ -53,9 +53,11 @@ describe('serve diagnostic log filesystem behavior', () => {
           launch = script
           return { exitCode: 0 }
         }
-        if (script.startsWith('test -x')) return { exitCode: 1 }
         if (script.includes(SERVE_VERSION_PATH)) {
-          return { exitCode: 0, stdout: async () => '\n' }
+          return {
+            exitCode: 0,
+            stdout: async () => 'alive=0\npresent=0\nversion=\nprotocol=\ntoken=1\nhealthy=0\n',
+          }
         }
         return { exitCode: script.startsWith('for i in') ? 0 : 1 }
       },

@@ -11,26 +11,43 @@ const INSTRUCTIONS_PATH = '.atlas/ATLAS.md'
 const INSTRUCTIONS_FILE_NAME = 'ATLAS.md'
 const REQUEST_TIMEOUT_MS = 10_000
 
-export const applyCloudInstructions = async (args: {
-  atlasHome: string
+type InstructionsRemote = {
   controlPlaneUrl: string
   token: string
   clientVersion: string
   fetchFn: typeof fetch
-  log: ServeLog
-  files?: WorkspaceFiles | undefined
-}): Promise<void> => {
+}
+
+const fetchInstructions = (args: InstructionsRemote) =>
+  createApiClient({
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+  }).userFiles.get.mutate(
+    { tree: EUserFileTree.Instructions, paths: [INSTRUCTIONS_PATH] },
+    { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) },
+  )
+
+export type PrefetchedInstructions = ReturnType<typeof fetchInstructions>
+
+export const startInstructionsFetch = (args: InstructionsRemote): PrefetchedInstructions => {
+  const started = fetchInstructions(args)
+  started.catch(() => undefined)
+  return started
+}
+
+export const applyCloudInstructions = async (
+  args: InstructionsRemote & {
+    atlasHome: string
+    log: ServeLog
+    files?: WorkspaceFiles | undefined
+    prefetched?: PrefetchedInstructions | undefined
+  },
+): Promise<void> => {
   const files = args.files ?? nodeWorkspaceFiles
   try {
-    const reply = await createApiClient({
-      controlPlaneUrl: args.controlPlaneUrl,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-    }).userFiles.get.mutate(
-      { tree: EUserFileTree.Instructions, paths: [INSTRUCTIONS_PATH] },
-      { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) },
-    )
+    const reply = await (args.prefetched ?? fetchInstructions(args))
     const row = reply.files.find((file) => file.path === INSTRUCTIONS_PATH)
     if (row === undefined) {
       args.log({ event: EServeEvent.InstructionsAbsent })

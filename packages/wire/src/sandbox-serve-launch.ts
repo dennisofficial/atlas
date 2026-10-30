@@ -20,22 +20,57 @@ export const UNSTAMPED_PROTOCOL = 0
 
 type InstalledStamps = { version: string | undefined; protocol: number }
 
-const installedStampsOf = async (sandbox: Sandbox): Promise<InstalledStamps> => {
-  const read = await sh({
-    sandbox,
-    script: `printf '%s\\n' "$(cat ${SERVE_VERSION_PATH} 2>/dev/null)"; printf '%s\\n' "$(cat ${SERVE_PROTOCOL_PATH} 2>/dev/null)"`,
-    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-  }).catch(() => null)
-  if (read === null || read.exitCode !== 0 || typeof read.stdout !== 'function') {
-    return { version: undefined, protocol: UNSTAMPED_PROTOCOL }
+type ServeObservation = {
+  alive: boolean
+  present: boolean
+  healthy: boolean
+  tokenMatches: boolean
+  stamps: InstalledStamps
+}
+
+const observationScriptOf = (): string =>
+  [
+    `mkdir -p ${SERVE_HOME}`,
+    `(${SERVE_ALIVE_PROBE}) && echo alive=1 || echo alive=0`,
+    `[ -x ${SERVE_BINARY_PATH} ] && echo present=1 || echo present=0`,
+    `echo "version=$(cat ${SERVE_VERSION_PATH} 2>/dev/null)"`,
+    `echo "protocol=$(cat ${SERVE_PROTOCOL_PATH} 2>/dev/null)"`,
+    `{ [ ! -s ${SERVE_TOKEN_PATH} ] || [ "$(cat ${SERVE_TOKEN_PATH} 2>/dev/null)" = "$ATLAS_SERVE_TOKEN" ]; } && echo token=1 || echo token=0`,
+    `(${HEALTH_PROBE}) && echo healthy=1 || echo healthy=0`,
+  ].join('; ')
+
+export const parseServeObservation = (stdout: string): ServeObservation => {
+  const fields = new Map<string, string>()
+  for (const line of stdout.split('\n')) {
+    const at = line.indexOf('=')
+    if (at > 0) fields.set(line.slice(0, at), line.slice(at + 1).trim())
   }
-  const [versionLine, protocolLine] = (await read.stdout()).split('\n')
-  const version = (versionLine ?? '').trim()
-  const protocolText = (protocolLine ?? '').trim()
+  const version = fields.get('version') ?? ''
+  const protocolText = fields.get('protocol') ?? ''
   return {
-    version: version === '' ? undefined : version,
-    protocol: /^\d+$/.test(protocolText) ? Number(protocolText) : UNSTAMPED_PROTOCOL,
+    alive: fields.get('alive') !== '0',
+    present: fields.get('present') === '1',
+    healthy: fields.get('healthy') === '1',
+    tokenMatches: fields.get('token') === '1',
+    stamps: {
+      version: version === '' ? undefined : version,
+      protocol: /^\d+$/.test(protocolText) ? Number(protocolText) : UNSTAMPED_PROTOCOL,
+    },
   }
+}
+
+const observeServe = async (args: {
+  sandbox: Sandbox
+  token: string | undefined
+}): Promise<ServeObservation> => {
+  const run = await sh({
+    sandbox: args.sandbox,
+    script: observationScriptOf(),
+    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
+    ...(args.token === undefined ? {} : { env: { ATLAS_SERVE_TOKEN: args.token } }),
+  })
+  const readable = run.exitCode === 0 && typeof run.stdout === 'function'
+  return parseServeObservation(readable ? await run.stdout() : '')
 }
 
 const serveStaleFor = (args: {
@@ -63,18 +98,14 @@ const serveDriftedFor = (args: {
   return args.stamps.version !== undefined && args.stamps.version !== args.desiredVersion
 }
 
-const serveBinaryPresent = async (sandbox: Sandbox): Promise<boolean> => {
-  const probe = await sh({
-    sandbox,
-    script: `test -x ${SERVE_BINARY_PATH}`,
-    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-  }).catch(() => null)
-  return probe !== null && probe.exitCode === 0
-}
-
-const HEALTH_ATTEMPTS = 90
-const HEALTH_INTERVAL_SECONDS = 2
-const HEALTH_WAIT_TIMEOUT_MS = (HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS + 30) * 1000
+const FAST_HEALTH_ATTEMPTS = 40
+const FAST_HEALTH_INTERVAL_SECONDS = 0.25
+const SLOW_HEALTH_ATTEMPTS = 170
+const SLOW_HEALTH_INTERVAL_SECONDS = 1
+const HEALTH_BUDGET_SECONDS =
+  FAST_HEALTH_ATTEMPTS * FAST_HEALTH_INTERVAL_SECONDS +
+  SLOW_HEALTH_ATTEMPTS * SLOW_HEALTH_INTERVAL_SECONDS
+const HEALTH_WAIT_TIMEOUT_MS = (HEALTH_BUDGET_SECONDS + 30) * 1000
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
 
 const withServeToken = (script: string): string =>
@@ -87,9 +118,6 @@ export const HEALTH_PROBE = withServeToken(
 
 const sh = sandboxSh
 
-const serveHealthy = async (sandbox: Sandbox): Promise<boolean> =>
-  (await sh({ sandbox, script: HEALTH_PROBE, timeoutMs: QUICK_COMMAND_TIMEOUT_MS })).exitCode === 0
-
 export const SERVE_ALIVE_PROBE = `kill -0 $(cat ${SERVE_HOME}/atlas-serve.pid 2>/dev/null) 2>/dev/null || { for pid in /proc/[0-9]*; do [ "$(tr '\\0' '\\n' < "$pid/cmdline" 2>/dev/null)" = '${SERVE_BINARY_PATH}' ] && exit 0; done; exit 1; }`
 
 export const probeServeAlive = async (sandbox: Sandbox): Promise<boolean> => {
@@ -100,8 +128,6 @@ export const probeServeAlive = async (sandbox: Sandbox): Promise<boolean> => {
   }).catch(() => null)
   return probe === null || probe.exitCode === 0
 }
-
-const serveAlive = probeServeAlive
 
 const SERVE_STOP_TIMEOUT_MS = 30_000
 
@@ -119,16 +145,6 @@ const stopServe = async (sandbox: Sandbox): Promise<void> => {
   }).catch(() => null)
 }
 
-const tokenFileMatches = async (args: { sandbox: Sandbox; token: string }): Promise<boolean> => {
-  const probe = await sh({
-    sandbox: args.sandbox,
-    script: `[ ! -s ${SERVE_TOKEN_PATH} ] || [ "$(cat ${SERVE_TOKEN_PATH} 2>/dev/null)" = "$ATLAS_SERVE_TOKEN" ]`,
-    env: { ATLAS_SERVE_TOKEN: args.token },
-    timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-  }).catch(() => null)
-  return probe !== null && probe.exitCode === 0
-}
-
 const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   const tail = await sh({
     sandbox,
@@ -140,14 +156,21 @@ const serveLogTail = async (sandbox: Sandbox): Promise<string> => {
   return content.length > 0 ? content : '<serve log is empty or missing>'
 }
 
+const healthLoop = (args: { attempts: number; intervalSeconds: number }): string =>
+  `for i in $(seq ${args.attempts}); do ${HEALTH_PROBE} && exit 0; sleep ${args.intervalSeconds}; done`
+
 const waitForHealth = async (sandbox: Sandbox): Promise<boolean> =>
   (
     await sh({
       sandbox,
-      script: `for i in $(seq ${HEALTH_ATTEMPTS}); do ${HEALTH_PROBE} && exit 0; sleep ${HEALTH_INTERVAL_SECONDS}; done; exit 1`,
+      script: `${healthLoop({ attempts: FAST_HEALTH_ATTEMPTS, intervalSeconds: FAST_HEALTH_INTERVAL_SECONDS })}; ${healthLoop({ attempts: SLOW_HEALTH_ATTEMPTS, intervalSeconds: SLOW_HEALTH_INTERVAL_SECONDS })}; exit 1`,
       timeoutMs: HEALTH_WAIT_TIMEOUT_MS,
     })
   ).exitCode === 0
+
+const writeServeToken = async (args: { sandbox: Sandbox; token: string }): Promise<void> => {
+  await args.sandbox.writeFiles([{ path: SERVE_TOKEN_PATH, content: args.token, mode: 0o600 }])
+}
 
 export type ServeLauncher = (args: {
   sandbox: Sandbox
@@ -162,64 +185,58 @@ export function createServeLauncher(args?: {
 }): ServeLauncher {
   const install = args?.installServe ?? installServe
   return async ({ sandbox, token, cloudUrl, desiredVersion }) => {
-    if (await serveAlive(sandbox)) {
-      if (token !== undefined && !(await tokenFileMatches({ sandbox, token }))) {
+    const observed = await observeServe({ sandbox, token })
+    let installed = false
+    let healthy = observed.healthy
+    if (observed.alive) {
+      if (token !== undefined && !observed.tokenMatches) {
         throw new Error(
           'atlas serve is already running under a different token; refusing to rotate its live credentials',
         )
       }
-      const stamps = await installedStampsOf(sandbox)
-      const drifted = serveDriftedFor({ stamps, desiredVersion })
-      if (!drifted) {
-        if (await serveHealthy(sandbox)) {
+      const stamps = observed.stamps
+      if (!serveDriftedFor({ stamps, desiredVersion })) {
+        if (healthy) {
           args?.log?.(`sandbox ${sandbox.name} has a live serve answering /v1/health — keeping it`)
           return
-        } else {
-          args?.log?.(
-            `sandbox ${sandbox.name} has a live serve that is not answering /v1/health — the process is preserved rather than killed; waiting for it`,
-          )
-          if (!(await waitForHealth(sandbox))) {
-            const tail = await serveLogTail(sandbox)
-            throw new Error(
-              `atlas serve is running but did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; the live process was preserved rather than killed, and its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
-            )
-          }
-          return
         }
-      } else {
         args?.log?.(
-          `sandbox ${sandbox.name} runs serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), stale against "${desiredVersion ?? 'latest'}" — downloading the replacement first so a failed download leaves it serving`,
+          `sandbox ${sandbox.name} has a live serve that is not answering /v1/health — the process is preserved rather than killed; waiting for it`,
         )
-        await install({ sandbox, version: desiredVersion, log: args?.log })
-        args?.log?.(
-          `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — stopping it to swap in place`,
-        )
-        await stopServe(sandbox)
-        if (await serveAlive(sandbox)) {
+        if (!(await waitForHealth(sandbox))) {
+          const tail = await serveLogTail(sandbox)
           throw new Error(
-            `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
+            `atlas serve is running but did not answer /v1/health within ${HEALTH_BUDGET_SECONDS}s; the live process was preserved rather than killed, and its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
           )
         }
+        return
+      }
+      args?.log?.(
+        `sandbox ${sandbox.name} runs serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), stale against "${desiredVersion ?? 'latest'}" — downloading the replacement first so a failed download leaves it serving`,
+      )
+      await install({ sandbox, version: desiredVersion, log: args?.log })
+      installed = true
+      args?.log?.(
+        `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — stopping it to swap in place`,
+      )
+      await stopServe(sandbox)
+      healthy = false
+      if (await probeServeAlive(sandbox)) {
+        throw new Error(
+          `atlas serve refused to stop for its in-place swap; the sandbox was left running the old serve rather than destroyed`,
+        )
       }
     }
 
-    if (token !== undefined) {
-      await sh({
-        sandbox,
-        script: `mkdir -p ${SERVE_HOME}`,
-        timeoutMs: QUICK_COMMAND_TIMEOUT_MS,
-      })
-      await sandbox.writeFiles([{ path: SERVE_TOKEN_PATH, content: token, mode: 0o600 }])
-    }
+    if (token !== undefined) await writeServeToken({ sandbox, token })
 
-    if (await serveHealthy(sandbox)) {
+    if (healthy) {
       args?.log?.(`sandbox ${sandbox.name} has a serve answering /v1/health — keeping it`)
       return
     }
 
-    const present = await serveBinaryPresent(sandbox)
-    const stamps = await installedStampsOf(sandbox)
-    if (serveStaleFor({ present, stamps, desiredVersion })) {
+    const stamps = observed.stamps
+    if (!installed && serveStaleFor({ present: observed.present, stamps, desiredVersion })) {
       args?.log?.(
         `sandbox ${sandbox.name} carries serve "${stamps.version ?? 'none'}" (protocol ${stamps.protocol}), needs "${desiredVersion ?? 'latest'}" — downloading it in place`,
       )
@@ -247,7 +264,7 @@ export function createServeLauncher(args?: {
     if (!(await waitForHealth(sandbox))) {
       const tail = await serveLogTail(sandbox)
       throw new Error(
-        `atlas serve did not answer /v1/health within ${HEALTH_ATTEMPTS * HEALTH_INTERVAL_SECONDS}s; its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
+        `atlas serve did not answer /v1/health within ${HEALTH_BUDGET_SECONDS}s; its log is at ${SERVE_LOG_PATH} in the sandbox, tail:\n${tail}`,
       )
     }
     args?.log?.(`sandbox ${sandbox.name} answers /v1/health`)

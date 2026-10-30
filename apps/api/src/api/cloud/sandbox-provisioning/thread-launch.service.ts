@@ -40,8 +40,10 @@ export class ThreadLaunchService extends ThreadLauncher {
 
   async launch(args: ThreadLaunch): Promise<ThreadLaunchReply> {
     const { userId, draft, firstMessage } = args
-    const project = await threadProjectColumn({ userId, projectId: draft.projectId })
-    const gap = await this.pod.credentialsOf({ userId })
+    const [project, gap] = await Promise.all([
+      threadProjectColumn({ userId, projectId: draft.projectId }),
+      this.pod.credentialsOf({ userId }),
+    ])
 
     const { threadId, claim, existing } = await db.transaction(async (tx) => {
       await lockFirstMessage({ tx, userId, sendId: firstMessage.sendId })
@@ -76,8 +78,15 @@ export class ThreadLaunchService extends ThreadLauncher {
       return { threadId: thread.id, claim: claimed, existing: false }
     })
 
-    const row = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
-    const session = await sessionOfThread({ reader: db, threadId })
+    const dispatching =
+      existing || gap !== null || claim === null
+        ? Promise.resolve(true)
+        : this.pod.dispatch({ threadId, claim })
+    dispatching.catch(() => undefined)
+    const [row, session] = await Promise.all([
+      db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow(),
+      sessionOfThread({ reader: db, threadId }),
+    ])
     const thread = toThreadDto({ thread: row, session })
     if (!existing) {
       await this.threads.announceCreated({ userId, threadId })
@@ -93,8 +102,7 @@ export class ThreadLaunchService extends ThreadLauncher {
     }
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
-    const dispatched = claim === null || (await this.pod.dispatch({ threadId, claim }))
-    if (!dispatched) return { thread, provision: dispatchFailedReply }
+    if (!(await dispatching)) return { thread, provision: dispatchFailedReply }
     return { thread, provision: { state: ESandboxProvisionState.Booting } }
   }
 

@@ -8,6 +8,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
+import { podSessionOf } from '../sessions/session-of-thread'
 import { readBootSteps, recordBootSteps } from './sandbox-boot-steps'
 
 describe('boot step store', () => {
@@ -125,5 +126,79 @@ describe('boot step store', () => {
     const read = await readBootSteps({ threadId: 'thr-1' })
 
     expect(read.map((step) => step.outcome)).toEqual([EBootStepOutcome.Resumed, undefined])
+  })
+
+  it('round-trips the per-repo clone progress of a step', async () => {
+    const repos = [
+      { repo: 'acme/api', state: EBootStepState.Done },
+      { repo: 'acme/web', state: EBootStepState.Error, error: 'not found' },
+    ]
+    await recordBootSteps({
+      threadId: 'thr-1',
+      steps: [
+        { step: EBootStep.Clone, state: EBootStepState.Done, repos },
+        { step: EBootStep.Settings, state: EBootStepState.Done },
+      ],
+    })
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.repos)).toEqual([repos, undefined])
+  })
+
+  it('drops stored repos that do not parse as clone progress', async () => {
+    await db.orm.public.SandboxBootStep.create({
+      sessionId: 'ses_thr-1',
+      step: EBootStep.Clone,
+      state: EBootStepState.Done,
+      repos: [{ nope: true }],
+    })
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.repos)).toEqual([undefined])
+  })
+
+  it('orders one batch and the batches after it strictly', async () => {
+    const batch = (prefix: string) =>
+      Array.from({ length: 5 }, (_, index) => ({
+        step: EBootStep.Clone,
+        state: EBootStepState.Running,
+        error: `${prefix}${index}`,
+      }))
+    await recordBootSteps({ threadId: 'thr-1', steps: batch('a') })
+    await recordBootSteps({ threadId: 'thr-1', steps: batch('b') })
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.error)).toEqual(
+      [...batch('a'), ...batch('b')].map((s) => s.error),
+    )
+  })
+
+  it('reads batches back in insertion order when their clocks disagree', async () => {
+    const sessionId = await podSessionOf({ reader: db, threadId: 'thr-1' })
+    const rowAt = (error: string, at: Date) => ({
+      sessionId,
+      step: EBootStep.Clone,
+      state: EBootStepState.Running,
+      error,
+      gap: null,
+      outcome: null,
+      repos: null,
+      at,
+    })
+    await db.orm.public.SandboxBootStep.createAll([
+      rowAt('first', new Date('2026-10-30T12:00:05.000Z')),
+      rowAt('second', new Date('2026-10-30T12:00:01.000Z')),
+    ])
+    await db.orm.public.SandboxBootStep.createAll([
+      rowAt('third', new Date('2026-10-30T12:00:03.000Z')),
+      rowAt('fourth', new Date('2026-10-30T12:00:03.000Z')),
+    ])
+
+    const read = await readBootSteps({ threadId: 'thr-1' })
+
+    expect(read.map((step) => step.error)).toEqual(['first', 'second', 'third', 'fourth'])
   })
 })
