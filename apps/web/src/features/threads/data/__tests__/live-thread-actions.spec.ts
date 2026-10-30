@@ -229,3 +229,32 @@ describe('rewind', () => {
     expect(await test.controller.readRoster()).toBeNull()
   })
 })
+
+describe('resume and dismissFailure', () => {
+  const frames = (test: ReturnType<typeof rig>) => test.sockets.flatMap((socket) => socket.sent)
+
+  it('sends run with resume over a connected channel', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.retry({ resume: true })).toBe(true)
+
+    expect(frames(test)).toContainEqual({ kind: EClientFrame.Run, resume: true })
+  })
+
+  it('is false for dismissFailure without a connection', () => {
+    expect(rig().controller.dismissFailure({ failureSeq: 2 })).toBe(false)
+  })
+
+  it('is false when the serve lacks the dismiss capability and sends nothing', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.dismissFailure({ failureSeq: 2 })).toBe(false)
+    expect(frames(test).some((frame) => frame.kind === EClientFrame.DismissFailure)).toBe(false)
+  })
+})

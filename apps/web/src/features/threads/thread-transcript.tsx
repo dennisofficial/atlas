@@ -5,16 +5,13 @@ import { CirclePauseIcon } from 'lucide-react'
 
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
-import Link from 'next/link'
-import { RunFailureBanner } from '@dltech/atlas-ui/ai/run-failure-banner'
+import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
 import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
-import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
-import type { FailureView } from './data/failure-view'
 import type { BootView } from './data/boot-view'
 import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
@@ -70,18 +67,14 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 
 export function ThreadTranscript({
   items,
-  failure,
-  onRetry,
-  retryDisabled = false,
+  failedLabel,
   pod,
   working,
   onRetryBoot,
   rewind,
 }: {
   items: readonly TranscriptRow[]
-  failure: FailureView | null
-  onRetry?: (() => void) | undefined
-  retryDisabled?: boolean | undefined
+  failedLabel: string | null
   pod: PodStatus | null
   working: boolean
   onRetryBoot: () => void
@@ -119,22 +112,9 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
-      {failure === null ? null : (
+      {failedLabel === null ? null : (
         <ChatItem id="turn-failure">
-          <RunFailureBanner
-            title={failure.title}
-            detail={failure.detail}
-            {...(failure.showSettings
-              ? { settingsHref: PROVIDERS_HREF, settingsLabel: 'Open Providers settings' }
-              : {})}
-            renderLink={({ href, className, children }) => (
-              <Link href={href} className={className}>
-                {children}
-              </Link>
-            )}
-            onRetry={onRetry}
-            retryDisabled={retryDisabled}
-          />
+          <RunFailedMarker label={failedLabel} />
         </ChatItem>
       )}
     </Chat>

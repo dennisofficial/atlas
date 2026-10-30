@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { fetchAccounts } from '@/features/settings/data/personal/accounts-api'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import type { AccountLabelOf } from './failure-view'
+export type AccountLabelOf = (accountId: string) => string | undefined
 
 export function useAccountLabel(): AccountLabelOf {
   const query = useCloudQuery({ key: 'failure-accounts', load: fetchAccounts })

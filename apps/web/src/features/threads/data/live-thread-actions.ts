@@ -10,6 +10,7 @@ import { rosterWireSchema, takeBackPendingReplySchema } from '@dltech/atlas-wire
 import type {
   LiveApplyRewind,
   LiveChooseModel,
+  LiveDismissFailure,
   LiveInterrupt,
   LiveReadRoster,
   LiveRetry,
@@ -25,6 +26,7 @@ export function createLiveThreadActions(args: {
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
   retry: LiveRetry
+  dismissFailure: LiveDismissFailure
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
 } {
@@ -65,11 +67,17 @@ export function createLiveThreadActions(args: {
     return true
   }
 
-  const retry: LiveRetry = () => {
+  const retry: LiveRetry = (runArgs) => {
     const live = connected()
     if (live === null) return false
-    live.run()
+    live.run(runArgs)
     return true
+  }
+
+  const dismissFailure: LiveDismissFailure = (dismissal) => {
+    const live = connected()
+    if (live === null) return false
+    return live.dismissFailure(dismissal)
   }
 
   const applyRewind: LiveApplyRewind = async ({ cuts, toSeq }) => {
@@ -93,5 +101,5 @@ export function createLiveThreadActions(args: {
     }
   }
 
-  return { chooseModel, takeBackPending, interrupt, retry, applyRewind, readRoster }
+  return { chooseModel, takeBackPending, interrupt, retry, dismissFailure, applyRewind, readRoster }
 }

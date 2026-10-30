@@ -238,27 +238,6 @@ describe('transcriptViewOf', () => {
     expect(agents[0]).toMatchObject({ text: 'Hello', streaming: false })
   })
 
-  it('reports a failed step as the failure', () => {
-    const view = viewOf({
-      events: [said(1, 'hi')],
-      signals: [
-        started,
-        chunk({ type: 'error', message: 'provider overloaded' }),
-        {
-          type: 'step-ended',
-          stepId: step,
-          end: EStepEnd.Failed,
-          supersededBy: null,
-        },
-      ],
-    })
-    expect(view.failure).toEqual({
-      title: 'The run failed',
-      detail: 'provider overloaded',
-      showSettings: false,
-    })
-  })
-
   it('skips legacy boot rows', () => {
     const boot: WireEvent = {
       ...said(1, 'x'),
@@ -394,14 +373,5 @@ describe('upload-only messages', () => {
     ]
     const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', uploads })] })
     expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads })
-  })
-})
-
-describe('a persisted failed turn on return', () => {
-  it('shows the failure with no live signals', () => {
-    const view = viewOf({
-      events: [said(1, 'go'), wire(2, { type: 'turn-failed', message: 'InvalidApiKey' })],
-    })
-    expect(view.failure?.detail).toBe('InvalidApiKey')
   })
 })
