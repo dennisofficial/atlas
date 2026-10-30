@@ -1,4 +1,10 @@
-import { ECommandGroup, ECommandKind, EContextSlot, type CommandSpec } from '@dltech/atlas-core'
+import {
+  ECommand,
+  ECommandGroup,
+  ECommandKind,
+  EContextSlot,
+  type CommandSpec,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { dispatchSubmission, EDispatch, type LoadedSkill } from '../dispatch'
@@ -7,9 +13,10 @@ import {
   ECommandEffect,
   ECommandTiming,
   RAN,
-  type LocalCommand,
-} from '../local-command'
-import { ECompactScope } from '@dltech/atlas-harness'
+  type CommandRun,
+  type SurfaceCommand,
+} from '@dltech/atlas-core'
+import { ECompactScope } from '@dltech/atlas-core'
 import { ERenamed } from '../../session-rename'
 import { localCommands } from '../registry'
 import { handlers } from './local-handlers'
@@ -26,9 +33,10 @@ const SKILLS: readonly LoadedSkill[] = [
   { spec: skillSpec('tdd'), body: 'Write the test first.' },
 ]
 
-const commandThat = (run: LocalCommand['run']): LocalCommand => ({
+const commandThat = (run: CommandRun): SurfaceCommand => ({
   name: 'demo',
   kind: ECommandKind.Local,
+  command: ECommand.Help,
   summary: 'demo',
   group: ECommandGroup.Session,
   timing: ECommandTiming.Immediate,
@@ -73,49 +81,14 @@ describe('dispatchSubmission', () => {
     expect(result).toEqual({ type: EDispatch.Refused, reason: 'nothing to compact' })
   })
 
-  it('drafts a context-loaded per invoked skill and still sends the text', async () => {
+  it('leaves skill expansion to the harness and sends no skill draft', async () => {
     const result = await dispatchSubmission({
       text: '/review src/auth.ts',
       commands: [],
       skills: SKILLS,
     })
 
-    expect(result).toEqual({
-      type: EDispatch.Send,
-      text: '/review src/auth.ts',
-      drafts: [
-        {
-          type: 'context-loaded',
-          slot: EContextSlot.Skill,
-          key: 'review',
-          content: 'Review src/auth.ts carefully.',
-        },
-      ],
-    })
-  })
-
-  it('drafts a skill named mid-prose', async () => {
-    const result = await dispatchSubmission({
-      text: 'please use /tdd on this',
-      commands: [],
-      skills: SKILLS,
-    })
-
-    expect(result.type).toBe(EDispatch.Send)
-    if (result.type !== EDispatch.Send) return
-    expect(result.drafts.map((draft) => draft.type === 'context-loaded' && draft.key)).toEqual([
-      'tdd',
-    ])
-  })
-
-  it('drafts nothing for a mention inside backticks', async () => {
-    const result = await dispatchSubmission({
-      text: 'type `/tdd` first',
-      commands: [],
-      skills: SKILLS,
-    })
-
-    expect(result.type === EDispatch.Send && result.drafts).toEqual([])
+    expect(result).toEqual({ type: EDispatch.Send, text: '/review src/auth.ts', drafts: [] })
   })
 
   it('attaches a file the developer mentioned', async () => {
@@ -140,7 +113,7 @@ describe('dispatchSubmission', () => {
     })
   })
 
-  it('attaches a mentioned file alongside an invoked skill', async () => {
+  it('attaches only the mentioned file alongside an invoked skill', async () => {
     const dispatched = await dispatchSubmission({
       text: '/review @src/app.ts',
       commands: [],
@@ -154,7 +127,7 @@ describe('dispatchSubmission', () => {
             draft.type === 'context-loaded' ? draft.slot : draft.type,
           )
         : []
-    expect(slots).toEqual([EContextSlot.Skill, EContextSlot.File])
+    expect(slots).toEqual([EContextSlot.File])
   })
 
   it('attaches nothing for a local command line', async () => {

@@ -1,9 +1,17 @@
-import { BoxIcon, KeyRoundIcon, LayoutDashboardIcon, PlugIcon, type LucideIcon } from 'lucide-react'
+import {
+  BoxIcon,
+  FileKeyIcon,
+  KeyRoundIcon,
+  LayoutDashboardIcon,
+  PlugIcon,
+  type LucideIcon,
+} from 'lucide-react'
 
 export enum EProjectSettingsSection {
   Overview = 'overview',
   Sandbox = 'sandbox',
   Secrets = 'secrets',
+  Files = 'files',
   Mcp = 'mcp',
 }
 
@@ -17,6 +25,7 @@ export const PROJECT_NAV: readonly ProjectNavItem[] = [
   { section: EProjectSettingsSection.Overview, label: 'Overview', icon: LayoutDashboardIcon },
   { section: EProjectSettingsSection.Sandbox, label: 'Sandbox', icon: BoxIcon },
   { section: EProjectSettingsSection.Secrets, label: 'Secrets & Env Vars', icon: KeyRoundIcon },
+  { section: EProjectSettingsSection.Files, label: 'Files', icon: FileKeyIcon },
   { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },
 ]
 

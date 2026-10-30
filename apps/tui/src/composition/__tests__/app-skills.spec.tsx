@@ -22,6 +22,7 @@ const appWith = (skills: readonly ReturnType<typeof fakeSkill>[] = []): FakeApp 
   fakeApp({
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'arr' } }),
     skills,
+    intake: true,
   })
 
 async function landed(setup: Mounted): Promise<void> {

@@ -1,18 +1,14 @@
 import {
-  EContextSlot,
-  expandSkillBody,
+  ECommandEffect,
+  ECommandTiming,
   resolveSubmission,
+  type CommandEffect,
   type CommandSpec,
   type EventDraft,
+  type SurfaceCommand,
 } from '@dltech/atlas-core'
 
 import { mentionedFileDrafts, type FileLoader } from '../mentioned-files'
-import {
-  ECommandEffect,
-  ECommandTiming,
-  type CommandEffect,
-  type LocalCommand,
-} from './local-command'
 
 export type LoadedSkill = { spec: CommandSpec; body: string }
 
@@ -38,7 +34,7 @@ export type Dispatch =
   | { type: EDispatch.Send; text: string; drafts: readonly EventDraft[] }
 
 export function commandSpecs(args: {
-  commands: readonly LocalCommand[]
+  commands: readonly SurfaceCommand[]
   skills: readonly LoadedSkill[]
 }): readonly CommandSpec[] {
   return [...args.commands, ...args.skills.map((skill) => skill.spec)]
@@ -46,7 +42,7 @@ export function commandSpecs(args: {
 
 export async function dispatchSubmission(args: {
   text: string
-  commands: readonly LocalCommand[]
+  commands: readonly SurfaceCommand[]
   skills: readonly LoadedSkill[]
   working?: boolean | undefined
   loadFile?: FileLoader | undefined
@@ -86,22 +82,6 @@ export async function dispatchSubmission(args: {
     return { type: EDispatch.Ran }
   }
 
-  const bodies = new Map(args.skills.map((skill) => [skill.spec.name, skill.body]))
-
-  const skillDrafts = submission.skills.flatMap((one): EventDraft[] => {
-    const body = bodies.get(one.spec.name)
-    if (body === undefined) return []
-
-    return [
-      {
-        type: 'context-loaded',
-        slot: EContextSlot.Skill,
-        key: one.spec.name,
-        content: expandSkillBody({ body, argumentText: one.argumentText }),
-      },
-    ]
-  })
-
   const load = args.loadFile
   try {
     const fileDrafts =
@@ -109,7 +89,7 @@ export async function dispatchSubmission(args: {
         ? []
         : await mentionedFileDrafts({ text: args.text, load, highlighted: args.highlightedFiles })
 
-    return { type: EDispatch.Send, text: args.text, drafts: [...skillDrafts, ...fileDrafts] }
+    return { type: EDispatch.Send, text: args.text, drafts: fileDrafts }
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'The mentioned files could not be read'
     return { type: EDispatch.Refused, reason }

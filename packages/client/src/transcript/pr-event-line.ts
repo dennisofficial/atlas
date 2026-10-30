@@ -40,6 +40,8 @@ const reviewCommentLine = (event: PrEvent): string =>
 const verdictLine = (event: PrEvent): string => {
   if (event.verdict === EPrVerdict.Failed && event.settled === true)
     return `${prefix(event)}: CI finished, still failing`
+  if (event.verdict === EPrVerdict.Failed && event.settled === false)
+    return `${prefix(event)}: a check failed, CI still running`
   if (event.verdict === EPrVerdict.Failed) return `${prefix(event)}: CI failed`
   return `${prefix(event)}: CI green`
 }

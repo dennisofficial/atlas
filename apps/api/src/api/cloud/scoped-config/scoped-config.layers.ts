@@ -1,4 +1,9 @@
-import type { ScopedMcpServer, ScopedSecret, ScopeLayer } from '@dltech/atlas-wire/web'
+import type {
+  ScopedFileMount,
+  ScopedMcpServer,
+  ScopedSecret,
+  ScopeLayer,
+} from '@dltech/atlas-wire/web'
 import { mcpUpsertSchema } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -7,6 +12,7 @@ import { openSecretValue } from '../secrets/sealed-secret'
 
 type SealedSecretRow = { name: string; sealedValue: string }
 type SealedMcpRow = { sealedSpec: string; updatedAt: Date }
+type SealedFileMountRow = { path: string; sealedContents: string; mode: number }
 type SettingRow = { key: string; value: string }
 
 const settingsOf = (rows: readonly SettingRow[]): Record<string, string> =>
@@ -38,15 +44,27 @@ const mcpServersOf = (args: {
     return spec.success ? [{ name: opened.name, spec: spec.data }] : []
   })
 
+const fileMountsOf = (args: {
+  cipher: SecretCipherService
+  rows: readonly SealedFileMountRow[]
+}): ScopedFileMount[] =>
+  args.rows.map((row) => ({
+    path: row.path,
+    contents: openSecretValue({ cipher: args.cipher, sealed: row.sealedContents }),
+    mode: row.mode,
+  }))
+
 const layerOf = (args: {
   cipher: SecretCipherService
   settings: readonly SettingRow[]
   secrets: readonly SealedSecretRow[]
   mcpServers: readonly SealedMcpRow[]
+  fileMounts: readonly SealedFileMountRow[]
 }): ScopeLayer => ({
   settings: settingsOf(args.settings),
   secrets: secretsOf({ cipher: args.cipher, rows: args.secrets }),
   mcpServers: mcpServersOf({ cipher: args.cipher, rows: args.mcpServers }),
+  fileMounts: fileMountsOf({ cipher: args.cipher, rows: args.fileMounts }),
 })
 
 export const loadUserLayer = async (args: {
@@ -59,7 +77,7 @@ export const loadUserLayer = async (args: {
     db.orm.public.UserSecret.where(where).all(),
     db.orm.public.UserMcpServer.where(where).all(),
   ])
-  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
+  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers, fileMounts: [] })
 }
 
 export const loadProjectLayer = async (args: {
@@ -67,10 +85,13 @@ export const loadProjectLayer = async (args: {
   projectId: string
 }): Promise<ScopeLayer> => {
   const where = { projectId: args.projectId }
-  const [settings, secrets, mcpServers] = await Promise.all([
+  const [settings, secrets, mcpServers, fileMounts] = await Promise.all([
     db.orm.public.ProjectSetting.where(where).all(),
     db.orm.public.ProjectSecret.where(where).all(),
     db.orm.public.ProjectMcpServer.where(where).all(),
+    db.orm.public.ProjectFileMount.where(where)
+      .orderBy((row) => row.path.asc())
+      .all(),
   ])
-  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers })
+  return layerOf({ cipher: args.cipher, settings, secrets, mcpServers, fileMounts })
 }

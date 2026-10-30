@@ -6,6 +6,8 @@ import { LiveSkillRegistry } from '../skills/live-registry'
 import { SkillRegistryPort } from '../skills/port'
 import { resolveSkillRoots, skillSourcesFor } from '../skills/roots'
 
+export { skillExpander } from '../skills/skill-expander'
+
 const SKILLS_DIRECTORY_NAME = 'skills'
 
 export class SkillRegistryNotBound extends Error {

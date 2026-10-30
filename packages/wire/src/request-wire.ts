@@ -40,6 +40,20 @@ export const renameThreadParamsSchema = z.object({
 })
 export type RenameThreadParams = z.infer<typeof renameThreadParamsSchema>
 
+export const listCommandsParamsSchema = z.object({ reload: z.boolean().optional() })
+export type ListCommandsParams = z.infer<typeof listCommandsParamsSchema>
+
+export const commandSkillWireSchema = z.object({
+  name: z.string(),
+  summary: z.string(),
+  argumentHint: z.string().optional(),
+  aliases: z.array(z.string()).optional(),
+})
+export type CommandSkillWire = z.infer<typeof commandSkillWireSchema>
+
+export const listCommandsReplySchema = z.object({ skills: z.array(commandSkillWireSchema) })
+export type ListCommandsReply = z.infer<typeof listCommandsReplySchema>
+
 export const takeBackPendingParamsSchema = z.object({
   threadId: threadIdWireSchema,
 })

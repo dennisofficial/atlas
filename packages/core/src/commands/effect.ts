@@ -1,5 +1,3 @@
-import { ECommandKind, type CommandSpec } from '@dltech/atlas-core'
-
 export enum ECommandTiming {
   Immediate = 'immediate',
   Settled = 'settled',
@@ -22,16 +20,10 @@ export type CommandEffect =
   | { type: ECommandEffect.Refused; reason: string }
   | { type: ECommandEffect.Nothing }
 
-export type LocalCommand = CommandSpec & {
-  kind: ECommandKind.Local
-  timing: ECommandTiming
-  echo: ECommandEcho
-  /** True when running it strands whatever else was queued: it swaps the thread out or the process. */
-  dropsQueue?: boolean
-  /** True when running it exits the process, so messages waiting in memory never arrive. */
-  losesWaiting?: boolean
-  run: (args: { argumentText: string }) => CommandEffect | Promise<CommandEffect>
-}
-
 export const RAN: CommandEffect = { type: ECommandEffect.Ran }
 export const NOTHING: CommandEffect = { type: ECommandEffect.Nothing }
+
+export const refused = (reason: string): CommandEffect => ({
+  type: ECommandEffect.Refused,
+  reason,
+})

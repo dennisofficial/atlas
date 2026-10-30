@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EConnectionView } from '@dltech/atlas-harness'
 
 import { dispatchSubmission, EDispatch } from '../dispatch'
-import { ECommandEffect, ECommandTiming, RAN } from '../local-command'
+import { ECommandEffect, ECommandTiming, RAN } from '@dltech/atlas-core'
 import { localCommands } from '../registry'
 import { ALREADY_UP, NOT_IN_THE_CLOUD, RECONNECTING, wakeEffect } from '../wake'
 import { handlers } from './local-handlers'

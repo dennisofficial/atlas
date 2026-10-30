@@ -97,6 +97,7 @@ export enum EClientRequest {
   CompletePaths = 'complete-paths',
   BrowseDirectory = 'browse-directory',
   ListRoster = 'list-roster',
+  ListCommands = 'list-commands',
   ListPrStates = 'list-pr-states',
   ListSubscriptions = 'list-subscriptions',
   Subscribe = 'subscribe',

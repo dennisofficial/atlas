@@ -68,7 +68,23 @@ const isOperatorMessage = <Command>(entry: PendingEntry<Command>): entry is Pend
 const isCommand = <Command>(entry: PendingEntry<Command>): entry is PendingCommand<Command> =>
   entry.kind === 'command'
 
-export function createPendingQueue<Command = never>(): PendingQueue<Command> {
+export type ExpandContext = (args: {
+  text: string
+  context: readonly EventDraft[]
+}) => readonly EventDraft[]
+
+export const NO_EXPANSION: ExpandContext = () => []
+
+export function createPendingQueue<Command = never>(
+  options: { expandContext?: ExpandContext } = {},
+): PendingQueue<Command> {
+  const expandContext = options.expandContext ?? NO_EXPANSION
+  const contextOf = (message: PendingMessage): readonly EventDraft[] => {
+    const context = message.context ?? []
+    if (!isOperatorMessage(message)) return context
+    return [...context, ...expandContext({ text: message.text, context })]
+  }
+
   let entries: readonly PendingEntry<Command>[] = NOTHING_PENDING
   let snapshot: readonly PendingEntry<Command>[] = entries
   let stamped = 0
@@ -165,7 +181,7 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
       }
       return {
         drafts: messages.flatMap((message): readonly EventDraft[] => [
-          ...(message.context ?? []),
+          ...contextOf(message),
           { ...saidBody(message), ...(message.via === undefined ? {} : { via: message.via }) },
         ]),
         wakesTurn: messages.length > 0,
@@ -193,7 +209,10 @@ export function createPendingQueue<Command = never>(): PendingQueue<Command> {
 
       const handed = new Set(messages.map((message) => message.id))
       settle(entries.filter((entry) => !handed.has(entry.id)))
-      return messages.map(({ id, kind, ...said }) => said)
+      return messages.map((message) => {
+        const { id, kind, ...said } = message
+        return said
+      })
     },
 
     drainCommands() {

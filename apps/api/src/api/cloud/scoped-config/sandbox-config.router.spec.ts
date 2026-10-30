@@ -2,6 +2,7 @@ import { db } from '@dltech/atlas-db'
 import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { sealSecretValue } from '../secrets/sealed-secret'
 import { buildSessionTrpcApp, dataOf, testCipher, trpcQuery } from '../session-trpc-test-app'
 import { seedProject, seedSessionUsers } from '../web-settings.fake-db'
 import { SandboxConfigRouter } from './sandbox-config.router'
@@ -52,6 +53,21 @@ describe('sandboxConfig router', () => {
     expect(data.secrets).toEqual([{ name: 'API', value: 'proj' }])
     const body = JSON.stringify(response.body)
     for (const leaked of ['vercel', 'vtok', 'team_', 'prj_']) expect(body).not.toContain(leaked)
+  })
+
+  it('carries a project file mount with decrypted contents and mode', async () => {
+    await seedAllScopes(testCipher())
+    await db.orm.public.ProjectFileMount.create({
+      id: 'pfm-1',
+      projectId: PROJECT,
+      path: '~/.config/dotenvx/.env',
+      sealedContents: sealSecretValue({ cipher: testCipher(), value: 'KEY=1\n' }),
+      mode: 0o600,
+    })
+    const response = await getConfig().expect(200)
+    expect(dataOf(response.body)).toMatchObject({
+      fileMounts: [{ path: '~/.config/dotenvx/.env', contents: 'KEY=1\n', mode: 0o600 }],
+    })
   })
 
   it('resolves user + defaults when the thread has no project', async () => {

@@ -11,11 +11,12 @@ reminders; `/atlas/workspaces/<repo-name>` alone does not prove location. The op
 `/container` reports the thread's placement, and the terminal chip shows connection state. Name
 what you cannot inspect.
 
-- The terminal client renders the conversation and provisions sandboxes with the operator's Vercel credentials.
+- The terminal client renders the conversation and provisions the sandboxes of terminal-born threads with the operator's Vercel credentials.
 - The sandbox runs the harness, model requests, tools, shells, and services. Its drive persists session data.
   Closing or losing the terminal does not stop remote work.
-- The optional Atlas Cloud backend handles identity, remote control, thread discovery, PR/CI notifications,
-  provider OAuth renewal, and configuration backup. It does not provision sandboxes or proxy model requests.
+- The Atlas Cloud backend handles identity, remote control, thread discovery, PR/CI notifications,
+  provider OAuth renewal and configuration backup.
+  It provisions the sandboxes of web-born threads. It does not proxy model requests.
 
 ## Setup and operator controls
 

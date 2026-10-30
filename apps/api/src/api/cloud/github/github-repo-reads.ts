@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
-import type { GithubRepoSummary } from '@dltech/atlas-wire'
+import {
+  ERepoTreeEntryKind,
+  type GithubRepoSummary,
+  type ProjectRepoTree,
+} from '@dltech/atlas-wire'
 import { GithubUserReadFailed } from './github-user-reads'
 
 const GITHUB_API = 'https://api.github.com'
+const HTTP_CONFLICT = 409
 const DETAIL_CAP = 300
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 const REPOS_QUERY =
@@ -19,6 +24,16 @@ interface RestRepo {
 
 interface RestBranch {
   name: string
+}
+
+interface RestTree {
+  tree: { path: string; type: string }[]
+  truncated: boolean
+}
+
+const TREE_KINDS: Record<string, ERepoTreeEntryKind> = {
+  blob: ERepoTreeEntryKind.File,
+  tree: ERepoTreeEntryKind.Folder,
 }
 
 @Injectable()
@@ -54,6 +69,32 @@ export class GithubRepoReads {
       path: `/repos/${args.owner}/${args.repo}/branches?per_page=100`,
     })
     return branches.map((branch) => branch.name)
+  }
+
+  async listTree(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    ref: string
+  }): Promise<ProjectRepoTree> {
+    const ref = args.ref.split('/').map(encodeURIComponent).join('/')
+    const result = await this.get<RestTree>({
+      source: args.source,
+      token: args.token,
+      path: `/repos/${args.owner}/${args.repo}/git/trees/${ref}?recursive=1`,
+    }).catch((failure: unknown) => {
+      if (failure instanceof GithubUserReadFailed && failure.status === HTTP_CONFLICT) return null
+      throw failure
+    })
+    if (result === null) return { entries: [], truncated: false }
+    return {
+      entries: result.tree.flatMap((entry) => {
+        const kind = TREE_KINDS[entry.type]
+        return kind === undefined ? [] : [{ path: entry.path, kind }]
+      }),
+      truncated: result.truncated,
+    }
   }
 
   private async get<T>(args: {

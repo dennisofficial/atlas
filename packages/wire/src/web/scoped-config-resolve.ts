@@ -1,3 +1,4 @@
+import type { ScopedFileMount } from './file-mounts-wire'
 import type { ResolvedSandboxConfig, ScopedMcpServer, ScopedSecret } from './scoped-config-wire'
 import {
   CONFIG_SCOPE_PRECEDENCE,
@@ -11,9 +12,15 @@ export type ScopeLayer = {
   settings: Readonly<Record<string, string>>
   secrets: readonly ScopedSecret[]
   mcpServers: readonly ScopedMcpServer[]
+  fileMounts: readonly ScopedFileMount[]
 }
 
-export const EMPTY_SCOPE_LAYER: ScopeLayer = { settings: {}, secrets: [], mcpServers: [] }
+export const EMPTY_SCOPE_LAYER: ScopeLayer = {
+  settings: {},
+  secrets: [],
+  mcpServers: [],
+  fileMounts: [],
+}
 
 export type ScopedConfigLayers = {
   defaults: ScopeLayer
@@ -58,7 +65,16 @@ export const resolveScopedConfig = (layers: ScopedConfigLayers): ResolvedSandbox
     }
   }
 
-  return { settings, secrets: byName(secrets), mcpServers: byName(mcpServers), provenance }
+  const fileMounts = [...(layers.project?.fileMounts ?? [])].sort((left, right) =>
+    left.path.localeCompare(right.path),
+  )
+  return {
+    settings,
+    secrets: byName(secrets),
+    mcpServers: byName(mcpServers),
+    fileMounts,
+    provenance,
+  }
 }
 
 const isPodFacingProvenance = (key: string): boolean => {
@@ -74,6 +90,7 @@ export const podFacingConfig = (resolved: ResolvedSandboxConfig): ResolvedSandbo
   ),
   secrets: resolved.secrets.filter((secret) => !isProvisioningOnlyName(secret.name)),
   mcpServers: resolved.mcpServers,
+  fileMounts: resolved.fileMounts,
   provenance: Object.fromEntries(
     Object.entries(resolved.provenance).filter(([key]) => isPodFacingProvenance(key)),
   ),

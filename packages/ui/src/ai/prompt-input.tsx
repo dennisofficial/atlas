@@ -2,12 +2,14 @@
 
 import { useRef, useState } from 'react'
 import type {
+  AriaAttributes,
   ChangeEvent,
   ClipboardEvent,
   DragEvent,
   FormEvent,
   KeyboardEvent,
   ReactNode,
+  Ref,
 } from 'react'
 import { ArrowUpIcon, PlusIcon, SquareIcon } from 'lucide-react'
 
@@ -39,6 +41,16 @@ export interface PromptInputProps {
   onAttachFiles?: (files: File[]) => void
   accept?: string
   onRemoveAttachment?: (id: string) => void
+  textareaRef?: Ref<HTMLTextAreaElement>
+  onTextareaKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  textareaAria?: Pick<
+    AriaAttributes,
+    | 'aria-activedescendant'
+    | 'aria-controls'
+    | 'aria-haspopup'
+    | 'aria-autocomplete'
+    | 'aria-expanded'
+  > & { role?: 'combobox' }
   children?: ReactNode
 }
 
@@ -93,6 +105,9 @@ export function PromptInput({
   onAttachFiles,
   accept,
   onRemoveAttachment,
+  textareaRef,
+  onTextareaKeyDown,
+  textareaAria,
   children,
 }: PromptInputProps) {
   const [draft, setDraft] = useState(defaultValue)
@@ -141,6 +156,8 @@ export function PromptInput({
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    onTextareaKeyDown?.(event)
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return
     if (event.key !== 'Enter' || event.shiftKey) return
     event.preventDefault()
     formRef.current?.requestSubmit()
@@ -185,6 +202,8 @@ export function PromptInput({
           </InputGroupAddon>
         ) : null}
         <InputGroupTextarea
+          ref={textareaRef}
+          {...textareaAria}
           value={text}
           onChange={handleChange}
           onPaste={handlePaste}

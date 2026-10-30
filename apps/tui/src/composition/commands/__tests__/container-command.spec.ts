@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation } from '@dltech/atlas-core'
+import { containerAskOfArgument, EContainerAsk, EExecutionLocation } from '@dltech/atlas-core'
 
 import { dispatchSubmission, EDispatch, type Dispatch } from '../dispatch'
-import {
-  containerAskOfArgument,
-  EContainerAsk,
-  localCommands,
-  type LocalCommandHandlers,
-} from '../registry'
+import { localCommands, type LocalCommandHandlers } from '../registry'
 import { handlers } from './local-handlers'
 
 const run = async (args: {

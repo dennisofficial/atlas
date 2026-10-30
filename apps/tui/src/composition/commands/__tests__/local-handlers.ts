@@ -1,6 +1,6 @@
 import { ERenamed, type Renaming } from '../../session-rename'
 import type { SkillsReloaded } from '../../skills-reload'
-import { RAN } from '../local-command'
+import { RAN } from '@dltech/atlas-core'
 import type { LocalCommandHandlers } from '../registry'
 
 export const stub = (): undefined => undefined

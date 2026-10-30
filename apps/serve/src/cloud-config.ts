@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { ATLAS_MCP_FILE_NAME } from '@dltech/atlas-harness'
-import { ENV_NAME_PATTERN, type ScopedMcpServer } from '@dltech/atlas-wire/web'
+import {
+  ENV_NAME_PATTERN,
+  type ScopedFileMount,
+  type ScopedMcpServer,
+} from '@dltech/atlas-wire/web'
 
 import { writeAtomically } from './owner-only-file'
 
@@ -14,6 +18,7 @@ export type CloudConfig = {
   settings: readonly { key: string; value: string }[]
   secrets: readonly CloudSecret[]
   mcpServers: readonly ScopedMcpServer[]
+  fileMounts: readonly ScopedFileMount[]
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

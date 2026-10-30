@@ -8,10 +8,11 @@ import type {
   WorkspaceIdentity,
 } from '@dltech/atlas-core'
 import type { ServeProcesses } from './process-requests'
-import type { PrStateWire, RosterWire } from '@dltech/atlas-wire'
+import type { CommandSkillWire, PrStateWire, RosterWire } from '@dltech/atlas-wire'
 
 import type {
   AgentRegistryPort,
+  ExpandContext,
   SubscriptionRegistryPort,
   DeltaChannel,
   OperatorInputPort,
@@ -62,6 +63,10 @@ export type ServeRoster = {
 export type ServePrStates = {
   snapshot: () => readonly PrStateWire[]
   subscribe: (listener: () => void) => () => void
+}
+
+export type ServeCommands = {
+  skills: (args: { reload: boolean }) => Promise<readonly CommandSkillWire[]>
 }
 
 export type ServeSubscriptions = {
@@ -212,6 +217,8 @@ export type ServeApp = {
    */
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
+  commands?: ServeCommands | undefined
+  expandContext?: ExpandContext | undefined
   /** Absent in a fake without registries: a drain pause halts the parent's turn only. */
   family?: ServeFamily | undefined
   /** Absent in a fake without registries: a rewind apply is refused rather than dropped. */

@@ -28,6 +28,7 @@ import type { ToolDispatcher } from '../tools/dispatch'
 import type { LoopWatch } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
 import type { PendingDrain } from './pending-intake'
+import type { ExpandContext } from '../pending'
 import type { RetryDeps } from './retrying-step'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/record-turn-spend'
@@ -66,6 +67,7 @@ export type TurnDeps = {
   hooks?: HookChain | undefined
   uploads?: SaidUploadsPort | undefined
   drainPending?: ((args: { threadId: ThreadId }) => Promise<PendingDrain>) | undefined
+  expandContext?: ExpandContext | undefined
   spend?: TurnLedgerDeps | undefined
   compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   applyLoopCut?: ApplyLoopCut | undefined
@@ -89,6 +91,7 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly retry: RetryDeps | undefined
   private readonly sleepPrevention: SleepPrevention | undefined
   private readonly tracked: TrackedTurnDeps
+  private readonly expandContext: ExpandContext | undefined
 
   constructor(deps: TurnDeps) {
     super()
@@ -99,6 +102,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.logPort = deps.logPort
     this.retry = deps.retry
     this.sleepPrevention = deps.sleepPrevention
+    this.expandContext = deps.expandContext
 
     const tools = deps.tools ?? (() => [])
     const countTokens =
@@ -192,10 +196,12 @@ export class LoopTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
+    const held = context ?? []
+    const expanded = this.expandContext?.({ text, context: held }) ?? []
     await this.log.append({
       threadId,
       runId: this.ids.nextRunId(),
-      drafts: [...(context ?? []), saidBody({ text, requestId, images, files, uploads })],
+      drafts: [...held, ...expanded, saidBody({ text, requestId, images, files, uploads })],
     })
     return this.runTurn({
       threadId,

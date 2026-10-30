@@ -13,7 +13,7 @@ import { headerStateOf, spawnerIdOf } from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { notConfiguredOf } from './data/not-configured'
-import { restoredDraftOf, withoutTakenBack } from './data/take-back'
+import { restoredDraftOf } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { useThreadNaming } from './data/use-thread-naming'
@@ -35,9 +35,11 @@ import { useMarkRead } from './data/use-mark-read'
 import { useTitleRefresh } from './data/use-title-refresh'
 import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
-import { useThreadSubmit } from './data/use-thread-submit'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { useThreadSubmit } from './data/use-thread-submit'
+import { useTakeBackEscape } from './data/use-take-back-escape'
+import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
@@ -85,12 +87,15 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
   const images = useComposerAttachments()
-  const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
-  const visible = useMemo(
-    () => withoutTakenBack({ events, sendIds: takenBack }),
-    [events, takenBack],
-  )
+  const { pod, refresh } = usePodStatus({ threadId, signals })
+  const { visible, handleEscape } = useTakeBackEscape({
+    threadId,
+    events,
+    podState: pod?.state ?? null,
+    setDraft,
+    onRestoreUploads: (uploads) => images.restore({ uploads, images: [] }),
+  })
   const parsed = useMemo(() => eventsFromWire(visible), [visible])
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
   const live = useMemo(() => liveSteps({ steps, events: parsed }), [steps, parsed])
@@ -116,7 +121,6 @@ export function ThreadView({ threadId }: { threadId: string }) {
     pending: source.pending,
     onSettle: (settled) => setDraft((current) => clearedDraftOf({ current, handoff: settled })),
   })
-  const { pod, refresh } = usePodStatus({ threadId, signals })
   const rewindPoints = useMemo(() => new Set(userRewindPoints(parsed).keys()), [parsed])
   const rewind = useRewind({
     situation: () => ({
@@ -150,20 +154,28 @@ export function ThreadView({ threadId }: { threadId: string }) {
     refresh,
   })
 
-  const { handleSubmit, handleEscape } = useThreadSubmit({
+  const commands = useThreadCommands({
     threadId,
-    visible,
-    podState: pod?.state ?? null,
+    channel,
+    live: source.live,
+    working,
+    rightPanel,
+    retryBoot,
+    refresh,
+  })
+
+  const handleSubmit = useThreadSubmit({
+    threadId,
+    handleCommand: commands.handleCommand,
     attachments: images,
     send,
     sendLive,
+    setDraft,
     onSent: (sent) => {
       handoff.begin(sent)
       source.refreshEvents()
       refresh()
     },
-    setDraft,
-    setTakenBack,
   })
   const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
@@ -254,12 +266,15 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}
+                  commandSpecs={commands.specs}
                   placeholder={starting ? STARTING_PLACEHOLDER : dock.placeholder}
                 >
                   <ModelPickerControls
                     picker={model.picker}
                     selection={model.selection}
                     onSelectionChange={handleModelChange}
+                    open={commands.modelOpen}
+                    onOpenChange={commands.setModelOpen}
                   />
                   <ComposerContext usage={dock.usage} />
                 </ThreadComposer>

@@ -11,6 +11,7 @@ import type { PendingSaid } from '../store'
 import { ENoticeTone, NOTICE_WARN_MS, notify } from '../ui/notice-store'
 import type { AtlasApp } from './compose'
 import type { DirectoryMove } from './directory-move'
+import { withOldServeSkillContext } from './client-skill-context'
 import { stoppageOf, turnSettled, turnStarted } from './turn-progress'
 import type { ThreadView } from './use-thread-view'
 import { runnerClaimed } from './use-runner-claim'
@@ -122,7 +123,14 @@ export function useDrivenTurn(args: {
       const saidDraft = drafts[saidIndex]
       const remoteSaid =
         app.runner instanceof RemoteTurnRunner && saidDraft?.type === 'user-said'
-          ? { said: saidDraft, context: drafts.filter((_, index) => index !== saidIndex) }
+          ? {
+              said: saidDraft,
+              context: withOldServeSkillContext({
+                app,
+                text: saidDraft.text,
+                context: drafts.filter((_, index) => index !== saidIndex),
+              }),
+            }
           : null
 
       // On the remote path the sandbox owns the commit, so this copy never writes the said to the

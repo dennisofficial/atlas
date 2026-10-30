@@ -11,6 +11,7 @@ import { EFFORT_LADDER, parseRef } from '@dltech/atlas-core'
 import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
+import { skillExpander } from '@dltech/atlas-harness'
 import {
   registeredPortToken,
   GithubUiBridgePort,
@@ -218,6 +219,20 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
       projectDirectory: app.workspace.workspace,
     },
     titling: app.titling,
+    expandContext: skillExpander({ skillRegistry: app.skillRegistry }),
+    commands: {
+      skills: async ({ reload }) => {
+        const skills = reload ? await app.skillRegistry.reload() : app.skillRegistry.all()
+        return skills
+          .filter((skill) => skill.userInvocable)
+          .map(({ spec }) => ({
+            name: spec.name,
+            summary: spec.summary,
+            ...(spec.argumentHint === undefined ? {} : { argumentHint: spec.argumentHint }),
+            ...(spec.aliases === undefined ? {} : { aliases: [...spec.aliases] }),
+          }))
+      },
+    },
     roster: {
       snapshot: () => ({
         shells: [...app.shells.listEverywhere()],
