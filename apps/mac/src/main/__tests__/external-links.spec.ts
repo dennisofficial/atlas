@@ -65,4 +65,56 @@ describe('routeExternalLinks', () => {
     expect(opened).toEqual(['https://github.com/o/r'])
     expect(loaded).toEqual([`${hostOrigin}/x`])
   })
+
+  test('allows preview frame origins in-app while new windows still open externally', () => {
+    const opened: string[] = []
+    let rules: string[] = []
+    let willNavigate: (e: unknown) => void = () => {}
+    let newWindow: (e: unknown) => void = () => {}
+    let clock = 0
+    const router = routeExternalLinks({
+      webview: {
+        setNavigationRules: (r) => void (rules = r),
+        on: (_name, h) => void (willNavigate = h),
+        loadURL: () => undefined,
+      },
+      onNewWindow: (h) => void (newWindow = h),
+      hostOrigin,
+      openExternal: (u) => void opened.push(u),
+      now: () => clock,
+    })
+    const preview = 'https://sb-1.vercel.run'
+    router.setFrameOrigins([preview, preview])
+    expect(rules).toEqual(['^*', `${hostOrigin}/*`, `${preview}/*`, 'about:blank'])
+    willNavigate({ data: { detail: `{"url":"${preview}/","allowed":true}` } })
+    expect(opened).toEqual([])
+    newWindow({ data: { detail: { url: `${preview}/` } } })
+    expect(opened).toEqual([`${preview}/`])
+    clock = 5000
+    router.setFrameOrigins([])
+    expect(rules).toEqual(navigationRulesFor({ hostOrigin }))
+    willNavigate({ data: { detail: `{"url":"${preview}/","allowed":false}` } })
+    expect(opened).toEqual([`${preview}/`, `${preview}/`])
+  })
+})
+
+describe('navigationRulesFor', () => {
+  test('allow-lists frame origins with a path wildcard after the host', () => {
+    expect(navigationRulesFor({ hostOrigin, frameOrigins: ['http://localhost:3000'] })).toEqual([
+      '^*',
+      `${hostOrigin}/*`,
+      'http://localhost:3000/*',
+      'about:blank',
+    ])
+  })
+
+  test('decideNavigation keeps frame origins in-app', () => {
+    expect(
+      decideNavigation({
+        url: 'http://localhost:3000/a',
+        hostOrigin,
+        frameOrigins: ['http://localhost:3000'],
+      }),
+    ).toBe(ENavigationTarget.InApp)
+  })
 })

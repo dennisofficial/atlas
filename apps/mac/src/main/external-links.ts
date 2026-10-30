@@ -6,20 +6,32 @@ export enum ENavigationTarget {
 export function decideNavigation({
   url,
   hostOrigin,
+  frameOrigins = [],
 }: {
   url: string
   hostOrigin: string
+  frameOrigins?: readonly string[]
 }): ENavigationTarget {
   if (url === 'about:blank') return ENavigationTarget.InApp
   try {
-    return new URL(url).origin === hostOrigin ? ENavigationTarget.InApp : ENavigationTarget.External
+    const { origin } = new URL(url)
+    if (origin === hostOrigin || frameOrigins.includes(origin)) return ENavigationTarget.InApp
+    return ENavigationTarget.External
   } catch {
     return ENavigationTarget.External
   }
 }
 
-export function navigationRulesFor({ hostOrigin }: { hostOrigin: string }): string[] {
-  return ['^*', `${hostOrigin}/*`, 'about:blank']
+// Electrobun 2.0.5 applies navigation rules to iframe loads too (decidePolicyForNavigationAction
+// never checks targetFrame.isMainFrame), so origins the preview iframe shows must be allowed here.
+export function navigationRulesFor({
+  hostOrigin,
+  frameOrigins = [],
+}: {
+  hostOrigin: string
+  frameOrigins?: readonly string[]
+}): string[] {
+  return ['^*', `${hostOrigin}/*`, ...frameOrigins.map((origin) => `${origin}/*`), 'about:blank']
 }
 
 // Electrobun 2.0.5 native payloads: will-navigate sends a JSON string, new-window-open an object.
