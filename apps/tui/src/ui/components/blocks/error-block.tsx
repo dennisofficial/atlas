@@ -1,7 +1,5 @@
 import React from 'react'
 
-import { ERunFailureAction } from '@dltech/atlas-core'
-
 import { useClickRegion } from '../../hooks/use-click-region'
 import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { formatElapsed, formatTokens, glyph, theme, TRANSCRIPT_INSET } from '../../theme'
@@ -60,7 +58,7 @@ const retrySpans = (hovered: boolean): readonly Span[] => [
 export function ErrorBlock(props: {
   message: string
   title?: string
-  action?: ERunFailureAction
+  fixCredential?: boolean
   width: number
   durationMs?: number
   outputTokens?: number
@@ -101,7 +99,7 @@ export function ErrorBlock(props: {
         <text fg={theme.body} bg={theme.overlayBg}>
           {props.message}
         </text>
-        {props.action === ERunFailureAction.OpenProviderSettings ? (
+        {props.fixCredential === true ? (
           <text fg={theme.accent} bg={theme.overlayBg}>
             {SETTINGS_HINT}
           </text>

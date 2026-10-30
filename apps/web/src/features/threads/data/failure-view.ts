@@ -1,5 +1,5 @@
 import type { StepFailure } from '@dltech/atlas-client/transcript'
-import { ERunFailureAction, runFailureCopy } from '@dltech/atlas-core'
+import { ERunRemedy, runFailureCopy } from '@dltech/atlas-core'
 
 export type FailureView = {
   title: string
@@ -33,6 +33,6 @@ export function failureViewOf(args: {
   return {
     title: copy.title,
     detail: copy.detail,
-    showSettings: copy.action === ERunFailureAction.OpenProviderSettings,
+    showSettings: copy.remedies.includes(ERunRemedy.FixCredential),
   }
 }

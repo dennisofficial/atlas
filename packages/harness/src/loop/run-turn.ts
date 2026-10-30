@@ -32,6 +32,7 @@ import type { ExpandContext } from '../pending'
 import type { RetryDeps } from './retrying-step'
 import type { SleepPrevention } from '../power/sleep-prevention'
 import { openTurnSpend, TURN_CRASHED, type TurnLedgerDeps } from '../ledger/record-turn-spend'
+import { runFailureOf } from '../model/run-failure'
 import { appendResumeDrafts } from './resume-turn'
 import { createSettlePending, type OnToolOutputNotice } from './settle-pending'
 import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
@@ -266,10 +267,13 @@ export class LoopTurnRunner extends TurnRunner {
           runId,
           drafts: [
             {
-              type: 'turn-failed',
-              message: outcome.message,
-              modelId: this.model.identity.modelId,
-              providerId: this.model.identity.id,
+              type: 'run-failed',
+              failure: runFailureOf({
+                message: outcome.message,
+                cause: outcome.cause,
+                providerId: this.model.identity.id,
+                modelId: this.model.identity.modelId,
+              }),
             },
           ],
         })

@@ -30,7 +30,7 @@ import {
 } from './body'
 import type { EventEnvelope } from './envelope'
 import { ENoticeStage } from './notice-stage'
-import { runFailureSchema } from './run-failure'
+import { ERunFailureKind, runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
   codeQualityReviewedSchema,
@@ -416,6 +416,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     status: z.enum(EAgentStatus),
     killedBy: z.enum(EKilledBy).optional(),
     failureCause: z.string().optional(),
+    failureKind: z.enum(ERunFailureKind).optional(),
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
@@ -486,4 +487,8 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   subscriptionChangedSchema,
   subscriptionEndedSchema,
   z.object({ type: z.literal('run-failed'), failure: runFailureSchema }),
+  z.object({
+    type: z.literal('run-failure-dismissed'),
+    failureSeq: z.number().int().nonnegative(),
+  }),
 ])

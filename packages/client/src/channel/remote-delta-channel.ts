@@ -1,6 +1,6 @@
 import { saidBody } from '@dltech/atlas-core'
 
-import { EClientFrame, toSendId } from './channel-wire'
+import { ECapability, EClientFrame, toSendId } from './channel-wire'
 import { EConnectionView, ESocketLiveness } from './connection-view'
 import { createChannelCore } from './remote-channel-core'
 import { createChannelLifecycle } from './remote-channel-lifecycle'
@@ -75,6 +75,12 @@ export function createRemoteDeltaChannel(
     interrupt: core.requestInterrupt,
     pause: () => upstream.send({ kind: EClientFrame.Pause }),
     resume: () => upstream.send({ kind: EClientFrame.Resume }),
+
+    dismissFailure: ({ failureSeq }) => {
+      if (!state.capabilities.has(ECapability.DismissFailure)) return false
+      upstream.send({ kind: EClientFrame.DismissFailure, failureSeq })
+      return true
+    },
 
     request: (request) => {
       if (state.abandoned) {

@@ -6,8 +6,19 @@ export enum ERunFailureKind {
   RateLimited = 'rate-limited',
   Network = 'network',
   Overloaded = 'overloaded',
+  MissingCredential = 'missing-credential',
+  Stalled = 'stalled',
+  ContextOverflow = 'context-overflow',
+  ExchangeFault = 'exchange-fault',
+  LoopGuard = 'loop-guard',
+  ToolSettlement = 'tool-settlement',
+  FinishFault = 'finish-fault',
+  AgentFailed = 'agent-failed',
+  Crashed = 'crashed',
   Other = 'other',
 }
+
+export type RunFailureAgent = { agentId: string; agentType: string; intent: string }
 
 export type RunFailure = {
   kind: ERunFailureKind
@@ -17,6 +28,7 @@ export type RunFailure = {
   providerId?: string | undefined
   modelId?: string | undefined
   accountId?: string | undefined
+  agent?: RunFailureAgent | undefined
 }
 
 export const runFailureSchema: z.ZodType<RunFailure> = z.object({
@@ -27,6 +39,9 @@ export const runFailureSchema: z.ZodType<RunFailure> = z.object({
   providerId: z.string().min(1).optional(),
   modelId: z.string().min(1).optional(),
   accountId: z.string().min(1).optional(),
+  agent: z
+    .object({ agentId: z.string().min(1), agentType: z.string(), intent: z.string() })
+    .optional(),
 })
 
 const AUTH_STATUSES: ReadonlySet<number> = new Set([401, 403])
@@ -74,4 +89,38 @@ export function runFailureKindOf(args: {
   }
   if (statusCode === undefined && args.dropped === true) return ERunFailureKind.Network
   return ERunFailureKind.Other
+}
+
+export enum ERunRemedy {
+  Retry = 'retry',
+  Resume = 'resume',
+  FixCredential = 'fix-credential',
+  SwitchModel = 'switch-model',
+  OpenAgent = 'open-agent',
+  Compact = 'compact',
+}
+
+export function remediesOf(kind: ERunFailureKind): readonly ERunRemedy[] {
+  switch (kind) {
+    case ERunFailureKind.Auth:
+    case ERunFailureKind.Quota:
+    case ERunFailureKind.MissingCredential:
+      return [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel]
+    case ERunFailureKind.RateLimited:
+    case ERunFailureKind.Overloaded:
+      return [ERunRemedy.Retry, ERunRemedy.SwitchModel]
+    case ERunFailureKind.ContextOverflow:
+      return [ERunRemedy.Compact, ERunRemedy.SwitchModel]
+    case ERunFailureKind.AgentFailed:
+      return [ERunRemedy.OpenAgent, ERunRemedy.Retry]
+    case ERunFailureKind.Network:
+    case ERunFailureKind.Stalled:
+    case ERunFailureKind.ExchangeFault:
+    case ERunFailureKind.LoopGuard:
+    case ERunFailureKind.ToolSettlement:
+    case ERunFailureKind.FinishFault:
+    case ERunFailureKind.Crashed:
+    case ERunFailureKind.Other:
+      return [ERunRemedy.Retry]
+  }
 }

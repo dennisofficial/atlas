@@ -20,7 +20,7 @@ import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
-import type { RunFailure } from './run-failure'
+import type { ERunFailureKind, RunFailure } from './run-failure'
 import type { BackgroundShellEventBody } from './shell-body'
 
 export enum ECompactionAnchor {
@@ -284,6 +284,7 @@ export type EventBody =
       killedBy?: EKilledBy | undefined
       prose: string
       failureCause?: string | undefined
+      failureKind?: ERunFailureKind | undefined
       turns: number
       toolCalls: number
       /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
@@ -373,6 +374,7 @@ export type EventBody =
       by: ESubscriptionActor
     }
   | { type: 'run-failed'; failure: RunFailure }
+  | { type: 'run-failure-dismissed'; failureSeq: number }
 
 export type EventDraft = EventBody
 

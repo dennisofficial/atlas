@@ -78,6 +78,7 @@ export const agentSnapshotWireSchema = z.object({
   status: z.enum(EAgentStatus),
   killedBy: killedBySchema.optional(),
   failureCause: z.string().optional(),
+  failureKind: z.string().optional(),
   turns: z.number().int().nonnegative(),
   toolCalls: z.number().int().nonnegative(),
   lastTool: z

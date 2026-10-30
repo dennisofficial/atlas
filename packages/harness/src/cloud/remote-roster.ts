@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import { ERunFailureKind, type ThreadId } from '@dltech/atlas-core'
 import { rosterWireSchema, type RosterWire } from '@dltech/atlas-wire'
 
 import type { AgentSnapshot } from '../agents/registry/snapshot'
@@ -84,6 +84,11 @@ export const rosterShells = (args: {
 }): readonly ShellSnapshot[] =>
   args.roster.shells.filter((shell) => shell.threadId === args.threadId)
 
+const failureKindOf = (kind: string | undefined): { failureKind?: ERunFailureKind } => {
+  const known = Object.values(ERunFailureKind).find((candidate) => candidate === kind)
+  return known === undefined ? {} : { failureKind: known }
+}
+
 export const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapshot => ({
   agentId: wire.agentId,
   spawnedBy: wire.spawnedBy,
@@ -92,6 +97,7 @@ export const toAgentSnapshot = (wire: RosterWire['agents'][number]): AgentSnapsh
   status: wire.status,
   ...(wire.killedBy === undefined ? {} : { killedBy: wire.killedBy }),
   ...(wire.failureCause === undefined ? {} : { failureCause: wire.failureCause }),
+  ...failureKindOf(wire.failureKind),
   turns: wire.turns,
   toolCalls: wire.toolCalls,
   lastTool: wire.lastTool as string | undefined,

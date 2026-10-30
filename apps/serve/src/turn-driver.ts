@@ -3,6 +3,7 @@ import { PauseSignal, ETurnStatus, type TurnOutcome } from '@dltech/atlas-harnes
 
 import type { ServeApp } from './serve-app'
 import { createHistoryAdmission } from './history-admission'
+import { dismissFailureFor } from './dismiss-failure'
 import { createRotationSettle } from './rotation-settle'
 import { createTurnCommit } from './turn-commit'
 import { messageOf } from './turn-message'
@@ -166,6 +167,7 @@ export function createTurnDriver(
         return false
       }
     },
+    dismissFailure: dismissFailureFor({ app, threadId: served }),
     interrupt() {
       again = false
       abort?.abort()

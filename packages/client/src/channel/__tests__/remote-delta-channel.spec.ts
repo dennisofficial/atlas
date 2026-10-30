@@ -250,6 +250,17 @@ describe('a durable head that reads off the wire', () => {
     expect(channel.capabilities().has(ECapability.SandboxSessionIdentity)).toBe(true)
   })
 
+  it('sends a dismiss-failure frame only to a serve that advertises it', () => {
+    const { channel, open, receive, live } = harness()
+    open()
+    receive({ kind: EServeFrame.Ready, seq: 4, capabilities: [] })
+    expect(channel.dismissFailure({ failureSeq: 3 })).toBe(false)
+
+    receive({ kind: EServeFrame.Ready, seq: 5, capabilities: [ECapability.DismissFailure] })
+    expect(channel.dismissFailure({ failureSeq: 3 })).toBe(true)
+    expect(live().sent.at(-1)).toEqual({ kind: EClientFrame.DismissFailure, failureSeq: 3 })
+  })
+
   it('reports itself connecting until the server is ready', () => {
     const { channel, open, receive } = harness()
     const states: EConnectionView[] = []

@@ -3,6 +3,7 @@ import {
   autoCompactBeforeStep,
   contextWindowOf,
   EAutoCompact,
+  ERunFailureKind,
   exchangeFaults,
   overflowsWindow,
   type Assembled,
@@ -16,6 +17,7 @@ import {
 
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
+import { TurnFault } from '../model/turn-fault'
 import { faultReport, overflowReport } from './turn-faults'
 
 export type PreparedFailure =
@@ -32,12 +34,24 @@ export function preparedFailureMessage(failure: PreparedFailure): {
   cause: unknown
 } {
   if (failure.kind === 'overflow') {
+    const message = overflowReport(failure)
     return {
-      message: overflowReport(failure),
-      cause: { tokens: failure.tokens, window: failure.window },
+      message,
+      cause: new TurnFault({
+        kind: ERunFailureKind.ContextOverflow,
+        message,
+        detail: { tokens: failure.tokens, window: failure.window },
+      }),
     }
   }
-  return { message: failure.message, cause: failure.cause }
+  return {
+    message: failure.message,
+    cause: new TurnFault({
+      kind: ERunFailureKind.ExchangeFault,
+      message: failure.message,
+      detail: failure.cause,
+    }),
+  }
 }
 
 export type StepPrepareDeps = {

@@ -43,6 +43,7 @@ it('carries owed and pending continuation obligations into the seal, even when s
       run: () => undefined,
       sayOrRun: () => false,
       interrupt: () => undefined,
+      dismissFailure: async () => undefined,
       pause: () => undefined,
       resume: () => undefined,
       running: () => false,

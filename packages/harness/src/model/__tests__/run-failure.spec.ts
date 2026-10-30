@@ -6,7 +6,11 @@ import { ERunFailureKind, toAccountId } from '@dltech/atlas-core'
 import { withFailureAccount } from '../../providers/failure-account'
 import { ModelStreamError } from '../errors'
 import { modelFailureOf } from '../failure'
+import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
+import { MissingKeyError } from '../../providers/provider-key'
+import { StreamStallError } from '../errors'
 import { runFailureOf } from '../run-failure'
+import { TurnFault } from '../turn-fault'
 
 const unauthorized = (): APICallError =>
   new APICallError({
@@ -59,5 +63,44 @@ describe('runFailureOf', () => {
     const before = modelFailureOf(plain)
     withFailureAccount({ error: plain, accountId: toAccountId('acct-1') })
     expect(modelFailureOf(plain)).toEqual(before)
+  })
+
+  it.each([
+    [ERunFailureKind.ToolSettlement],
+    [ERunFailureKind.LoopGuard],
+    [ERunFailureKind.ContextOverflow],
+    [ERunFailureKind.ExchangeFault],
+    [ERunFailureKind.FinishFault],
+  ])('reads the kind of a typed %s cause, not its message', (kind) => {
+    const failure = runFailureOf({
+      message: 'unrelated words',
+      cause: new TurnFault({ kind, message: 'unrelated words' }),
+    })
+    expect(failure.kind).toBe(kind)
+  })
+
+  it('classifies a stream stall as stalled, even wrapped', () => {
+    const stall = new StreamStallError('silent')
+    expect(runFailureOf({ message: 'x', cause: stall }).kind).toBe(ERunFailureKind.Stalled)
+    expect(
+      runFailureOf({ message: 'x', cause: new ModelStreamError({ message: 'x', cause: stall }) })
+        .kind,
+    ).toBe(ERunFailureKind.Stalled)
+  })
+
+  it('classifies a missing key and credential errors', () => {
+    expect(runFailureOf({ message: 'x', cause: new MissingKeyError('Inference.net') }).kind).toBe(
+      ERunFailureKind.MissingCredential,
+    )
+    const credential = (failure: ECredentialFailure) =>
+      runFailureOf({ message: 'x', cause: new CredentialError({ failure, message: 'x' }) }).kind
+    expect(credential(ECredentialFailure.NotFound)).toBe(ERunFailureKind.MissingCredential)
+    expect(credential(ECredentialFailure.RefreshFailed)).toBe(ERunFailureKind.Auth)
+  })
+
+  it('classifies an escaped exception as crashed', () => {
+    expect(runFailureOf({ message: 'boom', cause: new Error('boom'), escaped: true }).kind).toBe(
+      ERunFailureKind.Crashed,
+    )
   })
 })

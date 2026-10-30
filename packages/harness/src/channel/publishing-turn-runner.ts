@@ -53,17 +53,6 @@ async function publishing(args: {
   args.publisher.turnWorking({ working: true })
   try {
     const outcome = await args.run()
-    if (outcome.status === ETurnStatus.Failed) {
-      await failed(
-        runFailureOf({
-          message: outcome.message,
-          cause: outcome.cause,
-          providerId: args.identity.id,
-          modelId: args.identity.modelId,
-        }),
-        outcome.runId,
-      )
-    }
     args.publisher.close({ end: endFor(outcome) })
     return outcome
   } catch (error) {
@@ -71,6 +60,7 @@ async function publishing(args: {
       runFailureOf({
         message: error instanceof Error ? error.message : String(error),
         cause: error,
+        escaped: true,
         providerId: args.identity.id,
         modelId: args.identity.modelId,
       }),

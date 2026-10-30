@@ -1,5 +1,12 @@
 import { secretOf, type Credential } from '@dltech/atlas-core'
 
+export class MissingKeyError extends Error {
+  constructor(label: string) {
+    super(`The ${label} account Atlas resolved carries no key. Add one with /auth.`)
+    this.name = 'MissingKeyError'
+  }
+}
+
 /**
  * `@ai-sdk/openai-compatible` builds its headers as `...options.apiKey && { Authorization: ... }`,
  * so an empty key ships a request carrying no Authorization header at all and the vendor answers
@@ -10,5 +17,5 @@ export function providerKey(args: { credential: Credential; label: string }): st
   const held = secretOf(args.credential)
   if (held.length > 0) return held
 
-  throw new Error(`The ${args.label} account Atlas resolved carries no key. Add one with /auth.`)
+  throw new MissingKeyError(args.label)
 }

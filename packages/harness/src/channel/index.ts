@@ -1,5 +1,6 @@
 export * from './delta-channel'
 export * from './events-appended-log'
 export * from './publishing-event-log'
+export * from './dismiss-run-failure'
 export * from './publishing-turn-runner'
 export * from './signal'

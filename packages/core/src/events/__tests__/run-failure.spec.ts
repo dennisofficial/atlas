@@ -3,11 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import { eventBodySchema } from '../schema'
 import {
   ERunFailureKind,
+  ERunRemedy,
+  remediesOf,
   runFailureKindOf,
   runFailureSchema,
   type RunFailure,
 } from '../run-failure'
-import { ERunFailureAction, providerLabelOf, runFailureCopy } from '../run-failure-copy'
+import { providerLabelOf, runFailureCopy } from '../run-failure-copy'
 
 describe('runFailureKindOf', () => {
   it.each([
@@ -43,7 +45,7 @@ describe('runFailureCopy', () => {
     expect(copy.detail).toBe(
       'Inference.net rejected the API key for work. Update it in Settings → Providers, then retry.',
     )
-    expect(copy.action).toBe(ERunFailureAction.OpenProviderSettings)
+    expect(copy.remedies[0]).toBe(ERunRemedy.FixCredential)
   })
 
   it('falls back gracefully without labels', () => {
@@ -56,18 +58,35 @@ describe('runFailureCopy', () => {
     expect(providerLabelOf('nope')).toBeUndefined()
   })
 
-  it('maps each kind to its action', () => {
-    expect(runFailureCopy({ failure: failure(ERunFailureKind.Quota) }).action).toBe(
-      ERunFailureAction.OpenProviderSettings,
-    )
-    for (const kind of [
-      ERunFailureKind.RateLimited,
-      ERunFailureKind.Network,
-      ERunFailureKind.Overloaded,
-      ERunFailureKind.Other,
-    ]) {
-      expect(runFailureCopy({ failure: failure(kind) }).action).toBe(ERunFailureAction.Retry)
-    }
+  it.each(Object.values(ERunFailureKind))('has copy and remedies for %s', (kind) => {
+    const copy = runFailureCopy({ failure: failure(kind) })
+    expect(copy.title.length).toBeGreaterThan(0)
+    expect(copy.detail.length).toBeGreaterThan(0)
+    expect(copy.remedies).toEqual(remediesOf(kind))
+    expect(copy.remedies.length).toBeGreaterThan(0)
+  })
+
+  it.each([
+    [ERunFailureKind.Auth, [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel]],
+    [ERunFailureKind.Quota, [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel]],
+    [
+      ERunFailureKind.MissingCredential,
+      [ERunRemedy.FixCredential, ERunRemedy.Retry, ERunRemedy.SwitchModel],
+    ],
+    [ERunFailureKind.RateLimited, [ERunRemedy.Retry, ERunRemedy.SwitchModel]],
+    [ERunFailureKind.Overloaded, [ERunRemedy.Retry, ERunRemedy.SwitchModel]],
+    [ERunFailureKind.Network, [ERunRemedy.Retry]],
+    [ERunFailureKind.Stalled, [ERunRemedy.Retry]],
+    [ERunFailureKind.ContextOverflow, [ERunRemedy.Compact, ERunRemedy.SwitchModel]],
+    [ERunFailureKind.ExchangeFault, [ERunRemedy.Retry]],
+    [ERunFailureKind.LoopGuard, [ERunRemedy.Retry]],
+    [ERunFailureKind.ToolSettlement, [ERunRemedy.Retry]],
+    [ERunFailureKind.FinishFault, [ERunRemedy.Retry]],
+    [ERunFailureKind.Crashed, [ERunRemedy.Retry]],
+    [ERunFailureKind.Other, [ERunRemedy.Retry]],
+    [ERunFailureKind.AgentFailed, [ERunRemedy.OpenAgent, ERunRemedy.Retry]],
+  ])('orders remedies for %s', (kind, remedies) => {
+    expect(remediesOf(kind)).toEqual(remedies)
   })
 
   it('uses the message for other failures', () => {
@@ -75,7 +94,7 @@ describe('runFailureCopy', () => {
     expect(copy).toEqual({
       title: 'The run failed',
       detail: 'boom',
-      action: ERunFailureAction.Retry,
+      remedies: [ERunRemedy.Retry],
     })
   })
 })
@@ -96,5 +115,27 @@ describe('run-failed schema', () => {
     }
     expect(eventBodySchema.parse(body)).toEqual(body)
     expect(runFailureSchema.safeParse({ kind: 'bogus', message: '' }).success).toBe(false)
+  })
+})
+
+describe('run-failure-dismissed schema', () => {
+  it('round-trips and rejects a bad seq', () => {
+    const body = { type: 'run-failure-dismissed' as const, failureSeq: 7 }
+    expect(eventBodySchema.parse(body)).toEqual(body)
+    expect(
+      eventBodySchema.safeParse({ type: 'run-failure-dismissed', failureSeq: -1 }).success,
+    ).toBe(false)
+  })
+
+  it('round-trips a child agent ref on a failure', () => {
+    const body = {
+      type: 'run-failed' as const,
+      failure: {
+        kind: ERunFailureKind.AgentFailed,
+        message: 'x',
+        agent: { agentId: 'a1', agentType: 'explore', intent: 'look' },
+      },
+    }
+    expect(eventBodySchema.parse(body)).toEqual(body)
   })
 })

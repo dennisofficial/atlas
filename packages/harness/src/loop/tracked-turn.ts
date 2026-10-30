@@ -3,6 +3,7 @@ import {
   callIdsIn,
   dedupeCallIds,
   EMPTY_STEP_RAW_RETRIES,
+  ERunFailureKind,
   noContentDraft,
   pendingCalls,
   projectDirectoryOf,
@@ -16,6 +17,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { TurnFault } from '../model/turn-fault'
 import { guardRepeatLoop } from './loop-guard'
 import { watchStepLoop, type WatchState } from './loop-watchdog'
 import type { PauseSignal } from './pause-signal'
@@ -191,11 +193,16 @@ export async function runTrackedTurn(
     ) {
       const swallowed = position.committedCalls.at(-1)
       if (swallowed !== undefined) {
+        const message = swallowedReport(swallowed)
         return {
           status: ETurnStatus.Failed,
           runId,
-          message: swallowedReport(swallowed),
-          cause: swallowed,
+          message,
+          cause: new TurnFault({
+            kind: ERunFailureKind.ToolSettlement,
+            message,
+            detail: swallowed,
+          }),
         }
       }
       return { status: ETurnStatus.Idle, runId }

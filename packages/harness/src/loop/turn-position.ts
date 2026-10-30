@@ -1,11 +1,13 @@
 import {
   awaitsReply,
+  ERunFailureKind,
   pendingCalls,
   type CallId,
   type Event,
   type ThreadId,
 } from '@dltech/atlas-core'
 
+import { TurnFault } from '../model/turn-fault'
 import type { SettlePending } from './settle-pending'
 import { stalledReport } from './turn-faults'
 
@@ -67,7 +69,12 @@ export async function settlePendingCall({
     return { kind: 'paused', callId: pending.callId, reason: `awaiting ${pending.name}` }
   }
   if (pending.callId === settleAttempted) {
-    return { kind: 'stalled', message: stalledReport(pending), cause: pending }
+    const message = stalledReport(pending)
+    return {
+      kind: 'stalled',
+      message,
+      cause: new TurnFault({ kind: ERunFailureKind.ToolSettlement, message, detail: pending }),
+    }
   }
 
   const settled = await settlePending({ threadId, signal })

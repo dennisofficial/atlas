@@ -92,6 +92,7 @@ export enum EClientFrame {
   Settings = 'settings',
   Request = 'request',
   Pong = 'pong',
+  DismissFailure = 'dismiss-failure',
 }
 
 export enum EClientRequest {
@@ -318,6 +319,10 @@ export const clientFrameSchema = z.discriminatedUnion('kind', [
     params: z.unknown(),
   }),
   z.object({ kind: z.literal(EClientFrame.Pong) }),
+  z.object({
+    kind: z.literal(EClientFrame.DismissFailure),
+    failureSeq: z.number().int().nonnegative(),
+  }),
 ])
 
 export type ClientFrame = z.infer<typeof clientFrameSchema>

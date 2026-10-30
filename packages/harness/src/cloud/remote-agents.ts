@@ -48,7 +48,7 @@ export class RemoteAgentRegistry extends AgentRegistryPort {
   }
 
   private sync(): void {
-    const latest = this.roster.current().agents
+    const latest = this.roster.current().agents.map(toAgentSnapshot)
     const held = heldIfSame(this.heldEverywhere, latest)
     if (held === this.heldEverywhere) return
 

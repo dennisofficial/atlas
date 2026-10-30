@@ -1,4 +1,10 @@
-import type { EAgentStatus, EKilledBy, ProviderIdentity, ThreadId } from '@dltech/atlas-core'
+import type {
+  EAgentStatus,
+  EKilledBy,
+  ERunFailureKind,
+  ProviderIdentity,
+  ThreadId,
+} from '@dltech/atlas-core'
 
 export type ChildContext = {
   tokens: number
@@ -13,6 +19,7 @@ export type AgentSnapshot = {
   status: EAgentStatus
   killedBy?: EKilledBy | undefined
   failureCause?: string | undefined
+  failureKind?: ERunFailureKind | undefined
   turns: number
   toolCalls: number
   lastTool: string | undefined

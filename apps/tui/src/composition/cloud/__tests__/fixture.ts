@@ -224,6 +224,7 @@ export function fakeCloudChannel(
           listener({ status: ETurnStatus.RelocationPaused, runId })
       })
     },
+    dismissFailure: () => true,
     resume: () => {
       resumes += 1
     },

@@ -2,6 +2,7 @@ import {
   EMPTY_STEP_NUDGES_PER_TURN,
   emptyStepNudgeDraft,
   EFinishReason,
+  ERunFailureKind,
   silentStep,
   type CallId,
   type EventLogPort,
@@ -11,6 +12,11 @@ import {
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
+
+import { TurnFault } from '../model/turn-fault'
+
+const finishFault = (args: { message: string; detail: unknown }): TurnFault =>
+  new TurnFault({ kind: ERunFailureKind.FinishFault, ...args })
 
 const faultLine = (fault: ExchangeFault): string =>
   `message ${fault.messageIndex}: ${fault.detail} (event ${fault.origin.eventId})`
@@ -59,17 +65,19 @@ export async function nudgeSilentStep({
 }): Promise<SilentOutcome> {
   const finish = result.finishReason
   if (finish === EFinishReason.Error || finish === EFinishReason.ContentFilter) {
-    return { kind: 'failed', message: finishFaultReport(finish), cause: { finish } }
+    const message = finishFaultReport(finish)
+    return { kind: 'failed', message, cause: finishFault({ message, detail: { finish } }) }
   }
 
   if (!silentStep(result)) return { kind: 'answered' }
 
   if (silentSteps + 1 > EMPTY_STEP_NUDGES_PER_TURN) {
     if (finish !== undefined && finish !== EFinishReason.Stop) {
+      const message = decidedFinishFault(finish)
       return {
         kind: 'failed',
-        message: decidedFinishFault(finish),
-        cause: { silentSteps: silentSteps + 1, finish },
+        message,
+        cause: finishFault({ message, detail: { silentSteps: silentSteps + 1, finish } }),
       }
     }
     return { kind: 'no-content' }
