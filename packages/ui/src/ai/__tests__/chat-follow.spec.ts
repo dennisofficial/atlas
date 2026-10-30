@@ -1,20 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { isAtEnd, isDownwardKey, isDownwardWheel } from '../chat-follow'
+import { isAtEnd, shouldFollow } from '../chat-follow'
 
 describe('chat follow', () => {
   it('treats a viewport within the edge threshold as at the end', () => {
-    expect(isAtEnd({ scrollTop: 1381, clientHeight: 480, scrollHeight: 1861 })).toBe(true)
-    expect(isAtEnd({ scrollTop: 1375, clientHeight: 480, scrollHeight: 1861 })).toBe(true)
-    expect(isAtEnd({ scrollTop: 1381, clientHeight: 480, scrollHeight: 1907 })).toBe(false)
+    expect(isAtEnd({ scrollOffset: 1381, viewportSize: 480, scrollSize: 1861 })).toBe(true)
+    expect(isAtEnd({ scrollOffset: 1375, viewportSize: 480, scrollSize: 1861 })).toBe(true)
+    expect(isAtEnd({ scrollOffset: 1381, viewportSize: 480, scrollSize: 1907 })).toBe(false)
   })
 
-  it('only counts downward wheel and key input as staying at the end', () => {
-    expect(isDownwardWheel(40)).toBe(true)
-    expect(isDownwardWheel(-40)).toBe(false)
-    expect(isDownwardKey('End')).toBe(true)
-    expect(isDownwardKey('PageDown')).toBe(true)
-    expect(isDownwardKey('ArrowUp')).toBe(false)
-    expect(isDownwardKey('Home')).toBe(false)
+  it('follows only when it was at the end and the user did not scroll up', () => {
+    expect(shouldFollow({ wasAtEnd: true, scrolledUp: false })).toBe(true)
+    expect(shouldFollow({ wasAtEnd: true, scrolledUp: true })).toBe(false)
+    expect(shouldFollow({ wasAtEnd: false, scrolledUp: false })).toBe(false)
   })
 })

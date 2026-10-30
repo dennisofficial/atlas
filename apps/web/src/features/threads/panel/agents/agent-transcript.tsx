@@ -11,6 +11,7 @@ import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
+import { isLiveTurn } from '../../data/is-live-turn'
 import { eventsFromWire } from '../../data/events-from-wire'
 import { rosterModelsOf } from '../../data/transcript-agents'
 import { durableTranscriptOf, transcriptViewOf } from '../../data/transcript-items'
@@ -79,7 +80,13 @@ export function AgentTranscriptBody(props: {
       ) : null}
       {turns.map((turn) => (
         <ChatItem key={turn.id} id={turn.id}>
-          <TurnView turn={turn} now={now} models={models} userName={undefined} actions={actions} />
+          <TurnView
+            turn={turn}
+            now={isLiveTurn(turn) ? now : 0}
+            models={models}
+            userName={undefined}
+            actions={actions}
+          />
         </ChatItem>
       ))}
       {needsOutcome ? (

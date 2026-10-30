@@ -47,13 +47,13 @@ function ChatDemo() {
     <div className="flex h-[28rem] flex-col gap-2 rounded-lg border">
       <Chat className="flex-1">
         {SCRIPT.slice(0, count).map((turn, index) => (
-          <ChatItem key={turn.id} id={turn.id} anchor={turn.user}>
+          <ChatItem key={turn.id} id={turn.id}>
             {turn.user ? (
               <UserMessage>{turn.text}</UserMessage>
             ) : (
               <div className="flex flex-col gap-6">
                 <AgentMessage copyText={turn.text}>{turn.text}</AgentMessage>
-                {index < count - 1 ? <Checkpoint label={'Turn ' + (index + 1)} /> : null}
+                {index < count - 1 ? <Checkpoint label={`Turn ${index + 1}`} /> : null}
               </div>
             )}
           </ChatItem>

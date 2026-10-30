@@ -6,14 +6,19 @@ import { EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
 import type { AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
+import { installVirtuaViewport } from '../../__tests__/virtua-viewport'
 import { AgentTranscriptBody } from '../agents/agent-transcript'
+
+let restoreViewport = () => {}
 
 beforeAll(() => {
   GlobalRegistrator.register()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  restoreViewport = installVirtuaViewport()
 })
 
 afterAll(async () => {
+  restoreViewport()
   await GlobalRegistrator.unregister()
 })
 

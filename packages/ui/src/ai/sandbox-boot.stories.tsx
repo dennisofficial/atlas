@@ -15,7 +15,7 @@ import {
 function BootInChat(props: Parameters<typeof SandboxBoot>[0]) {
   return (
     <Chat>
-      <ChatItem id="u1" anchor>
+      <ChatItem id="u1">
         <UserMessage author="Dennis" timestamp="14:02">
           Add a Vercel AI Gateway row to the providers page, marked coming soon.
         </UserMessage>

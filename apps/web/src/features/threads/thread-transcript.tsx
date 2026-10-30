@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useMemo, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { CircleAlertIcon, CirclePauseIcon } from 'lucide-react'
 
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
@@ -15,6 +15,7 @@ import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-time
 import type { BootView } from './data/boot-view'
 import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
+import { isLiveTurn } from './data/is-live-turn'
 import { ETurnKind, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
 import { useRoster } from './data/use-roster'
@@ -82,15 +83,16 @@ export function ThreadTranscript({
   const { user } = useSessionUser()
   const now = useNow(working || anySpawnRunning(items))
   const { channel, openChanges, openAgent } = useThreadPanel()
-  const models = rosterModelsOf(useRoster(channel))
-  const turns = turnsOf({ items, working })
-  const boot = bootTimelineOf({ turns, pod, now: 0 })
+  const roster = useRoster(channel)
+  const models = useMemo(() => rosterModelsOf(roster), [roster])
+  const turns = useMemo(() => turnsOf({ items, working }), [items, working])
+  const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name
   const actions = useMemo(
     () => ({ rewind, openChanges, openAgent }),
     [rewind, openChanges, openAgent],
   )
-  const bootAfter = (index: number): ReactNode =>
+  const bootAfter = (index: number): ReactNode[] =>
     boot
       .filter((entry) => entry.afterIndex === index)
       .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
@@ -98,14 +100,18 @@ export function ThreadTranscript({
   return (
     <Chat jumpKey={lastUserTurnId}>
       {bootAfter(-1)}
-      {turns.map((turn, index) => (
-        <Fragment key={turn.id}>
-          <ChatItem id={turn.id}>
-            <TurnView turn={turn} now={now} models={models} userName={userName} actions={actions} />
-          </ChatItem>
-          {bootAfter(index)}
-        </Fragment>
-      ))}
+      {turns.flatMap((turn, index) => [
+        <ChatItem key={turn.id} id={turn.id}>
+          <TurnView
+            turn={turn}
+            now={isLiveTurn(turn) ? now : 0}
+            models={models}
+            userName={userName}
+            actions={actions}
+          />
+        </ChatItem>,
+        ...bootAfter(index),
+      ])}
       {failure === null ? null : (
         <ChatItem id="turn-failure">
           <Alert variant="destructive">

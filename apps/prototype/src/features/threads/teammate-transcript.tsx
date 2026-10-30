@@ -70,7 +70,7 @@ function Body({ teammate }: { teammate: AppTeammate }) {
 export function TeammateTranscript({ teammate }: { teammate: AppTeammate }) {
   return (
     <Chat className="min-h-0 flex-1">
-      <ChatItem id="brief" anchor>
+      <ChatItem id="brief">
         <UserMessage author="Main thread" timestamp="14:04">
           {teammate.brief}
         </UserMessage>
