@@ -2,10 +2,16 @@ import type { NextConfig } from 'next'
 
 import { resolveApiOrigin } from './src/lib/api-origin'
 
-const devOrigins = (process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter((origin) => origin.length > 0)
+const publicUrl = process.env.PUBLIC_URL ?? ''
+const publicHosts = URL.canParse(publicUrl) ? [new URL(publicUrl).hostname] : []
+
+const devOrigins = [
+  ...(process.env.ATLAS_WEB_DEV_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0),
+  ...publicHosts,
+]
 
 const desktop = process.env.ATLAS_WEB_TARGET === 'desktop'
 

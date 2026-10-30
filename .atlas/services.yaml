@@ -1,13 +1,20 @@
 services:
+  postgres:
+    command: docker compose up postgres
+    cwd: apps/api
+    port: 5433
   api:
     command: bun run dev:no-trigger
     cwd: apps/api
     port: 3400
     health: /v1/health
+    env:
+      ATLAS_POSTGRES_PORT: ${services.postgres.port}
     setup:
       - bun install
+      - bun run db:migrate
   web:
-    command: bun run dev -p $PORT -H 0.0.0.0
+    command: bun run dev -H 0.0.0.0
     cwd: apps/web
     health: /
     env:
@@ -15,13 +22,13 @@ services:
     portal:
       title: Atlas web
   storybook:
-    command: bunx storybook dev -p $PORT --host 0.0.0.0 --no-open
+    command: bun run dev --host 0.0.0.0
     cwd: apps/storybook
     health: /
     portal:
       title: Storybook
   prototype:
-    command: bunx next dev -p $PORT -H 0.0.0.0
+    command: bun run dev -H 0.0.0.0
     cwd: apps/prototype
     health: /
     portal:
