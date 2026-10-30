@@ -10,10 +10,10 @@ export function withDeltaPublishing(args: {
     async append(appendArgs) {
       const events = await args.log.append(appendArgs)
       const visible = events.filter((event) => event.type !== 'tool-dispatched')
-      if (visible.length > 0)
-        args.channel
-          .publisherFor({ threadId: appendArgs.threadId })
-          .settleAppend({ events: visible })
+      const publisher = args.channel.publisherFor({ threadId: appendArgs.threadId })
+      const settling = visible.filter((event) => event.type !== 'run-failed')
+      if (settling.length > 0) publisher.settleAppend({ events: visible })
+      else if (visible.length > 0) publisher.eventsAppended()
       return events
     },
 

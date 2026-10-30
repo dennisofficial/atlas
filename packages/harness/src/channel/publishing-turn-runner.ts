@@ -1,7 +1,17 @@
-import type { EventDraft, SaidFile, SaidImage, SaidUpload, ThreadId } from '@dltech/atlas-core'
+import type {
+  EventDraft,
+  EventLogPort,
+  RunFailure,
+  RunId,
+  SaidFile,
+  SaidImage,
+  SaidUpload,
+  ThreadId,
+} from '@dltech/atlas-core'
 
 import type { PauseSignal } from '../loop/pause-signal'
 
+import { runFailureOf } from '../model/run-failure'
 import { ETurnStatus, LoopTurnRunner, TurnRunner, type TurnDeps, type TurnOutcome } from '../loop'
 import type { ThreadPublisher, DeltaChannel } from './delta-channel'
 import { withDeltaPublishing } from './publishing-event-log'
@@ -13,16 +23,59 @@ const endFor = (outcome: TurnOutcome): EStepEnd => {
   return EStepEnd.Completed
 }
 
+const appendRunFailed = async (args: {
+  log: EventLogPort
+  threadId: ThreadId
+  runId: RunId
+  failure: RunFailure
+}): Promise<void> => {
+  try {
+    await args.log.append({
+      threadId: args.threadId,
+      runId: args.runId,
+      drafts: [{ type: 'run-failed', failure: args.failure }],
+    })
+  } catch {
+    return
+  }
+}
+
 async function publishing(args: {
   publisher: ThreadPublisher
+  log: EventLogPort
+  threadId: ThreadId
+  runId: () => RunId
+  identity: { id: string; modelId: string }
   run: () => Promise<TurnOutcome>
 }): Promise<TurnOutcome> {
+  const failed = (failure: RunFailure, runId: RunId) =>
+    appendRunFailed({ log: args.log, threadId: args.threadId, runId, failure })
   args.publisher.turnWorking({ working: true })
   try {
     const outcome = await args.run()
+    if (outcome.status === ETurnStatus.Failed) {
+      await failed(
+        runFailureOf({
+          message: outcome.message,
+          cause: outcome.cause,
+          providerId: args.identity.id,
+          modelId: args.identity.modelId,
+        }),
+        outcome.runId,
+      )
+    }
     args.publisher.close({ end: endFor(outcome) })
     return outcome
   } catch (error) {
+    await failed(
+      runFailureOf({
+        message: error instanceof Error ? error.message : String(error),
+        cause: error,
+        providerId: args.identity.id,
+        modelId: args.identity.modelId,
+      }),
+      args.runId(),
+    )
     args.publisher.close({ end: EStepEnd.Failed })
     throw error
   } finally {
@@ -55,7 +108,7 @@ export class PublishingTurnRunner extends TurnRunner {
   }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
-      publisher,
+      ...this.publishingFor({ threadId: args.threadId, publisher }),
       run: () => runner.say(args),
     })
   }
@@ -67,7 +120,7 @@ export class PublishingTurnRunner extends TurnRunner {
   }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
-      publisher,
+      ...this.publishingFor({ threadId: args.threadId, publisher }),
       run: () => runner.runTurn(args),
     })
   }
@@ -79,9 +132,19 @@ export class PublishingTurnRunner extends TurnRunner {
   }): Promise<TurnOutcome> {
     const { publisher, runner } = this.runnerFor(args.threadId)
     return publishing({
-      publisher,
+      ...this.publishingFor({ threadId: args.threadId, publisher }),
       run: () => runner.resume(args),
     })
+  }
+
+  private publishingFor(args: { threadId: ThreadId; publisher: ThreadPublisher }) {
+    return {
+      publisher: args.publisher,
+      log: this.deps.log,
+      threadId: args.threadId,
+      runId: () => this.deps.ids.nextRunId(),
+      identity: this.deps.model.identity,
+    }
   }
 
   private runnerFor(threadId: ThreadId): { publisher: ThreadPublisher; runner: TurnRunner } {

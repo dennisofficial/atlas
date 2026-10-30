@@ -15,6 +15,7 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
+import { failingAs, withFailureAccount } from './failure-account'
 import { withAnthropicCompatibleReasoning } from './anthropic-reasoning'
 import { withAnthropicSubscriptionAttribution } from './anthropic-subscription-attribution'
 
@@ -125,6 +126,7 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
     try {
       return await call(authorized)
     } catch (error) {
+      withFailureAccount({ error, accountId: authorized.credential.accountId })
       if (!wasRefused(error)) throw error
 
       await args.credentials.discard(authorized.credential)
@@ -132,7 +134,7 @@ export function createAnthropicOauthModel(args: AnthropicOauthModelArgs): Langua
       const retried = await authorizedModel()
       if (secretOf(retried.credential) === secretOf(authorized.credential)) throw error
 
-      return await call(retried)
+      return await failingAs({ accountId: retried.credential.accountId, run: () => call(retried) })
     }
   }
 

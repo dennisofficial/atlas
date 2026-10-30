@@ -113,3 +113,18 @@ describe('resuming a published turn', () => {
     expect(outcome.status).toBe(ETurnStatus.RelocationPaused)
   })
 })
+
+describe('the durable failure a published turn records', () => {
+  it('appends run-failed on the log before the step closes failed', async () => {
+    const { runner, threadId, seen } = await openTurn([{ error: new Error('the model is down') }])
+
+    const outcome = await runner.say({ threadId, text: 'go' })
+    const events = await opened[0]!.harness.log.read({ threadId })
+    const failed = events.find((event) => event.type === 'run-failed')
+
+    expect(outcome.status).toBe(ETurnStatus.Failed)
+    expect(failed?.type === 'run-failed' && failed.failure.message).toBe('Error: the model is down')
+    expect(failed?.runId).toBe(outcome.runId)
+    expect(seen.some((signal) => signal.type === 'step-ended')).toBe(true)
+  })
+})

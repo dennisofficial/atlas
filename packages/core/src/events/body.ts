@@ -20,6 +20,7 @@ import type { EKilledBy } from '../shells/status'
 import type { ETldrStatus } from '../tldr/status'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
+import type { RunFailure } from './run-failure'
 import type { BackgroundShellEventBody } from './shell-body'
 
 export enum ECompactionAnchor {
@@ -365,6 +366,7 @@ export type EventBody =
       reason: ESubscriptionEnd
       by: ESubscriptionActor
     }
+  | { type: 'run-failed'; failure: RunFailure }
 
 export type EventDraft = EventBody
 

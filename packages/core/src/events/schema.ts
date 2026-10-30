@@ -30,6 +30,7 @@ import {
 } from './body'
 import type { EventEnvelope } from './envelope'
 import { ENoticeStage } from './notice-stage'
+import { runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
   codeQualityReviewedSchema,
@@ -478,4 +479,5 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
   subscriptionCreatedSchema,
   subscriptionChangedSchema,
   subscriptionEndedSchema,
+  z.object({ type: z.literal('run-failed'), failure: runFailureSchema }),
 ])

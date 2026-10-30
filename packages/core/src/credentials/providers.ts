@@ -59,3 +59,9 @@ export const providerSpec = (provider: EAuthProvider): ProviderSpec => {
 
 export const reachableProviders = (): readonly ProviderSpec[] =>
   PROVIDER_SPECS.filter((spec) => spec.reachable)
+
+export const providerLabelOf = (providerId: string | undefined): string | undefined => {
+  if (providerId === undefined) return undefined
+  const root = providerId.split('.')[0]
+  return PROVIDER_SPECS.find((spec) => spec.provider === root)?.label
+}
