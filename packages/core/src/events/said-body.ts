@@ -1,4 +1,4 @@
-import type { SaidFile, SaidImage } from './body'
+import type { SaidFile, SaidImage, SaidUpload } from './body'
 
 export type SaidBody = {
   type: 'user-said'
@@ -6,6 +6,7 @@ export type SaidBody = {
   requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
+  uploads?: readonly SaidUpload[] | undefined
 }
 
 /**
@@ -17,9 +18,11 @@ export function saidBody(args: {
   requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
+  uploads?: readonly SaidUpload[] | undefined
 }): SaidBody {
   const hasImages = args.images !== undefined && args.images.length > 0
   const hasFiles = args.files !== undefined && args.files.length > 0
+  const hasUploads = args.uploads !== undefined && args.uploads.length > 0
 
   return {
     type: 'user-said',
@@ -27,5 +30,6 @@ export function saidBody(args: {
     ...(args.requestId === undefined ? {} : { requestId: args.requestId }),
     ...(hasImages ? { images: args.images } : {}),
     ...(hasFiles ? { files: args.files } : {}),
+    ...(hasUploads ? { uploads: args.uploads } : {}),
   }
 }

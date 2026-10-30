@@ -1,6 +1,7 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'sonner'
 
+import type { SaidUpload } from '@dltech/atlas-core'
 import type { EPodState, WireEvent } from '@dltech/atlas-wire/web'
 
 import { TOO_LATE_NOTICE } from './composer-queue'
@@ -18,6 +19,7 @@ export function useTakeBackEscape(args: {
   events: WireEvent[]
   podState: EPodState | null
   setDraft: Dispatch<SetStateAction<string>>
+  onRestoreUploads: (uploads: SaidUpload[]) => void
 }) {
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
@@ -37,6 +39,7 @@ export function useTakeBackEscape(args: {
       }
       setTakenBack((current) => new Set(current).add(target.sendId))
       args.setDraft((current) => restoredDraftOf({ current, restored: target.text }))
+      args.onRestoreUploads(target.uploads)
     } catch (failure) {
       toast.error(messageOf(failure))
     }

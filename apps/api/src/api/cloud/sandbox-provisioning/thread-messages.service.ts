@@ -9,6 +9,7 @@ import {
 import {
   EThreadMessageState,
   type SaidImageWire,
+  type SaidUploadWire,
   type ThreadMessageReply,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
@@ -56,8 +57,9 @@ export class ThreadMessagesService {
     sendId: string
     text: string
     images?: readonly SaidImageWire[] | undefined
+    uploads?: readonly SaidUploadWire[] | undefined
   }): Promise<ThreadMessageReply> {
-    const { userId, threadId, sendId, text, images } = args
+    const { userId, threadId, sendId, text, images, uploads } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
     const session = await sessionOfThread({ reader: db, threadId })
     if (session.archivedAt !== null) await this.unarchive({ userId, threadId })
@@ -70,12 +72,20 @@ export class ThreadMessagesService {
         sendId,
         text,
         images,
+        uploads,
       })
       if (queued !== null) {
         if (queued.head !== undefined) await this.signals.headMoved({ threadId, head: queued.head })
         return { state: EThreadMessageState.Queued }
       }
-      const refused = await this.serve({ ...endpoint, threadId, sendId, text, images }).then(
+      const refused = await this.serve({
+        ...endpoint,
+        threadId,
+        sendId,
+        text,
+        images,
+        uploads,
+      }).then(
         () => false,
         (failure: unknown) => {
           this.logger.warn(
@@ -86,7 +96,7 @@ export class ThreadMessagesService {
         },
       )
       if (!refused) return { state: EThreadMessageState.Delivered }
-      return this.relaunchOutdated({ thread, userId, sendId, text, images })
+      return this.relaunchOutdated({ thread, userId, sendId, text, images, uploads })
     }
 
     const { existing, relaunch, head } = await this.appendOnce({
@@ -95,6 +105,7 @@ export class ThreadMessagesService {
       sendId,
       text,
       images,
+      uploads,
     })
     if (head !== undefined) await this.signals.headMoved({ threadId, head })
     if (!relaunch) return { state: EThreadMessageState.Queued }
@@ -111,8 +122,9 @@ export class ThreadMessagesService {
     sendId: string
     text: string
     images?: readonly SaidImageWire[] | undefined
+    uploads?: readonly SaidUploadWire[] | undefined
   }): Promise<ThreadMessageReply> {
-    const { thread, userId, sendId, text, images } = args
+    const { thread, userId, sendId, text, images, uploads } = args
     const threadId = thread.id
     const sessionId = await podSessionOf({ reader: db, threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
@@ -120,7 +132,7 @@ export class ThreadMessagesService {
     await this.sandboxes.park({ row, threadId, reason: OUTDATED_SERVE_PARK_REASON })
     const { head } = await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
-      return appendUserSaid({ tx, threadId, userId, sendId, text, images })
+      return appendUserSaid({ tx, threadId, userId, sendId, text, images, uploads })
     })
     if (head !== undefined) await this.signals.headMoved({ threadId, head })
     const { dispatchFailed } = await this.pod.launch({ thread, existing: row })
@@ -165,6 +177,7 @@ export class ThreadMessagesService {
     sendId: string
     text: string
     images?: readonly SaidImageWire[] | undefined
+    uploads?: readonly SaidUploadWire[] | undefined
   }): Promise<{ head?: number } | null> {
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId: args.threadId })
@@ -179,8 +192,9 @@ export class ThreadMessagesService {
     sendId: string
     text: string
     images?: readonly SaidImageWire[] | undefined
+    uploads?: readonly SaidUploadWire[] | undefined
   }): Promise<{ existing: Row<'CloudSandbox'> | null; relaunch: boolean; head?: number }> {
-    const { userId, threadId, sendId, text, images } = args
+    const { userId, threadId, sendId, text, images, uploads } = args
     return db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       const podLease = await tx.orm.public.LocalPodLease.where({ threadId }).select('id').first()
@@ -197,7 +211,7 @@ export class ThreadMessagesService {
       return {
         existing,
         relaunch,
-        ...(await appendUserSaid({ tx, threadId, userId, sendId, text, images })),
+        ...(await appendUserSaid({ tx, threadId, userId, sendId, text, images, uploads })),
       }
     })
   }

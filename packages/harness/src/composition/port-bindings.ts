@@ -50,6 +50,7 @@ export const sharedPortBindings = {
   MemoryPort: { runtime: 'shared', transport: null },
   GitChangesPort: { runtime: 'shared', transport: null },
   TerminalPort: { runtime: 'shared', transport: null },
+  SaidUploadsPort: { runtime: 'shared', transport: null },
 } satisfies Partial<ComposedPortBindings>
 
 /**

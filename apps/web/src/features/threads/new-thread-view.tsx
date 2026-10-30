@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import type { SaidUpload } from '@dltech/atlas-core'
 import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
@@ -13,7 +14,7 @@ import { useNewThreadCommands } from './commands/use-new-thread-commands'
 import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
 import { createThread, fetchProjects } from './data/threads-api'
-import { useComposerImages } from './data/use-composer-images'
+import { useComposerAttachments } from './data/use-composer-attachments'
 import { useModelPicker } from './data/use-model-picker'
 import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
@@ -36,11 +37,12 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalId: picker.personalId,
       personalEffort: picker.personalEffort,
     })
-  const images = useComposerImages()
+  const images = useComposerAttachments()
   const [creating, setCreating] = useState(false)
   const attempt = useRef<{
     text: string
     images: SaidImageWire[]
+    uploads: SaidUpload[]
     projectId: string | null
     sendId: string
   } | null>(null)
@@ -56,18 +58,26 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       setDraft('')
       return
     }
-    if (!images.checkBudget()) return
+    if (!images.checkSendable()) return
     const held = images.images
+    const uploads = images.uploads
     const sendId =
       attempt.current?.projectId === projectId &&
-      isRetryOf({ previous: attempt.current, text, images: held })
+      isRetryOf({ previous: attempt.current, text, images: held, uploads })
         ? attempt.current.sendId
         : crypto.randomUUID()
-    attempt.current = { text, images: held, projectId, sendId }
+    attempt.current = { text, images: held, uploads, projectId, sendId }
     setCreating(true)
     try {
       const { thread } = await createThread(
-        createThreadBodyOf({ projectId, text, sendId, images: held, ...createFieldsOf(selection) }),
+        createThreadBodyOf({
+          projectId,
+          text,
+          sendId,
+          images: held,
+          uploads,
+          ...createFieldsOf(selection),
+        }),
       )
       attempt.current = null
       images.clear()
@@ -83,7 +93,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       value={draft}
       onValueChange={setDraft}
       onSubmit={handleSubmit}
-      sending={creating || images.encoding}
+      sending={creating || images.uploading}
       {...images.composerProps}
       commandSpecs={commands.specs}
       placeholder="Describe a task for Atlas…"

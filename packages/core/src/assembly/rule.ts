@@ -1,6 +1,7 @@
 import type { Event } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
 import type { ProviderIdentity } from '../provider'
+import type { UploadPlacement } from '../uploads/placement'
 import type { Assembled } from './assembled'
 import type { AssemblyTrace } from './trace'
 
@@ -11,6 +12,7 @@ export type RuleContext = {
   provider: ProviderIdentity
   countTokens: (value: Assembled) => number
   previous?: Assembled | undefined
+  uploads?: ReadonlyMap<string, UploadPlacement> | undefined
 }
 
 export type RuleFn = (input: Assembled, ctx: RuleContext) => Assembled

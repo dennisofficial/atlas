@@ -190,13 +190,14 @@ export function createTurnPolicyRunner(args: {
   }
 
   return {
-    say: async ({ threadId, text, images, files, context, signal, pause }) =>
+    say: async ({ threadId, text, images, files, uploads, context, signal, pause }) =>
       (await refuseIfBlocked({ threadId })) ??
       inner.say({
         threadId,
         text,
         ...(images === undefined ? {} : { images }),
         ...(files === undefined ? {} : { files }),
+        ...(uploads === undefined ? {} : { uploads }),
         ...(context === undefined ? {} : { context }),
         ...(signal === undefined ? {} : { signal }),
         ...(pause === undefined ? {} : { pause }),

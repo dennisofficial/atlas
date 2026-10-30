@@ -542,3 +542,32 @@ describe('a tool result that carries an image', () => {
     expect(parsed.success && parsed.data).toEqual(stored)
   })
 })
+
+describe('user-said uploads', () => {
+  const upload = {
+    uploadId: '8d3f0c1e-1111-4222-8333-444455556666',
+    pathname: 'composer-uploads/u1/8d3f0c1e/a.txt',
+    name: 'a.txt',
+    size: 3,
+    mediaType: 'text/plain',
+  }
+
+  it('round-trips uploads', () => {
+    const body: EventDraft = { type: 'user-said', text: 'hi', uploads: [upload] }
+    expect(eventBodySchema.parse(body)).toEqual(body)
+  })
+
+  it('rejects an uploadId that is not a uuid', () => {
+    const body = { type: 'user-said', text: 'hi', uploads: [{ ...upload, uploadId: '../x' }] }
+    expect(eventBodySchema.safeParse(body).success).toBe(false)
+  })
+
+  it('rejects an oversized upload', () => {
+    const body = {
+      type: 'user-said',
+      text: 'hi',
+      uploads: [{ ...upload, size: 200 * 1024 * 1024 }],
+    }
+    expect(eventBodySchema.safeParse(body).success).toBe(false)
+  })
+})

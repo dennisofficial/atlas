@@ -32,3 +32,35 @@ describe('takeBackableIdOf', () => {
     expect(takeBackableIdOf([])).toBeNull()
   })
 })
+
+describe('queuedOf uploads', () => {
+  it('shows entry uploads as attachment chips', () => {
+    const [entry] = queuedOf([
+      {
+        id: 'p1',
+        text: 'a',
+        reserved: false,
+        uploads: [
+          {
+            uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
+            pathname: 'p',
+            name: 'r.pdf',
+            size: 9,
+            mediaType: 'application/pdf',
+          },
+          {
+            uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a02',
+            pathname: 'p',
+            name: 's.png',
+            size: 4,
+            mediaType: 'image/png',
+          },
+        ],
+      },
+    ])
+    expect(entry?.attachments).toEqual([
+      { id: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01', name: 'r.pdf', kind: 'file', size: 9 },
+      { id: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a02', name: 's.png', kind: 'image', size: 4 },
+    ])
+  })
+})

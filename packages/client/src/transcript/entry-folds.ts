@@ -23,6 +23,7 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
       skills: [...new Set([...open.skills, ...entry.skills])],
       files: [...new Set([...open.files, ...entry.files])],
       images: [...open.images, ...entry.images],
+      uploads: [...(open.uploads ?? []), ...(entry.uploads ?? [])],
     }
   }
 

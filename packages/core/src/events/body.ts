@@ -104,6 +104,14 @@ export type SaidFile = {
   filename?: string | undefined
 }
 
+export type SaidUpload = {
+  uploadId: string
+  pathname: string
+  name: string
+  size: number
+  mediaType: string
+}
+
 export type EventBody =
   | {
       type: 'user-said'
@@ -112,6 +120,7 @@ export type EventBody =
       requestId?: string | undefined
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
+      uploads?: readonly SaidUpload[] | undefined
     }
   | {
       type: 'assistant-said'

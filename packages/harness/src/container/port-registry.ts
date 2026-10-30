@@ -16,6 +16,7 @@ import type { RotationPort } from '../rotation/rotation-port'
 import type { ServiceRegistryPort } from '../services/service-registry-port'
 import type { ShellLauncherPort, ShellRegistryPort } from '../shells/port'
 import type { SkillRegistryPort } from '../skills/port'
+import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { SessionAuthorityPort } from '../store/sessions/meta'
 import type { ThreadStorePort } from '../store/thread-store'
 import type { SubscriptionRegistryPort } from '../subscriptions/port'
@@ -78,5 +79,6 @@ declare module '@dltech/atlas-core' {
       readonly transport: 'detached'
     }
     readonly TerminalPort: PortRegistryEntry<TerminalPort> & { readonly transport: 'none' }
+    readonly SaidUploadsPort: PortRegistryEntry<SaidUploadsPort> & { readonly transport: 'none' }
   }
 }
