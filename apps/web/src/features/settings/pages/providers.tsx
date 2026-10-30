@@ -17,26 +17,30 @@ import {
   type Account,
 } from '../data/personal/accounts-api'
 import { QueryPage } from '../data/personal/query-boundary'
+import { EProviderSignInState, useProviderSignIn } from '../data/personal/use-provider-sign-in'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { API_KEY_PROVIDERS, EProviderId } from '../fixtures/settings-agent'
 import { ApiKeyRow } from '../parts/agent-api-key-row'
+import { ProviderSignInPanel } from '../parts/provider-sign-in-panel'
 import { SubscriptionRow, type SubscriptionAccount } from '../parts/agent-subscription-row'
+import { EOauthProvider } from '@dltech/atlas-wire/web'
 import { BrandMark, EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
 const DESCRIPTION = 'Where Atlas gets model access. A subscription is used first, then an API key.'
-const SIGN_IN_HINT = 'Sign in from the terminal with `atlas`.'
 
 const SUBSCRIPTIONS = [
   {
     provider: EProviderId.Anthropic,
+    oauthProvider: EOauthProvider.Anthropic,
     name: 'Claude',
     brand: EBrand.Claude,
     idleDescription: 'Use your Claude Pro or Max subscription.',
   },
   {
     provider: EProviderId.OpenAI,
+    oauthProvider: EOauthProvider.OpenAI,
     name: 'ChatGPT / Codex',
     brand: EBrand.OpenAI,
     idleDescription: 'Use your ChatGPT Plus or Pro plan for GPT-5 models.',
@@ -52,7 +56,10 @@ export function subscriptionView(account: Account | null): SubscriptionAccount |
 }
 
 export function ProvidersPage() {
-  const query = useCloudQuery({ key: 'personal-accounts', load: fetchAccounts })
+  const query = useCloudQuery({
+    key: 'personal-accounts',
+    load: fetchAccounts,
+  })
   return (
     <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
       {(accounts) => <ProvidersContent accounts={accounts} reload={query.reload} />}
@@ -68,9 +75,15 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
       run({
         work: async () => {
           if (args.existingId === null) {
-            await createApiKeyAccount({ provider: args.provider, apiKey: args.apiKey })
+            await createApiKeyAccount({
+              provider: args.provider,
+              apiKey: args.apiKey,
+            })
           } else {
-            await replaceApiKey({ accountId: args.existingId, apiKey: args.apiKey })
+            await replaceApiKey({
+              accountId: args.existingId,
+              apiKey: args.apiKey,
+            })
           }
           reload()
         },
@@ -98,22 +111,18 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
       >
         <SettingsCard>
           {SUBSCRIPTIONS.map((subscription) => {
-            const account = subscriptionFor({ accounts, provider: subscription.provider })
+            const account = subscriptionFor({
+              accounts,
+              provider: subscription.provider,
+            })
             return (
-              <SubscriptionRow
+              <SubscriptionSignInRow
                 key={subscription.provider}
-                name={subscription.name}
-                brand={subscription.brand}
-                idleDescription={subscription.idleDescription}
-                signInLabel={`Sign in with ${subscription.name.split(' ')[0]}`}
-                signInHint={SIGN_IN_HINT}
-                account={subscriptionView(account)}
+                subscription={subscription}
+                account={account}
                 busy={saving}
-                onSignOut={() => {
-                  if (account !== null) {
-                    void handleRemove({ accountId: account.id, success: 'Signed out' })
-                  }
-                }}
+                reload={reload}
+                onSignOut={(accountId) => void handleRemove({ accountId, success: 'Signed out' })}
               />
             )
           })}
@@ -141,7 +150,10 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
                 }
                 onRemove={() => {
                   if (entry !== null) {
-                    void handleRemove({ accountId: entry.id, success: 'API key removed' })
+                    void handleRemove({
+                      accountId: entry.id,
+                      success: 'API key removed',
+                    })
                   }
                 }}
               />
@@ -151,6 +163,46 @@ function ProvidersContent({ accounts, reload }: { accounts: Account[]; reload: (
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>
+  )
+}
+
+function SubscriptionSignInRow({
+  subscription,
+  account,
+  busy,
+  reload,
+  onSignOut,
+}: {
+  subscription: (typeof SUBSCRIPTIONS)[number]
+  account: Account | null
+  busy: boolean
+  reload: () => void
+  onSignOut: (accountId: string) => void
+}) {
+  const control = useProviderSignIn({
+    provider: subscription.oauthProvider,
+    onChanged: reload,
+  })
+  return (
+    <SubscriptionRow
+      name={subscription.name}
+      brand={subscription.brand}
+      idleDescription={subscription.idleDescription}
+      signInLabel={`Sign in with ${subscription.name.split(' ')[0]}`}
+      account={subscriptionView(account)}
+      busy={busy}
+      signInBusy={control.flow.status !== EProviderSignInState.Idle}
+      signInPanel={
+        <ProviderSignInPanel
+          name={subscription.name.split(' ')[0] ?? subscription.name}
+          control={control}
+        />
+      }
+      onSignIn={control.start}
+      onSignOut={() => {
+        if (account !== null) onSignOut(account.id)
+      }}
+    />
   )
 }
 

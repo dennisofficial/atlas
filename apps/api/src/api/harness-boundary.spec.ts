@@ -6,7 +6,13 @@ const SRC_ROOT = path.dirname(import.meta.dirname)
 const HARNESS_SUBPATH = '@dltech/atlas-harness/models'
 const TITLING_SUBPATH = '@dltech/atlas-harness/titling'
 const SKILL_SPECS_SUBPATH = '@dltech/atlas-harness/skill-specs'
-const ALLOWED_SUBPATHS = [HARNESS_SUBPATH, TITLING_SUBPATH, SKILL_SPECS_SUBPATH]
+const PROVIDER_OAUTH_SUBPATH = '@dltech/atlas-harness/provider-oauth'
+const ALLOWED_SUBPATHS = [
+  HARNESS_SUBPATH,
+  TITLING_SUBPATH,
+  SKILL_SPECS_SUBPATH,
+  PROVIDER_OAUTH_SUBPATH,
+]
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
 function listTsFiles({ dir }: { dir: string }): string[] {
@@ -24,7 +30,7 @@ function harnessSpecifiers({ file }: { file: string }): string[] {
 }
 
 describe('harness boundary', () => {
-  it('reaches @dltech/atlas-harness only through the models, titling and skill-specs subpaths', () => {
+  it('reaches @dltech/atlas-harness only through the models, titling, skill-specs and provider-oauth subpaths', () => {
     const offenders = listTsFiles({ dir: SRC_ROOT }).flatMap((file) =>
       harnessSpecifiers({ file })
         .filter((specifier) => !ALLOWED_SUBPATHS.includes(specifier))
