@@ -24,6 +24,8 @@ export const OpenAI: Story = { args: { brand: EBrand.OpenAI } }
 
 export const OpenRouter: Story = { args: { brand: EBrand.OpenRouter } }
 
+export const Inference: Story = { args: { brand: EBrand.Inference } }
+
 export const Vercel: Story = { args: { brand: EBrand.Vercel } }
 
 export const GitHub: Story = { args: { brand: EBrand.GitHub } }
