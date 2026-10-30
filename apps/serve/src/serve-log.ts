@@ -70,6 +70,7 @@ export enum EServeEvent {
   ActivityReportFailed = 'serve.activity-report-failed',
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
   RenameForwardFailed = 'serve.rename-forward-failed',
+  BootPhase = 'serve.boot-phase',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

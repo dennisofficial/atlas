@@ -247,8 +247,7 @@ export async function composeHarness<
     model,
     notice,
   })
-  if (args.stores !== undefined) await args.stores.bind({ container })
-
+  await Promise.all([args.stores?.bind({ container }), mcp.connected])
   const plugins = await loadSessionPlugins({
     container,
     cwd: anchor,

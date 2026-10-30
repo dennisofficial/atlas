@@ -13,11 +13,19 @@ export enum EBootStepState {
   Error = 'error',
 }
 
+export interface SandboxBootChild {
+  id: string
+  label: string
+  state: EBootStepState
+  detail?: string
+}
+
 export interface SandboxBootStep {
   id: string
   label: string
   state: EBootStepState
   detail?: string
+  children?: SandboxBootChild[]
 }
 
 export interface SandboxBootProps {
@@ -71,7 +79,7 @@ export function sandboxBootSummary({
   return elapsedMs === undefined ? progress : `${progress} · ${formatElapsed(elapsedMs)}`
 }
 
-function BootStepLine({ step }: { step: SandboxBootStep }) {
+function BootLine({ step }: { step: SandboxBootChild }) {
   const status = STEP_STATUS[step.state]
   const failed = step.state === EBootStepState.Error
   return (
@@ -87,6 +95,20 @@ function BootStepLine({ step }: { step: SandboxBootStep }) {
       }
       status={traceStatusOf(status)}
     />
+  )
+}
+
+function BootStepLine({ step }: { step: SandboxBootStep }) {
+  if (step.children === undefined || step.children.length === 0) return <BootLine step={step} />
+  return (
+    <div className="flex flex-col gap-1">
+      <BootLine step={step} />
+      <div data-slot="sandbox-boot-children" className="flex flex-col gap-1 pl-6">
+        {step.children.map((child) => (
+          <BootLine key={child.id} step={child} />
+        ))}
+      </div>
+    </div>
   )
 }
 

@@ -282,7 +282,7 @@ describe('startServe', () => {
       baseBranch: 'test',
       additionalRepos: [{ repo: 'octocat/Spoon-Knife', branch: 'test-branch' }],
     })
-    expect(requested[0]).toEqual({
+    expect(requested.find((one) => one.url.includes('projectWorkspace.get'))).toEqual({
       url: `${CONTROL_PLANE}/v1/trpc/projectWorkspace.get?input=${encodeURIComponent(JSON.stringify({ projectId: 'proj-boot' }))}`,
       authorization: `Bearer ${TOKEN}`,
     })

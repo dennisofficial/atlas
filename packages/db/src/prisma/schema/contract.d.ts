@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e07ae9a598861423b56f58f537da83035af72b4444e26e28b3f1a1617fd53574'>;
+  StorageHashBase<'1f29b6b2d37c5afc2213f8109458d7518b4f21d3304c9b367f1526917851a586'>;
 export type ExecutionHash =
   ExecutionHashBase<'2ab833cac7ff7ec81f28e078c305fa2d528bd999a302d6a4bca8a421241647c0'>;
 export type ProfileHash =
@@ -636,6 +636,8 @@ export namespace Models {
     gap: FieldOutputTypes['public']['SandboxBootStep']['gap'];
     id: FieldOutputTypes['public']['SandboxBootStep']['id'];
     outcome: FieldOutputTypes['public']['SandboxBootStep']['outcome'];
+    repos: FieldOutputTypes['public']['SandboxBootStep']['repos'];
+    seq: FieldOutputTypes['public']['SandboxBootStep']['seq'];
     sessionId: FieldOutputTypes['public']['SandboxBootStep']['sessionId'];
     state: FieldOutputTypes['public']['SandboxBootStep']['state'];
     step: FieldOutputTypes['public']['SandboxBootStep']['step'];
@@ -3529,6 +3531,22 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly repos: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly seq: {
+                  readonly dataType: 'pg/int8';
+                  readonly codecId: 'pg/int8@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                  readonly many: false;
+                };
                 readonly sessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3552,8 +3570,8 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
-                  readonly name: 'SandboxBootStep_sessionId_at_idx';
-                  readonly columns: readonly ['sessionId', 'at'];
+                  readonly name: 'SandboxBootStep_sessionId_seq_idx';
+                  readonly columns: readonly ['sessionId', 'seq'];
                   readonly unique: false;
                 },
               ];
@@ -6881,6 +6899,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly repos: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly seq: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int8@1' };
+              };
               readonly sessionId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -6917,6 +6943,8 @@ type ContractBase = Omit<
                 readonly gap: { readonly column: 'gap' };
                 readonly id: { readonly column: 'id' };
                 readonly outcome: { readonly column: 'outcome' };
+                readonly repos: { readonly column: 'repos' };
+                readonly seq: { readonly column: 'seq' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly state: { readonly column: 'state' };
                 readonly step: { readonly column: 'step' };

@@ -152,7 +152,7 @@ describe('serve boot hydration and resume', () => {
     expect(agent.map((step) => step.state)).toEqual([EBootStepState.Running, EBootStepState.Error])
   })
 
-  it('never reads events and rejects when the Agent Running post is refused', async () => {
+  it('never imports events and rejects when the Agent Running post is refused', async () => {
     const run = await boot({
       env: { [API_PROVISIONED_ENV]: '1' },
       eventsReply: () => trpcOk([userSaid(1, 'first message')]),
@@ -166,7 +166,7 @@ describe('serve boot hydration and resume', () => {
 
     await expect(run.start()).rejects.toThrow('500')
 
-    expect(run.eventReads).toEqual([])
+    expect(await run.store.log.read({ threadId })).toEqual([])
     expect(run.composed()).toBe(0)
   })
 

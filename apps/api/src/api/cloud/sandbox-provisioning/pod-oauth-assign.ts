@@ -16,11 +16,12 @@ export async function assignCreatorConnections(args: {
   })
     .select('id')
     .all()
-  for (const connection of connections) {
-    await args.writer.orm.public.OauthConnectionSandbox.upsert({
-      create: { connectionId: connection.id, sandboxId: args.sandboxId },
-      update: {},
-      conflictOn: { connectionId: connection.id, sandboxId: args.sandboxId },
-    })
-  }
+  if (connections.length === 0) return
+  await args.writer.orm.public.OauthConnectionSandbox.createAll(
+    connections.map((connection) => ({
+      connectionId: connection.id,
+      sandboxId: args.sandboxId,
+    })),
+    { onConflict: 'skip' },
+  )
 }

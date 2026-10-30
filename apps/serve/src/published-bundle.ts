@@ -122,44 +122,66 @@ const writeBundle = async (args: {
   }
 }
 
-export const applyPublishedBundle = async (args: {
-  atlasHome: string
-  projectDirectory: string
+type FetchedBundle = { current: PublishedBundleCurrent; bytes: Buffer } | undefined
+
+type BundleRemote = {
   controlPlaneUrl: string
   token: string
   clientVersion: string
   fetchFn: typeof fetch
-  log: ServeLog
-  files?: WorkspaceFiles | undefined
   sleep?: Sleep | undefined
-}): Promise<void> => {
+}
+
+export type PrefetchedBundle = Promise<FetchedBundle>
+
+const fetchBundle = async (args: BundleRemote): Promise<FetchedBundle> => {
+  const deadline = Date.now() + BOOT_BUDGET_MS
+  const body = await fetchCurrentBody({
+    controlPlaneUrl: args.controlPlaneUrl,
+    token: args.token,
+    clientVersion: args.clientVersion,
+    fetchFn: args.fetchFn,
+    sleep: args.sleep ?? defaultSleep,
+    deadline,
+  })
+  if (body === undefined) return undefined
+  const parsed = publishedBundleCurrentSchema.safeParse(body)
+  if (!parsed.success) throw new Error('the published bundle answer was malformed')
+  const bytes = await downloadBundle({ current: parsed.data, fetchFn: args.fetchFn, deadline })
+  return { current: parsed.data, bytes }
+}
+
+export const startBundleFetch = (args: BundleRemote): PrefetchedBundle => {
+  const started = fetchBundle(args)
+  started.catch(() => undefined)
+  return started
+}
+
+export const applyPublishedBundle = async (
+  args: BundleRemote & {
+    atlasHome: string
+    projectDirectory: string
+    log: ServeLog
+    files?: WorkspaceFiles | undefined
+    prefetched?: PrefetchedBundle | undefined
+  },
+): Promise<void> => {
   const startedAt = Date.now()
-  const deadline = startedAt + BOOT_BUDGET_MS
   try {
-    const body = await fetchCurrentBody({
-      controlPlaneUrl: args.controlPlaneUrl,
-      token: args.token,
-      clientVersion: args.clientVersion,
-      fetchFn: args.fetchFn,
-      sleep: args.sleep ?? defaultSleep,
-      deadline,
-    })
-    if (body === undefined) {
+    const fetched = await (args.prefetched ?? fetchBundle(args))
+    if (fetched === undefined) {
       args.log({ event: EServeEvent.BundleAbsent })
       return
     }
-    const parsed = publishedBundleCurrentSchema.safeParse(body)
-    if (!parsed.success) throw new Error('the published bundle answer was malformed')
-    const bytes = await downloadBundle({ current: parsed.data, fetchFn: args.fetchFn, deadline })
     const written = await writeBundle({
-      bytes,
+      bytes: fetched.bytes,
       atlasHome: args.atlasHome,
       projectDirectory: args.projectDirectory,
       files: args.files ?? nodeWorkspaceFiles,
     })
     args.log({
       event: EServeEvent.BundleReady,
-      version: parsed.data.version,
+      version: fetched.current.version,
       written,
       ms: Date.now() - startedAt,
     })

@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { CHANNEL_PROTOCOL_VERSION } from '../channel-wire.js'
 import {
@@ -73,5 +76,68 @@ describe('the serve install script architecture', () => {
   it('resolves the arm64 asset from the latest release when no version is pinned', () => {
     const script = serveInstallScript({ version: undefined, arch: EServeArch.Arm64 })
     expect(script).toContain('/releases/latest/download/atlas-serve-linux-arm64"')
+  })
+
+  it('downloads the binary and checksum concurrently with retry flags on both', () => {
+    const script = serveInstallScript({ version: '1.92.2' })
+    const flags = '--retry 3 --retry-connrefused --retry-delay 1 --connect-timeout 10'
+    expect(script.split(flags)).toHaveLength(3)
+    expect(script).toContain('-o "$_tmp/atlas-serve" & _bin=$!')
+    expect(script).toContain('wait $_bin ||')
+    expect(script).toContain('wait $_sum ||')
+  })
+})
+
+describe('the serve install script download phase', () => {
+  const roots: string[] = []
+  afterEach(async () => {
+    await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  })
+
+  const runDownloadPhase = async () => {
+    const script = serveInstallScript({ version: '1.92.2' })
+    const phase = script.slice(0, script.indexOf(' && _expected='))
+    const root = await mkdtemp(join(tmpdir(), 'atlas-install-fake-'))
+    roots.push(root)
+    const pidFile = join(root, 'sum.pid')
+    const curl = join(root, 'curl')
+    await writeFile(
+      curl,
+      [
+        '#!/bin/sh',
+        'eval "last=\\${$#}"',
+        `case "$last" in *.sha256) echo $$ > "${pidFile}"; exec sleep 30;; *) sleep 0.3; exit 22;; esac`,
+        '',
+      ].join('\n'),
+    )
+    await chmod(curl, 0o755)
+    const child = Bun.spawn(['sh', '-c', phase], {
+      env: { ...process.env, PATH: `${root}:${process.env.PATH}` },
+      stdout: 'ignore',
+      stderr: 'pipe',
+    })
+    const exitCode = await child.exited
+    return { exitCode, stderr: await new Response(child.stderr).text(), pidFile }
+  }
+
+  it('reports the curl failure, not a checksum mismatch, when the binary download fails', async () => {
+    const { exitCode, stderr } = await runDownloadPhase()
+    expect(exitCode).not.toBe(0)
+    expect(stderr).toContain('download failed')
+    expect(stderr).not.toContain('mismatch')
+  })
+
+  it('stops the checksum download when the binary download fails', async () => {
+    const { pidFile } = await runDownloadPhase()
+    const pid = Number((await readFile(pidFile, 'utf8')).trim())
+    const isAlive = (): boolean => {
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    }
+    expect(isAlive()).toBe(false)
   })
 })

@@ -18,6 +18,16 @@ export function sandboxBootPropsOf(view: BootView) {
       label: step.label,
       state: UI_STATE[step.state],
       ...(step.detail === undefined ? {} : { detail: step.detail }),
+      ...(step.children === undefined
+        ? {}
+        : {
+            children: step.children.map((child) => ({
+              id: child.id,
+              label: child.label,
+              state: UI_STATE[child.state],
+              ...(child.detail === undefined ? {} : { detail: child.detail }),
+            })),
+          }),
     })),
     ...(view.elapsedMs === undefined ? {} : { elapsedMs: view.elapsedMs }),
     ...(view.error === undefined ? {} : { error: view.error }),

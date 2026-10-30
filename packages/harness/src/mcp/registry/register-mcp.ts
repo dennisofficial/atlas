@@ -29,6 +29,8 @@ export const mcpSourcesFor = (args: { cwd: string }): readonly McpSource[] => [
 export type RegisteredMcp = {
   store: HandleStore
   rejections: readonly McpRejection[]
+  /** Settles once every server has finished connecting or failing; never rejects. */
+  connected: Promise<void>
   /** Drives an interactive sign-in for a server that answered 401; absent when there is no secrets store. */
   signIn:
     | ((args: { serverUrl: string; wwwAuthenticate?: string }) => Promise<McpAuthResult>)
@@ -58,7 +60,7 @@ export async function registerMcp(args: {
     specs: resolved.specs,
     ...(flow === undefined ? {} : { authFlow: flow }),
   })
-  await store.connectAll()
+  const connected = store.connectAll()
 
   args.container.register(portToken(DynamicToolSource), { useValue: store })
   args.container.register(portToken(BeforeTurnHook), {
@@ -71,5 +73,5 @@ export async function registerMcp(args: {
       ? undefined
       : (signInArgs: { serverUrl: string; wwwAuthenticate?: string }) => flow.signIn(signInArgs)
 
-  return { store, rejections: resolved.rejections, signIn }
+  return { store, rejections: resolved.rejections, signIn, connected }
 }

@@ -108,4 +108,30 @@ describe('SandboxBoot', () => {
     expect(render(failed)).not.toContain('Retry')
     expect(render({ onRetry: () => {} })).not.toContain('Retry')
   })
+
+  it('nests child rows under their step with the error detail', () => {
+    const withChildren: SandboxBootStep[] = [
+      {
+        id: 'clone',
+        label: 'Clone repository',
+        state: Running,
+        children: [
+          { id: 'acme/web-child', label: 'web-child', state: Done },
+          {
+            id: 'acme/docs-child',
+            label: 'docs-child',
+            state: Error,
+            detail: 'Repository not found',
+          },
+        ],
+      },
+    ]
+    const html = render({ steps: withChildren })
+
+    expect(html).toContain('data-slot="sandbox-boot-children"')
+    expect(html).toContain('web-child')
+    expect(html).toContain('docs-child')
+    expect(html).toContain('Repository not found')
+    expect(render({ steps: steps([Done]) })).not.toContain('sandbox-boot-children')
+  })
 })

@@ -15,8 +15,6 @@ import {
   ATLAS_VAULT_NAME,
   ATLAS_SECRETS_NAME,
   cipherSecretBox,
-  CloudError,
-  cloudCall,
   decodeSettingValue,
   fileVaultBackend,
   SANDBOX_SERVE_TOKEN_PREFIX,
@@ -25,8 +23,8 @@ import {
   type VaultFile,
 } from '@dltech/atlas-harness'
 
-import { createApiClient, httpStatusOf } from './api-client'
-import { exportEnvSecrets, mergeCloudMcpServers, type CloudConfig } from './cloud-config'
+import { fetchCloudState, type CloudStateFetched } from './cloud-state-fetch'
+import { exportEnvSecrets, mergeCloudMcpServers } from './cloud-config'
 import {
   mountProjectFiles,
   EFileMountState,
@@ -37,15 +35,7 @@ import {
 import { writeAtomically } from './owner-only-file'
 import { EServeEvent, type ServeLog } from './serve-log'
 
-const UNAUTHORIZED = 401
-const RETRY_DELAY_MS = 2_000
-const DEFAULT_RETRY_BUDGET_MS = 60_000
-const REQUEST_TIMEOUT_MS = 10_000
-const MAX_ATTEMPTS = 30
 const CLIENT_HELD_SECRET_PREFIXES = [`${SANDBOX_SERVE_TOKEN_PREFIX}:`, 'mcp-oauth:'] as const
-
-const defaultSleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms))
 
 const isProviderKnown = (provider: string): provider is EAuthProvider =>
   Object.values<string>(EAuthProvider).includes(provider)
@@ -141,81 +131,10 @@ export const applyCloudState = async (args: {
   onConfigWritten?: (() => void) | undefined
   fileMountRoots?: FileMountRoots | undefined
   mountGit?: FileMountGit | undefined
+  prefetched?: Promise<CloudStateFetched> | undefined
 }): Promise<FileMountReport | null> => {
-  const sleep = args.sleep ?? defaultSleep
-  const retryBudgetMs = args.retryBudgetMs ?? DEFAULT_RETRY_BUDGET_MS
-  const now = args.now ?? Date.now
-  const maxAttempts = args.maxAttempts ?? MAX_ATTEMPTS
-  const url = args.controlPlaneUrl.replace(/\/+$/, '')
-
-  const deadline = now() + retryBudgetMs
-
-  const remainingMs = (): number => {
-    const left = deadline - now()
-    if (left <= 0) throw new Error(`Atlas Cloud state did not arrive within ${retryBudgetMs} ms`)
-    return left
-  }
-
-  const isRegistering = (error: unknown): boolean =>
-    (error instanceof CloudError && error.status === UNAUTHORIZED) ||
-    httpStatusOf(error) === UNAUTHORIZED
-
-  const patiently = async <T>(attempt: () => Promise<T>): Promise<T> => {
-    for (let attempts = 1; ; attempts += 1) {
-      try {
-        return await attempt()
-      } catch (error) {
-        if (!isRegistering(error) || attempts >= maxAttempts || remainingMs() <= RETRY_DELAY_MS) {
-          throw error
-        }
-        await sleep(RETRY_DELAY_MS)
-      }
-    }
-  }
-
-  const api = createApiClient({
-    controlPlaneUrl: url,
-    token: args.token,
-    clientVersion: args.clientVersion,
-    fetchFn: args.fetchFn,
-  })
-
-  const attemptSignal = () => AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs()))
-
-  const leasePatiently = () =>
-    patiently(() => api.accountLease.get.query(undefined, { signal: attemptSignal() }))
-
-  const legacyConfig = async (): Promise<CloudConfig> => {
-    const [settings, secrets] = await Promise.all([
-      patiently(() => api.settings.list.query(undefined, { signal: attemptSignal() })),
-      patiently(() => api.secrets.list.query(undefined, { signal: attemptSignal() })),
-    ])
-    return {
-      settings: settings.settings,
-      secrets: secrets.secrets,
-      mcpServers: [],
-      fileMounts: [],
-    }
-  }
-
-  const scopedConfig = async (): Promise<CloudConfig> => {
-    const input = args.projectId ? { projectId: args.projectId } : undefined
-    const resolved = await patiently(() =>
-      cloudCall(api.sandboxConfig.get.query(input, { signal: attemptSignal() }), {
-        allowMissing: true,
-      }),
-    )
-    if (resolved === undefined) return legacyConfig()
-    return {
-      settings: Object.entries(resolved.settings).map(([key, value]) => ({ key, value })),
-      secrets: resolved.secrets,
-      mcpServers: resolved.mcpServers,
-      fileMounts: resolved.fileMounts,
-    }
-  }
-
   try {
-    const [lease, config] = await Promise.all([leasePatiently(), scopedConfig()])
+    const { lease, config } = await (args.prefetched ?? fetchCloudState(args))
     const leaseFingerprint = JSON.stringify(lease)
     const configFingerprint = JSON.stringify(config)
     const leaseChanged = args.seen?.lease !== leaseFingerprint
