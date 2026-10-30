@@ -6,6 +6,8 @@ export enum EMenuAction {
   ToggleDevTools = 'toggle-devtools',
 }
 
+// Electrobun assigns default key equivalents only to edit roles, so every other role needs an
+// explicit accelerator: https://github.com/blackboardsh/electrobun/blob/main/package/src/native/macos/nativeWrapper.mm
 export function installApplicationMenu(): void {
   ApplicationMenu.setApplicationMenu([
     {
@@ -15,11 +17,11 @@ export function installApplicationMenu(): void {
         { type: 'separator' },
         { label: 'Settings…', action: EMenuAction.Settings, accelerator: ',' },
         { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
+        { role: 'hide', accelerator: 'Command+H' },
+        { role: 'hideOthers', accelerator: 'Command+Option+H' },
         { role: 'showAll' },
         { type: 'separator' },
-        { role: 'quit' },
+        { role: 'quit', accelerator: 'Command+Q' },
       ],
     },
     {
@@ -40,12 +42,16 @@ export function installApplicationMenu(): void {
         { label: 'Reload', action: EMenuAction.Reload, accelerator: 'r' },
         { label: 'Toggle Developer Tools', action: EMenuAction.ToggleDevTools },
         { type: 'separator' },
-        { role: 'toggleFullScreen' },
+        { role: 'toggleFullScreen', accelerator: 'Control+Command+F' },
       ],
     },
     {
       label: 'Window',
-      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+      submenu: [
+        { role: 'minimize', accelerator: 'Command+M' },
+        { role: 'zoom' },
+        { role: 'close', accelerator: 'Command+W' },
+      ],
     },
   ])
 }
