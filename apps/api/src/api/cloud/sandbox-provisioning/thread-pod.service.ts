@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   ESandboxProvisionState,
   EPodResizeApplies,
@@ -11,6 +11,7 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import {
   SandboxMissingError,
@@ -37,16 +38,19 @@ export const RESIZE_UNMANAGED_MESSAGE =
 @Injectable()
 export class ThreadPodService {
   private readonly logger = new Logger(ThreadPodService.name)
-  private readonly liveResources = new PodResourcesCache(({ key, failure }) =>
-    this.logger.warn(`reading resources of ${key} failed: ${String(failure)}`),
-  )
+  private readonly liveResources: PodResourcesCache
 
   constructor(
     private readonly endpoints: SandboxEndpointService,
     private readonly vercel: VercelSandboxClient,
     private readonly pod: PodLaunchService,
     private readonly signals: ThreadSignalsService,
-  ) {}
+    @Inject(BackgroundWork) background: BackgroundWork,
+  ) {
+    this.liveResources = new PodResourcesCache(background, ({ key, failure }) =>
+      this.logger.warn(`reading resources of ${key} failed: ${String(failure)}`),
+    )
+  }
 
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
     const { userId, threadId } = args

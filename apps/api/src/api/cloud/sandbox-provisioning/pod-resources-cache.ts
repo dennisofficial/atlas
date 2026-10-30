@@ -1,3 +1,4 @@
+import type { BackgroundWork } from '../../../_core/ports/background-work'
 import type { SandboxResourcesObservation } from '../../platform/sandboxes/vercel-sandbox.client'
 
 const FRESH_MS = 60_000
@@ -15,14 +16,19 @@ export class PodResourcesCache {
   private readonly entries = new Map<string, Entry>()
   private readonly inflight = new Map<string, Promise<SandboxResourcesObservation | null>>()
 
-  constructor(private readonly onFailure: (args: { key: string; failure: unknown }) => void) {}
+  constructor(
+    private readonly background: BackgroundWork,
+    private readonly onFailure: (args: { key: string; failure: unknown }) => void,
+  ) {}
 
   async resolve(args: { key: string; read: Read }): Promise<SandboxResourcesObservation | null> {
     const { key, read } = args
     const entry = this.entries.get(key)
     if (entry === undefined) return this.refresh({ key, read })
     const ttl = entry.live === null ? FAILED_MS : FRESH_MS
-    if (Date.now() - entry.readAt >= ttl) void this.refresh({ key, read })
+    if (Date.now() - entry.readAt >= ttl) {
+      this.background.keepAlive(this.refresh({ key, read }))
+    }
     return entry.live
   }
 

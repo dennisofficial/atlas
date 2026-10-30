@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, setSystemTime, spyOn, vi }
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import * as sessionOf from '../../platform/sessions/session-of-thread'
-import { podServiceOver, realEndpoints } from './thread-pod.fixture'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { podLaunchWith } from './sandbox-provisioning.fixture'
+import { podServiceOver, RecordingBackground, realEndpoints } from './thread-pod.fixture'
 
 const scope = { userId: 'usr-1', threadId: 'thr-1' }
 
@@ -45,8 +47,16 @@ describe('ThreadPodService status cost', () => {
 
   it('serves the stale size while an expired entry refreshes off the request path', async () => {
     const { readResources, vercel } = vercelCounting()
-    const service = podServiceOver(realEndpoints(), vercel)
+    const background = new RecordingBackground()
+    const service = podServiceOver(
+      realEndpoints(),
+      vercel,
+      podLaunchWith().pod,
+      inertSignals(),
+      background,
+    )
     await service.status(scope)
+    expect(background.kept).toHaveLength(0)
     let release: () => void = () => undefined
     readResources.mockImplementationOnce(
       () =>
@@ -59,9 +69,9 @@ describe('ThreadPodService status cost', () => {
     const stale = await service.status(scope)
     expect(stale.resources?.vcpus).toBe(2)
     expect(readResources).toHaveBeenCalledTimes(2)
+    expect(background.kept).toHaveLength(1)
     release()
-    await Promise.resolve()
-    await Promise.resolve()
+    await Promise.all(background.kept)
 
     expect((await service.status(scope)).resources?.vcpus).toBe(4)
     expect(readResources).toHaveBeenCalledTimes(2)
