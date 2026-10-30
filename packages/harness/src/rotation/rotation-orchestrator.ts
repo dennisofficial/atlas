@@ -1,4 +1,4 @@
-import { ECompactionAnchor, type ThreadId } from '@dltech/atlas-core'
+import { ECompactionAnchor, NOTHING_TO_ROTATE, type ThreadId } from '@dltech/atlas-core'
 
 import { compactThread } from '../store/compact'
 
@@ -12,8 +12,6 @@ import {
   type RotationSettle,
   type RotationStage,
 } from './rotation-port'
-
-const NOTHING_TO_ROTATE = 'nothing to rotate: the thread has no events yet'
 
 export class LocalRotation extends RotationPort {
   private readonly inflight = new Set<string>()

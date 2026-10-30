@@ -5,6 +5,8 @@ import {
   EContainerAsk,
   ECompactScope,
   EMcpAsk,
+  NOT_IN_THE_CLOUD,
+  NOTHING_TO_ROTATE,
   containerAskOfArgument,
   instructionsOfArgument,
   mcpAskOfArgument,
@@ -117,5 +119,12 @@ describe('argument parsers', () => {
     expect(mcpAskOfArgument('SIGNIN github')).toEqual({ signIn: 'github' })
     expect(mcpAskOfArgument('signin')).toBeNull()
     expect(mcpAskOfArgument('list')).toBeNull()
+  })
+})
+
+describe('fresh-thread refusal copy', () => {
+  it('keeps the strings web and the TUI share', () => {
+    expect(NOTHING_TO_ROTATE).toBe('nothing to rotate: the thread has no events yet')
+    expect(NOT_IN_THE_CLOUD).toBe('this conversation is not parked in the cloud')
   })
 })

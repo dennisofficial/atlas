@@ -213,7 +213,12 @@ export class LoopTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
-    await appendResumeDrafts({ log: this.log, ids: this.ids, threadId })
+    await appendResumeDrafts({
+      log: this.log,
+      ids: this.ids,
+      threadId,
+      expandContext: this.expandContext,
+    })
     return this.runTurn({
       threadId,
       ...(signal === undefined ? {} : { signal }),
