@@ -1,4 +1,4 @@
-import type { CallId, RunId } from '@dltech/atlas-core'
+import type { CallId, RunFailure, RunId } from '@dltech/atlas-core'
 
 export { ETurnStatus } from '@dltech/atlas-wire/web'
 
@@ -10,4 +10,10 @@ export type TurnOutcome =
   | { status: ETurnStatus.Idle; runId: RunId }
   | { status: ETurnStatus.Interrupted; runId: RunId; committed: boolean }
   | { status: ETurnStatus.RelocationPaused; runId: RunId }
-  | { status: ETurnStatus.Failed; runId: RunId; message: string; cause: unknown }
+  | {
+      status: ETurnStatus.Failed
+      runId: RunId
+      message: string
+      cause: unknown
+      failure?: RunFailure | undefined
+    }

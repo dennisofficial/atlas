@@ -4,6 +4,7 @@ import { capabilitiesSchema } from './capabilities'
 import { prStatesWireSchema } from './pr-state-wire'
 import { rosterWireSchema } from './roster-wire'
 import { seqSchema, threadIdWireSchema, threadModelWireSchema } from './request-wire'
+import { runFailureWireSchema } from './run-failure-wire'
 import { runtimeCheckpointSchema } from './runtime-checkpoint'
 import { channelSignalSchema } from './signal-wire'
 import { subscriptionsWireSchema } from './subscription-wire'
@@ -184,6 +185,7 @@ export const turnOutcomeWireSchema = z.discriminatedUnion('status', [
     status: z.literal(ETurnStatus.Failed),
     runId: runIdWireSchema,
     message: z.string(),
+    failure: runFailureWireSchema.optional(),
   }),
 ])
 
