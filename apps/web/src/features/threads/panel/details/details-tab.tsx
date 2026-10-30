@@ -4,9 +4,9 @@ import type { AgentsData } from '../../data/use-agents'
 import { useContextFiles } from '../../data/use-context-files'
 import { useDeclaredServices } from '../../data/use-declared-services'
 import { declaredNamesOf } from '../../data/services-model'
+import { EProcessKind } from '../../data/processes-model'
 import { useProcesses } from '../../data/use-processes'
 import type { SubscriptionsData } from '../../data/use-subscriptions'
-import type { ERightTab } from '../right-tab'
 import { useThreadPanel } from '../thread-panel-context'
 import { AgentDrill } from './agent-drill'
 import { ContextSection } from './context-section'
@@ -15,21 +15,23 @@ import { DetailsFooter } from './footer'
 import { GithubSection } from './github-section'
 import { HeadSection } from './head-section'
 import { PodSection } from './pod-section'
-import { ProcessesSection } from './processes-section'
+import { ProcessLogSheet } from './process-log-sheet'
+import { adhocFoldOf, BackgroundSection } from './processes-sections'
 import { ServicesSection } from './services-section'
 import { SubscriptionsSection } from './subscriptions-section'
 import { TodoSection } from './todo-section'
 
-export function DetailsTab(props: {
-  agents: AgentsData
-  subscriptions: SubscriptionsData
-  onOpenTab: (tab: ERightTab) => void
-  onOpenServiceLog: (serviceId: string) => void
-}) {
+export function DetailsTab(props: { agents: AgentsData; subscriptions: SubscriptionsData }) {
   const { threadId, channel, agentId } = useThreadPanel()
   const processes = useProcesses({ threadId, channel })
   const declared = useDeclaredServices(channel)
   const context = useContextFiles(channel)
+  const adhoc = adhocFoldOf({
+    data: processes,
+    declared: declaredNamesOf(declared.view),
+  })
+  const handleOpenServiceLog = (serviceId: string) =>
+    processes.handleSelect({ kind: EProcessKind.Service, id: serviceId })
   const drilled = agentId !== undefined
 
   return (
@@ -43,18 +45,19 @@ export function DetailsTab(props: {
             <PodSection />
             <GithubSection />
             <ContextSection files={context} />
-            <ServicesSection data={declared} onOpenLog={props.onOpenServiceLog} />
-            <ProcessesSection
-              data={processes}
-              declared={declaredNamesOf(declared.view)}
-              onOpen={props.onOpenTab}
+            <ServicesSection
+              data={declared}
+              onOpenLog={handleOpenServiceLog}
+              adhoc={{ data: processes, fold: adhoc }}
             />
+            <BackgroundSection data={processes} />
             <TodoSection />
             <CrewSection data={props.agents} />
             <SubscriptionsSection data={props.subscriptions} />
           </>
         )}
       </div>
+      <ProcessLogSheet data={processes} />
       <DetailsFooter />
     </div>
   )

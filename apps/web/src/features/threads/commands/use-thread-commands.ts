@@ -32,8 +32,8 @@ export function useThreadCommands(args: {
   const { channel, threadId, retryBoot, refresh } = args
   const { setTab, setSheetOpen } = args.rightPanel
   const openModelPicker = useCallback(() => setModelOpen(true), [])
-  const openProcesses = useCallback(() => {
-    setTab(ERightTab.Processes)
+  const openDetails = useCallback(() => {
+    setTab(ERightTab.Details)
     setSheetOpen(true)
   }, [setTab, setSheetOpen])
   const wake = useCallback(async () => {
@@ -53,12 +53,12 @@ export function useThreadCommands(args: {
         operationId: () => crypto.randomUUID(),
         openModelPicker,
         openSearch: requestOpenSearch,
-        openProcesses,
+        openDetails,
         navigate: (href) => router.push(href),
         wake,
         reloadSkills: list.reload,
       }),
-    [channel, threadId, openModelPicker, openProcesses, wake, router, list.reload],
+    [channel, threadId, openModelPicker, openDetails, wake, router, list.reload],
   )
   const commands = useMemo(() => surfaceCommands({ handlers }), [handlers])
   const specs = useMemo<readonly CommandSpec[]>(

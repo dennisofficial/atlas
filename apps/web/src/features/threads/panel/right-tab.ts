@@ -3,7 +3,6 @@ export enum ERightTab {
   Changes = 'changes',
   Files = 'files',
   Terminal = 'terminal',
-  Processes = 'processes',
   Preview = 'preview',
 }
 
@@ -14,7 +13,6 @@ export const TAB_LABEL: Record<ERightTab, string> = {
   [ERightTab.Changes]: 'Changes',
   [ERightTab.Files]: 'Files',
   [ERightTab.Terminal]: 'Terminal',
-  [ERightTab.Processes]: 'Processes',
   [ERightTab.Preview]: 'Preview',
 }
 

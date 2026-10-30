@@ -8,8 +8,8 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import type { EnsuredService } from '../../services/declared-ensure'
 import type { ServiceRegistryPort } from '../../services/service-registry-port'
+import { ensuredLine } from './ensured-lines'
 
 const inputSchema = z.strictObject({
   names: z.array(z.string().min(1)).min(1).optional(),
@@ -21,16 +21,8 @@ const description = [
   'Idempotent: a service that is already running is never started twice, so call it freely before you need a URL; one whose declaration changed since it started is restarted from the current declaration (status restarted).',
   'Each service comes back as { name, status, url?, ready, reason? }; a service that never became ready still returns its url, flagged ready:false with the reason.',
   'Declared services get PORT, ATLAS_THREAD_ID and, with a portal, PUBLIC_URL; they are restarted when they crash, with backoff, and come back after the sandbox resumes.',
-  'Stop one with service_stop({ id: "<name>" }) and restart it with service_restart({ id: "<name>" }); one-off processes without a declaration belong on service_start.',
+  'Use it for all declared services or several at once; a single declared service starts with service_start({ name }). Stop one with service_stop({ id: "<name>" }) and restart it with service_restart({ id: "<name>" }); one-off processes without a declaration belong on service_start with a command.',
 ].join(' ')
-
-function lineFor(one: EnsuredService): string {
-  const state = one.ready
-    ? 'ready'
-    : `NOT ready${one.reason === undefined ? '' : ` (${one.reason})`}`
-  const links = one.links.map((link) => `\n    ${link.title}: ${link.url}`).join('')
-  return `${one.name}  ${one.status}  ${state}${one.url === undefined ? '' : `  ${one.url}`}${links}`
-}
 
 export class ServicesEnsureTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'services_ensure'
@@ -65,7 +57,7 @@ export class ServicesEnsureTool extends SchemaTool<typeof inputSchema> {
       ok: true,
       output: { services },
       modelText: [
-        ...services.map(lineFor),
+        ...services.map(ensuredLine),
         unhealthy === 0
           ? 'Every service is ready.'
           : `${unhealthy} not ready; read its log (service_list shows the path) before handing out its url.`,

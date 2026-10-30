@@ -9,11 +9,9 @@ import {
   ScrollTextIcon,
   SquareIcon,
   TriangleAlertIcon,
-  type LucideIcon,
 } from 'lucide-react'
 
 import { DetailRow } from '@dltech/atlas-ui/ai/detail-row'
-import { Button } from '@dltech/atlas-ui/components/button'
 import type { DeclaredServiceStateWire, DeclaredServiceViewWire } from '@dltech/atlas-wire/web'
 
 import {
@@ -24,6 +22,9 @@ import {
   serviceStateLabelOf,
 } from '../../data/services-model'
 import type { DeclaredServicesData } from '../../data/use-declared-services'
+import type { ProcessesData } from '../../data/use-processes'
+import { ActionButton } from './action-button'
+import { AdhocServiceRows, type AdhocFold } from './processes-sections'
 import { DetailsSection } from './section'
 
 function StateIcon({ state }: { state: DeclaredServiceStateWire }) {
@@ -36,28 +37,6 @@ function StateIcon({ state }: { state: DeclaredServiceStateWire }) {
   if (state === 'stale') return <RefreshCwIcon aria-hidden className="size-3.5 text-warning" />
   if (state === 'stopped') return <CircleIcon aria-hidden className="size-2.5" />
   return <CircleXIcon aria-hidden className="size-3.5 text-destructive" />
-}
-
-function ActionButton(props: {
-  icon: LucideIcon
-  label: string
-  disabled: boolean
-  emphasized?: boolean
-  onAction: () => void
-}) {
-  const Icon = props.icon
-  return (
-    <Button
-      variant={props.emphasized === true ? 'secondary' : 'ghost'}
-      size="icon-xs"
-      disabled={props.disabled}
-      aria-label={props.label}
-      className={props.emphasized === true ? undefined : 'text-muted-foreground'}
-      onClick={props.onAction}
-    >
-      <Icon />
-    </Button>
-  )
 }
 
 function ServiceLinks({ service }: { service: DeclaredServiceViewWire }) {
@@ -155,22 +134,29 @@ function WarningRow({ text }: { text: string }) {
   )
 }
 
+export type AdhocServices = { data: ProcessesData; fold: AdhocFold }
+
 export function ServicesSection(props: {
   data: DeclaredServicesData
   onOpenLog: (serviceId: string) => void
+  adhoc?: AdhocServices
 }) {
   const { view, error } = props.data
-  if (view === null || !hasServicesToShow(view)) return null
+  const declaredShown = view !== null && hasServicesToShow(view)
+  const adhocShown = props.adhoc?.fold.shown.length ?? 0
+  if (!declaredShown && adhocShown === 0) return null
+  const services = view?.services ?? []
+  const rejections = view?.rejections ?? []
 
   return (
-    <DetailsSection title="Services" count={view.services.length}>
-      {view.services.map((service) => (
+    <DetailsSection title="Services" count={services.length + adhocShown}>
+      {services.map((service) => (
         <div key={service.name} className="flex flex-col">
           <ServiceRow service={service} data={props.data} onOpenLog={props.onOpenLog} />
           {error?.name === service.name ? <WarningRow text={error.reason} /> : null}
         </div>
       ))}
-      {view.rejections.map((rejection) => (
+      {rejections.map((rejection) => (
         <WarningRow
           key={`${rejection.name ?? 'file'}:${rejection.detail}`}
           text={
@@ -180,6 +166,9 @@ export function ServicesSection(props: {
           }
         />
       ))}
+      {props.adhoc === undefined ? null : (
+        <AdhocServiceRows data={props.adhoc.data} fold={props.adhoc.fold} />
+      )}
     </DetailsSection>
   )
 }

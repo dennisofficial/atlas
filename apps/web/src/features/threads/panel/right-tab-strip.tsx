@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  ActivityIcon,
-  EyeIcon,
-  FolderIcon,
-  GitCompareIcon,
-  InfoIcon,
-  TerminalIcon,
-} from 'lucide-react'
+import { EyeIcon, FolderIcon, GitCompareIcon, InfoIcon, TerminalIcon } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -20,7 +13,6 @@ const TAB_ICON: Record<ERightTab, LucideIcon> = {
   [ERightTab.Changes]: GitCompareIcon,
   [ERightTab.Files]: FolderIcon,
   [ERightTab.Terminal]: TerminalIcon,
-  [ERightTab.Processes]: ActivityIcon,
   [ERightTab.Preview]: EyeIcon,
 }
 

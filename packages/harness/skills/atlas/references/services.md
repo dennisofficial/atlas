@@ -6,8 +6,8 @@ URL exposure, and the process is neither supervised nor resumed.
 
 ## Declared services
 
-Declare them in `.atlas/services.yaml` at the workspace root, then call `services_ensure`
-(optionally `{ names: [...] }`). It starts what is missing, waits for health, and returns
+Declare them in `.atlas/services.yaml` at the workspace root, then call `service_start({ name })` for one
+service or `services_ensure` (optionally `{ names: [...] }`) for all or several. It starts what is missing, waits for health, and returns
 `{ name, status, url?, ready, reason? }` per service. It is idempotent; call it freely before you
 need a URL.
 
@@ -76,8 +76,8 @@ from the service name alone, so a restart keeps the same port and URL.
 `service_restart` of a declared service always re-reads `.atlas/services.yaml`. When the declaration
 was removed or is invalid the restart fails and the running instance stays up.
 
-`service_start` refuses a name declared in `services.yaml`; use `services_ensure` or
-`service_restart`.
+`service_start({ name })` on a declared name with no command runs its declaration (setup, dependencies,
+health, URL), like `services_ensure`; adding `command`, `workdir`, `port` or `exposePort` is refused.
 
 ### Operator controls
 
@@ -92,7 +92,7 @@ Address services by declared name: `service_stop({ id: "web" })`, `service_resta
 
 ## One-off services
 
-`service_start` runs an undeclared process (never a name declared in `services.yaml`) (a database, a scratch server) with the same env
+`service_start` with a `command` runs an undeclared process (a database, a scratch server) with the same env
 contract and a log file, but no declaration, no health wait and no resume. Pass `exposePort` for a
 public URL. Anything the repository will need again belongs in `services.yaml`.
 

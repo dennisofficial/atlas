@@ -30,7 +30,7 @@ export type CommandDeps = {
   operationId: () => string
   openModelPicker: () => void
   openSearch: () => void
-  openProcesses: () => void
+  openDetails: () => void
   navigate: (href: string) => void
   wake: () => Promise<void>
   reloadSkills: () => Promise<number>
@@ -101,7 +101,7 @@ export function webCommandHandlers(deps: CommandDeps): CommandHandlers {
       return RAN
     },
     [ECommand.Shells]: () => {
-      deps.openProcesses()
+      deps.openDetails()
       return RAN
     },
     [ECommand.Wake]: async () => {

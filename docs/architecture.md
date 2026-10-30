@@ -432,7 +432,7 @@ missing target is rejected before anything starts. Ports are the declared one or
 free-port probe remains only for in-process sessions sharing a host. A service is **stale** when its
 own parsed declaration (a per-service canonical hash, not the file text) changed since its running
 instance started. `restart` of a declared service re-reads the file, and a removed or invalid
-declaration fails the restart without stopping anything. `service_start` refuses a declared name.
+declaration fails the restart without stopping anything. `service_start` of a declared name with no command runs the declaration through the same path; a command, workdir or port on a declared name is refused.
 Public exposure is a service concern, not a bash one: URLs are `https://<port>-<rand>.byatlas.dev`
 through a Cloudflare tunnel that keeps the Host and adds `X-Forwarded-Proto`. Declared services are
 supervised — restart with 1/2/4/8/16 s backoff, crash-looping after more than 5 crashes in 120 s —
