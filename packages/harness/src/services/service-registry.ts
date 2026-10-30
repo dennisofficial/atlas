@@ -38,6 +38,7 @@ import {
 import { startedDraftOf } from './service-started-draft'
 import { runningSnapshotsFor, unknownService, within } from './service-registry-support'
 import { ServiceRestarter } from './service-restarter'
+import { rootResolverOf, type ServiceRoot } from './service-root'
 import type { Scheduler } from './service-supervisor'
 
 export * from './service-registry-port'
@@ -54,12 +55,12 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
   private started = 0
   private recordingStarts = 0
 
-  private readonly root: string
+  private readonly root: () => string | Promise<string>
   private readonly clock: ClockPort
   private readonly logsDirectory: string
   private readonly processes: ProcessPort
   constructor(args: {
-    root: string
+    root: ServiceRoot
     clock: ClockPort
     logsDirectory: string
     processes: ProcessPort
@@ -69,14 +70,14 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     declared?: DeclaredEnsureOptions | undefined
   }) {
     super({ scheduler: args.scheduler })
-    this.root = args.root
+    this.root = rootResolverOf(args.root)
     this.clock = args.clock
     this.logsDirectory = args.logsDirectory
     this.processes = args.processes
     this.declaredSupport = new DeclaredServicesSupport({
       services: this,
       processes: args.processes,
-      root: args.root,
+      root: () => this.root(),
       options: args.declared,
       onChange: () => this.feed.bump(),
     })
@@ -110,12 +111,11 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
 
   private async launch(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
     const serviceId = `svc_${(this.started += 1)}`
-
     const opened = startService({
       serviceId,
       command: args.command,
       description: args.description,
-      cwd: args.cwd ?? this.root,
+      cwd: args.cwd ?? (await this.root()),
       logPath: join(this.logsDirectory, `${serviceId}.${this.sessionToken}.log`),
       clock: this.clock,
       processes: this.processes,
