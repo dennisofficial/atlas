@@ -27,6 +27,10 @@ import type { McpRow } from '@/features/settings/data/shared/mcp-mapping'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
+import { McpOauthControl, McpSignOutItem } from '@/features/settings/parts/mcp-oauth-control'
+import { McpOauthReturn } from '@/features/settings/parts/mcp-oauth-return'
+import { useMcpOauth, type McpOauth } from '@/features/settings/data/shared/use-mcp-oauth'
+
 import { useProjectContext } from './data/project-context'
 import { useProjectMcp } from './data/use-project-mcp'
 import { AddMcpServerDialog, type McpServerDraft } from './mcp-add-dialog'
@@ -36,10 +40,12 @@ function ServerRow({
   server,
   onToggle,
   onRemove,
+  auth,
 }: {
   server: McpRow
   onToggle: (enabled: boolean) => void
   onRemove: () => void
+  auth: McpOauth
 }) {
   const TransportIcon = server.kind === EMcpTransportKind.Stdio ? TerminalIcon : GlobeIcon
   return (
@@ -57,6 +63,11 @@ function ServerRow({
         </span>
         <span className="truncate font-mono text-xs text-muted-foreground">{server.target}</span>
       </div>
+      <McpOauthControl
+        serverId={server.id}
+        signInUrl={server.enabled ? server.signInUrl : undefined}
+        auth={auth}
+      />
       <Switch
         aria-label={`Enable ${server.id}`}
         checked={server.enabled}
@@ -69,6 +80,7 @@ function ServerRow({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
+          <McpSignOutItem signInUrl={server.signInUrl} auth={auth} />
           <DropdownMenuItem variant="destructive" onClick={onRemove}>
             Remove
           </DropdownMenuItem>
@@ -97,6 +109,7 @@ function ServersEmpty() {
 function McpContent({ servers }: { servers: McpRow[] }) {
   const { projectId } = useProjectContext()
   const mcp = useProjectMcp(projectId)
+  const auth = useMcpOauth(servers)
 
   const handleAdd = (draft: McpServerDraft) =>
     void runAction({
@@ -128,6 +141,7 @@ function McpContent({ servers }: { servers: McpRow[] }) {
         </>
       }
     >
+      <McpOauthReturn reload={auth.reload} />
       <SettingsCard>
         {servers.length === 0 ? (
           <ServersEmpty />
@@ -136,6 +150,7 @@ function McpContent({ servers }: { servers: McpRow[] }) {
             <ServerRow
               key={server.id}
               server={server}
+              auth={auth}
               onToggle={(enabled) => handleToggle({ id: server.id, enabled })}
               onRemove={() => handleRemove(server.id)}
             />

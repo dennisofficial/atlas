@@ -1,6 +1,12 @@
 import type { Event, NoticePort, ThreadId, WorkspaceIdentity } from '@dltech/atlas-core'
 
-import type { CloudAttachment, CloudBridge, CloudChannel, CloudReload } from '../cloud/cloud-bridge'
+import type {
+  CloudAttachment,
+  CloudBridge,
+  CloudChannel,
+  CloudReload,
+  CloudStores,
+} from '../cloud/cloud-bridge'
 import type { RemoteTurnRunner } from '../cloud/remote-turn-runner'
 import type { ContextReader } from '../files/session-context'
 import type { ThreadStorePort } from '../store/thread-store'
@@ -14,6 +20,7 @@ import {
 } from './pod-runtime'
 import { podFailureReasonOf } from './pod-failure'
 import { createPodRunner, createPodWake, wakePod, type PodWakeNarration } from './pod-wake'
+import { startPodLocalCopy, type LocalCopyHome } from './local-copy'
 import { mirrorPodRenames } from './rename-mirror'
 
 /** One thread whose loop runs in a pod, attached and ready to bind. Independent of every other. */
@@ -47,6 +54,8 @@ export type PodThreadPorts<Opened extends Transcript> = {
   readinessOf?: ((channel: CloudChannel) => PodReadiness) | undefined
   onSurfaceReaders?: ((readers: PodSurfaceReaders) => void) | undefined
   wakeNarration?: PodWakeNarration | undefined
+  /** Keeps the pod's events, title and model in the home session files while attached. */
+  localCopy?: { home: string; threads: LocalCopyHome } | undefined
 }
 
 const ALREADY_SETTLED = (): void => undefined
@@ -56,6 +65,7 @@ export async function assemblePodThread<Opened extends Transcript>(
     attachment: CloudAttachment
     projectId: string | null
     assertStillWanted?: (() => void) | undefined
+    transcript?: CloudStores | undefined
   },
 ): Promise<PodThread<Opened>> {
   const { attachment, threadId } = args
@@ -81,8 +91,9 @@ export async function assemblePodThread<Opened extends Transcript>(
     notice: args.notice,
     onSurfaceReaders: args.onSurfaceReaders,
   })
-  const opened = await args.open(runtime)
-  const anchor = await podAnchorOf({ stores, threadId, events: opened.events })
+  const transcript = args.transcript ?? stores
+  const opened = await args.open({ ...runtime, ...transcript })
+  const anchor = await podAnchorOf({ stores: transcript, threadId, events: opened.events })
   args.assertStillWanted?.()
   const stopMirroring = mirrorPodRenames({ home: args.home, remote: stores.threads })
   const session = createPodSession({
@@ -92,8 +103,21 @@ export async function assemblePodThread<Opened extends Transcript>(
     onReload: args.onReload,
     notice: args.notice,
     readiness: args.readinessOf?.(channel),
-    onClose: stopMirroring,
+    onClose: () => {
+      stopMirroring()
+      copy?.stop()
+    },
   })
+  const copy =
+    args.localCopy === undefined
+      ? undefined
+      : startPodLocalCopy({
+          home: args.localCopy.home,
+          threadId,
+          channel,
+          remote: stores,
+          homeThreads: args.localCopy.threads,
+        })
   return {
     threadId,
     attachment,

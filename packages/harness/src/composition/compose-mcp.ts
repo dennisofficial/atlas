@@ -2,7 +2,7 @@ import { ENoticeTone, NOTICE_WARN_MS, type NoticePort } from '@dltech/atlas-core
 
 import type { DependencyContainer } from '../container/injection'
 import { EMcpAuthOutcome } from '../mcp/oauth/flow'
-import type { McpServerStatus } from '../mcp/registry/handle-status'
+import { EMcpServerStatus, type McpServerStatus } from '../mcp/registry/handle-status'
 import { registerMcp, type RegisteredMcp } from '../mcp/registry/register-mcp'
 
 import { mcpBootNotice, mcpRejectionNotice } from './mcp-report'
@@ -15,6 +15,7 @@ export type McpBinding = {
   servers: () => readonly McpServerStatus[]
   signIn: McpSignIn | undefined
   connected: Promise<void>
+  refresh: () => Promise<void>
 }
 
 const announce = (args: { mcp: RegisteredMcp; notice: NoticePort }): void => {
@@ -39,7 +40,7 @@ const announce = (args: { mcp: RegisteredMcp; notice: NoticePort }): void => {
   }
 }
 
-const signInFor = (mcp: RegisteredMcp): McpSignIn | undefined => {
+export const signInFor = (mcp: RegisteredMcp): McpSignIn | undefined => {
   const authenticate = mcp.signIn
   if (authenticate === undefined) return undefined
 
@@ -66,6 +67,13 @@ const signInFor = (mcp: RegisteredMcp): McpSignIn | undefined => {
       }
 
     await mcp.store.reconnect({ serverId: serverName })
+    const reconnected = mcp.store.statusOf({ serverId: serverName })
+    if (reconnected?.state.status !== EMcpServerStatus.Connected) {
+      return {
+        ok: false,
+        detail: `signed in, but '${serverName}' did not connect (${reconnected?.state.status ?? 'unknown'})`,
+      }
+    }
     const verb =
       result.outcome === EMcpAuthOutcome.Refreshed ? 'refreshed the token for' : 'signed in to'
     return { ok: true, detail: `${verb} '${serverName}'` }
@@ -80,5 +88,10 @@ export async function bindMcp(args: {
   const mcp = await registerMcp({ container: args.container, cwd: args.cwd })
   const connected = mcp.connected.then(() => announce({ mcp, notice: args.notice }))
 
-  return { servers: () => mcp.store.servers(), signIn: signInFor(mcp), connected }
+  return {
+    servers: () => mcp.store.servers(),
+    signIn: signInFor(mcp),
+    connected,
+    refresh: mcp.refresh,
+  }
 }

@@ -1,4 +1,8 @@
-import { EThreadListFrame, type ThreadListFrame } from '@dltech/atlas-wire/web'
+import {
+  EThreadListFrame,
+  type ThreadListActivity,
+  type ThreadListFrame,
+} from '@dltech/atlas-wire/web'
 import {
   reconnectDelayMs,
   timeoutSchedule,
@@ -39,11 +43,15 @@ export type ListSignalHandlers = {
   onConnectionStateChange: (state: { state: string; error: unknown }) => void
 }
 
-export type SubscribeListSignals = (handlers: ListSignalHandlers) => { unsubscribe: () => void }
+export type SubscribeListSignals = (handlers: ListSignalHandlers) => {
+  unsubscribe: () => void
+}
 
 export function createListSignals(args: {
   subscribe: SubscribeListSignals
   reload: () => void
+  onActivity: (update: { threadId: string; activity: ThreadListActivity }) => void
+  resumed: boolean
   schedule?: Schedule
 }) {
   const schedule = args.schedule ?? timeoutSchedule
@@ -65,7 +73,10 @@ export function createListSignals(args: {
       current?.unsubscribe()
       current = undefined
       failures += 1
-      cancelRetry = schedule({ delayMs: reconnectDelayMs(failures), run: open })
+      cancelRetry = schedule({
+        delayMs: reconnectDelayMs(failures),
+        run: open,
+      })
     }
     const handleDrop = () => {
       if (isCurrent()) drop()
@@ -75,10 +86,16 @@ export function createListSignals(args: {
         if (!isCurrent()) return
         failures = 0
         opened += 1
-        if (opened > 1) reloader.handleReconnect()
+        if (opened > 1 || args.resumed) reloader.handleReconnect()
       },
       onData: (frame) => {
-        if (isCurrent() && frame.type === EThreadListFrame.Changed) reloader.handleFrame()
+        if (!isCurrent() || frame.type !== EThreadListFrame.Changed) return
+        if (frame.activity === undefined) reloader.handleFrame()
+        else
+          args.onActivity({
+            threadId: frame.threadId,
+            activity: frame.activity,
+          })
       },
       onError: handleDrop,
       onComplete: handleDrop,

@@ -18,6 +18,7 @@ import type {
   ServeAgentSteer,
   ServePrStates,
   ServeCommands,
+  ServeMcp,
   ServeRoster,
   ServeRewind,
   ServeSubscriptions,
@@ -77,6 +78,7 @@ export type SessionHandlersArgs = {
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
   commands?: ServeCommands | undefined
+  mcp?: ServeMcp | undefined
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined

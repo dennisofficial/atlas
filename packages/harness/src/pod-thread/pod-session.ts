@@ -1,6 +1,11 @@
 import { ENoticeTone, NOTICE_WARN_MS, type NoticePort, type ThreadId } from '@dltech/atlas-core'
 
-import type { CloudChannel, CloudReload, CloudSandboxes } from '../cloud/cloud-bridge'
+import {
+  ECloudSandboxState,
+  type CloudChannel,
+  type CloudReload,
+  type CloudSandboxes,
+} from '../cloud/cloud-bridge'
 import { EConnectionView, sameConnectionView, type ConnectionView } from '../cloud/connection-view'
 import { ERuntimePhase } from '@dltech/atlas-wire'
 import { podFailureReasonOf } from './pod-failure'
@@ -61,6 +66,11 @@ const NOTHING_TO_WAKE: ReadonlySet<EConnectionView> = new Set([
 const DIALING: ReadonlySet<EConnectionView> = new Set([
   EConnectionView.Waking,
   EConnectionView.Updating,
+])
+
+const RESTING_SANDBOXES: ReadonlySet<ECloudSandboxState> = new Set([
+  ECloudSandboxState.Stopped,
+  ECloudSandboxState.Parked,
 ])
 
 const RESTING_PHASES: ReadonlySet<ERuntimePhase> = new Set([
@@ -179,6 +189,7 @@ export function createPodSession(args: {
         const checkpoint = status?.checkpoint ?? null
         if (checkpoint !== null) channel.observeCheckpoint(checkpoint)
         if (checkpoint !== null && RESTING_PHASES.has(checkpoint.phase)) return
+        if (status !== undefined && RESTING_SANDBOXES.has(status.state)) return
         wake()
       },
       () => wake(),

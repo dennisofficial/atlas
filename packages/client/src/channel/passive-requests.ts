@@ -1,0 +1,27 @@
+import { EClientRequest } from './channel-wire'
+
+export const PASSIVE_REQUESTS: ReadonlySet<EClientRequest> = new Set([
+  EClientRequest.CompletePaths,
+  EClientRequest.BrowseDirectory,
+  EClientRequest.ListRoster,
+  EClientRequest.ListCommands,
+  EClientRequest.ListPrStates,
+  EClientRequest.ListSubscriptions,
+  EClientRequest.ReadEvents,
+  EClientRequest.ReadThread,
+  EClientRequest.ReadThreads,
+  EClientRequest.ReadTurns,
+  EClientRequest.ReadTranscriptIdentity,
+  EClientRequest.ReadRuntimeCheckpoint,
+  EClientRequest.ListContextFiles,
+  EClientRequest.ReadContextFile,
+  EClientRequest.ListMentionFiles,
+  EClientRequest.MentionFileExists,
+  EClientRequest.ReadMentionFile,
+  EClientRequest.ReadSessionManifest,
+  EClientRequest.ReadSessionFiles,
+  EClientRequest.ReadGitChanges,
+  EClientRequest.ReadShellOutput,
+  EClientRequest.ReadServiceLog,
+  EClientRequest.ListDeclaredServices,
+])

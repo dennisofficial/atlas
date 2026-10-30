@@ -92,11 +92,9 @@ export function PullRequestRowItem(props: {
         >
           <span className="font-medium tabular-nums">{row.label}</span>{' '}
           <span className="font-mono text-xs text-muted-foreground">{row.branch}</span>
-          {row.via === undefined ? null : (
-            <span className="text-xs text-muted-foreground"> {row.via}</span>
-          )}
         </a>
       }
+      detail={row.via}
       meta={
         row.checks === undefined && !row.conflicts ? undefined : (
           <span className="flex flex-col items-end">

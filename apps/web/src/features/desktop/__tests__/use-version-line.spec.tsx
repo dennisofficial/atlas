@@ -2,7 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { useVersionLine } from '../use-version-line'
+import { useVersionLines } from '../use-version-line'
 import { resetDesktopVersion } from '../version-wire'
 
 beforeAll(() => {
@@ -37,7 +37,7 @@ afterEach(() => {
 })
 
 function Probe() {
-  return <span>{useVersionLine() ?? 'none'}</span>
+  return <span>{useVersionLines().join(' | ')}</span>
 }
 
 const mount = async () => {
@@ -50,7 +50,7 @@ const mount = async () => {
   return () => act(async () => root.unmount())
 }
 
-describe('useVersionLine', () => {
+describe('useVersionLines', () => {
   it('shows only the web commit outside the Mac app and never asks the host', async () => {
     const unmount = await mount()
     expect(document.body.textContent).toBe('web abcdef0')
@@ -62,7 +62,7 @@ describe('useVersionLine', () => {
     Reflect.set(window, 'atlasDesktop', {})
     const unmount = await mount()
     expect(calls).toEqual(['/desktop/version'])
-    expect(document.body.textContent).toBe('Atlas for Mac 1.42.0 · web abcdef0')
+    expect(document.body.textContent).toBe('Atlas for Mac 1.42.0 | web abcdef0')
     await unmount()
   })
 })

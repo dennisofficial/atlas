@@ -44,7 +44,7 @@ the package.
 1. Branch from `origin/main` as `<you>/<slug>`.
 2. Every new feature includes tests — `bun:test`, specs in a sibling `__tests__/` directory.
 3. Conventional commits: `<type>(<scope>): <description>`, imperative, lowercase. The PR title
-   is the release decision — `feat` cuts a minor, `fix` a patch — so reserve `feat` for new
+   sizes the release — `feat` cuts a minor, anything else a patch — so reserve `feat` for new
    capabilities, not tweaks. No `Co-Authored-By` or generated-with trailers.
 4. Open a PR. CI runs typecheck, the test suite, and a real binary build; all must be green.
    Keep PRs small enough to review in one sitting.

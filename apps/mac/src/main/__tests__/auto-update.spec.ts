@@ -3,6 +3,7 @@ import {
   checkAndDownload,
   checkNow,
   EManualCheckOutcome,
+  restartToLatest,
   runUpdateCycle,
   type IUpdaterPort,
 } from '../auto-update'
@@ -12,9 +13,13 @@ import { createUpdateState } from '../update-state'
 function fakeUpdater({ available, error = '' }: { available: boolean; error?: string }) {
   const calls: string[] = []
   const updater: IUpdaterPort = {
-    checkForUpdate: async () => ({ updateAvailable: available, error }),
+    checkForUpdate: async () => {
+      calls.push('check')
+      return { updateAvailable: available, error }
+    },
     downloadUpdate: async () => void calls.push('download'),
     updateInfo: () => ({ updateReady: true, version: '2.0.0' }),
+    applyUpdate: async () => void calls.push('apply'),
   }
   return { updater, calls }
 }
@@ -23,7 +28,7 @@ describe('auto-update', () => {
   test('does not download when current', async () => {
     const { updater, calls } = fakeUpdater({ available: false })
     expect(await checkAndDownload({ updater })).toBe(false)
-    expect(calls).toEqual([])
+    expect(calls).toEqual(['check'])
   })
   test('records ready with the downloaded version instead of prompting', async () => {
     const state = createUpdateState()
@@ -63,6 +68,22 @@ describe('auto-update', () => {
       version: '2.0.0',
     })
     expect(state.status()).toEqual({ state: EDesktopUpdateState.Ready, version: '2.0.0' })
+  })
+  test('restart downloads a release newer than the ready one before applying', async () => {
+    const state = createUpdateState()
+    state.markReady({ version: '1.9.0' })
+    const { updater, calls } = fakeUpdater({ available: true })
+    await restartToLatest({ updater, onReady: state.markReady })
+    expect(calls).toEqual(['check', 'download', 'apply'])
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Ready, version: '2.0.0' })
+  })
+  test('restart still applies the ready update when the recheck fails', async () => {
+    const state = createUpdateState()
+    state.markReady({ version: '1.9.0' })
+    const { updater, calls } = fakeUpdater({ available: true, error: 'offline' })
+    await restartToLatest({ updater, onReady: state.markReady })
+    expect(calls).toEqual(['check', 'apply'])
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Ready, version: '1.9.0' })
   })
   test('omits an empty version', () => {
     const state = createUpdateState()

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-import { versionLine, webBuild } from '@/lib/build-info'
+import { versionLines, webBuild } from '@/lib/build-info'
 
 import { useIsDesktop } from './use-is-desktop'
 import { desktopVersion } from './version-wire'
 
-export function useVersionLine(): string | null {
+export function useVersionLines(): string[] {
   const isDesktop = useIsDesktop()
   const [macVersion, setMacVersion] = useState<string | null>(null)
 
@@ -22,5 +22,5 @@ export function useVersionLine(): string | null {
     }
   }, [isDesktop])
 
-  return versionLine({ web: webBuild(), desktopVersion: macVersion })
+  return versionLines({ web: webBuild(), desktopVersion: macVersion })
 }

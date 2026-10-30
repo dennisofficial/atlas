@@ -9,7 +9,34 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
 import { modelFailureOf } from '../model/failure'
+
+const DEAD_CREDENTIAL_FAILURES: ReadonlySet<ECredentialFailure> = new Set([
+  ECredentialFailure.NotFound,
+  ECredentialFailure.Expired,
+  ECredentialFailure.Unreadable,
+  ECredentialFailure.Unsupported,
+])
+
+const MAX_CAUSE_DEPTH = 8
+
+function deadCredentialErrorOf(fault: unknown): CredentialError | undefined {
+  let current = fault
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH; depth += 1) {
+    if (current instanceof CredentialError) return current
+    if (!(current instanceof Error)) return undefined
+    current = current.cause
+  }
+  return undefined
+}
+
+export function isDeadCredential(fault: unknown): boolean {
+  const failure = modelFailureOf(fault)
+  if (failure !== null && isAuthFailure(failure)) return true
+  const credentialError = deadCredentialErrorOf(fault)
+  return credentialError !== undefined && DEAD_CREDENTIAL_FAILURES.has(credentialError.failure)
+}
 
 /**
  * The retry loop's handle for giving up on a child model: an explicit switch to the parent's model,
@@ -25,8 +52,9 @@ export type ChildFallbackSwitch = {
 export type ChildFallbackModel = ModelPort & ChildFallbackSwitch
 
 /**
- * A child's model, wrapped so a dead credential does not kill the child. The only fault that
- * short-circuits inside `step` is an auth one (401/402/403): retrying a bad key is pointless, so
+ * A child's model, wrapped so a dead credential does not kill the child. The only faults that
+ * short-circuit inside `step` are dead-credential ones — an auth status (401/402/403) or a credential
+ * port failure that never reached the provider: retrying a bad key is pointless, so
  * the step is handed straight to the parent's current session model. Every other fault is rethrown
  * so the retry loop above still owns backoff, and only the loop's `switch()` — fired when the
  * budget is spent — moves a retryable failure to the parent. Once switched, either way, the port
@@ -81,8 +109,7 @@ export function childFallbackModel(args: {
       try {
         return await args.primary.step(stepArgs)
       } catch (fault) {
-        const failure = modelFailureOf(fault)
-        if (failure === null || !isAuthFailure(failure)) throw fault
+        if (!isDeadCredential(fault)) throw fault
 
         const parent = fallBack(fault)
         if (parent === undefined) throw fault

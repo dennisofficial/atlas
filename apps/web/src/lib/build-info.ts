@@ -12,21 +12,21 @@ export function webBuild(): IWebBuild {
   }
 }
 
-export function versionLine({
+export function versionLines({
   web,
   desktopVersion,
 }: {
   web: IWebBuild
   desktopVersion: string | null
-}): string | null {
-  const parts: string[] = []
+}): string[] {
+  const lines: string[] = []
   if (desktopVersion !== null && desktopVersion.length > 0) {
-    parts.push(`Atlas for Mac ${desktopVersion}`)
+    lines.push(`Atlas for Mac ${desktopVersion}`)
   }
   const webParts = [
     web.version.length > 0 ? `v${web.version}` : '',
     web.commit.slice(0, SHORT_SHA_LENGTH),
   ].filter((part) => part.length > 0)
-  if (webParts.length > 0) parts.push(`web ${webParts.join(' ')}`)
-  return parts.length === 0 ? null : parts.join(' · ')
+  if (webParts.length > 0) lines.push(`web ${webParts.join(' · ')}`)
+  return lines
 }

@@ -12,6 +12,7 @@ import { SelectableModelToken } from '@dltech/atlas-harness'
 import { atlasDirectory, composeHarness, inProcessPortBindings } from '@dltech/atlas-harness'
 import { loadSettings } from '@dltech/atlas-harness'
 import { skillExpander } from '@dltech/atlas-harness'
+import { mcpStatusWireOf } from './mcp-status'
 import {
   registeredPortToken,
   GithubUiBridgePort,
@@ -231,6 +232,13 @@ export const composeServeApp: ServeCompose = async (args): Promise<ServeApp> => 
             ...(spec.argumentHint === undefined ? {} : { argumentHint: spec.argumentHint }),
             ...(spec.aliases === undefined ? {} : { aliases: [...spec.aliases] }),
           }))
+      },
+    },
+    mcp: {
+      refresh: () => app.mcpRefresh(),
+      list: async ({ refresh }) => {
+        if (refresh) await app.mcpRefresh()
+        return app.mcp().map(mcpStatusWireOf)
       },
     },
     roster: {

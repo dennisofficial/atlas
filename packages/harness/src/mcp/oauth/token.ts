@@ -153,11 +153,13 @@ export const exchangeAuthorizationCode = async (args: {
   clientId: string
   clientSecret?: string
   tokenEndpointAuthMethodsSupported?: string[]
+  resource?: string
   clock: ClockPort
   fetch: OAuthFetch
 }): Promise<OAuthTokens> => {
   const params = new URLSearchParams()
   params.set('grant_type', 'authorization_code')
+  if (args.resource !== undefined) params.set('resource', args.resource)
   params.set('code', args.code)
   params.set('redirect_uri', args.redirectUri)
   params.set('code_verifier', args.pkce.verifier)
@@ -187,11 +189,13 @@ export const refreshAuthorization = async (args: {
   clientId: string
   clientSecret?: string
   tokenEndpointAuthMethodsSupported?: string[]
+  resource?: string
   clock: ClockPort
   fetch: OAuthFetch
 }): Promise<OAuthTokens> => {
   const params = new URLSearchParams()
   params.set('grant_type', 'refresh_token')
+  if (args.resource !== undefined) params.set('resource', args.resource)
   params.set('refresh_token', args.refreshToken)
   const authorizationHeader = applyClientAuth({
     params,
@@ -210,5 +214,9 @@ export const refreshAuthorization = async (args: {
     ...(authorizationHeader === undefined ? {} : { authorizationHeader }),
     fetch: args.fetch,
   })
-  return parseTokens({ raw, clock: args.clock, fallbackRefreshToken: args.refreshToken })
+  return parseTokens({
+    raw,
+    clock: args.clock,
+    fallbackRefreshToken: args.refreshToken,
+  })
 }

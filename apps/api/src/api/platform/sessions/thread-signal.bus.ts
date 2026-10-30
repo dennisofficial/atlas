@@ -1,4 +1,9 @@
-import { threadStreamFrameSchema, type ThreadStreamFrame } from '@dltech/atlas-wire'
+import {
+  threadListActivitySchema,
+  threadStreamFrameSchema,
+  type ThreadListActivity,
+  type ThreadStreamFrame,
+} from '@dltech/atlas-wire'
 import { Logger, type Provider } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { z } from 'zod'
@@ -7,14 +12,22 @@ import { RedisService } from '../../../_lib/redis/redis.service'
 export const THREAD_SIGNAL_CHANNEL = 'atlas:thread-signals'
 
 export type ThreadFrameSignal = { threadId: string; frame: ThreadStreamFrame }
-export type ListSignal = { userId: string; threadId: string }
+export type ListSignal = {
+  userId: string
+  threadId: string
+  activity?: ThreadListActivity | undefined
+}
 export type ThreadSignal = ThreadFrameSignal | ListSignal
 
 const threadFrameSignalSchema = z.strictObject({
   threadId: z.string().min(1),
   frame: threadStreamFrameSchema,
 })
-const listSignalSchema = z.strictObject({ userId: z.string().min(1), threadId: z.string().min(1) })
+const listSignalSchema = z.strictObject({
+  userId: z.string().min(1),
+  threadId: z.string().min(1),
+  activity: threadListActivitySchema.optional(),
+})
 const threadSignalSchema = z.union([threadFrameSignalSchema, listSignalSchema])
 
 export const isListSignal = (signal: ThreadSignal): signal is ListSignal => !('frame' in signal)
