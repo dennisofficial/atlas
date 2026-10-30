@@ -402,6 +402,6 @@ describe('a persisted failed turn on return', () => {
     const view = viewOf({
       events: [said(1, 'go'), wire(2, { type: 'turn-failed', message: 'InvalidApiKey' })],
     })
-    expect(view.failure).toBe('InvalidApiKey')
+    expect(view.failure?.detail).toBe('InvalidApiKey')
   })
 })
