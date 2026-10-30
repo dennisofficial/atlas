@@ -80,7 +80,7 @@ expected.
 - `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`; `DrawerHeader`/`DrawerFooter` carry no padding.
 - `attachment.tsx`: content padding sits on the base of each size instead of behind `has-data-[slot=attachment-content]`, with the media override kept.
 - `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).
-- `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7` (it inherited Button's `h-8`); `shape: 'default' | 'round'`; `InputGroupInput` accepts Input's `size`.
+- `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7` (it inherited Button's `h-8`); `shape: 'default' | 'round'`; `InputGroupInput` accepts Input's `size`; the group's disabled dimming keys on a disabled `input-group-control`, not any disabled descendant, so a disabled addon button (an empty composer's Send) doesn't grey out the whole field.
 - `input-otp.tsx`: `size: 'default' | 'lg'` on `InputOTP`, read by every slot.
 - `table.tsx`: header rows never take the body hover; `Table` `variant: 'default' | 'framed'` (bordered card container, `pl-4`/`pr-4` edge cells).
 - `empty.tsx`: `variant: 'default' | 'outline'`.
