@@ -20,7 +20,7 @@ export class ThreadReadService {
 
   async markRead(args: { userId: string; threadId: string; seq: number }): Promise<void> {
     const { userId, threadId } = args
-    await db.transaction(async (tx) => {
+    const changed = await db.transaction(async (tx) => {
       const thread = await ownedThread({ reader: tx, userId, threadId })
       const existing = await tx.orm.public.ThreadRead.where({ userId, threadId }).first()
       const seq = nextReadSeq({ existing: existing?.seq, seq: args.seq, head: thread.head })
@@ -29,7 +29,8 @@ export class ThreadReadService {
         update: { seq, updatedAt: new Date() },
         conflictOn: { userId, threadId },
       })
+      return seq !== existing?.seq
     })
-    await this.signals.listChanged({ userId, threadId })
+    if (changed) await this.signals.listChanged({ userId, threadId })
   }
 }
