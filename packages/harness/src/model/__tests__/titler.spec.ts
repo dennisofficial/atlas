@@ -65,17 +65,17 @@ describe('sanitizedTitle', () => {
     expect(sanitizedTitle('Refresh\n  token\trotation')).toBe('Refresh token rotation')
   })
 
-  it('keeps at most ten words', () => {
+  it('keeps at most six words', () => {
     expect(sanitizedTitle('one two three four five six seven eight nine ten eleven twelve')).toBe(
-      'one two three four five six seven eight nine ten',
+      'one two three four five six',
     )
   })
 
   it('cuts an overlong name at a word boundary rather than mid-word', () => {
-    const words = Array.from({ length: 10 }, (_, index) => `word${index}${'x'.repeat(10)}`)
+    const words = Array.from({ length: 5 }, (_, index) => `word${index}${'x'.repeat(10)}`)
     const title = sanitizedTitle(`${words.join(' ')} overflow`)
 
-    expect(title?.length).toBeLessThanOrEqual(96)
+    expect(title?.length).toBeLessThanOrEqual(48)
     expect(title?.endsWith(' ')).toBe(false)
     expect(title?.endsWith('overflow')).toBe(false)
   })
