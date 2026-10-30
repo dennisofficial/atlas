@@ -12,15 +12,8 @@ import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 import { headerStateOf, spawnerIdOf } from './data/header-model'
 import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
-import { TOO_LATE_NOTICE } from './data/composer-queue'
 import { notConfiguredOf } from './data/not-configured'
-import {
-  ETakeBackOutcome,
-  restoredDraftOf,
-  takeBack,
-  takeBackTargetOf,
-  withoutTakenBack,
-} from './data/take-back'
+import { restoredDraftOf, withoutTakenBack } from './data/take-back'
 import type { ModelSelection } from './data/model-selection'
 import { fetchThread } from './data/threads-api'
 import { useThreadNaming } from './data/use-thread-naming'
@@ -28,7 +21,7 @@ import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
-import { useComposerImages } from './data/use-composer-images'
+import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
@@ -41,7 +34,8 @@ import { useRewind } from './data/use-rewind'
 import { useMarkRead } from './data/use-mark-read'
 import { useTitleRefresh } from './data/use-title-refresh'
 import { useThreadSignals } from './data/use-thread-signals'
-import { messageOf, useSend } from './data/use-send'
+import { useSend } from './data/use-send'
+import { useThreadSubmit } from './data/use-thread-submit'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
 import { ThreadMainSlot } from './context-viewer/main-slot'
@@ -90,7 +84,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
-  const images = useComposerImages()
+  const images = useComposerAttachments()
   const [takenBack, setTakenBack] = useState<ReadonlySet<string>>(() => new Set())
 
   const visible = useMemo(
@@ -111,7 +105,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     source,
     picker: model.picker,
     selection: model.selection,
-    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+    onRestore: (taken) => {
+      setDraft((current) => restoredDraftOf({ current, restored: taken.text }))
+      images.restore({ uploads: taken.uploads, images: taken.images })
+    },
   })
   const operator = useOperatorInput(source)
   const handoff = useComposerHandoff({
@@ -153,38 +150,26 @@ export function ThreadView({ threadId }: { threadId: string }) {
     refresh,
   })
 
-  const handleSubmit = async (text: string) => {
-    if (!images.checkBudget()) return
-    const sent = await send({ threadId, text, images: images.images, liveSend: sendLive })
-    if (sent === null) return
-    images.clear()
-    handoff.begin(sent)
-    source.refreshEvents()
-    refresh()
-  }
+  const { handleSubmit, handleEscape } = useThreadSubmit({
+    threadId,
+    visible,
+    podState: pod?.state ?? null,
+    attachments: images,
+    send,
+    sendLive,
+    onSent: (sent) => {
+      handoff.begin(sent)
+      source.refreshEvents()
+      refresh()
+    },
+    setDraft,
+    setTakenBack,
+  })
   const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
   const handleRetryBoot = async () => {
     await retryBoot(threadId)
     refresh()
-  }
-  const handleEscape = async () => {
-    const target = takeBackTargetOf({
-      events: visible,
-      podState: pod?.state ?? null,
-    })
-    if (target === null) return
-    try {
-      const outcome = await takeBack({ threadId, sendId: target.sendId })
-      if (outcome === ETakeBackOutcome.TooLate) {
-        toast(TOO_LATE_NOTICE)
-        return
-      }
-      setTakenBack((current) => new Set(current).add(target.sendId))
-      setDraft((current) => restoredDraftOf({ current, restored: target.text }))
-    } catch (failure) {
-      toast.error(messageOf(failure))
-    }
   }
   const handleStop = () => {
     if (source.interrupt()) return
@@ -265,7 +250,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onValueChange={setDraft}
                   onSubmit={handleSubmit}
                   onEscape={() => void handleEscape()}
-                  sending={sending || handoff.waiting || images.encoding}
+                  sending={sending || handoff.waiting || images.uploading}
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}

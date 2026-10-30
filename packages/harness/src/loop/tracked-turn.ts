@@ -104,6 +104,7 @@ export async function runTrackedTurn(
     assembly: deps.assembly,
     countTokens: deps.countTokens,
     hooks: deps.hooks,
+    uploads: deps.uploads,
     onContext: deps.onContext,
     compact: oncePerTurnCompact({
       compact: deps.compact,
@@ -238,6 +239,7 @@ export async function runTrackedTurn(
         events: latest,
         step: position.modelSteps,
         previous: undefined,
+        signal: abortSignal,
       })
       if (prepared.ok && 'assembled' in prepared) position.previous = prepared.assembled
       return prepared
@@ -248,6 +250,7 @@ export async function runTrackedTurn(
       events,
       step: position.modelSteps,
       previous: position.previous,
+      signal: abortSignal,
     })
     if (!prepared.ok) {
       const { message, cause } = preparedFailureMessage(prepared)

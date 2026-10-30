@@ -1,4 +1,4 @@
-import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
+import { EQueuedAttachmentKind, type QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { EMessageOrigin } from '@dltech/atlas-core'
 import type { PendingEntryWire } from '@dltech/atlas-wire/web'
 
@@ -12,4 +12,15 @@ export const takeBackableIdOf = (pending: readonly PendingEntryWire[]): string |
   pending.findLast(isTakeBackable)?.id ?? null
 
 export const queuedOf = (pending: readonly PendingEntryWire[]): QueuedMessageEntry[] =>
-  pending.map((entry) => ({ id: entry.id, text: entry.text, attachments: [] }))
+  pending.map((entry) => ({
+    id: entry.id,
+    text: entry.text,
+    attachments: (entry.uploads ?? []).map((upload) => ({
+      id: upload.uploadId,
+      name: upload.name,
+      kind: upload.mediaType.startsWith('image/')
+        ? EQueuedAttachmentKind.Image
+        : EQueuedAttachmentKind.File,
+      size: upload.size,
+    })),
+  }))

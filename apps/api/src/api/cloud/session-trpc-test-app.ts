@@ -1,6 +1,6 @@
 import { FRESH_SESSION_WINDOW_MS } from '../../_module/session/fresh-session'
 import type { INestApplication, Provider } from '@nestjs/common'
-import { UnauthorizedException } from '@nestjs/common'
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Test } from '@nestjs/testing'
 import { ThrottlerModule } from '@nestjs/throttler'
@@ -62,6 +62,7 @@ export async function buildSessionTrpcApp(args: {
   providers: Provider[]
   sandboxTokens?: Record<string, PrincipalFixture>
   podTokens?: Record<string, PrincipalFixture>
+  threadFamilies?: Record<string, readonly string[]>
 }): Promise<INestApplication> {
   const sandboxTokens = args.sandboxTokens ?? {}
   const podTokens = args.podTokens ?? {}
@@ -105,8 +106,12 @@ export async function buildSessionTrpcApp(args: {
           async verifyTokenPrincipal(query: { token: string }) {
             return principalOf({ token: query.token, sandboxTokens, podTokens })
           },
-          async assertThreadInFamily() {
-            throw new Error('no route in this app takes a threadId')
+          async assertThreadInFamily(query: { sandboxThreadId: string; threadId: string }) {
+            const family = args.threadFamilies?.[query.sandboxThreadId]
+            if (family === undefined) throw new Error('no route in this app takes a threadId')
+            if (!family.includes(query.threadId)) {
+              throw new ForbiddenException('thread is outside this sandbox family')
+            }
           },
         },
       },

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 
 import { Context } from './context'
 import { EEffort, ModelSelector } from './model-selector'
-import { PromptInput, type PromptAttachment } from './prompt-input'
+import { EPromptAttachmentStatus, PromptInput, type PromptAttachment } from './prompt-input'
 
 import { MODELS } from '../fixtures/agent'
 
@@ -42,6 +42,21 @@ export const WithAttachments: Story = {
     attachments: [
       { id: '1', name: 'typecheck.log' },
       { id: '2', name: 'screenshot.png' },
+    ],
+  },
+}
+
+export const UploadStates: Story = {
+  args: {
+    attachments: [
+      {
+        id: '1',
+        name: 'report.pdf',
+        status: EPromptAttachmentStatus.Uploading,
+        progress: 0.4,
+      },
+      { id: '2', name: 'data.csv', status: EPromptAttachmentStatus.Ready },
+      { id: '3', name: 'huge.zip', status: EPromptAttachmentStatus.Failed },
     ],
   },
 }

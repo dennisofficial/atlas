@@ -41,7 +41,6 @@ export function ThreadComposer({
         queueWhileBusy
         onStop={onStop}
         clearOnSubmit={false}
-        accept="image/*"
         {...attach}
         {...(placeholder === undefined ? {} : { placeholder })}
       >

@@ -1,4 +1,4 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, SaidUpload, ThreadId } from '@dltech/atlas-core'
 import type {
   CapabilitySet,
   PendingEntryWire,
@@ -52,6 +52,7 @@ export type RemoteDeltaChannel = DeltaChannel & {
     requestId?: string | undefined
     images?: readonly SaidImage[] | undefined
     files?: readonly SaidFile[] | undefined
+    uploads?: readonly SaidUpload[] | undefined
     context?: readonly EventDraft[] | undefined
   }): void
   run(args?: { resume?: boolean }): void

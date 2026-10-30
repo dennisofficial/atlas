@@ -29,6 +29,7 @@ import { OauthConnectionsModule } from './platform/oauth-connections/oauth-conne
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
+import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
 import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
 import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
 import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
@@ -74,6 +75,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     SshSigningKeyModule,
     MemoriesModule,
     PublishedBundlesModule,
+    ComposerUploadsModule,
     SessionsModule,
     SandboxesModule,
     GithubRealtimeModule,

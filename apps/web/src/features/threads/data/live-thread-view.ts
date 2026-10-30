@@ -1,6 +1,6 @@
 import type { RemoteDeltaChannel, TerminalFrameChannel } from '@dltech/atlas-client/channel'
 import type { InFlightStep } from '@dltech/atlas-client/transcript'
-import type { CallId, ModelUsage } from '@dltech/atlas-core'
+import type { CallId, ModelUsage, SaidUpload } from '@dltech/atlas-core'
 import type {
   OperatorInputRequestWire,
   PendingEntryWire,
@@ -29,13 +29,20 @@ export type LiveSend = (args: {
   text: string
   requestId: string
   images?: SaidImageWire[]
+  uploads?: SaidUpload[]
 }) => boolean
 
 export type ThreadModelChoice = { ref: string; effort: string }
 
 export type LiveChooseModel = (model: ThreadModelChoice) => Promise<boolean>
 
-export type LiveTakeBackPending = () => Promise<string | null>
+export type TakenBack = {
+  text: string
+  images: readonly SaidImageWire[]
+  uploads: readonly SaidUpload[]
+}
+
+export type LiveTakeBackPending = () => Promise<TakenBack | null>
 
 export type LiveInterrupt = () => boolean
 
