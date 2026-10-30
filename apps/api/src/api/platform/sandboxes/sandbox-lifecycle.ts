@@ -8,7 +8,12 @@ export const WAKE_CLAIM_TTL_MS = 15 * 60 * 1_000
 
 export type SandboxLifecycleColumns = Pick<
   Row<'CloudSandbox'>,
-  'sessionId' | 'state' | 'runtimeCheckpoint' | 'runtimeCheckpointRevision' | 'wakeClaim'
+  | 'sessionId'
+  | 'state'
+  | 'runtimeCheckpoint'
+  | 'runtimeCheckpointRevision'
+  | 'wakeClaim'
+  | 'pendingVcpus'
 >
 
 export const SANDBOX_LIFECYCLE_COLUMNS = [
@@ -17,6 +22,7 @@ export const SANDBOX_LIFECYCLE_COLUMNS = [
   'runtimeCheckpoint',
   'runtimeCheckpointRevision',
   'wakeClaim',
+  'pendingVcpus',
 ] as const
 
 const STATE_OF_PHASE: Readonly<Record<ERuntimePhase, ESandboxState>> = {
@@ -54,6 +60,7 @@ export function wakeClaimActive(row: SandboxLifecycleColumns): boolean {
   if (!row.wakeClaim) return false
   const claimedAt = row.wakeClaim.getTime()
   if (!Number.isFinite(claimedAt) || Date.now() - claimedAt >= WAKE_CLAIM_TTL_MS) return false
+  if (row.pendingVcpus !== null) return true
   const record = mirroredRecordOf(row)
   return record === null || Date.parse(record.reportedAt) < claimedAt
 }

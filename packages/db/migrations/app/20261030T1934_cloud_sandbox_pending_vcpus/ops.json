@@ -1,0 +1,54 @@
+[
+  {
+    "id": "column.public.CloudSandbox.pendingVcpus",
+    "label": "Add column \"pendingVcpus\" to \"CloudSandbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pendingVcpus",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pendingVcpus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "pendingVcpus"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pendingVcpus\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ADD COLUMN \"pendingVcpus\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pendingVcpus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "pendingVcpus"
+        ]
+      },
+      {
+        "description": "verify column \"pendingVcpus\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "pendingVcpus",
+          "integer"
+        ]
+      }
+    ]
+  }
+]

@@ -21,6 +21,7 @@ import { apiProvisionedEnvironment } from './pod-telemetry-identity'
 import { podVcpusOf } from './pod-size'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
+import { restartForResize, type ResizeRestartTiming } from './pod-resize-restart'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
 
 export const PROVISION_TIMEOUT_MESSAGE = 'The sandbox took too long to start. Retry.'
@@ -35,6 +36,7 @@ export type PodProvisionDeps = {
   cloudUrl: string
   log: (line: string) => void
   telemetryPepper?: string | undefined
+  resizeTiming?: ResizeRestartTiming | undefined
 }
 
 export async function runPodProvision(args: {
@@ -73,6 +75,17 @@ export async function runPodProvision(args: {
     ])
     const credentials = await deps.scoped.vercelCredentials({ thread })
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
+    const resizing = row.pendingVcpus !== null
+    if (row.pendingVcpus !== null) {
+      await restartForResize({
+        sdk: deps.sdk,
+        credentials,
+        name: row.name,
+        vcpus: row.pendingVcpus,
+        log: deps.log,
+        timing: deps.resizeTiming,
+      })
+    }
     const { serveUrl } = await deps.boot.boot({
       credentials,
       name: row.name,
@@ -93,7 +106,7 @@ export async function runPodProvision(args: {
       prepare: workspaceSpecWriter({ projectId: session.projectId, model: thread.modelRef }),
     })
     await reporter.flush()
-    const marked = await markRunning({ threadId, wakeClaim, serveUrl })
+    const marked = await markRunning({ threadId, wakeClaim, serveUrl, refreshClaim: resizing })
     if (!marked) {
       await rollbackIfDestroyed({
         sdk: deps.sdk,

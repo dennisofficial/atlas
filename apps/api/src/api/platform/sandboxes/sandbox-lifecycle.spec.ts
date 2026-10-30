@@ -25,6 +25,7 @@ const lifecycleRow = (args: {
       runtimeCheckpoint: null,
       runtimeCheckpointRevision: null,
       wakeClaim: args.wakeClaim ?? null,
+      pendingVcpus: null,
     }
   }
   const record = {
@@ -49,6 +50,7 @@ const lifecycleRow = (args: {
     runtimeCheckpoint: args.phase === ERuntimePhase.Updating ? { ...record, receipt } : record,
     runtimeCheckpointRevision: 2,
     wakeClaim: args.wakeClaim ?? null,
+    pendingVcpus: null,
   }
 }
 
