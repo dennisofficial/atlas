@@ -61,7 +61,7 @@ const STARTING_PLACEHOLDER = 'The sandbox is starting — you can keep typing…
 export function ThreadView({ threadId }: { threadId: string }) {
   const backend = useThreadBackend()
   const thread = useCloudQuery({
-    key: threadId,
+    key: `thread:${threadId}`,
     load: () => backend.fetchThread(threadId),
   })
   const [liveEligible, setLiveEligible] = useState(false)
