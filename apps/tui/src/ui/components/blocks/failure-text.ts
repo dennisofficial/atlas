@@ -1,23 +1,50 @@
-import { ERunRemedy, providerLabelOf, runFailureCopy } from '@dltech/atlas-core'
+import {
+  runAttentionCopy,
+  type RunAttention,
+  type RunAttentionRemedy,
+} from '@dltech/atlas-client/transcript'
+import { ERunRemedy, providerLabelOf } from '@dltech/atlas-core'
 
 import type { StepFailure } from '../../../store'
 
 const FAILURE_WITHOUT_A_REASON = 'The model reported no reason.'
 
-export const failureText = (args: {
+export type FailureView = {
+  title?: string
+  message: string
+  remedies: readonly RunAttentionRemedy[]
+  busyReason: string | null
+}
+
+export const isResumeOnly = (attention: RunAttention | null): boolean =>
+  attention !== null &&
+  attention.failure === null &&
+  attention.remedies.length > 0 &&
+  attention.remedies.every((entry) => entry.remedy === ERunRemedy.Resume)
+
+export const failureView = (args: {
   failure: StepFailure
+  attention: RunAttention | null
   accountLabel: string | undefined
-}): { message: string; title?: string; fixCredential?: boolean } => {
-  const { failure, accountLabel } = args
-  if (failure.failure === null) return { message: failure.message ?? FAILURE_WITHOUT_A_REASON }
-  const copy = runFailureCopy({
-    failure: failure.failure,
-    providerLabel: providerLabelOf(failure.failure.providerId),
+}): FailureView => {
+  const { failure, attention, accountLabel } = args
+  if (attention === null || isResumeOnly(attention)) {
+    return {
+      message: failure.message ?? FAILURE_WITHOUT_A_REASON,
+      remedies: [],
+      busyReason: null,
+    }
+  }
+  const copy = runAttentionCopy({
+    attention,
+    providerLabel: providerLabelOf(attention.failure?.providerId),
     accountLabel,
   })
+  const legacy = attention.failure === null
   return {
-    message: copy.detail,
-    title: copy.title,
-    fixCredential: copy.remedies.includes(ERunRemedy.FixCredential),
+    ...(legacy ? {} : { title: copy.title }),
+    message: legacy ? (failure.message ?? attention.message) : copy.detail,
+    remedies: attention.remedies,
+    busyReason: attention.busyReason,
   }
 }

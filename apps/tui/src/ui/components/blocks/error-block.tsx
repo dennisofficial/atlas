@@ -1,5 +1,8 @@
 import React from 'react'
 
+import { ERunRemedy } from '@dltech/atlas-core'
+import type { RunAttentionRemedy } from '@dltech/atlas-client/transcript'
+
 import { useClickRegion } from '../../hooks/use-click-region'
 import { EKeyGroup, EKeyLayer, spellChord, useKeyBindings, type KeyDeclaration } from '../../keys'
 import { formatElapsed, formatTokens, glyph, theme, TRANSCRIPT_INSET } from '../../theme'
@@ -11,6 +14,16 @@ import type { Span } from '../spans'
 const HEADING = 'failed'
 
 export const SETTINGS_HINT = 'fix the key: ctrl+a or /auth'
+export const SWITCH_MODEL_HINT = 'switch model: ctrl+p or /model'
+export const COMPACT_HINT = 'compact the conversation: /compact'
+export const OPEN_AGENT_HINT = 'open the failed agent: ctrl+g'
+
+const STATIC_HINTS: Partial<Record<ERunRemedy, string>> = {
+  [ERunRemedy.FixCredential]: SETTINGS_HINT,
+  [ERunRemedy.SwitchModel]: SWITCH_MODEL_HINT,
+  [ERunRemedy.Compact]: COMPACT_HINT,
+  [ERunRemedy.OpenAgent]: OPEN_AGENT_HINT,
+}
 
 const SEPARATOR = ' · '
 
@@ -50,15 +63,19 @@ function Header(props: { title: string; cost: string; onDismiss?: () => void }):
   )
 }
 
-const retrySpans = (hovered: boolean): readonly Span[] => [
-  { text: `${glyph.retry} ${spellChord(RETRY.chord)}`, fg: theme.accent },
-  { text: ` ${RETRY.hint}`, fg: hovered ? theme.hover : theme.hint },
-]
+const retrySpans = (args: { hovered: boolean; enabled: boolean }): readonly Span[] =>
+  args.enabled
+    ? [
+        { text: `${glyph.retry} ${spellChord(RETRY.chord)}`, fg: theme.accent },
+        { text: ` ${RETRY.hint}`, fg: args.hovered ? theme.hover : theme.hint },
+      ]
+    : [{ text: `${glyph.retry} ${spellChord(RETRY.chord)} ${RETRY.hint}`, fg: theme.hint }]
 
 export function ErrorBlock(props: {
   message: string
   title?: string
-  fixCredential?: boolean
+  remedies?: readonly RunAttentionRemedy[]
+  busyReason?: string | null
   width: number
   durationMs?: number
   outputTokens?: number
@@ -67,6 +84,8 @@ export function ErrorBlock(props: {
 }): React.ReactNode {
   const retry = useClickRegion(props.onRetry)
   const onRetry = props.onRetry
+  const remedies = props.remedies ?? []
+  const retryEntry = remedies.find((entry) => entry.remedy === ERunRemedy.Retry)
 
   useKeyBindings(
     onRetry === undefined
@@ -80,6 +99,11 @@ export function ErrorBlock(props: {
           },
         ],
   )
+
+  const hints = remedies.flatMap((entry) => {
+    const hint = STATIC_HINTS[entry.remedy]
+    return hint === undefined ? [] : [{ remedy: entry.remedy, hint }]
+  })
 
   return (
     <box flexDirection="column" marginBottom={1} flexShrink={0}>
@@ -99,16 +123,26 @@ export function ErrorBlock(props: {
         <text fg={theme.body} bg={theme.overlayBg}>
           {props.message}
         </text>
-        {props.fixCredential === true ? (
-          <text fg={theme.accent} bg={theme.overlayBg}>
-            {SETTINGS_HINT}
+        {hints.map((entry) => (
+          <text key={entry.remedy} fg={theme.accent} bg={theme.overlayBg}>
+            {entry.hint}
           </text>
-        ) : null}
-        {props.onRetry === undefined ? null : (
+        ))}
+        {props.onRetry === undefined && retryEntry === undefined ? null : (
           <text bg={theme.overlayBg} {...retry.handlers}>
-            <Spans spans={retrySpans(retry.hovered)} />
+            <Spans
+              spans={retrySpans({
+                hovered: retry.hovered,
+                enabled: props.onRetry !== undefined,
+              })}
+            />
           </text>
         )}
+        {props.onRetry === undefined && props.busyReason != null ? (
+          <text fg={theme.hint} bg={theme.overlayBg}>
+            {props.busyReason}
+          </text>
+        ) : null}
       </Panel>
     </box>
   )

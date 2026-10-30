@@ -186,6 +186,7 @@ function Screen(props: {
         now={conversation.now}
         cwd={conversation.projectDirectory}
         turn={conversation.turn}
+        attention={conversation.attention}
         {...(conversation.handleResume === null ? {} : { onResume: conversation.handleResume })}
       />
     </box>

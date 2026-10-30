@@ -34,7 +34,6 @@ describe('cloud continuation ownership', () => {
   it('resumes interrupted output through the sandbox without writing the client transcript', async () => {
     const mounted = await mountCloudResume()
     try {
-      expect(mounted.driver().isResumable).toBe(true)
       await mounted.perform(() => mounted.driver().handleResume())
 
       expect(mounted.writes).toEqual([])

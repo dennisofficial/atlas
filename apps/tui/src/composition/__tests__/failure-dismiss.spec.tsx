@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import type { StepFailure } from '../../store'
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { grammarsReady, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
@@ -49,7 +48,7 @@ describe('dismissing a transient failure', () => {
     }
   }, 30_000)
 
-  it('keeps an actual failed-turn reason and its retry control without offering close', async () => {
+  it('offers retry and a durable close for an actual failed turn', async () => {
     const reason = 'the turn failed before producing a reply'
     const app = fakeApp({ model: failingModelPort({ message: reason }) })
     const opened = await spokenIn(app)
@@ -60,7 +59,7 @@ describe('dismissing a transient failure', () => {
       setup.mockInput.pressEnter()
       const frame = await frameShowing({ setup, text: 'ctrl+r retry' })
       expect(frame).toContain(reason)
-      expect(frame).not.toContain('[close]')
+      expect(frame).toContain('[close]')
       expect(frame).not.toContain('The model reported no reason.')
     } finally {
       await teardown(setup)
@@ -82,50 +81,13 @@ describe('dismissing a transient failure', () => {
       }
       await act(async () => readNotice().setTurnFailure('the turn paused'))
       await frameShowing({ setup, text: 'the turn paused' })
-      expect(readNotice().dismissalFor(null)).toBeNull()
-      expect(readNotice().dismissalFor({ message: null, failure: null, runId: null })).toBeNull()
+      expect(readNotice().dismissalFor()).toBeNull()
       expect(readNotice().failure).toBe('the turn paused')
       await act(async () => readNotice().setFailure('compaction failed'))
       await frameShowing({ setup, text: 'compaction failed' })
-      expect(readNotice().dismissalFor(null)).not.toBeNull()
+      expect(readNotice().dismissalFor()).not.toBeNull()
     } finally {
       await teardown(setup)
     }
   })
-
-  const reportedFailures: readonly (StepFailure | null)[] = [
-    null,
-    { message: null, failure: null, runId: null },
-    { message: 'the turn failed', failure: null, runId: null },
-  ]
-  for (const reported of reportedFailures) {
-    it(`offers dismissal only when the visible failure is transient: ${JSON.stringify(reported)}`, async () => {
-      let notice: ReturnType<typeof useFailureNotice> | null = null
-      function Probe(): React.ReactNode {
-        notice = useFailureNotice()
-        return <text>{notice.failure ?? 'no notice'}</text>
-      }
-      const setup = await testRender(<Probe />, { width: 60, height: 5 })
-      try {
-        await frameShowing({ setup, text: 'no notice' })
-        const readNotice = (): ReturnType<typeof useFailureNotice> => {
-          if (notice === null) throw new Error('notice hook did not mount')
-          return notice
-        }
-        expect(readNotice().dismissalFor(reported)).toBeNull()
-        await act(async () => readNotice().setFailure('compaction failed'))
-        await frameShowing({ setup, text: 'compaction failed' })
-        const handleDismiss = readNotice().dismissalFor(reported)
-        if (reported !== null) {
-          expect(handleDismiss).toBeNull()
-          return
-        }
-        expect(handleDismiss).not.toBeNull()
-        await act(async () => handleDismiss?.())
-        expect(await frameShowing({ setup, text: 'no notice' })).not.toContain('compaction failed')
-      } finally {
-        await teardown(setup)
-      }
-    })
-  }
 })

@@ -22,6 +22,7 @@ import { useMainWake } from './use-main-wake'
 import { useSessionName } from './use-session-name'
 import { EThreadRows, useThreadView, type ThreadSeed } from './use-thread-view'
 import { useThreadSwap } from './use-thread-swap'
+import { useRunAttention } from './use-run-attention'
 import { useTurnDriver } from './use-turn-driver'
 import { useTickingNow } from './use-turn-clock'
 
@@ -142,7 +143,24 @@ export function useConversation(args: ConversationArgs): Conversation {
     sending,
   })
 
-  useResumeOnOpen({ app, opened, turnDriver, moving })
+  const channelReady = args.channelReady !== false
+  const runAttention = useRunAttention({
+    app,
+    threadId,
+    view,
+    turnDriver,
+    remote: cloudRunner !== null,
+    moving,
+    channelReady,
+    onFailure: setFailure,
+  })
+  useResumeOnOpen({
+    app,
+    opened,
+    turnDriver,
+    moving,
+    resumable: runAttention.handleResume !== null,
+  })
 
   const { working, drive } = turnDriver
   const { compacting } = compaction
@@ -245,10 +263,6 @@ export function useConversation(args: ConversationArgs): Conversation {
   })
 
   const model = transcriptOfTurn({ model: derived, working, failure })
-  const channelReady = args.channelReady !== false
-  const idleAndReady = !working && !turnDriver.turnInFlight() && !moving && channelReady
-  const retryable = model.failure !== null && idleAndReady
-  const resumable = model.failure === null && idleAndReady && turnDriver.isResumable
 
   return {
     rewindConfirm: turnDriver.rewindConfirm,
@@ -281,9 +295,10 @@ export function useConversation(args: ConversationArgs): Conversation {
     handleQueueSettled,
     refresh,
     handleTakeBackPending,
-    handleRetry: retryable ? turnDriver.handleRetry : null,
-    handleDismissFailure: dismissalFor(derived.failure),
-    handleResume: resumable ? turnDriver.handleResume : null,
+    attention: runAttention.attention,
+    handleRetry: runAttention.handleRetry,
+    handleDismissFailure: runAttention.handleDismiss ?? dismissalFor(),
+    handleResume: runAttention.handleResume,
     readEvents,
     loadOlderHistory: view.loadOlder,
     hasOlderHistory: logSummary.windowStartSeq > 1,

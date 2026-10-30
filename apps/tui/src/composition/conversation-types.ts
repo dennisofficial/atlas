@@ -1,3 +1,4 @@
+import type { RunAttention } from '@dltech/atlas-client/transcript'
 import type {
   ActiveWorktree,
   ECompactionAnchor,
@@ -104,6 +105,7 @@ export type Conversation = {
   handleQueueSettled: (entry: QueuedSettled) => void
   /** Local sessions answer synchronously; a cloud session asks the sandbox, so it answers async. */
   handleTakeBackPending: () => PendingSaid | null | Promise<PendingSaid | null>
+  attention: RunAttention | null
   handleRetry: (() => void) | null
   handleDismissFailure: (() => void) | null
   handleResume: (() => void) | null

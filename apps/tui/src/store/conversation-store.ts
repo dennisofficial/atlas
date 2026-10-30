@@ -1,5 +1,6 @@
 import type { CallId, ThreadId, Event } from '@dltech/atlas-core'
 import type { ChannelSignal, DeltaChannel, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
+import type { InFlightStep } from '@dltech/atlas-client/transcript'
 
 import { durableOpLog } from '../composition/durable-op-log'
 import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
@@ -39,6 +40,7 @@ export type ConversationStore = {
   getSidebar(): SidebarModel
   getTurn(): TurnClock
   getLogSummary(): LogSummary
+  liveSteps(): InFlightStep[]
   setEvents(args: { events: readonly Event[]; turns?: readonly TurnSpend[] | undefined }): void
   resetLog(args: {
     events: readonly Event[]
@@ -365,6 +367,10 @@ export function createConversationStore(args: {
       const clockMoved = next.clock !== progress.clock
       progress = next
       if (clockMoved) republish()
+    },
+
+    liveSteps() {
+      return tracker.live(events)
     },
 
     supersedeFailure() {

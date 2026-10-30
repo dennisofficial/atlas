@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ScrollBoxRenderable } from '@opentui/core'
 
+import type { RunAttention } from '@dltech/atlas-client/transcript'
 import { EEntryKind, type PendingRow, type TranscriptModel } from '../../store'
 import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '../background-wait'
 import { useAppearance } from '../hooks/use-appearance'
@@ -13,10 +14,8 @@ import { useTranscriptViewport } from '../transcript-viewport-store'
 import { applyTranscriptBounds } from '../viewport-rows-store'
 import type { ContainerMove } from '../../composition/container-move'
 import { BootBlockView } from './boot-block'
-import { ErrorBlock } from './blocks/error-block'
-import { failureText } from './blocks/failure-text'
 import { PendingBlock } from './blocks/pending-block'
-import { ResumeBlock } from './blocks/resume-block'
+import { RunAttentionSection } from './blocks/run-attention-section'
 import { openedInjectionsOf, type OpenedInjections } from './blocks/system-context-expansion'
 import { openedSubsetOf, type OpenedSubsets } from './blocks/tool-run-expansion'
 import { EntryView } from './entry-view'
@@ -54,6 +53,7 @@ function DerivedTranscript(props: {
   background?: BackgroundWork
   waitingSince?: number | null
   accountLabel?: string
+  attention?: RunAttention | null
   onRetry?: () => void
   onDismissFailure?: () => void
   onResume?: () => void
@@ -204,27 +204,16 @@ function DerivedTranscript(props: {
       >
         {mounted}
 
-        {model.failure ? (
-          <ErrorBlock
-            {...failureText({
-              failure: model.failure,
-              accountLabel: props.accountLabel,
-            })}
-            width={props.width}
-            {...(turn.completed === null
-              ? {}
-              : {
-                  durationMs: turn.completed.durationMs,
-                  outputTokens: turn.completed.outputTokens,
-                })}
-            {...(props.onRetry === undefined ? {} : { onRetry: props.onRetry })}
-            {...(props.onDismissFailure === undefined ? {} : { onDismiss: props.onDismissFailure })}
-          />
-        ) : null}
-
-        {model.failure !== null || model.streaming || props.onResume === undefined ? null : (
-          <ResumeBlock onResume={props.onResume} />
-        )}
+        <RunAttentionSection
+          model={model}
+          turn={turn}
+          width={props.width}
+          attention={props.attention ?? null}
+          accountLabel={props.accountLabel}
+          onRetry={props.onRetry}
+          onDismiss={props.onDismissFailure}
+          onResume={props.onResume}
+        />
 
         {model.failure === null && props.rotating !== null && props.rotating !== undefined ? (
           <box flexDirection="row" marginTop={1} marginBottom={1}>

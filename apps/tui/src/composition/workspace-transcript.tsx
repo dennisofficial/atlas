@@ -47,6 +47,7 @@ export function WorkspaceTranscript(props: {
     | 'turn'
     | 'rotating'
     | 'pending'
+    | 'attention'
     | 'handleRetry'
     | 'handleDismissFailure'
     | 'handleResume'
@@ -166,6 +167,7 @@ export function WorkspaceTranscript(props: {
           boot={props.inlineBoot.block}
           background={props.background}
           waitingSince={props.waitingSince}
+          attention={conversation.attention}
           {...(conversation.handleRetry === null ? {} : { onRetry: conversation.handleRetry })}
           {...(conversation.handleDismissFailure === null
             ? {}
