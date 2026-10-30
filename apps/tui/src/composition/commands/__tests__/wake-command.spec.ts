@@ -3,9 +3,9 @@ import { describe, expect, it } from 'bun:test'
 import { EConnectionView } from '@dltech/atlas-harness'
 
 import { dispatchSubmission, EDispatch } from '../dispatch'
-import { ECommandEffect, ECommandTiming, RAN } from '@dltech/atlas-core'
+import { ECommandEffect, ECommandTiming, NOT_IN_THE_CLOUD, RAN } from '@dltech/atlas-core'
 import { localCommands } from '../registry'
-import { ALREADY_UP, NOT_IN_THE_CLOUD, RECONNECTING, wakeEffect } from '../wake'
+import { ALREADY_UP, RECONNECTING, wakeEffect } from '../wake'
 import { handlers } from './local-handlers'
 
 const counted = (): { wake: () => void; count: () => number } => {

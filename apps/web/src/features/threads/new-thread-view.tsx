@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { SaidUpload } from '@dltech/atlas-core'
@@ -11,8 +11,10 @@ import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-l
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { createdThreads } from '@/features/shell/created-threads'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
+import { useNewThreadCommands } from './commands/use-new-thread-commands'
 import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
 import { createThread, fetchProjects } from './data/threads-api'
@@ -54,9 +56,16 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const local =
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
 
+  const clearDraft = useCallback(() => setDraft(''), [])
+  const commands = useNewThreadCommands({ projectId, clearDraft })
+
   const handleProjectChange = (next: string | null) => setSelected(next)
 
   const handleSubmit = async (text: string) => {
+    if (await commands.handleCommand(text)) {
+      setDraft('')
+      return
+    }
     if (!images.checkSendable()) return
     const held = images.images
     const uploads = images.uploads
@@ -95,6 +104,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       )
       attempt.current = null
       images.clear()
+      createdThreads.announce(thread)
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
       toast.error(messageOf(failure))
@@ -109,10 +119,17 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       onSubmit={handleSubmit}
       sending={creating || images.uploading}
       {...images.composerProps}
+      commandSpecs={commands.specs}
       placeholder="Describe a task for Atlas…"
     >
       <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
-      <ModelPickerControls picker={picker} selection={selection} onSelectionChange={setChosen} />
+      <ModelPickerControls
+        picker={picker}
+        selection={selection}
+        onSelectionChange={setChosen}
+        open={commands.modelOpen}
+        onOpenChange={commands.setModelOpen}
+      />
       <div className="ml-auto flex min-w-0">
         <ProjectSelect
           projects={projects}

@@ -162,6 +162,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     threadId,
     channel,
     live: source.live,
+    projectId: thread.data?.projectId,
     working,
     rightPanel,
     retryBoot,

@@ -76,6 +76,16 @@ describe('VercelSandboxWakeBoot', () => {
     expect(deleted).toEqual([])
   })
 
+  it('asks Vercel for the requested size and leaves it unset when none is given', async () => {
+    const sized = harness({ created: true })
+    await sized.boot.boot({ ...sized.args, vcpus: 4 })
+    expect(sized.getOrCreateParams[0]).toMatchObject({ resources: { vcpus: 4 } })
+
+    const unsized = harness({ created: true })
+    await unsized.boot.boot(unsized.args)
+    expect(unsized.getOrCreateParams[0]).not.toHaveProperty('resources')
+  })
+
   it('a fresh create adopts the minted token before serve launches under it', async () => {
     const { boot, args, launch, onFreshSandbox } = harness({ created: true })
 
