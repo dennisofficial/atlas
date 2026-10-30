@@ -53,6 +53,14 @@ export class SandboxEndpointService {
     return { token, url: observed.url }
   }
 
+  async observedRunning(args: { threadId: string }): Promise<boolean> {
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+    const row = await db.orm.public.CloudSandbox.where({ sessionId }).select('name').first()
+    if (row === null) return true
+    const observed = await this.vercel.inspect({ threadId: args.threadId, name: row.name })
+    return observed.state === ESandboxState.Running
+  }
+
   async status(args: { userId: string; threadId: string }): Promise<SandboxStatusDto> {
     const row = await ownedSandbox(args)
     if (row.serveUrl !== null) {

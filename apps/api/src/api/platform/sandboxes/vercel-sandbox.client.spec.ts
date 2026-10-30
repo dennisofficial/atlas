@@ -140,6 +140,14 @@ describe('VercelSandboxClient', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('does not stop a sandbox Vercel already reports stopped', async () => {
+    sdk.stopped.length = 0
+    sdk.status = 'stopped'
+    await clientWith().stop({ threadId: THREAD, name: 'atlas-thread-abc' })
+    sdk.status = 'running'
+    expect(sdk.stopped).toHaveLength(0)
+  })
+
   it('resolves credentials per thread and hands them to the SDK', async () => {
     const { port, forThread } = credentialsPort()
 

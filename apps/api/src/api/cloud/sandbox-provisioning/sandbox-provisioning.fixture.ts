@@ -171,6 +171,7 @@ export function messagesWith(
   args: {
     endpoint?: { token: string; url: string } | null
     serveFails?: Error
+    observedRunning?: ReturnType<typeof vi.fn>
     park?: ReturnType<typeof vi.fn>
     scoped?: ScopedConfigService
     dispatcher?: ReturnType<typeof fakeDispatcher>
@@ -178,9 +179,8 @@ export function messagesWith(
   } = {},
 ) {
   const signals = args.signals ?? inertSignals()
-  const endpoint = args.endpoint ?? null
-  const runningEndpoint = vi.fn(async () => endpoint)
-  const park = args.park ?? vi.fn(async () => undefined)
+  const runningEndpoint = vi.fn(async () => args.endpoint ?? null)
+  const { observedRunning = vi.fn(async () => true), park = vi.fn() } = args
   const serve = vi.fn(async (_delivery: ServeSendArgs) => {
     if (args.serveFails !== undefined) throw args.serveFails
   })
@@ -190,13 +190,13 @@ export function messagesWith(
     ...(args.dispatcher === undefined ? {} : { dispatcher: args.dispatcher }),
   })
   const service = new ThreadMessagesService(
-    { runningEndpoint } as unknown as SandboxEndpointService,
+    { runningEndpoint, observedRunning } as unknown as SandboxEndpointService,
     serve,
     launched.pod,
     signals,
     { park } as unknown as SandboxesService,
   )
-  return { service, serve, runningEndpoint, park, dispatch: launched.dispatch }
+  return { service, serve, runningEndpoint, observedRunning, park, dispatch: launched.dispatch }
 }
 
 export type SeededCheckpoint = {
