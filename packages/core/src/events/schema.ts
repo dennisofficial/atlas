@@ -202,6 +202,12 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     failed: z.boolean(),
   }),
   z.object({
+    type: z.literal('turn-failed'),
+    message: z.string(),
+    modelId: z.string().optional(),
+    providerId: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('code-quality-reviewed'),
     callId: callIdSchema,
     workspaceNamespace: z.string().min(1),

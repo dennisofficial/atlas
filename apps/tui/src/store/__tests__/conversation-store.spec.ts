@@ -38,6 +38,17 @@ describe('the conversation store', () => {
     expect(store.getSnapshot().entries).toEqual([])
   })
 
+  it('shows a persisted failed turn as the failure after a restart', () => {
+    store.setEvents({
+      events: log([
+        { type: 'user-said', text: 'hello' },
+        { type: 'turn-failed', message: 'InvalidApiKey' },
+      ]),
+    })
+
+    expect(store.getSnapshot().failure).toEqual({ message: 'InvalidApiKey' })
+  })
+
   it('returns the same snapshot until something changes', () => {
     const first = store.getSnapshot()
 

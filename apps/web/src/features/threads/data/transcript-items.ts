@@ -3,9 +3,11 @@ import {
   durableEntries,
   EEntryKind,
   EThinkingVisibility,
+  persistedFailureOf,
   type InFlightStep,
   type OperatorSaidEntry,
   type RevealGate,
+  type StepFailure,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
@@ -156,6 +158,7 @@ function atOf(args: {
 
 export type DurableTranscript = {
   entries: TranscriptEntry[]
+  failure: StepFailure | null
   stamps: ReadonlyMap<string, string>
   spawns: SpawnItem[]
   reports: ReportItem[]
@@ -163,6 +166,7 @@ export type DurableTranscript = {
 
 export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
   entries: durableEntries({ events: args.events }),
+  failure: persistedFailureOf(args.events),
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
@@ -176,6 +180,7 @@ export function transcriptViewOf(args: {
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
+    persistedFailure: args.durable.failure,
     live: args.live,
     outputs: args.outputs,
     thinking: EThinkingVisibility.Stream,
