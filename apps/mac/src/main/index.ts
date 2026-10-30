@@ -10,7 +10,7 @@ import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
 import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
-import { routeExternalLinks } from './external-links-wiring'
+import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
@@ -26,6 +26,7 @@ await runLogged(async () => {
   const updateState = createUpdateState()
   const doubleClickAction = await readDoubleClickAction()
   const windowRef: { current?: BrowserWindow } = {}
+  const linksRef: { current?: IExternalLinkRouter } = {}
   const host = createDesktopHost({
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
@@ -37,6 +38,7 @@ await runLogged(async () => {
         if (windowRef.current)
           runTitlebarAction({ win: windowRef.current, action: doubleClickAction })
       },
+      setPreviewOrigins: (origins) => linksRef.current?.setFrameOrigins(origins),
     },
   })
 
@@ -51,7 +53,7 @@ await runLogged(async () => {
   windowRef.current = win
 
   syncFullscreen({ win })
-  routeExternalLinks({
+  linksRef.current = routeExternalLinks({
     webview: win.webview,
     onNewWindow: (handler) =>
       void Electrobun.events.on(`new-window-open-${win.webview.id}`, handler),

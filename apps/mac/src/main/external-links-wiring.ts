@@ -13,6 +13,10 @@ export interface ILinkWebview {
   loadURL: (url: string) => void
 }
 
+export interface IExternalLinkRouter {
+  setFrameOrigins: (origins: readonly string[]) => void
+}
+
 export function routeExternalLinks({
   webview,
   onNewWindow,
@@ -25,9 +29,10 @@ export function routeExternalLinks({
   hostOrigin: string
   openExternal: (url: string) => void
   now?: () => number
-}): void {
+}): IExternalLinkRouter {
   let lastUrl = ''
   let lastAt = 0
+  let frameOrigins: readonly string[] = []
   const open = (url: string) => {
     if (url === lastUrl && now() - lastAt < DEDUPE_WINDOW_MS) return
     lastUrl = url
@@ -37,7 +42,8 @@ export function routeExternalLinks({
   webview.setNavigationRules(navigationRulesFor({ hostOrigin }))
   webview.on('will-navigate', (event) => {
     const url = navigationUrlOf(event)
-    if (url && decideNavigation({ url, hostOrigin }) === ENavigationTarget.External) open(url)
+    if (url && decideNavigation({ url, hostOrigin, frameOrigins }) === ENavigationTarget.External)
+      open(url)
   })
   onNewWindow((event) => {
     const url = navigationUrlOf(event)
@@ -45,4 +51,10 @@ export function routeExternalLinks({
     if (decideNavigation({ url, hostOrigin }) === ENavigationTarget.External) open(url)
     else webview.loadURL(url)
   })
+  return {
+    setFrameOrigins: (origins) => {
+      frameOrigins = [...new Set(origins)].sort()
+      webview.setNavigationRules(navigationRulesFor({ hostOrigin, frameOrigins }))
+    },
+  }
 }
