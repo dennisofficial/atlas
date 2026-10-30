@@ -209,6 +209,7 @@ export function PromptInput({
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          autoCorrect="off"
           readOnly={sending}
           aria-busy={sending}
           className={sending ? 'text-muted-foreground' : undefined}

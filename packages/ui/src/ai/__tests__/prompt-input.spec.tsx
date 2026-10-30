@@ -24,6 +24,13 @@ describe('PromptInput', () => {
     expect(html).not.toContain('aria-label="Send"')
   })
 
+  it('turns off autocorrect but keeps spellcheck so acronyms survive', () => {
+    const field = renderToStaticMarkup(<PromptInput />).match(/<textarea[^>]*>/)?.[0] ?? ''
+
+    expect(field).not.toContain('spellCheck="false"')
+    expect(field).toContain('autoCorrect="off"')
+  })
+
   it('keeps the text in a read-only field with a spinner while sending', () => {
     const html = renderToStaticMarkup(<PromptInput defaultValue="fix the build" sending />)
     const send = html.match(/<button[^>]*aria-label="Sending"[^>]*>/)?.[0] ?? ''
