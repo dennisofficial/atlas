@@ -11,6 +11,7 @@ import {
 } from './in-flight-steps'
 import { sandboxNoticeOf, type TranscriptSandbox } from './sandbox-notice'
 import { persistedFailureOf } from './persisted-failure'
+import { pickFailure } from './pick-failure'
 import { revealedText, type RevealGate } from './reveal-gate'
 import { latestRunFailure, type DurableRunFailure } from './run-failure'
 import { modelEntries } from './model-entries'
@@ -25,22 +26,21 @@ import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './tran
 import { EMPTY_TRANSCRIPT, type StepFailure, type TranscriptModel } from './transcript-snapshot'
 import type { TurnSpend } from './turn-spend'
 
-const failureOf = (args: {
+const stepFailureOf = (args: {
   steps: readonly InFlightStep[]
   durable: DurableRunFailure | null
+  persisted: StepFailure | null
+  streaming: boolean
 }): StepFailure | null => {
-  const retried = args.steps.some((step) => step.end !== EStepEnd.Failed)
-  if (args.durable !== null) {
-    if (retried) return null
-    return {
-      message: args.durable.failure.message,
-      failure: args.durable.failure,
-      runId: args.durable.runId,
-    }
-  }
-
-  const failed = args.steps.filter((step) => step.end === EStepEnd.Failed).at(-1)
-  return failed === undefined ? null : { message: failed.errorMessage, failure: null, runId: null }
+  const picked = pickFailure({
+    steps: args.steps,
+    durable: args.durable,
+    legacy: args.persisted?.message == null ? null : { message: args.persisted.message, seq: null },
+    streaming: args.streaming,
+  })
+  return picked === null
+    ? null
+    : { message: picked.message, failure: picked.failure, runId: picked.runId }
 }
 
 function saidInStep(args: { step: InFlightStep; reveal: RevealGate | null }): TranscriptEntry[] {
@@ -156,9 +156,12 @@ export function assembleTranscript(args: {
     ...sandboxNoticeOf(args.sandbox ?? null),
   ]
   const streaming = args.live.some((step) => step.end === null) || args.working === true
-  const failure =
-    failureOf({ steps: args.live, durable: args.durableFailure ?? null }) ??
-    (streaming ? null : (args.persistedFailure ?? null))
+  const failure = stepFailureOf({
+    steps: args.live,
+    durable: args.durableFailure ?? null,
+    persisted: args.persistedFailure ?? null,
+    streaming,
+  })
 
   if (entries.length === 0 && !streaming && failure === null) {
     return EMPTY_TRANSCRIPT
