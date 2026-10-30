@@ -37,7 +37,8 @@ export class Processes implements ProcessPort {
     const exited = new Promise<number>((resolve) => {
       end = resolve
     })
-    if (args.cmd[1] === '-lc') end(this.setupExit)
+    const isSetup = !isProbe && args.cmd[0] === 'bash' && args.env?.PORT === undefined
+    if (isSetup) end(this.setupExit)
     else if (isProbe) {
       const port = /(?:127\.0\.0\.1[:/])(\d+)/.exec(args.cmd.join(' '))?.[1] ?? ''
       end(this.probeExit ?? (this.listening.has(port) ? 0 : 1))
@@ -67,7 +68,11 @@ export class Processes implements ProcessPort {
 
   servicesStarted(): SpawnCommand[] {
     return this.spawned.filter(
-      (one) => one.cmd[0] === 'bash' && one.cmd[1] === '-c' && !one.cmd[2]?.startsWith('exec 3<>'),
+      (one) =>
+        one.cmd[0] === 'bash' &&
+        one.cmd[1] === '-c' &&
+        !one.cmd[2]?.startsWith('exec 3<>') &&
+        one.env?.PORT !== undefined,
     )
   }
 }

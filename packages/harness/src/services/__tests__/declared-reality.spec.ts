@@ -104,7 +104,17 @@ describe('setup', () => {
     await Bun.sleep(20)
     await registry.ensureDeclared({ threadId: THREAD })
 
-    expect(processes.spawned.filter((one) => one.cmd[1] === '-lc')).toHaveLength(1)
+    expect(processes.spawned.filter((one) => one.cmd[2] === 'prep one')).toHaveLength(1)
+  })
+
+  it('runs setup with the session PATH, not a login shell that resets it', async () => {
+    const { registry, processes } = open({ yaml: SETUP })
+    closers.push(() => registry.closeAll())
+    await registry.ensureDeclared({ threadId: THREAD })
+
+    const setup = processes.spawned.find((one) => one.cmd[2] === 'prep one')
+    expect(setup?.cmd.slice(0, 2)).toEqual(['bash', '-c'])
+    expect(setup?.env?.PATH).toContain(process.env.PATH ?? '')
   })
 
   it('blocks the start when setup fails', async () => {
