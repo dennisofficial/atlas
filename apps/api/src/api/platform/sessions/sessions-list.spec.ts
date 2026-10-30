@@ -57,4 +57,12 @@ describe('sessions and thread listing', () => {
     expect(listed[0]?.teammates.map((node) => node.mainThread.id)).toEqual(['brn_mate'])
     expect(listed[0]?.teammates[0]?.teammates).toEqual([])
   })
+
+  it('sessions.list with a null project returns only projectless sessions', async () => {
+    await seedThreadRow({ id: 'brn_loose', userId: USER_A, executionLocation: 'cloud' })
+
+    const loose = await new SessionsService().list({ userId: USER_A, projectId: null })
+
+    expect(loose.map((node) => node.mainThread.id)).toEqual(['brn_loose'])
+  })
 })

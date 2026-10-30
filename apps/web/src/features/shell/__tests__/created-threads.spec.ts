@@ -24,6 +24,16 @@ describe('withCreatedThreads', () => {
     expect(withCreatedThreads({ entries, created: [created] })).toBe(entries)
   })
 
+  it('lists a just-created projectless thread under no project', () => {
+    const withLoose = [...entries, { project: null, sessions: [] }]
+    const created = threadOf({ id: 'loose', projectId: null })
+    expect(idsOf(withCreatedThreads({ entries: withLoose, created: [created] }))).toEqual([
+      ['old'],
+      [],
+      ['loose'],
+    ])
+  })
+
   it('leaves the list alone when the thread has no listed project', () => {
     const created = threadOf({ id: 'new', projectId: null })
     expect(withCreatedThreads({ entries, created: [created] })).toBe(entries)

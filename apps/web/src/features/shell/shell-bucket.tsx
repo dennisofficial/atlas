@@ -5,7 +5,13 @@ import { SidebarMenu } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { ThreadRow } from './shell-thread-row'
-import { countThreads, hasThread, type ProjectThreads } from './thread-partition'
+import {
+  countThreads,
+  hasThread,
+  projectKeyOf,
+  projectNameOf,
+  type ProjectThreads,
+} from './thread-partition'
 
 export interface BucketProps {
   label: string
@@ -35,14 +41,16 @@ export function Bucket({ label, hint, entries, activeThreadId }: BucketProps) {
       </button>
       {open &&
         entries.map(({ project, sessions }) => (
-          <div key={project.id} className="flex flex-col gap-0.5">
-            <p className="truncate px-2 pt-1 text-xs text-muted-foreground">{project.name}</p>
+          <div key={projectKeyOf(project)} className="flex flex-col gap-0.5">
+            <p className="truncate px-2 pt-1 text-xs text-muted-foreground">
+              {projectNameOf(project)}
+            </p>
             <SidebarMenu>
               {sessions.map((session) => (
                 <ThreadRow
                   key={session.id}
                   session={session}
-                  projectName={project.name}
+                  projectName={projectNameOf(project)}
                   activeThreadId={activeThreadId}
                 />
               ))}

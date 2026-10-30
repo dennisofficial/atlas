@@ -4,6 +4,9 @@ import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { hasThread, type ProjectThreads } from './thread-partition'
 
+const sameProject = (args: { entry: ProjectThreads; thread: WireThread }): boolean =>
+  (args.entry.project?.id ?? null) === (args.thread.projectId ?? null)
+
 export function withCreatedThreads(args: {
   entries: ProjectThreads[]
   created: readonly WireThread[]
@@ -11,11 +14,11 @@ export function withCreatedThreads(args: {
   const pending = args.created.filter(
     (thread) =>
       !hasThread({ entries: args.entries, threadId: thread.id }) &&
-      args.entries.some((entry) => entry.project.id === thread.projectId),
+      args.entries.some((entry) => sameProject({ entry, thread })),
   )
   if (pending.length === 0) return args.entries
   return args.entries.map((entry) => {
-    const mine = pending.filter((thread) => thread.projectId === entry.project.id)
+    const mine = pending.filter((thread) => sameProject({ entry, thread }))
     if (mine.length === 0) return entry
     const added = mine.map((thread) => ({
       id: thread.sessionId ?? thread.id,

@@ -97,6 +97,26 @@ describe('partitionThreads', () => {
   })
 })
 
+describe('projectless threads', () => {
+  it('shows a no-project group only when it holds active threads', () => {
+    const loose = sessionOf(threadOf({ id: 'loose', updatedAt: agoIso(1) }))
+    const stale = sessionOf(threadOf({ id: 'stale', updatedAt: agoIso(100) }))
+    const shown = partitionThreads({
+      entries: [
+        { project: projectOf('p1'), sessions: [] },
+        { project: null, sessions: [loose] },
+      ],
+      now: NOW,
+    })
+    expect(shown.groups.map((group) => group.project?.id ?? null)).toEqual(['p1', null])
+    expect(idsOf(shown.groups)).toEqual([[], ['loose']])
+
+    const hidden = partitionThreads({ entries: [{ project: null, sessions: [stale] }], now: NOW })
+    expect(hidden.groups).toEqual([])
+    expect(idsOf(hidden.inactive)).toEqual([['stale']])
+  })
+})
+
 describe('teammates', () => {
   const teammate = sessionOf(threadOf({ id: 'mate', updatedAt: agoIso(1) }))
   const manager = sessionOf(threadOf({ id: 'boss', updatedAt: agoIso(100) }), [teammate])
