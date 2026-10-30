@@ -11,6 +11,7 @@ import { DESKTOP_PRELOAD } from './preload'
 import { runLogged } from './crash-log'
 import { routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
+import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
 
 await runLogged(async () => {
   const localInfo = await Updater.getLocalInfo()
@@ -22,12 +23,20 @@ await runLogged(async () => {
   const secret = randomBytes(32).toString('hex')
   const podConfig = podConfigFromEnv({ env: process.env, serveVersion })
   const updateState = createUpdateState()
+  const doubleClickAction = await readDoubleClickAction()
+  const windowRef: { current?: BrowserWindow } = {}
   const host = createDesktopHost({
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
     pods: podConfig,
     auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
     updates: { status: updateState.status, restart: () => Updater.applyUpdate() },
+    window: {
+      titlebarDoubleClick: () => {
+        if (windowRef.current)
+          runTitlebarAction({ win: windowRef.current, action: doubleClickAction })
+      },
+    },
   })
 
   const win = new BrowserWindow({
@@ -36,8 +45,9 @@ await runLogged(async () => {
     frame: { width: 1280, height: 820 },
     preload: DESKTOP_PRELOAD,
     titleBarStyle: 'hiddenInset',
-    trafficLightOffset: { x: 14, y: 14 },
+    trafficLightOffset: { x: 13, y: 16 },
   })
+  windowRef.current = win
 
   syncFullscreen({ win })
   routeExternalLinks({

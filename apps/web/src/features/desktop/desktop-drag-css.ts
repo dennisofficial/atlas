@@ -1,4 +1,4 @@
-const INTERACTIVE = [
+export const NO_DRAG_SELECTORS = [
   'button',
   'a',
   'input',
@@ -12,11 +12,16 @@ const INTERACTIVE = [
   '[contenteditable]',
 ].join(',')
 
+export const DRAG_SELECTORS = [
+  'html[data-desktop] header[data-chrome]',
+  'html[data-desktop] [data-slot=sidebar-inner]',
+  'html[data-desktop] [data-desktop-drag-strip]',
+  'html[data-desktop] [data-desktop-drag]',
+]
+
 export const DESKTOP_DRAG_ATTRIBUTE = 'data-atlas-drag'
 
 export const DESKTOP_DRAG_CSS = [
-  'html[data-desktop] header[data-chrome]{-webkit-app-region:drag}',
-  'html[data-desktop] [data-slot=sidebar-inner]{-webkit-app-region:drag}',
-  'html[data-desktop] [data-desktop-drag-strip]{-webkit-app-region:drag}',
-  `html[data-desktop] :is(${INTERACTIVE}){-webkit-app-region:no-drag}`,
+  ...DRAG_SELECTORS.map((selector) => `${selector}{-webkit-app-region:drag}`),
+  `html[data-desktop] :is(${NO_DRAG_SELECTORS}){-webkit-app-region:no-drag}`,
 ].join('\n')

@@ -25,6 +25,10 @@ describe('DESKTOP_DRAG_CSS', () => {
     expect(DESKTOP_DRAG_CSS).not.toMatch(/["'\\]/)
   })
 
+  it('marks the empty-state logo as a drag region', () => {
+    expect(DESKTOP_DRAG_CSS).toContain('[data-desktop-drag]{-webkit-app-region:drag}')
+  })
+
   it('precedes every app-region declaration with a brace or semicolon', () => {
     const declarations = DESKTOP_DRAG_CSS.match(/-webkit-app-region/g) ?? []
     const preceded = DESKTOP_DRAG_CSS.match(/[{;]-webkit-app-region:/g) ?? []

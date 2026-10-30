@@ -19,7 +19,7 @@ const SIDEBAR_STYLE = { '--sidebar-width': '18rem' } as CSSProperties
 export function EmptyHome() {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <AtlasMark className="size-64 text-foreground opacity-5" />
+      <AtlasMark data-desktop-drag="" className="size-64 text-foreground opacity-5" />
     </div>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 
 import { applyDesktopAttributes } from './desktop-attributes'
 import { DESKTOP_DRAG_ATTRIBUTE, DESKTOP_DRAG_CSS } from './desktop-drag-css'
+import { handleDocumentDoubleClick, postTitlebarDoubleClick } from './titlebar-double-click'
 import { useIsDesktop } from './use-is-desktop'
 
 export function DesktopChrome() {
@@ -18,6 +19,13 @@ export function DesktopChrome() {
     style.textContent = DESKTOP_DRAG_CSS
     document.head.appendChild(style)
     return () => style.remove()
+  }, [desktop])
+  useEffect(() => {
+    if (!desktop) return
+    const handleDoubleClick = (event: MouseEvent) =>
+      handleDocumentDoubleClick({ event, post: postTitlebarDoubleClick })
+    document.addEventListener('dblclick', handleDoubleClick)
+    return () => document.removeEventListener('dblclick', handleDoubleClick)
   }, [desktop])
   return desktop ? <div aria-hidden="true" data-desktop-drag-strip /> : null
 }

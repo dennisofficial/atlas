@@ -1,16 +1,32 @@
 html[data-desktop]:not([data-fullscreen]) [data-slot="sidebar-inner"] > :first-child {
-  margin-top: calc(var(--spacing) * 10);
+  box-sizing: border-box;
+  height: calc(var(--spacing) * 13);
+  padding-block: 0;
+  padding-left: calc(var(--spacing) * 22);
+}
+
+html[data-desktop]:not([data-fullscreen])
+  [data-slot="sidebar"][data-state="collapsed"]
+  [data-slot="sidebar-inner"]
+  > :first-child {
+  height: auto;
+  margin-top: calc(var(--spacing) * 13);
+  padding: calc(var(--spacing) * 2);
+}
+
+html[data-desktop]:not([data-fullscreen]) header[data-chrome] {
+  height: calc(var(--spacing) * 13);
 }
 
 html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
-  padding-left: calc(var(--spacing) * 20);
+  padding-left: calc(var(--spacing) * 22);
 }
 
 html[data-desktop]:not([data-fullscreen])
   [data-slot="sidebar"][data-state="collapsed"]
   ~ [data-slot="sidebar-inset"]
   header[data-chrome="titlebar"] {
-  padding-left: calc(var(--spacing) * 20);
+  padding-left: calc(var(--spacing) * 22);
 }
 
 html[data-desktop]
@@ -83,5 +99,5 @@ html[data-vibrancy]
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 0;
-  height: calc(var(--spacing) * 10);
+  height: calc(var(--spacing) * 13);
 }

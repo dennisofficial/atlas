@@ -9,6 +9,7 @@ import type { IPodHostConfig } from './pods/config'
 import { createPodsHandler } from './pods/routes'
 import { serveStatic } from './static'
 import type { IDesktopUpdatesPort } from './update-routes'
+import type { IDesktopWindowPort } from './window-routes'
 
 export { resolveApiOrigin, resolveWebOrigin }
 
@@ -19,6 +20,7 @@ export interface ICreateDesktopHostOptions {
   pods?: IPodHostConfig
   auth?: Omit<IAuthConfig, 'home'> & { home?: string }
   updates?: IDesktopUpdatesPort
+  window?: IDesktopWindowPort
   port?: number
 }
 
@@ -36,6 +38,7 @@ export function createDesktopHost({
   pods,
   auth,
   updates,
+  window,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const authService = createAuthService({
@@ -47,6 +50,7 @@ export function createDesktopHost({
   const bearer = () => authService.token()
   const desktopRouter = createDesktopRouter({
     updates,
+    window,
     auth: createAuthHandler({ auth: authService }),
     pods:
       pods === undefined
