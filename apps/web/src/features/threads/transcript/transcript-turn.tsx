@@ -179,7 +179,7 @@ export function TurnView({
           }
         >
           {turn.item.text.trim().length === 0 ? undefined : (
-            <p className="whitespace-pre-wrap">{turn.item.text}</p>
+            <MessageResponse>{turn.item.text}</MessageResponse>
           )}
         </UserMessage>
       )

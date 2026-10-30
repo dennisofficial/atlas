@@ -7,6 +7,7 @@ import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EAgentDisplay } from '@dltech/atlas-ui/ai/agent-status'
 import type { AgentsPanelAgent } from '@dltech/atlas-ui/ai/agents-panel'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
+import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
@@ -72,7 +73,7 @@ export function AgentTranscriptBody(props: {
       {turns.length === 0 ? (
         <ChatItem id="brief">
           <UserMessage>
-            <p className="whitespace-pre-wrap">{fallback.brief}</p>
+            <MessageResponse>{fallback.brief}</MessageResponse>
           </UserMessage>
         </ChatItem>
       ) : null}
