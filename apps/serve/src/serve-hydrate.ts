@@ -1,6 +1,6 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import {
-  eventFromWire,
+  readableEventFromWire,
   mirrorWriter,
   newThreadMeta,
   readMetaSync,
@@ -20,11 +20,7 @@ export type HydrateResult = { imported: number; skipped: number; head: number; r
 
 const coreEventOf = (wire: WireEvent): Event | null => {
   if (wire.type === BOOT_STEP_EVENT_TYPE) return null
-  try {
-    return eventFromWire(wire)
-  } catch {
-    return null
-  }
+  return readableEventFromWire(wire)
 }
 
 export async function hydrateServeHistory(args: {

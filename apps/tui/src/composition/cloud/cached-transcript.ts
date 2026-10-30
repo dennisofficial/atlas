@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { eventFromWire, transcriptIdentityDigest } from '@dltech/atlas-harness'
+import { eventsFromWire, transcriptIdentityDigest } from '@dltech/atlas-harness'
 
 import type { ToolEffects } from '../../store/log-accumulator'
 import type { AtlasApp } from '../compose'
@@ -19,10 +19,11 @@ export async function readCachedCloudTranscript(args: {
     const wire = await args.app.cloud
       .sessionsClient({ session })
       .readEvents({ threadId: args.threadId })
-    if (wire.length === 0) return null
+    const events = eventsFromWire(wire)
+    if (events.length === 0) return null
 
     const snapshot = snapshotOf({
-      events: wire.map(eventFromWire),
+      events,
       effects: args.effects,
       digest: transcriptIdentityDigest,
     })
