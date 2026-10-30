@@ -222,3 +222,14 @@ export const PROJECT_SECRETS: LibrarySecret[] = [
 ]
 
 export const PROJECT_SECRET_ROWS: LibrarySecret[] = [...PROJECT_SECRETS, ...PERSONAL_SECRETS]
+
+export interface FileMountFixture {
+  path: string
+  mode: string
+  updated: string
+}
+
+export const PROJECT_FILE_MOUNTS: FileMountFixture[] = [
+  { path: 'apps/web/.env.local', mode: '0600', updated: '2h ago' },
+  { path: 'certs/internal-ca.pem', mode: '0644', updated: '3d ago' },
+]
