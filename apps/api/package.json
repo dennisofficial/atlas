@@ -12,7 +12,7 @@
     "dev:no-trigger": "bun run env:inject -- bun --watch src/main.ts",
     "start": "bun src/main.ts",
     "start:prod": "dotenvx run --strict -f envs/.env.api.$APP_TIER.enc -- bun src/main.ts",
-    "env:inject": "dotenvx run -f envs/.env.api.local.enc -f envs/.env.personal --ignore=MISSING_ENV_FILE -o --strict --",
+    "env:inject": "dotenvx run -f envs/.env.api.local.enc -f envs/.env.personal --ignore=MISSING_ENV_FILE --strict --",
     "db:migrate": "bun run env:inject -- bun run --cwd ../../packages/db db:migrate",
     "db:plan": "bun run env:inject -- bun run --cwd ../../packages/db db:plan",
     "db:verify": "bun run env:inject -- bun run --cwd ../../packages/db db:verify",
