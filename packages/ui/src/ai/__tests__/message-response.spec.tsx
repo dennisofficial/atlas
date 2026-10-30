@@ -65,6 +65,28 @@ describe('MessageResponse', () => {
   })
 })
 
+describe('MessageResponse treats html as text', () => {
+  it('keeps everything after an unclosed html comment', () => {
+    const html = render('marker:\n\n<!-- codex-state: abc\n\n## After\n\ntail text')
+
+    expect(html).toContain('&lt;!-- codex-state: abc')
+    expect(html).toContain('<h2')
+    expect(html).toContain('tail text')
+  })
+
+  it('shows a closed html comment as text', () => {
+    expect(render('<!-- hidden -->\n\nafter')).toContain('&lt;!-- hidden --&gt;')
+  })
+
+  it('shows inline html tags as text', () => {
+    expect(render('a <b>bold</b> word')).toContain('&lt;b&gt;bold&lt;/b&gt;')
+  })
+
+  it('still renders markdown around the html', () => {
+    expect(render('**strong** <i>x</i>')).toContain('data-streamdown="strong"')
+  })
+})
+
 describe('markdown code helpers', () => {
   it('reads the language from the class', () => {
     expect(languageOf('language-ts')).toBe('ts')
