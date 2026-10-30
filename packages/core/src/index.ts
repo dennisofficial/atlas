@@ -267,6 +267,7 @@ export * from './settings/agent-type-rows'
 export * from './version/semver'
 export * from './version/clean-release-body'
 export * from './version/release-bump'
+export * from './version/release-affected'
 export * from './version/release-range'
 
 export * from './secrets/mask'

@@ -8,7 +8,7 @@ Review the staged and unstaged changes with `git status` and `git diff`, then co
 
 Write the message as `<type>(<scope>): <description>` — an imperative, lowercase description
 under seventy-two characters. Pick the type from `feat`, `fix`, `refactor`, `docs`, `test`,
-`chore`. The merged PR title is the release decision — `feat` cuts a minor, `fix` a patch — so
+`chore`. The merged PR title sizes the release — `feat` cuts a minor, anything else a patch — so
 `feat` means a user can do something they couldn't before; tweaks, restyles, and polish are
 `fix` or `refactor`. Add a body only when the change needs a reason that the diff cannot carry.
 
