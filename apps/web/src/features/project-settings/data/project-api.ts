@@ -1,8 +1,17 @@
-import type { EShipBehavior, Project, ProjectSandbox } from '@dltech/atlas-wire/web'
+import {
+  decodeSettingValue,
+  encodeSettingValue,
+  type EShipBehavior,
+  type Project,
+  type ProjectSandbox,
+  type SettingScalar,
+} from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
 export type ProjectView = Project
+export type ProjectSettingValues = ReadonlyMap<string, SettingScalar>
+export type SettingChanges = Record<string, SettingScalar | null>
 
 export type SaveProjectBody = {
   name: string
@@ -38,3 +47,19 @@ export const saveSandbox = (args: {
   sandbox: ProjectSandbox
 }): Promise<ProjectSandbox> =>
   cloudCall(api.projectResources.saveSandbox.mutate({ projectId: args.projectId, ...args.sandbox }))
+
+export const fetchProjectSettings = async (projectId: string): Promise<ProjectSettingValues> => {
+  const body = await cloudCall(api.projectResources.listSettings.query({ projectId }))
+  return new Map(body.settings.map((setting) => [setting.key, decodeSettingValue(setting.value)]))
+}
+
+export const saveProjectSettings = (args: {
+  projectId: string
+  changes: SettingChanges
+}): Promise<void> => {
+  const values: Record<string, string | null> = {}
+  for (const [key, value] of Object.entries(args.changes)) {
+    values[key] = value === null ? null : encodeSettingValue(value)
+  }
+  return cloudCall(api.projectResources.patchSettings.mutate({ projectId: args.projectId, values }))
+}

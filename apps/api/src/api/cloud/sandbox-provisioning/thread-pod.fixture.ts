@@ -1,5 +1,6 @@
 import { vi } from 'bun:test'
 import { seedSandboxRow } from '../../../../test/session-seed'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
@@ -21,12 +22,21 @@ export const unreachableVercel = (): VercelSandboxClient =>
     }),
   }) as unknown as VercelSandboxClient
 
+export class RecordingBackground extends BackgroundWork {
+  readonly kept: Promise<unknown>[] = []
+
+  keepAlive(work: Promise<unknown>): void {
+    this.kept.push(work)
+  }
+}
+
 export const podServiceOver = (
   endpoints: SandboxEndpointService,
   vercel: VercelSandboxClient = unreachableVercel(),
   launch: PodLaunchService = podLaunchWith().pod,
   signals: ThreadSignalsService = inertSignals(),
-): ThreadPodService => new ThreadPodService(endpoints, vercel, launch, signals)
+  background: BackgroundWork = new RecordingBackground(),
+): ThreadPodService => new ThreadPodService(endpoints, vercel, launch, signals, background)
 
 export const realEndpoints = (): SandboxEndpointService =>
   new SandboxEndpointService(unreachableVercel(), cipher)

@@ -1,6 +1,7 @@
 import {
   BoxIcon,
   FileKeyIcon,
+  GitPullRequestIcon,
   LayoutDashboardIcon,
   PlugIcon,
   VariableIcon,
@@ -13,6 +14,7 @@ export enum EProjectSettingsSection {
   Secrets = 'secrets',
   Files = 'files',
   Mcp = 'mcp',
+  PullRequests = 'pull-requests',
 }
 
 export type ProjectNavItem = {
@@ -35,6 +37,11 @@ export const PROJECT_NAV: readonly ProjectNavItem[] = [
   },
   { section: EProjectSettingsSection.Files, label: 'Files', icon: FileKeyIcon },
   { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },
+  {
+    section: EProjectSettingsSection.PullRequests,
+    label: 'Pull requests',
+    icon: GitPullRequestIcon,
+  },
 ]
 
 export function projectSectionOfPath(pathname: string): EProjectSettingsSection | null {

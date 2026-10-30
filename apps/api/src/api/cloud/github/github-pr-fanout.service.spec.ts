@@ -216,3 +216,30 @@ describe('GithubPrFanoutService', () => {
     expect(closed).toEqual(['still closed'])
   })
 })
+
+describe('GithubPrFanoutService comment events', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('two comments of the same kind inside the window both flush', async () => {
+    const { fanout } = fanoutWith()
+    const received: GithubPrEventDto[] = []
+    fanout.openStream({
+      userId: 'usr_a',
+      handler: () => {},
+      eventHandler: (event) => received.push(event),
+    })
+    const comment = (id: string): GithubPrEventDto => ({
+      ...EVENT,
+      id: `evt_${id}`,
+      kind: EPrEventKind.Comment,
+      payload: { url: 'https://github.com/compai/app/pull/42', commentId: id },
+    })
+
+    fanout.pushEvent({ userIds: ['usr_a'], event: comment('1') })
+    fanout.pushEvent({ userIds: ['usr_a'], event: comment('2') })
+    await advanceTimersByTimeAsync(1_100)
+
+    expect(received.map((event) => event.payload.commentId)).toEqual(['1', '2'])
+  })
+})

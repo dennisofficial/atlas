@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useEffectEvent, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 import { CloudApiError } from './cloud-api'
 
@@ -23,39 +24,33 @@ const asCloudError = (error: unknown): CloudApiError =>
         status: 0,
       })
 
+type Boxed<TData> = { value: TData }
+
 export function useCloudQuery<TData>(args: {
   key: string
   load: () => Promise<TData>
+  retry?: number
 }): CloudQuery<TData> {
-  const { key } = args
-  const load = useEffectEvent(() => args.load())
-  const [generation, setGeneration] = useState(0)
-  const [result, setResult] = useState<
-    { key: string; data: TData } | { key: string; error: CloudApiError } | null
-  >(null)
+  const { key, load, retry } = args
+  const query = useQuery<Boxed<TData>, CloudApiError>({
+    queryKey: [key],
+    queryFn: async () => {
+      try {
+        return { value: await load() }
+      } catch (error) {
+        throw asCloudError(error)
+      }
+    },
+    ...(retry === undefined ? {} : { retry }),
+  })
+  const { refetch } = query
+  const reload = useCallback(() => void refetch(), [refetch])
 
-  useEffect(() => {
-    let cancelled = false
-    load().then(
-      (data) => {
-        if (!cancelled) setResult({ key, data })
-      },
-      (error: unknown) => {
-        if (!cancelled) setResult({ key, error: asCloudError(error) })
-      },
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [key, generation])
-
-  const reload = useCallback(() => setGeneration((current) => current + 1), [])
-
-  if (result === null || result.key !== key) {
-    return { state: EQueryState.Loading, data: undefined, error: undefined, reload }
+  if (query.data !== undefined) {
+    return { state: EQueryState.Ready, data: query.data.value, error: undefined, reload }
   }
-  if ('error' in result) {
-    return { state: EQueryState.Failed, data: undefined, error: result.error, reload }
+  if (query.status === 'error') {
+    return { state: EQueryState.Failed, data: undefined, error: query.error, reload }
   }
-  return { state: EQueryState.Ready, data: result.data, error: undefined, reload }
+  return { state: EQueryState.Loading, data: undefined, error: undefined, reload }
 }

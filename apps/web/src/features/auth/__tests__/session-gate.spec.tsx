@@ -29,13 +29,25 @@ const respond = (body: unknown, status = 200) => {
   globalThis.fetch = mock(async () => Response.json(body, { status })) as unknown as typeof fetch
 }
 
+const settle = () => act(async () => new Promise<void>((done) => setTimeout(done, 20)))
+
 const mount = async () => {
+  const { createTestQueryClient, TestQueryProvider } = await import(
+    '@/lib/__tests__/query-test-provider'
+  )
+  const client = createTestQueryClient()
   const { createRoot } = await import('react-dom/client')
   const { SessionGate } = await import('../session-gate')
   const host = document.createElement('div')
   const root = createRoot(host)
-  await act(async () => root.render(<SessionGate>private content</SessionGate>))
-  await act(async () => {})
+  await act(async () =>
+    root.render(
+      <TestQueryProvider client={client}>
+        <SessionGate>private content</SessionGate>
+      </TestQueryProvider>,
+    ),
+  )
+  await settle()
   return { host, root }
 }
 
@@ -64,7 +76,7 @@ describe('SessionGate', () => {
     respond({ user: { id: 'u' } })
     const retry = host.querySelector('button')
     await act(async () => retry?.click())
-    await act(async () => {})
+    await settle()
     expect(host.textContent).toContain('private content')
     await act(async () => root.unmount())
   })

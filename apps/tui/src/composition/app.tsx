@@ -7,7 +7,7 @@ import React, {
   useSyncExternalStore,
 } from 'react'
 
-import { projectOf, type ThreadId } from '@dltech/atlas-core'
+import { DEFAULT_PR_EDIT_POLICY, projectOf, type ThreadId } from '@dltech/atlas-core'
 
 import { cachedTranscripts } from './cached-transcript-store'
 import { cloudListing } from './cloud/cloud-listing'
@@ -93,6 +93,7 @@ export function App(props: {
         project: projectOf(props.app.workspace),
         bridge: createBridge,
         activeThreadId: () => owner.snapshot().threadId,
+        editPolicy: props.app.prEditPolicy ?? (() => DEFAULT_PR_EDIT_POLICY),
         apiProvisioned: ({ threadId, runner }) =>
           isApiProvisioned({ secrets: props.app.secrets, threadId, runner }),
       })

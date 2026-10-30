@@ -27,6 +27,9 @@ mock.module('@dltech/atlas-ui/ai/message-response', () => ({
 const { ETranscriptKind } = await import('../data/transcript-items')
 const { EMPTY_DETAILS } = await import('../panel/details/details-input')
 const { ThreadPanelProvider } = await import('../panel/thread-panel-context')
+const { createTestQueryClient, TestQueryProvider } = await import(
+  '@/lib/__tests__/query-test-provider'
+)
 const { ThreadTranscript } = await import('../thread-transcript')
 
 import type { TranscriptRow } from '../data/transcript-items'
@@ -93,16 +96,18 @@ const setup = async () => {
   const render = (rows: TranscriptRow[], working: boolean) =>
     act(async () =>
       root.render(
-        <ThreadPanelProvider value={panel}>
-          <ThreadTranscript
-            items={rows}
-            failedLabel={null}
-            pod={null}
-            working={working}
-            onRetryBoot={() => undefined}
-            rewind={null}
-          />
-        </ThreadPanelProvider>,
+        <TestQueryProvider client={createTestQueryClient()}>
+          <ThreadPanelProvider value={panel}>
+            <ThreadTranscript
+              items={rows}
+              failedLabel={null}
+              pod={null}
+              working={working}
+              onRetryBoot={() => undefined}
+              rewind={null}
+            />
+          </ThreadPanelProvider>
+        </TestQueryProvider>,
       ),
     )
   const tick = () =>

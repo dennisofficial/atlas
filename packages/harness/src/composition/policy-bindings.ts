@@ -1,5 +1,6 @@
 import {
   choiceValueOf,
+  authorListOf,
   classifierModeOf,
   DEFAULT_CLASSIFIER_POLICY,
   DEFAULT_WORKTREE_DIRECTORY,
@@ -9,6 +10,7 @@ import {
   EWebSearchBackend,
   backendOf,
   environmentFor,
+  textValueOf,
   toggleValueOf,
   type CredentialPort,
   type SecretsPort,
@@ -18,6 +20,7 @@ import {
 import {
   ClassifierPolicyToken,
   GrillingCeremonyEnabledToken,
+  PrEditPolicyToken,
   SkillSuggestionEnabledToken,
   WebSearchBackendToken,
   WorktreeDirectoryToken,
@@ -110,5 +113,15 @@ export async function bindSettingsPolicy(args: {
           fallback: EWebSearchBackend.DuckDuckGo,
         }),
       ) ?? EWebSearchBackend.DuckDuckGo,
+  })
+
+  container.register(PrEditPolicyToken, {
+    useValue: () => {
+      const { resolution } = settings.snapshot()
+      return {
+        muted: authorListOf(textValueOf({ resolution, id: ESettingId.PrEditMutedAuthors })),
+        urgent: authorListOf(textValueOf({ resolution, id: ESettingId.PrEditUrgentAuthors })),
+      }
+    },
   })
 }

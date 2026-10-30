@@ -13,6 +13,7 @@ import {
   signOut,
   type DeviceAction,
 } from '@/lib/auth-api'
+import { clearCloudCache } from '@/lib/query-client'
 
 import { DeviceConfirm } from './device-confirm'
 import { DeviceEnterForm } from './device-enter-form'
@@ -80,6 +81,7 @@ function DeviceFlow({ userCode }: { userCode: string }) {
 
   const handleSwitchAccount = async () => {
     await signOut().catch(() => undefined)
+    clearCloudCache()
     router.replace(`/sign-in?next=${encodeURIComponent(returnPath)}`)
   }
 

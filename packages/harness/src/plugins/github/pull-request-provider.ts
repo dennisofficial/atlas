@@ -1,4 +1,13 @@
-import { EPrEventKind, EPrReviewState, EPrVerdict, type ThreadId } from '@dltech/atlas-core'
+import {
+  DEFAULT_PR_EDIT_POLICY,
+  EEditDisposition,
+  editDispositionOf,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+  type PrEditPolicy,
+  type ThreadId,
+} from '@dltech/atlas-core'
 
 import { prEventNoticeOf, repoOfFrame, type PrEventFrame } from '../../cloud/pr-event-frame'
 import {
@@ -56,9 +65,37 @@ const batch = (args: {
   ...(args.settles === undefined ? {} : { settles: args.settles }),
 })
 
-export function occurrenceOf(frame: PrEventFrame): SubscriptionOccurrence {
+const isEditedComment = (frame: PrEventFrame): boolean =>
+  frame.payload.edited === true &&
+  (frame.kind === EPrEventKind.Comment || frame.kind === EPrEventKind.ReviewComment)
+
+export const editDispositionOfFrame = ({
+  frame,
+  policy = DEFAULT_PR_EDIT_POLICY,
+}: {
+  frame: PrEventFrame
+  policy?: PrEditPolicy | undefined
+}): EEditDisposition | null =>
+  isEditedComment(frame)
+    ? editDispositionOf({ authorLogin: frame.payload.authorLogin, policy })
+    : null
+
+export function occurrenceOf({
+  frame,
+  policy,
+}: {
+  frame: PrEventFrame
+  policy?: PrEditPolicy | undefined
+}): SubscriptionOccurrence | null {
   const draft = prEventNoticeOf(frame)
   const { payload } = frame
+
+  const disposition = editDispositionOfFrame({ frame, policy })
+  if (disposition === EEditDisposition.Muted) return null
+  if (disposition !== null) {
+    const key = `comment-edit:${payload.commentId ?? frame.id}`
+    return disposition === EEditDisposition.Urgent ? now({ draft, key }) : batch({ draft, key })
+  }
 
   if (frame.kind === EPrEventKind.Review && payload.reviewState === EPrReviewState.Approved) {
     return batch({ draft, key: `review:${payload.authorLogin ?? 'unknown'}` })
@@ -108,6 +145,7 @@ export function createPullRequestProvider(args: {
   service: Pick<PullRequestService, 'snapshot' | 'subscribe' | 'refresh'>
   onTargets: (targets: readonly PullRequestTarget[]) => void
   probe?: typeof probeCheckout
+  editPolicy?: (() => PrEditPolicy) | undefined
 }): PullRequestProvider {
   const probe = args.probe ?? probeCheckout
   const dedupe = createPrEventDedupe()
@@ -155,7 +193,8 @@ export function createPullRequestProvider(args: {
         target,
         reading: args.service.snapshot({ key: pullRequestLinkKey(target) }),
       })
-      if (frame !== null) deliver({ key, occurrence: occurrenceOf(frame) })
+      const occurrence = frame === null ? null : occurrenceOf({ frame })
+      if (occurrence !== null) deliver({ key, occurrence })
     }
   }
 
@@ -230,7 +269,8 @@ export function createPullRequestProvider(args: {
       })
       if (!fresh) return
 
-      deliver({ key, occurrence: occurrenceOf(frame) })
+      const occurrence = occurrenceOf({ frame, policy: args.editPolicy?.() })
+      if (occurrence !== null) deliver({ key, occurrence })
     },
   }
 }

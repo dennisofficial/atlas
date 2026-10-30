@@ -34,6 +34,25 @@ describe('handing a PR event to the model', () => {
     )
   })
 
+  it('leads an edited comment with its edit', () => {
+    const block = prEventBlock(eventOf({ authorLogin: 'octocat', body: 'now fixed', edited: true }))
+
+    expect(block).toContain('comment from octocat edited — now fixed.')
+  })
+
+  it('leads an edited review comment with its edit', () => {
+    const block = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.ReviewComment,
+        authorLogin: 'octocat',
+        body: 'nit',
+        edited: true,
+      }),
+    )
+
+    expect(block).toContain('review comment from octocat edited — nit.')
+  })
+
   it('names a review comment as such', () => {
     const block = prEventBlock(
       eventOf({ kind: EPrEventKind.ReviewComment, authorLogin: 'octocat', body: 'nit' }),

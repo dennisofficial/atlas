@@ -2,6 +2,8 @@
 
 import { useCallback } from 'react'
 
+import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { fetchProject, saveProject, type ProjectView, type SaveProjectBody } from './project-api'
@@ -15,12 +17,14 @@ export function useProject(projectId: string): ProjectResource {
   const load = useCallback(() => fetchProject(projectId), [projectId])
   const query = useCloudQuery({ key: `project:${projectId}`, load })
   const { reload } = query
+  const invalidateCloud = useInvalidateCloud()
   const save = useCallback(
     async (body: SaveProjectBody) => {
       await saveProject({ projectId, body })
       reload()
+      void invalidateCloud([PROJECTS_KEY, SHELL_THREADS_KEY])
     },
-    [projectId, reload],
+    [projectId, reload, invalidateCloud],
   )
   return { query, save }
 }

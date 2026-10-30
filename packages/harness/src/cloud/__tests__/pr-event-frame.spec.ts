@@ -67,6 +67,19 @@ describe('prEventNoticeOf', () => {
     })
   })
 
+  it('maps an edit frame onto an edited draft and keeps the comment id readable', () => {
+    const parsed = prEventFrameSchema.parse(
+      frame({ payload: { url: 'u', authorLogin: 'octocat', commentId: '99', edited: true } }),
+    )
+
+    expect(parsed.payload.commentId).toBe('99')
+    expect(prEventNoticeOf(parsed)).toMatchObject({ edited: true })
+  })
+
+  it('leaves edited off the draft when the frame is not an edit', () => {
+    expect(prEventNoticeOf(prEventFrameSchema.parse(frame()))).not.toHaveProperty('edited')
+  })
+
   it('carries verdict, mergeability and state only on the kinds that set them', () => {
     const verdict = prEventNoticeOf(
       prEventFrameSchema.parse(

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { SandboxesModule } from '../../platform/sandboxes/sandboxes.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
@@ -17,6 +18,7 @@ import { ThreadPodService } from './thread-pod.service'
     SandboxProvisioningService,
     ThreadMessagesService,
     ThreadPodService,
+    backgroundWorkProvider(),
     SandboxProvisioningRouter,
     ThreadMessagesRouter,
     ThreadPodRouter,

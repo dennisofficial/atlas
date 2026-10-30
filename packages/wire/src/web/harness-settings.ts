@@ -18,6 +18,8 @@ import {
   sandboxVcpusSchema,
 } from './setting-enums'
 
+export const PR_EDIT_MUTED_AUTHORS_WIRE_FALLBACK = 'vercel, github-actions, netlify, mintlify'
+
 export const USER_ONLY_SETTING_ENTRIES = [
   settingEntry({
     key: 'plugins.trustedRepos',
@@ -75,6 +77,18 @@ export const HARNESS_SETTING_ENTRIES = [
     schema: z.enum(EVerdictTiming),
     fallback: EVerdictTiming.FailFast,
     consumer: ESettingConsumer.Api,
+  }),
+  settingEntry({
+    key: 'github.prEvents.editMutedAuthors',
+    schema: z.string(),
+    fallback: PR_EDIT_MUTED_AUTHORS_WIRE_FALLBACK,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'github.prEvents.editUrgentAuthors',
+    schema: z.string(),
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
     key: 'decisions.provider',

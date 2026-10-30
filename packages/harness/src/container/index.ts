@@ -22,6 +22,7 @@ export {
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
   ModelCardSourceToken,
+  PrEditPolicyToken,
   ProjectSettingsStoreToken,
   SecretsStoreToken,
   SelectableModelToken,

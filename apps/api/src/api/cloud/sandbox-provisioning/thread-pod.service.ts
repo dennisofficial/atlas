@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   ESandboxProvisionState,
   EPodResizeApplies,
@@ -11,6 +11,7 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
+import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SandboxEndpointService } from '../../platform/sandboxes/sandbox-endpoint'
 import {
   SandboxMissingError,
@@ -27,6 +28,7 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
 import { podStateOf, standingStateOf } from '../../platform/sandboxes/pod-state'
 import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
+import { PodResourcesCache } from './pod-resources-cache'
 
 const TICKET_TTL_SECONDS = 60
 
@@ -36,20 +38,26 @@ export const RESIZE_UNMANAGED_MESSAGE =
 @Injectable()
 export class ThreadPodService {
   private readonly logger = new Logger(ThreadPodService.name)
+  private readonly liveResources: PodResourcesCache
 
   constructor(
     private readonly endpoints: SandboxEndpointService,
     private readonly vercel: VercelSandboxClient,
     private readonly pod: PodLaunchService,
     private readonly signals: ThreadSignalsService,
-  ) {}
+    @Inject(BackgroundWork) background: BackgroundWork,
+  ) {
+    this.liveResources = new PodResourcesCache(background, ({ key, failure }) =>
+      this.logger.warn(`reading resources of ${key} failed: ${String(failure)}`),
+    )
+  }
 
   async status(args: { userId: string; threadId: string }): Promise<PodStatus> {
     const { userId, threadId } = args
     await ownedThread({ reader: db, userId, threadId })
     const sessionId = await podSessionOf({ reader: db, threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
-    const steps = await readBootSteps({ threadId })
+    const steps = await readBootSteps({ threadId, sessionId })
     return {
       state: podStateOf({ row, lastBootStepState: steps.at(-1)?.state }),
       ...(row === null ? {} : { resources: await this.resourcesOf({ row, threadId }) }),
@@ -88,6 +96,7 @@ export class ThreadPodService {
       updatedAt: new Date(),
     })
     await this.vercel.delete({ threadId, name: row.name })
+    this.liveResources.forget(row.name)
     await db.orm.public.CloudSandbox.where({ id: row.id }).delete()
     await this.signals.podChanged({ threadId })
   }
@@ -95,6 +104,7 @@ export class ThreadPodService {
   private async saveSize(args: { threadId: string; name: string; vcpus: number }): Promise<void> {
     try {
       await this.vercel.updateResources(args)
+      this.liveResources.forget(args.name)
     } catch (failure) {
       if (failure instanceof SandboxMissingError) throw new NotFoundException(failure.message)
       throw failure
@@ -112,6 +122,7 @@ export class ThreadPodService {
       existing: row,
       pendingVcpus: vcpus,
     })
+    this.liveResources.forget(row.name)
     if (dispatchFailed) throw dispatchFailure()
     if (reply.state === ESandboxProvisionState.NotConfigured) {
       throw new ConflictException(reply.error)
@@ -128,13 +139,11 @@ export class ThreadPodService {
       region: row.region,
       ...(row.pendingVcpus === null ? {} : { pendingVcpus: row.pendingVcpus }),
     }
-    try {
-      const live = await this.vercel.readResources({ threadId: args.threadId, name: row.name })
-      return { ...live, ...identity }
-    } catch (failure) {
-      this.logger.warn(`reading resources of ${row.name} failed: ${String(failure)}`)
-      return identity
-    }
+    const live = await this.liveResources.resolve({
+      key: row.name,
+      read: () => this.vercel.readResources({ threadId: args.threadId, name: row.name }),
+    })
+    return { ...live, ...identity }
   }
 
   async connect(args: { userId: string; threadId: string }): Promise<PodConnectReply> {
