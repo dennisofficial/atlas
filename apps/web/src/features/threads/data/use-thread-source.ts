@@ -1,3 +1,7 @@
+import { useEffect } from 'react'
+
+import { activityOverrides } from '@/features/shell/activity-overrides'
+
 import { useLiveThread } from './use-live-thread'
 import { useThreadEvents } from './use-thread-events'
 import type { ThreadModelChoice } from './live-thread-view'
@@ -12,15 +16,22 @@ export function useThreadSource(args: {
   liveEligible: boolean
   onModelChanged?: ((model: ThreadModelChoice) => void) | undefined
 }): ThreadSource {
+  const { threadId } = args
   const live = useLiveThread({
-    threadId: args.threadId,
+    threadId,
     active: args.liveEligible,
     onModelChanged: args.onModelChanged,
   })
   const polled = useThreadEvents({
-    threadId: args.threadId,
+    threadId,
     signals: args.signals,
     enabled: pollingEnabledFor(live),
   })
+  const liveWorking = live.live && live.working
+  useEffect(() => {
+    if (!liveWorking) return undefined
+    activityOverrides.markWorking(threadId)
+    return () => activityOverrides.clearPending(threadId)
+  }, [liveWorking, threadId])
   return threadSourceOf({ live, polled })
 }

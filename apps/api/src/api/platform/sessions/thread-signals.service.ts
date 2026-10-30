@@ -2,6 +2,7 @@ import { db } from '@dltech/atlas-db'
 import {
   EThreadListFrame,
   EThreadStreamFrame,
+  type ThreadListActivity,
   type ThreadListFrame,
   type ThreadStreamFrame,
 } from '@dltech/atlas-wire'
@@ -12,6 +13,7 @@ import {
   isListSignal,
   parseThreadSignal,
   ThreadSignalBus,
+  type ListSignal,
   type ThreadSignal,
 } from './thread-signal.bus'
 
@@ -29,6 +31,15 @@ type OpenListStream = {
   onFrame: (frame: ThreadListFrame) => void
   onClosed: (() => void) | undefined
 }
+
+const listFrameOf = (signal: ListSignal): ThreadListFrame =>
+  signal.activity === undefined
+    ? { type: EThreadListFrame.Changed, threadId: signal.threadId }
+    : {
+        type: EThreadListFrame.Changed,
+        threadId: signal.threadId,
+        activity: signal.activity,
+      }
 
 @Injectable()
 export class ThreadSignalsService implements OnModuleDestroy {
@@ -54,7 +65,10 @@ export class ThreadSignalsService implements OnModuleDestroy {
     onFrame: (frame: ThreadStreamFrame) => void
     onClosed?: () => void
   }): () => void {
-    const entry: OpenStream = { onFrame: args.onFrame, onClosed: args.onClosed }
+    const entry: OpenStream = {
+      onFrame: args.onFrame,
+      onClosed: args.onClosed,
+    }
     let entries = this.streams.get(args.threadId)
     if (entries === undefined) {
       entries = new Set()
@@ -73,7 +87,10 @@ export class ThreadSignalsService implements OnModuleDestroy {
     onFrame: (frame: ThreadListFrame) => void
     onClosed?: () => void
   }): () => void {
-    const entry: OpenListStream = { onFrame: args.onFrame, onClosed: args.onClosed }
+    const entry: OpenListStream = {
+      onFrame: args.onFrame,
+      onClosed: args.onClosed,
+    }
     let entries = this.listStreams.get(args.userId)
     if (entries === undefined) {
       entries = new Set()
@@ -103,22 +120,38 @@ export class ThreadSignalsService implements OnModuleDestroy {
   }
 
   titleChanged(args: { threadId: string }): Promise<void> {
-    return this.publish({ threadId: args.threadId, frame: { type: EThreadStreamFrame.Title } })
+    return this.publish({
+      threadId: args.threadId,
+      frame: { type: EThreadStreamFrame.Title },
+    })
   }
 
-  listChanged(args: { userId: string; threadId: string }): Promise<void> {
-    return this.publish({ userId: args.userId, threadId: args.threadId })
+  listChanged(args: {
+    userId: string
+    threadId: string
+    activity?: ThreadListActivity
+  }): Promise<void> {
+    const { userId, threadId, activity } = args
+    return this.publish(
+      activity === undefined ? { userId, threadId } : { userId, threadId, activity },
+    )
   }
 
   async podChanged(args: { threadId: string }): Promise<void> {
-    await this.publish({ threadId: args.threadId, frame: { type: EThreadStreamFrame.Pod } })
+    await this.publish({
+      threadId: args.threadId,
+      frame: { type: EThreadStreamFrame.Pod },
+    })
     await this.listChangedForOwner(args)
   }
 
-  async listChangedForOwner(args: { threadId: string }): Promise<void> {
+  async listChangedForOwner(args: {
+    threadId: string
+    activity?: ThreadListActivity
+  }): Promise<void> {
     try {
       const row = await db.orm.public.Thread.where({ id: args.threadId }).select('userId').first()
-      if (row !== null) await this.listChanged({ userId: row.userId, threadId: args.threadId })
+      if (row !== null) await this.listChanged({ ...args, userId: row.userId })
     } catch (failure) {
       this.logger.warn(`resolving the owner of ${args.threadId} failed: ${String(failure)}`)
     }
@@ -159,7 +192,7 @@ export class ThreadSignalsService implements OnModuleDestroy {
     if (isListSignal(signal)) {
       for (const entry of this.listStreams.get(signal.userId) ?? []) {
         try {
-          entry.onFrame({ type: EThreadListFrame.Changed, threadId: signal.threadId })
+          entry.onFrame(listFrameOf(signal))
         } catch (failure) {
           this.logger.warn(`a list stream handler failed: ${String(failure)}`)
         }
