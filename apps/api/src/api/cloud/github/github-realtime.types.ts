@@ -23,6 +23,8 @@ export type GithubPrEventPayload = {
   state?: 'merged' | 'closed'
   headSha?: string
   settled?: boolean
+  commentId?: string
+  edited?: boolean
 }
 
 export interface GithubPrEventDto {

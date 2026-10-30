@@ -23,4 +23,7 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
     detail:
       'Servers reach every session of this project; OAuth sign-ins are yours and shared across projects.',
   },
+  [EProjectSettingsSection.PullRequests]: {
+    status: EPageStatus.Live,
+  },
 }

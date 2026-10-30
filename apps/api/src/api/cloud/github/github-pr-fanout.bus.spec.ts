@@ -244,4 +244,25 @@ describe('GithubPrFanoutService over a bus', () => {
     expect(received).toEqual([STATE])
     expect(acks).toEqual(['row_1'])
   })
+
+  it('keeps commentId and edited on a received event frame', () => {
+    const { fanout, bus } = distributedFanout()
+    const received: GithubPrEventDto[] = []
+    fanout.openStream({
+      userId: 'usr_a',
+      handler: () => {},
+      eventHandler: (event) => received.push(event),
+    })
+    const edited: GithubPrEventDto = {
+      ...EVENT,
+      kind: EPrEventKind.Comment,
+      payload: { url: EVENT.payload.url, body: 'ready', commentId: '901', edited: true },
+    }
+
+    bus.receive({
+      raw: JSON.stringify({ kind: EPrFrameKind.Event, userIds: ['usr_a'], payload: edited }),
+    })
+
+    expect(received).toEqual([edited])
+  })
 })

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EExecutionLocation, EPrEventKind, EPrReviewState, EPrVerdict } from '@dltech/atlas-core'
+import {
+  authorListOf,
+  DEFAULT_PR_EDIT_POLICY,
+  EExecutionLocation,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+} from '@dltech/atlas-core'
 import { ECloudSandboxState } from '@dltech/atlas-harness'
 
 import { CLOUD_THREAD, frame, LOCAL_THREAD, rig, summary } from './pr-event-forwarder.fixture'
@@ -56,6 +63,46 @@ describe('parked-cloud pr-event forwarding urgency', () => {
     const { forwarder, sent } = parkedRig('github.com/Owner/Repo')
 
     await forwarder.onPrEvent(frame())
+
+    expect(sent).toHaveLength(1)
+  })
+
+  it.each([
+    ['a person', 'octocat'],
+    ['a muted status bot', 'vercel[bot]'],
+  ])('does not forward an edited comment from %s', async (_name, authorLogin) => {
+    const { forwarder, sent } = parkedRig()
+    const base = frame()
+
+    await forwarder.onPrEvent(
+      frame({
+        payload: { ...base.payload, authorLogin, commentId: '10', edited: true },
+      }),
+    )
+
+    expect(sent).toHaveLength(0)
+  })
+
+  it('forwards an edited comment from an author in the live urgent list', async () => {
+    const { forwarder, sent } = rig({
+      summaries: [
+        summary({
+          id: CLOUD_THREAD,
+          location: EExecutionLocation.Cloud,
+          subscriptions: [{ repo: 'github.com/owner/repo', number: 42 }],
+        }),
+      ],
+      sandboxState: ECloudSandboxState.Parked,
+      activeThreadId: LOCAL_THREAD,
+      editPolicy: { ...DEFAULT_PR_EDIT_POLICY, urgent: authorListOf('octocat') },
+    })
+    const base = frame()
+
+    await forwarder.onPrEvent(
+      frame({
+        payload: { ...base.payload, authorLogin: 'octocat', commentId: '10', edited: true },
+      }),
+    )
 
     expect(sent).toHaveLength(1)
   })

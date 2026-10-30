@@ -1,6 +1,12 @@
 import { hostname } from 'node:os'
 
-import { ESettingId, OnThreadOpenHook, toggleValueOf } from '@dltech/atlas-core'
+import {
+  DEFAULT_PR_EDIT_POLICY,
+  ESettingId,
+  OnThreadOpenHook,
+  toggleValueOf,
+  type PrEditPolicy,
+} from '@dltech/atlas-core'
 import {
   composeHarness,
   createUrlOpener,
@@ -21,6 +27,7 @@ import {
   SubscriptionRegistryPort,
   cloudClientFor,
   CloudSessionStoreToken,
+  PrEditPolicyToken,
   type ContributedProjection,
   type HarnessApp,
   type RewindMachineryPort,
@@ -58,6 +65,7 @@ type TuiSurface = {
   githubSurface: ContributedSurface | null
   crewPullRequests: CrewPullRequests | null
   prEventSink: MutablePrEventSink | null
+  prEditPolicy: () => PrEditPolicy
   subscriptionsSurface: ContributedSurface | null
 }
 
@@ -72,6 +80,7 @@ export type AtlasApp = Omit<
   crewPullRequests?: CrewPullRequests | null
   /** The read tap on the pull-request event stream; the parked-cloud forwarder attaches here. */
   prEventSink: MutablePrEventSink | null
+  prEditPolicy?: (() => PrEditPolicy) | undefined
   /** Absent for a local session, where rewind cleans up through the local registries. */
   rewindMachinery?: RewindMachineryPort | undefined
   rotation?: RotationPort | undefined
@@ -253,6 +262,9 @@ export async function composeAtlas(args: {
           githubSurface,
           crewPullRequests,
           prEventSink,
+          prEditPolicy: container.isRegistered(PrEditPolicyToken, true)
+            ? container.resolve(PrEditPolicyToken)
+            : () => DEFAULT_PR_EDIT_POLICY,
           subscriptionsSurface:
             subscriptions === null ? null : subscriptionsSurface({ access: subscriptions }),
         }
@@ -277,5 +289,6 @@ export async function composeAtlas(args: {
     pullRequests: surface.pullRequests,
     crewPullRequests: surface.crewPullRequests,
     prEventSink: surface.prEventSink,
+    prEditPolicy: surface.prEditPolicy,
   }
 }

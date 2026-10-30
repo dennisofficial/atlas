@@ -53,6 +53,17 @@ export interface GithubWebhookUser {
   login: string
 }
 
+export interface GithubWebhookComment {
+  id: number
+  body: string
+  html_url: string
+  user: GithubWebhookUser | null
+}
+
+export interface GithubWebhookCommentChanges {
+  body?: { from: string }
+}
+
 export interface GithubIssueCommentWebhookPayload {
   action: string
   issue: {
@@ -60,7 +71,8 @@ export interface GithubIssueCommentWebhookPayload {
     html_url: string
     pull_request?: { html_url: string }
   }
-  comment: { body: string; html_url: string }
+  comment: GithubWebhookComment
+  changes?: GithubWebhookCommentChanges
   sender: GithubWebhookUser
   repository: GithubWebhookRepository
 }
@@ -76,7 +88,8 @@ export interface GithubPullRequestReviewWebhookPayload {
 export interface GithubPullRequestReviewCommentWebhookPayload {
   action: string
   pull_request: GithubWebhookPullRequest
-  comment: { body: string; html_url: string }
+  comment: GithubWebhookComment
+  changes?: GithubWebhookCommentChanges
   sender: GithubWebhookUser
   repository: GithubWebhookRepository
 }

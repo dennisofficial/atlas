@@ -1,9 +1,6 @@
-import { EHookPhase, EStage, LogPort, type HookOrder } from '@dltech/atlas-core'
+import { EHookPhase, EStage, LogPort, type HookOrder, type PrEditPolicy } from '@dltech/atlas-core'
 import type { CloudSession, CloudSessionStore } from '../../cloud/cloud-session'
 import { portToken, registeredPortToken, type DependencyContainer } from '../../container/injection'
-import type { PrEventFrame } from '../../cloud/pr-event-frame'
-import type { AppInstallRecommendation } from '../../cloud/pr-subscription-client'
-import { SsePullRequestPort } from '../../cloud/sse-pull-requests'
 import {
   AtlasHomeToken,
   ClientVersionToken,
@@ -17,15 +14,16 @@ import { BlockCiWatchBeforeToolHook } from './ci-watch-hook'
 import { CiFeedFragment } from './ci-feed-fragment'
 import { createCloudCheckout } from './cloud-checkout'
 import { FailoverPullRequestPort } from './failover-pull-requests'
-import { EGhPollRole, GhPullRequestPort } from './gh-pull-requests'
 import { RefreshPullRequestAfterShellHook, RefreshPullRequestAfterToolHook } from './hooks'
 import { createPullRequestLinks, type PullRequestLinks } from './links'
 import { createPollDiffer } from './pr-event-diff'
+import { isMutedEdit, registeredEditPolicy } from './muted-edit'
 import { MutablePrEventSink, PrEventFrameSink } from './pr-event-sink'
 import { createPullRequestProvider, type PullRequestProvider } from './pull-request-provider'
 import { CachedPullRequestPort } from './pull-request-cache-port'
+import { selectPullRequestPort } from './pull-request-port'
 import { createPullRequestService, type PullRequestService } from './pull-request-service'
-import { PullRequestPort, type PullRequestReading } from './pure'
+import { PullRequestPort } from './pure'
 import { createSessionFacts } from './session'
 import type { PullRequestTarget } from './subscription-target'
 
@@ -60,47 +58,10 @@ export default class GithubPlugin extends NativePlugin {
       clientVersion: string
       cacheDirectory: string
       log: LogPort | null
+      editPolicy?: (() => PrEditPolicy) | undefined
     },
   ) {
     super()
-  }
-
-  /**
-   * A cloud session (serve or signed-in operator) rides the SSE port: the API fans webhook
-   * deliveries out to it in real time, so it pushes rather than polls, and a `gh` poller stands
-   * behind it for as long as the API is unreachable. A signed-out operator
-   * keeps the `gh` poller as degraded mode. The SSE port's `onReading` closes over the service
-   * built after it — the deferred indirection is what lets the port outlive its own construction.
-   */
-  private port(
-    onReading: (args: { key: string; reading: PullRequestReading }) => void,
-    onPrEvent: (frame: PrEventFrame) => void,
-    onAppInstallRecommended: ((recommendation: AppInstallRecommendation) => void) | undefined,
-  ): FailoverPullRequestPort | GhPullRequestPort {
-    const session = this.args.serve ?? this.args.sessions.read()
-    if (session !== null) {
-      const log = this.args.log === null ? {} : { log: { port: this.args.log } }
-      return new FailoverPullRequestPort({
-        primary: new SsePullRequestPort({
-          session,
-          clientVersion: this.args.clientVersion,
-          onReading,
-          onPrEvent,
-          ...(onAppInstallRecommended === undefined ? {} : { onAppInstallRecommended }),
-          ...log,
-        }),
-        fallback: new GhPullRequestPort({
-          role: EGhPollRole.FailoverFallback,
-          ...(this.args.log === null ? {} : { log: this.args.log }),
-        }),
-        ...log,
-      })
-    }
-
-    return new GhPullRequestPort({
-      role: EGhPollRole.SignedOut,
-      ...(this.args.log === null ? {} : { log: this.args.log }),
-    })
   }
 
   contribute(): PluginContribution {
@@ -109,17 +70,23 @@ export default class GithubPlugin extends NativePlugin {
     let provider: PullRequestProvider | null = null
     const sink = new MutablePrEventSink()
     const appInstallSink = new MutableAppInstallSink()
-    const raw = this.port(
-      (pushed) => {
+    const raw = selectPullRequestPort({
+      serve: this.args.serve,
+      sessions: this.args.sessions,
+      clientVersion: this.args.clientVersion,
+      log: this.args.log,
+      onReading: (pushed) => {
         service?.ingest(pushed)
         cached?.ingest(pushed)
       },
-      (frame) => {
+      onPrEvent: (frame) => {
+        if (isMutedEdit({ frame, editPolicy: this.args.editPolicy })) return
         provider?.onFrame(frame)
         sink.onPrEvent(frame)
       },
-      (recommendation) => appInstallSink.onAppInstallRecommended(recommendation),
-    )
+      onAppInstallRecommended: (recommendation) =>
+        appInstallSink.onAppInstallRecommended(recommendation),
+    })
     const adapter = new CachedPullRequestPort({ inner: raw, directory: this.args.cacheDirectory })
     cached = adapter
     const pollDiffer = createPollDiffer({ emit: (frame) => provider?.onFrame(frame) })
@@ -148,6 +115,7 @@ export default class GithubPlugin extends NativePlugin {
     provider = createPullRequestProvider({
       tracker: tracking.tracker,
       service,
+      editPolicy: this.args.editPolicy,
       onTargets: (targets) => {
         extra.splice(0, extra.length, ...targets)
         watchAll()
@@ -289,6 +257,7 @@ export function registerPlugin({ container }: { container: DependencyContainer }
           : null,
         clientVersion: resolver.resolve(ClientVersionToken),
         cacheDirectory: resolver.resolve(AtlasHomeToken),
+        editPolicy: registeredEditPolicy({ container }),
         log: container.isRegistered(registeredPortToken(LogPort), true)
           ? resolver.resolve(registeredPortToken(LogPort))
           : null,

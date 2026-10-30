@@ -4,6 +4,7 @@ import type {
   AccountStorePort,
   ClassifierPolicy,
   EWebSearchBackend,
+  PrEditPolicy,
   SecretsPort,
   SettingsStorePort,
 } from '@dltech/atlas-core'
@@ -56,6 +57,8 @@ export const ProjectSettingsStoreToken: InjectionToken<SettingsStorePort> = Symb
 
 export const WorktreeDirectoryToken: InjectionToken<() => string> =
   Symbol('atlas.WorktreeDirectory')
+
+export const PrEditPolicyToken: InjectionToken<() => PrEditPolicy> = Symbol('atlas.PrEditPolicy')
 
 export const WebSearchBackendToken: InjectionToken<() => EWebSearchBackend> =
   Symbol('atlas.WebSearchBackend')

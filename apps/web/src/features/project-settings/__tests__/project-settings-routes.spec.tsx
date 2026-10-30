@@ -31,6 +31,9 @@ describe('project settings sections', () => {
       expect(projectSectionOfPath(`/projects/x/settings/${section}`)).toBe(section)
     }
     expect(projectSectionOfPath('/projects/x/settings/mcp')).toBe(EProjectSettingsSection.Mcp)
+    expect(projectSectionOfPath('/projects/x/settings/pull-requests')).toBe(
+      EProjectSettingsSection.PullRequests,
+    )
     expect(projectSectionOfPath('/projects/x/settings/billing')).toBeNull()
     expect(projectSectionOfPath('/projects/x/settings/constructor')).toBeNull()
     expect(projectSectionOfPath('/projects/x/settings')).toBeNull()

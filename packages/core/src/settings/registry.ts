@@ -1,5 +1,9 @@
 import { EExecutionLocation } from '../execution/location'
 import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
+import {
+  PR_EDIT_MUTED_AUTHORS_FALLBACK,
+  PR_EDIT_URGENT_AUTHORS_FALLBACK,
+} from '../github/pr-edit-policy'
 import { EClassifierMode } from '../policy/classifier/triage'
 import { EWebSearchBackend } from '../web/search'
 import {
@@ -14,6 +18,7 @@ import {
   DEFAULT_DECISIONS_PROVIDER,
   EDecisionsProvider,
 } from './decisions-presets'
+import { ESettingsLayer } from './layers'
 import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
 
@@ -81,6 +86,8 @@ export enum ESettingId {
   PlacementChooserShape = 'experimental.placementChooserShape',
   ExperimentalPods = 'experimental.pods',
   PrVerdictTiming = 'github.prEvents.verdictTiming',
+  PrEditMutedAuthors = 'github.prEvents.editMutedAuthors',
+  PrEditUrgentAuthors = 'github.prEvents.editUrgentAuthors',
   QualityEnabled = 'quality.enabled',
   QualityRecordExamples = 'quality.recordExamples',
 }
@@ -867,6 +874,28 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       { value: 'fail-fast', label: 'fail fast', detail: 'shipped' },
       { value: 'settled', label: 'settled', detail: 'wait for every check' },
     ],
+  },
+  {
+    id: ESettingId.PrEditMutedAuthors,
+    page: ESettingPage.Experimental,
+    group: 'Pull requests',
+    label: 'Muted edit authors',
+    description:
+      'Edits to pull request comments by these authors never reach a subscribed conversation. Comma-separated GitHub logins; a bot\u2019s [bot] suffix is optional. Status bots that rewrite one comment on every deploy belong here.',
+    writeLayer: ESettingsLayer.Project,
+    kind: ESettingKind.Text,
+    fallback: PR_EDIT_MUTED_AUTHORS_FALLBACK,
+  },
+  {
+    id: ESettingId.PrEditUrgentAuthors,
+    page: ESettingPage.Experimental,
+    group: 'Pull requests',
+    label: 'Urgent edit authors',
+    description:
+      'Edits to pull request comments by these authors wake a subscribed conversation at once instead of arriving with the next batch of routine updates. Use it for review bots that report by editing one comment, such as chatgpt-codex-connector.',
+    writeLayer: ESettingsLayer.Project,
+    kind: ESettingKind.Text,
+    fallback: PR_EDIT_URGENT_AUTHORS_FALLBACK,
   },
   {
     id: ESettingId.QualityEnabled,
