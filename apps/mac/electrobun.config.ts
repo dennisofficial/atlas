@@ -13,11 +13,17 @@ export default {
     mainProcess: 'bun',
     bun: { entrypoint: 'main-out/index.js', external: ['undici'] },
     copy: { 'web-out': 'web' },
-    mac: { codesign: signed, notarize: signed, createDmg: true, icons: 'icon.iconset' },
+    mac: {
+      codesign: signed,
+      notarize: signed,
+      createDmg: true,
+      icons: 'icon.iconset',
+    },
   },
   release: {
     baseUrl: 'https://github.com/dennisofficial/atlas/releases/latest/download',
     generatePatch: true,
   },
+  scripts: { postWrap: './scripts/wrapper-autoclose.ts' },
   runtime: { exitOnLastWindowClosed: true },
 } satisfies ElectrobunConfig
