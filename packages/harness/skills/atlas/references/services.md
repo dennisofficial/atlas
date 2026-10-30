@@ -90,6 +90,84 @@ Address services by declared name: `service_stop({ id: "web" })`, `service_resta
 `service_list` shows status and log paths. Declared services are restarted on crashes (backoff 1, 2,
 4, 8, 16 seconds) and re-ensured after the sandbox resumes.
 
+## Writing a good services.yaml
+
+Use this when the user asks for previews, or the repo has no file or a poor one. Goal: every dev app
+starts with one press of play or one `service_start({ name })`, and previews work first time.
+
+1. **Discover.** Read workspace `package.json` `dev` scripts (every monorepo member), `Procfile`,
+   docker-compose files, the README's getting-started section and framework configs. List every
+   long-running dev server and every infra dependency (Postgres, Redis...).
+2. **One service per long-running dev process.** Skip desktop/TUI apps, one-shot scripts, and tools
+   that hold credentials (never put those behind a public portal).
+3. **Dev mode only.** Run the project's own dev script in watch/HMR mode (`bun run dev`,
+   `npm run dev`, `vite`, `next dev`). Never build-then-start or production output
+   (`next build && next start`, `node dist`): slow, no reload, hides dev errors. Build-then-serve
+   belongs in CI.
+4. **Keep commands simple.** Prefer the package's dev script over calling the tool directly. If the
+   script hard-codes a port, change the script to honor `$PORT` with the old default rather than
+   bypass it.
+5. **Listen on `$PORT`, bound to `0.0.0.0`.** Browser-facing apps get a `portal`; backends the browser
+   calls get one too; databases don't.
+6. **`health`**: a cheap path that answers only when the app is ready (`/`, `/health`); with no HTTP,
+   omit it and declare `port` for TCP.
+7. **`setup`** for idempotent prep (install, migrate, seed). It runs once per service per session
+   before first start.
+8. **Infra as services.** Run it in the foreground (`docker compose up postgres`, not `-d`) so
+   supervision and stop work; declare `port` for TCP health.
+9. **Wire dependencies with env references** (`${services.api.url}`, `${services.web.publicUrl}`);
+   they also order startup. Point apps at public URLs where the browser needs them, and fix allowed
+   hosts / CORS / cookie domains in the app config, not with hacks.
+
+    A dev server that rejects unknown hosts breaks HMR behind a portal even when the page loads.
+    Atlas sets `PUBLIC_URL` (and `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS`, which Vite reads on its
+    own) for every service with a portal. Next.js reads neither, so `next.config` must add the
+    `PUBLIC_URL` hostname to `allowedDevOrigins`:
+
+    ```ts
+    const publicUrl = process.env.PUBLIC_URL ?? ''
+    const nextConfig = {
+      allowedDevOrigins: URL.canParse(publicUrl) ? [new URL(publicUrl).hostname] : [],
+    }
+    ```
+
+    The symptom is `Blocked cross-origin request to Next.js dev resource /_next/hmr` in the log.
+    Angular and webpack-dev-server have an `allowedHosts` option for the same purpose.
+10. **Secrets stay out of the file**; use the project's env tooling or cloud secrets.
+11. **Verify.** Run `services_ensure`, fetch each portal URL (expect 200 and the app, not a
+    blocked-host page), then scan each log after loading the page for host-block errors
+    (`Blocked cross-origin request`, `Invalid Host header`, `Blocked request`), not only the status
+    code. Then tell the user each service has a play button.
+
+Flags that matter: Next `-p $PORT -H 0.0.0.0`, Vite `--port $PORT --host`, Storybook
+`-p $PORT --host 0.0.0.0`.
+
+Monorepo with postgres, api and web:
+
+```yaml
+services:
+  postgres:
+    command: docker compose up postgres
+    port: 5432
+  api:
+    command: bun run dev
+    cwd: apps/api
+    health: /health
+    portal: true
+    setup:
+      - bun run db:migrate
+    env:
+      DATABASE_URL: postgres://app:app@127.0.0.1:${services.postgres.port}/app
+      WEB_ORIGIN: ${services.web.publicUrl}
+  web:
+    command: bun run dev
+    cwd: apps/web
+    health: /
+    portal: true
+    env:
+      API_URL: ${services.api.publicUrl}
+```
+
 ## One-off services
 
 `service_start` with a `command` runs an undeclared process (a database, a scratch server) with the same env
