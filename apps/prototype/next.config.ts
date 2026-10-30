@@ -8,7 +8,7 @@ const devOrigins = (process.env.ATLAS_PROTOTYPE_DEV_ORIGINS ?? '')
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   devIndicators: false,
-  transpilePackages: ['@dltech/atlas-ui'],
+  transpilePackages: ['@dltech/atlas-ui', '@dltech/atlas-core'],
 }
 
 export default nextConfig
