@@ -54,6 +54,12 @@ describe('ThreadRow with teammates', () => {
     expect(html).not.toContain('Write specs')
   })
 
+  it('opens the folder when the session main thread is active', () => {
+    const html = render('boss')
+    expect(html).toContain('Hide 3 teammates')
+    expect(html).toContain('Port folder')
+  })
+
   it('opens the done group when the active teammate is done', () => {
     expect(render('fin')).toContain('Write specs')
   })

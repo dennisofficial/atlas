@@ -1,6 +1,12 @@
-import type { ThreadId } from '@dltech/atlas-core'
-import type { DeltaChannel } from '@dltech/atlas-harness'
-import { EAgentStatus, EShellStatus, mirrorsThreadState, type RosterWire } from '@dltech/atlas-wire'
+import { toRunId, type ThreadId } from '@dltech/atlas-core'
+import { ETurnStatus, type DeltaChannel, type TurnOutcome } from '@dltech/atlas-harness'
+import {
+  EAgentStatus,
+  EStepEnd,
+  EShellStatus,
+  mirrorsThreadState,
+  type RosterWire,
+} from '@dltech/atlas-wire'
 
 import type { ApiRemote } from './api-client'
 import { createApprovalWatcher } from './serve-activity-approval'
@@ -39,7 +45,8 @@ export function bindServeActivity(args: {
 }): ServeActivity {
   if (!mirrorsThreadState(args.env)) return NOOP_SERVE_ACTIVITY
   const reporter =
-    args.reporter ?? createActivityReporter({ send: httpSendActivity(args.remote), log: args.log })
+    args.reporter ??
+    createActivityReporter({ send: httpSendActivity({ remote: args.remote }), log: args.log })
   const tracker = createActivityTracker({ report: reporter.report })
   const approvals = createApprovalWatcher({
     threadId: args.threadId,
@@ -71,6 +78,52 @@ export function bindServeActivity(args: {
       unsubscribeRoster?.()
     },
   }
+}
+
+const CHILD_RUN = toRunId('child-turn')
+
+const turnOutcomeOfStepEnd = (end: EStepEnd): TurnOutcome | undefined => {
+  switch (end) {
+    case EStepEnd.Completed:
+      return { status: ETurnStatus.Completed, runId: CHILD_RUN }
+    case EStepEnd.Interrupted:
+      return { status: ETurnStatus.Interrupted, runId: CHILD_RUN, committed: false }
+    case EStepEnd.Failed:
+    case EStepEnd.Retried:
+    case EStepEnd.Detached:
+      return undefined
+  }
+}
+
+export function bindChildActivity(args: {
+  threadId: ThreadId
+  channel: Pick<DeltaChannel, 'subscribe'>
+  remote: ApiRemote
+  log: ServeLog
+  reporter?: ActivityReporter | undefined
+}): { detach: () => void } {
+  const reporter =
+    args.reporter ??
+    createActivityReporter({
+      send: httpSendActivity({ remote: args.remote, threadId: args.threadId }),
+      log: args.log,
+    })
+  const tracker = createActivityTracker({ report: reporter.report })
+  const detach = args.channel.subscribe({
+    threadId: args.threadId,
+    listener: (signal) => {
+      if (signal.type === 'operator-input') tracker.setInput(signal.request !== null)
+      if (signal.type === 'step-ended') {
+        if (signal.end === EStepEnd.Failed) tracker.turnFailed()
+        const outcome = turnOutcomeOfStepEnd(signal.end)
+        if (outcome !== undefined) tracker.turnOutcome(outcome)
+      }
+      if (signal.type !== 'turn-working') return
+      if (signal.working) tracker.turnStarted()
+      else tracker.turnEnded()
+    },
+  })
+  return { detach }
 }
 
 export const backgroundRunning = (roster: Pick<RosterWire, 'agents' | 'shells'>): boolean =>

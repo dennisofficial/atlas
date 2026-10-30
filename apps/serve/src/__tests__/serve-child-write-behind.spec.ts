@@ -45,6 +45,7 @@ const agentOf = (agentId: ThreadId) => ({
 const harness = (args: { counts: Record<string, number>; failRegister?: { times: number } }) => {
   const base = fakeServeApp({ threadId: root, root: '/workspace' })
   const registered: string[] = []
+  const titles: (string | undefined)[] = []
   const posted: { threadId: string | undefined; seqs: number[] }[] = []
   let agents: ReturnType<typeof agentOf>[] = []
   const listeners = new Set<() => void>()
@@ -74,6 +75,7 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
         return trpcFailure({ status: 500 })
       }
       registered.push(body.threadId)
+      titles.push(body.title)
       return trpcOk({ head: 0 })
     }
     posted.push({ threadId: body.threadId, seqs: body.events.map((e: { seq: number }) => e.seq) })
@@ -91,6 +93,7 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
   return {
     behind,
     registered,
+    titles,
     posted,
     lines,
     spawn: (...ids: ThreadId[]) => {
@@ -113,6 +116,15 @@ describe('child write-behind', () => {
     expect(h.registered).toEqual(['child-a'])
     expect(h.posted).toContainEqual({ threadId: 'child-a', seqs: [1, 2, 3] })
     expect(h.posted).toContainEqual({ threadId: undefined, seqs: [1] })
+  })
+
+  it('registers a child with its agent label as the title', async () => {
+    const h = harness({ counts: { [childA]: 1 } })
+    h.spawn(childA)
+
+    await h.behind?.flush()
+
+    expect(h.titles).toEqual(['explore "look"'])
   })
 
   it('keeps independent seq spaces for two children', async () => {

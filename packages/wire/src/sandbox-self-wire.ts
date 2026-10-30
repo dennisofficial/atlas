@@ -32,6 +32,7 @@ export const sandboxSelfStopRequestSchema = z.object({ sessionId: z.string().min
 export type SandboxSelfStopRequest = z.infer<typeof sandboxSelfStopRequestSchema>
 
 export const sandboxActivityPostSchema = z.object({
+  threadId: z.string().min(1).optional(),
   working: z.boolean(),
   awaiting: z.enum(['approval', 'input']).nullable(),
   lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable().optional(),

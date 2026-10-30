@@ -1,4 +1,5 @@
 import { EThreadListFrame } from '@dltech/atlas-wire'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
@@ -62,6 +63,41 @@ describe('SandboxSelfRouter.activity', () => {
 
     expect(reply.status).toBe(200)
     expect((await threadById('thr-1'))?.awaiting).toBe('input')
+  })
+
+  it('writes a registered child in the family when threadId is given', async () => {
+    await db.orm.public.Thread.create({
+      ...(await threadById('thr-1'))!,
+      id: 'thr-child',
+      spawnerThreadId: 'thr-1',
+    })
+
+    const reply = await send(SANDBOX_TOKEN, {
+      threadId: 'thr-child',
+      working: true,
+      awaiting: null,
+    })
+
+    expect(reply.status).toBe(200)
+    expect((await threadById('thr-child'))?.working).toBe(true)
+    expect((await threadById('thr-1'))?.working).toBe(false)
+  })
+
+  it('answers 403 for a thread outside the family', async () => {
+    await db.orm.public.Thread.create({
+      ...(await threadById('thr-1'))!,
+      id: 'thr-other',
+      spawnerThreadId: null,
+    })
+
+    const reply = await send(SANDBOX_TOKEN, {
+      threadId: 'thr-other',
+      working: true,
+      awaiting: null,
+    })
+
+    expect(reply.status).toBe(403)
+    expect((await threadById('thr-other'))?.working).toBe(false)
   })
 
   it('answers 401 without a known token', async () => {
