@@ -68,7 +68,12 @@ export function CommandMenu({
               {spec.argumentHint === undefined ? null : (
                 <span className="shrink-0 text-muted-foreground">{spec.argumentHint}</span>
               )}
-              <span className="ml-auto truncate text-xs text-muted-foreground">{spec.summary}</span>
+              <span
+                title={spec.summary}
+                className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground"
+              >
+                {spec.summary}
+              </span>
             </div>
           ))}
         </fieldset>
