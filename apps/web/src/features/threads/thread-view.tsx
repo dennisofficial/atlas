@@ -16,11 +16,13 @@ import type { ModelSelection } from './data/model-selection'
 import { useThreadBackend } from './data/use-thread-backend'
 import { useThreadNaming } from './data/use-thread-naming'
 import { eventsFromWire } from './data/events-from-wire'
-import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
+import { durableTranscriptOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerHandoff } from './data/use-composer-handoff'
+import { useRetryRun } from './data/use-retry-run'
+import { useTranscriptView } from './data/use-transcript-view'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
 import { useParentTitle } from './data/use-parent-title'
@@ -104,10 +106,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
   const live = useMemo(() => liveSteps({ steps, events: parsed }), [steps, parsed])
   const reveal = useReveal({ steps, events: parsed })
-  const view = useMemo(
-    () => transcriptViewOf({ durable, live, outputs, reveal }),
-    [durable, live, outputs, reveal],
-  )
+  const view = useTranscriptView({ durable, live, outputs, reveal })
   const dock = useComposerDock({
     threadId,
     visible,
@@ -192,6 +191,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     if (source.interrupt()) return
     toast.error('Could not reach the sandbox to stop the turn')
   }
+
+  const handleRetry = useRetryRun(source.retry)
 
   const naming = useThreadNaming({
     threadId,
@@ -281,6 +282,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
             <ThreadTranscript
               items={view.items}
               failure={view.failure}
+              onRetry={handleRetry}
+              retryDisabled={working || view.streaming}
               pod={pod}
               working={working}
               onRetryBoot={() => void handleRetryBoot()}

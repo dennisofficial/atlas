@@ -7,6 +7,7 @@ import type {
   LiveApplyRewind,
   LiveChooseModel,
   LiveInterrupt,
+  LiveRetry,
   LiveReadRoster,
   LiveSend,
   LiveTakeBackPending,
@@ -33,6 +34,7 @@ export type ThreadSource = {
   waitingOnOperator: boolean
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
+  retry: LiveRetry
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
   refreshEvents: () => void
@@ -70,6 +72,7 @@ export function threadSourceOf(args: {
       waitingOnOperator: live.operatorInput !== null,
       takeBackPending: live.takeBackPending,
       interrupt: live.interrupt,
+      retry: live.retry,
       applyRewind: live.applyRewind,
       readRoster: live.readRoster,
       refreshEvents: STREAMED,
@@ -94,6 +97,7 @@ export function threadSourceOf(args: {
     waitingOnOperator: false,
     takeBackPending: live.takeBackPending,
     interrupt: live.interrupt,
+    retry: live.retry,
     applyRewind: live.applyRewind,
     readRoster: live.readRoster,
   }

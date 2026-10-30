@@ -46,6 +46,8 @@ export type LiveTakeBackPending = () => Promise<TakenBack | null>
 
 export type LiveInterrupt = () => boolean
 
+export type LiveRetry = () => boolean
+
 export type LiveApplyRewind = (args: {
   cuts: readonly RewindCutWire[]
   toSeq: number
@@ -59,6 +61,7 @@ export type LiveThreadView = LiveThreadState & {
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
+  retry: LiveRetry
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
 }

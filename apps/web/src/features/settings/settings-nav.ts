@@ -118,3 +118,5 @@ export function settingsPageOfPath(pathname: string): ESettingsPage | null {
 export function hrefOfPage(page: ESettingsPage): string {
   return `/settings/${page}`
 }
+
+export const PROVIDERS_HREF = hrefOfPage(ESettingsPage.Providers)

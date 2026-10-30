@@ -3,6 +3,8 @@ import {
   durableEntries,
   EEntryKind,
   EThinkingVisibility,
+  latestRunFailure,
+  type DurableRunFailure,
   type InFlightStep,
   type OperatorSaidEntry,
   type RevealGate,
@@ -21,7 +23,8 @@ import {
 } from './transcript-agents'
 import { ENoticeTone, ETranscriptKind } from './transcript-kind'
 import { noticeItemOf, type NoticeContext, type NoticeItem } from './transcript-notices'
-import { FAILED_FALLBACK, toolCallItemOf, type ToolCallItem } from './transcript-tools'
+import { failureViewOf, type AccountLabelOf, type FailureView } from './failure-view'
+import { toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
 export { ENoticeTone, ETranscriptKind }
 export type { NoticeContext, NoticeItem }
@@ -62,7 +65,7 @@ export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
 export type ThreadTranscriptView = {
   items: TranscriptRow[]
   streaming: boolean
-  failure: string | null
+  failure: FailureView | null
 }
 
 function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
@@ -159,6 +162,7 @@ export type DurableTranscript = {
   stamps: ReadonlyMap<string, string>
   spawns: SpawnItem[]
   reports: ReportItem[]
+  failure: DurableRunFailure | null
 }
 
 export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
@@ -166,6 +170,7 @@ export const durableTranscriptOf = (args: { events: readonly Event[] }): Durable
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
+  failure: latestRunFailure(args.events),
 })
 
 export function transcriptViewOf(args: {
@@ -173,10 +178,12 @@ export function transcriptViewOf(args: {
   live: readonly InFlightStep[]
   outputs?: ReadonlyMap<CallId, string>
   reveal?: RevealGate | null
+  accountLabelOf?: AccountLabelOf | undefined
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
     live: args.live,
+    durableFailure: args.durable.failure,
     outputs: args.outputs,
     thinking: EThinkingVisibility.Stream,
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),
@@ -196,7 +203,7 @@ export function transcriptViewOf(args: {
       inserted: [...pool.values(), ...args.durable.reports],
     }),
     streaming: model.streaming,
-    failure: model.failure === null ? null : (model.failure.message ?? FAILED_FALLBACK),
+    failure: failureViewOf({ failure: model.failure, accountLabelOf: args.accountLabelOf }),
   }
 }
 

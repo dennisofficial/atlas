@@ -1,17 +1,20 @@
 'use client'
 
 import { useMemo, type ReactNode } from 'react'
-import { CircleAlertIcon, CirclePauseIcon } from 'lucide-react'
+import { CirclePauseIcon } from 'lucide-react'
 
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
-import { Alert, AlertDescription, AlertTitle } from '@dltech/atlas-ui/components/alert'
+import Link from 'next/link'
+import { RunFailureBanner } from '@dltech/atlas-ui/ai/run-failure-banner'
 import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
+import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
+import type { FailureView } from './data/failure-view'
 import type { BootView } from './data/boot-view'
 import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
@@ -68,13 +71,17 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 export function ThreadTranscript({
   items,
   failure,
+  onRetry,
+  retryDisabled = false,
   pod,
   working,
   onRetryBoot,
   rewind,
 }: {
   items: readonly TranscriptRow[]
-  failure: string | null
+  failure: FailureView | null
+  onRetry?: (() => void) | undefined
+  retryDisabled?: boolean | undefined
   pod: PodStatus | null
   working: boolean
   onRetryBoot: () => void
@@ -114,11 +121,20 @@ export function ThreadTranscript({
       ])}
       {failure === null ? null : (
         <ChatItem id="turn-failure">
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>The run failed</AlertTitle>
-            <AlertDescription>{failure}</AlertDescription>
-          </Alert>
+          <RunFailureBanner
+            title={failure.title}
+            detail={failure.detail}
+            {...(failure.showSettings
+              ? { settingsHref: PROVIDERS_HREF, settingsLabel: 'Open Providers settings' }
+              : {})}
+            renderLink={({ href, className, children }) => (
+              <Link href={href} className={className}>
+                {children}
+              </Link>
+            )}
+            onRetry={onRetry}
+            retryDisabled={retryDisabled}
+          />
         </ChatItem>
       )}
     </Chat>

@@ -12,6 +12,7 @@ import type {
   LiveChooseModel,
   LiveInterrupt,
   LiveReadRoster,
+  LiveRetry,
   LiveTakeBackPending,
 } from './live-thread-view'
 
@@ -23,6 +24,7 @@ export function createLiveThreadActions(args: {
   chooseModel: LiveChooseModel
   takeBackPending: LiveTakeBackPending
   interrupt: LiveInterrupt
+  retry: LiveRetry
   applyRewind: LiveApplyRewind
   readRoster: LiveReadRoster
 } {
@@ -63,6 +65,13 @@ export function createLiveThreadActions(args: {
     return true
   }
 
+  const retry: LiveRetry = () => {
+    const live = connected()
+    if (live === null) return false
+    live.run()
+    return true
+  }
+
   const applyRewind: LiveApplyRewind = async ({ cuts, toSeq }) => {
     const live = connected()
     if (live === null) throw new Error('the sandbox is not connected')
@@ -84,5 +93,5 @@ export function createLiveThreadActions(args: {
     }
   }
 
-  return { chooseModel, takeBackPending, interrupt, applyRewind, readRoster }
+  return { chooseModel, takeBackPending, interrupt, retry, applyRewind, readRoster }
 }

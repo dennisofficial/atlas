@@ -16,9 +16,8 @@ import {
   type RoleSetting,
 } from '../fixtures/settings-agent'
 import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
+import { PROVIDERS_HREF } from '../settings-nav'
 import { EffortSlider } from './agent-effort-slider'
-
-const PROVIDERS_HREF = '/settings/providers'
 
 export function RoleCard({
   role,

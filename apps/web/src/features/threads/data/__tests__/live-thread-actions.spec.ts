@@ -112,6 +112,26 @@ describe('interrupt', () => {
   })
 })
 
+describe('retry', () => {
+  const runs = (test: ReturnType<typeof rig>) =>
+    test.sockets.flatMap((socket) => socket.sent.filter((frame) => frame.kind === EClientFrame.Run))
+
+  it('sends the run frame over a connected live channel', async () => {
+    const test = rig()
+    test.controller.start()
+    await flush()
+    test.ready()
+
+    expect(test.controller.retry()).toBe(true)
+
+    expect(runs(test)).toEqual([{ kind: EClientFrame.Run }])
+  })
+
+  it('returns false without a connected channel', () => {
+    expect(rig().controller.retry()).toBe(false)
+  })
+})
+
 describe('rewind', () => {
   const cuts = [{ kind: 'shell' as const, shellId: 'sh_1', command: 'bun run dev' }]
 

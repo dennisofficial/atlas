@@ -252,7 +252,11 @@ describe('transcriptViewOf', () => {
         },
       ],
     })
-    expect(view.failure).toBe('provider overloaded')
+    expect(view.failure).toEqual({
+      title: 'The run failed',
+      detail: 'provider overloaded',
+      showSettings: false,
+    })
   })
 
   it('skips legacy boot rows', () => {

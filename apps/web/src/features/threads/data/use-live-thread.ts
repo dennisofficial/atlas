@@ -11,6 +11,7 @@ import {
   type LiveChooseModel,
   type LiveInterrupt,
   type LiveReadRoster,
+  type LiveRetry,
   type LiveSend,
   type LiveTakeBackPending,
   type LiveThreadState,
@@ -24,6 +25,7 @@ const NOT_LIVE: LiveSend = () => false
 const NOT_CHOOSABLE: LiveChooseModel = async () => false
 const NOT_TAKEABLE: LiveTakeBackPending = async () => null
 const NOT_INTERRUPTIBLE: LiveInterrupt = () => false
+const NOT_RETRYABLE: LiveRetry = () => false
 const NOT_REWINDING: LiveApplyRewind = async () => {
   throw new Error('the sandbox is not connected')
 }
@@ -45,6 +47,7 @@ export function useLiveThread(args: {
   const chooseRef = useRef<LiveChooseModel>(NOT_CHOOSABLE)
   const takeBackRef = useRef<LiveTakeBackPending>(NOT_TAKEABLE)
   const interruptRef = useRef<LiveInterrupt>(NOT_INTERRUPTIBLE)
+  const retryRef = useRef<LiveRetry>(NOT_RETRYABLE)
   const rewindRef = useRef<LiveApplyRewind>(NOT_REWINDING)
   const rosterRef = useRef<LiveReadRoster>(NOT_READING_ROSTER)
   const modelChangedRef = useRef(args.onModelChanged)
@@ -72,6 +75,7 @@ export function useLiveThread(args: {
     chooseRef.current = next.controller.chooseModel
     takeBackRef.current = next.controller.takeBackPending
     interruptRef.current = next.controller.interrupt
+    retryRef.current = next.controller.retry
     rewindRef.current = next.controller.applyRewind
     rosterRef.current = next.controller.readRoster
     setSession(next)
@@ -81,6 +85,7 @@ export function useLiveThread(args: {
       chooseRef.current = NOT_CHOOSABLE
       takeBackRef.current = NOT_TAKEABLE
       interruptRef.current = NOT_INTERRUPTIBLE
+      retryRef.current = NOT_RETRYABLE
       rewindRef.current = NOT_REWINDING
       rosterRef.current = NOT_READING_ROSTER
       next.controller.stop()
@@ -101,6 +106,7 @@ export function useLiveThread(args: {
   const chooseModel = useMemo<LiveChooseModel>(() => (model) => chooseRef.current(model), [])
   const takeBackPending = useMemo<LiveTakeBackPending>(() => () => takeBackRef.current(), [])
   const interrupt = useMemo<LiveInterrupt>(() => () => interruptRef.current(), [])
+  const retry = useMemo<LiveRetry>(() => () => retryRef.current(), [])
   const applyRewind = useMemo<LiveApplyRewind>(() => (picked) => rewindRef.current(picked), [])
   const readRoster = useMemo<LiveReadRoster>(() => () => rosterRef.current(), [])
   return {
@@ -110,6 +116,7 @@ export function useLiveThread(args: {
     chooseModel,
     takeBackPending,
     interrupt,
+    retry,
     applyRewind,
     readRoster,
   }
