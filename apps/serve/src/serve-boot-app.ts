@@ -10,6 +10,7 @@ import { apiThreadModel } from './serve-thread-model-boot'
 import { bindServeWriteBehind } from './serve-write-behind'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
 import { fileMountNoticeOf } from './file-mount-notice'
+import { envSecretsNoticeOf } from './env-secrets-notice'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
 
 export async function bootServeApp(args: {
@@ -96,25 +97,29 @@ export async function bootServeApp(args: {
       remote,
       log,
     })
-    const mountNotice = fileMounts === null ? null : fileMountNoticeOf(fileMounts)
-    if (mountNotice !== null) {
+    const bootNotices = [
+      {
+        slot: 'project-file-mounts',
+        content: fileMounts === null ? null : fileMountNoticeOf(fileMounts),
+      },
+      {
+        slot: 'cloud-env-secrets',
+        content: envSecretsNoticeOf(refreshCloudState.exportedEnvNames()),
+      },
+    ]
+    for (const { slot, content } of bootNotices) {
+      if (content === null) continue
       try {
         await app.log.append({
           threadId,
           runId: app.ids.nextRunId(),
-          drafts: [
-            {
-              type: 'context-loaded',
-              slot: 'project-file-mounts',
-              key: 'boot',
-              content: mountNotice,
-            },
-          ],
+          drafts: [{ type: 'context-loaded', slot, key: 'boot', content }],
         })
         app.channel.publisherFor({ threadId }).eventsAppended()
       } catch (failure) {
         log({
           event: EServeEvent.FileMountNoticeFailed,
+          slot,
           reason: failure instanceof Error ? failure.message : String(failure),
         })
       }
