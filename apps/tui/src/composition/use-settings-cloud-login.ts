@@ -25,7 +25,7 @@ const reasonOf = (error: unknown): string =>
 
 export const signedInNotice = (args: { email: string | null }): string => {
   const whom = args.email === null ? '' : ` as ${args.email}`
-  return `Signed in to Atlas Cloud${whom}. Your local accounts, secrets, MCP and settings stay on this machine — upload or download below to back them up or pull them down.`
+  return `Signed in to Atlas Cloud${whom}. Your provider accounts and secrets now live in Atlas Cloud, shared with Atlas web.`
 }
 
 /**
@@ -92,7 +92,14 @@ export function useSettingsCloudLogin(args: {
           void cloud
             .finishLogin({ ticket, token: result.token })
             .then((finished) => {
-              put(signedInLogin(signedInNotice({ email: finished.session.email })))
+              const notice = signedInNotice({ email: finished.session.email })
+              put(
+                signedInLogin(
+                  finished.uploadFailure === undefined
+                    ? notice
+                    : `${notice} Uploading this machine's accounts and secrets failed (${finished.uploadFailure}) — retry with Upload below.`,
+                ),
+              )
               onSignedIn()
             })
             .catch(failOpen)

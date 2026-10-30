@@ -1,4 +1,6 @@
 import {
+  EAccountOrigin,
+  EAuthKind,
   EAuthProvider,
   type AccountId,
   type AccountStorePort,
@@ -14,11 +16,12 @@ import { RemoteAccountStore } from './remote-account-store'
 
 export type { CloudSyncCounts } from './sync-accounts'
 
-/**
- * Pushes every local account the cloud does not already hold (matched on provider + label +
- * secret, so a retried upload never duplicates) and points the remote actives at the uploaded
- * ids. Uploads only ever add — nothing remote is deleted or overwritten.
- */
+const sameCloudAccount = (held: StoredAccount, local: StoredAccount): boolean => {
+  if (held.provider !== local.provider || held.secret.kind !== local.secret.kind) return false
+  if (sameAccountSecret(held.secret, local.secret)) return true
+  return local.secret.kind === EAuthKind.Oauth && held.label === local.label
+}
+
 export async function uploadLocalAccounts(args: {
   client: CloudClient
   local: AccountStorePort
@@ -32,23 +35,21 @@ export async function uploadLocalAccounts(args: {
   }
 
   const remoteIds = new Map<AccountId, AccountId>()
+  const added = new Set<AccountId>()
   for (const account of await args.local.list()) {
+    if (account.origin === EAccountOrigin.Environment) continue
     const stored = await args.local.read(account.id)
     if (stored === undefined) continue
 
-    const duplicate = heldRemote.find(
-      (held) =>
-        held.provider === stored.provider &&
-        held.label === stored.label &&
-        sameAccountSecret(held.secret, stored.secret),
-    )
+    const duplicate = heldRemote.find((held) => sameCloudAccount(held, stored))
     if (duplicate !== undefined) {
       remoteIds.set(account.id, duplicate.id)
       continue
     }
 
-    const added = await remote.add(accountDraftOf(stored))
-    remoteIds.set(account.id, added.id)
+    const created = await remote.add(accountDraftOf(stored))
+    remoteIds.set(account.id, created.id)
+    added.add(created.id)
   }
 
   for (const provider of Object.values(EAuthProvider)) {
@@ -57,6 +58,7 @@ export async function uploadLocalAccounts(args: {
 
     const remoteId = remoteIds.get(active)
     if (remoteId === undefined) continue
+    if (!added.has(remoteId) && (await remote.activeFor(provider)) !== undefined) continue
 
     await remote.setActive({ provider, accountId: remoteId })
   }
@@ -70,9 +72,10 @@ export async function uploadLocalSecrets(args: {
 }): Promise<number> {
   if (args.localSecrets === undefined) return 0
 
+  const held = new Set((await args.client.listSecrets()).map((secret) => secret.name))
   let uploaded = 0
   for (const name of args.localSecrets.names()) {
-    if (isHarnessLocalOnlyName(name) || ENV_NAME_PATTERN.test(name)) continue
+    if (isHarnessLocalOnlyName(name) || ENV_NAME_PATTERN.test(name) || held.has(name)) continue
     const value = args.localSecrets.read(name)
     if (value === undefined) continue
     await args.client.putSecret({ name, value })

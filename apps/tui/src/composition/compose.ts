@@ -135,7 +135,7 @@ export async function composeAtlas(args: {
     env: args.env,
     settings: args.settings,
     cloudSettings: true,
-    cloudSecretsAndAccounts: pods,
+    cloudSecretsAndAccounts: true,
     clientVersion: clientVersionHeader(),
     ports: {
       ...sharedPortBindings,

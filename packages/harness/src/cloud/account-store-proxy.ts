@@ -14,11 +14,12 @@ import { CachingAccountStore } from './caching-account-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteAccountStore } from './remote-account-store'
+import { SignedInAccountStore } from './signed-in-account-store'
 
 /**
  * Signed in, the cloud is the store and stays the store: an outage surfaces as a failed call,
- * never as a quiet switch to the local vault. Signing in archives that vault, so there is
- * nothing behind it to serve until signing out again; while signed out, the local vault serves.
+ * never as a quiet switch to the local vault. Only environment keys are served from this machine
+ * while signed in; signed out, the local vault serves.
  */
 export class AccountStoreProxy extends AccountStorePort {
   private readonly local: AccountStorePort
@@ -75,6 +76,10 @@ export class AccountStoreProxy extends AccountStorePort {
     return this.current().activeFor(provider)
   }
 
+  invalidateCloudCache(): void {
+    this.remote = undefined
+  }
+
   private current(): AccountStorePort {
     const session = this.sessions.read()
     if (session === null) return this.local
@@ -86,12 +91,11 @@ export class AccountStoreProxy extends AccountStorePort {
           ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
         }),
       })
+      const cloud =
+        this.clock === undefined ? remote : new CachingAccountStore({ remote, clock: this.clock })
       this.remote = {
         token: session.token,
-        store:
-          this.clock === undefined
-            ? remote
-            : new CachingAccountStore({ remote, clock: this.clock }),
+        store: new SignedInAccountStore({ cloud, local: this.local }),
       }
     }
 

@@ -25,7 +25,10 @@ const getSessionResponseSchema = z.object({
 
 export type CloudLoginResult = {
   session: CloudSession
+  uploadFailure?: string
 }
+
+export type LocalCredentialsUpload = { accounts: number; secrets: number }
 
 export type SessionsClientFor = (args: {
   session: CloudSession
@@ -44,6 +47,8 @@ export class CloudService {
   private readonly signInOffer: SignInOffer
   private readonly sessionsClientFor: SessionsClientFor | undefined
   private readonly handoffOauth: OauthHandoffCallback | undefined
+  private readonly uploadOnSignIn: boolean
+  private readonly onUploaded: (() => Promise<void>) | undefined
   private cached: { token: string; client: CloudClient } | undefined
   private vercelStore: VercelCredentialStore | undefined
 
@@ -59,6 +64,8 @@ export class CloudService {
     signInOffer?: SignInOffer
     sessionsClientFor?: SessionsClientFor
     handoffOauth?: OauthHandoffCallback
+    uploadOnSignIn?: boolean
+    onUploaded?: () => Promise<void>
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -71,6 +78,8 @@ export class CloudService {
     this.signInOffer = args.signInOffer ?? fileSignInOffer()
     this.sessionsClientFor = args.sessionsClientFor
     this.handoffOauth = args.handoffOauth
+    this.uploadOnSignIn = args.uploadOnSignIn === true
+    this.onUploaded = args.onUploaded
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -148,9 +157,23 @@ export class CloudService {
 
     const session: CloudSession = { url: ticket.url, token, email }
     this.sessions.write(session)
+    const uploadFailure = this.uploadOnSignIn
+      ? await this.uploadLocalCredentials().then(
+          () => undefined,
+          (error: unknown) => (error instanceof Error ? error.message : String(error)),
+        )
+      : undefined
     await this.handoffOauth?.(session)
 
-    return { session }
+    return uploadFailure === undefined ? { session } : { session, uploadFailure }
+  }
+
+  async uploadLocalCredentials(): Promise<LocalCredentialsUpload> {
+    const client = this.requireClient()
+    const accounts = await uploadLocalAccounts({ client, local: this.localAccounts })
+    const secrets = await uploadLocalSecrets({ client, localSecrets: this.localSecrets })
+    await this.onUploaded?.()
+    return { accounts, secrets }
   }
 
   logout(): void {
