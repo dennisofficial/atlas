@@ -6,6 +6,7 @@ import { podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
 import { startAutoUpdate } from './auto-update'
+import { createUpdateState } from './update-state'
 import { DESKTOP_PRELOAD } from './preload'
 import { runLogged } from './crash-log'
 import { routeExternalLinks } from './external-links-wiring'
@@ -20,11 +21,13 @@ await runLogged(async () => {
   })
   const secret = randomBytes(32).toString('hex')
   const podConfig = podConfigFromEnv({ env: process.env, serveVersion })
+  const updateState = createUpdateState()
   const host = createDesktopHost({
     webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
     secret,
     pods: podConfig,
     auth: { home: podConfig.home, openExternal: (url) => Utils.openExternal(url) },
+    updates: { status: updateState.status, restart: () => Updater.applyUpdate() },
   })
 
   const win = new BrowserWindow({
@@ -48,19 +51,7 @@ await runLogged(async () => {
   installApplicationMenu()
   startAutoUpdate({
     updater: Updater,
-    prompt: async () => {
-      const { response } = await Utils.showMessageBox({
-        type: 'question',
-        title: 'Update ready',
-        message: 'A new version of Atlas is ready.',
-        detail: 'Restart to finish updating.',
-        buttons: ['Restart to update', 'Later'],
-        defaultId: 0,
-        cancelId: 1,
-      })
-      return response === 0
-    },
-    apply: () => Updater.applyUpdate(),
+    onReady: updateState.markReady,
   })
 
   ApplicationMenu.on('application-menu-clicked', (event: unknown) => {

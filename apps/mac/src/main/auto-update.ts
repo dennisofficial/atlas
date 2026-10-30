@@ -5,10 +5,10 @@ export const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
 export interface IUpdaterPort {
   checkForUpdate: () => Promise<{ updateAvailable: boolean; error: string }>
   downloadUpdate: () => Promise<void>
-  updateInfo: () => { updateReady: boolean }
+  updateInfo: () => { updateReady: boolean; version: string }
 }
 
-export type TPrompt = () => Promise<boolean>
+export type TOnReady = (args: { version: string }) => void
 
 export async function checkAndDownload({ updater }: { updater: IUpdaterPort }): Promise<boolean> {
   const result = await updater.checkForUpdate()
@@ -20,16 +20,14 @@ export async function checkAndDownload({ updater }: { updater: IUpdaterPort }): 
 
 export async function runUpdateCycle({
   updater,
-  prompt,
-  apply,
+  onReady,
 }: {
   updater: IUpdaterPort
-  prompt: TPrompt
-  apply: () => Promise<void>
+  onReady: TOnReady
 }): Promise<void> {
   try {
     if (!(await checkAndDownload({ updater }))) return
-    if (await prompt()) await apply()
+    onReady({ version: updater.updateInfo().version })
   } catch (error) {
     writeLog({ label: 'auto-update', error })
   }
@@ -37,14 +35,12 @@ export async function runUpdateCycle({
 
 export function startAutoUpdate({
   updater,
-  prompt,
-  apply,
+  onReady,
 }: {
   updater: IUpdaterPort
-  prompt: TPrompt
-  apply: () => Promise<void>
+  onReady: TOnReady
 }): void {
-  const cycle = () => runUpdateCycle({ updater, prompt, apply })
+  const cycle = () => runUpdateCycle({ updater, onReady })
   void cycle()
   setInterval(() => void cycle(), UPDATE_INTERVAL_MS)
 }

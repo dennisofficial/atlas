@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import { checkAndDownload, runUpdateCycle, type IUpdaterPort } from '../auto-update'
+import { EDesktopUpdateState } from '../../host/update-routes'
+import { createUpdateState } from '../update-state'
 
 function fakeUpdater({ available, error = '' }: { available: boolean; error?: string }) {
   const calls: string[] = []
   const updater: IUpdaterPort = {
     checkForUpdate: async () => ({ updateAvailable: available, error }),
     downloadUpdate: async () => void calls.push('download'),
-    updateInfo: () => ({ updateReady: true }),
+    updateInfo: () => ({ updateReady: true, version: '2.0.0' }),
   }
   return { updater, calls }
 }
@@ -17,24 +19,24 @@ describe('auto-update', () => {
     expect(await checkAndDownload({ updater })).toBe(false)
     expect(calls).toEqual([])
   })
-  test('applies only after the user accepts', async () => {
-    const applied: string[] = []
-    const { updater } = fakeUpdater({ available: true })
-    await runUpdateCycle({
-      updater,
-      prompt: async () => false,
-      apply: async () => void applied.push('x'),
-    })
-    expect(applied).toEqual([])
-    await runUpdateCycle({
-      updater,
-      prompt: async () => true,
-      apply: async () => void applied.push('x'),
-    })
-    expect(applied).toEqual(['x'])
+  test('records ready with the downloaded version instead of prompting', async () => {
+    const state = createUpdateState()
+    const { updater } = fakeUpdater({ available: false })
+    await runUpdateCycle({ updater, onReady: state.markReady })
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Idle })
+    const ready = fakeUpdater({ available: true })
+    await runUpdateCycle({ updater: ready.updater, onReady: state.markReady })
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Ready, version: '2.0.0' })
   })
-  test('swallows updater errors', async () => {
+  test('omits an empty version', () => {
+    const state = createUpdateState()
+    state.markReady({ version: '' })
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Ready })
+  })
+  test('swallows updater errors and stays idle', async () => {
+    const state = createUpdateState()
     const { updater } = fakeUpdater({ available: true, error: 'HTTP 404' })
-    await runUpdateCycle({ updater, prompt: async () => true, apply: async () => {} })
+    await runUpdateCycle({ updater, onReady: state.markReady })
+    expect(state.status()).toEqual({ state: EDesktopUpdateState.Idle })
   })
 })
