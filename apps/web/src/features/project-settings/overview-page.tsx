@@ -140,6 +140,7 @@ export function OverviewPage() {
             layout={ERowLayout.Stacked}
           >
             <AdditionalRepositories
+              mainRepository={identity.repo}
               repositories={draft.additionalRepositories}
               onChange={(next) => update({ additionalRepositories: next })}
             />
