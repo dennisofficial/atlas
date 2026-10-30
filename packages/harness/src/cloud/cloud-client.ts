@@ -152,16 +152,16 @@ export class CloudClient {
   }
 
   async listSecrets(): Promise<readonly CloudSecret[]> {
-    const body = await cloudCall(this.api.secrets.list.query())
+    const body = await cloudCall(this.api.harnessSecrets.list.query())
     return z.strictObject({ secrets: z.array(cloudSecretSchema) }).parse(body).secrets
   }
 
   async putSecret(args: { name: string; value: string }): Promise<void> {
-    await cloudCall(this.api.secrets.set.mutate({ name: args.name, value: args.value }))
+    await cloudCall(this.api.harnessSecrets.set.mutate({ name: args.name, value: args.value }))
   }
 
   async deleteSecret(args: { name: string }): Promise<void> {
-    await cloudCall(this.api.secrets.remove.mutate({ name: args.name }))
+    await cloudCall(this.api.harnessSecrets.remove.mutate({ name: args.name }))
   }
 
   async listSettings(): Promise<readonly CloudSetting[]> {

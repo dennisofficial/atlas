@@ -171,7 +171,7 @@ describeLive('vercel bundle (built output served from a read-only container)', (
   })
 
   it('serves a guarded route to a bearer session through prisma and pg', async () => {
-    const response = await fetch(`${baseUrl()}/v1/trpc/secrets.list`, { headers: authed })
+    const response = await fetch(`${baseUrl()}/v1/trpc/harnessSecrets.list`, { headers: authed })
     const text = await response.text()
     expect(response.status, withOutput(text)).toBe(200)
     expect(JSON.parse(text)).toEqual({ result: { data: { secrets: [] } } })

@@ -52,7 +52,8 @@ const bootFromCloud = async (): Promise<string> => {
       active: [{ provider: EAuthProvider.Anthropic, accountId: 'acc_anthropic' }],
     },
     settings: [{ key: ESettingId.SidebarWidth, value: encodeSettingValue(42) }],
-    secrets: [{ name: 'TAVILY_API_KEY', value: 'tvly-fake-birth' }],
+    secrets: [],
+    harnessSecrets: [{ name: 'search.tavily', value: 'tvly-fake-birth' }],
   })
   try {
     const events: string[] = []
@@ -115,7 +116,7 @@ describe('serve local stores after the cloud pull', () => {
       file: join(target, 'secrets.json'),
       cipher: new SecretCipher(join(target, 'key')),
     })
-    expect(secrets.read('TAVILY_API_KEY')).toBe('tvly-fake-birth')
+    expect(secrets.read('search.tavily')).toBe('tvly-fake-birth')
 
     const previous = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = target
@@ -249,7 +250,9 @@ describe('serve local stores after the cloud pull', () => {
       clock,
     })
 
-    const credential = await secondPort.read({ provider: EAuthProvider.Anthropic })
+    const credential = await secondPort.read({
+      provider: EAuthProvider.Anthropic,
+    })
     expect(credential).toMatchObject({
       kind: EAuthKind.Oauth,
       accessToken: 'fake-sandbox-access-1',

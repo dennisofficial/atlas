@@ -21,7 +21,7 @@ import { buildGroups, memoryKeyInput } from '../memory-api'
 import { activePresetOf, modelsChanges, modelsConfigFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
 import { splitSandboxes, ESandboxState } from '../sandboxes-api'
-import { toLibrarySecret } from '../secrets-api'
+import { toEnvSecretRow } from '../secrets-api'
 import { EProviderId } from '../../../fixtures/settings-agent'
 
 const NOW = Date.parse('2026-10-20T12:00:00Z')
@@ -105,16 +105,15 @@ describe('memory mapping', () => {
 
 describe('secrets mapping', () => {
   it('maps a detail onto a library row', () => {
-    const row = toLibrarySecret({
+    const row = toEnvSecretRow({
       summary: {
         name: 'A',
         createdAt: ago(0),
         updatedAt: ago(2 * 3_600_000),
       },
-      addedBy: { name: 'Me', initials: 'M' },
       now: NOW,
     })
-    expect(row).toMatchObject({ key: 'A', updated: '2h ago' })
+    expect(row).toEqual({ name: 'A', updated: '2h ago' })
   })
 })
 

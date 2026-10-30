@@ -350,7 +350,7 @@ describe('CloudClient', () => {
 
     expect(calls[0]).toMatchObject({
       method: 'GET',
-      url: 'http://cloud.test/v1/trpc/secrets.list',
+      url: 'http://cloud.test/v1/trpc/harnessSecrets.list',
     })
     expect(secrets).toEqual([
       { name: 'search.tavily', value: 'tvly-1', updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -364,7 +364,7 @@ describe('CloudClient', () => {
 
     expect(calls[0]).toMatchObject({
       method: 'POST',
-      url: 'http://cloud.test/v1/trpc/secrets.set',
+      url: 'http://cloud.test/v1/trpc/harnessSecrets.set',
       body: { name: 'search.tavily', value: 'tvly-1' },
     })
   })
@@ -376,7 +376,7 @@ describe('CloudClient', () => {
 
     expect(calls[0]).toMatchObject({
       method: 'POST',
-      url: 'http://cloud.test/v1/trpc/secrets.remove',
+      url: 'http://cloud.test/v1/trpc/harnessSecrets.remove',
       body: { name: 'search.tavily' },
     })
   })

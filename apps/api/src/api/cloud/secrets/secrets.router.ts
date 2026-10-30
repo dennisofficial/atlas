@@ -1,13 +1,11 @@
 import {
   personalSecretSummaryListSchema,
   personalSecretValueSchema,
-  personalSecretListSchema,
   personalSecretNameSchema,
   personalSecretNamesSchema,
   personalSecretSetSchema,
   type PersonalSecretSummaryList,
   type PersonalSecretValue,
-  type PersonalSecretList,
   type PersonalSecretName,
   type PersonalSecretNames,
   type PersonalSecretSet,
@@ -16,25 +14,11 @@ import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { assertFreshSession } from '../../../_module/session/fresh-session'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { SecretsService } from './secrets.service'
 
 @Router({ alias: 'secrets' })
 export class SecretsRouter {
   constructor(private readonly secrets: SecretsService) {}
-
-  @Query({
-    output: personalSecretListSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
-  })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  async list(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<PersonalSecretList> {
-    return { secrets: await this.secrets.list({ userId: ctx.auth.userId }) }
-  }
 
   @Query({ output: personalSecretSummaryListSchema })
   @UseMiddlewares(SessionMiddleware)

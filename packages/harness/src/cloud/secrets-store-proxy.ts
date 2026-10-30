@@ -1,20 +1,12 @@
 import { ENoticeTone, type NoticePort, type SecretsPort } from '@dltech/atlas-core'
+import { isHarnessLocalOnlyName } from '@dltech/atlas-wire'
 
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
 import { RemoteSecretsStore } from './remote-secrets-store'
-import { SANDBOX_SERVE_TOKEN_PREFIX } from './sandbox-attachment'
 
-const MCP_OAUTH_PREFIX = 'mcp-oauth'
-
-const LOCAL_ONLY_PREFIXES: readonly string[] = [
-  `${SANDBOX_SERVE_TOKEN_PREFIX}:`,
-  `${MCP_OAUTH_PREFIX}:`,
-]
-
-export const isLocalOnlySecret = (name: string): boolean =>
-  LOCAL_ONLY_PREFIXES.some((prefix) => name.startsWith(prefix))
+export const isLocalOnlySecret = isHarnessLocalOnlyName
 
 /**
  * A cleared session — logout or a refused token — retires the remote store on the spot: its warmed

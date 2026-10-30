@@ -1,51 +1,69 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback } from 'react'
 
-import type { SecretSummary } from '@dltech/atlas-wire/web'
-
-import { useSessionUser } from '../session/use-session-identity'
-import { initialsOf } from '../session/initials'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { QueryPage } from '../data/personal/query-boundary'
-import { fetchSecretSummaries } from '../data/personal/secrets-api'
-import { useSecretsStore } from '../data/personal/use-secrets-store'
-import type { LibraryMember } from '../fixtures/settings-library'
-import { SecretsView } from '../parts/library-secrets-view'
-import { Mono } from '../settings-layout'
+import {
+  deleteSecret,
+  fetchSecretSummaries,
+  putSecret,
+  revealSecret,
+  toEnvSecretRow,
+} from '../data/personal/secrets-api'
+import { useSaveAction } from '../data/personal/use-save-action'
+import type { SecretPair } from '../parts/env-secrets-dialogs'
+import { EnvSecretsContent } from '../parts/env-secrets-table'
+import { SettingsPage } from '../settings-layout'
 
 const TITLE = 'Secrets & Env Vars'
 
-const DESCRIPTION = (
-  <>
-    Delivered to your sandboxes as harness secrets. Project values override your personal values.
-    Manage them from the terminal with{' '}
-    <Mono className="rounded bg-muted px-1.5 py-0.5">atlas secrets</Mono>.
-  </>
-)
+const DESCRIPTION =
+  'Every shell and service in your cloud threads gets these as environment variables. A project value with the same name wins.'
 
 export function SecretsPage() {
   const query = useCloudQuery({ key: 'personal-secrets', load: fetchSecretSummaries })
+  const { run } = useSaveAction()
+  const { reload } = query
+
+  const handleSave = useCallback(
+    async (pairs: readonly SecretPair[]) => {
+      const done = await run({
+        work: async () => {
+          for (const pair of pairs) await putSecret(pair)
+        },
+        success:
+          pairs.length === 1
+            ? `Saved ${pairs[0]?.name ?? 'secret'}`
+            : `Saved ${pairs.length} secrets`,
+      })
+      reload()
+      return done
+    },
+    [run, reload],
+  )
+  const handleRemove = useCallback(
+    (name: string) => {
+      void run({ work: () => deleteSecret(name), success: `Deleted ${name}` }).then(reload)
+    },
+    [run, reload],
+  )
+
   return (
     <QueryPage query={query} title={TITLE} description={DESCRIPTION}>
-      {(summaries) => <SecretsContent summaries={summaries} reload={query.reload} />}
+      {(summaries) => (
+        <SettingsPage title={TITLE} description={DESCRIPTION}>
+          <EnvSecretsContent
+            rows={summaries.map((summary) => toEnvSecretRow({ summary }))}
+            emptyDescription="Add API keys and config the agent needs in your cloud threads."
+            dialogDescription="Available to every cloud thread you start as an environment variable."
+            fetchValue={revealSecret}
+            onSave={handleSave}
+            onRemove={handleRemove}
+          />
+        </SettingsPage>
+      )}
     </QueryPage>
-  )
-}
-
-function SecretsContent({ summaries, reload }: { summaries: SecretSummary[]; reload: () => void }) {
-  const { user } = useSessionUser()
-  const currentMember = useMemo<LibraryMember>(() => {
-    const name = user?.name ?? 'You'
-    return { name, initials: initialsOf(name) }
-  }, [user])
-  const store = useSecretsStore({ summaries, currentMember, reload })
-  return (
-    <SecretsView
-      description={DESCRIPTION}
-      sectionDescription="Only visible to you."
-      store={store}
-    />
   )
 }

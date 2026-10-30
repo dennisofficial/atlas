@@ -5,8 +5,8 @@ import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
 import { SessionMiddleware } from '../src/_module/session/session.middleware'
-import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
-import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
+import { HarnessSecretsRouter } from '../src/api/cloud/harness-secrets/harness-secrets.router'
+import { HarnessSecretsService } from '../src/api/cloud/harness-secrets/harness-secrets.service'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session-or-sandbox.middleware'
@@ -25,7 +25,7 @@ const verifier = {
 
 const secretsStub = {
   list: vi.fn(async () => [
-    { name: 'web.searchKey', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' },
+    { name: 'search.tavily', value: 'sk-1', updatedAt: '2026-01-01T00:00:00.000Z' },
   ]),
 }
 
@@ -47,8 +47,8 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     app = await createMixedApp({
       providers: [
         AccountsRouter,
-        SecretsRouter,
-        { provide: SecretsService, useValue: secretsStub },
+        HarnessSecretsRouter,
+        { provide: HarnessSecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },
         SessionMiddleware,
         SessionOrSandboxMiddleware,
@@ -62,9 +62,9 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     await app.close()
   })
 
-  it('refuses a bearer that is neither a session nor a registered sandbox or pod on secrets.list', async () => {
+  it('refuses a bearer that is neither a session nor a registered sandbox or pod on harnessSecrets.list', async () => {
     const response = await request(app.getHttpServer())
-      .get('/v1/trpc/secrets.list')
+      .get('/v1/trpc/harnessSecrets.list')
       .set('authorization', `Bearer ${SANDBOX_TOKEN}`)
 
     expect(response.status).toBe(401)
@@ -91,7 +91,7 @@ describe('sandbox token scoping (in-process, real guard)', () => {
 
   it('still answers the same routes for a user session', async () => {
     const response = await request(app.getHttpServer())
-      .get('/v1/trpc/secrets.list')
+      .get('/v1/trpc/harnessSecrets.list')
       .set('authorization', `Bearer ${USER_SESSION}`)
 
     expect(response.status).toBe(200)

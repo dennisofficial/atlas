@@ -78,7 +78,7 @@ const serviceFor = (backup: readonly StoredAccount[], active: string) => {
           ? trpcError({ status: 404, message: 'no such account' })
           : trpcData(held)
       }
-      if (path === '/v1/trpc/secrets.list') return trpcData({ secrets: [] })
+      if (path === '/v1/trpc/harnessSecrets.list') return trpcData({ secrets: [] })
       if (path === '/v1/trpc/mcpServers.list') return trpcData({ servers: [] })
       if (path === '/v1/trpc/settings.list') return trpcData({ settings: [] })
       return new Response(null, { status: 404 })

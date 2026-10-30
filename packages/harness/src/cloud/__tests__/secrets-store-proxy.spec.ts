@@ -52,7 +52,7 @@ beforeEach(() => {
       procedure: call.procedure,
       input: call.input,
     })
-    if (call.procedure !== 'secrets.list') return trpcVoid()
+    if (call.procedure !== 'harnessSecrets.list') return trpcVoid()
     return trpcData({
       secrets: [
         { name: 'remote.key', value: 'cloud-value', updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -110,7 +110,7 @@ describe('SecretsStoreProxy with a session', () => {
     expect(proxy.read('remote.key')).toBe('cloud-value')
     expect(proxy.origin()).toBe('http://cloud.test (Atlas Cloud secrets)')
     expect(fetchCalls[0]).toMatchObject({
-      url: 'http://cloud.test/v1/trpc/secrets.list',
+      url: 'http://cloud.test/v1/trpc/harnessSecrets.list',
       method: 'GET',
       authorization: 'Bearer sess_a',
     })
@@ -125,7 +125,7 @@ describe('SecretsStoreProxy with a session', () => {
 
     expect(proxy.read('new.key')).toBe('fresh')
     expect(fetchCalls.at(-1)).toMatchObject({
-      url: 'http://cloud.test/v1/trpc/secrets.set',
+      url: 'http://cloud.test/v1/trpc/harnessSecrets.set',
       method: 'POST',
       input: { name: 'new.key', value: 'fresh' },
     })
@@ -239,7 +239,7 @@ describe('SecretsStoreProxy local-only names', () => {
 
     expect(local.read('search.exa')).toBeUndefined()
     expect(fetchCalls.map((call) => `${call.method} ${call.url}`)).toEqual([
-      'POST http://cloud.test/v1/trpc/secrets.set',
+      'POST http://cloud.test/v1/trpc/harnessSecrets.set',
     ])
     expect(fetchCalls[0]?.input).toEqual({ name: 'search.exa', value: 'cloud-held' })
   })

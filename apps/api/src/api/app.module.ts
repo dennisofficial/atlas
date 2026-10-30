@@ -35,6 +35,7 @@ import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-cr
 import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
 import { ScopedConfigModule } from './cloud/scoped-config/scoped-config.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
+import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
@@ -66,6 +67,7 @@ import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
     ModelsModule,
     PodLeasesModule,
     SecretsModule,
+    HarnessSecretsModule,
     SettingsModule,
     ProjectsModule,
     UserFilesModule,

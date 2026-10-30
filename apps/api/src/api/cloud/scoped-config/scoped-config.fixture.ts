@@ -24,12 +24,10 @@ export async function seedAllScopes(cipher: SecretCipherService): Promise<void> 
   ])
   await db.orm.public.UserSecret.createAll([
     { id: 's2', userId: 'user-a', name: 'API', sealedValue: seal('user') },
-    {
-      id: 's3',
-      userId: 'user-a',
-      name: 'sandbox.vercelToken',
-      sealedValue: seal('vtok_user'),
-    },
+  ])
+  await db.orm.public.UserHarnessSecret.createAll([
+    { id: 'h1', userId: 'user-a', name: 'search.jina', sealedValue: seal('jina-key') },
+    { id: 'h2', userId: 'user-a', name: 'sandbox.vercelToken', sealedValue: seal('vtok_h') },
   ])
   await db.orm.public.ProjectSecret.create({
     id: 's4',

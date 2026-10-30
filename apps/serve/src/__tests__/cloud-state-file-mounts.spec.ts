@@ -26,6 +26,7 @@ const checkout = (): string => {
 const config = (fileMounts: unknown) => ({
   settings: {},
   secrets: [],
+  harnessSecrets: [],
   mcpServers: [],
   provenance: {},
   fileMounts,

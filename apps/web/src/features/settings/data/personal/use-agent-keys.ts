@@ -6,11 +6,11 @@ import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import type { KeyEntry } from '../../parts/agent-key-row'
 import { EKeyNoun } from './agent-keys'
-import { fetchSecretNames, putSecret } from './secrets-api'
+import { fetchHarnessSecretNames, putHarnessSecret } from './harness-secrets-api'
 import { useSaveAction } from './use-save-action'
 
 export const loadSecretNames = async (): Promise<ReadonlySet<string>> =>
-  new Set(await fetchSecretNames())
+  new Set(await fetchHarnessSecretNames())
 
 export function useAgentKeys(): {
   savedNames: ReadonlySet<string> | null
@@ -22,7 +22,7 @@ export function useAgentKeys(): {
   const handleSaveKey = useCallback(
     async (entry: KeyEntry) => {
       const done = await run({
-        work: () => putSecret({ name: entry.name, value: entry.value }),
+        work: () => putHarnessSecret({ name: entry.name, value: entry.value }),
         success: entry.noun === EKeyNoun.Url ? 'URL saved' : 'Key saved',
       })
       if (done) reload()

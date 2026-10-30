@@ -41,6 +41,7 @@ export * from './web/scoped-config-wire.js'
 export * from './web/scoped-resources-wire.js'
 export * from './web/file-mounts-wire.js'
 export * from './web/personal-resources-wire.js'
+export * from './web/harness-secrets-wire.js'
 export * from './published-bundle-wire.js'
 export * from './user-files-wire.js'
 export {

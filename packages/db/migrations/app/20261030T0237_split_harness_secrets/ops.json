@@ -1,0 +1,177 @@
+[
+  {
+    "id": "table.UserHarnessSecret",
+    "label": "Create table \"UserHarnessSecret\"",
+    "summary": "Creates table \"UserHarnessSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "UserHarnessSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"UserHarnessSecret\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserHarnessSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"UserHarnessSecret\"",
+        "sql": "CREATE TABLE \"public\".\"UserHarnessSecret\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"sealedValue\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"UserHarnessSecret\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"UserHarnessSecret\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.UserHarnessSecret.UserHarnessSecret_userId_name_key",
+    "label": "Add unique constraint on \"UserHarnessSecret\" (userId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "UserHarnessSecret_userId_name_key",
+        "table": "UserHarnessSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserHarnessSecret_userId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserHarnessSecret_userId_name_key",
+          "public",
+          "\"public\".\"UserHarnessSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"UserHarnessSecret_userId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"UserHarnessSecret\" ADD CONSTRAINT \"UserHarnessSecret_userId_name_key\" UNIQUE (\"userId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"UserHarnessSecret_userId_name_key\" exists on (userId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "UserHarnessSecret_userId_name_key",
+          "public",
+          "\"public\".\"UserHarnessSecret\"",
+          "u",
+          "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserHarnessSecret.UserHarnessSecret_userId_fkey",
+    "label": "Add foreign key \"UserHarnessSecret_userId_fkey\" on \"UserHarnessSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserHarnessSecret_userId_fkey",
+        "table": "UserHarnessSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserHarnessSecret_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserHarnessSecret_userId_fkey",
+          "public",
+          "\"public\".\"UserHarnessSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserHarnessSecret_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserHarnessSecret\"\nADD CONSTRAINT \"UserHarnessSecret_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserHarnessSecret_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserHarnessSecret_userId_fkey",
+          "public",
+          "\"public\".\"UserHarnessSecret\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.copy-harness-secrets",
+    "label": "Copy non-env personal secrets into UserHarnessSecret, skipping local-only prefixes",
+    "operationClass": "data",
+    "target": {
+      "id": "table.SecretEntry",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SecretEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Copy non-env personal secrets into UserHarnessSecret, skipping local-only prefixes",
+        "sql": "INSERT INTO \"public\".\"UserHarnessSecret\" (\"id\",\"userId\",\"name\",\"sealedValue\",\"createdAt\",\"updatedAt\")\nSELECT \"id\",\"userId\",\"name\",\"sealedValue\",\"createdAt\",\"updatedAt\" FROM \"public\".\"SecretEntry\"\nWHERE \"name\" !~ '^[A-Za-z_][A-Za-z0-9_]{0,199}$' AND \"name\" NOT LIKE 'sandbox-serve:%' AND \"name\" NOT LIKE 'mcp-oauth:%'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.delete-non-env-secrets",
+    "label": "Delete non-env rows from SecretEntry",
+    "operationClass": "data",
+    "target": {
+      "id": "table.SecretEntry",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SecretEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Delete non-env rows from SecretEntry",
+        "sql": "DELETE FROM \"public\".\"SecretEntry\" WHERE \"name\" !~ '^[A-Za-z_][A-Za-z0-9_]{0,199}$'"
+      }
+    ],
+    "postcheck": []
+  }
+]
