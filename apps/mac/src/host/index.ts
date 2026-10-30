@@ -1,3 +1,4 @@
+import type { IDesktopAppInfo } from './app-info'
 import { resolveApiOrigin, resolveWebOrigin } from './api-origin'
 import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-service'
 import { callbackResponse } from './auth/callback-page'
@@ -21,6 +22,7 @@ export interface ICreateDesktopHostOptions {
   auth?: Omit<IAuthConfig, 'home'> & { home?: string }
   updates?: IDesktopUpdatesPort
   window?: IDesktopWindowPort
+  app?: IDesktopAppInfo
   port?: number
 }
 
@@ -39,6 +41,7 @@ export function createDesktopHost({
   auth,
   updates,
   window,
+  app,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const authService = createAuthService({
@@ -51,6 +54,7 @@ export function createDesktopHost({
   const desktopRouter = createDesktopRouter({
     updates,
     window,
+    app,
     auth: createAuthHandler({ auth: authService }),
     pods:
       pods === undefined
