@@ -8,6 +8,8 @@ import { EMenuAction, installApplicationMenu } from './menu'
 import { startAutoUpdate } from './auto-update'
 import { DESKTOP_PRELOAD } from './preload'
 import { runLogged } from './crash-log'
+import { routeExternalLinks } from './external-links-wiring'
+import { syncFullscreen } from './fullscreen'
 
 await runLogged(async () => {
   const localInfo = await Updater.getLocalInfo()
@@ -32,6 +34,15 @@ await runLogged(async () => {
     preload: DESKTOP_PRELOAD,
     titleBarStyle: 'hiddenInset',
     trafficLightOffset: { x: 14, y: 14 },
+  })
+
+  syncFullscreen({ win })
+  routeExternalLinks({
+    webview: win.webview,
+    onNewWindow: (handler) =>
+      void Electrobun.events.on(`new-window-open-${win.webview.id}`, handler),
+    hostOrigin: new URL(host.url).origin,
+    openExternal: (url) => Utils.openExternal(url),
   })
 
   installApplicationMenu()

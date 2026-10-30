@@ -6,6 +6,8 @@
     "src/main/preload.ts",
     "src/main/crash-log.ts",
     "src/main/auto-update.ts",
+    "scripts/dmg-plan.ts",
+    "scripts/__tests__",
     "src/main/__tests__"
   ]
 }

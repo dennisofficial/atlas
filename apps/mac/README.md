@@ -1,6 +1,6 @@
 # @dltech/atlas-mac
 
-macOS client: the apps/web static export in an Electrobun window, served by a local Desktop Host on 127.0.0.1 that also proxies `/api/*` and `/v1/*` to the Atlas API (`ATLAS_API_ORIGIN`, default `https://api.byatlas.io`).
+macOS client: the apps/web static export in an Electrobun window, served by a local Desktop Host on 127.0.0.1 that also proxies `/api/*` and `/v1/*` to the Atlas API (`ATLAS_API_ORIGIN`, default `https://api.byatlas.io`). Sign-in is an RFC 8252 loopback redirect with PKCE: the host opens `${ATLAS_WEB_ORIGIN}/desktop/authorize` (default `https://byatlas.io`) in the system browser, which redirects back to `http://127.0.0.1:<port>/desktop/auth/callback`; the host exchanges the code at the API and stores the bearer.
 
 ## Run on a Mac
 
@@ -32,3 +32,7 @@ Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core an
 ## Serve version pin
 
 Pods boot serve at the app's own version (`Updater.getLocalInfo().version`). Only the `dev` channel falls back to "latest"; a release build with an empty version throws at startup. `ATLAS_SERVE_VERSION` overrides in any channel.
+
+## Branded DMG
+
+`build:app` ends with `scripts/make-dmg.ts`, which rebuilds `artifacts/macos-arm64-Atlas.dmg` from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. macOS only.

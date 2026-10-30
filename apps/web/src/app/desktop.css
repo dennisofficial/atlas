@@ -1,45 +1,12 @@
-html[data-desktop] header[data-chrome] {
-  -webkit-app-region: drag;
-}
-
-html[data-desktop] [data-slot="sidebar-inner"] {
-  position: relative;
-}
-
-html[data-desktop] [data-slot="sidebar-inner"]::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: calc(var(--spacing) * 10);
-  -webkit-app-region: drag;
-}
-
-html[data-desktop]
-  :is(
-    button,
-    a,
-    input,
-    textarea,
-    select,
-    summary,
-    [role="button"],
-    [role="tab"],
-    [role="menuitem"],
-    [role="combobox"],
-    [contenteditable]
-  ) {
-  -webkit-app-region: no-drag;
-}
-
-html[data-desktop] [data-slot="sidebar-inner"] > :first-child {
+html[data-desktop]:not([data-fullscreen]) [data-slot="sidebar-inner"] > :first-child {
   margin-top: calc(var(--spacing) * 10);
 }
 
-html[data-desktop] header[data-chrome="titlebar-start"] {
+html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
   padding-left: calc(var(--spacing) * 20);
 }
 
-html[data-desktop]
+html[data-desktop]:not([data-fullscreen])
   [data-slot="sidebar"][data-state="collapsed"]
   ~ [data-slot="sidebar-inset"]
   header[data-chrome="titlebar"] {
@@ -117,5 +84,4 @@ html[data-vibrancy]
   inset: 0 0 auto 0;
   z-index: 0;
   height: calc(var(--spacing) * 10);
-  -webkit-app-region: drag;
 }
