@@ -4,11 +4,12 @@ macOS client: the apps/web static export in an Electrobun window, served by a lo
 
 ## Run on a Mac
 
-1. Install Hutch: `curl -fsSL https://hutch.blackboard.sh/hutch/install.sh | sh`
-2. `bun install` at the repo root.
-3. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web export, copies it to `web-out/`, launches the app).
+1. `bun install` at the repo root.
+2. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web export, copies it to `web-out/`, launches the app).
 
 `bun run typecheck` and `bun run test` cover the host and run anywhere. `bun run typecheck:main` checks the Electrobun main process and needs the Hutch devkit.
+
+Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core and Bun toolchain, bundles the main process, packages `Atlas.app`, signs, notarizes, and emits the `.dmg` and update files. There is nothing to install by hand. The `electrobun` devDependency (pinned to 2.0.5) downloads its paired Hutch (0.28.2) into `~/.hutch` on first use, and every script calls `electrobun …`, which forwards to `hutch electrobun …`.
 
 ## Sidebar vibrancy (disabled)
 

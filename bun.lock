@@ -80,6 +80,7 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^26.3.0",
+        "electrobun": "2.0.5",
         "typescript": "6.0.3",
       },
     },
@@ -2458,6 +2459,8 @@
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
 
     "effect": ["effect@3.21.0", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "fast-check": "^3.23.1" } }, "sha512-PPN80qRokCd1f015IANNhrwOnLO7GrrMQfk4/lnZRE/8j7UPWrNNjPV0uBrZutI/nHzernbW+J0hdqQysHiSnQ=="],
+
+    "electrobun": ["electrobun@2.0.5", "", { "bin": { "electrobun": "bin/electrobun.cjs" } }, "sha512-/4Vp0p6LgdD7bySSblnoqM0rtcQT5uYsGeqZPhsOESeSxMGeiKsfQkBjNwMnjFI5z4StJKXfs386ay2mpif1BA=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.459", "", {}, "sha512-4SC9HHSFjO/liAhifpdOL5hG9b4BP7/5G3y3UPZVO8trlAXr1CaUEEJL0gWK3kOcYcZrOA5rkwG45Gra/lTIgg=="],
 

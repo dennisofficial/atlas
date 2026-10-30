@@ -4,17 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run build:web && bun run bundle:main && hutch electrobun dev --watch",
+    "dev": "bun run build:web && bun run bundle:main && electrobun dev --watch",
     "bundle:main": "bun scripts/bundle-main.ts",
     "build:web": "bun run --cwd ../web build:desktop && rm -rf web-out && cp -R ../web/out web-out",
-    "build:app": "bun run build:web && bun run bundle:main && hutch electrobun build --env=stable",
+    "build:app": "bun run build:web && bun run bundle:main && electrobun build --env=stable",
     "typecheck": "tsc --noEmit",
-    "typecheck:main": "hutch electrobun prepare && tsc --noEmit -p tsconfig.main.json",
+    "typecheck:main": "electrobun prepare && tsc --noEmit -p tsconfig.main.json",
     "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^26.3.0",
+    "electrobun": "2.0.5",
     "typescript": "6.0.3"
   },
   "dependencies": {
