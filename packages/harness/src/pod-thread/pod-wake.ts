@@ -3,6 +3,7 @@ import type { SettleWaitNotice } from '@dltech/atlas-wire'
 
 import type { CloudBridge, CloudChannel } from '../cloud/cloud-bridge'
 import { RemoteTurnRunner } from '../cloud/remote-turn-runner'
+import { podFailureReasonOf } from './pod-failure'
 
 export type PodWakeNarration = {
   begin(): void
@@ -16,9 +17,6 @@ export type PodWakeNarration = {
 export type PodWake = () => Promise<void>
 
 export type PodSandboxes = { sandboxes: Pick<CloudBridge['sandboxes'], 'create'> }
-
-const reasonOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 export async function wakePod(args: {
   bridge: PodSandboxes
@@ -63,7 +61,7 @@ export function createPodWake(args: {
       args.channel.wake({ url: woken.url, token: woken.token })
       args.narration?.settled()
     } catch (error) {
-      args.narration?.failed(reasonOf(error))
+      args.narration?.failed(podFailureReasonOf(error))
       throw error
     }
   }
@@ -88,5 +86,3 @@ export function createPodRunner(args: {
   const wake = args.wake ?? createPodWake(args)
   return new RemoteTurnRunner({ channel: args.channel, wake: () => wake() })
 }
-
-export const podFailureReasonOf = reasonOf

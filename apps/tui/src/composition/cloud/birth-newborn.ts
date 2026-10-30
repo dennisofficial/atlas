@@ -13,18 +13,16 @@ import { ENoticeTone, NOTICE_WARN_MS, notify } from '../../ui/notice-store'
 import type { AtlasApp } from '../compose'
 import { messageOf } from '../error-text'
 import { birthHeading } from '../container-move'
-import { noticePortBinding } from '../notice-binding'
 import { cloudBindingOf, prepareOn } from '../session-binding'
 import type { BootNarration } from '../boot-block-store'
 import type { CloudBridgeFactory } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
-import { openCloudConversation, publishPodSurfaceReaders } from './cloud-app'
+import { podThreadPortsOf } from './cloud-app'
 import {
   BIRTH_CANCELLED_NOTICE,
   CLOUD_BIRTH_NOTICE_KEY,
   birthFailedNotice,
 } from './cloud-birth-notices'
-import { cloudReadinessOf } from './cloud-readiness'
 import { podWakeNarrationOf } from './wake-narration'
 
 const BOOT_LABEL_ROWS = [EBirthNode.Provision, 'waiting']
@@ -110,14 +108,9 @@ export function birthNewborn(args: {
         threadId,
         attachment,
         projectId,
-        home: app.threads,
-        notice: noticePortBinding(),
-        onReload: args.onReload,
-        open: (runtime) => openCloudConversation({ app: { ...app, ...runtime }, threadId }),
-        readinessOf: cloudReadinessOf,
-        onSurfaceReaders: publishPodSurfaceReaders,
+        ...podThreadPortsOf({ app, threadId, onReload: args.onReload }),
         wakeNarration: podWakeNarrationOf(move),
-        stillWanted: () => {
+        assertStillWanted: () => {
           if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
         },
       })

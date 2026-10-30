@@ -3,6 +3,8 @@ import {
   podRuntimeParts,
   RemoteSubscriptionRegistry,
   type CloudChannel,
+  type CloudReload,
+  type PodThreadPorts,
   type CloudStores,
   type PodRuntimeParts,
   type PodSurfaceReaders,
@@ -19,6 +21,7 @@ import type { AtlasApp } from '../compose'
 import { noticePortBinding } from '../notice-binding'
 import { unstartedConversation, type OpenedConversation } from '../open-conversation'
 import { attachCloudSession, MissingCloudThreadError } from './attach-cloud'
+import { cloudReadinessOf } from './cloud-readiness'
 
 export type CloudRuntimeParts = PodRuntimeParts
 
@@ -66,3 +69,20 @@ export async function openCloudConversation(args: {
     }
   }
 }
+
+export const podThreadPortsOf = (args: {
+  app: AtlasApp
+  threadId: ThreadId
+  onReload: (reload: CloudReload) => Promise<void>
+}): Pick<
+  PodThreadPorts<OpenedConversation>,
+  'home' | 'notice' | 'onReload' | 'open' | 'readinessOf' | 'onSurfaceReaders'
+> => ({
+  home: args.app.threads,
+  notice: noticePortBinding(),
+  onReload: args.onReload,
+  open: (runtime) =>
+    openCloudConversation({ app: { ...args.app, ...runtime }, threadId: args.threadId }),
+  readinessOf: cloudReadinessOf,
+  onSurfaceReaders: publishPodSurfaceReaders,
+})

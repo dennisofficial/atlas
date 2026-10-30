@@ -12,13 +12,8 @@ import {
   type PodRuntimeParts,
   type PodSurfaceReaders,
 } from './pod-runtime'
-import {
-  createPodRunner,
-  createPodWake,
-  podFailureReasonOf,
-  wakePod,
-  type PodWakeNarration,
-} from './pod-wake'
+import { podFailureReasonOf } from './pod-failure'
+import { createPodRunner, createPodWake, wakePod, type PodWakeNarration } from './pod-wake'
 import { mirrorPodRenames } from './rename-mirror'
 
 /** One thread whose loop runs in a pod, attached and ready to bind. Independent of every other. */
@@ -31,7 +26,6 @@ export type PodThread<Opened> = {
   anchor: WorkspaceIdentity
   context: ContextReader
   session: PodSession
-  /** The open-time rule, run once the surface has adopted the thread. */
   settleOpen: () => void
   close: () => void
 }
@@ -61,8 +55,7 @@ export async function assemblePodThread<Opened extends Transcript>(
   args: PodThreadPorts<Opened> & {
     attachment: CloudAttachment
     projectId: string | null
-    /** Throws to abandon the thread; asked once the transcript is read, before anything is held. */
-    stillWanted?: (() => void) | undefined
+    assertStillWanted?: (() => void) | undefined
   },
 ): Promise<PodThread<Opened>> {
   const { attachment, threadId } = args
@@ -90,7 +83,7 @@ export async function assemblePodThread<Opened extends Transcript>(
   })
   const opened = await args.open(runtime)
   const anchor = await podAnchorOf({ stores, threadId, events: opened.events })
-  args.stillWanted?.()
+  args.assertStillWanted?.()
   const stopMirroring = mirrorPodRenames({ home: args.home, remote: stores.threads })
   const session = createPodSession({
     channel,
@@ -110,7 +103,7 @@ export async function assemblePodThread<Opened extends Transcript>(
     anchor,
     context: podContextOf({ channel, threadId }),
     session,
-    settleOpen: session.settleOpen,
+    settleOpen: ALREADY_SETTLED,
     close: session.close,
   }
 }
@@ -134,7 +127,7 @@ export async function openPodThread<Opened extends Transcript>(
     })
     const pod = await assemblePodThread({ ...args, attachment, projectId })
     args.openNarration?.settled()
-    return { ...pod, settleOpen: ALREADY_SETTLED }
+    return pod
   } catch (error) {
     args.openNarration?.failed(podFailureReasonOf(error))
     throw error

@@ -185,7 +185,7 @@ describe('a held pod thread', () => {
         ...portsOf(rig),
         attachment,
         projectId: null,
-        stillWanted: () => {
+        assertStillWanted: () => {
           throw new Error('cancelled')
         },
       }),

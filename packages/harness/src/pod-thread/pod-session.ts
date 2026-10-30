@@ -3,7 +3,7 @@ import { ENoticeTone, NOTICE_WARN_MS, type NoticePort, type ThreadId } from '@dl
 import type { CloudChannel, CloudReload, CloudSandboxes } from '../cloud/cloud-bridge'
 import { EConnectionView, sameConnectionView, type ConnectionView } from '../cloud/connection-view'
 import { ERuntimePhase } from '@dltech/atlas-wire'
-import { podFailureReasonOf } from './pod-wake'
+import { podFailureReasonOf } from './pod-failure'
 
 export const POD_WAKE_FAILED_NOTICE_KEY = 'cloud-wake-failed'
 
@@ -132,11 +132,6 @@ export function createPodSession(args: {
     void args
       .onReload(reload)
       .catch(() => {
-        // A resync can fail before it lands — the birth's binding is still committing when the
-        // serve's greeting reload arrives, so the TUI's handler rejects. Dropping the reload here
-        // would leave the open socket dimmed forever, so it goes back on the pending slot for a
-        // settle-timed retry — never an immediate re-flush, which would spin on a persistently
-        // rejecting handler.
         if (closed || attachment !== connectionEpoch || request !== reloadEpoch) return
         if (pendingReload === null || reload.sinceEventSeq < pendingReload.sinceEventSeq)
           pendingReload = reload
