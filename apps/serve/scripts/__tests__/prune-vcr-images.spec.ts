@@ -72,7 +72,7 @@ describe('planPrune', () => {
       createdAt: '2026-09-20T12:00:00Z',
       digest: 'sha256:inuse',
     })
-    const sandbox: SandboxRef = { image: 'comp-ai/atlas/atlas-sandbox@sha256:inuse' }
+    const sandbox: SandboxRef = { image: 'comp-ai/atlas-web/atlas-sandbox@sha256:inuse' }
     const plan = planPrune({
       images: [stale],
       sandboxes: [sandbox],
@@ -91,9 +91,9 @@ describe('planPrune', () => {
       digest: 'sha256:abc123',
     })
     const byDigest: SandboxRef = {
-      image: 'vcr.vercel.com/comp-ai/atlas/atlas-sandbox@sha256:abc123',
+      image: 'vcr.vercel.com/comp-ai/atlas-web/atlas-sandbox@sha256:abc123',
     }
-    const other: SandboxRef = { image: 'comp-ai/atlas/atlas-sandbox@sha256:different' }
+    const other: SandboxRef = { image: 'comp-ai/atlas-web/atlas-sandbox@sha256:different' }
     expect(
       planPrune({ images: [img], sandboxes: [byDigest], now: NOW, windowMs: 7 * DAY_MS }).delete,
     ).toEqual([])

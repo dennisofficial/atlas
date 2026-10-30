@@ -181,7 +181,7 @@ async function main(): Promise<number> {
   }
   const api = 'https://api.vercel.com'
   const repository = 'atlas-sandbox'
-  const scope = { api, token, teamId, projectId, repository, project: 'atlas' }
+  const scope = { api, token, teamId, projectId, repository, project: 'atlas-web' }
 
   const [images, sandboxes] = await Promise.all([listAllImages(scope), listAllSandboxes(scope)])
   const plan = planPrune({
