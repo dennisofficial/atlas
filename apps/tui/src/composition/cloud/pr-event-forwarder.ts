@@ -3,6 +3,7 @@ import {
   ERunner,
   ESubscriptionStatus,
   prEventContent,
+  type PrEditPolicy,
   type ThreadId,
 } from '@dltech/atlas-core'
 import {
@@ -19,8 +20,8 @@ import { PULL_REQUEST_SUBSCRIPTION_PROVIDER } from '@dltech/atlas-wire'
 
 import type { CloudBridgeFactory } from './bridge-factory'
 
-const isUrgent = (frame: PrEventFrame): boolean =>
-  occurrenceOf(frame).urgency === EOccurrenceUrgency.Now
+const isUrgent = ({ frame, policy }: { frame: PrEventFrame; policy: PrEditPolicy }): boolean =>
+  occurrenceOf({ frame, policy })?.urgency === EOccurrenceUrgency.Now
 
 const holdsActiveSubscription = (args: {
   summary: ThreadSummary
@@ -64,6 +65,7 @@ export function createPrEventForwarder(args: {
   project: string
   bridge: CloudBridgeFactory
   activeThreadId: () => ThreadId | undefined
+  editPolicy: () => PrEditPolicy
   apiProvisioned?: ((args: { threadId: ThreadId; runner: ERunner }) => boolean) | undefined
 }): PrEventForwarder {
   const channels = new Map<ThreadId, CloudChannel>()
@@ -109,7 +111,7 @@ export function createPrEventForwarder(args: {
 
   return {
     async onPrEvent(frame) {
-      if (!isUrgent(frame)) return
+      if (!isUrgent({ frame, policy: args.editPolicy() })) return
       const targets = await cloudThreadsWatching(frame)
       // Bare content, not prEventBlock: channel.send lands as operator-origin input and the
       // destination wraps it in <operator-said>, so a pre-wrapped system-notice would nest.

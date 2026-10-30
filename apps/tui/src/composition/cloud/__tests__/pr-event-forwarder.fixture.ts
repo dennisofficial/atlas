@@ -1,4 +1,11 @@
-import { EExecutionLocation, EPrEventKind, toThreadId, type ThreadId } from '@dltech/atlas-core'
+import {
+  DEFAULT_PR_EDIT_POLICY,
+  EExecutionLocation,
+  EPrEventKind,
+  toThreadId,
+  type PrEditPolicy,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   ECloudSandboxState,
   type CloudChannel,
@@ -53,6 +60,7 @@ export function rig(args: {
   summaries: readonly ThreadSummary[]
   sandboxState?: ECloudSandboxState | undefined
   activeThreadId?: ThreadId | undefined
+  editPolicy?: PrEditPolicy
 }) {
   const sent: Sent[] = []
   const attached = new Set<ThreadId>()
@@ -82,6 +90,7 @@ export function rig(args: {
     project: 'project',
     bridge: bridge as never,
     activeThreadId: () => args.activeThreadId,
+    editPolicy: () => args.editPolicy ?? DEFAULT_PR_EDIT_POLICY,
   })
 
   return { forwarder, sent, attached }

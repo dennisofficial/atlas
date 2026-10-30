@@ -36,6 +36,7 @@ export class GithubPrEventMailboxService {
     prNumber: number
     kind: EPrEventKind
     payload: GithubPrEventPayload
+    wake?: boolean
   }): Promise<void> {
     for (const userId of args.userIds) {
       const row = await db.orm.public.GithubPrEvent.create({
@@ -50,6 +51,7 @@ export class GithubPrEventMailboxService {
         event: eventDtoOf(row),
         ackId: row.id,
       })
+      if (args.wake === false) continue
       this.wake.notifyEvent({
         userId,
         repoFullName: args.repoFullName,

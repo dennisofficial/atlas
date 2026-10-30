@@ -9,8 +9,10 @@ type PrEvent = DraftOfType<'pr-event'>
 const clip = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
 
-const fromAuthor = ({ noun, event }: { noun: string; event: PrEvent }): string =>
-  event.authorLogin === undefined ? noun : `${noun} from ${event.authorLogin}`
+const fromAuthor = ({ noun, event }: { noun: string; event: PrEvent }): string => {
+  const said = event.authorLogin === undefined ? noun : `${noun} from ${event.authorLogin}`
+  return event.edited === true ? `${said} edited` : said
+}
 
 const withBody = ({ lead, event }: { lead: string; event: PrEvent }): string => {
   const body = event.body?.trim() ?? ''

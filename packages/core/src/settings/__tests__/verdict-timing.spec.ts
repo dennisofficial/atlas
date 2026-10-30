@@ -28,6 +28,8 @@ describe('the PR verdict timing setting', () => {
       ESettingId.ExperimentalPods,
       ESettingId.PlacementChooserShape,
       ESettingId.PrVerdictTiming,
+      ESettingId.PrEditMutedAuthors,
+      ESettingId.PrEditUrgentAuthors,
     ])
   })
 })

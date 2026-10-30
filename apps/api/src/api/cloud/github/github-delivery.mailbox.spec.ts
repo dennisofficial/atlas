@@ -73,7 +73,7 @@ describe('GithubDeliveryService discussion mailbox', () => {
     expect(received[0]).toMatchObject({ kind: 'comment', prNumber: 42 })
   })
 
-  it('ignores an issue_comment on a plain issue and non-created actions', async () => {
+  it('ignores an issue_comment on a plain issue and deleted comments', async () => {
     const { service } = serviceWith({ tokens: {} })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
 
@@ -93,7 +93,7 @@ describe('GithubDeliveryService discussion mailbox', () => {
     await service.handle({
       event: 'issue_comment',
       payload: {
-        action: 'edited',
+        action: 'deleted',
         issue: {
           number: 42,
           html_url: 'https://github.com/compai/app/pull/42',
