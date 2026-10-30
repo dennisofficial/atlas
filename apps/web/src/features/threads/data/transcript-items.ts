@@ -4,11 +4,12 @@ import {
   EEntryKind,
   EThinkingVisibility,
   type InFlightStep,
+  type OperatorSaidEntry,
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
-import type { CallId, Event, SaidImage } from '@dltech/atlas-core'
+import type { CallId, Event, SaidImage, SaidUpload } from '@dltech/atlas-core'
 
 import {
   claimSpawn,
@@ -37,6 +38,7 @@ export type TranscriptItem = Timed &
         id: string
         text: string
         images?: readonly SaidImage[]
+        uploads?: readonly SaidUpload[]
       }
     | {
         kind: ETranscriptKind.Agent
@@ -63,14 +65,24 @@ export type ThreadTranscriptView = {
   failure: string | null
 }
 
+function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
+  const images = entry.images.length > 0 ? { images: entry.images } : {}
+  const uploads = (entry.uploads ?? []).length > 0 ? { uploads: entry.uploads } : {}
+  const attached = 'images' in images || 'uploads' in uploads
+  if (!attached && entry.text.trim().length === 0) return null
+  return {
+    kind: ETranscriptKind.User,
+    id: entry.key,
+    text: entry.text,
+    ...images,
+    ...uploads,
+  }
+}
+
 function textItemOf(entry: TranscriptEntry): TranscriptItem | null {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
-      if (entry.images.length > 0)
-        return { kind: ETranscriptKind.User, id: entry.key, text: entry.text, images: entry.images }
-      return entry.text.trim().length === 0
-        ? null
-        : { kind: ETranscriptKind.User, id: entry.key, text: entry.text }
+      return userItemOf(entry)
     case EEntryKind.ModelSaid:
       return entry.muted || entry.text.trim().length === 0
         ? null

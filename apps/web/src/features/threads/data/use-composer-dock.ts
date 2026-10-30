@@ -8,6 +8,7 @@ import { QUEUE_PLACEHOLDER, queuedOf, takeBackableIdOf, TOO_LATE_NOTICE } from '
 import { contextUsageOf } from './context-usage'
 import { eventsFromWire } from './events-from-wire'
 import { removeQueuedEntry, saveQueuedEntry } from './queued-edit'
+import type { TakenBack } from './live-thread-view'
 import type { ThreadSource } from './thread-source'
 import type { ModelSelection } from './model-selection'
 import type { ModelPicker } from './use-model-picker'
@@ -19,7 +20,7 @@ export function useComposerDock(args: {
   source: Pick<ThreadSource, 'pending' | 'reported' | 'working' | 'channel' | 'takeBackPending'>
   picker: ModelPicker
   selection: ModelSelection
-  onRestore: (text: string) => void
+  onRestore: (restored: TakenBack) => void
 }) {
   const { threadId, visible, source, picker, selection, onRestore } = args
   const { channel } = source
@@ -47,9 +48,9 @@ export function useComposerDock(args: {
 
   const handleTakeBack = async () => {
     try {
-      const text = await source.takeBackPending()
-      if (text === null) toast(TOO_LATE_NOTICE)
-      else onRestore(text)
+      const taken = await source.takeBackPending()
+      if (taken === null) toast(TOO_LATE_NOTICE)
+      else onRestore(taken)
     } catch (failure) {
       toast.error(messageOf(failure))
     }

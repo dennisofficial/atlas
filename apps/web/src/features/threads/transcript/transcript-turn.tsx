@@ -172,6 +172,10 @@ export function TurnView({
           author={userName}
           timestamp={clockTimeOf(turn.item.at)}
           images={messageImagesOf({ id: turn.item.id, images: turn.item.images })}
+          attachments={(turn.item.uploads ?? []).map((upload) => ({
+            id: upload.uploadId,
+            label: upload.name,
+          }))}
           onRewind={
             rewind === null || !rewind.points.has(turn.item.id)
               ? undefined

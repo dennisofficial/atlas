@@ -57,7 +57,6 @@ export function ThreadComposer({
         queueWhileBusy
         onStop={onStop}
         clearOnSubmit={false}
-        accept="image/*"
         onTextareaKeyDown={menu.handleKeyDown}
         textareaAria={
           menu.open

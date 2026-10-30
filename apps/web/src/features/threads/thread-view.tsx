@@ -21,7 +21,7 @@ import { eventsFromWire } from './data/events-from-wire'
 import { durableTranscriptOf, transcriptViewOf } from './data/transcript'
 import { useDetailsInput } from './data/use-details-input'
 import { useComposerDock } from './data/use-composer-dock'
-import { useComposerImages } from './data/use-composer-images'
+import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerHandoff } from './data/use-composer-handoff'
 import { useOperatorInput } from './data/use-operator-input'
 import { useReveal } from './data/use-reveal'
@@ -37,6 +37,7 @@ import { useThreadSignals } from './data/use-thread-signals'
 import { useSend } from './data/use-send'
 import { useThreadModel } from './data/use-thread-model'
 import { useThreadSource } from './data/use-thread-source'
+import { useThreadSubmit } from './data/use-thread-submit'
 import { useTakeBackEscape } from './data/use-take-back-escape'
 import { useThreadCommands } from './commands/use-thread-commands'
 import { ThreadMainSlot } from './context-viewer/main-slot'
@@ -85,7 +86,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
   const spawnerId = spawnerIdOf(thread.data)
   const parentTitle = useParentTitle(spawnerId)
   const [draft, setDraft] = useState('')
-  const images = useComposerImages()
+  const images = useComposerAttachments()
 
   const { pod, refresh } = usePodStatus({ threadId, signals })
   const { visible, handleEscape } = useTakeBackEscape({
@@ -93,6 +94,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
     events,
     podState: pod?.state ?? null,
     setDraft,
+    onRestoreUploads: (uploads) => images.restore({ uploads, images: [] }),
   })
   const parsed = useMemo(() => eventsFromWire(visible), [visible])
   const durable = useMemo(() => durableTranscriptOf({ events: parsed }), [parsed])
@@ -108,7 +110,10 @@ export function ThreadView({ threadId }: { threadId: string }) {
     source,
     picker: model.picker,
     selection: model.selection,
-    onRestore: (restored) => setDraft((current) => restoredDraftOf({ current, restored })),
+    onRestore: (taken) => {
+      setDraft((current) => restoredDraftOf({ current, restored: taken.text }))
+      images.restore({ uploads: taken.uploads, images: taken.images })
+    },
   })
   const operator = useOperatorInput(source)
   const handoff = useComposerHandoff({
@@ -159,19 +164,19 @@ export function ThreadView({ threadId }: { threadId: string }) {
     refresh,
   })
 
-  const handleSubmit = async (text: string) => {
-    if (await commands.handleCommand(text)) {
-      setDraft('')
-      return
-    }
-    if (!images.checkBudget()) return
-    const sent = await send({ threadId, text, images: images.images, liveSend: sendLive })
-    if (sent === null) return
-    images.clear()
-    handoff.begin(sent)
-    source.refreshEvents()
-    refresh()
-  }
+  const handleSubmit = useThreadSubmit({
+    threadId,
+    handleCommand: commands.handleCommand,
+    attachments: images,
+    send,
+    sendLive,
+    setDraft,
+    onSent: (sent) => {
+      handoff.begin(sent)
+      source.refreshEvents()
+      refresh()
+    },
+  })
   const handleModelChange = (next: ModelSelection) =>
     void model.handleChange({ next, chooseLive: chooseModel })
   const handleRetryBoot = async () => {
@@ -257,7 +262,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onValueChange={setDraft}
                   onSubmit={handleSubmit}
                   onEscape={() => void handleEscape()}
-                  sending={sending || handoff.waiting || images.encoding}
+                  sending={sending || handoff.waiting || images.uploading}
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}

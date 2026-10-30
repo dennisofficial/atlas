@@ -229,8 +229,8 @@ describe('pullRequestBellsOf', () => {
       subscriptions: [row()],
       busy: new Set(),
     })
-    expect(Object.keys(bells)).toEqual(['github.com/O/R#4', 'github.com/O/R#5'])
-    expect(bells['github.com/O/R#4']?.watching).toBe(true)
-    expect(bells['github.com/O/R#5']?.watching).toBe(false)
+    expect(Object.keys(bells)).toEqual(['o/r#4', 'o/r#5'])
+    expect(bells['o/r#4']?.watching).toBe(true)
+    expect(bells['o/r#5']?.watching).toBe(false)
   })
 })

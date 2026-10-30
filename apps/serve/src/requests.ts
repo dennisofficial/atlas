@@ -116,6 +116,7 @@ export const pendingEntriesOf = (args: { pending: PendingQueues; threadId: Threa
     text: entry.text,
     ...(entry.kind === 'message' && entry.via !== undefined ? { via: entry.via as string } : {}),
     reserved: queue.reserved(entry.id),
+    ...(entry.kind === 'message' && entry.uploads !== undefined ? { uploads: entry.uploads } : {}),
   }))
 }
 
@@ -135,10 +136,18 @@ export async function answerTakeBackPending(args: {
   }
   const said = args.pending.forThread({ threadId: parsed.data.threadId as ThreadId }).takeBackLast()
   if (said === null) return answeredRequest({ replyTo: args.frame.id, data: { taken: null } })
-  const { text, images, files, context } = said
+  const { text, images, files, uploads, context } = said
   return answeredRequest({
     replyTo: args.frame.id,
-    data: { taken: { text, images, files, ...(context === undefined ? {} : { context }) } },
+    data: {
+      taken: {
+        text,
+        images,
+        files,
+        ...(uploads === undefined ? {} : { uploads }),
+        ...(context === undefined ? {} : { context }),
+      },
+    },
   })
 }
 

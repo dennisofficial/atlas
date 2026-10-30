@@ -40,6 +40,7 @@ export function createTurnCommands(args: {
           ...(frame.requestId === undefined ? {} : { requestId: frame.requestId }),
           images: frame.images,
           files: frame.files,
+          uploads: frame.uploads,
           ...(context === undefined ? {} : { context }),
         })
         .then(() => {

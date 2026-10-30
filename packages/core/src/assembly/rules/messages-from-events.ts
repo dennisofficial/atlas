@@ -32,6 +32,8 @@ import { prEventBlock } from './pr-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
+import { uploadsBlock } from './uploads-block'
+import type { UploadPlacement } from '../../uploads/placement'
 import { endingsToldByKill } from './shell-kill-coverage'
 
 type OpenMessage =
@@ -127,7 +129,13 @@ function appendCall({
  * A file too heavy to send is named rather than shown: the model keeps a path it can `read`,
  * where an inlined one over the ceiling would fail the whole step instead of just the attachment.
  */
-function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | FilePart)[] {
+function saidContent({
+  event,
+  placements,
+}: {
+  event: EventOfType<'user-said'>
+  placements: ReadonlyMap<string, UploadPlacement> | undefined
+}): (TextPart | ImagePart | FilePart)[] {
   const shown: (ImagePart | FilePart)[] = []
   const named: string[] = []
 
@@ -159,13 +167,27 @@ function saidContent(event: EventOfType<'user-said'>): (TextPart | ImagePart | F
 
   return [
     { type: 'text', text: operatorSaid({ text: [event.text, ...named].join('\n') }) },
+    ...(event.uploads === undefined || event.uploads.length === 0
+      ? []
+      : [
+          {
+            type: 'text' as const,
+            text: uploadsBlock({ uploads: event.uploads, placements }),
+          },
+        ]),
     ...shown,
   ]
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }
 
-function walkEvents(events: readonly Event[]): Walk {
+function walkEvents({
+  events,
+  placements,
+}: {
+  events: readonly Event[]
+  placements: ReadonlyMap<string, UploadPlacement> | undefined
+}): Walk {
   const groups: Group[] = []
   const settlements = new Map<string, SettledCall>()
   const claimedCallIds = new Set<string>()
@@ -207,7 +229,7 @@ function walkEvents(events: readonly Event[]): Walk {
 
     if (event.type === 'user-said') {
       groups.push({
-        message: { role: 'user', content: saidContent(event) },
+        message: { role: 'user', content: saidContent({ event, placements }) },
         origin: originOf(event),
       })
       continue
@@ -405,7 +427,7 @@ export function messagesFromEvents(): Rule {
   return defineRule({
     name: 'messagesFromEvents',
     apply: (input, ctx) => {
-      const { groups, settlements } = walkEvents(ctx.events)
+      const { groups, settlements } = walkEvents({ events: ctx.events, placements: ctx.uploads })
 
       return {
         system: input.system,

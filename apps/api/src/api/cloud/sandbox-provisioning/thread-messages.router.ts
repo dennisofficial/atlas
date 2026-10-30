@@ -27,6 +27,7 @@ export class ThreadMessagesRouter {
       sendId: input.sendId,
       text: input.text,
       images: input.images,
+      uploads: input.uploads,
     })
   }
 

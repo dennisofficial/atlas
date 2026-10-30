@@ -42,13 +42,13 @@ describe('takeBackTargetOf', () => {
   it('targets the last user message when nothing ran after it and the pod is not running', () => {
     expect(
       takeBackTargetOf({ events: [said(1, 'build it', 's1')], podState: EPodState.Booting }),
-    ).toEqual({ sendId: 's1', text: 'build it' })
+    ).toEqual({ sendId: 's1', text: 'build it', uploads: [] })
     expect(
       takeBackTargetOf({ events: [said(1, 'build it', 's1')], podState: EPodState.Failed }),
-    ).toEqual({ sendId: 's1', text: 'build it' })
+    ).toEqual({ sendId: 's1', text: 'build it', uploads: [] })
     expect(
       takeBackTargetOf({ events: [said(1, 'build it', 's1')], podState: EPodState.None }),
-    ).toEqual({ sendId: 's1', text: 'build it' })
+    ).toEqual({ sendId: 's1', text: 'build it', uploads: [] })
   })
 
   it('is null while the pod is parked, even when the last event is an unanswered message', () => {
@@ -69,7 +69,7 @@ describe('takeBackTargetOf', () => {
         events: [said(1, 'one', 's1'), answered(2), said(3, 'two', 's2')],
         podState: EPodState.Booting,
       }),
-    ).toEqual({ sendId: 's2', text: 'two' })
+    ).toEqual({ sendId: 's2', text: 'two', uploads: [] })
   })
 
   it('ignores legacy boot events when finding the last core event', () => {
@@ -78,7 +78,7 @@ describe('takeBackTargetOf', () => {
         events: [said(1, 'hi', 's1'), legacyBoot(2)],
         podState: EPodState.Booting,
       }),
-    ).toEqual({ sendId: 's1', text: 'hi' })
+    ).toEqual({ sendId: 's1', text: 'hi', uploads: [] })
   })
 
   it('is null once the agent answered, the pod runs, or the pod is unknown', () => {
@@ -150,5 +150,29 @@ describe('withoutTakenBack', () => {
       withoutTakenBack({ events, sendIds: new Set(['s2']) }).map((event) => event.seq),
     ).toEqual([1])
     expect(withoutTakenBack({ events, sendIds: new Set() })).toBe(events)
+  })
+})
+
+describe('takeBackTargetOf uploads', () => {
+  it('parses uploads from the event body', () => {
+    const uploads = [
+      {
+        uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
+        pathname: 'p',
+        name: 'a.pdf',
+        size: 1,
+        mediaType: 'x/y',
+      },
+    ]
+    const event = wire({
+      seq: 1,
+      type: 'user-said',
+      body: { type: 'user-said', text: 'see', requestId: 's1', uploads },
+    })
+    expect(takeBackTargetOf({ events: [event], podState: EPodState.Booting })).toEqual({
+      sendId: 's1',
+      text: 'see',
+      uploads,
+    })
   })
 })

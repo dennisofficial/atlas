@@ -1,4 +1,4 @@
-import type { EventDraftInput, SaidImageWire } from '@dltech/atlas-wire'
+import type { EventDraftInput, SaidImageWire, SaidUploadWire } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
@@ -6,6 +6,7 @@ export type FirstMessage = {
   sendId: string
   text: string
   images?: readonly SaidImageWire[] | undefined
+  uploads?: readonly SaidUploadWire[] | undefined
 }
 
 export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => ({
@@ -17,6 +18,9 @@ export const userSaidDraftOf = (message: FirstMessage): EventDraftInput => ({
     ...(message.images === undefined || message.images.length === 0
       ? {}
       : { images: message.images }),
+    ...(message.uploads === undefined || message.uploads.length === 0
+      ? {}
+      : { uploads: message.uploads }),
   }),
 })
 

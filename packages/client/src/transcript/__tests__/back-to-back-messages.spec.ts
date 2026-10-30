@@ -27,6 +27,7 @@ describe('two messages sent one after the other', () => {
         skills: [],
         files: [],
         images: [],
+        uploads: [],
       },
     ])
   })

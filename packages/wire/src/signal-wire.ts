@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { rotationStateWireSchema } from './rotation-wire'
+import { saidUploadWireSchema } from './upload-wire'
 
 export enum EFinishReason {
   Stop = 'stop',
@@ -137,6 +138,7 @@ const pendingEntryWireSchema = z.object({
   text: z.string(),
   via: z.string().optional(),
   reserved: z.boolean(),
+  uploads: z.array(saidUploadWireSchema).readonly().optional(),
 })
 
 export type PendingEntryWire = z.infer<typeof pendingEntryWireSchema>

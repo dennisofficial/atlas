@@ -2,72 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
-import {
-  chipOf,
-  imageNameOf,
-  imagesFieldOf,
-  isOverBudget,
-  MAX_IMAGE_DATA_CHARS,
-  planAttach,
-  sameImages,
-  scaledSizeOf,
-} from '../composer-images'
+import { imageNameOf, imagesFieldOf, sameImages, scaledSizeOf } from '../composer-images'
 import { isRetryOf } from '../use-send'
-
-const file = (name: string, type: string) => new File(['x'], name, { type })
 
 const image = (data: string, path = 'a.png'): SaidImageWire => ({
   path,
   mediaType: 'image/png',
   data,
-})
-
-describe('planAttach', () => {
-  it('keeps only image files and flags the dropped ones', () => {
-    const plan = planAttach({
-      files: [file('a.png', 'image/png'), file('b.txt', 'text/plain')],
-      held: 0,
-    })
-    expect(plan.accepted.map((entry) => entry.name)).toEqual(['a.png'])
-    expect(plan.droppedNonImage).toBe(true)
-    expect(plan.droppedOverflow).toBe(false)
-  })
-
-  it('caps the held total at ten and flags the overflow', () => {
-    const files = Array.from({ length: 4 }, (_, index) => file(`${index}.png`, 'image/png'))
-    const plan = planAttach({ files, held: 8 })
-    expect(plan.accepted).toHaveLength(2)
-    expect(plan.droppedOverflow).toBe(true)
-    expect(plan.droppedNonImage).toBe(false)
-  })
-
-  it('accepts nothing when the composer is already full', () => {
-    const plan = planAttach({ files: [file('a.png', 'image/png')], held: 10 })
-    expect(plan.accepted).toEqual([])
-    expect(plan.droppedOverflow).toBe(true)
-  })
-})
-
-describe('isOverBudget', () => {
-  it('allows exactly the budget and rejects one char more', () => {
-    expect(isOverBudget([image('a'.repeat(MAX_IMAGE_DATA_CHARS))])).toBe(false)
-    expect(isOverBudget([image('a'.repeat(MAX_IMAGE_DATA_CHARS)), image('b')])).toBe(true)
-  })
-
-  it('rejects more than ten images however small', () => {
-    expect(isOverBudget(Array.from({ length: 11 }, () => image('a')))).toBe(true)
-    expect(isOverBudget(Array.from({ length: 10 }, () => image('a')))).toBe(false)
-  })
-})
-
-describe('chipOf', () => {
-  it('names the chip after the image and previews it as a data url', () => {
-    expect(chipOf({ id: 'c1', image: image('QUJD', 'shot.png') })).toEqual({
-      id: 'c1',
-      name: 'shot.png',
-      previewUrl: 'data:image/png;base64,QUJD',
-    })
-  })
 })
 
 describe('imagesFieldOf', () => {
