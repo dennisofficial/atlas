@@ -69,9 +69,10 @@ const reposOf = (value: unknown): { repos?: CloneRepoProgress[] } => {
 export async function readBootSteps(args: {
   reader?: Writer | undefined
   threadId: string
+  sessionId?: string
 }): Promise<RecordedBootStep[]> {
   const reader = args.reader ?? db
-  const sessionId = await podSessionOf({ reader, threadId: args.threadId })
+  const sessionId = args.sessionId ?? (await podSessionOf({ reader, threadId: args.threadId }))
   const rows = await reader.orm.public.SandboxBootStep.where({ sessionId })
     .orderBy((step) => step.seq.asc())
     .all()
