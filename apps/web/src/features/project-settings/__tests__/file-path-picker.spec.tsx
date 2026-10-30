@@ -91,7 +91,11 @@ describe('FilePathPicker', () => {
     await act(async () => input.focus())
     await typeInto(input, 'apps/a')
     const folder = options().find((option) => option.textContent === 'apps/api/')
-    if (folder === undefined) throw new Error('apps/api/ not offered')
+    if (folder === undefined) {
+      throw new Error(
+        `apps/api/ not offered: value=${input.value} expanded=${input.getAttribute('aria-expanded')} focused=${document.activeElement === input} options=${JSON.stringify(options().map((option) => option.textContent))}`,
+      )
+    }
     await act(async () => (folder as HTMLElement).click())
     expect(pathState()).toBe('apps/api/')
     expect(input.value).toBe('apps/api/')

@@ -18,7 +18,7 @@ const snapshot = (phase: string) => {
     storage = `throws:${String(error)}`
   }
   console.log(
-    `[diag] ${phase} window=${typeof w.window} closed=${String(w.window?.closed)} happyDOM=${typeof w.happyDOM} bodyConnected=${String(w.document?.body?.isConnected)} storage=${storage}`,
+    `[diag] ${phase} t=${performance.now().toFixed(1)} window=${typeof w.window} closed=${String(w.window?.closed)} happyDOM=${typeof w.happyDOM} bodyConnected=${String(w.document?.body?.isConnected)} storage=${storage}`,
   )
 }
 
