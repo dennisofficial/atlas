@@ -9,7 +9,7 @@ export async function walkReferences<T>(args: {
   threadIds: readonly string[]
   eventTypes: string[]
   pick: (events: WalkedEvent[]) => { value: T } | null
-  fallback: T
+  fallback: () => T
 }): Promise<Map<string, T>> {
   const resolved = new Map<string, T>()
   let cursors = new Map<string, Cursor>(
@@ -25,7 +25,9 @@ export async function walkReferences<T>(args: {
       .all()
     const byThread = new Map<string, WalkedEvent[]>()
     for (const row of rows) {
-      byThread.set(row.threadId, [...(byThread.get(row.threadId) ?? []), row])
+      const events = byThread.get(row.threadId)
+      if (events === undefined) byThread.set(row.threadId, [row])
+      else events.push(row)
     }
 
     const misses: [string, Cursor][] = []
@@ -55,7 +57,7 @@ export async function walkReferences<T>(args: {
   }
 
   for (const origin of args.threadIds) {
-    if (!resolved.has(origin)) resolved.set(origin, args.fallback)
+    if (!resolved.has(origin)) resolved.set(origin, args.fallback())
   }
   return resolved
 }
