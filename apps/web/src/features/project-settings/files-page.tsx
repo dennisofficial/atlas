@@ -167,7 +167,10 @@ export function FilesPage() {
       success: `Saved ${draft.path}`,
     })
   const handleRemove = (path: string) => {
-    void runAction({ work: () => own.remove(path), success: `Deleted ${path}` })
+    void runAction({
+      work: () => own.remove(path),
+      success: `Deleted ${path}`,
+    })
   }
   const handleEdit = async (path: string) => {
     if (revealing) return
@@ -207,9 +210,12 @@ export function FilesPage() {
           <>
             {snapshot.mounts.length === 0 ? null : (
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-xs text-muted-foreground">
-                  {snapshot.mounts.length}
-                </span>
+                <h3 className="text-sm font-medium">
+                  Mounted files
+                  <span className="ml-2 font-mono text-xs text-muted-foreground">
+                    {snapshot.mounts.length}
+                  </span>
+                </h3>
                 <FileMountDialog entries={entries} onSave={handleSave} />
               </div>
             )}
