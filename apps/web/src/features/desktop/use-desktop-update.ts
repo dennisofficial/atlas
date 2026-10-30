@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { EDesktopUpdateState, getDesktopUpdate, restartForUpdate } from './update-wire'
 import { useIsDesktop } from './use-is-desktop'
 
-export const UPDATE_POLL_MS = 15 * 60 * 1000
+export const UPDATE_POLL_MS = 60 * 1000
 
 export type DesktopUpdateView = {
   ready: boolean

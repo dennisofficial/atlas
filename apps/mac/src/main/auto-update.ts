@@ -1,6 +1,6 @@
 import { writeLog } from './crash-log'
 
-export const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
+export const UPDATE_INTERVAL_MS = 5 * 60 * 1000
 
 export interface IUpdaterPort {
   checkForUpdate: () => Promise<{ updateAvailable: boolean; error: string }>
@@ -43,4 +43,34 @@ export function startAutoUpdate({
   const cycle = () => runUpdateCycle({ updater, onReady })
   void cycle()
   setInterval(() => void cycle(), UPDATE_INTERVAL_MS)
+}
+
+export enum EManualCheckOutcome {
+  Ready = 'ready',
+  Current = 'current',
+  Failed = 'failed',
+}
+
+export type TManualCheckResult =
+  | { outcome: EManualCheckOutcome.Ready; version: string }
+  | { outcome: EManualCheckOutcome.Current }
+  | { outcome: EManualCheckOutcome.Failed; message: string }
+
+export async function checkNow({
+  updater,
+  onReady,
+}: {
+  updater: IUpdaterPort
+  onReady: TOnReady
+}): Promise<TManualCheckResult> {
+  try {
+    if (!(await checkAndDownload({ updater }))) return { outcome: EManualCheckOutcome.Current }
+    const { version } = updater.updateInfo()
+    onReady({ version })
+    return { outcome: EManualCheckOutcome.Ready, version }
+  } catch (error) {
+    writeLog({ label: 'auto-update', error })
+    const message = error instanceof Error ? error.message : String(error)
+    return { outcome: EManualCheckOutcome.Failed, message }
+  }
 }

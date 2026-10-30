@@ -6,9 +6,10 @@ import { podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
 import { EMenuAction, installApplicationMenu } from './menu'
 import { startAutoUpdate } from './auto-update'
+import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
 import { DESKTOP_PRELOAD } from './preload'
-import { runLogged } from './crash-log'
+import { runLogged, writeLog } from './crash-log'
 import { routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
 import { readDoubleClickAction, runTitlebarAction } from './titlebar-action'
@@ -67,6 +68,10 @@ await runLogged(async () => {
   ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
     const action = (event as { data?: { action?: string } }).data?.action
     if (action === EMenuAction.Settings) win.webview.loadURL(`${host.url}/settings`)
+    if (action === EMenuAction.CheckForUpdates)
+      void runCheckForUpdates({ onReady: updateState.markReady }).catch((error: unknown) =>
+        writeLog({ label: 'check-for-updates', error }),
+      )
     if (action === EMenuAction.Reload) win.webview.loadURL(win.webview.url ?? host.url)
     if (action === EMenuAction.ToggleDevTools) win.webview.toggleDevTools()
   })
