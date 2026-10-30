@@ -15,6 +15,7 @@ import type { NoticePort } from './notice.port'
 import type { ProcessPort } from './process.port'
 import type { QualityReviewPort } from './quality-review.port'
 import type { TelemetryPort } from './telemetry.port'
+import type { ThreadReadCursorPort } from './thread-read-cursor.port'
 import type { WorkspaceFactsPort } from './workspace-facts.port'
 import type { WorkspaceIdentityPort } from './workspace-identity.port'
 import type { WorkspacePort } from './workspace.port'
@@ -70,6 +71,9 @@ export interface PortRegistryEntries {
   readonly JudgePort: PortRegistryEntry<JudgePort> & { readonly transport: 'none' }
   readonly NoticePort: PortRegistryEntry<NoticePort> & { readonly transport: 'none' }
   readonly ExecutionLocationSinkPort: PortRegistryEntry<ExecutionLocationSinkPort> & {
+    readonly transport: 'none'
+  }
+  readonly ThreadReadCursorPort: PortRegistryEntry<ThreadReadCursorPort> & {
     readonly transport: 'none'
   }
 }

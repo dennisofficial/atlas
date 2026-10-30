@@ -9,6 +9,7 @@ import {
   QualityReviewPort,
   TelemetryPort,
   telemetryEnabled,
+  ThreadReadCursorPort,
 } from '@dltech/atlas-core'
 
 import {
@@ -37,6 +38,7 @@ import { ThreadStorePort, RandomIds, SystemClock } from '../store'
 import { JsonlLog } from '../store/logs'
 import { atlasDirectory } from '../store/paths'
 import { JsonlEventLog } from '../store/sessions/event-log'
+import { FileThreadReadCursor } from '../store/sessions/read-cursor'
 import { registryFor } from '../store/sessions/registry'
 import { SessionAuthorityPort } from '../store/sessions/meta'
 import { JsonlSessionAuthority } from '../store/sessions/session-authority'
@@ -114,6 +116,15 @@ export function createHarnessContainer(): DependencyContainer {
         resolver.resolve(registeredPortToken(ClockPort)),
         resolver.resolve(registeredPortToken(IdPort)),
       ),
+  })
+  harness.register(registeredPortToken(ThreadReadCursorPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new FileThreadReadCursor({
+          registry: resolver.resolve(SessionRegistryToken),
+          log: resolver.resolve(registeredPortToken(EventLogPort)),
+        }),
+    ),
   })
   harness.register(registeredPortToken(TurnLedgerPort), {
     useFactory: (resolver) =>

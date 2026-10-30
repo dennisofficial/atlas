@@ -108,6 +108,8 @@ export type TerminalFrameChannel = {
 
 export type RemoteDeltaChannelOptions = {
   threadId: ThreadId
+  /** False keeps a parked sandbox asleep for reads: a passive request is refused instead of waking it. */
+  readsWake?: boolean | undefined
   /** Absent means deferred: the view reads Parked and nothing opens until a wake. */
   url?: string | undefined
   token?: string | undefined

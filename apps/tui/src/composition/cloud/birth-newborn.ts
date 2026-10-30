@@ -18,6 +18,7 @@ import type { BootNarration } from '../boot-block-store'
 import type { CloudBridgeFactory } from './bridge-factory'
 import { bornPlacementChip, startsTheThread } from './born-placement-chip'
 import { podThreadPortsOf } from './cloud-app'
+import { localCopyFor } from './cloud-open'
 import {
   BIRTH_CANCELLED_NOTICE,
   CLOUD_BIRTH_NOTICE_KEY,
@@ -109,6 +110,7 @@ export function birthNewborn(args: {
         attachment,
         projectId,
         ...podThreadPortsOf({ app, threadId, onReload: args.onReload }),
+        localCopy: localCopyFor({ app, runner }),
         wakeNarration: podWakeNarrationOf(move),
         assertStillWanted: () => {
           if (cancelled) throw new Error(BIRTH_CANCELLED_NOTICE)
