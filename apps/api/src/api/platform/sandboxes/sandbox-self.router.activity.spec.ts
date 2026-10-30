@@ -32,11 +32,18 @@ describe('SandboxSelfRouter.activity', () => {
 
   beforeEach(async () => {
     await seedUsers('usr-1')
-    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', name: 'atlas-thread-1' })
+    await seedSandboxRow({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      name: 'atlas-thread-1',
+    })
   })
 
   it('writes working, awaiting and activityAt on the token thread', async () => {
-    const reply = await send(SANDBOX_TOKEN, { working: true, awaiting: 'approval' })
+    const reply = await send(SANDBOX_TOKEN, {
+      working: true,
+      awaiting: 'approval',
+    })
 
     const row = await threadById('thr-1')
     expect(reply.status).toBe(200)
@@ -47,7 +54,11 @@ describe('SandboxSelfRouter.activity', () => {
 
   it('records the outcome on end and clears it when a new turn starts', async () => {
     await send(SANDBOX_TOKEN, { working: true, awaiting: null })
-    await send(SANDBOX_TOKEN, { working: false, awaiting: null, lastOutcome: 'failed' })
+    await send(SANDBOX_TOKEN, {
+      working: false,
+      awaiting: null,
+      lastOutcome: 'failed',
+    })
     expect((await threadById('thr-1'))?.lastOutcome).toBe('failed')
     expect((await threadById('thr-1'))?.working).toBe(false)
 
@@ -120,7 +131,11 @@ describe('SandboxSelfRouter.activity list signals', () => {
 
   beforeEach(async () => {
     await seedUsers('usr-1')
-    await seedSandboxRow({ threadId: 'thr-1', userId: 'usr-1', name: 'atlas-thread-1' })
+    await seedSandboxRow({
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      name: 'atlas-thread-1',
+    })
   })
 
   it('signals the owner list on a change and not on an unchanged report', async () => {
@@ -135,6 +150,12 @@ describe('SandboxSelfRouter.activity list signals', () => {
     await send()
     await send()
 
-    expect(frames).toEqual([{ type: EThreadListFrame.Changed, threadId: 'thr-1' }])
+    expect(frames).toEqual([
+      {
+        type: EThreadListFrame.Changed,
+        threadId: 'thr-1',
+        activity: { working: true, awaiting: null, lastOutcome: null },
+      },
+    ])
   })
 })

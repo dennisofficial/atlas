@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 import type { SaidUpload } from '@dltech/atlas-core'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
+import { activityOverrides } from '@/features/shell/activity-overrides'
+
 import { sameUploads } from './composer-attachments'
 import { sameImages } from './composer-images'
 import type { Handoff } from './composer-handoff'
@@ -53,16 +55,28 @@ export function useSend() {
       const uploads = args.uploads ?? []
       const sendId =
         attempt.current !== null &&
-        isRetryOf({ previous: attempt.current, text: args.text, images, uploads })
+        isRetryOf({
+          previous: attempt.current,
+          text: args.text,
+          images,
+          uploads,
+        })
           ? attempt.current.sendId
           : crypto.randomUUID()
       attempt.current = { text: args.text, images, uploads, sendId }
       setSending(true)
+      const optimistic = activityOverrides.markWorking(args.threadId)
       try {
         await deliverMessage({ ...args, sendId, post: backend.postMessage })
         attempt.current = null
         return { text: args.text, sendId }
       } catch (failure) {
+        if (optimistic !== undefined) {
+          activityOverrides.revert({
+            threadId: args.threadId,
+            override: optimistic,
+          })
+        }
         toast.error(messageOf(failure))
         return null
       } finally {
