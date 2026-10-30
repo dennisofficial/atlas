@@ -106,18 +106,14 @@ describe('web dispatch', () => {
     expect((await test.run('/exit now')).type).toBe(EDispatch.Refused)
   })
 
-  it('reports skill counts and refuses when the sandbox cannot list', async () => {
+  it('reports skill counts', async () => {
     const test = rig()
-    const skillsRun = (reloadSkills: () => Promise<number | null>) =>
+    const skillsRun = (reloadSkills: () => Promise<number>) =>
       surfaceCommands({ handlers: webCommandHandlers({ ...test.deps, reloadSkills }) })
         .find((c) => c.name === 'skills')
         ?.run({ argumentText: '' })
     expect(await skillsRun(async () => 1)).toEqual({ type: ECommandEffect.Ran, notice: '1 skill' })
     expect(await skillsRun(async () => 3)).toEqual({ type: ECommandEffect.Ran, notice: '3 skills' })
-    expect(await skillsRun(async () => null)).toEqual({
-      type: ECommandEffect.Refused,
-      reason: "This sandbox can't list skills",
-    })
   })
 
   it('refuses requests when disconnected', async () => {

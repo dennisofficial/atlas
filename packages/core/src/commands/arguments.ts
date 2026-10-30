@@ -1,5 +1,9 @@
 import { EExecutionLocation } from '../execution/location'
 
+export const NOTHING_TO_ROTATE = 'nothing to rotate: the thread has no events yet'
+
+export const NOT_IN_THE_CLOUD = 'this conversation is not parked in the cloud'
+
 export enum ECompactScope {
   Recent = 'recent',
   Everything = 'everything',

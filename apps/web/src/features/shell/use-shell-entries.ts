@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { fetchProjects, fetchSessions } from '@/features/threads/data/threads-api'
-import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
+import { EQueryState, useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
+import { createdThreads, useCreatedThreads, withCreatedThreads } from './created-threads'
 import { useListSignals } from './use-list-signals'
 import { hasThread, type ProjectThreads } from './thread-partition'
 
@@ -16,9 +17,14 @@ async function loadShellEntries(): Promise<ProjectThreads[]> {
 
 export function useShellEntries(activeThreadId: string | null): CloudQuery<ProjectThreads[]> {
   const query = useCloudQuery({ key: 'shell-threads', load: loadShellEntries })
+  const created = useCreatedThreads()
   const reloadedFor = useRef<string | null>(null)
   const { data, reload } = query
   useListSignals({ reload })
+
+  useEffect(() => {
+    if (data !== undefined) createdThreads.forgetListed(data)
+  }, [data])
 
   useEffect(() => {
     if (data === undefined || activeThreadId === null) return
@@ -28,5 +34,10 @@ export function useShellEntries(activeThreadId: string | null): CloudQuery<Proje
     reload()
   }, [data, activeThreadId, reload])
 
-  return query
+  const merged = useMemo(
+    () => (data === undefined ? undefined : withCreatedThreads({ entries: data, created })),
+    [data, created],
+  )
+  if (query.state !== EQueryState.Ready || merged === undefined) return query
+  return { ...query, data: merged }
 }

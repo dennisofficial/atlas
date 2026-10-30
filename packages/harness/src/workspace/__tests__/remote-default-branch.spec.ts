@@ -79,10 +79,10 @@ describe('readOriginUrl', () => {
     await git({ cwd: checkout, argv: ['init'] })
     await git({
       cwd: checkout,
-      argv: ['remote', 'add', 'origin', 'git@github.com:comp-ai/atlas.git'],
+      argv: ['remote', 'add', 'origin', 'https://git.example.test/acme/widget.git'],
     })
 
-    expect(await readOriginUrl({ cwd: checkout })).toBe('git@github.com:comp-ai/atlas.git')
+    expect(await readOriginUrl({ cwd: checkout })).toBe('https://git.example.test/acme/widget.git')
   })
 
   it('answers null with no origin', async () => {

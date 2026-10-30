@@ -4,5 +4,11 @@
   "bunVersion": "1.x",
   "buildCommand": "bun run build",
   "regions": ["iad1"],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  },
   "ignoreCommand": "[ -z \"$VERCEL_GIT_PREVIOUS_SHA\" ] && exit 1; [ \"$VERCEL_GIT_PREVIOUS_SHA\" = \"$VERCEL_GIT_COMMIT_SHA\" ] && exit 1; bunx turbo@2.10.11 query affected --packages @dltech/atlas-api --base \"$VERCEL_GIT_PREVIOUS_SHA\" --exit-code"
 }
