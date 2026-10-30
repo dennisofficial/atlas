@@ -10,12 +10,14 @@ import {
 
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
 import { CloudService } from '../cloud/cloud-service'
+import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
 import type { CloudSession } from '../cloud/cloud-session'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   CloudSessionStoreToken,
   LocalAccountStoreToken,
   LocalSecretsStoreToken,
+  SecretsStoreToken,
   UserSettingsStoreToken,
 } from '../container/tokens'
 import { AccountsService } from '../credentials/accounts-service'
@@ -56,10 +58,12 @@ export async function bindAccounts(args: {
       : {}),
     defaultUrl: args.cloudUrl ?? 'http://localhost:3400',
     clientVersion: args.clientVersion,
-    migrateOnSignIn: args.cloudBacked === true && args.reconcileHostSources !== false,
-    ...(accountStore instanceof AccountStoreProxy
-      ? { onMigrated: async () => accountStore.forgetCloudCache() }
-      : {}),
+    uploadOnSignIn: args.cloudBacked === true && args.reconcileHostSources !== false,
+    onUploaded: async () => {
+      if (accountStore instanceof AccountStoreProxy) accountStore.invalidateCloudCache()
+      const secrets = container.resolve(SecretsStoreToken)
+      if (secrets instanceof SecretsStoreProxy) await secrets.warm()
+    },
     ...(credentials instanceof CloudManagedCredentialPort
       ? {
           handoffOauth: (session: CloudSession, accountIds?: readonly AccountId[]) =>

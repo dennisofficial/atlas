@@ -92,7 +92,14 @@ export function useSettingsCloudLogin(args: {
           void cloud
             .finishLogin({ ticket, token: result.token })
             .then((finished) => {
-              put(signedInLogin(signedInNotice({ email: finished.session.email })))
+              const notice = signedInNotice({ email: finished.session.email })
+              put(
+                signedInLogin(
+                  finished.uploadFailure === undefined
+                    ? notice
+                    : `${notice} Uploading this machine's accounts and secrets failed (${finished.uploadFailure}) — retry with Upload below.`,
+                ),
+              )
               onSignedIn()
             })
             .catch(failOpen)

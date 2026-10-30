@@ -4,20 +4,7 @@ import { isHarnessLocalOnlyName } from '@dltech/atlas-wire'
 import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { cloudClientFor } from './cloud-client'
 import type { CloudSessionStore } from './cloud-session'
-import { RemoteSecretsStore, type SecretsSnapshot } from './remote-secrets-store'
-import type { SealedSnapshotFile } from './sealed-snapshot-file'
-
-const secretsSnapshotOf = (args: { file: SealedSnapshotFile; url: string }): SecretsSnapshot => ({
-  recall: () => {
-    const held = args.file.read({ url: args.url })
-    if (typeof held !== 'object' || held === null) return undefined
-    const entries = Object.entries(held).filter(
-      (entry): entry is [string, string] => typeof entry[1] === 'string',
-    )
-    return new Map(entries)
-  },
-  record: (values) => args.file.write({ url: args.url, value: Object.fromEntries(values) }),
-})
+import { RemoteSecretsStore } from './remote-secrets-store'
 
 export const isLocalOnlySecret = isHarnessLocalOnlyName
 
@@ -31,7 +18,6 @@ export class SecretsStoreProxy implements SecretsPort {
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
   private readonly notice: NoticePort | undefined
-  private readonly snapshotFile: SealedSnapshotFile | undefined
   private remote: { token: string; store: RemoteSecretsStore } | undefined
 
   constructor(args: {
@@ -39,16 +25,13 @@ export class SecretsStoreProxy implements SecretsPort {
     sessions: CloudSessionStore
     clientVersion?: string
     notice?: NoticePort | undefined
-    snapshotFile?: SealedSnapshotFile | undefined
   }) {
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
     this.notice = args.notice
-    this.snapshotFile = args.snapshotFile
     this.sessions.onCleared(() => {
       this.remote = undefined
-      this.snapshotFile?.remove()
     })
   }
 
@@ -93,14 +76,6 @@ export class SecretsStoreProxy implements SecretsPort {
           session,
           ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
         }),
-        ...(this.snapshotFile === undefined
-          ? {}
-          : {
-              snapshot: secretsSnapshotOf({
-                file: this.snapshotFile,
-                url: session.url,
-              }),
-            }),
         ...(this.notice === undefined
           ? {}
           : {

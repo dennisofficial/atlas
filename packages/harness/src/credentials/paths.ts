@@ -17,15 +17,3 @@ export function atlasVaultKeyFile(): string {
 export function atlasCloudFile(): string {
   return join(atlasDirectory(), ATLAS_CLOUD_NAME)
 }
-
-export const ATLAS_ACCOUNTS_CACHE_NAME = 'accounts-cache.json'
-
-export function atlasAccountsCacheFile(): string {
-  return join(atlasDirectory(), ATLAS_ACCOUNTS_CACHE_NAME)
-}
-
-export const ATLAS_SECRETS_CACHE_NAME = 'secrets-cache.json'
-
-export function atlasSecretsCacheFile(): string {
-  return join(atlasDirectory(), ATLAS_SECRETS_CACHE_NAME)
-}

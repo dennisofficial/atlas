@@ -12,24 +12,23 @@ import { fileSignInOffer, type SignInOffer } from './sign-in-offer'
 import { downloadCloudData } from './sync-download'
 import { prepareSandboxOauth, type OauthHandoffCallback } from './cloud-oauth-sandbox'
 import { uploadLocalSettings } from './sync-settings'
-import { uploadLocalMcp, type CloudSyncCounts } from './upload-local'
-import { fileLocalArchive, type LocalArchive } from './local-archive'
-import { migrateLocalToCloud, type LocalMigration } from './migrate-local'
-import { RemoteAccountStore } from './remote-account-store'
+import {
+  uploadLocalAccounts,
+  uploadLocalMcp,
+  uploadLocalSecrets,
+  type CloudSyncCounts,
+} from './upload-local'
 
 const getSessionResponseSchema = z.object({
   user: z.object({ email: z.string().optional() }),
 })
 
-const migrationFailed = (error: unknown): CloudError =>
-  new CloudError({
-    status: error instanceof CloudError ? error.status : 0,
-    message: `Signed in to Atlas Cloud, but moving this machine's accounts and secrets up failed (${error instanceof Error ? error.message : String(error)}). They stay on this machine; retry with Upload in settings.`,
-  })
-
 export type CloudLoginResult = {
   session: CloudSession
+  uploadFailure?: string
 }
+
+export type LocalCredentialsUpload = { accounts: number; secrets: number }
 
 export type SessionsClientFor = (args: {
   session: CloudSession
@@ -48,9 +47,8 @@ export class CloudService {
   private readonly signInOffer: SignInOffer
   private readonly sessionsClientFor: SessionsClientFor | undefined
   private readonly handoffOauth: OauthHandoffCallback | undefined
-  private readonly migrateOnSignIn: boolean
-  private readonly archive: LocalArchive
-  private readonly onMigrated: (() => Promise<void>) | undefined
+  private readonly uploadOnSignIn: boolean
+  private readonly onUploaded: (() => Promise<void>) | undefined
   private cached: { token: string; client: CloudClient } | undefined
   private vercelStore: VercelCredentialStore | undefined
 
@@ -66,9 +64,8 @@ export class CloudService {
     signInOffer?: SignInOffer
     sessionsClientFor?: SessionsClientFor
     handoffOauth?: OauthHandoffCallback
-    migrateOnSignIn?: boolean
-    archive?: LocalArchive
-    onMigrated?: () => Promise<void>
+    uploadOnSignIn?: boolean
+    onUploaded?: () => Promise<void>
   }) {
     this.sessions = args.sessions
     this.localAccounts = args.localAccounts
@@ -81,9 +78,8 @@ export class CloudService {
     this.signInOffer = args.signInOffer ?? fileSignInOffer()
     this.sessionsClientFor = args.sessionsClientFor
     this.handoffOauth = args.handoffOauth
-    this.migrateOnSignIn = args.migrateOnSignIn === true
-    this.archive = args.archive ?? fileLocalArchive()
-    this.onMigrated = args.onMigrated
+    this.uploadOnSignIn = args.uploadOnSignIn === true
+    this.onUploaded = args.onUploaded
   }
 
   private clientFor(args: { session: CloudSession }): CloudClient {
@@ -100,10 +96,7 @@ export class CloudService {
 
   sessionsClient(args: { session: CloudSession }): SessionsClient {
     return (
-      this.sessionsClientFor?.({
-        session: args.session,
-        clientVersion: this.clientVersion,
-      }) ??
+      this.sessionsClientFor?.({ session: args.session, clientVersion: this.clientVersion }) ??
       new SessionsClient({
         url: args.session.url,
         token: args.session.token,
@@ -129,10 +122,7 @@ export class CloudService {
     }
 
     if (this.cached?.token !== session.token) {
-      this.cached = {
-        token: session.token,
-        client: this.clientFor({ session }),
-      }
+      this.cached = { token: session.token, client: this.clientFor({ session }) }
     }
 
     return this.cached.client
@@ -167,32 +157,23 @@ export class CloudService {
 
     const session: CloudSession = { url: ticket.url, token, email }
     this.sessions.write(session)
-    if (!this.migrateOnSignIn) {
-      await this.handoffOauth?.(session)
-      return { session }
-    }
-
-    const migrationFailure = await this.migrateLocal().then(
-      () => undefined,
-      (error: unknown) => error,
-    )
+    const uploadFailure = this.uploadOnSignIn
+      ? await this.uploadLocalCredentials().then(
+          () => undefined,
+          (error: unknown) => (error instanceof Error ? error.message : String(error)),
+        )
+      : undefined
     await this.handoffOauth?.(session)
-    if (migrationFailure !== undefined) throw migrationFailed(migrationFailure)
 
-    return { session }
+    return uploadFailure === undefined ? { session } : { session, uploadFailure }
   }
 
-  async migrateLocal(): Promise<LocalMigration> {
+  async uploadLocalCredentials(): Promise<LocalCredentialsUpload> {
     const client = this.requireClient()
-    const moved = await migrateLocalToCloud({
-      client,
-      cloud: new RemoteAccountStore({ client }),
-      local: this.localAccounts,
-      localSecrets: this.localSecrets,
-      archive: this.archive,
-    })
-    if (moved.accounts + moved.secrets > 0) await this.onMigrated?.()
-    return moved
+    const accounts = await uploadLocalAccounts({ client, local: this.localAccounts })
+    const secrets = await uploadLocalSecrets({ client, localSecrets: this.localSecrets })
+    await this.onUploaded?.()
+    return { accounts, secrets }
   }
 
   logout(): void {
@@ -226,11 +207,7 @@ export class CloudService {
       accounts: this.accounts ?? this.localAccounts,
       session: this.session(),
       handoffOauth: this.handoffOauth,
-      registration: {
-        threadId: args.threadId,
-        token: args.token,
-        serveUrl: args.serveUrl,
-      },
+      registration: { threadId: args.threadId, token: args.token, serveUrl: args.serveUrl },
       ...(args.model === undefined ? {} : { model: args.model }),
       clientVersion: this.clientVersion ?? 'dev',
       fetchFn: this.fetchFn,
@@ -239,17 +216,13 @@ export class CloudService {
 
   async uploadLocalToCloud(): Promise<CloudSyncCounts> {
     const client = this.requireClient()
-    const moved = await this.migrateLocal()
     const session = this.session()
     if (session !== null) await this.handoffOauth?.(session)
     return {
-      accounts: moved.accounts,
-      secrets: moved.secrets,
+      accounts: await uploadLocalAccounts({ client, local: this.localAccounts }),
+      secrets: await uploadLocalSecrets({ client, localSecrets: this.localSecrets }),
       mcpServers: await uploadLocalMcp({ client }),
-      settings: await uploadLocalSettings({
-        client,
-        localSettings: this.localSettings,
-      }),
+      settings: await uploadLocalSettings({ client, localSettings: this.localSettings }),
     }
   }
 

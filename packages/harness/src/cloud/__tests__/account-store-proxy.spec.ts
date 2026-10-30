@@ -36,11 +36,7 @@ let sessions: CloudSessionStore
 let local: AccountStore
 let proxy: AccountStoreProxy
 
-let fetchCalls: {
-  url: string
-  authorization: string | null
-  clientVersion: string | null
-}[]
+let fetchCalls: { url: string; authorization: string | null; clientVersion: string | null }[]
 const realFetch = globalThis.fetch
 
 beforeEach(() => {
@@ -183,30 +179,22 @@ describe('AccountStoreProxy when the cloud is answering badly', () => {
       answer()) as typeof fetch
   })
 
-  it('fails the call when the cloud 500s and nothing local remains to serve', async () => {
+  it('fails the call when the cloud 500s rather than serving the archived local vault', async () => {
     signIn('sess_a')
+    await seedLocal()
     answer = failing(500)
 
     expect(await failureOf()).toBeInstanceOf(Error)
   })
 
-  it('fails the call when the cloud cannot be reached and nothing local remains', async () => {
-    signIn('sess_a')
-    answer = () => {
-      throw new Error('ECONNREFUSED')
-    }
-
-    expect(await failureOf()).toBeInstanceOf(Error)
-  })
-
-  it('keeps serving accounts still held on this machine while the cloud is unreachable', async () => {
+  it('fails the call when the cloud cannot be reached at all', async () => {
     signIn('sess_a')
     await seedLocal()
     answer = () => {
       throw new Error('ECONNREFUSED')
     }
 
-    expect((await proxy.list()).map((account) => account.label)).toEqual(['local'])
+    expect(await failureOf()).toBeInstanceOf(Error)
   })
 
   it('fails the call on a 401 too — a rejected token is nothing to fall back from', async () => {

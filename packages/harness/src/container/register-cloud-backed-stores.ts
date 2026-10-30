@@ -1,13 +1,7 @@
 import { AccountStorePort, ClockPort, NoticePort } from '@dltech/atlas-core'
 
 import { AccountStoreProxy } from '../cloud/account-store-proxy'
-import { SealedSnapshotFile } from '../cloud/sealed-snapshot-file'
 import { SecretsStoreProxy } from '../cloud/secrets-store-proxy'
-import {
-  atlasAccountsCacheFile,
-  atlasSecretsCacheFile,
-  atlasVaultKeyFile,
-} from '../credentials/paths'
 
 import { instanceCachingFactory, registeredPortToken, type DependencyContainer } from './injection'
 import {
@@ -31,10 +25,6 @@ export function registerCloudBackedStores(args: {
           sessions: resolver.resolve(CloudSessionStoreToken),
           clientVersion,
           clock: resolver.resolve(registeredPortToken(ClockPort)),
-          snapshotFile: new SealedSnapshotFile({
-            file: atlasAccountsCacheFile(),
-            keyFile: atlasVaultKeyFile(),
-          }),
         }),
     ),
   })
@@ -49,10 +39,6 @@ export function registerCloudBackedStores(args: {
           notice: resolver.isRegistered(registeredPortToken(NoticePort), true)
             ? resolver.resolve(registeredPortToken(NoticePort))
             : undefined,
-          snapshotFile: new SealedSnapshotFile({
-            file: atlasSecretsCacheFile(),
-            keyFile: atlasVaultKeyFile(),
-          }),
         }),
     ),
   })

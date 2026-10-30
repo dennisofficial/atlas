@@ -23,7 +23,7 @@ import { bindAccounts } from './account-bindings'
 import { bindSettingsPolicy } from './policy-bindings'
 import type { SettingsBinding } from './settings-binding'
 
-export const STARTUP_MIGRATION_BUDGET_MS = 5_000
+export const STARTUP_UPLOAD_BUDGET_MS = 5_000
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -38,17 +38,17 @@ const warnOf =
       text,
     })
 
-async function migrateAtStartup(args: { cloud: CloudService; notice: NoticePort }): Promise<void> {
-  const warn = warnOf({ notice: args.notice, key: 'cloud:local-migration' })
+async function uploadAtStartup(args: { cloud: CloudService; notice: NoticePort }): Promise<void> {
+  const warn = warnOf({ notice: args.notice, key: 'cloud:local-upload' })
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<'late'>((resolve) => {
-    timer = setTimeout(() => resolve('late'), STARTUP_MIGRATION_BUDGET_MS)
+    timer = setTimeout(() => resolve('late'), STARTUP_UPLOAD_BUDGET_MS)
   })
-  const work = args.cloud.migrateLocal().then(
+  const work = args.cloud.uploadLocalCredentials().then(
     () => 'done' as const,
     (error: unknown) => {
       warn(
-        `This machine's accounts and secrets have not moved to Atlas Cloud yet (${messageOf(error)}). They keep working here; Atlas retries on the next start.`,
+        `This machine's accounts and secrets did not upload to Atlas Cloud (${messageOf(error)}). Atlas retries on the next start.`,
       )
       return 'done' as const
     },
@@ -115,7 +115,7 @@ export async function bindCredentials(args: {
   })
 
   if (args.cloudBacked === true && args.reconcileHostSources && cloud.session() !== null) {
-    await migrateAtStartup({ cloud, notice })
+    await uploadAtStartup({ cloud, notice })
   }
 
   const session = cloud.session()

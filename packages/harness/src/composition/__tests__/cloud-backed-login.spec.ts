@@ -15,6 +15,9 @@ import {
 import { CloudSessionStore } from '../../cloud/cloud-session'
 import type { CloudLoginTicket } from '../../cloud/device-login'
 import { fileAccountStore } from '../../credentials/account-store'
+import { SecretCipher } from '../../credentials/secret-cipher'
+import { FileSecretsStore } from '../../secrets/file-secrets-store'
+import { atlasSecretsFile } from '../../secrets/paths'
 import { atlasCloudFile, atlasVaultFile, atlasVaultKeyFile } from '../../credentials/paths'
 import { SystemClock } from '../../store/clock'
 import { composeHarness } from '../compose'
@@ -60,7 +63,7 @@ afterEach(async () => {
   await rm(atlasHome, { recursive: true, force: true })
 })
 
-const compose = async () => {
+const compose = async (env: Record<string, string> = {}) => {
   const notices = recordingNotices()
   const app = await composeHarness<undefined, never>({
     launch: {
@@ -69,7 +72,7 @@ const compose = async () => {
       model: undefined,
       executionLocation: undefined,
     },
-    env: {},
+    env,
     settings: loadSettings({ env: {}, cwd: project }),
     ports: testPortBindings(),
     clientVersion: 'cloud-backed-login-spec',
@@ -142,57 +145,52 @@ describe('a TUI signed in to Atlas Cloud owns no accounts locally', () => {
     expect(localVaultAccounts(atlasVaultFile())).toEqual([])
   })
 
-  it('migrates existing local accounts on sign-in and hands each off exactly once', async () => {
+  it('uploads existing local accounts on sign-in and leaves the local vault alone', async () => {
     await seedLocalClaude()
     const { app } = await compose()
 
-    await signIn(app)
+    const result = await signIn(app)
 
+    expect(result.uploadFailure).toBeUndefined()
     expect(cloud.accounts).toHaveLength(1)
     expect(cloud.actives.get(EAuthProvider.Anthropic)).toBe(String(cloud.accounts[0]?.['id']))
     expect(cloud.uploads).toHaveLength(1)
     expect(oauthAuthorityOf(cloud.accounts[0])?.['url']).toBe(cloud.url)
-    expect(localVaultAccounts(atlasVaultFile())).toEqual([])
-    expect(localVaultAccounts(`${atlasVaultFile()}.archived`)).toHaveLength(1)
-    expect((await app.accounts.list()).map((held) => String(held.id))).toEqual([
-      String(cloud.accounts[0]?.['id']),
-    ])
+    expect(localVaultAccounts(atlasVaultFile())).toHaveLength(1)
+    expect(existsSync(`${atlasVaultFile()}.archived`)).toBe(false)
   })
 
-  it('signing out restores the local vault, and signing back in duplicates nothing', async () => {
+  it('signing out and back in duplicates nothing', async () => {
     await seedLocalClaude()
     const { app } = await compose()
     await signIn(app)
 
     app.cloud.logout()
-    expect(localVaultAccounts(atlasVaultFile())).toHaveLength(1)
-    expect(existsSync(`${atlasVaultFile()}.archived`)).toBe(false)
-
     await signIn(app)
 
     expect(cloud.accounts).toHaveLength(1)
     expect(cloud.uploads).toHaveLength(1)
-    expect(localVaultAccounts(atlasVaultFile())).toEqual([])
   })
 
-  it('surfaces a failed migration and keeps the local accounts', async () => {
+  it('stays signed in and reports a failed upload', async () => {
     await seedLocalClaude()
     cloud.failOn.add('accounts.create')
     const { app } = await compose()
 
-    await expect(signIn(app)).rejects.toThrow(/moving this machine's accounts/)
+    const result = await signIn(app)
 
+    expect(result.uploadFailure).toBeDefined()
     expect(app.cloud.session()).not.toBeNull()
-    expect(cloud.accounts).toEqual([])
     expect(localVaultAccounts(atlasVaultFile())).toHaveLength(1)
   })
 
-  it('migrates at startup for a machine that signed in before accounts were cloud-backed', async () => {
+  it('makes secrets uploaded at startup readable in the same session', async () => {
+    new FileSecretsStore({
+      file: atlasSecretsFile(),
+      cipher: new SecretCipher(atlasVaultKeyFile()),
+    }).write({ name: 'sandbox.vercelToken', value: 'vercel-local' })
     await seedLocalClaude()
-    new CloudSessionStore({
-      file: atlasCloudFile(),
-      keyFile: atlasVaultKeyFile(),
-    }).write({
+    new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }).write({
       url: cloud.url,
       token: 'fake-session',
       email: null,
@@ -200,10 +198,28 @@ describe('a TUI signed in to Atlas Cloud owns no accounts locally', () => {
 
     const { app } = await compose()
 
+    expect(cloud.secrets.get('sandbox.vercelToken')).toBe('vercel-local')
+    expect(app.secrets.read('sandbox.vercelToken')).toBe('vercel-local')
     expect(cloud.accounts).toHaveLength(1)
-    expect(localVaultAccounts(atlasVaultFile())).toEqual([])
     expect((await app.accounts.list()).map((held) => held.provider)).toEqual([
       EAuthProvider.Anthropic,
     ])
+  })
+
+  it('keeps an environment key listed and activatable while signed in', async () => {
+    const { app } = await compose({ ANTHROPIC_API_KEY: 'sk-env' })
+    await signIn(app)
+    const login = app.accounts.begin(EAuthProvider.Anthropic)
+    await app.accounts.complete({ ticket: login, pasted: `fake-code#${login.pkce.state}` })
+
+    const environment = (await app.accounts.list()).find(
+      (held) => held.origin === EAccountOrigin.Environment,
+    )
+    expect(environment).toBeDefined()
+    if (environment === undefined) return
+    await app.accounts.use({ provider: EAuthProvider.Anthropic, accountId: environment.id })
+
+    expect(await app.accounts.activeFor(EAuthProvider.Anthropic)).toBe(environment.id)
+    expect(cloud.accounts.map((held) => held['origin'])).not.toContain(EAccountOrigin.Environment)
   })
 })

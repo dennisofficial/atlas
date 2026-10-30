@@ -1,5 +1,6 @@
 import {
   AccountStorePort,
+  EAccountOrigin,
   type Account,
   type AccountDraft,
   type AccountId,
@@ -10,6 +11,9 @@ import {
 } from '@dltech/atlas-core'
 
 import { isCloudUnavailable } from './cloud-transport'
+
+const isEnvironment = (account: Account | undefined): boolean =>
+  account?.origin === EAccountOrigin.Environment
 
 export class SignedInAccountStore extends AccountStorePort {
   private readonly cloud: AccountStorePort
@@ -22,16 +26,16 @@ export class SignedInAccountStore extends AccountStorePort {
   }
 
   async list(): Promise<readonly Account[]> {
-    const local = await this.local.list()
+    const environment = (await this.local.list()).filter(isEnvironment)
     const cloud = await this.cloud.list().catch((error: unknown) => {
-      if (isCloudUnavailable(error) && local.length > 0) return []
+      if (isCloudUnavailable(error) && environment.length > 0) return []
       throw error
     })
-    return [...cloud, ...local]
+    return [...cloud, ...environment]
   }
 
   async read(accountId: AccountId): Promise<StoredAccount | undefined> {
-    return (await this.local.read(accountId)) ?? this.cloud.read(accountId)
+    return (await this.environmentAccount(accountId)) ?? this.cloud.read(accountId)
   }
 
   add(draft: AccountDraft): Promise<Account> {
@@ -51,15 +55,19 @@ export class SignedInAccountStore extends AccountStorePort {
   }
 
   async setActive(args: { provider: EAuthProvider; accountId: AccountId }): Promise<void> {
-    await (await this.owner(args.accountId)).setActive(args)
+    if ((await this.environmentAccount(args.accountId)) === undefined) {
+      await this.cloud.setActive(args)
+    }
+    await this.local.setActive(args)
   }
 
   async activeFor(provider: EAuthProvider): Promise<AccountId | undefined> {
-    const cloud = await this.cloud.activeFor(provider).catch((error: unknown) => {
+    const local = await this.local.activeFor(provider)
+    if (local !== undefined && (await this.environmentAccount(local)) !== undefined) return local
+    return this.cloud.activeFor(provider).catch((error: unknown) => {
       if (isCloudUnavailable(error)) return undefined
       throw error
     })
-    return cloud ?? this.local.activeFor(provider)
   }
 
   override async withAccountLock<T>(args: {
@@ -69,7 +77,12 @@ export class SignedInAccountStore extends AccountStorePort {
     return (await this.owner(args.accountId)).withAccountLock(args)
   }
 
+  private async environmentAccount(accountId: AccountId): Promise<StoredAccount | undefined> {
+    const stored = await this.local.read(accountId)
+    return isEnvironment(stored) ? stored : undefined
+  }
+
   private async owner(accountId: AccountId): Promise<AccountStorePort> {
-    return (await this.local.read(accountId)) === undefined ? this.cloud : this.local
+    return (await this.environmentAccount(accountId)) === undefined ? this.cloud : this.local
   }
 }
