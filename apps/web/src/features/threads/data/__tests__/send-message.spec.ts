@@ -100,3 +100,32 @@ describe('deliverMessage', () => {
     ])
   })
 })
+
+describe('sendMessage uploads', () => {
+  const uploads = [
+    {
+      uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
+      pathname: 'p',
+      name: 'a.pdf',
+      size: 1,
+      mediaType: 'x/y',
+    },
+  ]
+
+  it('posts uploads over HTTP and to the live send', async () => {
+    await sendMessage({ threadId: 't1', text: 'hi', sendId: 's1', uploads })
+    expect(calls.at(-1)?.body).toEqual({ threadId: 't1', sendId: 's1', text: 'hi', uploads })
+    const sent: unknown[] = []
+    await deliverMessage({
+      threadId: 't1',
+      text: 'hi',
+      sendId: 's1',
+      uploads,
+      liveSend: (args) => {
+        sent.push(args)
+        return true
+      },
+    })
+    expect(sent).toEqual([{ text: 'hi', requestId: 's1', uploads }])
+  })
+})

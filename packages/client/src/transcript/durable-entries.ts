@@ -4,6 +4,7 @@ import {
   latestTldrPerAnchor,
   type Event,
   type SaidImage,
+  type SaidUpload,
 } from '@dltech/atlas-core'
 
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
@@ -23,6 +24,7 @@ import { turnEndedEntry, turnsBySeq } from './turn-rows'
 import type { TurnSpend } from './turn-spend'
 
 const NOTHING_PICTURED: readonly SaidImage[] = Object.freeze([])
+const NOTHING_UPLOADED: readonly SaidUpload[] = Object.freeze([])
 
 export function durableEntries(args: {
   events: readonly Event[]
@@ -61,6 +63,7 @@ export function durableEntries(args: {
           skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
           files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
           images: event.images ?? NOTHING_PICTURED,
+          uploads: event.uploads ?? NOTHING_UPLOADED,
         },
       ]
     }

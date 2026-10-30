@@ -14,10 +14,14 @@ export function ModelPickerControls({
   picker,
   selection,
   onSelectionChange,
+  open,
+  onOpenChange,
 }: {
   picker: ModelPicker
   selection: ModelSelection
   onSelectionChange: (selection: ModelSelection) => void
+  open?: boolean | undefined
+  onOpenChange?: ((open: boolean) => void) | undefined
 }) {
   const router = useRouter()
   const { models, reconnectProviders } = picker.options
@@ -29,6 +33,8 @@ export function ModelPickerControls({
       models={models}
       value={selection.id}
       placeholder="Default"
+      {...(open === undefined ? {} : { open })}
+      {...(onOpenChange === undefined ? {} : { onOpenChange })}
       onValueChange={handleValueChange}
       effort={selection.effort}
       onEffortChange={(effort) => onSelectionChange({ ...selection, effort })}

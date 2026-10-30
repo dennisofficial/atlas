@@ -17,6 +17,7 @@ import type { TranscriptReaders } from './requests'
 import type {
   ServeAgentSteer,
   ServePrStates,
+  ServeCommands,
   ServeRoster,
   ServeRewind,
   ServeSubscriptions,
@@ -75,6 +76,7 @@ export type SessionHandlersArgs = {
   /** The github plugin's live PR readings; absent in fakes, which answer empty. */
   prStates?: ServePrStates | undefined
   subscriptions?: ServeSubscriptions | undefined
+  commands?: ServeCommands | undefined
   rewind?: ServeRewind | undefined
   compaction?: import('@dltech/atlas-harness').CompactionPort | undefined
   rotation?: import('@dltech/atlas-harness').RotationPort | undefined

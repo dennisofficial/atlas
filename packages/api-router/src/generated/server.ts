@@ -13,9 +13,23 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { githubPrStreamOutputSchema, githubWakeStreamOutputSchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubSubscribeInputSchema, githubSubscriptionSchema, githubSubscriptionIdInputSchema, githubDismissAppInstallNoticeInputSchema, githubHeartbeatSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectWorkspaceSchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, podResizeInputSchema, podResizeReplySchema, sandboxConfigInputSchema, resolvedSandboxConfigSchema, personalSecretListSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, podChildRegisterSchema, sandboxActivityPostSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, sessionsListInputSchema, wireSessionNodeSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, threadStreamInputSchema, threadStreamOutputSchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, markThreadReadInputSchema, threadListOutputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
+import { composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStreamOutputSchema, githubWakeStreamOutputSchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubSubscribeInputSchema, githubSubscriptionSchema, githubSubscriptionIdInputSchema, githubDismissAppInstallNoticeInputSchema, githubHeartbeatSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, projectFileMountListSchema, projectFileMountKeySchema, projectFileMountContentsSchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectWorkspaceSchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, podResizeInputSchema, podResizeReplySchema, sandboxConfigInputSchema, resolvedSandboxConfigSchema, personalSecretListSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, userVercelCredentialSchema, userVercelCredentialUpsertSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, setStatusInputSchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, podChildRegisterSchema, sandboxActivityPostSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, sessionsListInputSchema, wireSessionNodeSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, importEventsInputSchema, threadHeadReplySchema, threadStreamInputSchema, threadStreamOutputSchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, markThreadReadInputSchema, threadListOutputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
 
 const appRouter = t.router({
+  composerUploads: t.router({
+    presign: publicProcedure
+      .input(composerUploadPresignInputSchema)
+      .output(composerUploadPresignReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    discard: publicProcedure
+      .input(composerUploadDiscardInputSchema)
+      .output(z.object({ ok: z.literal(true) }))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    download: publicProcedure
+      .input(composerUploadDownloadInputSchema)
+      .output(composerUploadDownloadReplySchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   githubPrs: t.router({
     stream: publicProcedure
       .output(githubPrStreamOutputSchema)
@@ -143,6 +157,26 @@ const appRouter = t.router({
       .input(projectSecretKeySchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listFileMounts: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectFileMountListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    revealFileMount: publicProcedure
+      .input(projectFileMountKeySchema)
+      .output(projectFileMountContentsSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setFileMount: publicProcedure
+      .input(projectFileMountSetSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeFileMount: publicProcedure
+      .input(projectFileMountKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    repoTree: publicProcedure
+      .input(projectIdInputSchema)
+      .output(projectRepoTreeSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     listMcpServers: publicProcedure
       .input(projectIdInputSchema)
       .output(resourceMcpServerListSchema)

@@ -77,6 +77,19 @@ export const fakeSandbox = (
       const script = params.args?.[1] ?? params.cmd
       commands.push(script)
       calls?.push({ kind: ERecordedCallKind.Command, script })
+      if (script.includes('alive=1')) {
+        const protocol = args.installedProtocol ?? String(CHANNEL_PROTOCOL_VERSION)
+        const stamps = args.versionReadFails
+          ? 'version=\nprotocol=\n'
+          : `version=${args.installedVersion ?? PINNED_VERSION}\nprotocol=${protocol}\n`
+        const flag = (on: boolean): string => (on ? '1' : '0')
+        return {
+          exitCode: 0,
+          stdout: async () =>
+            `alive=${flag(args.alive === true)}\npresent=1\n${stamps}token=1\nhealthy=${flag(args.healthy ?? true)}\n`,
+          stderr: async () => '',
+        }
+      }
       if (script.startsWith('rm -f'))
         return { exitCode: 0, stdout: async () => '', stderr: async () => '' }
       if (script.startsWith('kill -0')) {

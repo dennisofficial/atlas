@@ -50,6 +50,8 @@ export async function runPodProvision(args: {
     return { outcome: EPodProvisionOutcome.Superseded }
   }
 
+  const sessionPromise = sessionOfThread({ reader: db, threadId })
+  sessionPromise.catch(() => undefined)
   let errorReported = false
   const reporter = createBootReporter({
     log: deps.log,
@@ -64,8 +66,10 @@ export async function runPodProvision(args: {
   try {
     if (row.sealedToken === null) throw new Error('the sandbox row holds no session token')
     const token = deps.cipher.decrypt(row.sealedToken)
-    const thread = await db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow()
-    const session = await sessionOfThread({ reader: db, threadId })
+    const [thread, session] = await Promise.all([
+      db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow(),
+      sessionPromise,
+    ])
     const credentials = await deps.scoped.vercelCredentials({ thread })
     const { serveUrl } = await deps.boot.boot({
       credentials,
@@ -85,6 +89,7 @@ export async function runPodProvision(args: {
       reporter,
       prepare: workspaceSpecWriter({ projectId: session.projectId, model: thread.modelRef }),
     })
+    await reporter.flush()
     const marked = await markRunning({ threadId, wakeClaim, serveUrl })
     if (!marked) {
       await rollbackIfDestroyed({
@@ -104,6 +109,7 @@ export async function runPodProvision(args: {
     deps.log(
       `provisioning sandbox ${row.name} for thread ${threadId} failed: ${failureText(failure)}`,
     )
+    await reporter.flush().catch(() => undefined)
     const matched = await markFailed({ threadId, wakeClaim })
     if (matched === 0) return { outcome: EPodProvisionOutcome.Superseded }
     await deps.signals.podChanged({ threadId })

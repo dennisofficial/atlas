@@ -77,6 +77,7 @@ const boot = async (args: {
     reporter,
   })
   await reporter.track({ step: EBootStep.Agent, work: async () => undefined })
+  await reporter.flush()
   return recorded
 }
 

@@ -31,8 +31,8 @@ export const BOOT_STEP_ORDER: readonly EBootStep[] = [
   EBootStep.Provision,
   EBootStep.Serve,
   EBootStep.Clone,
-  EBootStep.Context,
   EBootStep.Settings,
+  EBootStep.Context,
   EBootStep.Agent,
 ]
 
@@ -60,6 +60,14 @@ export const mirrorsThreadState = (env: Record<string, string | undefined>): boo
   writesBehind(env) && !isLocalPod(env)
 
 export const MAX_BOOT_STEP_TEXT = 2000
+export const MAX_CLONE_REPOS = 20
+
+export const cloneRepoProgressSchema = z.object({
+  repo: z.string().min(1).max(200),
+  state: z.enum(EBootStepState),
+  error: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
+})
+export type CloneRepoProgress = z.infer<typeof cloneRepoProgressSchema>
 
 export const bootStepEventSchema = z.object({
   step: z.enum(EBootStep),
@@ -68,6 +76,7 @@ export const bootStepEventSchema = z.object({
   error: z.string().max(MAX_BOOT_STEP_TEXT).optional(),
   gap: z.enum(EVercelCredentialGap).optional(),
   outcome: z.enum(EBootStepOutcome).optional(),
+  repos: z.array(cloneRepoProgressSchema).max(MAX_CLONE_REPOS).optional(),
 })
 export type BootStepEvent = z.infer<typeof bootStepEventSchema>
 
@@ -90,6 +99,7 @@ export type BootStepSink = (events: readonly BootStepEvent[]) => Promise<void>
 
 export type BootReporter = {
   report: (event: BootStepEvent) => Promise<void>
+  flush: () => Promise<void>
   track: <T>(args: {
     step: EBootStep
     detail?: string | undefined
@@ -101,17 +111,66 @@ export type BootReporter = {
 const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+const MAX_BATCH = 50
+
+const bounded = (text: string): string => text.slice(0, MAX_BOOT_STEP_TEXT)
+
+const boundedEvent = (event: BootStepEvent): BootStepEvent => ({
+  ...event,
+  ...(event.detail === undefined ? {} : { detail: bounded(event.detail) }),
+  ...(event.error === undefined ? {} : { error: bounded(event.error) }),
+  ...(event.repos === undefined
+    ? {}
+    : {
+        repos: event.repos.map((repo) =>
+          repo.error === undefined ? repo : { ...repo, error: bounded(repo.error) },
+        ),
+      }),
+})
+
 export function createBootReporter(args: {
   sink: BootStepSink
   log?: ((line: string) => void) | undefined
 }): BootReporter {
-  const report = async (event: BootStepEvent): Promise<void> => {
+  const queue: BootStepEvent[] = []
+  let delivery: Promise<void> | undefined
+
+  const deliver = async (batch: BootStepEvent[]): Promise<void> => {
     try {
-      await args.sink([event])
+      await args.sink(batch)
     } catch (failure) {
-      args.log?.(`boot step ${event.step} ${event.state} was not reported: ${failureText(failure)}`)
+      for (const event of batch) {
+        try {
+          args.log?.(
+            `boot step ${event.step} ${event.state} was not reported: ${failureText(failure)}`,
+          )
+        } catch {}
+      }
     }
   }
+
+  const drain = async (): Promise<void> => {
+    try {
+      while (queue.length > 0) await deliver(queue.splice(0, MAX_BATCH))
+    } finally {
+      delivery = undefined
+    }
+  }
+
+  const enqueue = (event: BootStepEvent): void => {
+    queue.push(boundedEvent(event))
+    delivery ??= Promise.resolve().then(drain)
+  }
+
+  const report = (event: BootStepEvent): Promise<void> => {
+    enqueue(event)
+    return Promise.resolve()
+  }
+
+  const flush = async (): Promise<void> => {
+    while (delivery !== undefined) await delivery
+  }
+
   const track = async <T>(tracked: {
     step: EBootStep
     detail?: string | undefined
@@ -119,15 +178,11 @@ export function createBootReporter(args: {
     outcomeOf?: ((result: T) => EBootStepOutcome) | undefined
   }): Promise<T> => {
     const detail = tracked.detail === undefined ? {} : { detail: tracked.detail }
-    await report({
-      step: tracked.step,
-      state: EBootStepState.Running,
-      ...detail,
-    })
+    enqueue({ step: tracked.step, state: EBootStepState.Running, ...detail })
     try {
       const result = await tracked.work()
       const outcome = tracked.outcomeOf?.(result)
-      await report({
+      enqueue({
         step: tracked.step,
         state: EBootStepState.Done,
         ...detail,
@@ -135,19 +190,16 @@ export function createBootReporter(args: {
       })
       return result
     } catch (failure) {
-      await report({
-        step: tracked.step,
-        state: EBootStepState.Error,
-        error: failureText(failure),
-      })
+      enqueue({ step: tracked.step, state: EBootStepState.Error, error: failureText(failure) })
       throw failure
     }
   }
-  return { report, track }
+  return { report, track, flush }
 }
 
 export const NOOP_BOOT_REPORTER: BootReporter = {
   report: () => Promise.resolve(),
+  flush: () => Promise.resolve(),
   track: (tracked) => tracked.work(),
 }
 
@@ -157,6 +209,7 @@ export const recordedBootStepSchema = z.object({
   error: z.string().optional(),
   gap: z.enum(EVercelCredentialGap).optional(),
   outcome: z.enum(EBootStepOutcome).optional(),
+  repos: z.array(cloneRepoProgressSchema).optional(),
   at: z.string(),
 })
 export type RecordedBootStep = z.infer<typeof recordedBootStepSchema>

@@ -15,6 +15,9 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
   [EProjectSettingsSection.Secrets]: {
     status: EPageStatus.Live,
   },
+  [EProjectSettingsSection.Files]: {
+    status: EPageStatus.Live,
+  },
   [EProjectSettingsSection.Mcp]: {
     status: EPageStatus.Partial,
     detail: "Servers are saved to the project; sessions don't load them yet.",

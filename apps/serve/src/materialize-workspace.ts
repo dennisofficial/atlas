@@ -3,7 +3,14 @@ import { join } from 'node:path'
 import { gitMessageOf, gitOneLine } from '@dltech/atlas-harness'
 import { runGit, type GitRun } from '@dltech/atlas-harness'
 
-import { branchFlagsOf, cloneAdditionalRepos } from './clone-repo'
+import { EBootStepState, MAX_BOOT_STEP_TEXT, type CloneRepoProgress } from '@dltech/atlas-wire'
+
+import {
+  branchFlagsOf,
+  cloneAdditionalRepo,
+  PARTIAL_CLONE_FLAG,
+  validateAdditionalRepos,
+} from './clone-repo'
 import type { ApplyEnvironmentProfile, EnvironmentProfile } from './environment-profile'
 import { nodeWorkspaceFiles, type WorkspaceFiles } from './workspace-files'
 import type { FetchWorkspaceSpec, WorkspaceSpec } from './workspace-spec'
@@ -26,16 +33,27 @@ export enum EWorkspaceStep {
 
 export type WorkspaceReadiness =
   | {
-      state: EWorkspaceState.Present | EWorkspaceState.Materialized | EWorkspaceState.Skipped
+      state: EWorkspaceState.Present | EWorkspaceState.Skipped
       profile?: EnvironmentProfile | undefined
     }
-  | { state: EWorkspaceState.Failed; step: EWorkspaceStep; reason: string }
+  | {
+      state: EWorkspaceState.Materialized
+      profile?: EnvironmentProfile | undefined
+      repos?: CloneRepoProgress[] | undefined
+    }
+  | {
+      state: EWorkspaceState.Failed
+      step: EWorkspaceStep
+      reason: string
+      repos?: CloneRepoProgress[] | undefined
+    }
 
 export type GitRunner = (args: { args: readonly string[]; cwd: string }) => Promise<GitRun>
 
 export type EnsureWorkspace = (args: {
   cwd: string
   fetchSpec: FetchWorkspaceSpec
+  progress?: ((repos: CloneRepoProgress[]) => void) | undefined
 }) => Promise<WorkspaceReadiness>
 
 const SSH_REMOTE = /^(?:ssh:\/\/)?git@([^/:]+)[:/](.+)$/
@@ -45,11 +63,30 @@ const messageOf = (error: unknown): string =>
 
 const reasonOf = (run: GitRun): string => gitMessageOf(run)
 
-const failed = (step: EWorkspaceStep, reason: string): WorkspaceReadiness => ({
+const failed = (
+  step: EWorkspaceStep,
+  reason: string,
+  repos?: CloneRepoProgress[],
+): WorkspaceReadiness => ({
   state: EWorkspaceState.Failed,
   step,
   reason,
+  ...(repos === undefined ? {} : { repos }),
 })
+
+const repoNameOf = (remoteUrl: string): string => {
+  try {
+    const path = new URL(httpsRemoteOf(remoteUrl)).pathname
+    return path
+      .replace(/^\/+/, '')
+      .replace(/\.git$/, '')
+      .replace(/\/+$/, '')
+  } catch {
+    return 'primary'
+  }
+}
+
+const truncated = (text: string): string => text.slice(0, MAX_BOOT_STEP_TEXT)
 
 export function httpsRemoteOf(remoteUrl: string): string {
   const ssh = SSH_REMOTE.exec(remoteUrl)
@@ -71,7 +108,7 @@ export function createEnsureWorkspace(args: {
   const git = args.git ?? runGit
   const files = args.files ?? nodeWorkspaceFiles
 
-  return async ({ cwd, fetchSpec }) => {
+  return async ({ cwd, fetchSpec, progress }) => {
     const applyProfile = async (spec: WorkspaceSpec): Promise<EnvironmentProfile | undefined> => {
       if (args.profile === undefined) return undefined
       try {
@@ -86,7 +123,10 @@ export function createEnsureWorkspace(args: {
       if (args.profile === undefined) return { state: EWorkspaceState.Present }
       try {
         const spec = await fetchSpec()
-        return { state: EWorkspaceState.Present, profile: await args.profile({ cwd, spec }) }
+        return {
+          state: EWorkspaceState.Present,
+          profile: await args.profile({ cwd, spec }),
+        }
       } catch {
         return { state: EWorkspaceState.Present }
       }
@@ -106,11 +146,18 @@ export function createEnsureWorkspace(args: {
       } catch (error) {
         return failed(EWorkspaceStep.Clear, messageOf(error))
       }
-      return { state: EWorkspaceState.Skipped, profile: await applyProfile(spec) }
+      return {
+        state: EWorkspaceState.Skipped,
+        profile: await applyProfile(spec),
+      }
     }
 
     const scrub = (text: string): string =>
       githubToken === null ? text : text.split(githubToken).join('***')
+
+    const extras = additionalRepos ?? []
+    const invalid = validateAdditionalRepos({ cwd, repos: extras })
+    if (invalid !== null) return failed(EWorkspaceStep.Clone, scrub(invalid))
 
     try {
       await files.empty(cwd)
@@ -118,32 +165,64 @@ export function createEnsureWorkspace(args: {
       return failed(EWorkspaceStep.Clear, messageOf(error))
     }
 
-    const cloned = await git({
-      args: [
-        'clone',
-        ...branchFlagsOf(baseBranch),
-        '--',
-        credentialedRemoteOf({ remoteUrl, token: githubToken }),
-        '.',
-      ],
-      cwd,
-    })
-    if (!cloned.ok) return failed(EWorkspaceStep.Clone, scrub(reasonOf(cloned)))
+    const repos: CloneRepoProgress[] = [
+      { repo: repoNameOf(remoteUrl), state: EBootStepState.Running },
+      ...extras.map(({ repo }) => ({ repo, state: EBootStepState.Running })),
+    ]
+    const settle = (index: number, failure: string | null): string | null => {
+      const row = repos[index]
+      if (row === undefined) return failure
+      repos[index] =
+        failure === null
+          ? { repo: row.repo, state: EBootStepState.Done }
+          : {
+              repo: row.repo,
+              state: EBootStepState.Error,
+              error: truncated(scrub(failure)),
+            }
+      progress?.(repos.map((one) => ({ ...one })))
+      return failure
+    }
+    progress?.(repos.map((one) => ({ ...one })))
 
-    const disarmed = await git({
-      args: ['remote', 'set-url', 'origin', httpsRemoteOf(remoteUrl)],
-      cwd,
-    })
-    if (!disarmed.ok) return failed(EWorkspaceStep.Clone, scrub(reasonOf(disarmed)))
+    const clonePrimary = async (): Promise<string | null> => {
+      const cloned = await git({
+        args: [
+          'clone',
+          PARTIAL_CLONE_FLAG,
+          ...branchFlagsOf(baseBranch),
+          '--',
+          credentialedRemoteOf({ remoteUrl, token: githubToken }),
+          '.',
+        ],
+        cwd,
+      })
+      if (!cloned.ok) return reasonOf(cloned)
+      const disarmed = await git({
+        args: ['remote', 'set-url', 'origin', httpsRemoteOf(remoteUrl)],
+        cwd,
+      })
+      return disarmed.ok ? null : reasonOf(disarmed)
+    }
 
-    const extrasFailure = await cloneAdditionalRepos({
-      git,
-      files,
-      cwd,
-      repos: additionalRepos ?? [],
-      credentialed: (extraUrl) => credentialedRemoteOf({ remoteUrl: extraUrl, token: githubToken }),
-    })
-    if (extrasFailure !== null) return failed(EWorkspaceStep.Clone, scrub(extrasFailure))
+    const [primaryFailure] = await Promise.all([
+      clonePrimary()
+        .catch((error: unknown) => messageOf(error))
+        .then((failure) => settle(0, failure)),
+      ...extras.map((repo, index) =>
+        cloneAdditionalRepo({
+          git,
+          files,
+          cwd,
+          repo,
+          credentialed: (extraUrl) =>
+            credentialedRemoteOf({ remoteUrl: extraUrl, token: githubToken }),
+        })
+          .catch((error: unknown) => messageOf(error))
+          .then((failure) => settle(index + 1, failure)),
+      ),
+    ])
+    if (primaryFailure !== null) return failed(EWorkspaceStep.Clone, scrub(primaryFailure), repos)
 
     const commit = gitOneLine(await git({ args: ['rev-parse', '--verify', 'HEAD'], cwd }))
 
@@ -156,7 +235,11 @@ export function createEnsureWorkspace(args: {
       return failed(EWorkspaceStep.Sentinel, messageOf(error))
     }
 
-    return { state: EWorkspaceState.Materialized, profile: await applyProfile(spec) }
+    return {
+      state: EWorkspaceState.Materialized,
+      profile: await applyProfile(spec),
+      repos,
+    }
   }
 }
 

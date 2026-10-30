@@ -44,6 +44,8 @@ export enum EServeEvent {
   LostAgentSettlementFailed = 'serve.lost-agent-settlement-failed',
   CloudStateReady = 'serve.cloud-state-ready',
   CloudStateFailed = 'serve.cloud-state-failed',
+  FileMountSkipped = 'serve.file-mount-skipped',
+  FileMountNoticeFailed = 'serve.file-mount-notice-failed',
   SettingsDropped = 'serve.settings-dropped',
   RotationFailed = 'serve.rotation-failed',
   SigningKeyReady = 'serve.signing-key-ready',
@@ -68,6 +70,7 @@ export enum EServeEvent {
   ActivityReportFailed = 'serve.activity-report-failed',
   ThreadModelPersistFailed = 'serve.thread-model-persist-failed',
   RenameForwardFailed = 'serve.rename-forward-failed',
+  BootPhase = 'serve.boot-phase',
 }
 
 export type ServeLogLine = { event: EServeEvent; [field: string]: unknown }

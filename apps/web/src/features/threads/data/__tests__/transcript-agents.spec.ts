@@ -5,7 +5,13 @@ import { EToolKind } from '@dltech/atlas-ui/ai/tool'
 import type { RosterWire, WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '../events-from-wire'
-import { reportItemsOf, rosterModelsOf, spawnDomId, spawnItemsOf } from '../transcript-agents'
+import {
+  anySpawnRunning,
+  reportItemsOf,
+  rosterModelsOf,
+  spawnDomId,
+  spawnItemsOf,
+} from '../transcript-agents'
 import {
   durableTranscriptOf,
   ETranscriptKind,
@@ -33,7 +39,11 @@ const spawnCall = (seq: number) =>
     type: 'tool-called',
     callId: 'call_s',
     name: 'agent_spawn',
-    input: { agentType: 'explore', intent: 'vault audit', brief: 'Audit the vault' },
+    input: {
+      agentType: 'explore',
+      intent: 'vault audit',
+      brief: 'Audit the vault',
+    },
     ordinal: 0,
   })
 const spawnResult = (seq: number) =>
@@ -98,7 +108,10 @@ describe('agent spawn items', () => {
 
   it('claims a dispatched spawn by agent type and intent before its result lands', () => {
     const rows = rowsOf([said(1), spawnCall(2), spawned(3)])
-    expect(rows[1]).toMatchObject({ kind: ETranscriptKind.Spawn, brief: 'Audit the vault' })
+    expect(rows[1]).toMatchObject({
+      kind: ETranscriptKind.Spawn,
+      brief: 'Audit the vault',
+    })
   })
 
   it('keeps sibling tool calls in their own rows around the spawn', () => {
@@ -111,12 +124,22 @@ describe('agent spawn items', () => {
         input: { command: 'ls' },
         ordinal: 0,
       }),
-      wire(3, { type: 'tool-result', callId: 'c1', name: 'bash', output: {}, modelText: 'a' }),
+      wire(3, {
+        type: 'tool-result',
+        callId: 'c1',
+        name: 'bash',
+        output: {},
+        modelText: 'a',
+      }),
       wire(4, {
         type: 'tool-called',
         callId: 'call_s',
         name: 'agent_spawn',
-        input: { agentType: 'explore', intent: 'vault audit', brief: 'Audit the vault' },
+        input: {
+          agentType: 'explore',
+          intent: 'vault audit',
+          brief: 'Audit the vault',
+        },
         ordinal: 1,
       }),
       spawned(5),
@@ -128,7 +151,13 @@ describe('agent spawn items', () => {
         input: { command: 'pwd' },
         ordinal: 2,
       }),
-      wire(8, { type: 'tool-result', callId: 'c2', name: 'bash', output: {}, modelText: 'b' }),
+      wire(8, {
+        type: 'tool-result',
+        callId: 'c2',
+        name: 'bash',
+        output: {},
+        modelText: 'b',
+      }),
     ])
     expect(kindsOf(rows)).toEqual([
       ETranscriptKind.User,
@@ -155,10 +184,17 @@ describe('agent spawn items', () => {
       spawnCall(2),
       spawned(3),
       spawnResult(4),
-      ended(5, { status: EAgentStatus.Failed, failureCause: 'sandbox lost', prose: '' }),
+      ended(5, {
+        status: EAgentStatus.Failed,
+        failureCause: 'sandbox lost',
+        prose: '',
+      }),
     ])
     const spawn = rows[1]
-    expect(spawn).toMatchObject({ status: EAgentStatus.Failed, errorText: 'sandbox lost' })
+    expect(spawn).toMatchObject({
+      status: EAgentStatus.Failed,
+      errorText: 'sandbox lost',
+    })
     expect(spawn).not.toHaveProperty('result')
   })
 
@@ -191,9 +227,15 @@ describe('agent spawn items', () => {
   it('places a spawn with no tool call by its event time', () => {
     const rows = rowsOf([
       said(1),
-      wire(2, { type: 'assistant-said', parts: [{ type: 'text', text: 'on it' }] }),
+      wire(2, {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'on it' }],
+      }),
       spawned(3),
-      wire(4, { type: 'assistant-said', parts: [{ type: 'text', text: 'later' }] }),
+      wire(4, {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'later' }],
+      }),
     ])
     expect(kindsOf(rows)).toEqual([
       ETranscriptKind.User,
@@ -270,7 +312,9 @@ describe('agent report items', () => {
 })
 
 describe('agent notices stamped at arrival and delivery', () => {
-  const stamp = (id: string, stage: 'arrived' | 'delivered') => ({ notice: { id, stage } })
+  const stamp = (id: string, stage: 'arrived' | 'delivered') => ({
+    notice: { id, stage },
+  })
 
   it('renders one report at the delivered position', () => {
     const events = [
@@ -317,7 +361,13 @@ describe('edit tool paths', () => {
     const rows = rowsOf([
       said(1),
       wire(2, { type: 'tool-called', callId: 'e1', name, input, ordinal: 0 }),
-      wire(3, { type: 'tool-result', callId: 'e1', name, output: {}, modelText: 'ok' }),
+      wire(3, {
+        type: 'tool-result',
+        callId: 'e1',
+        name,
+        output: {},
+        modelText: 'ok',
+      }),
     ])
     const tools = rows[1]
     if (tools?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
@@ -348,5 +398,16 @@ describe('rosterModelsOf', () => {
       agents: [{ agentId: 'a', model: { id: 'p', modelId: 'gpt-5' } }, { agentId: 'b' }],
     } as unknown as RosterWire
     expect([...rosterModelsOf(roster)]).toEqual([['a', 'gpt-5']])
+  })
+})
+
+describe('anySpawnRunning', () => {
+  it('keeps the clock ticking while a spawned agent runs after the turn ended', () => {
+    expect(anySpawnRunning(rowsOf([said(1), spawnCall(2), spawned(3), spawnResult(4)]))).toBe(true)
+  })
+
+  it('stops once every spawned agent has ended', () => {
+    const rows = rowsOf([said(1), spawnCall(2), spawned(3), spawnResult(4), ended(5)])
+    expect(anySpawnRunning(rows)).toBe(false)
   })
 })

@@ -49,7 +49,20 @@ function runnerOver(args: {
   })
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
+const titlingSettled = (args: {
+  runner: ReturnType<typeof runnerOver>
+  threadId: Parameters<ReturnType<typeof runnerOver>['titling']>[0]['threadId']
+}): Promise<void> =>
+  new Promise((resolve) => {
+    const stop = args.runner.onTitling({
+      threadId: args.threadId,
+      listener: (titling) => {
+        if (titling) return
+        stop()
+        resolve()
+      },
+    })
+  })
 
 describe('titling on resume', () => {
   it('names an unnamed thread whose first message is already in the log', async () => {
@@ -63,8 +76,9 @@ describe('titling on resume', () => {
       },
     })
 
+    const settled = titlingSettled({ runner, threadId })
     await runner.resume({ threadId })
-    await settle()
+    await settled
 
     expect(calls).toHaveLength(1)
     expect((await fixture.threads.find({ threadId }))?.title).toBe('Fix login bug')
@@ -82,8 +96,9 @@ describe('titling on resume', () => {
       },
     })
 
+    const settled = titlingSettled({ runner, threadId })
     await runner.resume({ threadId })
-    await settle()
+    await settled
 
     expect(calls).toBe(0)
     expect((await fixture.threads.find({ threadId }))?.title).toBe('Existing')

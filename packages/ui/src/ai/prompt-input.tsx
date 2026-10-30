@@ -2,24 +2,18 @@
 
 import { useRef, useState } from 'react'
 import type {
+  AriaAttributes,
   ChangeEvent,
   ClipboardEvent,
   DragEvent,
   FormEvent,
   KeyboardEvent,
   ReactNode,
+  Ref,
 } from 'react'
-import { ArrowUpIcon, FileIcon, PlusIcon, SquareIcon, XIcon } from 'lucide-react'
+import { ArrowUpIcon, PlusIcon, SquareIcon } from 'lucide-react'
 
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentContent,
-  AttachmentGroup,
-  AttachmentMedia,
-  AttachmentTitle,
-} from '#components/attachment'
+import { AttachmentGroup } from '#components/attachment'
 import {
   InputGroup,
   InputGroupAddon,
@@ -28,11 +22,9 @@ import {
 } from '#components/input-group'
 import { Spinner } from '#components/spinner'
 
-export interface PromptAttachment {
-  id: string
-  name: string
-  previewUrl?: string | undefined
-}
+import { type PromptAttachment, PromptAttachmentChip } from './prompt-attachment-chip'
+
+export { EPromptAttachmentStatus, type PromptAttachment } from './prompt-attachment-chip'
 
 export interface PromptInputProps {
   value?: string
@@ -49,6 +41,16 @@ export interface PromptInputProps {
   onAttachFiles?: (files: File[]) => void
   accept?: string
   onRemoveAttachment?: (id: string) => void
+  textareaRef?: Ref<HTMLTextAreaElement>
+  onTextareaKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  textareaAria?: Pick<
+    AriaAttributes,
+    | 'aria-activedescendant'
+    | 'aria-controls'
+    | 'aria-haspopup'
+    | 'aria-autocomplete'
+    | 'aria-expanded'
+  > & { role?: 'combobox' }
   children?: ReactNode
 }
 
@@ -70,7 +72,7 @@ export function canSend({
   return text.trim().length > 0
 }
 
-const pastedImageFiles = (data: DataTransfer): File[] => {
+const pastedFiles = (data: DataTransfer): File[] => {
   const files = Array.from(data.files ?? [])
   const candidates =
     files.length > 0
@@ -79,7 +81,7 @@ const pastedImageFiles = (data: DataTransfer): File[] => {
           const file = item.kind === 'file' ? item.getAsFile() : null
           return file === null ? [] : [file]
         })
-  return candidates.filter((file) => file.type.startsWith('image/'))
+  return candidates
 }
 
 const dragCarriesFiles = (data: DataTransfer): boolean =>
@@ -103,6 +105,9 @@ export function PromptInput({
   onAttachFiles,
   accept,
   onRemoveAttachment,
+  textareaRef,
+  onTextareaKeyDown,
+  textareaAria,
   children,
 }: PromptInputProps) {
   const [draft, setDraft] = useState(defaultValue)
@@ -127,10 +132,10 @@ export function PromptInput({
 
   const attachPastedImages = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     if (onAttachFiles === undefined || event.currentTarget.readOnly) return
-    const images = pastedImageFiles(event.clipboardData)
-    if (images.length === 0) return
+    const files = pastedFiles(event.clipboardData)
+    if (files.length === 0) return
     event.preventDefault()
-    onAttachFiles(images)
+    onAttachFiles(files)
   }
 
   // Chromium drops a native paste when the clipboard changes mid-paste, which clipboard-restoring
@@ -151,6 +156,8 @@ export function PromptInput({
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    onTextareaKeyDown?.(event)
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return
     if (event.key !== 'Enter' || event.shiftKey) return
     event.preventDefault()
     formRef.current?.requestSubmit()
@@ -185,33 +192,18 @@ export function PromptInput({
           <InputGroupAddon align="block-start">
             <AttachmentGroup className="flex-wrap">
               {attachments.map((attachment) => (
-                <Attachment key={attachment.id} size="xs">
-                  {attachment.previewUrl === undefined ? (
-                    <AttachmentMedia>
-                      <FileIcon />
-                    </AttachmentMedia>
-                  ) : (
-                    <AttachmentMedia variant="image">
-                      <img src={attachment.previewUrl} alt="" />
-                    </AttachmentMedia>
-                  )}
-                  <AttachmentContent>
-                    <AttachmentTitle>{attachment.name}</AttachmentTitle>
-                  </AttachmentContent>
-                  <AttachmentActions>
-                    <AttachmentAction
-                      aria-label={`Remove ${attachment.name}`}
-                      onClick={() => onRemoveAttachment?.(attachment.id)}
-                    >
-                      <XIcon />
-                    </AttachmentAction>
-                  </AttachmentActions>
-                </Attachment>
+                <PromptAttachmentChip
+                  key={attachment.id}
+                  attachment={attachment}
+                  onRemove={onRemoveAttachment}
+                />
               ))}
             </AttachmentGroup>
           </InputGroupAddon>
         ) : null}
         <InputGroupTextarea
+          ref={textareaRef}
+          {...textareaAria}
           value={text}
           onChange={handleChange}
           onPaste={handlePaste}

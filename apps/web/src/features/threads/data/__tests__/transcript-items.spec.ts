@@ -376,3 +376,19 @@ describe('tool titles', () => {
     expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, text: '', images: [shot] })
   })
 })
+
+describe('upload-only messages', () => {
+  it('keeps a user message that has uploads but no text', () => {
+    const uploads = [
+      {
+        uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
+        pathname: 'p',
+        name: 'a.pdf',
+        size: 1,
+        mediaType: 'x/y',
+      },
+    ]
+    const view = viewOf({ events: [wire(1, { type: 'user-said', text: '', uploads })] })
+    expect(view.items[0]).toMatchObject({ kind: ETranscriptKind.User, uploads })
+  })
+})

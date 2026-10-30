@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'bun:test'
-import { toThreadId } from '@dltech/atlas-core'
+import { EContextSlot, toThreadId } from '@dltech/atlas-core'
 
 import { EClientFrame, EServeFrame, type ServeFrame } from '@dltech/atlas-harness'
 import { EWorkspaceState, startServe, type ServeHandle } from '../index'
@@ -39,13 +39,21 @@ const eventsAppended = (frame: ServeFrame): boolean =>
   frame.kind === EServeFrame.Signal && frame.signal.type === 'events-appended'
 
 const start = async (
-  args: { holdStep?: (step: number) => Promise<void> | undefined } = {},
+  args: {
+    holdStep?: (step: number) => Promise<void> | undefined
+    expandContext?: FakeServeApp['expandContext']
+  } = {},
 ): Promise<{ app: FakeServeApp; client: TestClient }> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-serve-send-commit-'))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home
-  const app = fakeServeApp({ threadId, root: '/workspace', holdStep: args.holdStep })
+  const app = fakeServeApp({
+    threadId,
+    root: '/workspace',
+    holdStep: args.holdStep,
+    expandContext: args.expandContext,
+  })
   const handle = await startServe({
     threadId,
     port: 0,
@@ -92,5 +100,18 @@ describe('a Send commit', () => {
       (frame) => eventsAppended(frame) && client.frames.indexOf(frame) >= beforeSecond,
     )
     expect(appended).toMatchObject({ signal: { type: 'events-appended' } })
+  })
+
+  it('expands skills explicitly when the session has no intake', async () => {
+    const { app, client } = await start({
+      expandContext: ({ text }) => [
+        { type: 'context-loaded', slot: EContextSlot.Skill, key: 'review', content: text },
+      ],
+    })
+
+    client.send({ kind: EClientFrame.Send, sendId: 'send-1' as never, text: '/review' })
+    await client.waitFor((frame) => frame.kind === EServeFrame.TurnEnded)
+
+    expect(app.appended.map((draft) => draft.type)).toEqual(['context-loaded', 'user-said'])
   })
 })

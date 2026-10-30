@@ -1,0 +1,209 @@
+[
+  {
+    "id": "dropIndex.SandboxBootStep.SandboxBootStep_sessionId_at_idx",
+    "label": "Drop index \"SandboxBootStep_sessionId_at_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SandboxBootStep_sessionId_at_idx",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SandboxBootStep_sessionId_at_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"SandboxBootStep_sessionId_at_idx\"",
+        "sql": "DROP INDEX \"public\".\"SandboxBootStep_sessionId_at_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SandboxBootStep_sessionId_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_at_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.SandboxBootStep.repos",
+    "label": "Add column \"repos\" to \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "repos",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"repos\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "repos"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"repos\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" ADD COLUMN \"repos\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"repos\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "repos"
+        ]
+      },
+      {
+        "description": "verify column \"repos\" has type \"jsonb\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "repos",
+          "jsonb"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.SandboxBootStep.seq",
+    "label": "Add column \"seq\" to \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "seq",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"seq\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "seq"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"seq\"",
+        "sql": "ALTER TABLE \"public\".\"SandboxBootStep\" ADD COLUMN \"seq\" BIGSERIAL NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"seq\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "seq"
+        ]
+      },
+      {
+        "description": "verify column \"seq\" has type \"bigint\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "seq",
+          "bigint"
+        ]
+      },
+      {
+        "description": "verify column \"seq\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "SandboxBootStep",
+          "seq",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"seq\" takes its default from an attached sequence",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attrdef\" AS \"d\" INNER JOIN \"pg_attribute\" AS \"a\" ON (\"a\".\"attrelid\" = \"d\".\"adrelid\" AND \"a\".\"attnum\" = \"d\".\"adnum\") INNER JOIN \"pg_depend\" AS \"dep\" ON \"dep\".\"objid\" = \"d\".\"oid\" WHERE (\"d\".\"adrelid\" = to_regclass($1) AND \"a\".\"attname\" = $2 AND \"dep\".\"classid\" = 'pg_attrdef'::regclass AND \"dep\".\"refclassid\" = 'pg_class'::regclass AND \"dep\".\"refobjid\" = pg_get_serial_sequence($3, $4)::regclass)) AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep\"",
+          "seq",
+          "\"public\".\"SandboxBootStep\"",
+          "seq"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SandboxBootStep.SandboxBootStep_sessionId_seq_idx",
+    "label": "Create index \"SandboxBootStep_sessionId_seq_idx\" on \"SandboxBootStep\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SandboxBootStep_sessionId_seq_idx",
+        "table": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SandboxBootStep_sessionId_seq_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_seq_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SandboxBootStep_sessionId_seq_idx\"",
+        "sql": "CREATE INDEX \"SandboxBootStep_sessionId_seq_idx\" ON \"public\".\"SandboxBootStep\" (\"sessionId\", \"seq\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SandboxBootStep_sessionId_seq_idx\" exists on \"SandboxBootStep\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"SandboxBootStep_sessionId_seq_idx\"",
+          "i",
+          "I",
+          "\"public\".\"SandboxBootStep\"",
+          "btree",
+          "[\"sessionId\",\"seq\"]"
+        ]
+      }
+    ]
+  }
+]

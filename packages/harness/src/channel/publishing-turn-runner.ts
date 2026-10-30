@@ -1,4 +1,4 @@
-import type { EventDraft, SaidFile, SaidImage, ThreadId } from '@dltech/atlas-core'
+import type { EventDraft, SaidFile, SaidImage, SaidUpload, ThreadId } from '@dltech/atlas-core'
 
 import type { PauseSignal } from '../loop/pause-signal'
 
@@ -48,6 +48,7 @@ export class PublishingTurnRunner extends TurnRunner {
     text: string
     images?: readonly SaidImage[]
     files?: readonly SaidFile[]
+    uploads?: readonly SaidUpload[]
     context?: readonly EventDraft[]
     signal?: AbortSignal
     pause?: PauseSignal

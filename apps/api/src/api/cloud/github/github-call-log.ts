@@ -5,6 +5,7 @@ export enum EGithubCallSource {
   HookLifecycle = 'hook-lifecycle',
   RepoList = 'repo-list',
   RepoAccess = 'repo-access',
+  RepoTree = 'repo-tree',
   SigningKey = 'signing-key',
   DeviceFlow = 'device-flow',
   SubscriptionResolve = 'subscription-resolve',

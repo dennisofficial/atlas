@@ -1,0 +1,135 @@
+[
+  {
+    "id": "table.ProjectFileMount",
+    "label": "Create table \"ProjectFileMount\"",
+    "summary": "Creates table \"ProjectFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ProjectFileMount\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ProjectFileMount\"",
+        "sql": "CREATE TABLE \"public\".\"ProjectFileMount\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"mode\" int4 DEFAULT 384 NOT NULL,\n  \"path\" text NOT NULL,\n  \"projectId\" text NOT NULL,\n  \"sealedContents\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ProjectFileMount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectFileMount\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectFileMount.ProjectFileMount_projectId_path_key",
+    "label": "Add unique constraint on \"ProjectFileMount\" (projectId, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectFileMount_projectId_path_key",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectFileMount_projectId_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectFileMount_projectId_path_key",
+          "public",
+          "\"public\".\"ProjectFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectFileMount_projectId_path_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\" ADD CONSTRAINT \"ProjectFileMount_projectId_path_key\" UNIQUE (\"projectId\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectFileMount_projectId_path_key\" exists on (projectId, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectFileMount_projectId_path_key",
+          "public",
+          "\"public\".\"ProjectFileMount\"",
+          "u",
+          "[\"projectId\",\"path\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ProjectFileMount.ProjectFileMount_projectId_fkey",
+    "label": "Add foreign key \"ProjectFileMount_projectId_fkey\" on \"ProjectFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ProjectFileMount_projectId_fkey",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ProjectFileMount_projectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectFileMount_projectId_fkey",
+          "public",
+          "\"public\".\"ProjectFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ProjectFileMount_projectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\"\nADD CONSTRAINT \"ProjectFileMount_projectId_fkey\"\nFOREIGN KEY (\"projectId\")\nREFERENCES \"public\".\"Project\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ProjectFileMount_projectId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ProjectFileMount_projectId_fkey",
+          "public",
+          "\"public\".\"ProjectFileMount\"",
+          "f",
+          "[\"projectId\"]",
+          "\"public\".\"Project\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

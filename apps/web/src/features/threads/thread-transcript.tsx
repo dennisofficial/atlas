@@ -13,7 +13,7 @@ import { useSessionUser } from '@/features/settings/session/use-session-identity
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import type { BootView } from './data/boot-view'
-import { rosterModelsOf } from './data/transcript-agents'
+import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
 import { ETurnKind, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
@@ -41,7 +41,10 @@ function ParkedLine() {
 
 function TickingSandboxBoot({ view, onRetry }: { view: BootView; onRetry?: () => void }) {
   const { startedAtMs } = view
-  const now = useNowEvery({ enabled: startedAtMs !== undefined, tickMs: BOOT_TICK_MS })
+  const now = useNowEvery({
+    enabled: startedAtMs !== undefined,
+    tickMs: BOOT_TICK_MS,
+  })
   const ticked =
     startedAtMs === undefined ? view : { ...view, elapsedMs: Math.max(0, now - startedAtMs) }
   return <SandboxBoot {...sandboxBootPropsOf(ticked)} {...(onRetry ? { onRetry } : {})} />
@@ -77,7 +80,7 @@ export function ThreadTranscript({
   rewind: TranscriptRewind | null
 }) {
   const { user } = useSessionUser()
-  const now = useNow(working)
+  const now = useNow(working || anySpawnRunning(items))
   const { channel, openChanges, openAgent } = useThreadPanel()
   const models = rosterModelsOf(useRoster(channel))
   const turns = turnsOf({ items, working })

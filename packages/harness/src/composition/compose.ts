@@ -73,7 +73,7 @@ import { loadSessionPlugins, userTrustedRepos } from './plugin-loading'
 import type { ActiveConversation } from './resume-hint'
 import { journalResume } from './resume-journal'
 import type { SettingsBinding } from './settings-binding'
-import { bindSkillRegistry, liveSkillRegistry } from './skills-binding'
+import { bindSkillRegistry, liveSkillRegistry, skillExpander } from './skills-binding'
 import { bindUserLayerSync } from './user-layer-sync-binding'
 import { wireTurn } from './turn-wiring'
 import { threadOpenedHandler } from './worktree-claims'
@@ -247,8 +247,7 @@ export async function composeHarness<
     model,
     notice,
   })
-  if (args.stores !== undefined) await args.stores.bind({ container })
-
+  await Promise.all([args.stores?.bind({ container }), mcp.connected])
   const plugins = await loadSessionPlugins({
     container,
     cwd: anchor,
@@ -308,7 +307,7 @@ export async function composeHarness<
         message: cause instanceof Error ? cause.message : 'channel listener failed',
       }),
   })
-  const pending = createPendingQueues<Command>()
+  const pending = createPendingQueues<Command>({ expandContext: skillExpander({ skillRegistry }) })
 
   const { runner, turnPolicy, titling, recordTeardownEndings, intake } = wireTurn<Command>({
     container,

@@ -264,10 +264,10 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     }
   }
 
-  const send: LiveSend = ({ text, requestId, images }) => {
+  const send: LiveSend = ({ text, requestId, images, uploads }) => {
     if (stopped || fellBack || channel === null) return false
     if (channel.connection().state !== EConnectionView.Connected) return false
-    channel.send({ text, requestId, images })
+    channel.send({ text, requestId, images, uploads })
     return true
   }
 

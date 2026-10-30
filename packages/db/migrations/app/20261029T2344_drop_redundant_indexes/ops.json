@@ -1,0 +1,202 @@
+[
+  {
+    "id": "dropIndex.Event.Event_userId_idx",
+    "label": "Drop index \"Event_userId_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_userId_idx",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_userId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Event_userId_idx\"",
+        "sql": "DROP INDEX \"public\".\"Event_userId_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubPrEventDelivery.GithubPrEventDelivery_eventId_idx_6a266d47",
+    "label": "Drop index \"GithubPrEventDelivery_eventId_idx_6a266d47\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrEventDelivery_eventId_idx_6a266d47",
+        "table": "GithubPrEventDelivery"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrEventDelivery_eventId_idx_6a266d47\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_eventId_idx_6a266d47\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubPrEventDelivery_eventId_idx_6a266d47\"",
+        "sql": "DROP INDEX \"public\".\"GithubPrEventDelivery_eventId_idx_6a266d47\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrEventDelivery_eventId_idx_6a266d47\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrEventDelivery_eventId_idx_6a266d47\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.Session.Session_userId_idx_a489d58a",
+    "label": "Drop index \"Session_userId_idx_a489d58a\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Session_userId_idx_a489d58a",
+        "table": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Session_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"Session_userId_idx_a489d58a\"",
+        "sql": "DROP INDEX \"public\".\"Session_userId_idx_a489d58a\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Session_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Session_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.ThreadRead.ThreadRead_userId_idx_a489d58a",
+    "label": "Drop index \"ThreadRead_userId_idx_a489d58a\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ThreadRead_userId_idx_a489d58a",
+        "table": "ThreadRead"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ThreadRead_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ThreadRead_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"ThreadRead_userId_idx_a489d58a\"",
+        "sql": "DROP INDEX \"public\".\"ThreadRead_userId_idx_a489d58a\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ThreadRead_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ThreadRead_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Event.Event_userId_type_at_idx",
+    "label": "Create index \"Event_userId_type_at_idx\" on \"Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_userId_type_at_idx",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_userId_type_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_type_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Event_userId_type_at_idx\"",
+        "sql": "CREATE INDEX \"Event_userId_type_at_idx\" ON \"public\".\"Event\" (\"userId\", \"type\", \"at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_userId_type_at_idx\" exists on \"Event\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_type_at_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Event\"",
+          "btree",
+          "[\"userId\",\"type\",\"at\"]"
+        ]
+      }
+    ]
+  }
+]

@@ -2,6 +2,7 @@ import {
   saidBody,
   type EventDraft,
   type SaidFile,
+  type SaidUpload,
   type SaidImage,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -14,6 +15,7 @@ export type Said = {
   requestId?: string | undefined
   images?: readonly SaidImage[] | undefined
   files?: readonly SaidFile[] | undefined
+  uploads?: readonly SaidUpload[] | undefined
   context?: readonly EventDraft[] | undefined
 }
 
@@ -54,18 +56,23 @@ export function createTurnCommit(args: {
         ...(said.requestId === undefined ? {} : { requestId: said.requestId }),
         ...(said.images === undefined ? {} : { images: said.images }),
         ...(said.files === undefined ? {} : { files: said.files }),
+        ...(said.uploads === undefined ? {} : { uploads: said.uploads }),
         ...(said.context === undefined ? {} : { context: said.context }),
       })
       await intake.commit({ threadId, append: writeDrafts })
       return
     }
+    const held = said.context ?? []
+    const expanded = app.expandContext?.({ text: said.text, context: held }) ?? []
     await writeDrafts([
-      ...(said.context ?? []),
+      ...held,
+      ...expanded,
       saidBody({
         text: said.text,
         requestId: said.requestId,
         images: said.images,
         files: said.files,
+        uploads: said.uploads,
       }),
     ])
   }

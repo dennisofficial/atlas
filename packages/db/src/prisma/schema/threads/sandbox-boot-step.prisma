@@ -7,8 +7,10 @@ model SandboxBootStep {
   error    String?
   gap      String?
   outcome  String?
+  repos    Jsonb?
+  seq      BigInt               @default(autoincrement())
   at       TimestamptzJsDate(3) @default(now())
-  session  Session              @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_sessionId_at_idx")
+  session  Session              @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SandboxBootStep_sessionId_seq_idx")
 
-  @@index([sessionId, at], map: "SandboxBootStep_sessionId_at_idx")
+  @@index([sessionId, seq], map: "SandboxBootStep_sessionId_seq_idx")
 }

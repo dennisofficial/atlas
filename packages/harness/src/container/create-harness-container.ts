@@ -25,6 +25,7 @@ import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { CardFileCapabilities } from '../tools/builtin/file-capabilities'
 import { createRawTape } from '../model/raw-tape'
 import { registerFileState } from '../files'
+import { registerSaidUploads } from '../uploads/register-said-uploads'
 import { registerExecution } from '../execution/register-execution'
 import { registerChanges } from '../changes/register-changes'
 import { registerServices } from '../services/register-services'
@@ -146,6 +147,7 @@ export function createHarnessContainer(): DependencyContainer {
   registerCloudManagedCredentials({ container: harness, clientVersion: clientVersionOf })
 
   registerFileState({ container: harness })
+  registerSaidUploads({ container: harness })
   registerExecution({ container: harness })
   registerShells({ container: harness })
   registerServices({ container: harness })

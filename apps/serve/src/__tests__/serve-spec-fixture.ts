@@ -125,6 +125,7 @@ export const start = async (args: {
   whenChildrenSettled?: (() => Promise<void>) | undefined
   wakeNotices?: boolean | undefined
   roster?: ReturnType<typeof fakeRoster> | undefined
+  commands?: Parameters<typeof fakeServeApp>[0]['commands']
   idleMinutes?: number | undefined
   idleTickMs?: number | undefined
   exit?: ((code: number) => void) | undefined
@@ -142,6 +143,7 @@ export const start = async (args: {
     whenChildrenSettled: args.whenChildrenSettled,
     wakeNotices: args.wakeNotices,
     roster: args.roster,
+    commands: args.commands,
   })
 
   const told =

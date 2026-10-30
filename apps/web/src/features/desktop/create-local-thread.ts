@@ -1,3 +1,4 @@
+import type { SaidUpload } from '@dltech/atlas-core'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
 import { createLocalPod } from './desktop-wire'
@@ -13,8 +14,9 @@ export async function createLocalThread(args: {
   text: string
   sendId: string
   images?: SaidImageWire[] | undefined
+  uploads?: SaidUpload[] | undefined
 }): Promise<string> {
-  const { threadId, projectId, model, effort, text, sendId, images } = args
+  const { threadId, projectId, model, effort, text, sendId, images, uploads } = args
   await createLocalPod({
     threadId,
     projectId,
@@ -26,6 +28,7 @@ export async function createLocalThread(args: {
     text,
     sendId,
     ...(images === undefined || images.length === 0 ? {} : { images }),
+    ...(uploads === undefined || uploads.length === 0 ? {} : { uploads }),
   })
   return threadId
 }

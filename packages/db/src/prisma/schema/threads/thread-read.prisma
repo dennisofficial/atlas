@@ -4,9 +4,9 @@ model ThreadRead {
   threadId  String
   seq       Int
   updatedAt TimestamptzJsDate(3)
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ThreadRead_pkey")
   thread    Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ThreadRead_threadId_idx")
 
-  @@id([userId, threadId])
+  @@id([userId, threadId], map: "ThreadRead_pkey")
   @@index([threadId], map: "ThreadRead_threadId_idx")
 }

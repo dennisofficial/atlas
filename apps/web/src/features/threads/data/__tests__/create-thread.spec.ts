@@ -86,3 +86,29 @@ describe('createThread', () => {
     await expect(createThread(body)).rejects.toThrow()
   })
 })
+
+describe('createThreadBodyOf uploads', () => {
+  const uploads = [
+    {
+      uploadId: '6f1c1d0e-8a58-4a5c-9d49-0d6c1d7f0a01',
+      pathname: 'p',
+      name: 'a.pdf',
+      size: 1,
+      mediaType: 'x/y',
+    },
+  ]
+
+  it('carries uploads on the first message and omits an empty list', () => {
+    expect(
+      createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', uploads }).firstMessage,
+    ).toEqual({
+      sendId: 's1',
+      text: 'hi',
+      uploads,
+    })
+    expect(
+      'uploads' in
+        createThreadBodyOf({ projectId: null, text: 'hi', sendId: 's1', uploads: [] }).firstMessage,
+    ).toBe(false)
+  })
+})

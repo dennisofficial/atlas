@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { EReportKind } from '../agents/report'
+import { MAX_UPLOAD_BYTES } from '../uploads/limits'
 import { EAgentRestart } from '../agents/restart'
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
@@ -110,6 +111,14 @@ const saidFileSchema = z.object({
   filename: z.string().optional(),
 })
 
+export const saidUploadSchema = z.object({
+  uploadId: z.uuid(),
+  pathname: z.string().max(500),
+  name: z.string().min(1).max(200),
+  size: z.number().int().nonnegative().max(MAX_UPLOAD_BYTES),
+  mediaType: z.string().max(200),
+})
+
 const grantOfferSchema = z.object({
   subject: z.string().min(1),
   dimensions: z.array(z.enum(ERiskDimension)),
@@ -123,6 +132,7 @@ export const eventBodySchema: z.ZodType<EventBody> = z.discriminatedUnion('type'
     requestId: z.string().min(1).optional(),
     images: z.array(saidImageSchema).optional(),
     files: z.array(saidFileSchema).optional(),
+    uploads: z.array(saidUploadSchema).optional(),
   }),
   z.object({
     type: z.literal('assistant-said'),

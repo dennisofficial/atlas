@@ -6,7 +6,7 @@ import { EPodConnectOutcome } from '@/features/threads/data/pod-connect'
 
 import { createLocalThread } from '../create-local-thread'
 import { resetDesktopCapabilities } from '../desktop-wire'
-import { deliverHeldFirstMessage } from '../first-message'
+import { deliverHeldFirstMessage, holdFirstMessage } from '../first-message'
 import { localThreadOf, withLocalPods } from '../local-thread'
 import { mintLocalPod } from '../local-thread-source'
 import { ERunnerChoice, RunnerToggle } from '../runner-toggle'
@@ -181,6 +181,26 @@ describe('createLocalThread', () => {
     ).toBe(true)
     expect(sent).toEqual([{ text: 'hello', requestId: 's1' }])
     expect(deliverHeldFirstMessage({ threadId: 'brn_1', send: () => true })).toBe(false)
+  })
+
+  test('the held first message carries its uploads to the live channel', () => {
+    const upload = {
+      uploadId: '00000000-0000-4000-8000-000000000001',
+      pathname: 'uploads/notes.txt',
+      name: 'notes.txt',
+      size: 5,
+      mediaType: 'text/plain',
+    }
+    holdFirstMessage({ threadId: 'brn_2', text: 'see file', sendId: 's2', uploads: [upload] })
+    const sent: unknown[] = []
+    deliverHeldFirstMessage({
+      threadId: 'brn_2',
+      send: (message) => {
+        sent.push(message)
+        return true
+      },
+    })
+    expect(sent).toEqual([{ text: 'see file', requestId: 's2', uploads: [upload] }])
   })
 })
 

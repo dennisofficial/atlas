@@ -2,17 +2,14 @@ export {
   ECommandEcho,
   ECommandEffect,
   ECommandTiming,
+  EContainerAsk,
   NOTHING,
   RAN,
-  type CommandEffect,
-  type LocalCommand,
-} from './local-command'
-export {
   containerAskOfArgument,
-  EContainerAsk,
-  localCommands,
-  type LocalCommandHandlers,
-} from './registry'
+  type CommandEffect,
+  type SurfaceCommand,
+} from '@dltech/atlas-core'
+export { localCommands, tuiCommandHandlers, type LocalCommandHandlers } from './registry'
 export {
   commandSpecs,
   dispatchSubmission,

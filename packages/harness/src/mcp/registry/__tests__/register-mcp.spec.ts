@@ -11,6 +11,7 @@ import { CloudSessionStoreToken, SecretsStoreToken } from '../../../container/to
 import { MemorySecretsStore } from '../../../secrets/memory-store'
 import { FileMcpSource } from '../../config/sources'
 import { mcpSourcesFor, registerMcp } from '../register-mcp'
+import { startGatedMcpServer } from './gated-server'
 
 const session = { url: 'http://cloud.test', token: 'sess_test', email: 'a@b.c' }
 
@@ -115,5 +116,27 @@ describe('registerMcp', () => {
     const registered = await registerMcp({ container, cwd: directory })
 
     expect(registered.signIn).toBeUndefined()
+  })
+
+  it('returns before servers connect and settles `connected` once they have', async () => {
+    const gated = startGatedMcpServer({ status: 200 })
+    globalThis.fetch = realFetch
+    try {
+      writeFileSync(
+        join(directory, 'mcp.json'),
+        JSON.stringify({ slow: { transport: { kind: 'http', url: gated.url } } }),
+      )
+      const container = createIsolatedContainer()
+
+      const registered = await registerMcp({ container, cwd: directory })
+      expect(registered.store.servers()).toHaveLength(0)
+
+      gated.release()
+      await registered.connected
+
+      expect(registered.store.servers()).toHaveLength(1)
+    } finally {
+      gated.stop()
+    }
   })
 })

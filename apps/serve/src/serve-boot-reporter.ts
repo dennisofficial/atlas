@@ -7,6 +7,7 @@ import {
   createBootReporter,
   type BootReporter,
   type BootStepSink,
+  type CloneRepoProgress,
 } from '@dltech/atlas-wire'
 
 import { controlPlaneError, createApiClient } from './api-client'
@@ -51,7 +52,7 @@ const CLONE_OUTCOME = {
 
 export const trackClone = async (args: {
   reporter: BootReporter
-  work: () => Promise<WorkspaceReadiness>
+  work: (progress: (repos: CloneRepoProgress[]) => void) => Promise<WorkspaceReadiness>
 }): Promise<WorkspaceReadiness> => {
   const { reporter } = args
   await reporter.report({
@@ -59,18 +60,27 @@ export const trackClone = async (args: {
     state: EBootStepState.Running,
   })
   try {
-    const readiness = await args.work()
+    const readiness = await args.work((repos) => {
+      void reporter.report({
+        step: EBootStep.Clone,
+        state: EBootStepState.Running,
+        repos,
+      })
+    })
+    const repos = readiness.state === EWorkspaceState.Materialized ? readiness.repos : undefined
     await reporter.report(
       readiness.state === EWorkspaceState.Failed
         ? {
             step: EBootStep.Clone,
             state: EBootStepState.Error,
             error: readiness.reason,
+            ...(readiness.repos === undefined ? {} : { repos: readiness.repos }),
           }
         : {
             step: EBootStep.Clone,
             state: EBootStepState.Done,
             outcome: CLONE_OUTCOME[readiness.state],
+            ...(repos === undefined ? {} : { repos }),
           },
     )
     return readiness
@@ -81,6 +91,7 @@ export const trackClone = async (args: {
       state: EBootStepState.Error,
       error,
     })
+    await reporter.flush()
     throw failure
   }
 }
@@ -101,6 +112,7 @@ export const trackAgentStep = async <T>(args: {
   const { reporter, strictSink } = args
   if (strictSink === undefined) return reporter.track({ step: EBootStep.Agent, work: args.work })
   try {
+    await reporter.flush()
     await strictSink([{ step: EBootStep.Agent, state: EBootStepState.Running }])
   } catch (failure) {
     const error = failure instanceof Error ? failure.message : String(failure)
@@ -109,6 +121,7 @@ export const trackAgentStep = async <T>(args: {
       state: EBootStepState.Error,
       error,
     })
+    await reporter.flush()
     throw failure
   }
   try {
@@ -125,6 +138,7 @@ export const trackAgentStep = async <T>(args: {
       state: EBootStepState.Error,
       error,
     })
+    await reporter.flush()
     throw failure
   }
 }

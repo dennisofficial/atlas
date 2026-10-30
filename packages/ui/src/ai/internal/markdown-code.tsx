@@ -97,7 +97,10 @@ function InlineCode({ node: _node, className, ...props }: MarkdownCodeProps) {
   return (
     <code
       data-slot="inline-code"
-      className={cn('rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]', className)}
+      className={cn(
+        'rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] text-primary [del_&]:text-muted-foreground',
+        className,
+      )}
       {...props}
     />
   )

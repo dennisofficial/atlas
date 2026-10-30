@@ -22,6 +22,10 @@ const releaseTagOf = (version: string | undefined): string =>
 const installScriptUrlOf = (version: string | undefined): string =>
   `https://raw.githubusercontent.com/${RELEASE_REPOSITORY}/${releaseTagOf(version)}/install.sh`
 
+const CURL_RETRY_FLAGS = '--retry 3 --retry-connrefused --retry-delay 1 --connect-timeout 10'
+
+const curlOf = (target: string): string => `curl -fsSL ${CURL_RETRY_FLAGS} ${target}`
+
 export const serveInstallScript = (args: {
   version: string | undefined
   arch?: EServeArch
@@ -36,8 +40,7 @@ export const serveInstallScript = (args: {
   return [
     'set -eu',
     `_tmp=$(mktemp -d) && trap 'rm -rf "$_tmp"' EXIT`,
-    `curl -fsSL "${downloadBase}/${asset}" -o "$_tmp/atlas-serve"`,
-    `curl -fsSL "${downloadBase}/${asset}.sha256" -o "$_tmp/atlas-serve.sha256"`,
+    `{ ${curlOf(`"${downloadBase}/${asset}" -o "$_tmp/atlas-serve"`)} & _bin=$!; ${curlOf(`"${downloadBase}/${asset}.sha256" -o "$_tmp/atlas-serve.sha256"`)} & _sum=$!; wait $_bin || { kill $_sum 2>/dev/null; wait $_sum 2>/dev/null || true; echo "atlas-serve download failed" >&2; exit 1; }; wait $_sum || { echo "atlas-serve checksum download failed" >&2; exit 1; }; }`,
     `_expected=$(awk '{print $1}' "$_tmp/atlas-serve.sha256")`,
     `_actual=$(sha256sum "$_tmp/atlas-serve" | awk '{print $1}')`,
     `[ "$_actual" = "$_expected" ] || { echo "atlas-serve sha256 mismatch: got $_actual want $_expected" >&2; exit 1; }`,

@@ -3,8 +3,8 @@ model GithubPrEventDelivery {
   eventId     String
   threadId    String
   deliveredAt TimestamptzJsDate(3) @default(now())
-  event       GithubPrEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  event       GithubPrEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubPrEventDelivery_pkey")
 
-  @@id([eventId, threadId])
+  @@id([eventId, threadId], map: "GithubPrEventDelivery_pkey")
   @@index([threadId], map: "GithubPrEventDelivery_threadId_idx")
 }

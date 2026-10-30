@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { seqSchema, threadIdWireSchema } from './request-wire.js'
+import { seqSchema, threadIdWireSchema } from './request-wire'
 
 export enum EWireCompactScope {
   Recent = 'recent',

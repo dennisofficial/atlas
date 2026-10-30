@@ -63,6 +63,7 @@ export type BuildHarnessArgs = {
   autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   watchLoop?: LoopWatch | undefined
+  expandContext?: TurnDeps['expandContext']
 }
 
 export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness> {
@@ -102,6 +103,7 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     applyLoopCut: createLoopCut({ log, registry, clock, ids }),
     launchDirectory: args.launchDirectory,
     ...(args.watchLoop === undefined ? {} : { watchLoop: args.watchLoop }),
+    ...(args.expandContext === undefined ? {} : { expandContext: args.expandContext }),
     ...(args.compact === undefined ? {} : { compact: args.compact }),
     ...(args.autoCompactAtPercent === undefined
       ? {}

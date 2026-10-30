@@ -44,7 +44,8 @@ export function isSameItem(args: { previous: TranscriptItem; next: TranscriptIte
     return (
       previous.kind === ETranscriptKind.User &&
       next.kind === ETranscriptKind.User &&
-      previous.images === next.images
+      previous.images === next.images &&
+      previous.uploads === next.uploads
     )
   if (previous.kind === ETranscriptKind.Thought && next.kind === ETranscriptKind.Thought) {
     if (previous.heldOpen !== next.heldOpen) return false

@@ -57,6 +57,15 @@ describe('prStateWireOfApi', () => {
 })
 
 describe('mergePrStates', () => {
+  it('merges a host-prefixed live state with the bare api state of the same pull request', () => {
+    const merged = mergePrStates({
+      live: [podState({ repo: 'github.com/o/r', checksPassed: 9 })],
+      api: [prStateWireOfApi(apiState())].filter((state) => state !== undefined),
+    })
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.checksPassed).toBe(9)
+  })
+
   it('lets the api fill gaps and the live pod win per key', () => {
     const merged = mergePrStates({
       live: [podState()],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECommandEffect } from '../local-command'
+import { ECommandEffect } from '@dltech/atlas-core'
 import { dispatchSubmission, EDispatch, type Dispatch } from '../dispatch'
 import { localCommands, type LocalCommandHandlers } from '../registry'
 import { handlers } from './local-handlers'
