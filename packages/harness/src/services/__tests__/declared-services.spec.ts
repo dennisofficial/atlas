@@ -74,7 +74,7 @@ describe('allocateServicePort', () => {
   })
 
   it('uses the derived port when free and steps linearly past busy ones', async () => {
-    const base = deriveServicePort({ threadId: THREAD, name: 'web' })
+    const base = deriveServicePort({ name: 'web' })
     const free = await allocateServicePort({
       threadId: THREAD,
       name: 'web',

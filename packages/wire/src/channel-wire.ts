@@ -18,7 +18,7 @@ export const CHANNEL_SUBPROTOCOL = 'atlas.v1'
  * deploy last downloaded into the sandbox — so each side stamps its own copy onto the hello and
  * the ready, and a mismatch refuses legibly instead of failing on the first changed frame.
  */
-export const CHANNEL_PROTOCOL_VERSION = 31
+export const CHANNEL_PROTOCOL_VERSION = 32
 
 /**
  * The oldest protocol this build still speaks. The API and web deploy ahead of the serve running
@@ -140,6 +140,9 @@ export enum EClientRequest {
   KillShell = 'kill-shell',
   StopService = 'stop-service',
   ReadServiceLog = 'read-service-log',
+  ListDeclaredServices = 'list-declared-services',
+  EnsureDeclaredServices = 'ensure-declared-services',
+  RestartService = 'restart-service',
 }
 
 export enum ETurnStatus {

@@ -32,6 +32,7 @@ export type ServiceSnapshot = {
   exposure?: PortExposure | undefined
   name?: string | undefined
   port?: number | undefined
+  declarationHash?: string | undefined
 }
 
 export type Service = {
@@ -82,6 +83,7 @@ export function startService(spec: {
   env?: Record<string, string> | undefined
   name?: string | undefined
   port?: number | undefined
+  declarationHash?: string | undefined
   onExit: (service: Service) => void
 }): StartedService {
   let fd: number
@@ -170,6 +172,7 @@ export function startService(spec: {
       ...(spec.exposure === undefined ? {} : { exposure: spec.exposure }),
       ...(spec.name === undefined ? {} : { name: spec.name }),
       ...(spec.port === undefined ? {} : { port: spec.port }),
+      ...(spec.declarationHash === undefined ? {} : { declarationHash: spec.declarationHash }),
     }),
 
     stop,

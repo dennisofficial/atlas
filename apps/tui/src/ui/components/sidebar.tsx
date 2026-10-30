@@ -6,7 +6,8 @@ import React from 'react'
 import { useAppearance } from '../hooks/use-appearance'
 import { collapseHome, compactPath } from '../paths'
 import { theme } from '../theme'
-import type { ServiceSnapshot, ShellSnapshot } from '@dltech/atlas-harness'
+import type { ShellSnapshot } from '@dltech/atlas-harness'
+import type { ServiceRow } from '../services-model'
 
 import type { SidebarModel } from '../../store'
 import type { SidebarCrewFold } from '../../store/subagent-row'
@@ -106,11 +107,11 @@ function DerivedSidebar(props: {
   shells?: readonly ShellSnapshot[]
   shellNow?: number
   shellFold?: SidebarCrewFold
-  services?: readonly ServiceSnapshot[]
+  services?: readonly ServiceRow[]
   serviceNow?: number
   serviceFold?: SidebarCrewFold
   onOpenShell?: (shellId: string) => void
-  onOpenService?: (serviceId: string) => void
+  onOpenService?: (key: string) => void
   context?: Omit<ContextSectionProps, 'cells'>
   onSelectSubagent?: (agentId: string) => void
   naming?: NamingState | null | undefined
@@ -177,7 +178,7 @@ function DerivedSidebar(props: {
               {...(props.onOpenShell === undefined ? {} : { onOpen: props.onOpenShell })}
             />
             <ServicesSection
-              services={props.services ?? []}
+              rows={props.services ?? []}
               now={props.serviceNow ?? Date.now()}
               cells={cells}
               fold={props.serviceFold}

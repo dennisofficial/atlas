@@ -5,15 +5,14 @@ import {
   EKilledBy,
   EServiceStatus,
   type ClockPort,
+  type DeclaredServicesView,
   type ProcessPort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import {
-  ensureDeclaredServices,
-  type EnsuredService,
-  type DeclaredEnsureOptions,
-} from './declared-ensure'
+import type { EnsuredService } from './declared-ensure'
+import type { DeclaredEnsureOptions } from './declared-launch'
+import { DeclaredServicesSupport } from './declared-support'
 import { ServiceChangeFeed } from './service-change-feed'
 import { ServiceEndings, type TrackedService } from './service-endings'
 import { ServiceEventJournal, type ServiceStartRecording } from './service-journal'
@@ -37,26 +36,20 @@ import {
   stopAllServices,
 } from './service-teardown'
 import { startedDraftOf } from './service-started-draft'
-import { unknownService, within } from './service-registry-support'
+import { runningSnapshotsFor, unknownService, within } from './service-registry-support'
 import { ServiceRestarter } from './service-restarter'
 import type { Scheduler } from './service-supervisor'
 
 export * from './service-registry-port'
-export type { ServiceStartRecording } from './service-journal'
-
 export * from './service-teardown'
-
+export type { ServiceStartRecording } from './service-journal'
 export class BunServiceRegistry extends ServiceNoticeRegistry {
   private readonly tracked = new Map<string, TrackedService>()
   private readonly endings: ServiceEndings
   private readonly journal: ServiceEventJournal | undefined
   private readonly feed = new ServiceChangeFeed()
   private readonly restarter: ServiceRestarter
-  private readonly ensuring = new Map<string, Promise<EnsuredService>>()
-  /**
-   * Ids restart at svc_1 in every session, but the log directory is shared — the token keeps two
-   * live sessions from writing the same file, and the shim resolves a bare id to its newest match.
-   */
+  private readonly declaredSupport: DeclaredServicesSupport
   private readonly sessionToken = randomUUID().slice(0, 8)
   private started = 0
   private recordingStarts = 0
@@ -65,7 +58,6 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
   private readonly clock: ClockPort
   private readonly logsDirectory: string
   private readonly processes: ProcessPort
-  private readonly declared: DeclaredEnsureOptions | undefined
   constructor(args: {
     root: string
     clock: ClockPort
@@ -81,7 +73,13 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     this.clock = args.clock
     this.logsDirectory = args.logsDirectory
     this.processes = args.processes
-    this.declared = args.declared
+    this.declaredSupport = new DeclaredServicesSupport({
+      services: this,
+      processes: args.processes,
+      root: args.root,
+      options: args.declared,
+      onChange: () => this.feed.bump(),
+    })
     this.restarter = new ServiceRestarter({
       supervisor: this.supervisor,
       clock: args.clock,
@@ -105,14 +103,13 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     })
   }
 
-  async start(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
+  start(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
     if (args.name !== undefined) this.supervisor.forget(args.name)
     return this.launch(args)
   }
 
   private async launch(args: ServiceStartArgs): Promise<StartedServiceOutcome> {
-    this.started += 1
-    const serviceId = `svc_${this.started}`
+    const serviceId = `svc_${(this.started += 1)}`
 
     const opened = startService({
       serviceId,
@@ -127,6 +124,7 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
       env: args.env,
       name: args.name,
       port: args.port,
+      declarationHash: args.declarationHash,
       onExit: (service) => this.announceExit(service),
     })
     if (!opened.ok) return opened
@@ -155,8 +153,9 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
       return { ok: false, reason: unknownService({ serviceId, known: [...this.tracked.keys()] }) }
     }
 
-    const { name } = entry.launch
-    if (name !== undefined) this.supervisor.forget(name)
+    const declared = await this.declaredSupport.restart({ serviceId, entry })
+    if (declared !== undefined) return declared
+    if (entry.launch.name !== undefined) this.supervisor.forget(entry.launch.name)
     entry.service.stop(EKilledBy.Model)
     await within(KILLED_GRACE_MS + CLOSE_GRACE_MS, entry.service.exited)
     return this.start(entry.launch)
@@ -166,14 +165,18 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
     threadId: ThreadId
     names?: readonly string[] | undefined
   }): Promise<readonly EnsuredService[]> {
-    return ensureDeclaredServices({
-      ...args,
-      services: this,
-      processes: this.processes,
-      root: this.root,
-      inflight: this.ensuring,
-      options: this.declared,
+    return this.declaredSupport.ensure(args)
+  }
+
+  override declared(): Promise<DeclaredServicesView> {
+    return this.declaredSupport.view({
+      crashLooping: (name) => this.supervisor.crashLooping(name),
+      list: () => this.list(),
     })
+  }
+
+  override declaredNames(): Promise<readonly string[]> {
+    return this.declaredSupport.names()
   }
 
   version(): number {
@@ -249,12 +252,8 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
   override hasRunningFor({ threadId }: { threadId: ThreadId }): boolean {
     return this.runningFor({ threadId }).length > 0
   }
-
   override runningFor({ threadId }: { threadId: ThreadId }): readonly ServiceSnapshot[] {
-    return [...this.tracked.values()]
-      .filter((entry) => entry.threadId === threadId)
-      .map((entry) => entry.service.snapshot())
-      .filter((snapshot) => snapshot.status === EServiceStatus.Running)
+    return runningSnapshotsFor({ entries: this.tracked.values(), threadId })
   }
 
   /**
@@ -263,6 +262,7 @@ export class BunServiceRegistry extends ServiceNoticeRegistry {
    */
   async closeAll(args?: { killedBy?: EKilledBy }): Promise<void> {
     this.restarter.close()
+    this.declaredSupport.close()
     await stopAllServices({
       entries: [...this.tracked.values()],
       killedBy: args?.killedBy ?? EKilledBy.SessionEnd,

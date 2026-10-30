@@ -1,7 +1,10 @@
 import {
+  ensureDeclaredServicesReplySchema,
   killShellReplySchema,
+  listDeclaredServicesReplySchema,
   pendingEditReplySchema,
   readGitChangesReplySchema,
+  restartServiceReplySchema,
   serviceLogReplySchema,
   shellOutputReplySchema,
   startedShellReplySchema,
@@ -9,6 +12,9 @@ import {
   terminalAckReplySchema,
   terminalOpenReplySchema,
   type EChangeScope,
+  type EnsureDeclaredServicesReply,
+  type ListDeclaredServicesReply,
+  type RestartServiceReply,
   type KillShellReply,
   type PendingEditReply,
   type ReadGitChangesReply,
@@ -147,6 +153,47 @@ export const stopService = (args: {
       stopServiceReplySchema.parse(
         await args.channel.request({
           op: EClientRequest.StopService,
+          params: { serviceId: args.serviceId },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const listDeclaredServices = (args: {
+  channel: RequestChannel
+}): Promise<ListDeclaredServicesReply> =>
+  refusedOr({
+    request: async () =>
+      listDeclaredServicesReplySchema.parse(
+        await args.channel.request({ op: EClientRequest.ListDeclaredServices, params: {} }),
+      ),
+    refused: refusal,
+  })
+
+export const ensureDeclaredServices = (args: {
+  channel: RequestChannel
+  names?: readonly string[] | undefined
+}): Promise<EnsureDeclaredServicesReply> =>
+  refusedOr({
+    request: async () =>
+      ensureDeclaredServicesReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.EnsureDeclaredServices,
+          params: args.names === undefined ? {} : { names: [...args.names] },
+        }),
+      ),
+    refused: refusal,
+  })
+
+export const restartService = (args: {
+  channel: RequestChannel
+  serviceId: string
+}): Promise<RestartServiceReply> =>
+  refusedOr({
+    request: async () =>
+      restartServiceReplySchema.parse(
+        await args.channel.request({
+          op: EClientRequest.RestartService,
           params: { serviceId: args.serviceId },
         }),
       ),

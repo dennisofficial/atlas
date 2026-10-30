@@ -12,7 +12,6 @@ import { ExitGuard } from '../ui/components/exit-guard'
 import { exitGuardAgentRow, exitGuardRow, exitGuardServiceRow } from '../ui/exit-guard-model'
 import { Rewind } from '../ui/components/rewind'
 import { RewindConfirm } from '../ui/components/rewind-confirm'
-import { Services } from '../ui/components/services'
 import { Settings } from '../ui/components/settings'
 import { Shells } from '../ui/components/shells'
 import { Switcher } from '../ui/components/switcher'
@@ -34,6 +33,7 @@ import type { OnboardingControl } from './use-onboarding'
 import type { OperatorInputControl } from './use-operator-input'
 import type { RewindControl } from './use-rewind'
 import type { RewindConfirmControl } from './use-rewind-confirm'
+import { ServicesOverlay } from './services-overlay'
 import type { ServicesControl } from './use-services'
 import type { QualityHealthStatusProps } from './use-workspace-quality-health'
 import type { SettingsControl } from './use-settings'
@@ -198,19 +198,10 @@ function DerivedOverlayStack(props: {
           onDismiss={shells.handleDismiss}
         />
       )}
-      {props.services.state === null ? null : (
-        <Services
-          width={Math.min(props.contentWidth, props.width)}
-          services={props.services.services}
-          now={props.services.now}
-          selected={props.services.selected}
-          log={props.services.log}
-          scroll={props.services.scroll}
-          overlay
-          onStop={props.services.handleStop}
-          onDismiss={props.services.handleDismiss}
-        />
-      )}
+      <ServicesOverlay
+        services={props.services}
+        width={Math.min(props.contentWidth, props.width)}
+      />
       {props.rewindConfirm.state === null ? null : (
         <RewindConfirm
           width={Math.min(props.contentWidth, props.width)}

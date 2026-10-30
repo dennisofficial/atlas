@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 
 import { activeAgentCount } from '../data/agents-model'
@@ -24,13 +26,12 @@ export type RightPanelProps = {
 }
 
 const TAB_BODY: Record<
-  Exclude<ERightTab, ERightTab.Details | ERightTab.Preview>,
+  Exclude<ERightTab, ERightTab.Details | ERightTab.Preview | ERightTab.Processes>,
   () => React.JSX.Element
 > = {
   [ERightTab.Changes]: ChangesTab,
   [ERightTab.Files]: FilesTab,
   [ERightTab.Terminal]: TerminalTab,
-  [ERightTab.Processes]: ProcessesTab,
 }
 
 function bodyOf(tab: keyof typeof TAB_BODY): React.JSX.Element {
@@ -43,7 +44,9 @@ function TabBody(props: {
   agents: ReturnType<typeof useAgents>
   subscriptions: ReturnType<typeof useSubscriptions>
   previews: ReturnType<typeof usePreviews>
+  openServiceId: string | undefined
   onOpenTab: (tab: ERightTab) => void
+  onOpenServiceLog: (serviceId: string) => void
 }) {
   if (props.tab === ERightTab.Details) {
     return (
@@ -51,10 +54,14 @@ function TabBody(props: {
         agents={props.agents}
         subscriptions={props.subscriptions}
         onOpenTab={props.onOpenTab}
+        onOpenServiceLog={props.onOpenServiceLog}
       />
     )
   }
   if (props.tab === ERightTab.Preview) return <PreviewTab data={props.previews} />
+  if (props.tab === ERightTab.Processes) {
+    return <ProcessesTab openServiceId={props.openServiceId} />
+  }
   return bodyOf(props.tab)
 }
 
@@ -65,8 +72,17 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
   const subscriptions = useSubscriptions({ threadId, channel })
   const previews = usePreviews(channel)
   const serving = livePreviewCount(previews.ports)
+  const [openServiceId, setOpenServiceId] = useState<string | undefined>(undefined)
+  const handleOpenTab = (next: ERightTab) => {
+    setOpenServiceId(undefined)
+    onTabChange(next)
+  }
+  const handleOpenServiceLog = (serviceId: string) => {
+    setOpenServiceId(serviceId)
+    onTabChange(ERightTab.Processes)
+  }
   const handleTabChange = (value: unknown) => {
-    if (isRightTab(value)) onTabChange(value)
+    if (isRightTab(value)) handleOpenTab(value)
   }
 
   return (
@@ -83,7 +99,9 @@ export function RightPanel({ tab, onTabChange, tabBarClassName }: RightPanelProp
               agents={agents}
               subscriptions={subscriptions}
               previews={previews}
-              onOpenTab={onTabChange}
+              openServiceId={openServiceId}
+              onOpenTab={handleOpenTab}
+              onOpenServiceLog={handleOpenServiceLog}
             />
           </TabsContent>
         ))}

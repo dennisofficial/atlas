@@ -1,23 +1,36 @@
 import React from 'react'
 
-import type { ServiceSnapshot } from '@dltech/atlas-harness'
-
 import { plural } from '@dltech/atlas-client/transcript'
 import type { SidebarCrewFold } from '../../../store/subagent-row'
-import { usePress } from '../../hooks/use-press'
-import { isServiceRunning, serviceNameLabel, serviceReadout } from '../../services-model'
+import { useClickRegion } from '../../hooks/use-click-region'
+import {
+  EServiceTone,
+  isRowRunning,
+  rowStateLabel,
+  rowTone,
+  rowUrl,
+  type ServiceRow,
+} from '../../services-model'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { Row, Section } from './row'
 
-const markFor = (service: ServiceSnapshot) => {
-  if (isServiceRunning(service)) return { text: glyph.active, fg: theme.ok }
-  return { text: glyph.active, fg: theme.rule }
+const TONE_MARK: Record<EServiceTone, string> = {
+  [EServiceTone.Ok]: theme.ok,
+  [EServiceTone.Idle]: theme.rule,
+  [EServiceTone.Attention]: theme.warn,
 }
 
-const valueFor = (args: { service: ServiceSnapshot; now: number }): readonly Span[] => [
-  { text: serviceReadout(args), fg: isServiceRunning(args.service) ? theme.hint : theme.meta },
-]
+const valueFor = (args: { row: ServiceRow; now: number }): readonly Span[] => {
+  const url = rowUrl(args.row)
+  return [
+    ...(url === undefined ? [] : [{ text: `${url}  `, fg: theme.hint }]),
+    {
+      text: rowStateLabel(args),
+      fg: rowTone(args.row) === EServiceTone.Attention ? theme.warn : theme.meta,
+    },
+  ]
+}
 
 function FoldedLine(props: { fold: SidebarCrewFold; cells: number }): React.ReactNode {
   return (
@@ -31,37 +44,56 @@ function FoldedLine(props: { fold: SidebarCrewFold; cells: number }): React.Reac
   )
 }
 
+function ServiceLine(props: {
+  row: ServiceRow
+  now: number
+  cells: number
+  onOpen?: ((key: string) => void) | undefined
+}): React.ReactNode {
+  const { row } = props
+  const click = useClickRegion(
+    props.onOpen === undefined ? undefined : () => props.onOpen?.(row.key),
+  )
+
+  return (
+    <box
+      flexShrink={0}
+      {...(click.wash.bg === undefined ? {} : { backgroundColor: click.wash.bg })}
+      {...click.handlers}
+    >
+      <Row
+        label={row.name}
+        labelFg={isRowRunning(row) ? theme.hover : theme.meta}
+        cells={props.cells}
+        mark={{ text: glyph.active, fg: TONE_MARK[rowTone(row)] }}
+        value={valueFor({ row, now: props.now })}
+      />
+    </box>
+  )
+}
+
 export function ServicesSection(props: {
-  services: readonly ServiceSnapshot[]
+  rows: readonly ServiceRow[]
   now: number
   cells: number
   fold?: SidebarCrewFold | undefined
-  onOpen?: (serviceId: string) => void
+  onOpen?: (key: string) => void
 }): React.ReactNode {
-  const press = usePress()
   const hidden = props.fold?.hidden ?? 0
-  if (props.services.length === 0 && hidden === 0) return null
+  if (props.rows.length === 0 && hidden === 0) return null
 
-  const running = props.services.filter(isServiceRunning).length
+  const running = props.rows.filter(isRowRunning).length
 
   return (
-    <Section label="Services" count={`${running}/${props.services.length + hidden}`}>
-      {props.services.map((service) => (
-        <box
-          key={service.serviceId}
-          flexShrink={0}
-          {...press(
-            props.onOpen === undefined ? undefined : () => props.onOpen?.(service.serviceId),
-          )}
-        >
-          <Row
-            label={serviceNameLabel(service)}
-            labelFg={isServiceRunning(service) ? theme.hover : theme.meta}
-            cells={props.cells}
-            mark={markFor(service)}
-            value={valueFor({ service, now: props.now })}
-          />
-        </box>
+    <Section label="Services" count={`${running}/${props.rows.length + hidden}`}>
+      {props.rows.map((row) => (
+        <ServiceLine
+          key={row.key}
+          row={row}
+          now={props.now}
+          cells={props.cells}
+          onOpen={props.onOpen}
+        />
       ))}
       {props.fold === undefined || props.fold.hidden === 0 ? null : (
         <FoldedLine fold={props.fold} cells={props.cells} />

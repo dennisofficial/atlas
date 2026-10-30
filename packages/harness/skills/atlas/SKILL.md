@@ -47,7 +47,7 @@ Read the page for the task; do not load them all.
 | Page | Covers |
 | --- | --- |
 | `references/config.md` | Settings, instruction files, skills, agent types, MCP, verifying a change |
-| `references/services.md` | `services.yaml`, `services_ensure`, `service_start`, URLs, framework host allow-listing, crash loops |
+| `references/services.md` | `services.yaml`, `services_ensure`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
 | `references/cloud.md` | Placement, Vercel sandbox setup, `/container`, sign-in and backup, parking, cloud logs |
 | `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts |
 | `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |

@@ -26,7 +26,7 @@ export function WorkspaceSidebar(props: {
   scopedRepo: string | null
   scopedWorktree: string | null
   shells: Pick<ShellsControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
-  services: Pick<ServicesControl, 'folded' | 'now' | 'fold' | 'handleOpen'>
+  services: Pick<ServicesControl, 'sidebarRows' | 'now' | 'fold' | 'handleOpen'>
   agentView: Pick<AgentView, 'scopedTo' | 'backLabel' | 'handleBack' | 'handleSelect'>
   contextBrowser: Pick<ContextControl, 'tree'>
 }): React.ReactNode {
@@ -63,7 +63,7 @@ export function WorkspaceSidebar(props: {
         shells={shells.folded}
         shellNow={shells.now}
         shellFold={shells.fold}
-        services={services.folded}
+        services={services.sidebarRows}
         serviceNow={services.now}
         serviceFold={services.fold}
         onOpenShell={shells.handleOpen}
@@ -87,7 +87,7 @@ export function WorkspaceSidebar(props: {
       shells={shells.folded}
       shellNow={shells.now}
       shellFold={shells.fold}
-      services={services.folded}
+      services={services.sidebarRows}
       serviceNow={services.now}
       serviceFold={services.fold}
       onOpenShell={shells.handleOpen}

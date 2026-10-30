@@ -1,4 +1,5 @@
 import type {
+  DeclaredServicesView,
   EKilledBy,
   EStopAction,
   Event,
@@ -20,6 +21,7 @@ export type ServiceStartArgs = {
   env?: Record<string, string> | undefined
   name?: string | undefined
   port?: number | undefined
+  declarationHash?: string | undefined
 }
 
 export type StartedServiceOutcome =
@@ -46,6 +48,8 @@ export abstract class ServiceRegistryPort {
     threadId: ThreadId
     names?: readonly string[] | undefined
   }): Promise<readonly EnsuredService[]>
+  declared?(): Promise<DeclaredServicesView>
+  declaredNames?(): Promise<readonly string[]>
   abstract stop(args: {
     serviceId: string
     by: EKilledBy

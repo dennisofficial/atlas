@@ -243,6 +243,7 @@ export type EventBody =
       serviceId: string
       name?: string | undefined
       port?: number | undefined
+      declarationHash?: string | undefined
       command: string
       description?: string | undefined
       bootId?: string | undefined

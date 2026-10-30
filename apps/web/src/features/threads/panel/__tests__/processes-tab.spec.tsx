@@ -92,7 +92,7 @@ afterEach(async () => {
   for (const unmount of mounted.splice(0)) await act(async () => unmount())
 })
 
-async function mount(data: ProcessesData) {
+async function mount(data: ProcessesData, declared: ReadonlySet<string> = new Set()) {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
@@ -101,7 +101,7 @@ async function mount(data: ProcessesData) {
     root.unmount()
     container.remove()
   })
-  await act(async () => root.render(<ProcessesList data={data} />))
+  await act(async () => root.render(<ProcessesList data={data} declared={declared} />))
   return container
 }
 
@@ -121,7 +121,7 @@ describe('ProcessesTab', () => {
   })
 
   it('renders the empty lines when nothing is running', () => {
-    const html = renderToStaticMarkup(<ProcessesList data={dataOf()} />)
+    const html = renderToStaticMarkup(<ProcessesList data={dataOf()} declared={new Set()} />)
     expect(html).toContain('Nothing is running in the background.')
     expect(html).toContain('Nothing is running as a service.')
   })
@@ -164,7 +164,10 @@ describe('ProcessesTab', () => {
 
   it('shows the stdin-closed warning for an awaiting-input shell', () => {
     const html = renderToStaticMarkup(
-      <ProcessesList data={dataOf({ shells: [shell({ awaitingInput: true })] })} />,
+      <ProcessesList
+        data={dataOf({ shells: [shell({ awaitingInput: true })] })}
+        declared={new Set()}
+      />,
     )
     expect(html).toContain('Its stdin is closed, so nothing can answer it.')
   })
@@ -187,7 +190,9 @@ describe('ProcessesTab', () => {
   })
 
   it('surfaces the notice', () => {
-    const html = renderToStaticMarkup(<ProcessesList data={dataOf({ notice: 'no such shell' })} />)
+    const html = renderToStaticMarkup(
+      <ProcessesList data={dataOf({ notice: 'no such shell' })} declared={new Set()} />,
+    )
     expect(html).toContain('no such shell')
   })
 
@@ -253,5 +258,31 @@ describe('ProcessesTab', () => {
     )
     await click(container.querySelector('[aria-expanded="false"]'))
     expect(chosen).toEqual([{ kind: EProcessKind.Shell, id: 'shell_1' }])
+  })
+  it('hides declared services but keeps one-off services', async () => {
+    const container = await mount(
+      dataOf({
+        services: [
+          service({ serviceId: 'svc_web', name: 'web', description: 'Declared web' }),
+          service({ serviceId: 'svc_once', name: 'once', description: 'One-off job' }),
+        ],
+      }),
+      new Set(['web']),
+    )
+    expect(container.textContent).toContain('One-off job')
+    expect(container.textContent).not.toContain('Declared web')
+    expect(container.querySelectorAll('[aria-expanded]')).toHaveLength(1)
+  })
+
+  it('still lists a declared service while its log is selected', async () => {
+    const container = await mount(
+      dataOf({
+        services: [service({ serviceId: 'svc_web', name: 'web' })],
+        selected: { kind: EProcessKind.Service, id: 'svc_web' },
+        log: 'listening',
+      }),
+      new Set(['web']),
+    )
+    expect(container.textContent).toContain('listening')
   })
 })

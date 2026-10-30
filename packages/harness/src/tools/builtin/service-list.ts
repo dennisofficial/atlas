@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import {
+  EDeclaredServiceState,
   EServiceStatus,
   EToolEffect,
   quotedShellCommand,
@@ -24,8 +25,9 @@ const description = [
   'Do not poll this to watch a service: if one dies you will be told, and its log file says what it is doing.',
 ].join(' ')
 
-function lineFor(snapshot: ServiceSnapshot): string {
-  const state = snapshot.status === EServiceStatus.Running ? 'running' : serviceEnding(snapshot)
+function lineFor({ snapshot, stale }: { snapshot: ServiceSnapshot; stale: boolean }): string {
+  const running = snapshot.status === EServiceStatus.Running ? 'running' : serviceEnding(snapshot)
+  const state = stale ? `${running} (stale: services.yaml changed; restart to apply)` : running
   const named = snapshot.name === undefined ? '' : ` [${snapshot.name}]`
   const url = snapshot.exposure === undefined ? '' : `\n    url: ${snapshot.exposure.url}`
   return `${snapshot.serviceId}${named}  ${quotedShellCommand(snapshot.command)}  ${state}\n    log: ${snapshot.logPath}${url}`
@@ -46,6 +48,15 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const all = this.services.list()
+    const staleNames = new Set(
+      ((await this.services.declared?.())?.services ?? [])
+        .filter((one) => one.state === EDeclaredServiceState.Stale)
+        .map((one) => one.name),
+    )
+    const isStale = (snapshot: ServiceSnapshot): boolean =>
+      snapshot.name !== undefined &&
+      staleNames.has(snapshot.name) &&
+      snapshot.status === EServiceStatus.Running
     const shown =
       input.runningOnly === true ? all.filter((one) => one.status === EServiceStatus.Running) : all
 
@@ -75,9 +86,12 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
           ...(snapshot.name === undefined ? {} : { name: snapshot.name }),
           ...(snapshot.port === undefined ? {} : { port: snapshot.port }),
           ...(snapshot.exposure === undefined ? {} : { exposure: snapshot.exposure }),
+          ...(isStale(snapshot) ? { stale: true } : {}),
         })),
       },
-      modelText: shown.map(lineFor).join('\n'),
+      modelText: shown
+        .map((snapshot) => lineFor({ snapshot, stale: isStale(snapshot) }))
+        .join('\n'),
     }
   }
 }

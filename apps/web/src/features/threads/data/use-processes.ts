@@ -41,12 +41,13 @@ const reasonOf = (error: unknown): string =>
 export function useProcesses(args: {
   threadId: string
   channel: RosterChannel | null
+  initialSelected?: ProcessRef
 }): ProcessesData {
-  const { threadId, channel } = args
+  const { threadId, channel, initialSelected } = args
   const roster = useRoster(channel)
   const [busy, setBusy] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [selected, setSelected] = useState<ProcessRef | null>(null)
+  const [selected, setSelected] = useState<ProcessRef | null>(initialSelected ?? null)
 
   const shells = useMemo(
     () => (roster === null ? NO_SHELLS : ownShellsOf({ shells: roster.shells, threadId })),

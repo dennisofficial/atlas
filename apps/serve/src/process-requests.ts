@@ -6,9 +6,11 @@ import {
 } from '@dltech/atlas-harness'
 import {
   EClientRequest,
+  ensureDeclaredServicesParamsSchema,
   killShellParamsSchema,
   readServiceLogParamsSchema,
   readShellOutputParamsSchema,
+  restartServiceParamsSchema,
   startShellParamsSchema,
   stopServiceParamsSchema,
 } from '@dltech/atlas-wire'
@@ -22,7 +24,7 @@ import {
 
 export type ServeProcesses = {
   shells: Pick<ShellRegistryPort, 'start' | 'peek' | 'kill'>
-  services: Pick<ServiceRegistryPort, 'list' | 'stop'>
+  services: Pick<ServiceRegistryPort, 'list' | 'stop' | 'declared' | 'ensureDeclared' | 'restart'>
   cwd: string
 }
 
@@ -32,6 +34,9 @@ const PROCESS_OPS: ReadonlySet<EClientRequest> = new Set([
   EClientRequest.KillShell,
   EClientRequest.StopService,
   EClientRequest.ReadServiceLog,
+  EClientRequest.ListDeclaredServices,
+  EClientRequest.EnsureDeclaredServices,
+  EClientRequest.RestartService,
 ])
 
 export const isProcessOp = (op: EClientRequest): boolean => PROCESS_OPS.has(op)
@@ -126,12 +131,65 @@ const readServiceLog: Answer = ({ frame, processes }) => {
   return answeredRequest({ replyTo: frame.id, data: { text } })
 }
 
+const listDeclaredServices: Answer = async ({ frame, processes }) => {
+  if (processes.services.declared === undefined) {
+    return answeredRequest({
+      replyTo: frame.id,
+      data: { ok: false, reason: 'this session does not track declared services' },
+    })
+  }
+  const view = await processes.services.declared()
+  return answeredRequest({ replyTo: frame.id, data: { ok: true, view } })
+}
+
+const ensureDeclaredServices: Answer = async ({ frame, threadId, processes }) => {
+  const parsed = ensureDeclaredServicesParamsSchema.safeParse(frame.params)
+  if (!parsed.success) {
+    return refusedRequest({
+      replyTo: frame.id,
+      message: 'ensure-declared-services wants { names? }',
+    })
+  }
+  if (processes.services.ensureDeclared === undefined) {
+    return answeredRequest({
+      replyTo: frame.id,
+      data: { ok: false, reason: 'this session cannot start declared services' },
+    })
+  }
+  const results = await processes.services.ensureDeclared({
+    threadId,
+    names: parsed.data.names,
+  })
+  return answeredRequest({ replyTo: frame.id, data: { ok: true, results } })
+}
+
+const restartService: Answer = async ({ frame, processes }) => {
+  const parsed = restartServiceParamsSchema.safeParse(frame.params)
+  if (!parsed.success) {
+    return refusedRequest({
+      replyTo: frame.id,
+      message: 'restart-service wants { serviceId }',
+    })
+  }
+  if (processes.services.restart === undefined) {
+    return answeredRequest({
+      replyTo: frame.id,
+      data: { ok: false, reason: 'this session cannot restart services' },
+    })
+  }
+  const outcome = await processes.services.restart({ serviceId: parsed.data.serviceId })
+  return answeredRequest({ replyTo: frame.id, data: outcome })
+}
+
 const ANSWERS: Partial<Record<EClientRequest, Answer>> = {
   [EClientRequest.StartShell]: startShell,
   [EClientRequest.ReadShellOutput]: readShellOutput,
   [EClientRequest.KillShell]: killShell,
   [EClientRequest.StopService]: stopService,
   [EClientRequest.ReadServiceLog]: readServiceLog,
+  [EClientRequest.ListDeclaredServices]: listDeclaredServices,
+  [EClientRequest.EnsureDeclaredServices]: ensureDeclaredServices,
+  [EClientRequest.RestartService]: restartService,
 }
 
 export const answerProcessRequest = async (args: {

@@ -20,24 +20,71 @@ services:
     env:
       NODE_ENV: development
     portal: true
+    portals:
+      - url: /docs
+        title: Docs
   api:
     command: bun run start
     port: 4000
     health: /healthz
+    setup:
+      - bun run db:migrate
+    env:
+      WEB_ORIGIN: ${services.web.publicUrl}
 ```
 
 | Field    | Meaning                                                                                  |
 | -------- | ---------------------------------------------------------------------------------------- |
 | `command` | Required. Shell command that runs the server.                                           |
 | `cwd`    | Working directory, relative to the workspace root unless absolute.                       |
-| `port`   | Fixed port. Omitted: a stable free port from 20000-29999 per thread and service name.    |
+| `port`   | Fixed port. Omitted: a stable port from 20000-29999 derived from the service name alone. |
 | `health` | Path starting with `/`; ready on a 2xx/3xx GET. Omitted: ready when the port accepts TCP. |
 | `env`    | String map. `PORT`, `PUBLIC_URL`, `ATLAS_THREAD_ID` and the Vite host variable are reserved. |
+| `setup`  | List of shell commands run in `cwd` once per service before its first start.             |
 | `portal` | `true` (or `{ url?, title?, description? }`): publish a public URL for this service.     |
+| `portals` | Extra links `{ url, title, description? }`; a `/` path resolves against the public URL. |
 
 Names are lowercase letters, digits and dashes, at most 32 characters. Only services with `portal`
 get a public URL. Entries Atlas rejects are listed in the workspace hint and in the tool reply;
 fix the file rather than working around it.
+
+### Setup
+
+`setup` commands run in order, in the service's `cwd`, once per service before its first start.
+They do not rerun on a crash restart or a manual restart. A failing command fails that ensure and
+the service does not start; fix the command and ensure again. Put repeatable seeding and migrations
+here.
+
+### Environment references
+
+An `env` value can point at another declared service:
+
+- `${services.<name>.url}`: the internal URL, `http://127.0.0.1:<port>`. Use it for server-to-server calls.
+- `${services.<name>.publicUrl}`: the public portal URL. The target must declare a `portal`.
+- `${services.<name>.port}`: the port number.
+
+Dependencies start first and each service is healthy before its dependents start. A reference to a
+missing service, a `publicUrl` without a portal, or a cycle is rejected before anything starts.
+
+### Stale services and restarts
+
+A service is stale when its own declaration (command, cwd, port, health, env, setup, portals) changed
+since its running instance started. Other edits to the file do not touch it. `services_ensure`
+restarts stale services from the current declaration and reports them as `restarted`. Ports come
+from the service name alone, so a restart keeps the same port and URL.
+
+`service_restart` of a declared service always re-reads `.atlas/services.yaml`. When the declaration
+was removed or is invalid the restart fails and the running instance stays up.
+
+`service_start` refuses a name declared in `services.yaml`; use `services_ensure` or
+`service_restart`.
+
+### Operator controls
+
+The web Details sidebar and the TUI list every declared service with its state (stopped, starting,
+running, stale, failed, crash-looping) and its links. Start, Stop and Restart there call the same
+operations as `services_ensure`, `service_stop` and `service_restart`. Atlas watches the file, so
+edits show up in those lists immediately.
 
 Address services by declared name: `service_stop({ id: "web" })`, `service_restart({ id: "web" })`;
 `service_list` shows status and log paths. Declared services are restarted on crashes (backoff 1, 2,
@@ -45,7 +92,7 @@ Address services by declared name: `service_stop({ id: "web" })`, `service_resta
 
 ## One-off services
 
-`service_start` runs an undeclared process (a database, a scratch server) with the same env
+`service_start` runs an undeclared process (never a name declared in `services.yaml`) (a database, a scratch server) with the same env
 contract and a log file, but no declaration, no health wait and no resume. Pass `exposePort` for a
 public URL. Anything the repository will need again belongs in `services.yaml`.
 
@@ -72,7 +119,9 @@ runtime and listen on `$PORT` bound to `0.0.0.0`; never hardcode a port or hostn
   (a 404 or redirect-to-login path fails it; point `health` at a route that answers).
 - **Crash-looping** (more than 5 crashes in 120 seconds): Atlas stops restarting it. Read the log
   tail, fix the cause, then `service_restart`.
-- **Port collision** (`EADDRINUSE`): drop the fixed `port` so Atlas picks a free one, or stop the
+- **Port collision** (`EADDRINUSE`): drop the fixed `port` so Atlas picks the name-derived one, or stop the
   process holding it (`service_list`, `service_stop`). Never kill by port from bash.
 - **Blocked host / "Invalid Host header"**: see the framework notes; the host must be allowed.
-- **Wrong or stale URL after changes**: the URL belongs to the port; if `port` changed, ensure again.
+- **Stale service**: the declaration changed after the service started. Call `services_ensure`; it restarts the service.
+- **Setup failed**: read the command's output in the ensure reply, fix the command, ensure again.
+- **Reference rejected**: check the target name exists, has a `portal` for `publicUrl`, and no cycle runs through the references.
