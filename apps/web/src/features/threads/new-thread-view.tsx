@@ -8,6 +8,7 @@ import type { SaidUpload } from '@dltech/atlas-core'
 import type { Project, SaidImageWire } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { createdThreads } from '@/features/shell/created-threads'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { createThreadBodyOf } from './data/create-thread'
@@ -73,6 +74,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       )
       attempt.current = null
       images.clear()
+      createdThreads.announce(thread)
       router.push(`/threads/${encodeURIComponent(thread.id)}`)
     } catch (failure) {
       toast.error(messageOf(failure))
