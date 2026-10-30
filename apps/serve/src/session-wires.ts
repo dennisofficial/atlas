@@ -1,27 +1,7 @@
-import type { Event } from '@dltech/atlas-core'
-
-import type { WireEvent, WireThread, WireTurn } from '@dltech/atlas-harness'
-import { wireDraftOf } from '@dltech/atlas-harness'
+import type { WireThread, WireTurn } from '@dltech/atlas-harness'
+export { wireEventOf } from '@dltech/atlas-harness'
 import type { TurnSpend } from '@dltech/atlas-harness'
 import type { ThreadSummary } from '@dltech/atlas-harness'
-
-export function wireEventOf(event: Event): WireEvent {
-  const draft = wireDraftOf(event)
-  return {
-    id: event.id,
-    threadId: event.threadId,
-    seq: event.seq,
-    runId: event.runId,
-    ...(event.parentRunId === undefined ? {} : { parentRunId: event.parentRunId }),
-    depth: event.depth,
-    at: event.at,
-    type: draft.type,
-    body: draft.body,
-    ...(draft.contextSlot === undefined ? {} : { contextSlot: draft.contextSlot }),
-    ...(draft.contextKey === undefined ? {} : { contextKey: draft.contextKey }),
-    ...(draft.contextDigest === undefined ? {} : { contextDigest: draft.contextDigest }),
-  }
-}
 
 export function wireThreadOf(thread: ThreadSummary): WireThread {
   return {

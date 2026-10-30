@@ -35,6 +35,8 @@ export type PodThread<Opened> = {
   session: PodSession
   settleOpen: () => void
   close: () => void
+  /** Resolves once the local copy has finished any write in flight; immediate without a copy. */
+  copySettled: () => Promise<void>
 }
 
 type Transcript = { events: readonly Event[] }
@@ -129,6 +131,7 @@ export async function assemblePodThread<Opened extends Transcript>(
     session,
     settleOpen: ALREADY_SETTLED,
     close: session.close,
+    copySettled: () => copy?.settled() ?? Promise.resolve(),
   }
 }
 

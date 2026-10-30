@@ -40,6 +40,24 @@ export function wireDraftOf(draft: EventDraft): WireDraft {
   }
 }
 
+export function wireEventOf(event: Event): WireEvent {
+  const draft = wireDraftOf(event)
+  return {
+    id: event.id,
+    threadId: event.threadId,
+    seq: event.seq,
+    runId: event.runId,
+    ...(event.parentRunId === undefined ? {} : { parentRunId: event.parentRunId }),
+    depth: event.depth,
+    at: event.at,
+    type: draft.type,
+    body: draft.body,
+    ...(draft.contextSlot === undefined ? {} : { contextSlot: draft.contextSlot }),
+    ...(draft.contextKey === undefined ? {} : { contextKey: draft.contextKey }),
+    ...(draft.contextDigest === undefined ? {} : { contextDigest: draft.contextDigest }),
+  }
+}
+
 export function eventFromWire(wire: WireEvent): Event {
   const event = readableEventFromWire(wire)
   if (event === null) throw new Error(`unreadable wire event ${wire.id} of type ${wire.type}`)

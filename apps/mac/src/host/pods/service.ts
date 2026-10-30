@@ -1,9 +1,7 @@
-import { join } from 'node:path'
 import {
+  atlasDirectory,
   DEFAULT_DOCKER_SOCKET,
   ECloudSandboxState,
-  FileSecretsStore,
-  SecretCipher,
   createLocalPodBridge,
   pingDocker,
   sandboxServeTokenFor,
@@ -14,7 +12,16 @@ import { toThreadId } from '@dltech/atlas-core'
 import { resolveApiOrigin } from '../api-origin'
 import type { IPodHostConfig } from './config'
 import { leaseRegistrarFor } from './lease'
-import { createPodIndex, type PodIndexEntry } from './pod-index'
+import { openLocalStore } from './local-store'
+import {
+  ensurePodRecord,
+  findPodRecord,
+  listPodRecords,
+  removePodRecord,
+  type PodRecord,
+} from './pod-records'
+import { createPodThreads, type IPodThreads } from './pod-threads'
+import { createThreadReads, type IThreadReads } from './thread-reads'
 import {
   ELocalPodState,
   type CreatePodInput,
@@ -30,15 +37,25 @@ export interface IPodConnect {
   expiresAt: string
 }
 
-export interface IPodService {
+export interface IPodService extends IThreadReads {
   capabilities: () => Promise<DesktopCapabilities>
   list: () => Promise<LocalPod[]>
   get: (args: { threadId: string }) => Promise<LocalPod | undefined>
   create: (args: { input: CreatePodInput }) => Promise<LocalPod>
   wake: (args: { threadId: string }) => Promise<LocalPod | undefined>
   connect: (args: { threadId: string }) => Promise<IPodConnect | undefined | 'not-running'>
-  destroy: (args: { threadId: string }) => Promise<void>
+  destroy: (args: { threadId: string }) => Promise<boolean>
+  close: () => void
 }
+
+const localPodOf = ({ record, state }: { record: PodRecord; state: ELocalPodState }): LocalPod => ({
+  threadId: record.id,
+  projectId: record.projectId,
+  ...(record.model === undefined ? {} : { model: record.model.ref, effort: record.model.effort }),
+  ...(record.title === undefined ? {} : { title: record.title }),
+  createdAt: record.createdAt,
+  state,
+})
 
 export function createPodService({
   config,
@@ -47,26 +64,25 @@ export function createPodService({
   config: IPodHostConfig
   bearer: () => string | undefined
 }): IPodService {
-  const secrets = new FileSecretsStore({
-    file: join(config.home, 'secrets.json'),
-    cipher: new SecretCipher(join(config.home, 'key')),
-  })
-  const index = createPodIndex({ home: config.home })
+  const store = openLocalStore({ home: atlasDirectory() })
   const socketPath = config.socketPath ?? DEFAULT_DOCKER_SOCKET
   const now = config.now ?? Date.now
   const apiOrigin = config.apiOrigin ?? resolveApiOrigin(process.env)
 
-  const bridgeFor = (): CloudBridge =>
+  const bridge = (): CloudBridge =>
     createLocalPodBridge({
       pod: () => ({
         cloudUrl: apiOrigin,
-        home: config.home,
+        home: store.home,
         socketPath,
         ...(config.devServe === undefined
           ? { serveVersion: config.serveVersion }
           : { devServe: config.devServe }),
       }),
-      attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets, threadId }),
+      attachmentToken: ({ threadId }) => sandboxServeTokenFor({ secrets: store.secrets, threadId }),
+      lastEventSeq: ({ threadId }) => store.log.head({ threadId }),
+      projectIdOf: async ({ threadId }) =>
+        (await findPodRecord({ store, threadId }))?.projectId ?? null,
       registerPodLease: leaseRegistrarFor({
         apiOrigin,
         bearer,
@@ -74,84 +90,90 @@ export function createPodService({
       }),
       ...(config.driverWith === undefined ? {} : { driverWith: config.driverWith }),
     })
+  const pods: IPodThreads = createPodThreads({ store, bridge })
 
-  const stateOf = async ({
-    bridge,
-    threadId,
-  }: {
-    bridge: CloudBridge
-    threadId: string
-  }): Promise<{ state: ELocalPodState; url?: string | undefined }> => {
-    const found = await bridge.sandboxes.find({ threadId: toThreadId(threadId) })
+  const stateOf = async (threadId: string): Promise<{ state: ELocalPodState; url?: string }> => {
+    const found = await bridge().sandboxes.find({ threadId: toThreadId(threadId) })
     const running = found?.state === ECloudSandboxState.Running
-    return { state: running ? ELocalPodState.Running : ELocalPodState.Stopped, url: found?.url }
+    return {
+      state: running ? ELocalPodState.Running : ELocalPodState.Stopped,
+      ...(found?.url === undefined ? {} : { url: found.url }),
+    }
   }
 
-  const podOf = ({ entry, state }: { entry: PodIndexEntry; state: ELocalPodState }): LocalPod => ({
-    ...entry,
-    state,
-  })
+  const reported = async (record: PodRecord): Promise<LocalPod> =>
+    localPodOf({ record, state: (await stateOf(record.id)).state })
 
-  const provision = async ({ entry }: { entry: PodIndexEntry }): Promise<LocalPod> => {
-    const bridge = bridgeFor()
-    await bridge.sandboxes.create({
-      threadId: toThreadId(entry.threadId),
-      projectId: entry.projectId,
-      ...(entry.model === undefined ? {} : { model: entry.model }),
-      ...(entry.effort === undefined ? {} : { birth: { effort: entry.effort } }),
-    })
-    index.put(entry)
-    const { state } = await stateOf({ bridge, threadId: entry.threadId })
-    return podOf({ entry, state })
+  const woken = async (record: PodRecord): Promise<LocalPod> => {
+    await pods.wake({ threadId: record.id })
+    return reported((await findPodRecord({ store, threadId: record.id })) ?? record)
   }
+
+  const recordOf = (threadId: string) => findPodRecord({ store, threadId: toThreadId(threadId) })
 
   return {
+    ...createThreadReads({ store, pods, recordOf }),
     capabilities: async () => {
       const reason = await (config.ping ?? (() => pingDocker({ socketPath })))()
       return reason === undefined ? { docker: true } : { docker: false, reason }
     },
-    list: async () => {
-      const bridge = bridgeFor()
-      return Promise.all(
-        index
-          .list()
-          .map(async (entry) =>
-            podOf({ entry, state: (await stateOf({ bridge, threadId: entry.threadId })).state }),
-          ),
-      )
-    },
+    list: async () => Promise.all((await listPodRecords({ store })).map(reported)),
     get: async ({ threadId }) => {
-      const entry = index.find({ threadId })
-      if (entry === undefined) return undefined
-      const { state } = await stateOf({ bridge: bridgeFor(), threadId })
-      return podOf({ entry, state })
+      const record = await recordOf(threadId)
+      return record === undefined ? undefined : reported(record)
     },
     create: async ({ input }) => {
-      const held = index.find({ threadId: input.threadId })
-      const entry: PodIndexEntry = held ?? {
-        ...input,
-        createdAt: new Date(now()).toISOString(),
+      const threadId = toThreadId(input.threadId)
+      const existing = await findPodRecord({ store, threadId })
+      if (existing !== undefined) return woken(existing)
+      const record = await ensurePodRecord({ store, input })
+      try {
+        const sandbox = await bridge().sandboxes.create({
+          threadId,
+          projectId: input.projectId,
+          ...(input.model === undefined ? {} : { model: input.model }),
+          ...(input.effort === undefined ? {} : { birth: { effort: input.effort } }),
+        })
+        await pods.dial({ threadId, url: sandbox.url, token: sandbox.token })
+        return reported(record)
+      } catch (error) {
+        await pods.release({ threadId })
+        await removePodRecord({ store, threadId })
+        throw error
       }
-      return provision({ entry })
     },
     wake: async ({ threadId }) => {
-      const entry = index.find({ threadId })
-      return entry === undefined ? undefined : provision({ entry })
+      const record = await recordOf(threadId)
+      return record === undefined ? undefined : woken(record)
     },
     connect: async ({ threadId }) => {
-      if (index.find({ threadId }) === undefined) return undefined
-      const { state, url } = await stateOf({ bridge: bridgeFor(), threadId })
+      const record = await recordOf(threadId)
+      if (record === undefined) return undefined
+      const { state, url } = await stateOf(threadId)
       if (state !== ELocalPodState.Running || url === undefined) return 'not-running'
+      void pods
+        .dial({
+          threadId: record.id,
+          url,
+          token: sandboxServeTokenFor({ secrets: store.secrets, threadId: record.id }),
+        })
+        .catch(() => undefined)
       return {
         url,
-        token: sandboxServeTokenFor({ secrets, threadId: toThreadId(threadId) }),
+        token: sandboxServeTokenFor({ secrets: store.secrets, threadId: record.id }),
         expiresAt: new Date(now() + CONNECT_TTL_MS).toISOString(),
       }
     },
     destroy: async ({ threadId }) => {
-      await bridgeFor().sandboxes.destroy({ threadId: toThreadId(threadId) })
-      index.remove({ threadId })
-      secrets.remove(sandboxServeTokenName(toThreadId(threadId)))
+      const record = await recordOf(threadId)
+      if (record === undefined) return false
+      const id = record.id
+      await pods.release({ threadId: id })
+      await bridge().sandboxes.destroy({ threadId: id })
+      store.secrets.remove(sandboxServeTokenName(id))
+      await removePodRecord({ store, threadId: id })
+      return true
     },
+    close: () => pods.closeAll(),
   }
 }

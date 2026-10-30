@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { wireEventSchema } from '@dltech/atlas-wire'
 
 export enum ELocalPodState {
   Running = 'running',
@@ -32,3 +33,44 @@ export const capabilitiesSchema = z.object({
 export type DesktopCapabilities = z.infer<typeof capabilitiesSchema>
 
 export const POD_NOT_RUNNING_CODE = 'pod-not-running'
+
+export const localThreadSchema = z.object({
+  threadId: z.string().min(1),
+  title: z.string().optional(),
+  projectId: z.string().nullable(),
+  head: z.number().int().nonnegative(),
+  readSeq: z.number().int().nonnegative().nullable(),
+  model: z.string().optional(),
+  effort: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type LocalThread = z.infer<typeof localThreadSchema>
+
+export const threadListSchema = z.object({ threads: z.array(localThreadSchema) })
+
+export const THREAD_EVENTS_PAGE_LIMIT = 500
+
+export const threadEventsQuerySchema = z.object({
+  after: z.coerce.number().int().nonnegative().default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(THREAD_EVENTS_PAGE_LIMIT)
+    .default(THREAD_EVENTS_PAGE_LIMIT),
+})
+export type ThreadEventsQuery = z.infer<typeof threadEventsQuerySchema>
+
+export const threadEventsReplySchema = z.object({
+  events: z.array(wireEventSchema),
+  head: z.number().int().nonnegative(),
+  nextAfter: z.number().int().nonnegative().nullable(),
+})
+export type ThreadEventsReply = z.infer<typeof threadEventsReplySchema>
+
+export const markReadInputSchema = z.object({ seq: z.number().int().nonnegative() })
+
+export const readCursorReplySchema = z.object({ seq: z.number().int().nonnegative().nullable() })
+
+export const renameInputSchema = z.object({ title: z.string().trim().min(1).max(200) })
